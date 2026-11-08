@@ -183,6 +183,10 @@ try {
   ensure((await options.count())>=2,'Options not revealed on demand');
   ensure((await page.locator('.iqE-options .iqE-mark').count())===(await options.count()),'Options lack board marks');
   const takeover = page.getByRole('button',{name:/^Zagraj jedno zagranie za/});
+  ensure(await page.locator('canvas[data-iq-broadcast="true"]').count()===1,'2.5D should be the default view');
+  await page.getByRole('button',{name:'Widok z góry',exact:true}).click();
+  await page.waitForSelector('canvas[data-iq-broadcast="false"]');
+  ensure(await page.evaluate(()=>localStorage.getItem('ballwise:iq:view:v1'))==='board','View choice not remembered');
   if(await takeover.count()) {
     await takeover.click(); await tapSpace();
     const planned = await page.locator('.iqE-plan').innerText();

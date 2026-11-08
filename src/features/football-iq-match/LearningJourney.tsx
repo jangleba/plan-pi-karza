@@ -60,6 +60,21 @@ type Phase = "intro" | "decision" | "playing" | "feedback" | "summary";
 type Sheet = "help" | "roles" | "settings" | "history" | null;
 const EMPTY: PlannedAction[] = [];
 const CARRY_TAP_RADIUS = 14;
+const VIEW_KEY = "ballwise:iq:view:v1";
+function readBroadcastView() {
+  try {
+    return localStorage.getItem(VIEW_KEY) !== "board";
+  } catch {
+    return true;
+  }
+}
+function storeBroadcastView(on: boolean) {
+  try {
+    localStorage.setItem(VIEW_KEY, on ? "broadcast" : "board");
+  } catch {
+    /* View choice is a convenience only. */
+  }
+}
 const newId = () => `iq8-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 function startDefinition(position?: string, index?: number) {
   const roles = rolesForPosition(position);
@@ -120,7 +135,8 @@ export function LearningJourney(props: Props) {
     [pickAll, setPickAll] = useState(false),
     [optionKey, setOptionKey] = useState<string | null>(null),
     [revealed, setRevealed] = useState(false),
-    [fieldTask, setFieldTask] = useState<FieldTask | null>(null);
+    [fieldTask, setFieldTask] = useState<FieldTask | null>(null),
+    [broadcast, setBroadcast] = useState(readBroadcastView);
   const [draft, setDraft] = useState<JourneyChoice | null>(null),
     [takeover, setTakeover] = useState(false),
     [ready, setReady] = useState(false);
@@ -513,7 +529,20 @@ export function LearningJourney(props: Props) {
           onReadyChange={setReady}
           showActionOrders={false}
           showGuidance={showAnalysis || !!draft || showOptions}
+          broadcastView={broadcast}
         />
+        <button
+          type="button"
+          className="iqE-view"
+          aria-pressed={broadcast}
+          aria-label={broadcast ? "Widok z góry" : "Widok 2.5D"}
+          onClick={() => {
+            storeBroadcastView(!broadcast);
+            setBroadcast(!broadcast);
+          }}
+        >
+          {broadcast ? "Z góry" : "2.5D"}
+        </button>
         {showAnalysis && (
           <div className="iqE-replay-key">
             <span>Podanie</span>
