@@ -64,33 +64,64 @@ describe("individual football: solo conditions and real runtime", () => {
     expect(exercises.some((exercise) => exercise.exerciseId === "field_mas_5_min_test")).toBe(false);
     expect(sessions.some((session) => classifySession(session).category === "endurance_conditioning")).toBe(true);
   });
-  it("does not assume a wall, teammate or goal when the profile has no equipment", () => {
-    const built = buildIndividualFootballSession(profile(), { seed: 0 });
-    expect(rows(built).some((row) => row.exerciseId === "football_wall_first_touch")).toBe(false);
-    expect(rows(built).some((row) => row.exerciseId === "football_self_feed_first_touch")).toBe(true);
-    expect(rows(built).every((row) => row.instructionSteps?.length === 3)).toBe(true);
-    expect(rows(built).every((row) => row.purpose && row.commonMistake && row.easier)).toBe(true);
-    expect(validateGeneratedSession(asSession(built), "football")).toMatchObject({ valid: true });
+  it("does not assume a wall, goal, yard or pitch when the profile has none", () => {
+    for (let seed = 0; seed < 12; seed++) {
+      const built = buildIndividualFootballSession(profile(), { seed });
+      for (const row of rows(built)) {
+        const drill = INDIVIDUAL_FOOTBALL_DRILLS.find((item) => item.id === row.exerciseId)!;
+        expect(drill.space, row.exerciseId).toBe("small");
+        expect("wall" in drill || "goal" in drill, row.exerciseId).toBe(false);
+      }
+      expect(rows(built).every((row) => row.instructionSteps?.length === 3)).toBe(true);
+      expect(rows(built).every((row) => row.purpose && row.commonMistake && row.easier)).toBe(true);
+      expect(validateGeneratedSession(asSession(built), "football")).toMatchObject({ valid: true });
+    }
   });
 
   it("uses a wall task only after wall access is declared, and honors unavailable equipment", () => {
-    const withWall = buildIndividualFootballSession(profile({ equipment: ["ściana/odbojnik"] }), { seed: 0 });
+    const withWall = buildIndividualFootballSession(profile({ equipment: ["ściana/odbojnik"] }), { seed: 1 });
     expect(rows(withWall).some((row) => row.exerciseId === "football_wall_first_touch")).toBe(true);
-    const blocked = buildIndividualFootballSession(profile({ equipment: ["ściana/odbojnik"], unavailableEquipmentIds: ["odbojnik"] }), { seed: 0 });
-    expect(rows(blocked).some((row) => row.exerciseId === "football_wall_first_touch")).toBe(false);
+    const blocked = buildIndividualFootballSession(profile({ equipment: ["ściana/odbojnik"], unavailableEquipmentIds: ["odbojnik"] }), { seed: 1 });
+    expect(rows(blocked).some((row) => row.exerciseId?.startsWith("football_wall_"))).toBe(false);
   });
 
-  it("keeps a distinct position task without inventing pressure, a goalkeeper or a goal", () => {
-    const expected = {
-      goalkeeper: "football_gk_distribution", defender: "football_target_pass",
-      midfielder: "football_scan_control", forward: "football_turn_control",
-    } as const;
-    for (const position of Object.keys(expected) as Profile["position"][]) {
-      const built = buildIndividualFootballSession(profile({ position }), { seed: 0 });
-      expect(built.sections.footballTransfer[0].exerciseId).toBe(expected[position]);
-      expect(built.sections.footballTransfer[0].purpose).toMatch(/10/);
-      expect(built.sessionType).toContain("indywidualna");
-      expect(classifySession(asSession(built)).category).toBe("other");
+  it("brings in pitch and goal tasks only when the athlete has a pitch", () => {
+    const ids = (overrides: Partial<Profile>) =>
+      new Set(Array.from({ length: 12 }, (_, seed) =>
+        rows(buildIndividualFootballSession(profile({ position: "forward", ...overrides }), { seed })).map((row) => row.exerciseId),
+      ).flat());
+    expect(ids({ hasPitch: true, hasSprintSpace: true }).has("football_finishing_corners")).toBe(true);
+    expect(ids({ hasPitch: false, hasSprintSpace: true }).has("football_finishing_corners")).toBe(false);
+    expect(ids({ hasPitch: false, hasSprintSpace: true, equipment: ["Bramka lub mini-bramka"] }).has("football_finishing_corners")).toBe(true);
+    expect(ids({ hasPitch: false, hasSprintSpace: false, equipment: ["Bramka lub mini-bramka"] }).has("football_finishing_corners")).toBe(false);
+    expect(ids({ hasPitch: false, hasSprintSpace: true }).has("football_slalom_time")).toBe(true);
+  });
+
+  it("gives every position its own task and ends with a scored challenge", () => {
+    for (const position of ["goalkeeper", "defender", "midfielder", "forward"] as Profile["position"][]) {
+      for (let seed = 0; seed < 6; seed++) {
+        const built = buildIndividualFootballSession(profile({ position }), { seed });
+        const task = INDIVIDUAL_FOOTBALL_DRILLS.find((item) => item.id === built.sections.main[1].exerciseId)!;
+        expect("positions" in task && (task.positions as readonly string[]).includes(position)).toBe(true);
+        expect(built.sections.footballTransfer[0].cue).toMatch(/^Wyzwanie: /);
+        expect(built.sessionType).toContain("indywidualna");
+        expect(classifySession(asSession(built)).category).toBe("other");
+      }
+    }
+  });
+
+  it("varies the drills between sessions and keeps fast or forceful tasks out of light ones", () => {
+    const pitch = profile({ hasPitch: true, hasSprintSpace: true, equipment: ["ściana/odbojnik"] });
+    const combos = new Set(Array.from({ length: 8 }, (_, seed) =>
+      rows(buildIndividualFootballSession(pitch, { seed })).map((row) => row.exerciseId).join(","),
+    ));
+    expect(combos.size).toBeGreaterThanOrEqual(4);
+    for (let seed = 0; seed < 12; seed++) {
+      const light = buildIndividualFootballSession(pitch, { seed, light: true });
+      for (const row of rows(light)) {
+        const drill = INDIVIDUAL_FOOTBALL_DRILLS.find((item) => item.id === row.exerciseId)!;
+        expect("intense" in drill, row.exerciseId).toBe(false);
+      }
     }
   });
 

@@ -720,10 +720,30 @@ const LEGACY_ID_ALIASES: Readonly<Record<string, string>> = {
   "legacy:13": "progressive_build_up_sprint",
 };
 
+/**
+ * Solo football drills without a dedicated drawing yet. Wall tasks reuse the
+ * wall-pass drawing; the rest use the generic ball-contact example, whose
+ * instructions say the element itself is described in the session.
+ */
+const SHARED_FOOTBALL_ANIMATIONS: Readonly<Record<string, string>> = {
+  football_wall_one_touch: "football_wall_first_touch",
+  football_wall_receive_turn: "football_wall_first_touch",
+  football_fast_feet_sequence: "football_technical_self_selected",
+  football_juggling_record: "football_technical_self_selected",
+  football_gate_dribble: "football_technical_self_selected",
+  football_cone_feints: "football_technical_self_selected",
+  football_gk_wall_handling: "football_technical_self_selected",
+  football_speed_dribble: "football_technical_self_selected",
+  football_slalom_time: "football_technical_self_selected",
+  football_long_pass_zone: "football_technical_self_selected",
+  football_finishing_corners: "football_technical_self_selected",
+  football_gk_kick_zone: "football_technical_self_selected",
+};
+
 function knownId(value: string | undefined): string | null {
   const id = value?.trim().toLowerCase();
   if (!id) return null;
-  return byId.has(id) ? id : (LEGACY_ID_ALIASES[id] ?? null);
+  return byId.has(id) ? id : (LEGACY_ID_ALIASES[id] ?? SHARED_FOOTBALL_ANIMATIONS[id] ?? null);
 }
 
 function visualId(value: string | undefined): string | null {

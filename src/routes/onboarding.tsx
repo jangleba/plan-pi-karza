@@ -45,6 +45,7 @@ import {
   type AccountOwnerType,
 } from "@/lib/loadwise/agePolicy";
 import { validateSeason } from "@/lib/loadwise/seasonValidation";
+import { OWN_EQUIPMENT_OPTIONS } from "@/lib/loadwise/equipmentOptions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1046,6 +1047,29 @@ function Onboarding() {
                   />
                   <span className="text-sm">Mam bezpieczną ścianę lub odbojnik do podań</span>
                 </label>
+                <div className="rounded-xl border border-border bg-card p-3.5">
+                  <p className="text-sm font-medium">Sprzęt, który masz poza siłownią</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Plan dobierze ćwiczenia siłowe i piłkarskie do tego, co zaznaczysz.
+                  </p>
+                  <div className="mt-2 grid grid-cols-1 gap-1">
+                    {OWN_EQUIPMENT_OPTIONS.map((item) => (
+                      <label key={item} className="flex min-h-11 items-center gap-3 text-sm">
+                        <Checkbox
+                          checked={equipment.includes(item)}
+                          onCheckedChange={(checked) =>
+                            setEquipment((items) =>
+                              checked === true
+                                ? [...items.filter((value) => value !== item), item]
+                                : items.filter((value) => value !== item),
+                            )
+                          }
+                        />
+                        {item}
+                      </label>
+                    ))}
+                  </div>
+                </div>
                 <div className="rounded-xl border border-border bg-card p-3.5">
                   <Label htmlFor="double-sessions">Dwie sesje jednego dnia</Label>
                   <select
