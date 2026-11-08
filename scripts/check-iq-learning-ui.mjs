@@ -163,6 +163,8 @@ try {
   if (!(await page.locator('.iqE-summary').count())) await page.getByRole('button',{name:'Zobacz wynik',exact:true}).click();
   await page.waitForSelector('.iqE-summary');
   ensure((await page.locator('.iqE-save').innerText())==='Zapisano','Finished attempt not saved');
+  ensure((await page.locator('.iqE-task p').innerText()).length>10,'No field task after the action');
+  ensure(await page.evaluate(()=>!!localStorage.getItem('ballwise:iq:field-task:v1:iq-browser-qa')),'Field task not stored for Start');
   await page.screenshot({path:path.join(work,'IQ-64-WYNIK.png')});
   await page.getByRole('button',{name:'Cała akcja',exact:true}).click();
   await page.waitForSelector('.iqE-replay-key');

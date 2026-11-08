@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CalendarDays, Check, Move, ScanLine } from "lucide-react";
+import { CalendarDays, Check, Move, ScanLine, Target } from "lucide-react";
 import { TodaySessionCard } from "./TodaySessionCard";
 import type { SessionDay, SessionCompletion } from "@/lib/loadwise/types";
 import { PageHeader } from "./PageHeader";
@@ -21,6 +21,7 @@ export function StartDashboard({
   onPrepare,
   onPrepareLab,
   onPrepareReaction,
+  iqTask,
 }: {
   name: string;
   avatar: ReactNode;
@@ -38,6 +39,8 @@ export function StartDashboard({
   onPrepare: (date: string, slot: 1 | 2) => void;
   onPrepareLab?: () => void;
   onPrepareReaction?: () => void;
+  /** Open "on the pitch" task from the last Football IQ action. */
+  iqTask?: { text: string; onDone: () => void };
 }) {
   return (
     <main className="bw-home-compact">
@@ -72,6 +75,18 @@ export function StartDashboard({
           </span>
         </button>
       </section>
+      {iqTask && (
+        <section className="bw-home-iq-task" aria-label="Zadanie na boisko z Football IQ">
+          <Target size={18} aria-hidden="true" />
+          <span>
+            <small>Zadanie na boisko · Football IQ</small>
+            <strong>{iqTask.text}</strong>
+          </span>
+          <button type="button" onClick={iqTask.onDone}>
+            Zrobione
+          </button>
+        </section>
+      )}
       <section className="bw-home-tools" aria-label="Narzędzia">
         <button onClick={onLab} onPointerDown={onPrepareLab} onFocus={onPrepareLab}>
           <ScanLine size={21} />

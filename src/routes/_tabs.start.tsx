@@ -32,6 +32,11 @@ import type { SessionDay } from "@/lib/loadwise/types";
 import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
 import { decideRemovedSession, moveSessionToDay } from "@/lib/loadwise/planDecisionEngine";
 import { StartDashboard } from "@/components/loadwise/StartDashboard";
+import {
+  completeFieldTask,
+  openFieldTask,
+  type FieldTask,
+} from "@/features/football-iq-match/fieldTask";
 import { UpcomingWeekPrompt } from "@/components/loadwise/UpcomingWeekPrompt";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
@@ -398,6 +403,11 @@ function PlanLoadingState() {
 
 function StartScreen() {
   const { user } = useAuth();
+  const [iqTask, setIqTask] = useState<FieldTask | null>(null);
+  useEffect(() => {
+    // Read after mount: storage is browser-only.
+    setIqTask(openFieldTask(user?.id));
+  }, [user?.id]);
   const {
     state,
     todaySession,
@@ -854,6 +864,17 @@ function StartScreen() {
         onPlan={() => void navigate({ to: "/plan" })}
         onLab={() => void navigate({ to: "/lab" })}
         onReaction={() => void navigate({ to: "/reakcja" })}
+        iqTask={
+          iqTask
+            ? {
+                text: iqTask.text,
+                onDone: () => {
+                  completeFieldTask(user?.id);
+                  setIqTask(null);
+                },
+              }
+            : undefined
+        }
         onPrepareLab={() => {
           void Promise.all([
             router.preloadRoute({ to: "/lab" }),
