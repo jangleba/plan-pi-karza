@@ -4,7 +4,6 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/
 import type { SessionDay } from "@/lib/loadwise/types";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { TRAINING_METHODS, getTrainingMethod } from "@/lib/loadwise/methods/catalogue";
-import { METHOD_RESEARCH_SOURCES } from "@/lib/loadwise/methods/research";
 import {
   METHOD_SPECIAL_EQUIPMENT,
   trainingMethodEligibility,
@@ -19,12 +18,6 @@ import { getAllEquipmentDefinitions } from "@/lib/loadwise/exerciseLibrary";
 import type { MethodSessionConditions, TrainingMethodId } from "@/lib/loadwise/methods/types";
 import "./training-methods.css";
 const EQUIPMENT = getAllEquipmentDefinitions();
-const ROLE = {
-  workout: "Metoda pracy",
-  support: "Przygotowanie i wsparcie",
-  planning: "Organizacja planu",
-  coaching: "Nauka i informacja zwrotna",
-};
 const BEHAVIOR: Partial<Record<TrainingMethodId, string>> = {
   M01: "Zachowujemy przygotowanie ruchowe przed częścią główną.",
   M16: "Niska dawka skoków służy przygotowaniu; nie jest dodatkowym blokiem skoków maksymalnych.",
@@ -247,7 +240,6 @@ export function TrainingMethodPanel({
                   <i className="bw-method-status" data-available={gate.allowed} />
                   {m.name}
                 </h3>
-                <p>{m.purpose}</p>
                 {!gate.allowed && <p>{gate.reasons.join(" ")}</p>}
                 <button
                   type="button"
@@ -256,12 +248,7 @@ export function TrainingMethodPanel({
                 >
                   Zastosuj w tej sesji
                 </button>
-                <details>
-                  <summary>Jak i dlaczego</summary>
-                  <p>{m.requirements}</p>
-                  <p>{m.evidenceNote}</p>
-                  <p>{m.stopRule}</p>
-                </details>
+                <p>{m.stopRule}</p>
               </article>
             );
           })}
@@ -311,19 +298,7 @@ export function TrainingMethodPanel({
             TRAINING_METHODS.map((m) => (
               <details key={m.id}>
                 <summary>{m.name}</summary>
-                <p>
-                  {ROLE[m.role]} · {m.purpose}
-                </p>
                 <p>{BEHAVIOR[m.id] ?? m.requirements}</p>
-                <p>{m.evidenceNote}</p>
-                <div className="bw-method-source-list">
-                  {m.sources.map((url) => (
-                    <a key={url} href={url} target="_blank" rel="noopener noreferrer">
-                      {METHOD_RESEARCH_SOURCES.find((s) => s.url === url)?.title ??
-                        "Publikacja źródłowa"}
-                    </a>
-                  ))}
-                </div>
               </details>
             ))}
           {error && <p role="alert">{error}</p>}

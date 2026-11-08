@@ -69,14 +69,12 @@ export function CourseSetup({
       </summary>
       <div className="space-y-3 pb-1 pt-2">
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Ustaw znaczniki na początku i końcu odcinka. Zostaw wolne miejsce za
-          końcem na wyhamowanie.
+          Ustaw znaczniki na początku i końcu odcinka. Zostaw wolne miejsce za końcem na
+          wyhamowanie.
         </p>
         {distances.length > 1 && (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted-foreground">
-              Dystanse z planu:
-            </span>
+            <span className="text-xs text-muted-foreground">Dystanse z planu:</span>
             {distances.map((distance) => (
               <button
                 key={distance}
@@ -107,9 +105,7 @@ export function CourseSetup({
           m
         </label>
         {!validCourseTarget(target) && (
-          <p className="text-xs text-destructive">
-            Wpisz dystans od 1 do 30 m.
-          </p>
+          <p className="text-xs text-destructive">Wpisz dystans od 1 do 30 m.</p>
         )}
         {native ? (
           <button
@@ -122,8 +118,7 @@ export function CourseSetup({
           </button>
         ) : (
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Miarka kamery jest dostępna w aplikacji iPhone. Tutaj odcinek
-            odmierz taśmą.
+            Miarka kamery jest dostępna w aplikacji iPhone. Tutaj odcinek odmierz taśmą.
           </p>
         )}
         {error && (
@@ -137,13 +132,12 @@ export function CourseSetup({
             {result.measuredMeters.toLocaleString("pl-PL", {
               maximumFractionDigits: 1,
             })}{" "}
-            m. Cel: {result.targetMeters} m. Ustaw fizyczne znaczniki przed
-            rozpoczęciem biegu.
+            m. Cel: {result.targetMeters} m. Ustaw fizyczne znaczniki przed rozpoczęciem biegu.
           </p>
         )}
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Prototyp. Pomiar orientacyjny do ustawienia treningu. Do dokładnego
-          odmierzenia użyj taśmy.
+          Prototyp. Pomiar orientacyjny do ustawienia treningu. Do dokładnego odmierzenia użyj
+          taśmy.
         </p>
       </div>
     </details>

@@ -338,7 +338,9 @@ function decisionCopy(checkin: DailyPlanCheckin | null, session: SessionDay) {
       eyebrow: "Plan zaktualizowany",
       title: "Pierwsza sesja jest lżejsza",
       description:
-        checkin.secondAction === "keep" ? "Druga sesja pozostaje bez zmian." : session.whyToday,
+        checkin.secondAction === "keep"
+          ? "Druga sesja pozostaje bez zmian."
+          : "Otwórz sesję, żeby zobaczyć ćwiczenia.",
     };
   }
   if (checkin.primaryAction === "swap") {
@@ -346,7 +348,9 @@ function decisionCopy(checkin: DailyPlanCheckin | null, session: SessionDay) {
       eyebrow: "Plan zaktualizowany",
       title: "Pierwsza sesja została zamieniona",
       description:
-        checkin.secondAction === "keep" ? "Druga sesja pozostaje bez zmian." : session.whyToday,
+        checkin.secondAction === "keep"
+          ? "Druga sesja pozostaje bez zmian."
+          : "Otwórz sesję, żeby zobaczyć ćwiczenia.",
     };
   }
   if (checkin.primaryAction === "add") {
@@ -369,7 +373,7 @@ function decisionCopy(checkin: DailyPlanCheckin | null, session: SessionDay) {
     description:
       checkin.secondAction === "keep"
         ? "Obie sesje pozostają bez zmian."
-        : session.whyToday || "Możesz przejść do zaplanowanej jednostki.",
+        : "Możesz przejść do zaplanowanej jednostki.",
   };
 }
 

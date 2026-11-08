@@ -52,14 +52,15 @@ async function render(protocol = bilateral()) {
   );
 }
 describe("prowadzenie ćwiczeń na ekranie", () => {
-  it("pokazuje ustawienie, anatomię, powód dawki i wibruje przy zmianie strony", async () => {
+  it("pokazuje ustawienie bez wyjaśnień i wibruje przy zmianie strony", async () => {
     const vibrate = vi.fn();
     Object.defineProperty(navigator, "vibrate", { value: vibrate, configurable: true });
     await render();
     await click("Rozpocznij regenerację");
     expect(host.querySelector(".bw-prep-setup")?.textContent).toMatch(/Ustawienie:.*pięta/i);
-    expect(host.querySelector(".bw-prep-why")?.textContent).toMatch(/brzuchaty/);
-    expect(host.querySelector(".bw-prep-why")?.textContent).toMatch(/60 s na mięsień/);
+    // Only what to do: no anatomy or dose explanations on the screen.
+    expect(host.querySelector(".bw-prep-why")).toBeNull();
+    expect(host.querySelector(".bw-prep-evidence")).toBeNull();
     expect(vibrate).not.toHaveBeenCalled();
     await tick(31_000);
     expect(host.textContent).toContain("Zmień stronę");
@@ -149,7 +150,7 @@ describe("prowadzenie ćwiczeń na ekranie", () => {
     expect(host.querySelector("h3")?.textContent).toBe("Kolano nad stopę");
     expect(host.textContent).not.toContain("Spokojny marsz");
     expect(host.querySelector(".bw-prep-player")).not.toBeNull();
-    expect(host.querySelectorAll(".bw-prep-evidence a").length).toBeGreaterThan(0);
+    expect(host.querySelector(".bw-prep-evidence")).toBeNull();
   });
   it("blokada w planie uniemożliwia rozpoczęcie regeneracji", async () => {
     await act(async () =>

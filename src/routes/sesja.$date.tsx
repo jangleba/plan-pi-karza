@@ -45,7 +45,6 @@ import {
   MatchStartPanel,
 } from "@/components/loadwise/session/SessionCompletion";
 import {
-  DecisionLogic,
   SessionHeader,
   SessionScreenShell,
   SessionSkeleton,
@@ -630,9 +629,6 @@ function SessionDetail() {
               </Button>
             </div>
           )}
-
-          {/* Logika decyzji — schowana, domyślnie zamknięta */}
-          <DecisionLogic session={session} />
         </details>
       </div>
 

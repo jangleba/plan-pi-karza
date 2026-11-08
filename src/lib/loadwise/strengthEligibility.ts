@@ -58,9 +58,9 @@ export function enforceStrengthEligibility(session: SessionDay, profile: Profile
       return false;
     return true;
   };
-  const cache = new Map<string, ExerciseDefinition | undefined>();
+  const cache = new Map<string, ExerciseDefinition[]>();
   const alternative = (def: ExerciseDefinition) => {
-    if (cache.has(def.id)) return cache.get(def.id);
+    if (cache.has(def.id)) return cache.get(def.id)!;
     const regression = getExerciseRegression(def, athlete);
     const preferredIds = /nordic|razor|leg_curl/i.test(def.id)
       ? [
@@ -92,7 +92,7 @@ export function enforceStrengthEligibility(session: SessionDay, profile: Profile
         )
         .sort((a, b) => a.difficultyLevel - b.difficultyLevel),
     ];
-    const chosen = candidates.find(
+    const chosen = candidates.filter(
       (candidate) =>
         candidate.family !== "football_ball_work" &&
         ["strength", "power", "plyometric", "prehab", "core"].includes(candidate.category) &&
@@ -101,6 +101,19 @@ export function enforceStrengthEligibility(session: SessionDay, profile: Profile
     );
     cache.set(def.id, chosen);
     return chosen;
+  };
+  // Two different blocked exercises (e.g. both jumps of a contrast pair) often share
+  // one regression. Each replacement must stay a distinct exercise in the session.
+  let used = new Set<string>();
+  const dropped = new Set<object>();
+  const startRepresentation = (exercises: Array<{ name: string; exerciseId?: string }>) => {
+    used = new Set(
+      exercises.flatMap((exercise) => {
+        const def =
+          getExerciseDefinition(exercise.exerciseId ?? "") ?? resolveExerciseByName(exercise.name);
+        return def && allowed(def) ? [def.id] : [];
+      }),
+    );
   };
   let changed = false;
   const fix = <T extends { name: string; exerciseId?: string; executionBlockedReason?: string }>(
@@ -115,7 +128,16 @@ export function enforceStrengthEligibility(session: SessionDay, profile: Profile
       changed = true;
       return { ...exercise, executionBlockedReason: undefined };
     }
-    const replacement = alternative(def);
+    const options = alternative(def);
+    const replacement = options.find((option) => !used.has(option.id));
+    if (!replacement && options.length) {
+      // The only safe variant is already in this session: drop the repeat
+      // rather than show the same exercise twice.
+      changed = true;
+      dropped.add(exercise);
+      return exercise;
+    }
+    if (replacement) used.add(replacement.id);
     if (!replacement) {
       changed = true;
       return {
@@ -172,16 +194,52 @@ export function enforceStrengthEligibility(session: SessionDay, profile: Profile
         : {}),
     } as unknown as T;
   };
-  const sections = {
-    warmup: session.sections.warmup.map(fix),
-    main: session.sections.main.map(fix),
-    accessory: session.sections.accessory.map(fix),
-    footballTransfer: session.sections.footballTransfer.map(fix),
-    cooldown: session.sections.cooldown.map(fix),
+  startRepresentation([
+    ...session.sections.warmup,
+    ...session.sections.main,
+    ...session.sections.accessory,
+    ...session.sections.footballTransfer,
+    ...session.sections.cooldown,
+  ]);
+  const fixAll = <T extends { name: string; exerciseId?: string }>(list: T[]): T[] => {
+    const next = list.map(fix);
+    const kept = next.filter((exercise) => !dropped.has(exercise));
+    // Never empty a group: a lone repeat stays rather than leaving a hole.
+    return kept.length ? kept : next;
   };
+  const sections = {
+    warmup: fixAll(session.sections.warmup),
+    main: fixAll(session.sections.main),
+    accessory: fixAll(session.sections.accessory),
+    footballTransfer: fixAll(session.sections.footballTransfer),
+    cooldown: fixAll(session.sections.cooldown),
+  };
+  startRepresentation(
+    (session.structuredSections ?? []).flatMap((section) =>
+      section.blocks.flatMap((block) => block.exercises),
+    ),
+  );
   let structuredSections = session.structuredSections?.map((section) => ({
     ...section,
-    blocks: section.blocks.map((block) => ({ ...block, exercises: block.exercises.map(fix) })),
+    blocks: section.blocks.map((block) => {
+      const exercises = fixAll(block.exercises);
+      // A pair reduced to one exercise is no longer a superset/contrast.
+      return exercises.length === 1 && block.exercises.length > 1
+        ? {
+            ...block,
+            blockType: "single" as const,
+            exercises: exercises.map((exercise) => ({
+              ...exercise,
+              restAfterPair: undefined,
+              restAfterExercise:
+                block.exercises
+                  .find((item) => item.restAfterPair)
+                  ?.restAfterPair?.replace(/\s*po (parze|rundzie)\s*$/i, "") ??
+                exercise.restAfterExercise,
+            })),
+          }
+        : { ...block, exercises };
+    }),
   }));
   if (
     structuredSections?.length &&
@@ -226,7 +284,8 @@ export function enforceStrengthEligibility(session: SessionDay, profile: Profile
       changed = true;
     }
   }
-  const exercises = session.exercises?.map(fix);
+  if (session.exercises) startRepresentation(session.exercises);
+  const exercises = session.exercises && fixAll(session.exercises);
   if (!changed && secondSession === session.secondSession) return session;
   const projected = structuredSections?.length ? structuredToFlat(structuredSections) : sections;
   return {
