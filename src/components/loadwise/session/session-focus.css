@@ -356,3 +356,54 @@
 .bw-focus-card .bw-save-set:disabled {
   opacity: 0.45;
 }
+
+.bw-focus-linked {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--primary) 7%, transparent);
+}
+.bw-focus-linked-name {
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+.bw-focus-linked ol {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+.bw-focus-linked li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+.bw-focus-linked li > span {
+  flex-shrink: 0;
+  min-width: 24px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.bw-focus-linked li[aria-current="step"] {
+  color: var(--foreground);
+  font-weight: 600;
+}
+.bw-focus-linked li[aria-current="step"] > span {
+  color: var(--primary);
+}
+.bw-focus-linked .bw-session-muted {
+  font-size: 12px;
+  line-height: 1.45;
+}
+.bw-focus-label {
+  margin-right: 8px;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}

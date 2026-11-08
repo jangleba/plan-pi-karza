@@ -18,6 +18,7 @@ import { SprintRestTimer } from "./SprintRestTimer";
 import { SprintTimingPanel } from "./SprintTimingPanel";
 import { CooldownCoach } from "../preparation/PreparationGuide";
 import { cooldownFromExercises } from "@/lib/loadwise/preparation/protocols";
+import { blockMethod, linkedLabel, linkedNextStep } from "@/lib/loadwise/blockMethod";
 
 const parseIndex = (v: unknown) =>
   typeof v === "number" && Number.isInteger(v) && v >= 0 && v < 500 ? v : undefined;
@@ -96,6 +97,8 @@ export function FocusedSessionRunner({
   const stageRows = rows.filter((r) => r.section.id === section.id);
   const stageIndex = stageRows.findIndex((r) => r.exercise.id === exercise.id);
   const isLast = index === rows.length - 1;
+  const method = blockMethod(block);
+  const label = linkedLabel(block, exercise);
   function go(next: number) {
     selection.setValue(Math.max(0, Math.min(rows.length - 1, next)));
     setTechnique(false);
@@ -173,17 +176,39 @@ export function FocusedSessionRunner({
               {stageIndex + 1}/{stageRows.length}
             </span>
           </div>
-          <h2>{canonicalExerciseName(exercise)}</h2>
+          {method && (
+            <section className="bw-focus-linked" aria-label={method.name}>
+              <p className="bw-focus-linked-name">{method.name}</p>
+              <ol>
+                {block.exercises.map((item) => (
+                  <li key={item.id} aria-current={item.id === exercise.id ? "step" : undefined}>
+                    <span>{linkedLabel(block, item)}</span>
+                    {canonicalExerciseName(item)}
+                  </li>
+                ))}
+              </ol>
+              <p className="bw-session-muted">{method.how}</p>
+            </section>
+          )}
+          <h2>
+            {label && <span className="bw-focus-label">{label}</span>}
+            {canonicalExerciseName(exercise)}
+          </h2>
           <p className="bw-focus-dose">{dose}</p>
           {exercise.rir && (
             <p className="bw-session-muted">
               Zapas: {exercise.rir.replace(/\s*RIR/gi, "")} powtórzeń
             </p>
           )}
-          {(exercise.restAfterPair || exercise.restAfterExercise) && (
-            <p className="bw-session-muted">
-              Przerwa {formatRestValue(exercise.restAfterPair || exercise.restAfterExercise || "")}
-            </p>
+          {method ? (
+            <p className="bw-session-muted">{linkedNextStep(block, exercise)}</p>
+          ) : (
+            (exercise.restAfterPair || exercise.restAfterExercise) && (
+              <p className="bw-session-muted">
+                Przerwa{" "}
+                {formatRestValue(exercise.restAfterPair || exercise.restAfterExercise || "")}
+              </p>
+            )
           )}
           <button type="button" className="bw-technique-open" onClick={() => setTechnique(true)}>
             <BookOpen size={17} /> Technika i animacja <ChevronRight size={16} />
@@ -281,10 +306,20 @@ export function FocusedSessionRunner({
                   setPlanOpen(false);
                 }}
               >
-                <span>{record.done[r.exercise.id] ? <Check size={17} /> : i + 1}</span>
+                <span>
+                  {record.done[r.exercise.id] ? (
+                    <Check size={17} />
+                  ) : (
+                    (linkedLabel(r.block, r.exercise) ?? i + 1)
+                  )}
+                </span>
                 <span>
                   <strong>{canonicalExerciseName(r.exercise)}</strong>
-                  <small>{compactPrescription(r.exercise)}</small>
+                  <small>
+                    {[blockMethod(r.block)?.name, compactPrescription(r.exercise)]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </small>
                 </span>
                 <ChevronRight size={16} />
               </button>

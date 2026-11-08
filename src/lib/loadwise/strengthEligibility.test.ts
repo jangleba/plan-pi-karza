@@ -34,6 +34,30 @@ const heavy: TrainingExercise = {
 };
 
 describe("final strength variant gate", () => {
+  it("never turns two different jumps of one session into the same exercise", () => {
+    const jump = (id: string, exerciseId: string, label: string): TrainingExercise => ({
+      id,
+      exerciseId,
+      label,
+      name: getExerciseDefinition(exerciseId)!.displayNamePl,
+      sets: "3",
+      reps: "3",
+      restAfterPair: "90 s po parze",
+    });
+    const p = profile({ level: "beginner", gymExperienceLevel: "none" });
+    const result = enforceStrengthEligibility(
+      session([jump("a2", "countermovement_jump", "A2"), jump("b2", "broad_jump", "B2")]),
+      p,
+    );
+    // Only one jump is safe for this athlete, so the repeat is removed and the
+    // pair becomes a single exercise with the pair's rest.
+    const block = result.structuredSections![0].blocks[0];
+    expect(block.exercises.map((e) => e.exerciseId)).toEqual(["snap_down"]);
+    expect(block.blockType).toBe("single");
+    expect(block.exercises[0].restAfterExercise).toBe("90 s");
+    expect(enforceStrengthEligibility(result, p)).toBe(result);
+  });
+
   it("replaces a blocked canonical variant without removing the exercise or inheriting heavy load", () => {
     const p = profile();
     const result = enforceStrengthEligibility(session([heavy]), p);
