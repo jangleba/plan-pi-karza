@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { persistMonthlyPlan, prepareMonthlyPlan } from "./persist";
+import { persistMonthlyPlan, prepareModifiedSession, prepareMonthlyPlan } from "./persist";
 import type { Profile, SessionDay } from "./types";
 
 type SupabaseErrorLike = { message: string; details?: string; hint?: string; code?: string };
@@ -286,5 +286,20 @@ describe("persistMonthlyPlan", () => {
       "[PLAN_EXERCISE_CONTRACT]",
     );
     expect(operations).toHaveLength(0);
+  });
+});
+
+describe("exercise distance column", () => {
+  it("stores metres only for real distances, never minutes", () => {
+    const day = makeDay("2026-11-07");
+    day.sections.main = [
+      { name: "Sprint z lotnego startu", prescription: "6 × 20 m, przerwa 2 min" },
+      { name: "Łatwy bieg tlenowy", prescription: "3 min, RPE 3" },
+      { name: "Przygotowanie RAMP do sprintu", prescription: "8–10 min: Raise → Activate" },
+      { name: "Mechanika przyspieszenia", prescription: "6 min ćwiczeń biegowych" },
+      { name: "Bieg tempowy", prescription: "łącznie 400 m" },
+    ] as SessionDay["sections"]["main"];
+    const { exercises } = prepareModifiedSession("user-1", "day-1", day);
+    expect(exercises.map((row) => row.distance)).toEqual(["120 m", null, null, null, "400 m"]);
   });
 });
