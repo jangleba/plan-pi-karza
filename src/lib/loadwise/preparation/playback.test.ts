@@ -10,7 +10,7 @@ import {
   tickPlayback,
 } from "./playback";
 const program = buildRecoveryProtocol("calves");
-program.exercises = [program.exercises[2], program.exercises[3]];
+program.exercises = [program.exercises[1], program.exercises[2]];
 const steps = expandPreparationSteps(program);
 describe("czasomierz regeneracji", () => {
   it("odlicza pracę, zmianę strony, drugą stronę i odpoczynek", () => {

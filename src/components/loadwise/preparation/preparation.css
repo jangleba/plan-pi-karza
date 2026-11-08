@@ -490,3 +490,18 @@
   line-height: 1.45;
   color: var(--prep-gray);
 }
+.bw-prep-still {
+  display: flex;
+  justify-content: center;
+  margin: 6px 0 14px;
+}
+.bw-prep-still .bw-prep-illustration.is-small {
+  width: min(220px, 70vw);
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 18px;
+  background: #f2f5f7;
+}
+.bw-prep-still.is-mirrored .bw-prep-illustration.is-small {
+  transform: scaleX(-1);
+}

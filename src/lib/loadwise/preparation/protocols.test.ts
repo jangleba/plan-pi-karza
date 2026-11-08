@@ -79,7 +79,7 @@ describe("dobór rozgrzewki i regeneracji", () => {
   });
   it("po lewej stronie daje zmianę, prawą stronę i dopiero potem odpoczynek — w każdej z dwóch serii", () => {
     const p = buildRecoveryProtocol("calves");
-    const steps = expandPreparationSteps(p).filter((s) => s.exerciseIndex === 2);
+    const steps = expandPreparationSteps(p).filter((s) => s.exerciseIndex === 1);
     expect(steps.map((s) => [s.type, s.side, s.seconds, s.set])).toEqual([
       ["work", "left", 30, 1],
       ["switch", "right", 10, 1],
@@ -102,14 +102,16 @@ describe("dobór rozgrzewki i regeneracji", () => {
           expect(e.sources).toContain("acsm");
         }
       }
+    for (const focus of RECOVERY_FOCI)
+      expect(buildRecoveryProtocol(focus.id).exercises.some((e) => e.id === "walk")).toBe(false);
     expect(buildRecoveryProtocol("whole").exercises.map((e) => e.id)).toEqual([
-      "walk",
       "cat",
       "rotation",
       "ankle",
       "adductor",
       "hip",
       "hamstring",
+      "quad",
       "calf",
     ]);
   });

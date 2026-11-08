@@ -15,7 +15,6 @@ import { useTrainingLocalState } from "@/lib/loadwise/useTrainingLocalState";
 import {
   buildRecoveryProtocol,
   EVIDENCE,
-  exerciseDose,
   expandPreparationSteps,
   protocolDuration,
   RECOVERY_FOCI,
@@ -154,7 +153,7 @@ export function PreparationEvidence({ protocol }: { protocol: PreparationProtoco
             <p>{e.mechanism}</p>
             <p>Ustawienie: {e.setup}</p>
             <small>
-              Dawka: {exerciseDose(e)}. {e.doseReason}
+              Dawka: {plainDose(e)}. {e.doseReason}
             </small>
           </div>
         ))}
@@ -430,7 +429,19 @@ export function PreparationGuide({
         </button>
       </div>
       <h3>{exercise.name}</h3>
-      <PreparationIllustration visual={exercise.visual} label={exercise.name} side={current.side} />
+      {protocol.kind === "recovery" ? (
+        // Mobility and stretching: a still picture of the position is clearer
+        // than a looping animation while holding a stretch.
+        <div className={`bw-prep-still ${current.side === "right" ? "is-mirrored" : ""}`}>
+          <PreparationIllustration small visual={exercise.visual} label={exercise.name} />
+        </div>
+      ) : (
+        <PreparationIllustration
+          visual={exercise.visual}
+          label={exercise.name}
+          side={current.side}
+        />
+      )}
       {current.type === "work" ? (
         <>
           <p className="bw-prep-setup">
@@ -448,7 +459,7 @@ export function PreparationGuide({
             <summary>Co pracuje i dlaczego tyle</summary>
             <p>{exercise.anatomy}</p>
             <p>
-              <strong>{exerciseDose(exercise)}.</strong> {exercise.doseReason}
+              <strong>{plainDose(exercise)}.</strong> {exercise.doseReason}
             </p>
           </details>
         </>
