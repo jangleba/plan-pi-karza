@@ -155,7 +155,7 @@ describe("plan logic regressions found by the randomized profile scan", () => {
       canonicalizeGeneratedExercise({ name, prescription: "3 × 4" }).exerciseId;
     expect(map("Trucht wyciszający")).toBe("easy_aerobic_run");
     expect(map("Nordic curl ekscentryczny — lekko")).toBe("eccentric_nordic_hamstring");
-    expect(map("Falling start (start z padania)")).toBe("acceleration_mechanics");
+    expect(map("Falling start (start z padania)")).toBe("falling_start");
     expect(map("Wspięcia na łydki")).toBe("standing_calf_raise");
     expect(map("Interwały biegowe bez piłki")).toBe("method_interval_run");
   });

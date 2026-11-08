@@ -182,10 +182,12 @@ export function sessionCategory(session: SessionDay): PlanSessionCategory {
   // Najpierw ufamy kanonicznemu typowi sesji (sessionType) — buildStimulus
   // ustawia go spójnie z kategorią. To pewniejsze niż skan słów kluczowych.
   const stype = session.sessionType.toLowerCase();
-  if (/piłka|technik/.test(stype)) return "ball";
+  if (/piłka/.test(stype)) return "ball";
   if (/regener|prehab/.test(stype)) return "athletic";
   if (/wytrzym|wydol|tlen|kondyc/.test(stype)) return "conditioning";
+  // „Szybkość / technika biegu” to sprint, nie piłka: technika biegu ≠ technika piłkarska.
   if (/sprint|szybko/.test(stype)) return "speed";
+  if (/technik/.test(stype)) return "ball";
   if (/sił|\bmoc(?:y|ą|owy|owa|owe)?\b|power/.test(stype)) return "strength_power";
   if (/cod|zwin|motory|hamowan/.test(stype)) return "athletic";
 

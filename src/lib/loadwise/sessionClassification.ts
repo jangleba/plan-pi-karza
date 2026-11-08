@@ -236,6 +236,23 @@ function resolveCategory(session: SessionDay): CategoryResult {
     };
   }
 
+  // Sesja jawnie nazwana sesją z piłką pozostaje piłkarską, nawet gdy jej opis
+  // wspomina akcent szybkościowy („akcja po przyspieszeniu”). Wcześniej taki
+  // opis robił z niej sprint, a filtr sprintu usuwał całą pracę z piłką.
+  const explicitWithoutNegatedBall = explicitHeader.replace(/bez\s+piłk\w*/g, "");
+  if (
+    /piłk/.test(explicitWithoutNegatedBall) &&
+    !has(explicitHeader, RE_SPEED) &&
+    !has(explicitHeader, RE_STRENGTH) &&
+    !has(explicitHeader, RE_ENDURANCE)
+  ) {
+    return {
+      category: "other",
+      subcategory: "ball_technical",
+      sourceRule: "explicit header=ball",
+    };
+  }
+
   // 4) Szybkość — sprawdzamy przed siłą (sprinty bywają w "mocy"), ale po
   //    wyraźnej siłowni. Najpierw nagłówek.
   if (has(header, RE_SPEED)) {

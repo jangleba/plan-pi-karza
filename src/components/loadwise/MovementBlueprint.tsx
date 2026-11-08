@@ -259,14 +259,18 @@ export const visualLibrary: Record<string, ExerciseVisual> = {
     src: bounds,
     title: "Bounds (skoki zamaszyste)",
     movementType: "jump",
-    exerciseNames: ["Bounds (skoki zamaszyste)", "Bounds (wieloskoki) — niska objętość"],
+    exerciseNames: [
+      "Bounds (skoki zamaszyste)",
+      "Bounds (wieloskoki) — niska objętość",
+      "Wieloskoki — niska objętość",
+    ],
   },
   pogo_jump: {
     visualId: "pogo_jump",
     src: pogoJump,
     title: "Niskie pogo jumps",
     movementType: "jump",
-    exerciseNames: ["Niskie pogo jumps"],
+    exerciseNames: ["Niskie pogo jumps", "Niskie pogo"],
   },
   sprint_acceleration: {
     visualId: "sprint_acceleration",
@@ -280,7 +284,7 @@ export const visualLibrary: Record<string, ExerciseVisual> = {
     src: fallingStart,
     title: "Falling start",
     movementType: "sprint",
-    exerciseNames: ["Falling start"],
+    exerciseNames: ["Falling start", "Start z upadku"],
   },
   max_velocity_sprint: {
     visualId: "max_velocity_sprint",
@@ -301,7 +305,7 @@ export const visualLibrary: Record<string, ExerciseVisual> = {
     src: changeOfDirection,
     title: "Zmiana kierunku",
     movementType: "sprint",
-    exerciseNames: ["Lateral cut / drop step 45°–90°"],
+    exerciseNames: ["Lateral cut / drop step 45°–90°", "Cięcie boczne / drop step 45°–90°"],
   },
 };
 

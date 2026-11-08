@@ -34,7 +34,7 @@ import {
   isYouthOrBeginner as isYouthOrBeginnerSched,
   type UserSchedulingSettings,
 } from "./dailyScheduling";
-import { getDevelopmentStage } from "./athleteProfile";
+import { buildAthleteTrainingProfile, getDevelopmentStage } from "./athleteProfile";
 import {
   type WeeklyRequirements,
   type WeekRequirementContext,
@@ -43,7 +43,7 @@ import {
   buildTrainingContext,
   validateWeek,
 } from "./globalPlanRules";
-import { canonicalizeGeneratedExercise } from "./exerciseLibrary";
+import { canonicalizeGeneratedExercise, isExerciseAllowedForProfile } from "./exerciseLibrary";
 import { buildRunningConditioning } from "./sessionContent";
 import { generateFootballSpeedSession } from "./footballSpeedSessionEngine";
 
@@ -812,6 +812,7 @@ export function repairBackToBackSpeedSessions(
       : ({
     ...day,
     dayType: "rest" as DayType,
+    type: "rest",
     title: "Odpoczynek",
     goalLabel: "Regeneracja",
     intensity: "niska",
@@ -822,6 +823,9 @@ export function repairBackToBackSpeedSessions(
     secondSession: null,
     exercises: [],
     sections: { warmup: [], main: [], accessory: [], footballTransfer: [], cooldown: [] },
+    // Dzień odpoczynku nie może ukrywać pełnej rozpiski sprintu w blokach.
+    structuredSections: undefined,
+    trainingMethods: undefined,
     classification: undefined,
     speedGeneratorVersion: undefined,
     speedFamily: undefined,
@@ -1396,6 +1400,33 @@ export interface AddMissingGymResult {
 }
 
 /**
+ * Góra ciała i tułów bez nóg. Każde ćwiczenie musi być dozwolone dla
+ * zawodnika (wiek, sprzęt); gdy brakuje ruchu pchania lub ciągnięcia,
+ * zostaje praca tułowia, a nie ćwiczenie, którego nie wolno wykonać.
+ */
+function upperBodyAndTrunkMain(profile: Profile): ExerciseItem[] {
+  const athlete = buildAthleteTrainingProfile(profile);
+  const options: Array<Array<ExerciseItem>> = [
+    [
+      { exerciseId: "bodyweight_row", name: "Wiosłowanie z masą ciała", prescription: "2 × 8", rest: "60 s", cue: "Zostaw duży zapas." },
+      { exerciseId: "face_pull_band", name: "Face pull z gumą", prescription: "2 × 12", rest: "45 s", cue: "Łopatki w dół, bez bujania." },
+    ],
+    [
+      { exerciseId: "push_up", name: "Pompka", prescription: "2 × 8", rest: "60 s", cue: "Spokojnie, bez serii do upadku." },
+      { exerciseId: "incline_push_up", name: "Pompka z dłońmi na podwyższeniu", prescription: "2 × 8", rest: "60 s", cue: "Ciało w jednej linii." },
+    ],
+  ];
+  const picked = options
+    .map((group) => group.find((item) => isExerciseAllowedForProfile(item.exerciseId, athlete).ok))
+    .filter((item): item is ExerciseItem => Boolean(item));
+  if (picked.length < 2)
+    picked.push({ exerciseId: "dead_bug", name: "Martwy robak", prescription: "2 × 8 na stronę", rest: "45 s", cue: "Lędźwie przy podłożu." });
+  return picked.map((item) =>
+    canonicalizeGeneratedExercise(item, item.exerciseId === "dead_bug" ? "trunk" : "strength"),
+  );
+}
+
+/**
  * Buduje minimalną sesję siłowni do wstawienia przez finalny walidator.
  * Lekka (primer / utrzymanie siły) — nie ciężka, nie bodyweight-only.
  */
@@ -1458,16 +1489,7 @@ function buildGymSessionDay(
         ),
       ],
       main: opts.upperBodyOnly
-        ? [
-            canonicalizeGeneratedExercise(
-              { exerciseId: "bodyweight_row", name: "Wiosłowanie z masą ciała", prescription: "2 × 8", rest: "60 s", cue: "Zostaw duży zapas." },
-              "strength",
-            ),
-            canonicalizeGeneratedExercise(
-              { exerciseId: "push_up", name: "Pompka", prescription: "2 × 8", rest: "60 s", cue: "Spokojnie, bez serii do upadku." },
-              "strength",
-            ),
-          ]
+        ? upperBodyAndTrunkMain(profile)
         : youth
         ? [
             canonicalizeGeneratedExercise(
