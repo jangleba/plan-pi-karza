@@ -1425,7 +1425,8 @@ function buildGymSessionDay(
     : opts.light
       ? "Utrzymanie siły i aktywacja nerwowo-mięśniowa bez dużego zmęczenia."
       : "Rozwój siły dolnych partii i stabilizacji.";
-  const intensity = opts.light || youth ? "umiarkowana" as const : "wysoka" as const;
+  const intensity =
+    opts.light || youth || opts.upperBodyOnly ? ("umiarkowana" as const) : ("wysoka" as const);
   const durationMin = opts.light ? 30 : youth ? 40 : 50;
   const placementReason = opts.placementReason ??
     "Dodano brakującą sesję siłowni, aby spełnić minimum tego tygodnia.";
@@ -1577,12 +1578,15 @@ export function addMissingGymSessions(
     const restIdx =
       preferredRestIdx >= 0 ? preferredRestIdx : weekPlan.findIndex(restCandidate);
     if (restIdx >= 0) {
+      // MD+1 (tylko gdy nie ma innego miejsca): zaawansowani robią normalną
+      // siłownię, pozostali (np. 16-latek) tylko górę ciała i tułów.
+      const afterMatch = isDayAfterMatch(weekPlan[restIdx]);
+      const advanced = profile.level === "advanced" || profile.level === "elite";
       const light =
-        isDayBeforeMatch(weekPlan[restIdx]) ||
-        isDayAfterMatch(weekPlan[restIdx]) ||
-        isYouthOrBeginner(profile);
+        isDayBeforeMatch(weekPlan[restIdx]) || isYouthOrBeginner(profile);
       const rebuilt = buildGymSessionDay(profile, weekPlan[restIdx], {
         light,
+        upperBodyOnly: afterMatch && !advanced,
         placementReason:
           `Wybrano wolny dzień na brakującą siłownię — wymagane minimum: ${required}.`,
       });

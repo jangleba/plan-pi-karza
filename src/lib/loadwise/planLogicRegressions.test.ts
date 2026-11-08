@@ -66,6 +66,36 @@ describe("plan logic regressions found by the randomized profile scan", () => {
     expect(heavyGym).toEqual([]);
     const dayAfterMatch = plan.find((d) => d.date === "2026-06-02")!;
     expect(dayAfterMatch.intensity).not.toBe("wysoka");
+    expect(dayAfterMatch.title).not.toMatch(/całe ciało|Siła ogólna/);
+  });
+
+  it("uses the day after a match for gym only when no other day is free", () => {
+    const week = (level: Profile["level"], age: number) =>
+      generatePlan(
+        profile({
+          level,
+          age,
+          goal: "strength",
+          clubTrainingDays: [3, 4, 5],
+          individualTrainingDays: [2, 7],
+          usualMatchDay: 6,
+          matchDate: "2026-11-14",
+          matchDates: ["2026-11-14"],
+        }),
+        new Date(2026, 10, 9),
+        7,
+      ).find((day) => day.date === "2026-11-15")!;
+    // Advanced athletes may lift normally; everyone else, e.g. a 16-year-old, upper body only.
+    expect(week("advanced", 20).title).toBe("Siła ogólna");
+    for (const [level, age] of [
+      ["intermediate", 16],
+      ["beginner", 16],
+      ["intermediate", 20],
+    ] as const) {
+      const day = week(level, age);
+      expect(day.title).toBe("Lekki tułów i góra ciała");
+      expect(day.intensity).toBe("umiarkowana");
+    }
   });
 
   it("never leaves a second session hanging on a rest day", () => {
