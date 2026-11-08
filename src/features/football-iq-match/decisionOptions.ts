@@ -90,7 +90,7 @@ const laneSafetyScore = (r: { lane: number; space: number }) => r.lane + r.space
 function ownOptions(s: JourneySession, actor: string): DecisionOption[] {
   const at = s.world.positions[actor];
   const out: DecisionOption[] = [];
-  const passes = s.players
+  const candidates = s.players
     .filter((p) => p.team === "home" && p.id !== actor)
     .map((p) => {
       const to = s.world.positions[p.id];
@@ -103,7 +103,8 @@ function ownOptions(s: JourneySession, actor: string): DecisionOption[] {
         safe: lane >= 4 && space >= 4 && !offside(s, actor, p.id),
         score: lane + space + Math.max(-10, Math.min(20, at.y - to.y)) * 0.6,
       };
-    })
+    });
+  const passes = candidates
     .filter((r) => r.safe && (!r.p.goalkeeper || r.to.y > at.y + 25))
     .sort((a, b) => b.score - a.score);
   // One pass that moves the game on, one that keeps the ball safest (often a lay-off).
@@ -111,7 +112,20 @@ function ownOptions(s: JourneySession, actor: string): DecisionOption[] {
   const safest = passes
     .filter((r) => r !== best)
     .sort((a, b) => laneSafetyScore(b) - laneSafetyScore(a))[0];
-  for (const r of [best, safest].filter(Boolean))
+  // A tempting pass forward through a tight lane: playable, so the player has to judge the risk.
+  const risky = candidates
+    .filter(
+      (r) =>
+        !r.safe &&
+        r !== best &&
+        r !== safest &&
+        !r.p.goalkeeper &&
+        r.lane >= 1.5 &&
+        r.to.y < at.y - 8 &&
+        !offside(s, actor, r.p.id),
+    )
+    .sort((a, b) => a.to.y - b.to.y)[0];
+  for (const r of [best, risky, safest].filter(Boolean))
     out.push({
       key: `pass-${r.p.id}`,
       label: passLabel(at, r.to, r.p.number),
@@ -140,6 +154,24 @@ function ownOptions(s: JourneySession, actor: string): DecisionOption[] {
   return out;
 }
 
+/** Free point between the rival midfield and defensive lines, in the player's half-space. */
+function betweenLines(s: JourneySession, at: Point): Point | null {
+  const ys = s.players
+    .filter((p) => p.team === "away" && !p.goalkeeper)
+    .map((p) => s.world.positions[p.id].y)
+    .sort((a, b) => a - b);
+  if (ys.length < 4) return null;
+  const back = (ys[0] + ys[1]) / 2,
+    mid = (ys[2] + ys[3]) / 2;
+  if (mid - back < 8) return null;
+  const y = (back + mid) / 2;
+  if (y > at.y + 10) return null;
+  const x = at.x < 50 ? 34 : 66;
+  return [-6, 0, 6]
+    .map((dx) => bound(x + dx, y))
+    .reduce((best, p) => (pressure(s, p, "home") > pressure(s, best, "home") ? p : best));
+}
+
 function partnerOptions(s: JourneySession, actor: string): DecisionOption[] {
   const at = s.world.positions[actor];
   const ball = s.world.positions[s.world.carrierId];
@@ -161,6 +193,7 @@ function partnerOptions(s: JourneySession, actor: string): DecisionOption[] {
       return a.lane + a.space > b.lane + b.space ? p : best;
     });
   const wide = bound(at.x < 50 ? at.x - 12 : at.x + 12, at.y - 4);
+  const pocket = betweenLines(s, at);
   const out: DecisionOption[] = [];
   if (run.y < at.y - 3)
     out.push({
@@ -174,11 +207,24 @@ function partnerOptions(s: JourneySession, actor: string): DecisionOption[] {
       label: `Pokaż się do podania od ${n}`,
       choice: choose(s, "move", show),
     });
+  if (pocket && distance(pocket, at) > 4 && distance(pocket, show) > 4)
+    out.push({
+      key: "between",
+      label: "Zejdź między linie rywala",
+      choice: choose(s, "move", pocket),
+    });
   if (distance(wide, at) > 4)
     out.push({
       key: "wide",
       label: "Poszerz grę przy linii",
       choice: choose(s, "move", wide),
+    });
+  // Already on the touchline: the useful move is inside.
+  else
+    out.push({
+      key: "inside",
+      label: "Zejdź bliżej środka",
+      choice: choose(s, "move", bound(at.x + Math.sign(50 - at.x) * 12, at.y)),
     });
   out.push({
     key: "wait",
@@ -193,23 +239,46 @@ function rivalOptions(s: JourneySession, actor: string): DecisionOption[] {
   const ball = s.world.positions[s.world.carrierId];
   const n = number(s, s.world.carrierId);
   const out: DecisionOption[] = [];
+  if (s.players.find((p) => p.id === actor)?.goalkeeper) {
+    // Keeper: guard the space behind the defence or stay on the line.
+    out.push({
+      key: "sweep",
+      label: "Wyjdź na przedpole",
+      choice: choose(
+        s,
+        "cover",
+        bound(at.x + (ball.x - at.x) * 0.3, Math.max(ball.y + 12, at.y - 14)),
+      ),
+    });
+    out.push({ key: "wait", label: "Zostań w bramce", choice: choose(s, "wait", at) });
+    return out;
+  }
   if (distance(at, ball) < 30)
     out.push({
       key: "press",
       label: `Doskocz do ${n}`,
       choice: choose(s, "press", ball),
     });
-  // The most dangerous free receiver: closest to our goal among rivals near the ball.
-  const receiver = s.players
-    .filter((p) => p.team === "away" && !p.goalkeeper && p.id !== s.world.carrierId)
-    .sort(
-      (a, b) => s.world.positions[b.id].y - s.world.positions[a.id].y || a.id.localeCompare(b.id),
-    )
-    .find((p) => distance(s.world.positions[p.id], ball) < 40);
-  if (receiver) {
+  // Two receivers to choose from: the one closest to our goal and the one closest to you.
+  const receivers = s.players.filter(
+    (p) =>
+      p.team === "away" &&
+      !p.goalkeeper &&
+      p.id !== s.world.carrierId &&
+      distance(s.world.positions[p.id], ball) < 40,
+  );
+  const deepest = [...receivers].sort(
+    (a, b) => s.world.positions[b.id].y - s.world.positions[a.id].y || a.id.localeCompare(b.id),
+  )[0];
+  const nearest = [...receivers].sort(
+    (a, b) =>
+      distance(s.world.positions[a.id], at) - distance(s.world.positions[b.id], at) ||
+      a.id.localeCompare(b.id),
+  )[0];
+  for (const receiver of [deepest, nearest].filter((r, i, list) => r && list.indexOf(r) === i)) {
     const r = s.world.positions[receiver.id];
     out.push({
-      key: "mark",
+      key: `mark-${receiver.id}`,
       label: `Zamknij podanie do ${receiver.number}`,
       choice: choose(s, "mark", {
         x: r.x + (ball.x - r.x) * 0.3,
@@ -222,6 +291,8 @@ function rivalOptions(s: JourneySession, actor: string): DecisionOption[] {
     label: "Cofnij się za linię piłki",
     choice: choose(s, "cover", bound(at.x + (50 - at.x) * 0.3, Math.max(at.y, ball.y) + 10)),
   });
+  // Holding the shape is a real answer too; it fills the list when few rivals are near.
+  out.push({ key: "hold", label: "Utrzymaj pozycję", choice: choose(s, "wait", at) });
   return out;
 }
 

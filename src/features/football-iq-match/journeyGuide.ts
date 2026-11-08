@@ -50,11 +50,12 @@ export type PickerItem = {
   role: string;
   own: boolean;
 };
-/** One entry per topic (first context), own position first, grouped by game moment. */
+/** One entry per topic (first context), own position first, grouped by game moment.
+ * Only hand-placed situations: every position has its own realistic pictures. */
 export function pickerItems(position?: string, all = false): PickerItem[] {
   const roles = rolesForPosition(position);
   const order: GameMoment[] = ["build", "attack", "transition", "defend"];
-  return [...situationBank, ...advancedJourneyBank]
+  return situationBank
     .filter((d) => d.context === 0)
     .map((def) => ({
       def,

@@ -78,8 +78,10 @@ function storeBroadcastView(on: boolean) {
 const newId = () => `iq8-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 function startDefinition(position?: string, index?: number) {
   const roles = rolesForPosition(position);
+  // First hand-placed situation of the player's own position.
   return (
     advancedJourneyBank[index ?? -1] ??
+    pickerItems(position)[0]?.def ??
     advancedJourneyBank.find(
       (d) => d.role === roles[0] && d.concept === "third-player" && d.context === 0,
     )!

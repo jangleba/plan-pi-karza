@@ -52,6 +52,9 @@ const iq = createRoute({
   component: () => (
     <LearningJourney
       position={query.get("position") ?? "forward"}
+      initialScenario={
+        query.has("scenario") ? Number(query.get("scenario")) : undefined
+      }
       historyOwner="iq-browser-qa"
       showOnboardingInitially={query.get("guide") === "1"}
     />
