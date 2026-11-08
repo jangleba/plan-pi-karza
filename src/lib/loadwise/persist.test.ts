@@ -257,18 +257,44 @@ describe("persistMonthlyPlan", () => {
     expect(saved[0].dbId).toBe("same-session");
   });
 
-  it("stops before writing when an existing session cannot be verified", async () => {
+  it("writes a session the database never received under its own ID", async () => {
     const old = {
       ...makeDay("2020-10-18"),
       dbId: "missing",
       dayDbId: "old-day",
       planDbId: "old-plan",
     };
-    await expect(persistMonthlyPlan("user-1", profile, [old])).rejects.toThrow(
-      "potwierdzić zapisanej sesji",
-    );
+    const saved = await persistMonthlyPlan("user-1", profile, [old]);
+    const write = operations.find((op) => op.method === "rpc")?.payload as {
+      p_sessions: { id: string }[];
+    };
+    expect(write.p_sessions[0].id).toBe("missing");
+    expect(saved[0].dbId).toBe("missing");
+  });
+
+  it("gives a stale future reference on another day its own row", async () => {
+    const stored = { ...makeDay("2099-10-18"), dbId: "moved", dayDbId: "day-a", planDbId: "p" };
+    state.sessions = prepareMonthlyPlan("user-1", profile, [stored]).args.p_sessions as Record<
+      string,
+      unknown
+    >[];
+    const saved = await persistMonthlyPlan("user-1", profile, [{ ...stored, dayDbId: "day-b" }]);
+    expect(saved[0].dbId).not.toBe("moved");
+    expect(saved[0].dayDbId).toBe("day-b");
+  });
+
+  it("stops before writing when a started session would move to another day", async () => {
+    const stored = { ...makeDay("2099-10-18"), dbId: "started", dayDbId: "day-a", planDbId: "p" };
+    state.sessions = prepareMonthlyPlan("user-1", profile, [stored]).args.p_sessions as Record<
+      string,
+      unknown
+    >[];
+    await expect(
+      persistMonthlyPlan("user-1", profile, [
+        { ...stored, dayDbId: "day-b", executionProtected: true },
+      ]),
+    ).rejects.toThrow("potwierdzić zapisanej sesji");
     expect(operations.some((op) => op.method === "rpc")).toBe(false);
-    expect(old.dbId).toBe("missing");
   });
 
   it("rejects persistence when executable session misses athlete-visible instructions", async () => {

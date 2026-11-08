@@ -67,12 +67,20 @@ export async function preparePlanWrite(
     const slot = existing.get(id);
     if (!slot) return row;
     const original = stored.get(id);
-    if (!original || original.training_day_id !== row.training_day_id)
-      throw new Error(
-        "Nie udało się potwierdzić zapisanej sesji. Odśwież plan i spróbuj ponownie.",
-      );
-    if (slot.executionProtected || slot.date < today) return original;
-    if (stableJson(row) === stableJson(original)) return row;
+    // The plan names a session the database never received (a background save that
+    // was staged but rejected, or an offline session). Write it now under the same
+    // ID, so any log already recorded for it stays attached.
+    if (!original) return row;
+    const protectedSlot = slot.executionProtected || slot.date < today;
+    if (original.training_day_id !== row.training_day_id) {
+      // A started or past session cannot silently move to another day.
+      if (slot.executionProtected)
+        throw new Error(
+          "Nie udało się potwierdzić zapisanej sesji. Odśwież plan i spróbuj ponownie.",
+        );
+      // Otherwise the slot is only a stale reference: give it its own row.
+    } else if (protectedSlot) return original;
+    else if (stableJson(row) === stableJson(original)) return row;
     const nextId = crypto.randomUUID();
     replacements.set(id, nextId);
     return { ...row, id: nextId };
