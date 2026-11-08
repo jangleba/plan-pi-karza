@@ -516,7 +516,8 @@ function Onboarding() {
     setBusy(true);
     try {
       await completeOnboarding(profile, consents);
-      toast.success(isEditing ? "Profil zaktualizowany." : "Profil i plan zapisane.");
+      // A new plan is shown at once and saved in the background; only an edit is confirmed here.
+      if (isEditing) toast.success("Profil zaktualizowany.");
       navigate({ to: isEditing ? "/profil" : "/plan", replace: true });
     } catch (error) {
       console.error("[onboarding] save failed", error);

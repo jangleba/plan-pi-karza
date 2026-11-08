@@ -33,4 +33,32 @@ export async function guardedPlanWrite<T>(key: string, write: () => Promise<T>):
 
 export function resetPlanWriteGuard() {
   rejected.clear();
+  inFlight.clear();
+}
+
+export function wasPlanWriteRejected(key: string): boolean {
+  return rejected.has(key);
+}
+
+/**
+ * Plan writes that run after the plan is already on screen. The next load waits for
+ * them, so it reads the saved plan instead of rebuilding and sending it a second time.
+ */
+const inFlight = new Map<string, Set<Promise<unknown>>>();
+
+export function trackPlanWrite<T>(userId: string, write: Promise<T>): Promise<T> {
+  const writes = inFlight.get(userId) ?? new Set<Promise<unknown>>();
+  inFlight.set(userId, writes);
+  writes.add(write);
+  const done = () => {
+    writes.delete(write);
+    if (!writes.size && inFlight.get(userId) === writes) inFlight.delete(userId);
+  };
+  write.then(done, done);
+  return write;
+}
+
+export async function waitForPlanWrites(userId: string): Promise<void> {
+  const writes = inFlight.get(userId);
+  if (writes?.size) await Promise.allSettled([...writes]);
 }

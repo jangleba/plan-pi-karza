@@ -176,7 +176,7 @@ beforeEach(() => {
 });
 
 describe("store action contracts", () => {
-  it("records consent before onboarding writes and marks completion only after the plan is saved", async () => {
+  it("shows the generated plan at once, then records consent before the server save", async () => {
     state.profile!.unavailableEquipmentIds = ["sled"];
     const profile = { ...state.profile!, unavailableEquipmentIds: [] };
     await profileActions().completeOnboarding(profile, {
@@ -184,7 +184,13 @@ describe("store action contracts", () => {
       privacy: true,
       health_data: true,
     });
-    expect(mocks.events).toEqual(["consent", "plan", "save_profile_and_plan", "state"]);
+    // The plan is on screen before the profile and plan reach the server.
+    expect(mocks.events.slice(0, 2)).toEqual(["plan", "state"]);
+    expect(mocks.events).not.toContain("save_profile_and_plan");
+    expect(state.profile?.onboardingComplete).toBe(true);
+    await vi.waitFor(() => expect(mocks.events).toHaveLength(5));
+    expect(mocks.events).toEqual(["plan", "state", "consent", "save_profile_and_plan", "state"]);
+    expect(state.profile?.serverProfileUpdatedAt).toBeTruthy();
     expect(state.profile).toMatchObject({
       onboardingComplete: true,
       unavailableEquipmentIds: ["sled"],
