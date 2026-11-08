@@ -1,8 +1,11 @@
 import type { JourneySession } from "./journeyTypes";
+import { situationFor } from "./situationBank";
 
 export const ATTACK_BANK_VERSION = "2026-11-07.9";
 export const LIVE_BANK_VERSION = "2026-11-06.8";
 export function lessonGoal(s: JourneySession) {
+  const situation = situationFor(s.definition);
+  if (situation) return situation.goal;
   if (s.rulesVersion === 9)
     return s.definition.concept === "press-cover"
       ? "Odbierz piłkę, zbuduj atak i doprowadź do gola."

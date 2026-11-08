@@ -17,6 +17,7 @@ import {
 import { BALL_REST_HEIGHT, PASS_WINDUP_SECONDS } from "./animation";
 import { flightHeight, flightProfile, type BallDelivery } from "./ballFlight";
 import { lessonGoal, lessonQuestion } from "./liveLesson";
+import { situationLayout } from "./situationBank";
 import type { Point } from "./types";
 import type {
   JourneyBeat,
@@ -85,6 +86,21 @@ export function createAttackJourney(def: JourneyDefinition): JourneySession {
           s.world.positions[p.id].y + 22,
         );
     s.players = s.players.map((p) => ({ ...p, ...s.world.positions[p.id] }));
+  }
+  const layout = situationLayout(def);
+  if (layout) {
+    for (const p of s.players) {
+      const at = layout.positions[p.id];
+      if (!at) throw new Error(`Brak pozycji zawodnika ${p.id}.`);
+      s.world.positions[p.id] = bound(at.x, at.y);
+      s.world.headings[p.id] = p.team === "home" ? Math.PI : 0;
+    }
+    s.world.carrierId = layout.carrier;
+    s.players = s.players.map((p) => ({
+      ...p,
+      ...s.world.positions[p.id],
+      number: layout.numbers[p.id] ?? p.number,
+    }));
   }
   s.initial = copyWorld(s.world);
   s.scenario = { ...s.scenario, players: s.players };

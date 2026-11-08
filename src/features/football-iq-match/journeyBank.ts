@@ -7,6 +7,7 @@ import type {
   JourneyPattern,
 } from "./journeyTypes";
 import { journeyExpansion } from "./journeyExpansion";
+import { situationBank } from "./situationBank";
 import {
   advancedJourneyBank,
   ADVANCED_JOURNEY_BANK_VERSION,
@@ -512,5 +513,6 @@ export const journeyBank: JourneyDefinition[] = [
 ];
 export const iqScenarioBank: JourneyDefinition[] = [
   ...advancedJourneyBank,
+  ...situationBank,
   ...journeyBank,
 ];

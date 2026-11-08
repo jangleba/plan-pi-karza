@@ -6,14 +6,22 @@ import {
   ChevronDown,
   CircleHelp,
   History,
-  Lightbulb,
-  MoveUpRight,
   Pause,
   Play,
   RotateCcw,
   Settings2,
   X,
 } from "lucide-react";
+import { decisionOptions, situationLine } from "./decisionOptions";
+import {
+  momentLabel,
+  momentOf,
+  nextContext,
+  nextDefinition,
+  pickerItems,
+  startLines,
+} from "./journeyGuide";
+import { iqSources, situationBank, situationFor } from "./situationBank";
 import { FootballIQJourney } from "./FootballIQJourney";
 import { TacticalPitch } from "./TacticalPitch";
 import { advancedJourneyBank } from "./advancedJourneyBank";
@@ -30,14 +38,7 @@ import { liveChoice as legacyChoice } from "./liveJourney";
 import { attackChoice } from "./attackJourney";
 const liveChoice: typeof legacyChoice = (s, ...args) =>
   s.rulesVersion === 9 ? attackChoice(s, ...args) : legacyChoice(s, ...args);
-import {
-  lessonGoal,
-  lessonHint,
-  lessonQuestion,
-  lessonTakeaway,
-  LIVE_BANK_VERSION,
-  ATTACK_BANK_VERSION,
-} from "./liveLesson";
+import { lessonGoal, lessonTakeaway, LIVE_BANK_VERSION, ATTACK_BANK_VERSION } from "./liveLesson";
 import {
   createJourneyBackup,
   loadJourneyHistory,
@@ -49,37 +50,28 @@ import {
   makeJourneyDraft,
 } from "./journeyHistory";
 import { downloadText } from "../browser-lab/download";
-import type {
-  JourneyChoice,
-  JourneyDefinition,
-  JourneyMode,
-  JourneySession,
-} from "./journeyTypes";
+import type { JourneyChoice, JourneyDefinition, JourneyMode, JourneySession } from "./journeyTypes";
 import type { PlannedAction, Point } from "./types";
 import "./learning.css";
 
 type Props = React.ComponentProps<typeof FootballIQJourney>;
 type Phase = "intro" | "decision" | "playing" | "feedback" | "summary";
-type Sheet = "help" | "hint" | "roles" | "settings" | "history" | null;
+type Sheet = "help" | "roles" | "settings" | "history" | null;
 const EMPTY: PlannedAction[] = [];
-const newId = () =>
-  `iq8-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+const CARRY_TAP_RADIUS = 14;
+const newId = () => `iq8-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 function startDefinition(position?: string, index?: number) {
   const roles = rolesForPosition(position);
   return (
     advancedJourneyBank[index ?? -1] ??
     advancedJourneyBank.find(
-      (d) =>
-        d.role === roles[0] && d.concept === "third-player" && d.context === 0,
+      (d) => d.role === roles[0] && d.concept === "third-player" && d.context === 0,
     )!
   );
 }
 function initial(props: Props) {
   const fresh = () => ({
-    session: createJourneyForRules(
-      startDefinition(props.position, props.initialScenario),
-      9,
-    ),
+    session: createJourneyForRules(startDefinition(props.position, props.initialScenario), 9),
     mode: "learn" as JourneyMode,
     id: newId(),
     resumed: false,
@@ -89,10 +81,7 @@ function initial(props: Props) {
   if (!props.historyOwner) return fresh();
   try {
     const draft = loadJourneyDraft(props.historyOwner);
-    if (
-      draft &&
-      [LIVE_BANK_VERSION, ATTACK_BANK_VERSION].includes(draft.bankVersion)
-    )
+    if (draft && [LIVE_BANK_VERSION, ATTACK_BANK_VERSION].includes(draft.bankVersion))
       return {
         session: restoreJourney(draft),
         mode: draft.mode,
@@ -126,23 +115,16 @@ export function LearningJourney(props: Props) {
   const [id, setId] = useState(boot.id),
     [error, setError] = useState(boot.error),
     [saved, setSaved] = useState(false);
-  const [sheet, setSheet] = useState<Sheet>(
-      !boot.resumed &&
-        boot.firstVisit &&
-        props.showOnboardingInitially !== false
-        ? "help"
-        : null,
-    ),
-    [guide, setGuide] = useState(0),
-    [tool, setTool] = useState<"ball" | "move" | "shoot">("move");
+  const [sheet, setSheet] = useState<Sheet>(null),
+    [pickAll, setPickAll] = useState(false),
+    [optionKey, setOptionKey] = useState<string | null>(null);
   const [draft, setDraft] = useState<JourneyChoice | null>(null),
     [takeover, setTakeover] = useState(false),
     [ready, setReady] = useState(false);
   const [archive, setArchive] = useState(false),
     [replay, setReplay] = useState<JourneySession | null>(null);
   const [paused, setPaused] = useState(false),
-    [playTime, setPlayTime] = useState(0),
-    [reflection, setReflection] = useState("");
+    [playTime, setPlayTime] = useState(0);
   const [transfer, setTransfer] = useState(false);
   const playhead = useRef(0),
     range = useRef({ from: 0, to: 0 }),
@@ -154,49 +136,26 @@ export function LearningJourney(props: Props) {
   const allowedReplacement = useRef(false);
   const guided = mode === "learn" && !transfer;
   const actor = takeover ? session.world.carrierId : "you";
-  const controlled = useMemo(
-    () => ({ ...session, controlledId: actor }),
-    [session, actor],
-  );
-  const tutorial = sheet === "help";
-  const demo = useMemo(() => {
-    const s = createJourneyForRules(
-      advancedJourneyBank.find((d) => d.id === "iqx-wing-0-0")!,
-      9,
-    );
-    if (guide < 2) s.world.carrierId = "you";
-    return s;
-  }, [guide]);
-  const displayed = tutorial ? demo : (replay ?? session);
+  const controlled = useMemo(() => ({ ...session, controlledId: actor }), [session, actor]);
+  const displayed = replay ?? session;
   current.current = displayed;
-  const sampleFrame = useCallback(
-    () => sampleJourney(current.current, playhead.current),
-    [],
-  );
+  const sampleFrame = useCallback(() => sampleJourney(current.current, playhead.current), []);
   const idleFrame = useMemo(
-    () =>
-      journeyFrame(
-        displayed.world,
-        displayed.players,
-        journeyDuration(displayed),
-      ),
+    () => journeyFrame(displayed.world, displayed.players, journeyDuration(displayed)),
     [displayed],
   );
   const isPlaying = phase === "playing";
   const playable = ready && phase === "decision" && !sheet && !error;
-  const own =
-    controlled.world.carrierId === actor && !controlled.world.looseBall;
-  const liveFrame = isPlaying && !tutorial ? sampleFrame() : idleFrame;
-  const carrier = displayed.players.find(
-    (p) => p.id === liveFrame.ballCarrierId,
-  )!;
+  const own = controlled.world.carrierId === actor && !controlled.world.looseBall;
+  const liveFrame = isPlaying ? sampleFrame() : idleFrame;
+  const carrier = displayed.players.find((p) => p.id === liveFrame.ballCarrierId)!;
   const you = displayed.players.find((p) => p.id === "you")!;
   useEffect(() => {
     document.body.classList.toggle("iq-learning-focus", !archive);
     return () => document.body.classList.remove("iq-learning-focus");
   }, [archive]);
   useEffect(() => {
-    if (sheet && sheet !== "help") dialog.current?.showModal();
+    if (sheet) dialog.current?.showModal();
     else dialog.current?.close();
   }, [sheet]);
   useEffect(() => {
@@ -243,30 +202,17 @@ export function LearningJourney(props: Props) {
       return;
     try {
       const previousDraft = loadJourneyDraft(historyOwner);
-      if (
-        previousDraft &&
-        previousDraft.id !== id &&
-        !allowedReplacement.current
-      )
+      if (previousDraft && previousDraft.id !== id && !allowedReplacement.current)
         throw new Error("Inna akcja jest niedokończona.");
       if (
         previousDraft?.id === id &&
-        previousDraft.choices.some(
-          (c, i) => c.id !== session.decisions[i]?.choiceId,
-        )
+        previousDraft.choices.some((c, i) => c.id !== session.decisions[i]?.choiceId)
       )
         throw new Error("Zapis zmienił się na innym urządzeniu.");
       if (session.outcome) {
         if (!completed.current.has(id)) {
-          saveJourneyAttempt(
-            historyOwner,
-            makeJourneyAttempt(session, mode, id),
-          );
-          if (
-            !previousDraft ||
-            previousDraft.id === id ||
-            allowedReplacement.current
-          )
+          saveJourneyAttempt(historyOwner, makeJourneyAttempt(session, mode, id));
+          if (!previousDraft || previousDraft.id === id || allowedReplacement.current)
             saveJourneyDraft(historyOwner, session, mode, id);
           completed.current.add(id);
           setSaved(!!historyOwner);
@@ -282,13 +228,7 @@ export function LearningJourney(props: Props) {
       );
     }
   }, [session, mode, id, historyOwner, onComplete, boot.error, error, replay]);
-  function play(
-    s: JourneySession,
-    from: number,
-    to: number,
-    after: Phase,
-    asReplay = false,
-  ) {
+  function play(s: JourneySession, from: number, to: number, after: Phase, asReplay = false) {
     range.current = { from, to };
     playhead.current = from;
     setPlayTime(from);
@@ -298,52 +238,25 @@ export function LearningJourney(props: Props) {
     setPhase("playing");
   }
   function choosePoint(point: Point, targetId?: string) {
-    if (tutorial) {
-      if (guide === 0) {
-        if (targetId === "you") setGuide(1);
-        return;
-      }
-      setDraft(
-        liveChoice(
-          demo,
-          guide === 1 ? "pass" : "move",
-          point,
-          guide === 1 &&
-            targetId !== "you" &&
-            demo.players.find((p) => p.id === targetId)?.team === "home"
-            ? targetId
-            : undefined,
-        ),
-      );
-      return;
-    }
     if (!playable) return;
     try {
       const target = session.players.find((p) => p.id === targetId);
+      setOptionKey(null);
       if (targetId === actor) {
         setDraft(liveChoice(controlled, own ? "hold" : "wait", point));
         return;
       }
-      const intent =
-        tool === "shoot" && own
-          ? "shoot"
-          : tool === "ball" && own
-            ? "pass"
-            : own
-              ? "carry"
-              : "move";
-      setDraft(
-        liveChoice(
-          controlled,
-          intent,
-          point,
-          intent === "pass" && target?.team === "home" ? targetId : undefined,
-        ),
-      );
+      const toPartner = own && target?.team === "home";
+      // With the ball: a tap near you is a carry, further away a pass into space.
+      const near =
+        Math.hypot(
+          point.x - session.world.positions[actor].x,
+          point.y - session.world.positions[actor].y,
+        ) < CARRY_TAP_RADIUS;
+      const intent = !own ? "move" : toPartner || !near ? "pass" : "carry";
+      setDraft(liveChoice(controlled, intent, point, toPartner ? targetId : undefined));
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Nie udało się zaplanować ruchu.",
-      );
+      setError(e instanceof Error ? e.message : "Nie udało się zaplanować ruchu.");
     }
   }
   function commit() {
@@ -357,9 +270,8 @@ export function LearningJourney(props: Props) {
         );
       setSession(next);
       setDraft(null);
+      setOptionKey(null);
       setTakeover(false);
-      setTool("move");
-      setReflection("");
       play(
         next,
         from,
@@ -367,9 +279,7 @@ export function LearningJourney(props: Props) {
         guided ? "feedback" : next.outcome ? "summary" : "decision",
       );
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Nie udało się rozegrać akcji.",
-      );
+      setError(e instanceof Error ? e.message : "Nie udało się rozegrać akcji.");
     }
   }
   function start(def: JourneyDefinition, test = false) {
@@ -383,8 +293,8 @@ export function LearningJourney(props: Props) {
     setReplay(null);
     setSaved(false);
     setSheet(null);
+    setOptionKey(null);
     setTransfer(test);
-    setReflection("");
   }
   function exportAttempt() {
     try {
@@ -417,9 +327,7 @@ export function LearningJourney(props: Props) {
           setError("");
         })
         .catch(() =>
-          setError(
-            "Kopia nie została pobrana. Dotychczasowy zapis pozostaje zachowany.",
-          ),
+          setError("Kopia nie została pobrana. Dotychczasowy zapis pozostaje zachowany."),
         );
     } catch {
       setError(
@@ -439,9 +347,9 @@ export function LearningJourney(props: Props) {
                 : draft.intent === "carry"
                   ? "carry"
                   : "run",
-          playerId: tutorial ? "you" : actor,
+          playerId: actor,
           targetId: draft.targetId ?? "space",
-          from: displayed.world.positions[tutorial ? "you" : actor],
+          from: displayed.world.positions[actor],
           to: draft.point,
         },
       ] as PlannedAction[])
@@ -474,28 +382,38 @@ export function LearningJourney(props: Props) {
       }
       cursor += beat.duration;
     }
-  const analysisPaths = useMemo(
-    () => attackReplay(displayed, replayBeat),
-    [displayed, replayBeat],
+  const analysisPaths = useMemo(() => attackReplay(displayed, replayBeat), [displayed, replayBeat]);
+  const showAnalysis = !!replay;
+  const options = useMemo(
+    () => (phase === "decision" ? decisionOptions(controlled) : []),
+    [controlled, phase],
   );
-  const showAnalysis = !!replay && !tutorial;
-  const scoreReached =
-    !isPlaying || playTime >= journeyDuration(displayed) - 0.001;
+  const situation = situationFor(session.definition);
+  const scoreReached = !isPlaying || playTime >= journeyDuration(displayed) - 0.001;
   const visibleHome = scoreReached ? (displayed.attack?.home ?? 0) : 0;
   const visibleAway = scoreReached ? (displayed.attack?.away ?? 0) : 0;
   const decisionNumber = isPlaying
     ? Math.max(
         1,
-        (displayed.decisions.find(
-          (d) => d.firstBeat <= replayBeat && d.lastBeat >= replayBeat,
-        )?.index ?? 0) + 1,
+        (displayed.decisions.find((d) => d.firstBeat <= replayBeat && d.lastBeat >= replayBeat)
+          ?.index ?? 0) + 1,
       )
     : phase === "decision" || phase === "intro"
       ? session.step + 1
       : Math.max(1, session.step);
 
-  if (archive)
-    return <FootballIQJourney {...props} onBack={() => setArchive(false)} />;
+  if (archive) return <FootballIQJourney {...props} onBack={() => setArchive(false)} />;
+  const contextText = session.attack
+    ? `${session.definition.context === 0 ? "78" : session.definition.context === 1 ? "54" : "82"}′ · ${(session.definition.context === 0 ? 1 : 0) + visibleHome}:${(session.definition.context === 2 ? 1 : 0) + visibleAway}`
+    : session.definition.contextLabel.split(" · ").slice(0, 2).join(" · ");
+  const nowLine = situationLine(controlled, actor);
+  const chooseOption = (key: string) => {
+    const option = options.find((o) => o.key === key);
+    if (!option) return;
+    setOptionKey(key);
+    setDraft(option.choice);
+  };
+  const items = pickerItems(props.position, pickAll);
   return (
     <div
       className="bwiq-app iq-journey iqE-app"
@@ -516,17 +434,14 @@ export function LearningJourney(props: Props) {
             className="iqE-role"
             type="button"
             onClick={() => setSheet("roles")}
+            aria-label="Wybierz sytuację"
           >
             IQ · {roleLabels[session.definition.role]} <ChevronDown size={14} />
           </button>
           <button
             className="iqE-icon"
             type="button"
-            onClick={() => {
-              setGuide(0);
-              setDraft(null);
-              setSheet("help");
-            }}
+            onClick={() => setSheet("help")}
             aria-label="Jak grać"
           >
             <CircleHelp size={21} />
@@ -534,59 +449,40 @@ export function LearningJourney(props: Props) {
         </div>
         <div className="iqE-context">
           <span>
-            {session.attack
-              ? `${session.definition.context === 0 ? "78" : session.definition.context === 1 ? "54" : "82"}′ · ${(session.definition.context === 0 ? 1 : 0) + visibleHome}:${(session.definition.context === 2 ? 1 : 0) + visibleAway}`
-              : session.definition.contextLabel
-                  .split(" · ")
-                  .slice(0, 2)
-                  .join(" · ")}
+            {contextText} · TY: {you.number}
           </span>
           <span>
-            {transfer ? "Nowy układ" : "Lekcja"} ·{" "}
+            {transfer ? "Nowy układ · " : ""}
             {session.rulesVersion === 9
-              ? `Decyzja ${decisionNumber} · ${Math.round(isPlaying ? playTime : (session.attack?.elapsed ?? 0))} s gry`
+              ? `Decyzja ${decisionNumber}`
               : `${Math.min(3, session.step + 1)}/3`}
+            <span className="iqE-direction" aria-label="Kierunek ataku">
+              {" "}
+              · Atak <span className="iqE-up">↑</span>
+              <span className="iqE-right">→</span>
+            </span>
           </span>
         </div>
+        <h1 className="iqE-title">{session.definition.title}</h1>
         <p className="iqE-goal">{lessonGoal(session)}</p>
       </header>
-      <div className="iqE-meta">
-        <span>
-          <i className="iqE-dot" /> TY: {you.number}
-        </span>
-        <span>
-          {displayed.world.looseBall && !isPlaying
-            ? "Piłka bez kontroli"
-            : liveFrame.ballInFlight
-              ? "Piłka w grze"
-              : `Piłkę ma: ${carrier.team === "home" ? "Twój" : "rywal"} ${carrier.number}`}
-        </span>
-        <span className="iqE-direction">
-          Atakujesz <span className="iqE-up">↑</span>
-          <span className="iqE-right">→</span>
-        </span>
-      </div>
       <main className="iqE-pitch" aria-label="Boisko do podejmowania decyzji">
         <TacticalPitch
           scenario={displayed.scenario}
           actions={showAnalysis ? analysisPaths : preview}
-          selectedPlayerId={tutorial ? "you" : actor}
-          mode={tool === "shoot" ? "shot" : tool === "ball" ? "pass" : "run"}
-          interactive={tutorial || (playable && !isPlaying)}
-          playing={isPlaying && !paused && !tutorial}
+          selectedPlayerId={actor}
+          mode={draft?.intent === "shoot" ? "shot" : draft?.intent === "pass" ? "pass" : "run"}
+          interactive={playable && !isPlaying}
+          playing={isPlaying && !paused}
           fixedView
           landscapeView
           compactFigures
           portraitThreshold={0.62}
-          visibleLabelIds={["you", carrier.id].filter(
-            (v, i, a) => a.indexOf(v) === i,
-          )}
+          visibleLabelIds={["you", carrier.id].filter((v, i, a) => a.indexOf(v) === i)}
           selectablePlayerIds={displayed.players.map((p) => p.id)}
-          frameOverride={isPlaying && !tutorial ? liveFrame : idleFrame}
-          frameSource={isPlaying && !tutorial ? sampleFrame : undefined}
-          onPlayerSelect={(p) =>
-            choosePoint(displayed.world.positions[p.id], p.id)
-          }
+          frameOverride={isPlaying ? liveFrame : idleFrame}
+          frameSource={isPlaying ? sampleFrame : undefined}
+          onPlayerSelect={(p) => choosePoint(displayed.world.positions[p.id], p.id)}
           onPitchSelect={(p) => choosePoint(p)}
           onReadyChange={setReady}
           showActionOrders={false}
@@ -604,16 +500,6 @@ export function LearningJourney(props: Props) {
             Przygotowuję boisko…
           </div>
         )}
-        {phase === "intro" && !tutorial && (
-          <div className="iqE-opening">
-            <span>Najpierw cel, potem decyzja</span>
-            <p>
-              {transfer
-                ? "Obrońca zachowa się inaczej. Sprawdź nowy układ i dopasuj rozwiązanie."
-                : lessonQuestion(session)}
-            </p>
-          </div>
-        )}
         {isPlaying && (
           <button
             type="button"
@@ -629,11 +515,7 @@ export function LearningJourney(props: Props) {
         {session.rulesVersion === 8 && !replay && (
           <div className="iqE-legacy-note">
             Wznowiono starszą krótką lekcję.{" "}
-            <button
-              type="button"
-              className="iqE-link"
-              onClick={() => setSheet("roles")}
-            >
+            <button type="button" className="iqE-link" onClick={() => setSheet("roles")}>
               Wybierz nową pełną akcję
             </button>
           </div>
@@ -670,79 +552,24 @@ export function LearningJourney(props: Props) {
             </button>
           </div>
         )}
-        {tutorial ? (
-          <section className="iqE-guide" aria-label="Krótka instrukcja">
-            <div className="iqE-between">
-              <span>Jak grać · {guide + 1}/3</span>
-              <button
-                type="button"
-                className="iqE-link"
-                onClick={() => {
-                  setSheet(null);
-                  setDraft(null);
-                }}
-              >
-                Pomiń
-              </button>
-            </div>
-            <h2>
-              {guide === 0
-                ? "Znajdź siebie"
-                : guide === 1
-                  ? "Podaj tam, gdzie chcesz"
-                  : "Zaplanuj własny ruch"}
-            </h2>
-            <p>
-              {guide === 0
-                ? "Niebieski TY to Ty. Dotknij go na boisku."
-                : guide === 1
-                  ? "W tym ćwiczeniu masz piłkę. Dotknij partnera albo wolnej przestrzeni — pojawi się podgląd podania."
-                  : "Teraz piłkę ma partner. Dotknij miejsca, do którego chcesz pobiec. Rywalami nie sterujesz."}
-            </p>
-            {guide > 0 && draft && (
-              <button
-                type="button"
-                className="iqE-primary"
-                onClick={() => {
-                  setDraft(null);
-                  if (guide === 1) setGuide(2);
-                  else setSheet(null);
-                }}
-              >
-                {guide === 1
-                  ? "Widzę podanie · dalej"
-                  : "Rozumiem · wróć do lekcji"}{" "}
-                <ArrowRight size={17} />
-              </button>
-            )}
-          </section>
-        ) : phase === "intro" ? (
-          <>
-            <div className="iqE-between">
-              <span className="iqE-eyebrow">
-                {transfer
-                  ? "Sprawdź zrozumienie"
-                  : "Cała akcja · aż do wykończenia"}
-              </span>
-              <button
-                type="button"
-                className="iqE-link"
-                onClick={() => {
-                  setGuide(0);
-                  setDraft(null);
-                  setSheet("help");
-                }}
-              >
-                Instrukcja
-              </button>
-            </div>
+        {phase === "intro" ? (
+          <section className="iqE-start" aria-label="Jak przebiega lekcja">
+            <span className="iqE-eyebrow">
+              {momentLabel(momentOf(session.definition))} ·{" "}
+              {transfer ? "nowy układ" : session.definition.contextLabel}
+            </span>
+            <ol className="iqE-steps">
+              {startLines(session, mode).map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ol>
             <div className="iqE-intro-options">
               <button
                 type="button"
                 aria-pressed={mode === "learn"}
                 onClick={() => setMode("learn")}
               >
-                Z komentarzem
+                Z podsumowaniem decyzji
               </button>
               <button
                 type="button"
@@ -758,203 +585,119 @@ export function LearningJourney(props: Props) {
               disabled={!ready || !!error}
               onClick={() => play(session, 0, 0.8, "decision", true)}
             >
-              Obserwuj · zaczynam <ArrowRight size={17} />
+              Start <ArrowRight size={17} />
             </button>
-          </>
+          </section>
         ) : phase === "decision" ? (
           <>
-            <p className="iqE-question">{lessonQuestion(session)}</p>
-            <div className="iqE-controls">
-              <div
-                className="iqE-tools"
-                role="group"
-                aria-label="Rodzaj działania"
-              >
+            <p className="iqE-now">{nowLine}</p>
+            <div className="iqE-options" role="group" aria-label="Twoje opcje">
+              {options.map((o) => (
                 <button
+                  key={o.key}
                   type="button"
-                  aria-pressed={tool === "ball"}
-                  disabled={!own}
-                  onClick={() => {
-                    setTool("ball");
-                    setDraft(null);
-                  }}
+                  aria-pressed={optionKey === o.key}
+                  disabled={!playable}
+                  onClick={() => chooseOption(o.key)}
                 >
-                  <span>⚽</span> Piłka
+                  {o.label}
                 </button>
-                <button
-                  type="button"
-                  aria-pressed={tool === "move"}
-                  onClick={() => {
-                    setTool("move");
-                    setDraft(null);
-                  }}
-                >
-                  <MoveUpRight size={16} /> {own ? "Prowadzenie" : "Twój ruch"}
-                </button>
-                {session.rulesVersion === 9 && (
-                  <button
-                    type="button"
-                    aria-pressed={tool === "shoot"}
-                    disabled={!own}
-                    onClick={() => {
-                      setTool("shoot");
-                      setDraft(null);
-                    }}
-                  >
-                    Strzał
-                  </button>
-                )}
-              </div>
-              {guided && (
-                <button
-                  className="iqE-icon"
-                  type="button"
-                  aria-label="Wskazówka"
-                  onClick={() => setSheet("hint")}
-                >
-                  <Lightbulb size={19} />
-                </button>
-              )}
+              ))}
             </div>
-            {session.rulesVersion === 9 && tool === "shoot" && own && (
-              <div className="iqE-aim" role="group" aria-label="Cel strzału">
-                {[
-                  { x: 43.5, label: "Lewy róg" },
-                  { x: 50, label: "Środek" },
-                  { x: 56.5, label: "Prawy róg" },
-                ].map((a) => (
-                  <button
-                    type="button"
-                    key={a.x}
-                    onClick={() =>
-                      setDraft(
-                        liveChoice(controlled, "shoot", { x: a.x, y: 0 }),
-                      )
-                    }
-                  >
-                    {a.label}
-                  </button>
-                ))}
-              </div>
-            )}
             <div className="iqE-plan">
               <span>
-                {draft
-                  ? draft.label
+                {draft && !optionKey
+                  ? `Własny ruch: ${draft.label}`
                   : own
-                    ? tool === "shoot"
-                      ? "Wskaż kierunek strzału na boisku. Cel jest przy bramce rywali."
-                      : tool === "ball"
-                        ? "Dotknij celu podania na boisku."
-                        : "Dotknij miejsca prowadzenia piłki."
-                    : carrier.team === "home"
-                      ? "Piłkę ma partner. Wybierz miejsce własnego ruchu."
-                      : "Piłkę ma rywal. Wybierz własną pozycję."}
+                    ? "Albo dotknij boiska: blisko siebie – prowadzenie, dalej – podanie."
+                    : "Albo dotknij boiska, by wybrać własne miejsce."}
               </span>
               {draft && (
                 <button
                   className="iqE-icon"
                   type="button"
-                  aria-label="Usuń plan"
-                  onClick={() => setDraft(null)}
+                  aria-label="Usuń wybór"
+                  onClick={() => {
+                    setDraft(null);
+                    setOptionKey(null);
+                  }}
                 >
                   <X size={16} />
                 </button>
               )}
             </div>
             <div className="iqE-actions">
-              {draft ? (
-                <>
-                  <button
-                    className="iqE-primary"
-                    type="button"
-                    disabled={!playable}
-                    onClick={commit}
-                  >
-                    Rozegraj <Play size={16} />
-                  </button>
-                  <button
-                    className="iqE-icon iqE-bordered"
-                    type="button"
-                    aria-label="Wykonanie"
-                    onClick={() => setSheet("settings")}
-                  >
-                    <Settings2 size={18} />
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    className="iqE-secondary"
-                    disabled={!playable}
-                    onClick={() =>
-                      setDraft(
-                        liveChoice(
-                          controlled,
-                          own ? "hold" : "wait",
-                          session.world.positions[actor],
-                        ),
-                      )
-                    }
-                  >
-                    Pozostań w pozycji
-                  </button>
-                  {!own && carrier.team === "home" && (
-                    <button
-                      type="button"
-                      className="iqE-link"
-                      onClick={() => {
-                        setTakeover(true);
-                        setTool("ball");
-                        setDraft(null);
-                      }}
-                    >
-                      Jedno zagranie za {carrier.number}
-                    </button>
-                  )}
-                  {takeover && (
-                    <button
-                      type="button"
-                      className="iqE-link"
-                      onClick={() => {
-                        setTakeover(false);
-                        setTool("move");
-                        setDraft(null);
-                      }}
-                    >
-                      Wróć do TY
-                    </button>
-                  )}
-                </>
+              <button
+                className="iqE-primary"
+                type="button"
+                disabled={!playable || !draft}
+                onClick={commit}
+              >
+                Zagraj <Play size={16} />
+              </button>
+              {draft && (
+                <button
+                  className="iqE-icon iqE-bordered"
+                  type="button"
+                  aria-label="Wykonanie"
+                  onClick={() => setSheet("settings")}
+                >
+                  <Settings2 size={18} />
+                </button>
               )}
             </div>
+            {!own && carrier.team === "home" && !takeover && (
+              <button
+                type="button"
+                className="iqE-link"
+                onClick={() => {
+                  setTakeover(true);
+                  setDraft(null);
+                  setOptionKey(null);
+                }}
+              >
+                Zagraj jedno zagranie za {carrier.number}
+              </button>
+            )}
+            {takeover && (
+              <button
+                type="button"
+                className="iqE-link"
+                onClick={() => {
+                  setTakeover(false);
+                  setDraft(null);
+                  setOptionKey(null);
+                }}
+              >
+                Wróć do TY
+              </button>
+            )}
           </>
         ) : phase === "playing" ? (
           <div className="iqE-coach" aria-live="polite">
-            <span>{replay ? "Porównaj przebieg" : "Obserwuj reakcję"}</span>
+            <span>{replay ? "Powtórka" : "Akcja trwa"}</span>
             <p>
               {guided
-                ? (event?.text ?? "Śledź piłkę i zmianę ustawienia rywala.")
-                : "Akcja w ruchu. Zwróć uwagę na następną możliwość."}
+                ? (event?.text ?? "Patrz na piłkę i ustawienie rywali.")
+                : "Patrz, co się zmienia. Za chwilę kolejna decyzja."}
             </p>
           </div>
         ) : phase === "feedback" ? (
           <>
-            <p className="iqE-question">Co zmieniło się po Twoim wyborze?</p>
+            <span className="iqE-eyebrow">Co się stało</span>
             <p className="iqE-feedback">{lastDecision?.why}</p>
+            {!session.outcome && (
+              <p className="iqE-next">
+                <strong>Teraz:</strong> {situationLine(session, "you")}
+              </p>
+            )}
             <div className="iqE-actions">
               <button
                 type="button"
                 className="iqE-primary"
-                onClick={() =>
-                  setPhase(session.outcome ? "summary" : "decision")
-                }
+                onClick={() => setPhase(session.outcome ? "summary" : "decision")}
               >
-                {session.outcome
-                  ? "Zobacz wniosek"
-                  : "Podejmij następną decyzję"}{" "}
-                <ArrowRight size={16} />
+                {session.outcome ? "Zobacz wynik" : "Dalej"} <ArrowRight size={16} />
               </button>
               <button
                 className="iqE-icon iqE-bordered"
@@ -975,10 +718,10 @@ export function LearningJourney(props: Props) {
             </div>
           </>
         ) : (
-          <section className="iqE-summary" aria-label="Wniosek z lekcji">
+          <section className="iqE-summary" aria-label="Wynik akcji">
             <div className="iqE-between">
               <span className="iqE-eyebrow">
-                {transfer ? "Próba w nowym układzie" : "Wniosek na boisko"}
+                {transfer ? "Próba w nowym układzie" : "Wynik akcji"}
               </span>
               <span className="iqE-save">
                 {saved
@@ -1007,7 +750,7 @@ export function LearningJourney(props: Props) {
             </h2>
             <p>{lessonTakeaway(session)}</p>
             <details>
-              <summary>Przyczyna → reakcja → następna opcja</summary>
+              <summary>Twoje decyzje ({session.decisions.length})</summary>
               {session.decisions.map((d, i) => (
                 <p key={d.choiceId + i}>
                   <strong>
@@ -1017,82 +760,34 @@ export function LearningJourney(props: Props) {
                 </p>
               ))}
             </details>
+            <button
+              type="button"
+              className="iqE-primary"
+              onClick={() => start(nextDefinition(session.definition, props.position))}
+            >
+              Następna sytuacja <ArrowRight size={16} />
+            </button>
             <div className="iqE-actions">
               <button
                 type="button"
                 className="iqE-secondary"
-                onClick={() =>
-                  play(session, 0, journeyDuration(session), "summary", true)
-                }
+                onClick={() => play(session, 0, journeyDuration(session), "summary", true)}
               >
                 <Play size={16} /> Cała akcja
               </button>
               <button
                 type="button"
                 className="iqE-secondary"
-                onClick={() => {
-                  const index = session.decisions.findIndex(
-                    (d) => d.alternative,
-                  );
-                  let alt = createJourneyForRules(
-                    session.definition,
-                    session.rulesVersion ?? 8,
-                  );
-                  for (const d of session.decisions.slice(0, index))
-                    alt = chooseJourney(
-                      alt,
-                      d.choiceId,
-                      d.decisionSeconds,
-                      false,
-                    );
-                  const from = journeyDuration(alt),
-                    c = session.decisions[index]?.alternative;
-                  if (c) {
-                    alt = chooseJourney(alt, c.id, 0, false);
-                    play(alt, from, journeyDuration(alt), "summary", true);
-                  }
-                }}
+                onClick={() => start(nextContext(session.definition), true)}
               >
-                Porównaj inny wybór
+                Sprawdź w nowym układzie
               </button>
             </div>
-            <label className="iqE-reflection">
-              Co sprawdzisz przed następnym zagraniem?
-              <input
-                value={reflection}
-                onChange={(e) => setReflection(e.target.value.slice(0, 180))}
-                placeholder="Twoja krótka odpowiedź — opcjonalnie"
-              />
-            </label>
-            <button
-              type="button"
-              className="iqE-primary"
-              onClick={() =>
-                start(
-                  advancedJourneyBank.find(
-                    (d) =>
-                      d.topicId === session.definition.topicId &&
-                      d.context === (session.definition.context + 1) % 3,
-                  )!,
-                  true,
-                )
-              }
-            >
-              Sprawdź w nowym układzie <ArrowRight size={16} />
-            </button>
             <div className="iqE-between">
-              <button
-                className="iqE-link"
-                type="button"
-                onClick={exportAttempt}
-              >
+              <button className="iqE-link" type="button" onClick={exportAttempt}>
                 Pobierz zapis
               </button>
-              <button
-                className="iqE-link"
-                type="button"
-                onClick={() => setSheet("history")}
-              >
+              <button className="iqE-link" type="button" onClick={() => setSheet("history")}>
                 <History size={15} /> Historia i kopie
               </button>
             </div>
@@ -1108,11 +803,7 @@ export function LearningJourney(props: Props) {
         }}
       >
         <div className="iqE-between">
-          <button
-            className="iqE-link"
-            type="button"
-            onClick={() => setSheet(null)}
-          >
+          <button className="iqE-link" type="button" onClick={() => setSheet(null)}>
             <ChevronDown size={18} /> Zwiń
           </button>
           <button
@@ -1124,6 +815,28 @@ export function LearningJourney(props: Props) {
             <X size={20} />
           </button>
         </div>
+        {sheet === "help" && (
+          <>
+            <h2>Jak grać</h2>
+            <ol className="iqE-steps">
+              {startLines(session, mode).map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ol>
+            <h3 className="iqE-sources-title">Źródła</h3>
+            <ul className="iqE-sources">
+              {(situation?.sources ?? (Object.keys(iqSources) as (keyof typeof iqSources)[])).map(
+                (id) => (
+                  <li key={id}>
+                    <a href={iqSources[id].url} target="_blank" rel="noreferrer">
+                      {iqSources[id].label}
+                    </a>
+                  </li>
+                ),
+              )}
+            </ul>
+          </>
+        )}
         {sheet === "history" && (
           <>
             <h2>Historia IQ</h2>
@@ -1136,9 +849,7 @@ export function LearningJourney(props: Props) {
                     <div className="iqE-role-list">
                       {rows
                         .filter((r) =>
-                          [LIVE_BANK_VERSION, ATTACK_BANK_VERSION].includes(
-                            r.bankVersion,
-                          ),
+                          [LIVE_BANK_VERSION, ATTACK_BANK_VERSION].includes(r.bankVersion),
                         )
                         .slice(-20)
                         .reverse()
@@ -1159,21 +870,18 @@ export function LearningJourney(props: Props) {
                             }}
                           >
                             <span>
-                              {new Date(row.createdAt).toLocaleDateString("pl")}{" "}
-                              ·{" "}
+                              {new Date(row.createdAt).toLocaleDateString("pl")} ·{" "}
                               {row.mode === "learn" ? "Lekcja" : "Samodzielnie"}
                             </span>
                             {
-                              advancedJourneyBank.find(
+                              [...advancedJourneyBank, ...situationBank].find(
                                 (d) => d.id === row.scenarioId,
                               )?.title
                             }
                           </button>
                         ))}
                     </div>
-                    {!rows.length && (
-                      <p>Twoja pierwsza ukończona lekcja pojawi się tutaj.</p>
-                    )}
+                    {!rows.length && <p>Twoja pierwsza ukończona lekcja pojawi się tutaj.</p>}
                     <button
                       className="iqE-secondary"
                       type="button"
@@ -1181,10 +889,7 @@ export function LearningJourney(props: Props) {
                         void downloadText(
                           "ballwise-iq-kopia.json",
                           JSON.stringify(
-                            createJourneyBackup(
-                              rows,
-                              loadJourneyDraft(historyOwner),
-                            ),
+                            createJourneyBackup(rows, loadJourneyDraft(historyOwner)),
                             null,
                             2,
                           ),
@@ -1199,10 +904,7 @@ export function LearningJourney(props: Props) {
                 );
               } catch {
                 return (
-                  <p>
-                    Nie udało się odczytać historii. Dotychczasowe pliki
-                    pozostają zachowane.
-                  </p>
+                  <p>Nie udało się odczytać historii. Dotychczasowe pliki pozostają zachowane.</p>
                 );
               }
             })()}
@@ -1218,37 +920,41 @@ export function LearningJourney(props: Props) {
             </button>
           </>
         )}
-        {sheet === "hint" && (
-          <>
-            <h2>Najpierw pomyśl</h2>
-            <p>{lessonHint(session)}</p>
-            <p>Nie musisz otrzymać piłki, żeby Twój ruch pomógł drużynie.</p>
-          </>
-        )}
         {sheet === "roles" && (
           <>
-            <h2>Twoja pozycja, Twój problem</h2>
-            <p>Wybierz sytuację. Zapisana historia pozostaje w archiwum.</p>
-            <div className="iqE-role-list">
-              {advancedJourneyBank
-                .filter(
-                  (d) =>
-                    rolesForPosition(props.position).includes(d.role) &&
-                    d.context === 0,
-                )
-                .map((d) => (
-                  <button type="button" key={d.id} onClick={() => start(d)}>
-                    <span>{roleLabels[d.role]}</span>
-                    {d.title}
-                    <ArrowRight size={17} />
-                  </button>
-                ))}
+            <h2>Wybierz sytuację</h2>
+            <div className="iqE-intro-options">
+              <button type="button" aria-pressed={!pickAll} onClick={() => setPickAll(false)}>
+                Twoja pozycja
+              </button>
+              <button type="button" aria-pressed={pickAll} onClick={() => setPickAll(true)}>
+                Wszystkie pozycje
+              </button>
             </div>
-            <button
-              type="button"
-              className="iqE-secondary"
-              onClick={() => setSheet("history")}
-            >
+            {(["build", "attack", "transition", "defend"] as const).map((moment) => {
+              const group = items.filter((i) => i.moment === moment);
+              if (!group.length) return null;
+              return (
+                <section key={moment} className="iqE-pick-group">
+                  <h3>{momentLabel(moment)}</h3>
+                  <div className="iqE-role-list">
+                    {group.map((i) => (
+                      <button
+                        type="button"
+                        key={i.def.id}
+                        aria-current={i.def.topicId === session.definition.topicId}
+                        onClick={() => start(i.def)}
+                      >
+                        <span>{i.role}</span>
+                        {i.def.title}
+                        <ArrowRight size={17} />
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+            <button type="button" className="iqE-secondary" onClick={() => setSheet("history")}>
               <History size={16} /> Historia i kopie
             </button>
           </>
@@ -1312,11 +1018,7 @@ export function LearningJourney(props: Props) {
                 ))}
               </div>
             )}
-            <button
-              className="iqE-primary"
-              type="button"
-              onClick={() => setSheet(null)}
-            >
+            <button className="iqE-primary" type="button" onClick={() => setSheet(null)}>
               Wróć do boiska
             </button>
           </>
