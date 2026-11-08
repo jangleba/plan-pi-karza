@@ -797,7 +797,19 @@ export function repairBackToBackSpeedSessions(
   const clearSpeedSession = (
     day: SessionDay,
     reason: string,
-  ): SessionDay => ({
+  ): SessionDay =>
+    // Druga sesja nie może wisieć na dniu odpoczynku: awansuje na sesję dnia.
+    day.secondSession
+      ? {
+          ...day.secondSession,
+          date: day.date,
+          dayName: day.dayName,
+          dayOfWeek: day.dayOfWeek,
+          mdLabel: day.mdLabel ?? null,
+          slotLabel: null,
+          secondSession: null,
+        }
+      : ({
     ...day,
     dayType: "rest" as DayType,
     title: "Odpoczynek",
@@ -807,7 +819,7 @@ export function repairBackToBackSpeedSessions(
     sessionType: "Odpoczynek",
     goalOfSession: "Regeneracja między bodźcami szybkościowymi.",
     slotLabel: null,
-    secondSession: day.secondSession ?? null,
+    secondSession: null,
     exercises: [],
     sections: { warmup: [], main: [], accessory: [], footballTransfer: [], cooldown: [] },
     classification: undefined,
@@ -1551,17 +1563,24 @@ export function addMissingGymSessions(
     guard += 1;
 
     // Krok 1: wolny dzień (rest) bez klubu/meczu, nie sąsiadujący z gym.
-    const restIdx = weekPlan.findIndex(
-      (d, i) =>
-        !d.isUnavailable &&
-        d.dayType === "rest" &&
-        !isClubSession(d) &&
-        !isMatchSession(d) &&
-        !isDayBeforeMatch(d) &&
-        !adjacentHasGym(i),
+    // MD+1 to dzień regeneracji: bierzemy go tylko, gdy nie ma innego, i wtedy lekko.
+    const restCandidate = (d: SessionDay, i: number) =>
+      !d.isUnavailable &&
+      d.dayType === "rest" &&
+      !isClubSession(d) &&
+      !isMatchSession(d) &&
+      !isDayBeforeMatch(d) &&
+      !adjacentHasGym(i);
+    const preferredRestIdx = weekPlan.findIndex(
+      (d, i) => restCandidate(d, i) && !isDayAfterMatch(d),
     );
+    const restIdx =
+      preferredRestIdx >= 0 ? preferredRestIdx : weekPlan.findIndex(restCandidate);
     if (restIdx >= 0) {
-      const light = isDayBeforeMatch(weekPlan[restIdx]) || isYouthOrBeginner(profile);
+      const light =
+        isDayBeforeMatch(weekPlan[restIdx]) ||
+        isDayAfterMatch(weekPlan[restIdx]) ||
+        isYouthOrBeginner(profile);
       const rebuilt = buildGymSessionDay(profile, weekPlan[restIdx], {
         light,
         placementReason:
