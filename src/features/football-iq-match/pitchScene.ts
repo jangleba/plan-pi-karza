@@ -50,7 +50,7 @@ export async function createPitchScene(
   const scene = new Scene();
   scene.background = new Color("#1b4a40");
   const camera = new OrthographicCamera(-50, 50, 70, -70, 0.1, 600);
-  // "2.5D": a broadcast-like perspective camera behind the attacking team that follows the ball.
+  // "2.5D": a TV-like perspective camera from the side that follows the ball.
   const broadcastCamera = new PerspectiveCamera(38, 1, 0.5, 900);
   let view: OrthographicCamera | PerspectiveCamera = camera;
   let broadcast = false;
@@ -290,8 +290,9 @@ export async function createPitchScene(
     broadcastCamera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
   };
-  const BROADCAST_SCALE = 0.9;
-  const BROADCAST_ELEVATION = (40 * Math.PI) / 180;
+  const BROADCAST_SCALE = 1;
+  // TV side camera: on the touchline, low and close, attack runs left to right.
+  const BROADCAST_ELEVATION = (28 * Math.PI) / 180;
   const scaleNow = () => (broadcast ? BROADCAST_SCALE : figureScale);
   /** Frames the ball and your player together, eased while the action runs. */
   const followBall = (frame: PlaybackFrame, moving: boolean) => {
@@ -299,18 +300,28 @@ export async function createPitchScene(
     const controlled = players.find((p) => p.controlled);
     const you = (controlled && frame.positions.get(controlled.id)) || ballAt;
     const aim = {
-      x: Math.max(24, Math.min(76, ballAt.x * 0.6 + you.x * 0.4)),
-      y: Math.max(28, Math.min(118, ballAt.y * 0.6 + you.y * 0.4 - 6)),
+      x: Math.max(12, Math.min(88, ballAt.x * 0.6 + you.x * 0.4)),
+      y: Math.max(14, Math.min(126, ballAt.y * 0.6 + you.y * 0.4)),
     };
-    const spanX = Math.max(62, Math.min(100, Math.abs(ballAt.x - you.x) + 30));
-    const spanY = Math.max(44, Math.min(90, Math.abs(ballAt.y - you.y) + 30));
+    // Along the pitch is the screen width, across the pitch is the screen depth.
+    const spanAlong = Math.max(
+      34,
+      Math.min(80, Math.abs(ballAt.y - you.y) + 22),
+    );
+    const spanAcross = Math.max(
+      28,
+      Math.min(70, Math.abs(ballAt.x - you.x) + 22),
+    );
     const halfV = (broadcastCamera.fov * Math.PI) / 360;
     const halfH = Math.atan(Math.tan(halfV) * broadcastCamera.aspect);
+    // Never closer than 55 m: wide, short screens would otherwise put a giant player in front.
     const wanted = Math.max(
-      spanX / 2 / Math.tan(halfH),
-      (spanY * Math.sin(BROADCAST_ELEVATION)) / 2 / Math.tan(halfV),
+      55,
+      spanAlong / 2 / Math.tan(halfH),
+      (spanAcross * Math.sin(BROADCAST_ELEVATION)) / 2 / Math.tan(halfV),
     );
-    const desired = world(aim);
+    // Aim a little toward the camera so players on the near side keep their feet in frame.
+    const desired = world({ x: aim.x + 5, y: aim.y });
     const now = performance.now();
     if (!followTarget || !moving) {
       followTarget = desired;
@@ -327,9 +338,9 @@ export async function createPitchScene(
       .copy(followTarget)
       .add(
         new Vector3(
-          0,
-          Math.sin(BROADCAST_ELEVATION) * distance,
           Math.cos(BROADCAST_ELEVATION) * distance,
+          Math.sin(BROADCAST_ELEVATION) * distance,
+          0,
         ),
       );
     broadcastCamera.lookAt(followTarget);
@@ -462,8 +473,8 @@ export async function createPitchScene(
     broadcastView = false,
   ) => {
     if (disposed || contextLost) return;
-    // Short landscape screens keep the flat board: a tilted view would be too shallow there.
-    const wantBroadcast = broadcastView && !landscapeView;
+    // The side camera suits landscape screens too, like a TV picture.
+    const wantBroadcast = broadcastView;
     if (wantBroadcast !== broadcast) {
       broadcast = wantBroadcast;
       view = broadcast ? broadcastCamera : camera;
