@@ -12,126 +12,128 @@ export type FieldTask = {
   done?: boolean;
 };
 
-const SCAN = "Zanim dostaniesz piłkę, spójrz dwa razy przez ramię.";
+const SPACE = "Gdy partner ma piłkę, stań w wolnym miejscu między dwoma rywalami.";
 const OFFSIDE =
   "Przy podaniu do przodu stój na linii ostatniego obrońcy i ruszaj w chwili podania.";
 
-/** Tasks per topic. Situation topics use their key, older lessons their concept. */
+/** Tactical tasks per topic: where and when to move against the rival shape.
+ * No body details (head, hips, scanning): only position, timing and space.
+ * Situation topics use their key, older lessons their concept. */
 export const fieldTasks: Record<string, string[]> = {
   counter: [
-    "Po odbiorze piłki pierwsze spojrzenie kieruj do przodu, na wolnego napastnika.",
-    "W kontrze biegnij szeroko i do przodu, zanim partner podniesie głowę.",
+    "W kontrze biegnij do przodu w wolny pas, którego nie pilnuje żaden obrońca.",
+    "W przewadze w kontrze ustaw się szeroko, żeby obrońca musiał wybrać jednego z was.",
   ],
   "gk-build": [
-    "Przy wznowieniu od bramkarza ustaw się szeroko, przy linii pola karnego, przodem do boiska.",
-    "Przed przyjęciem od bramkarza sprawdź, gdzie stoi najbliższy napastnik rywala.",
+    "Przy wznowieniu od bramkarza stań szeroko, poza zasięgiem najbliższego napastnika.",
+    "Gdy napastnik rywala doskakuje do bramkarza, przesuń się w miejsce, które on opuścił.",
   ],
   cross: [
-    "Przy dośrodkowaniu ruszaj w pole karne dopiero, gdy skrzydłowy podnosi głowę.",
-    "Przy każdym dośrodkowaniu atakuj bliższy słupek albo punkt karny.",
+    "Przy dośrodkowaniu wbiegaj w lukę między dwoma obrońcami, nie za ich plecy.",
+    "Gdy partner atakuje bliższy słupek, Ty zajmij punkt karny albo dalszy słupek.",
   ],
   "counter-press": [
-    "Po stracie piłki przez 5 sekund biegnij do piłki albo zamknij najbliższe podanie.",
-    "Po stracie zatrzymaj się dopiero wtedy, gdy rywal zagra do tyłu albo na bok.",
+    "Po stracie od razu zamknij najbliższe podanie do przodu, zamiast cofać się na pozycję.",
+    "Po stracie skróć odległość do partnerów, żeby rywal z piłką był otoczony.",
   ],
   "low-block": [
-    "Przeciw niskiej obronie zmień stronę gry dwa razy, zanim zagrasz w pole karne.",
-    "Ustaw się między obrońcami a pomocnikami rywala, bokiem do bramki.",
+    "Przeciw niskiej obronie ustaw się między liniami rywala, w strefie bez krycia.",
+    "Gdy rywal broni środka, przenieś grę na stronę, na której jest mniej obrońców.",
   ],
   "wide-1v1": [
-    "W pojedynku 1 na 1 przyspiesz dopiero po zwodzie.",
-    "Raz w meczu zaatakuj obrońcę od razu po przyjęciu, bez zatrzymania.",
+    "Atakuj obrońcę 1 na 1 tylko wtedy, gdy za nim nie ma drugiego obrońcy.",
+    "Gdy obrońca ma asekurację, oddaj piłkę i wbiegnij w miejsce za nim.",
   ],
   "defend-centre": [
-    "Gdy rywal ma piłkę przed polem karnym, stań bokiem między nim a bramką.",
-    "Co kilka sekund sprawdź napastnika za swoimi plecami.",
+    "Gdy rywal ma piłkę przed polem karnym, stań między nim a środkiem bramki.",
+    "Trzymaj linię z partnerami z obrony, żeby nikt nie zostawił rywala na spalonym.",
   ],
   "hold-up": [
-    "Zanim dostaniesz piłkę tyłem do bramki, dotknij ręką obrońcy za plecami.",
-    "Po przyjęciu tyłem do bramki odegraj w 1–2 kontaktach do partnera przodem do gry.",
+    "Tyłem do bramki odegraj do partnera, który stoi przodem do gry.",
+    "Po odegraniu wbiegnij w lukę między obrońcami, którą zostawił Twój obrońca.",
   ],
   "fullback-overlap": [
-    "Gdy skrzydłowy schodzi z piłką do środka, obiegnij go po zewnętrznej.",
-    "Po obiegnięciu dośrodkuj albo zagraj wzdłuż pola karnego w 2 kontaktach.",
+    "Gdy skrzydłowy schodzi do środka, wbiegnij w wolny pas przy linii za nim.",
+    "Obiegaj tylko wtedy, gdy za Tobą zostaje partner, który zabezpieczy stratę.",
   ],
   "gk-switch": [
-    "Zanim dostaniesz piłkę, sprawdź, po której stronie rywal ma mniej zawodników.",
-    "Przy wyprowadzeniu od bramki zagraj raz długo na wolną stronę.",
+    "Gdy rywal naciska jedną stroną, wyprowadź piłkę na drugą stronę boiska.",
+    "Graj krótko tylko do partnera, który ma wolną drogę do przodu.",
   ],
   "gk-sweep": [
-    "Gdy Twoja obrona stoi wysoko, stój kilka metrów przed bramką.",
-    "Przy każdym podaniu za obrońców ruszaj od razu, zanim piłka spadnie.",
+    "Gdy Twoja obrona stoi wysoko, stań kilka metrów przed bramką.",
+    "Przy wysokiej linii obrony asekuruj przestrzeń za plecami obrońców.",
   ],
   "gk-counter": [
-    "Po złapaniu piłki od razu szukaj wzrokiem wolnego skrzydłowego.",
-    "Po złapaniu piłki wznów grę w ciągu 3 sekund, gdy partner jest wolny.",
+    "Po złapaniu piłki wznów grę do partnera na stronie, gdzie rywale nie wrócili.",
+    "Gdy wszyscy rywale są blisko piłki, zagraj na wolną stronę boiska.",
   ],
   "cb-carry": [
-    "Gdy nikt Cię nie atakuje, wprowadź piłkę 10 metrów do przodu.",
-    "Prowadź piłkę na rywala i podaj, gdy on ruszy do Ciebie.",
+    "Gdy nikt Cię nie atakuje, wprowadź piłkę do przodu, aż rywal do Ciebie ruszy.",
+    "Gdy rywal ruszy do Ciebie, podaj do partnera, którego wcześniej krył.",
   ],
   "cb-step-out": [
-    "Wychodź do rywala między liniami tylko wtedy, gdy partner Cię asekuruje.",
-    "Gdy rywal stoi tyłem do bramki, doskocz blisko i nie pozwól mu się obrócić.",
+    "Wychodź do rywala między liniami tylko wtedy, gdy partner zajmie Twoje miejsce.",
+    "Gdy nikt Cię nie asekuruje, trzymaj linię obrony i zamknij podanie za plecy.",
   ],
   "fb-inverted": [
     "Gdy skrzydłowy stoi szeroko, zejdź bliżej środka i zabierz ze sobą rywala.",
-    "Przed podaniem od stopera sprawdź, czy rywal idzie za Tobą.",
+    "Zostań szeroko, gdy w środku nie ma wolnego miejsca.",
   ],
   "fb-2v1": [
-    "Przy dwóch rywalach przy linii cofaj się bokiem i zamykaj podanie do środka.",
-    "Nie doskakuj od razu: czekaj, aż partner wróci i będzie dwóch na dwóch.",
+    "Przy dwóch rywalach przy linii cofaj się i zamykaj podanie do środka.",
+    "Nie doskakuj od razu: opóźniaj, aż wróci partner i będzie dwóch na dwóch.",
   ],
   "six-pivot": [
-    "Ustaw się tak, żeby stoper widział Cię między dwoma rywalami.",
-    "Zanim dostaniesz piłkę, spójrz, gdzie stoi rywal za Twoimi plecami.",
+    "Ustaw się między dwoma napastnikami rywala, w linii podania od stopera.",
+    "Gdy rywal stoi za Tobą, odejdź w bok i zrób miejsce na podanie do przodu.",
   ],
   "six-screen": [
-    "Gdy rywal ma piłkę z boku, stań między nim a rywalem za Twoimi plecami.",
-    "Co kilka sekund sprawdź, kto stoi za Tobą przed Twoimi stoperami.",
+    "Gdy rywal ma piłkę z boku, stań w linii podania do rywala za Twoimi plecami.",
+    "Trzymaj się przed stoperami, w strefie między nimi a pomocnikami rywala.",
   ],
   "six-switch": [
-    "Gdy po jednej stronie jest tłok, zagraj na drugą stronę w 2 kontaktach.",
-    "Przed przyjęciem spójrz na drugą stronę boiska.",
+    "Gdy po jednej stronie jest tłok, zagraj na drugą stronę w 2 podaniach.",
+    "Ustaw się tak, żeby mieć wolną linię podania na obie strony boiska.",
   ],
   "eight-third-man": [
-    "Gdy rywal kryje Cię z tyłu, zrób krok do piłki i odejdź za jego plecy.",
-    "Po odegraniu od razu ruszaj w nowe miejsce do przodu.",
+    "Gdy rywal kryje Cię z bliska, odejdź za jego plecy i zwolnij miejsce dla partnera.",
+    "Po podaniu wbiegnij w wolne miejsce do przodu, zanim rywale się przesuną.",
   ],
   "eight-box": [
-    "Przy dośrodkowaniu wbiegaj w pole karne później niż napastnik.",
-    "Przy akcji skrzydłem stań na skraju pola karnego na zgranie do tyłu.",
+    "Przy dośrodkowaniu wbiegaj w pole karne później niż napastnik, w wolną strefę.",
+    "Przy akcji skrzydłem stań na skraju pola karnego na podanie do tyłu.",
   ],
   "ten-turn": [
-    "Zanim dostaniesz piłkę między liniami, sprawdź, czy rywal stoi za Tobą.",
-    "Gdy nikt Cię nie naciska, przyjmij piłkę przodem do bramki rywala.",
+    "Stań między pomocnikami a obrońcami rywala, w strefie, której nikt nie kryje.",
+    "Gdy rywal stoi tuż za Tobą, odegraj do partnera przodem do gry.",
   ],
   "ten-press": [
     "Doskakuj do stopera tak, żeby szóstka rywala była za Twoimi plecami.",
     "Biegnij do piłki po łuku i zamykaj podanie do środka.",
   ],
   "wing-press": [
-    "Doskakuj do stopera po łuku od strony linii bocznej.",
-    "Gdy stoper podaje do bocznego obrońcy, doskocz do niego od razu.",
+    "Doskakuj do stopera od strony linii bocznej, żeby nie mógł podać na skrzydło.",
+    "Gdy stoper poda do bocznego obrońcy, od razu doskocz do niego.",
   ],
   "nine-press": [
     "Doskakuj do stopera po łuku, żeby nie mógł podać do drugiego stopera.",
     "Po pierwszym doskoku wróć zasłonić szóstkę rywala.",
   ],
   "nine-depth": [
-    "Stój na linii ostatniego obrońcy i ruszaj w chwili podania.",
+    "Stój na linii ostatniego obrońcy i ruszaj za plecy obrońców w chwili podania.",
     "Gdy obrońcy stoją wysoko, raz w akcji wbiegnij za ich plecy.",
   ],
   "third-player": [
-    "Po podaniu od razu ruszaj w nowe miejsce, żeby dostać piłkę od trzeciego zawodnika.",
-    SCAN,
+    "Po podaniu od razu ruszaj w nowe wolne miejsce, żeby dostać piłkę od trzeciego.",
+    SPACE,
   ],
   "overload-switch": [
     "Gdy po jednej stronie jest tłok, przenieś grę na drugą stronę w najwyżej 2 podaniach.",
-    SCAN,
+    SPACE,
   ],
   "press-cover": [
-    "Zanim doskoczysz do rywala, sprawdź, czy partner stoi za Tobą.",
+    "Doskakuj do rywala tylko wtedy, gdy partner stoi za Tobą jako asekuracja.",
     "Doskakuj po łuku, tak żeby zasłonić podanie do środka.",
   ],
 };
@@ -145,7 +147,7 @@ export function pickFieldTask(
   previous: FieldTask | null,
   now = new Date(),
 ): FieldTask {
-  const list = fieldTasks[topicKey(def)] ?? [SCAN];
+  const list = fieldTasks[topicKey(def)] ?? [SPACE];
   const pool = finish === "offside" ? [OFFSIDE, ...list] : list;
   // Rotate within the topic so a repeated lesson gives a new task.
   const lastIndex = previous ? pool.indexOf(previous.text) : -1;
