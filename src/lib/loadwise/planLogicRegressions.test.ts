@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { generatePlan } from "./planEngine";
-import { canonicalizeGeneratedExercise } from "./exerciseLibrary";
+import { canonicalizeGeneratedExercise, isExerciseAllowedForProfile } from "./exerciseLibrary";
+import { buildAthleteTrainingProfile } from "./athleteProfile";
+import { getExerciseDefinition } from "./exerciseLibrary";
+
+const getDefinitionKnown = (id: string) => Boolean(getExerciseDefinition(id));
 import type { Profile, SessionDay } from "./types";
 
 vi.spyOn(console, "debug").mockImplementation(() => undefined);
@@ -154,5 +158,83 @@ describe("plan logic regressions found by the randomized profile scan", () => {
     expect(map("Falling start (start z padania)")).toBe("acceleration_mechanics");
     expect(map("Wspięcia na łydki")).toBe("standing_calf_raise");
     expect(map("Interwały biegowe bez piłki")).toBe("method_interval_run");
+  });
+
+  it("derives jump readiness from the football level, never loaded-lift experience", () => {
+    const regular = buildAthleteTrainingProfile(
+      profile({ age: 16, level: "intermediate", hasGym: false }),
+    );
+    expect(regular.gymExperienceLevel).toBe("beginner");
+    expect(regular.bodyweightCompetenceLevel).toBe("medium");
+    expect(regular.movementCompetenceLevel).toBe("low");
+    expect(isExerciseAllowedForProfile("bilateral_pogo", regular).ok).toBe(true);
+    expect(isExerciseAllowedForProfile("countermovement_jump", regular).ok).toBe(true);
+    expect(regular.exerciseSafetyProfile.allowHeavyCompounds).toBe(false);
+
+    const beginner = buildAthleteTrainingProfile(
+      profile({ age: 16, level: "beginner", hasGym: false }),
+    );
+    expect(beginner.gymExperienceLevel).toBe("none");
+    expect(isExerciseAllowedForProfile("bilateral_pogo", beginner).ok).toBe(false);
+    expect(isExerciseAllowedForProfile("snap_down", beginner).ok).toBe(true);
+
+    const elite = buildAthleteTrainingProfile(profile({ age: 25, level: "elite", hasGym: true }));
+    expect(elite.gymExperienceLevel).toBe("beginner");
+    expect(elite.movementCompetenceLevel).toBe("low");
+  });
+
+  it("only plans exercises the profile is allowed to do", () => {
+    for (const patch of [
+      // Found by the scan: prehab gave a beginner without a gym Nordic curls and CMJ.
+      {
+        age: 16,
+        level: "beginner",
+        goal: "mobility",
+        hasGym: false,
+        hasSprintSpace: false,
+        clubTrainingDays: [],
+        individualTrainingDays: [1, 2, 3, 5, 6, 7],
+        unavailableDays: [4],
+        usualMatchDay: 6,
+        matchDate: "2026-07-25",
+        matchDates: ["2026-07-25"],
+        doubleSessionsAllowed: "yes_if_safe",
+      },
+      // Found by the scan: speed sessions gave pogo to profiles the library blocked.
+      {
+        age: 16,
+        level: "intermediate",
+        goal: "endurance",
+        hasGym: false,
+        clubTrainingDays: [1, 5, 6, 7],
+        individualTrainingDays: [2, 3, 4],
+        usualMatchDay: 7,
+        matchDate: "2026-11-29",
+        matchDates: ["2026-11-29"],
+      },
+      {
+        age: 14,
+        level: "advanced",
+        goal: "strength",
+        hasGym: false,
+        clubTrainingDays: [3, 5, 6],
+        individualTrainingDays: [1, 2, 4, 7],
+        usualMatchDay: 3,
+        matchDate: "2026-12-23",
+        matchDates: ["2026-12-23"],
+      },
+    ] as Partial<Profile>[]) {
+      const p = profile(patch);
+      const athlete = buildAthleteTrainingProfile(p);
+      const blocked = exercises(generatePlan(p, new Date(2026, 10, 2), 28))
+        .filter((item) => item.exerciseId && getDefinitionKnown(item.exerciseId))
+        .map(
+          (item) =>
+            [item.exerciseId, isExerciseAllowedForProfile(item.exerciseId, athlete)] as const,
+        )
+        .filter(([, result]) => !result.ok)
+        .map(([id, result]) => `${id}: ${result.reasons.join(" ")}`);
+      expect(blocked).toEqual([]);
+    }
   });
 });

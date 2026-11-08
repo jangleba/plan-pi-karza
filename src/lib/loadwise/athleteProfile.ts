@@ -92,6 +92,8 @@ export interface AthleteTrainingProfile {
   gymExperienceLevel: GymExperienceLevel;
   sportExperienceLevel: GymExperienceLevel;
   movementCompetenceLevel: CompetenceLevel;
+  /** Ruch z masą ciała bez sprzętu; patrz getBodyweightCompetenceLevel. */
+  bodyweightCompetenceLevel?: CompetenceLevel;
   coordinationLevel: CompetenceLevel;
   currentFitnessLevel: CompetenceLevel;
   athleteGoal: Profile["goal"];
@@ -150,18 +152,40 @@ export function getTrainingAge(_p: Partial<Profile>): number | null {
   return null;
 }
 
-/** Doświadczenie siłowe (none/beginner/intermediate/advanced). */
+/**
+ * Doświadczenie siłowe (none/beginner/intermediate/advanced).
+ * Onboarding o nie nie pyta, więc bez jawnej odpowiedzi (formularz w profilu)
+ * wyprowadzamy je z poziomu piłkarskiego: kto gra regularnie (od średniozaawansowanego),
+ * zna podstawowe ćwiczenia z masą ciała z treningów klubowych, więc ma „beginner”.
+ * Wyżej (ciężkie boje, „intermediate” i „advanced”) nigdy nie zgadujemy: to wymaga
+ * jawnej odpowiedzi, bo poziom piłkarski nie jest stażem ze sztangą.
+ */
 export function getStrengthExperienceLevel(p: Partial<Profile>): GymExperienceLevel {
-  // Jeśli onboarding poda to jawnie — użyj tego.
   if (p.gymExperienceLevel) return p.gymExperienceLevel;
-  // To konserwatywny poziom roboczy, a nie zgadywanie stażu z ligi lub wieku.
-  return p.hasGym ? "beginner" : "none";
+  const playsRegularly =
+    p.level === "intermediate" || p.level === "advanced" || p.level === "elite";
+  return p.hasGym || playsRegularly ? "beginner" : "none";
 }
 
 export function getMovementCompetenceLevel(p: Partial<Profile>): CompetenceLevel {
   if (p.movementCompetence) return p.movementCompetence;
   // Ogólna sprawność piłkarska nie potwierdza kontroli ćwiczeń siłowych.
   return "low";
+}
+
+/**
+ * Kontrola ruchu z masą ciała (skoki, lądowania, pompki, przysiady bez obciążenia).
+ * Bez jawnej odpowiedzi wyprowadzamy ją z poziomu piłkarskiego: kto gra regularnie
+ * (od średniozaawansowanego) i ma co najmniej 14 lat, skacze, hamuje, ląduje i robi
+ * ćwiczenia ogólnorozwojowe na każdym treningu, więc ma „medium”. Boje z obciążeniem
+ * i testy maksymalne nadal wymagają jawnej kompetencji ruchowej.
+ */
+export function getBodyweightCompetenceLevel(p: Partial<Profile>): CompetenceLevel {
+  if (p.movementCompetence) return p.movementCompetence;
+  const age = typeof p.age === "number" && Number.isFinite(p.age) ? p.age : null;
+  const playsRegularly =
+    p.level === "intermediate" || p.level === "advanced" || p.level === "elite";
+  return playsRegularly && age != null && age >= 14 ? "medium" : "low";
 }
 
 export function getCoordinationLevel(p: Partial<Profile>): CompetenceLevel {
@@ -416,7 +440,7 @@ export function buildAthleteTrainingProfile(
   const developmentStage = getDevelopmentStage(age);
   const gymExperienceLevel = getStrengthExperienceLevel(p);
   if (!p.gymExperienceLevel)
-    warnings.push("Brak doświadczenia siłowego — przyjęto poziom początkujący.");
+    warnings.push("Brak doświadczenia siłowego — wyprowadzono je z poziomu piłkarskiego.");
 
   const movementCompetenceLevel = getMovementCompetenceLevel(p);
   const coordinationLevel = getCoordinationLevel(p);
@@ -484,6 +508,7 @@ export function buildAthleteTrainingProfile(
     sportExperienceLevel: p.level === "elite" || p.level === "advanced"
       ? "advanced" : p.level === "intermediate" ? "intermediate" : "beginner",
     movementCompetenceLevel,
+    bodyweightCompetenceLevel: getBodyweightCompetenceLevel(p),
     coordinationLevel,
     currentFitnessLevel,
     athleteGoal: p.goal ?? "general",

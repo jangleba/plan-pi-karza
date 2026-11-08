@@ -71,7 +71,8 @@ describe("development stage & experience", () => {
   });
 
   it("youth advanced footballer is not advanced in the gym", () => {
-    expect(getStrengthExperienceLevel({ age: 14, level: "advanced" })).toBe("none");
+    // Regular football gives basic bodyweight experience, never loaded-lift history.
+    expect(getStrengthExperienceLevel({ age: 14, level: "advanced" })).toBe("beginner");
     expect(getStrengthExperienceLevel({ age: 14, level: "beginner" })).toBe("none");
   });
 

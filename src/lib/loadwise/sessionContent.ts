@@ -463,16 +463,15 @@ function sprintDrills(seed: number): CatExercise[] {
 // Blok C — krótka plyometria / stiffness BEZ sprzętu (opcjonalna dla młodszych).
 // Każdy wariant ma jawne exerciseId: bez niego kanonizacja podstawiała
 // „Skok z zamachem”, a opis i dawka mówiły o czymś innym.
-function fieldPlyo(
-  seed: number,
-  young: boolean,
-  light: boolean,
-  level: Profile["level"],
-  age: number,
-): CatExercise[] {
-  // Pogo w bibliotece wymaga min. 14 lat; początkujący i najmłodsi uczą się lądowania.
-  if (level === "beginner" || age < 14) {
-    return [
+function fieldPlyo(seed: number, young: boolean, light: boolean, profile: Profile): CatExercise[] {
+  const { level, age } = profile;
+  const athlete = buildAthleteTrainingProfile(profile);
+  // Każdy wariant musi przejść tę samą kontrolę bezpieczeństwa co biblioteka ćwiczeń.
+  const allowed = (items: CatExercise[]) =>
+    items.every(
+      (item) => !item.exerciseId || isExerciseAllowedForProfile(item.exerciseId, athlete).ok,
+    );
+  const landing = () => [
       mk(
         {
           name: "Lądowanie snap-down",
@@ -490,9 +489,9 @@ function fieldPlyo(
         },
       ),
     ];
-  }
-  if (young || light) {
-    return [
+  // Pogo w bibliotece wymaga min. 14 lat; początkujący i najmłodsi uczą się lądowania.
+  if (level === "beginner" || age < 14) return landing();
+  const lowPogo = [
       mk(
         {
           name: "Niskie pogo jumps",
@@ -510,7 +509,8 @@ function fieldPlyo(
         },
       ),
     ];
-  }
+  const easiest = () => (allowed(lowPogo) ? lowPogo : landing());
+  if (young || light) return easiest();
   const variants: CatExercise[][] = [
     [
       mk(
@@ -570,13 +570,14 @@ function fieldPlyo(
     ],
   ];
   // Warianty „advanced_only” (wieloskoki, skoki jednonóż) tylko dla zaawansowanych.
-  const allowed =
-    level === "advanced" || level === "elite"
-      ? variants
-      : variants.filter((variant) =>
-          variant.every((item) => item.meta.ageSafety !== "advanced_only"),
-        );
-  return pick(allowed, seed);
+  const eligible = variants.filter(
+    (variant) =>
+      allowed(variant) &&
+      (level === "advanced" ||
+        level === "elite" ||
+        variant.every((item) => item.meta.ageSafety !== "advanced_only")),
+  );
+  return eligible.length ? pick(eligible, seed) : easiest();
 }
 
 export function buildSportPerformance(
@@ -794,7 +795,7 @@ export function buildSportPerformance(
   }
 
   // Blok C — krótka plyometria / stiffness bez sprzętu (przed sprintami).
-  const plyo = fieldPlyo(opts.seed, young, light, profile.level, profile.age);
+  const plyo = fieldPlyo(opts.seed, young, light, profile);
 
   return {
     title,

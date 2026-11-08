@@ -22,6 +22,7 @@ import { enforceSessionCategory, newContentCounters, type ContentCounters } from
 import { effectiveSeasonPhase } from "./seasonValidation";
 import { normalizeSessionCategory, classifySession } from "./sessionClassification";
 import { repairUnsafeExercisesForAthleteProfile } from "./athleteProfileRepair";
+import { buildAthleteTrainingProfile } from "./athleteProfile";
 import { enforceStrengthEligibility } from "./strengthEligibility";
 import {
   generateFootballSpeedSession,
@@ -58,7 +59,7 @@ import {
 } from "./planRules";
 import { buildTrainingContext, validatePlan as validateGlobalPlan } from "./globalPlanRules";
 import type { WeekMeta } from "./types";
-import { canonicalizeGeneratedExercise } from "./exerciseLibrary";
+import { canonicalizeGeneratedExercise, isExerciseAllowedForProfile } from "./exerciseLibrary";
 import { PLAN_ENGINE_VERSION } from "./planVersion";
 import { repairGymSpacing } from "./strengthScheduling";
 import type { WeekPhase } from "./types";
@@ -1461,8 +1462,35 @@ function buildBall(profile: Profile): Built {
   };
 }
 
+/** Tylne uda i przywodziciele: najmocniejszy wariant dozwolony dla profilu. */
+function prehabHamstringAdductor(profile: Profile): Built["main"][number] {
+  const athlete = buildAthleteTrainingProfile(profile);
+  const ok = (id: string) => isExerciseAllowedForProfile(id, athlete).ok;
+  if (ok("eccentric_nordic_hamstring"))
+    return {
+      name: "Copenhagen + Nordic (lekko)",
+      exerciseId: "eccentric_nordic_hamstring",
+      prescription: "2 × 6 przywodziciele, 2 × 4 nordic",
+      cue: "Kontrola, bez bólu.",
+      easier: "Wersje z kolan / mniejszy zakres.",
+    };
+  if (ok("assisted_nordic_hamstring"))
+    return {
+      name: "Copenhagen z kolan + Nordic wspomagany",
+      exerciseId: "assisted_nordic_hamstring",
+      prescription: "2 × 6 przywodziciele z kolan, 2 × 4 nordic z asekuracją gumą lub rękami",
+      cue: "Powoli w dół, asekuruj się rękami, bez bólu.",
+    };
+  return {
+    name: "Ściskanie piłki w mostku + mostek biodrowy",
+    exerciseId: "adductor_bridge_squeeze",
+    prescription: "2 × 6 ściśnięć po 5 s, 2 × 10 mostków",
+    cue: "Kolana w linii stóp, napięty brzuch, bez bólu.",
+  };
+}
+
 /** Sesja prehab / mobilność / stabilizacja. */
-function buildPrehab(_profile: Profile): Built {
+function buildPrehab(profile: Profile): Built {
   return {
     title: "Prehab, mobilność i stabilizacja",
     sessionType: "Prehab / mobilność",
@@ -1477,14 +1505,10 @@ function buildPrehab(_profile: Profile): Built {
         prescription: "10 min",
         cue: "Powoli, kontroluj końcowy zakres.",
       },
-      {
-        name: "Copenhagen + Nordic (lekko)",
-        prescription: "2 × 6 przywodziciele, 2 × 4 nordic",
-        cue: "Kontrola, bez bólu.",
-        easier: "Wersje z kolan / mniejszy zakres.",
-      },
+      prehabHamstringAdductor(profile),
       {
         name: "Balans, lądowania i core",
+        exerciseId: "dead_bug",
         prescription: "8 min: stabilizacja jednonóż, plank, dead bug",
         cue: "Napięcie tułowia, miękkie lądowanie.",
       },

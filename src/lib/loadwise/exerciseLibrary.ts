@@ -1734,7 +1734,9 @@ const PHASE_3A_EXERCISES: ExerciseDefinition[] = [
     requiredMovementCompetenceLevel: "medium",
     loadingType: "impact",
     allowedForYouth: true,
-    allowedForBeginner: false,
+    // Niskie pogo obunóż to podstawowa plyometria bez obciążenia; o dostępie decyduje
+    // kompetencja ruchowa („medium”), a nie staż ze sztangą.
+    allowedForBeginner: true,
     replacementIds: [],
     regressionIds: [],
     safeAlternativeIds: [],
@@ -4343,7 +4345,9 @@ const GENERATED_FAMILY_FALLBACKS: Record<CanonicalExerciseFamily, string> = {
  */
 const GENERATED_NAME_HINTS: ReadonlyArray<readonly [RegExp, string]> = [
   [/akcj\w* (?:pozycyjn|meczow)|akcje pewności/i, "football_technical_self_selected"],
+  [/nordic (?:wspomagan|z asekuracj)|assisted nordic/i, "assisted_nordic_hamstring"],
   [/nordic/i, "eccentric_nordic_hamstring"],
+  [/balans|stabilizacja jednonóż/i, "dead_bug"],
   [/copenhagen/i, "adductor_bridge_squeeze"],
   [/wspięcia na (?:łydki|palce)/i, "standing_calf_raise"],
   [/wykrok bułgarski/i, "bodyweight_split_squat"],
@@ -4750,8 +4754,28 @@ export function isExerciseAllowedForProfile(
   const reasons: string[] = [];
   if (def.draft === true || def.approved === false)
     reasons.push("Ćwiczenie nie jest zatwierdzone do sesji zawodnika.");
+  // Skoki bez obciążenia i sprzętu ocenia kontrola ruchu wyniesiona z gry
+  // (getBodyweightCompetenceLevel), a nie staż ze sztangą. Boje z obciążeniem i sprzętem
+  // zostają przy jawnie podanym doświadczeniu, kompetencji i nadzorze.
+  const bodyweightJump =
+    def.category === "plyometric" &&
+    def.equipmentRequired.length === 0 &&
+    (def.loadingType === "bodyweight" ||
+      def.loadingType === "impact" ||
+      def.loadingType === "ballistic");
+  const highImpact = def.plyometricIntensity === "very_high" || def.plyometricIntensity === "high";
+  // Ćwiczenia siłowe z masą ciała bez sprzętu (pompki, przysiady, mostki) też ocenia gra.
+  // Biegi i testy maksymalne nadal wymagają jawnej kompetencji.
+  const bodyweightOnly =
+    bodyweightJump ||
+    (def.equipmentRequired.length === 0 &&
+      def.loadingType === "bodyweight" &&
+      ["strength", "core", "prehab", "mobility"].includes(def.category));
+  const competence = bodyweightOnly
+    ? (a.bodyweightCompetenceLevel ?? a.movementCompetenceLevel)
+    : a.movementCompetenceLevel;
   const youth = isYouthProfile(a);
-  const beginner = isBeginnerProfile(a);
+  const beginner = bodyweightJump ? competence === "low" : isBeginnerProfile(a);
 
   if (a.age != null && a.age < def.minAge)
     reasons.push(`Wiek poniżej minimalnego (${def.minAge}).`);
@@ -4762,13 +4786,16 @@ export function isExerciseAllowedForProfile(
   if (youth && !def.allowedForYouth) reasons.push("Niedozwolone dla zawodnika młodzieżowego.");
   if (beginner && !def.allowedForBeginner) reasons.push("Niedozwolone dla początkującego.");
 
-  if (EXP_RANK[a.gymExperienceLevel] < EXP_RANK[def.requiredGymExperienceLevel])
+  if (!bodyweightJump && EXP_RANK[a.gymExperienceLevel] < EXP_RANK[def.requiredGymExperienceLevel])
     reasons.push("Za niskie doświadczenie siłowe.");
 
-  if (COMP_RANK[a.movementCompetenceLevel] < COMP_RANK[def.requiredMovementCompetenceLevel])
+  if (COMP_RANK[competence] < COMP_RANK[def.requiredMovementCompetenceLevel])
     reasons.push("Za niska kompetencja ruchowa.");
 
-  if (SUP_RANK[a.supervisionLevel] < SUP_RANK[def.requiredSupervisionLevel])
+  // Niskie i umiarkowane skoki są częścią każdej rozgrzewki piłkarskiej; wysokie
+  // bez nadzoru tylko dla dorosłych.
+  const supervisionWaived = bodyweightJump && (!highImpact || a.developmentStage === "adult");
+  if (!supervisionWaived && SUP_RANK[a.supervisionLevel] < SUP_RANK[def.requiredSupervisionLevel])
     reasons.push("Wymagany wyższy poziom nadzoru trenerskiego.");
 
   if (!hasEquipment(def, a)) reasons.push("Brak wymaganego sprzętu.");
@@ -4781,8 +4808,8 @@ export function isExerciseAllowedForProfile(
 
   // Plyometria vs gotowość i kompetencja lądowania (movement competence)
   if (
-    (def.plyometricIntensity === "very_high" || def.plyometricIntensity === "high") &&
-    (a.movementCompetenceLevel === "low" || a.readiness <= 4)
+    highImpact &&
+    (competence === "low" || a.readiness <= 4)
   ) {
     reasons.push("Zbyt wysoka intensywność plyometryczna dla kompetencji/gotowości.");
   }
