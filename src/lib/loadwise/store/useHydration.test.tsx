@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LoadwiseState, SessionHistoryRecord } from "../types";
 import { buildProfile, initialState, type StoreUser } from "./model";
+import { resetPlanWriteGuard } from "./planWriteGuard";
 import { useHydration } from "./useHydration";
 
 type RemoteRows = Record<string, unknown>;
@@ -118,6 +119,7 @@ beforeEach(() => {
   mocks.clearBootState.mockClear();
   mocks.persist.mockReset().mockImplementation(async (_user, _profile, plan) => plan);
   onRender.mockClear();
+  resetPlanWriteGuard();
   window.localStorage.clear();
   host = document.createElement("div");
   document.body.append(host);
@@ -287,6 +289,37 @@ describe("store hydration", () => {
     });
     const plan = mocks.persist.mock.calls[0][2] as { planDbId?: string }[];
     expect(plan[0].planDbId).toBe("existing-active-header");
+  });
+  it("shows a rebuilt plan before its save finishes, then switches to the saved copy", async () => {
+    const rows = remoteRows("Athlete");
+    rows.profiles = { full_name: "Athlete", onboarding_completed: true };
+    const save = deferred<{ date: string; dbId: string }[]>();
+    mocks.persist.mockReturnValue(save.promise);
+    mocks.requests.set("a", Promise.resolve(rows));
+    await render({ id: "a" });
+    await act(async () => {
+      await vi.waitFor(() => expect(mocks.persist).toHaveBeenCalled(), { timeout: 5000 });
+    });
+    expect(snapshot.hydrated).toBe(true);
+    expect(snapshot.state.plan.length).toBeGreaterThan(0);
+    const saved = [{ date: "2026-09-29", dbId: "saved" }];
+    await act(async () => save.resolve(saved));
+    expect(snapshot.state.plan).toBe(saved);
+  });
+  it("goes back to the stored plan when the background save is rejected", async () => {
+    const rows = remoteRows("Athlete");
+    rows.profiles = { full_name: "Athlete", onboarding_completed: true };
+    const save = deferred<never>();
+    mocks.persist.mockReturnValue(save.promise);
+    mocks.requests.set("a", Promise.resolve(rows));
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    await render({ id: "a" });
+    await act(async () => {
+      await vi.waitFor(() => expect(mocks.persist).toHaveBeenCalled(), { timeout: 5000 });
+    });
+    expect(snapshot.state.plan.length).toBeGreaterThan(0);
+    await act(async () => save.reject(new Error("Plan changed on another device (code: 40001)")));
+    expect(snapshot.state.plan).toEqual([]);
   });
 });
 

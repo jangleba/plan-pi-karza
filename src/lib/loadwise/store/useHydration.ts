@@ -21,7 +21,13 @@ import { migratePersistedExerciseData } from "../exerciseLibrary";
 import { localToday, parseIso } from "../labels";
 import { normalizeMatchDates } from "../matchSchedule";
 import { PLAN_ENGINE_VERSION } from "../planVersion";
-import { guardedPlanWrite, planWriteKey } from "./planWriteGuard";
+import {
+  guardedPlanWrite,
+  planWriteKey,
+  trackPlanWrite,
+  waitForPlanWrites,
+  wasPlanWriteRejected,
+} from "./planWriteGuard";
 import type {
   ExerciseReplacement,
   Profile,
@@ -160,7 +166,8 @@ export function useHydration({
       let safeProfile: Profile | null = cachedState?.profile ?? null;
       const safeLocal: LocalState = loadLocal(user.id);
       try {
-        await recoverTrainingQueue(user.id);
+        // A plan saved in the background by the previous load must land before this read.
+        await Promise.all([recoverTrainingQueue(user.id), waitForPlanWrites(user.id)]);
         if (cancelled) return;
         pendingAtStart = readPendingTrainingWrites(user.id);
         // Restore locally committed results even when all following remote reads fail offline.
@@ -391,6 +398,13 @@ export function useHydration({
         let migrationChanged = false;
         let planGeneratedFor: string | null = null;
         let clearFutureOverlays = false;
+        // The plan is shown at once; its save runs after the first render.
+        let backgroundWrite: {
+          key: string;
+          plan: SessionDay[];
+          fallback: SessionDay[];
+          fallbackGeneratedFor: string | null;
+        } | null = null;
         const planRow = planRes.data as AnyRow | null;
         const planRowCreatedAt = (planRow?.created_at as string | undefined) ?? null;
         if (planRow && Array.isArray(planRow.plan_json)) {
@@ -473,7 +487,6 @@ export function useHydration({
               todayIso,
             ]);
           if (shouldRebuildCanonical) {
-            const { persistMonthlyPlan } = await modules.persist;
             const canonical = stampPlanRevision(
               await applyConfirmedCalendar(
                 await generatePlanAsync(
@@ -505,43 +518,52 @@ export function useHydration({
             if (plan[0] && planRow?.id && !plan[0].planDbId) plan[0].planDbId = String(planRow.id);
             if (cancelled) return;
             if (canWritePlan()) {
-              const rebuilt = plan;
-              const saved = await guardedPlanWrite(writeKey("rebuild"), () =>
-                persistMonthlyPlan(user.id, profile, rebuilt),
-              );
-              if (saved) {
-                plan = saved;
+              const key = writeKey("rebuild");
+              if (wasPlanWriteRejected(key)) {
+                plan = storedPlan; // rejected before: keep showing what is actually stored
+              } else {
+                backgroundWrite = {
+                  key,
+                  plan,
+                  fallback: storedPlan,
+                  fallbackGeneratedFor: planGeneratedFor,
+                };
                 planGeneratedFor = todayIso;
                 clearFutureOverlays = true;
-              } else plan = storedPlan; // rejected: keep showing what is actually stored
+              }
             } else {
               planGeneratedFor = todayIso;
               clearFutureOverlays = true;
             }
           } else if (revisionInfo.revision !== profileRevision || schemaMissingOrMismatched) {
-            const { persistMonthlyPlan } = await modules.persist;
             plan = stampPlanRevision(plan, profileRevision, ONBOARDING_SCHEMA_VERSION);
             if (cancelled) return;
             if (canWritePlan()) {
-              const stamped = plan;
-              plan =
-                (await guardedPlanWrite(writeKey("stamp"), () =>
-                  persistMonthlyPlan(user.id, profile, stamped),
-                )) ?? storedPlan;
+              const key = writeKey("stamp");
+              if (wasPlanWriteRejected(key)) plan = storedPlan;
+              else
+                backgroundWrite = {
+                  key,
+                  plan,
+                  fallback: storedPlan,
+                  fallbackGeneratedFor: planGeneratedFor,
+                };
             }
             planGeneratedFor = todayIso;
           } else if (migrationOriginalPlan && migrationChanged) {
-            if (canWritePlan()) {
-              const { persistMonthlyPlan } = await modules.persist;
-              const migrated = stampPlanRevision(
+            const key = writeKey("migrate");
+            if (canWritePlan() && !wasPlanWriteRejected(key)) {
+              plan = stampPlanRevision(
                 reconcilePlanIdentity(plan, migrationOriginalPlan, completions, todayIso),
                 profileRevision,
                 ONBOARDING_SCHEMA_VERSION,
               );
-              plan =
-                (await guardedPlanWrite(writeKey("migrate"), () =>
-                  persistMonthlyPlan(user.id, profile, migrated),
-                )) ?? migrationOriginalPlan;
+              backgroundWrite = {
+                key,
+                plan,
+                fallback: migrationOriginalPlan,
+                fallbackGeneratedFor: planGeneratedFor,
+              };
             } else plan = migrationOriginalPlan;
           }
         }
@@ -608,9 +630,11 @@ export function useHydration({
         });
 
         const modifications: Record<string, SessionModification[]> = {};
+        const storedModifications: Record<string, SessionModification[]> = {};
         for (const row of (modRes.data as AnyRow[] | null) ?? []) {
           const mod = rowToModification(row);
           if (!mod) continue;
+          (storedModifications[mod.date] ??= []).push(mod);
           if (clearFutureOverlays && mod.date >= todayIso) continue;
           (modifications[mod.date] ??= []).push(mod);
         }
@@ -625,16 +649,6 @@ export function useHydration({
           .flatMap((replacement) => replacement.equipmentIds);
 
         if (cancelled) return;
-        if (clearFutureOverlays && canWritePlan()) {
-          await clearFutureOverlaysForUser(
-            user.id,
-            todayIso,
-            false,
-            ((modRes.data as AnyRow[] | null) ?? [])
-              .filter((row) => String(row.date) >= todayIso)
-              .map((row) => String(row.id)),
-          );
-        }
         const remoteState: LoadwiseState = {
           profile: profile
             ? {
@@ -662,6 +676,43 @@ export function useHydration({
         };
         setState((current) => mergeHydratedState(current, baselineState, remoteState));
         setHydrated(true);
+        if (backgroundWrite && profile) {
+          const { key, plan: shown, fallback, fallbackGeneratedFor } = backgroundWrite;
+          const futureModificationIds = ((modRes.data as AnyRow[] | null) ?? [])
+            .filter((row) => String(row.date) >= todayIso)
+            .map((row) => String(row.id));
+          const ownerStillActive = () => activeUserIdRef.current === user.id;
+          void trackPlanWrite(
+            user.id,
+            (async () => {
+              const { persistMonthlyPlan } = await modules.persist;
+              const saved = await guardedPlanWrite(key, () =>
+                persistMonthlyPlan(user.id, profile, shown),
+              );
+              if (!saved) throw new Error("plan snapshot rejected");
+              // Saved copies carry the database ids. A local edit made meanwhile wins.
+              if (ownerStillActive())
+                setState((current) =>
+                  current.plan === shown ? { ...current, plan: saved } : current,
+                );
+              if (clearFutureOverlays)
+                await clearFutureOverlaysForUser(user.id, todayIso, false, futureModificationIds);
+            })(),
+          ).catch((error) => {
+            console.warn("[loadwise] background plan save failed; showing the stored plan", error);
+            if (!ownerStillActive()) return;
+            setState((current) =>
+              current.plan === shown
+                ? {
+                    ...current,
+                    plan: fallback,
+                    planGeneratedFor: fallbackGeneratedFor,
+                    modifications: storedModifications,
+                  }
+                : current,
+            );
+          });
+        }
         void historyPromise.then((history) => {
           if (!cancelled)
             setState((current) => ({

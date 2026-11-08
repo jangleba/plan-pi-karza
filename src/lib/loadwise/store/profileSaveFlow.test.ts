@@ -82,11 +82,16 @@ beforeEach(() => {
   });
 });
 afterEach(() => vi.useRealTimers());
+/** The first onboarding returns once the plan is shown; the save finishes in the background. */
+async function backgroundSave() {
+  for (let i = 0; i < 20 && refs.current.flight; i++) await vi.advanceTimersByTimeAsync(0);
+}
 it("coalesces double submissions across rerenders into one generation and one atomic write", async () => {
   const first = actions().completeOnboarding(state.profile!, consents),
     second = actions().completeOnboarding({ ...state.profile! }, consents);
   expect(second).toBe(first);
   await first;
+  await backgroundSave();
   expect(generate).toHaveBeenCalledTimes(1);
   expect(mocks.rpc).toHaveBeenCalledTimes(1);
   expect(mocks.consents).toHaveBeenCalledWith(
@@ -118,8 +123,9 @@ it("recovers a committed write after a lost response using owner-scoped plan ide
     return chain;
   });
   const work = actions().completeOnboarding(state.profile!, consents);
-  await vi.advanceTimersByTimeAsync(12001);
   await work;
+  await vi.advanceTimersByTimeAsync(12001);
+  await backgroundSave();
   expect(state.profile?.serverProfileUpdatedAt).toBe("verified-version");
   expect(state.plan[0].dbId).toBeTruthy();
   expect(filters).toContainEqual(["user_id", "owner"]);
@@ -129,14 +135,19 @@ it("recovers a committed write after a lost response using owner-scoped plan ide
 it("retains the prepared plan and acknowledged consents after timeout, then retries the same operation", async () => {
   const originalProfile = state.profile!;
   mocks.rpc.mockImplementationOnce(() => new Promise(() => {}));
-  const work = actions().completeOnboarding(originalProfile, consents);
-  const failed = expect(work).rejects.toThrow("Odpowiedzi pozostają");
+  vi.spyOn(console, "error").mockImplementation(() => undefined);
+  await actions().completeOnboarding(originalProfile, consents);
+  expect(state.profile?.onboardingComplete).toBe(true);
   await vi.advanceTimersByTimeAsync(12001);
-  await failed;
+  await backgroundSave();
+  // Back to the form: the answers stay, the plan that never saved is gone.
   expect(state.profile?.onboardingComplete).toBe(false);
+  expect(state.profile?.name).toBe(originalProfile.name);
+  expect(state.plan).toEqual([]);
   const savedPayload = mocks.rpc.mock.calls[0][1];
   expect(refs.current.attempt?.prepared).toBeTruthy();
   await actions().completeOnboarding({ ...originalProfile }, consents);
+  await backgroundSave();
   expect(generate).toHaveBeenCalledTimes(1);
   expect(mocks.consents).toHaveBeenCalledTimes(1);
   expect(mocks.rpc.mock.calls[1][1]).toEqual(savedPayload);
@@ -144,9 +155,9 @@ it("retains the prepared plan and acknowledged consents after timeout, then retr
 });
 it("does not treat an empty or failed response as a completed onboarding", async () => {
   mocks.rpc.mockResolvedValueOnce({ data: null, error: null });
-  await expect(actions().completeOnboarding(state.profile!, consents)).rejects.toThrow(
-    "potwierdzenia",
-  );
+  vi.spyOn(console, "error").mockImplementation(() => undefined);
+  await actions().completeOnboarding(state.profile!, consents);
+  await backgroundSave();
   expect(state.profile?.onboardingComplete).toBe(false);
   expect(state.plan).toEqual([]);
 });
