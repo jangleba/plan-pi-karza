@@ -258,6 +258,9 @@ export function applyAutomaticMethod(session: SessionDay, profile: Profile, inde
     phase = methodPhase(session),
     preferences = profile.trainingMethodPreferences;
   if (!domain) return session;
+  // A deliberately limited variant (upper body and trunk only, e.g. the day
+  // after a match or a field-test day) must not be rebuilt into full body.
+  if (domain === "strength" && /góra ciała|górna część ciała/i.test(session.title)) return session;
   // Preserve tested speed/technical catalogues. These can be changed explicitly after confirming space/participants.
   if (domain === "sprint" || domain === "skills") return session;
   if (
@@ -300,10 +303,21 @@ export function applyAutomaticMethod(session: SessionDay, profile: Profile, inde
   if (!trainingMethodEligibility(id, profile, session).allowed)
     id = domain === "strength" ? "M02" : "M26";
   try {
-    return createMethodSession(session, profile, id, {}, "automatic");
+    const next = createMethodSession(session, profile, id, {}, "automatic");
+    // Never let an automatic method hollow a session out: a gym slot reduced
+    // to one exercise reads as an empty training.
+    return workCount(next) < Math.min(2, workCount(session)) ? session : next;
   } catch {
     return session;
   }
+}
+
+function workCount(session: SessionDay): number {
+  if (session.structuredSections?.some((s) => s.type === "main"))
+    return session.structuredSections
+      .filter((s) => s.type === "main" || s.type === "accessory")
+      .reduce((sum, s) => sum + s.blocks.reduce((n, b) => n + b.exercises.length, 0), 0);
+  return session.sections.main.length + session.sections.accessory.length;
 }
 export function applyPlanTrainingMethods(plan: SessionDay[], profile: Profile): SessionDay[] {
   let gym = 0,

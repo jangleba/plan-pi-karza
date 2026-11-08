@@ -1,3 +1,4 @@
+import { alignSessionTitleWithContent } from "./sessionTitleAlignment";
 import { computeLoadTags } from "./sessionLoadTags";
 import { applyPlanTrainingMethods } from "./methods/planner";
 import type { Profile, SessionDay, ExerciseItem, DayType } from "./types";
@@ -1232,8 +1233,10 @@ function buildPower(profile: Profile): Built {
   const young = isYoung(profile.age);
   const beginner = profile.level === "beginner";
   const gentle = young || beginner;
+  // Piłka lekarska tylko wtedy, gdy zawodnik ją ma; bez niej ćwiczenie byłoby zablokowane.
+  const medBall = isExerciseAllowedForProfile("med_ball_throw", buildAthleteTrainingProfile(profile)).ok;
   return {
-    title: gentle ? "Sesja mocy i stabilizacji" : "Sesja mocy (power/strength)",
+    title: gentle ? "Sesja mocy i stabilizacji" : "Sesja mocy i siły",
     sessionType: "Moc / siła eksplozywna",
     intensity: gentle ? "umiarkowana" : "wysoka",
     durationMin: gentle ? 45 : 50,
@@ -1259,12 +1262,21 @@ function buildPower(profile: Profile): Built {
             rest: "60 s",
             cue: "Pion tułowia, stabilne kolano.",
           },
-          {
-            name: "Wyrzut piłki lekarskiej / dynamiczny mostek",
-            prescription: "3 × 6 dynamicznie",
-            rest: "60 s",
-            cue: "Akcent eksplozywny, kontrola powrotu.",
-          },
+          medBall
+            ? {
+                exerciseId: "med_ball_throw",
+                name: "Wyrzut piłki lekarskiej",
+                prescription: "3 × 6 dynamicznie",
+                rest: "60 s",
+                cue: "Akcent eksplozywny, kontrola powrotu.",
+              }
+            : {
+                exerciseId: "glute_bridge",
+                name: "Dynamiczny most biodrowy",
+                prescription: "3 × 6 dynamicznie",
+                rest: "60 s",
+                cue: "Akcent eksplozywny, kontrola powrotu.",
+              },
         ]
       : [
           {
@@ -1280,12 +1292,21 @@ function buildPower(profile: Profile): Built {
             rest: "90 s",
             cue: "Mocne wyjście w górę, stabilne kolano.",
           },
-          {
-            name: "Wyrzut piłki lekarskiej",
-            prescription: "4 × 5 (klatka / zza głowy)",
-            rest: "75 s",
-            cue: "Cała kinetyka od bioder, dynamicznie.",
-          },
+          medBall
+            ? {
+                exerciseId: "med_ball_throw",
+                name: "Wyrzut piłki lekarskiej",
+                prescription: "4 × 5 (klatka / zza głowy)",
+                rest: "75 s",
+                cue: "Cała kinetyka od bioder, dynamicznie.",
+              }
+            : {
+                exerciseId: "kettlebell_swing",
+                name: "Wymach kettlebell",
+                prescription: "4 × 6 dynamicznie",
+                rest: "75 s",
+                cue: "Ruch z bioder, plecy proste, dynamicznie.",
+              },
         ],
     accessory: [
       {
@@ -2952,7 +2973,8 @@ function validateRecoveryPrehabPlacement(
             profile,
             "Prehab/recovery nie może być główną jednostką normalnego tygodnia performance — zamieniono na lekką sesję bez prehabu jako fallbacku.",
           );
-          if (blockWeek === 3) {
+          // Dzień zamieniony na wolne zostaje wolny: 0 min, nie 15 min bez treści.
+          if (blockWeek === 3 && day.dayType !== "rest" && day.durationMin > 0) {
             day.durationMin = Math.min(day.durationMin + 15, 60);
           }
           continue;
@@ -4205,7 +4227,9 @@ export function generatePlan(
     enforceFinalPlanPolicy(finalPlan.map(enforceSprintOnlyContent), rawProfile),
     rawProfile,
   );
-  const constrainedPlan = enforceFinalPlanPolicy(methodPlan, rawProfile);
+  const constrainedPlan = enforceFinalPlanPolicy(methodPlan, rawProfile).map((day) =>
+    alignSessionTitleWithContent(day, rawProfile),
+  );
   for (const range of metadataRanges) {
     const week = constrainedPlan.slice(range.start, range.end);
     const score = computeWeeklyLoadScore(week);

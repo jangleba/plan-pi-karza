@@ -412,7 +412,7 @@ describe("library contract 2.0", () => {
       exerciseId: "pallof_press",
       reps: "3 × 8 / stronę",
     });
-    expect(hydrated.name).toBe("Pallof press");
+    expect(hydrated.name).toBe("Antyrotacja z gumą (Pallof press)");
     expect(hydrated.purpose).toBeTruthy();
     expect(hydrated.technique).toBeTruthy();
     expect(hydrated.instructionSteps?.length).toBeGreaterThanOrEqual(3);

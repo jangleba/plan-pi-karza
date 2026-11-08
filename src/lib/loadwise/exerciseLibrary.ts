@@ -1333,6 +1333,8 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
     },
   ),
   supportExercise("pallof_press", "Pallof press", "trunk", "anti-rotation trunk stability", {
+    displayNamePl: "Antyrotacja z gumą (Pallof press)",
+    aliases: ["Pallof press", "Wyciskanie Pallofa"],
     equipmentRequired: ["band"],
     loadingType: "external",
     regressionIds: ["dead_bug"],
@@ -1370,11 +1372,15 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
     ],
   }),
   supportExercise("bodyweight_row", "Bodyweight row", "strength", "upper-body pulling strength", {
+    displayNamePl: "Wiosłowanie z masą ciała",
+    aliases: ["Bodyweight row", "Wiosłowanie z masą ciała", "Wiosłowanie australijskie"],
     movementPattern: "pull",
     allowedSessionCategories: ["strength_gym"],
     spaceRequirement: "indoor_gym",
   }),
   supportExercise("pull_up", "Pull-up", "strength", "vertical pulling strength", {
+    displayNamePl: "Podciąganie na drążku",
+    aliases: ["Pull-up", "Podciąganie"],
     movementPattern: "pull",
     allowedSessionCategories: ["strength_gym"],
     spaceRequirement: "indoor_gym",
@@ -1622,6 +1628,8 @@ const PHASE_3A_EXERCISES: ExerciseDefinition[] = [
     aliases: ["Standing calf raise", "Wspięcia stojąc"],
     movementPattern: "gait",
     equipmentRequired: [],
+    // Wspięcia na palce nie wymagają siłowni: wystarczy ściana do podparcia.
+    spaceRequirement: "home_small",
     loadingType: "bodyweight",
     primaryAdaptation: "hypertrophy",
     replacementIds: [],
@@ -4345,18 +4353,48 @@ const GENERATED_FAMILY_FALLBACKS: Record<CanonicalExerciseFamily, string> = {
  */
 const GENERATED_NAME_HINTS: ReadonlyArray<readonly [RegExp, string]> = [
   [/akcj\w* (?:pozycyjn|meczow)|akcje pewności/i, "football_technical_self_selected"],
+  // A medicine ball is not football ball work.
+  [/piłk\w* lekarsk|med[\s-]?ball/i, "med_ball_throw"],
+  [/czucie piłki/i, "football_ball_mastery"],
   [/nordic (?:wspomagan|z asekuracj)|assisted nordic/i, "assisted_nordic_hamstring"],
   [/nordic/i, "eccentric_nordic_hamstring"],
   [/balans|stabilizacja jednonóż/i, "dead_bug"],
   [/copenhagen/i, "adductor_bridge_squeeze"],
-  [/wspięcia na (?:łydki|palce)/i, "standing_calf_raise"],
-  [/wykrok bułgarski/i, "bodyweight_split_squat"],
-  [/snap[- ]down/i, "snap_down"],
+  [/wspięcia na (?:łydki|palce)|siła łydek|calf/i, "standing_calf_raise"],
+  [/wykrok bułgarski|przysiad bułgarski/i, "bodyweight_split_squat"],
+  [/snap[- ]down|lądowani/i, "snap_down"],
   [/przysiad skoczny|trap-bar jump/i, "squat_jump"],
-  [/falling start|wall drill|przebieżk|build-up|budowanie prędkości|koordynacja i zwinność/i, "acceleration_mechanics"],
+  // Braking and change of direction are their own drills, never "acceleration mechanics".
+  [/5-0-5|\b505\b/i, "planned_505"],
+  [/hamowanie[–-]zwrot|przyspieszenie[–-]hamowanie/i, "accel_decel_reaccel"],
+  [/hamowanie i zmiana kierunku|hamowanie z wyjściem/i, "deceleration_lateral_exit"],
+  [/po łuku|curved/i, "football_curved_sprint"],
+  [/mechanika hamowania|kontrolowan\w* (?:hamowanie|stop)|zatrzymani/i, "run_two_step_stop"],
+  [/cięci|\bcut\b|drop step|zmian\w* kierunku/i, "planned_cut"],
+  [/marsz z uniesieniem kolana|marsz a\b/i, "a_march"],
+  [/ankling/i, "ankling"],
+  [/\bskip a\b|\ba-skip\b/i, "a_skip"],
+  [/\bskip b\b|\bb-skip\b/i, "b_skip"],
+  [/\bskip c\b|\bc-skip\b/i, "c_skip"],
+  [/\bskip d\b|\bd-skip\b/i, "d_skip"],
+  [/falling start|start z upadku|start z padania/i, "falling_start"],
+  [/starty? z różnych pozycji|split stance|pozycji wykrocznej/i, "split_stance_start"],
+  [/na sygnał|reakcyjn/i, "app_audio_reaction_start"],
+  [/single switch|pojedyncza zmiana przy ścianie/i, "wall_single_switch"],
+  [/wall drill|marsz przy ścianie/i, "wall_march"],
+  [/najazd|flying|lotn/i, "flying_sprint"],
+  // Loose technical strides stay a low-volume drill: no dedicated sprint lane needed.
+  [/luźne przebieżki/i, "acceleration_mechanics"],
+  [/przebieżk|build-up|narastając|budowanie prędkości/i, "progressive_build_up_sprint"],
+  [/^przyspieszenia$|sprinty? liniow|sprinty z akceleracją|krótkie zrywy|sprinty 15 m/i, "free_acceleration_sprint"],
+  [/koordynacja i zwinność/i, "acceleration_mechanics"],
   [/rozgrzewka dynamiczna|dynamiczna rozgrzewka biegowa|\bramp\b/i, "sprint_ramp_warmup"],
   [/interwał\w* biegow|odcinki tempowe/i, "method_interval_run"],
   [/trucht|bieg ciągły|rozgrzewka tlenowa|lekka praca tlenowa/i, "easy_aerobic_run"],
+  [/rozciąganie statyczne/i, "static_stretch_cooldown"],
+  [/^wyciszenie$|mobilność po biegu/i, "hip_mobility_flow"],
+  [/core antyrotacyjny|core i przywodziciele/i, "side_plank"],
+  [/prehab tkanek/i, "long_lever_hamstring_iso"],
 ];
 
 function hintedCanonical(name: string): ExerciseDefinition | undefined {
@@ -4365,7 +4403,7 @@ function hintedCanonical(name: string): ExerciseDefinition | undefined {
   return isApprovedCanonicalExercise(def) ? def : undefined;
 }
 
-function inferGeneratedFamily(name: string): CanonicalExerciseFamily {
+function inferGeneratedFamilyFromText(name: string): CanonicalExerciseFamily {
   const value = normalizeExerciseName(name);
   const positiveBallWork = value.replace(/bez\s+(?:piłk|pilk)\w*/g, "");
   if (/piłk|pilk|kontakt|podani|przyjęci|wykończeni|drybling|prowadzeni/.test(positiveBallWork))
@@ -4379,6 +4417,15 @@ function inferGeneratedFamily(name: string): CanonicalExerciseFamily {
   if (/izometr|iso|soleus|łydk|ścięg|hamstring/.test(value)) return "tendon_isometric";
   if (/moc|power|rzut|swing/.test(value)) return "power";
   return "strength";
+}
+
+/**
+ * The exercise name decides first. A cue such as „cichy kontakt stopy” used to
+ * turn a braking drill into ball work only because it contains „kontakt”.
+ */
+function inferGeneratedFamily(name: string, details: string): CanonicalExerciseFamily {
+  const byName = inferGeneratedFamilyFromText(name);
+  return byName !== "strength" ? byName : inferGeneratedFamilyFromText(`${name} ${details}`);
 }
 
 /**
@@ -4399,7 +4446,7 @@ export function canonicalizeGeneratedExercise(
     getExerciseDefinition(
       GENERATED_FAMILY_FALLBACKS[
         family ??
-          inferGeneratedFamily(`${exercise.name} ${exercise.prescription} ${exercise.cue ?? ""}`)
+          inferGeneratedFamily(exercise.name, `${exercise.prescription} ${exercise.cue ?? ""}`)
       ],
     );
 

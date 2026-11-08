@@ -257,12 +257,13 @@ function removeConflictingGym(plan: SessionDay[], slot: Slot): void {
     plan[slot.index] = { ...atDestination(day.secondSession, day, false), slotLabel: null, reason };
     return;
   }
+  // Bez żadnych ćwiczeń to dzień wolny, nie „Regeneracja” z pustą rozpiską.
   plan[slot.index] = normalizeSessionCategory({
     ...day,
-    dayType: "recovery",
-    type: "recovery",
-    title: "Regeneracja",
-    sessionType: "Regeneracja",
+    dayType: "rest",
+    type: "rest",
+    title: "Odpoczynek",
+    sessionType: "Odpoczynek",
     goalLabel: "Regeneracja",
     intensity: "niska",
     durationMin: 0,
@@ -273,6 +274,9 @@ function removeConflictingGym(plan: SessionDay[], slot: Slot): void {
     avoidToday: "Bez dodatkowej siłowni.",
     structuredSections: undefined,
     sections: { warmup: [], main: [], accessory: [], footballTransfer: [], cooldown: [] },
+    exercises: undefined,
+    trainingMethods: undefined,
+    speedGeneratorVersion: undefined,
     loadTags: ["recovery_low"],
     classification: undefined,
     secondSession: null,

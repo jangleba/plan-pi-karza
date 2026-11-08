@@ -204,7 +204,7 @@ function sprintWarmup(young: boolean, level: Profile["level"]): CatExercise[] {
 
     mk(
       {
-        name: "Sprint A-Skip",
+        name: "Skip A",
         visualId: "sprint_a_skip",
         prescription: mainDrillDose,
         displayPrescription: `2 × ${distance} m · ${
@@ -249,7 +249,7 @@ function sprintWarmup(young: boolean, level: Profile["level"]): CatExercise[] {
 
     mk(
       {
-        name: "Sprint C-Skip",
+        name: "Skip C",
         visualId: "sprint_c_skip",
         prescription: cDrillDose,
         displayPrescription: `2 × ${distance} m · z dostawieniem + ciągły`,
@@ -285,7 +285,7 @@ function sprintWarmup(young: boolean, level: Profile["level"]): CatExercise[] {
 
     mk(
       {
-        name: "Sprint B-Skip",
+        name: "Skip B",
         visualId: "sprint_b_skip",
         prescription: mainDrillDose,
         displayPrescription: `2 × ${distance} m · ${
@@ -336,7 +336,7 @@ function sprintWarmup(young: boolean, level: Profile["level"]): CatExercise[] {
 
     mk(
       {
-        name: "Sprint D-Skip",
+        name: "Skip D",
         visualId: "sprint_d_skip",
         prescription: mainDrillDose,
         displayPrescription: `2 × ${distance} m · ${
@@ -442,7 +442,7 @@ function sprintDrills(seed: number): CatExercise[] {
     [
       mk(
         {
-          name: "Wall drill — single switch",
+          name: "Pojedyncza zmiana przy ścianie",
           prescription: "3 × 5 zmian na nogę, pełna kontrola pozycji",
           rest: "45 s",
           cue: "Biodra wysoko, sztywna linia tułowia, stopa wraca aktywnie pod biodro.",
@@ -494,7 +494,7 @@ function fieldPlyo(seed: number, young: boolean, light: boolean, profile: Profil
   const lowPogo = [
       mk(
         {
-          name: "Niskie pogo jumps",
+          name: "Niskie pogo",
           exerciseId: "bilateral_pogo",
           prescription: "3 × 6 kontaktów",
           rest: "60 s",
@@ -515,7 +515,7 @@ function fieldPlyo(seed: number, young: boolean, light: boolean, profile: Profil
     [
       mk(
         {
-          name: "Pogo jumps + snap down",
+          name: "Pogo i lądowanie snap-down",
           exerciseId: "bilateral_pogo",
           prescription: "3 × 6 pogo + 3 snap down",
           rest: "60 s",
@@ -533,7 +533,7 @@ function fieldPlyo(seed: number, young: boolean, light: boolean, profile: Profil
     [
       mk(
         {
-          name: "Bounds (wieloskoki) — niska objętość",
+          name: "Wieloskoki — niska objętość",
           exerciseId: "repeated_broad_jump",
           prescription: "3 × 4 wieloskoki",
           rest: "75 s",
@@ -552,7 +552,7 @@ function fieldPlyo(seed: number, young: boolean, light: boolean, profile: Profil
     [
       mk(
         {
-          name: "Single-leg hops + broad jump",
+          name: "Skoki jednonóż i skok w dal",
           exerciseId: "single_leg_hop_and_stick",
           prescription: "3 × 4 podskoki na nogę + 3 skoki w dal",
           rest: "75 s",
@@ -595,8 +595,8 @@ export function buildSportPerformance(
       {
         name:
           theme === "cod_decel"
-            ? "Falling start + split stance start"
-            : "Falling start (start z padania)",
+            ? "Start z upadku i z pozycji wykrocznej"
+            : "Start z upadku",
         prescription:
           theme === "cod_decel" ? "4 × 10 m (różne pozycje startowe)" : "4 × 10 m z padania",
         rest: "60 s",
@@ -676,7 +676,7 @@ export function buildSportPerformance(
       decel = [
         mk(
           {
-            name: "Lateral cut / drop step 45°–90°",
+            name: "Cięcie boczne / drop step 45°–90°",
             prescription: `${young ? 5 : 6} powtórzeń na stronę`,
             rest: "75–90 s",
             cue: "Najpierw wyhamuj, potem przyspiesz — nie ślizgaj kroku.",
@@ -690,7 +690,7 @@ export function buildSportPerformance(
         ),
         mk(
           {
-            name: "5-0-5 entry (wejście w zwrot)",
+            name: "Wejście w zwrot 5-0-5",
             prescription: "4 × na stronę, kontrolowane wejście",
             rest: "90 s",
             cue: "Niskie biodra przy zwrocie, mocne odepchnięcie w nowym kierunku.",
@@ -726,7 +726,7 @@ export function buildSportPerformance(
       decel = [
         mk(
           {
-            name: "Curved run + kontrolowany stop",
+            name: "Bieg po łuku i kontrolowany stop",
             prescription: `${young ? 4 : 5} × łuk 15 m`,
             rest: "90 s",
             cue: "Pochyl się do środka łuku, kontroluj postawę i wyhamowanie.",
