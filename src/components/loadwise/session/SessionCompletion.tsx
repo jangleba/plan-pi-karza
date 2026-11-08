@@ -3,7 +3,7 @@ import { Flag, Clock3, Gauge, NotebookPen } from "lucide-react";
 import { toast } from "sonner";
 import type { SessionDay } from "@/lib/loadwise/types";
 import { useLoadwise } from "@/lib/loadwise/store";
-import { composeCompletionNotes, parseCompletionNotes } from "@/lib/loadwise/sessionPresentation";
+import { parseCompletionNotes } from "@/lib/loadwise/sessionPresentation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -19,39 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-function LogField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value?: number;
-  onChange?: (next: number) => void;
-}) {
-  const controlled = typeof value === "number" && typeof onChange === "function";
-  return (
-    <div className="flex items-center justify-between py-2">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <input
-        type="number"
-        min={0}
-        max={10}
-        placeholder="0–10"
-        value={controlled ? value : undefined}
-        onChange={
-          controlled
-            ? (e) => {
-                const next = Number(e.target.value);
-                onChange(Number.isFinite(next) ? Math.max(0, Math.min(10, next)) : 0);
-              }
-            : undefined
-        }
-        className="w-24 rounded-lg border border-border bg-card px-2 py-1 text-sm"
-      />
-    </div>
-  );
-}
 
 export function MatchStartPanel({ session, isToday }: { session: SessionDay; isToday: boolean }) {
   const { state, startSession } = useLoadwise();
@@ -136,9 +103,7 @@ function CompletionContent({ session, onSaved, suggestedDurationMin }: Completio
     },
     parseFinishDraft,
   );
-  const [pain, setPain] = useState(parsed.pain),
-    [legFatigue, setLegFatigue] = useState(parsed.legFatigue),
-    [notes, setNotes] = useState(parsed.notes);
+  const [notes, setNotes] = useState(parsed.notes);
   const [activityType, setActivityType] = useState(existing?.activityType ?? "mixed");
   const [saving, setSaving] = useState(false),
     [error, setError] = useState<string | null>(null);
@@ -156,12 +121,10 @@ function CompletionContent({ session, onSaved, suggestedDurationMin }: Completio
     setSaving(true);
     setError(null);
     try {
-      await completeSession(
-        session,
-        rpe,
-        consent ? composeCompletionNotes(notes, pain, legFatigue) : "",
-        { durationMin: minutes, ...(external ? { activityType } : {}) },
-      );
+      await completeSession(session, rpe, consent ? notes.trim() : "", {
+        durationMin: minutes,
+        ...(external ? { activityType } : {}),
+      });
       const pending =
         user &&
         readPendingTrainingWrites(user.id).some(
@@ -264,15 +227,10 @@ function CompletionContent({ session, onSaved, suggestedDurationMin }: Completio
           )}
           {consent && (
             <>
-              <LogField label="Ból 0–10" value={pain} onChange={setPain} />
-              <LogField label="Zmęczenie nóg 0–10" value={legFatigue} onChange={setLegFatigue} />
               <label className="block text-sm">
                 Notatki po sesji
                 <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
               </label>
-              <p className="bw-session-muted">
-                Dane zdrowotne zapisujemy zgodnie z Twoją opcjonalną zgodą.
-              </p>
             </>
           )}
         </details>

@@ -48,9 +48,17 @@ export function trainingProfileRevision(profile: Profile): string {
     "painLocations",
     "unavailableEquipmentIds",
   ]);
+  // Defaults mirror what buildProfile reads back from the database, so a profile
+  // straight from the onboarding form and the same profile after a reload hash
+  // identically (otherwise every save triggers a second full plan rebuild).
+  const readBack: Partial<Record<(typeof keys)[number], unknown>> = {
+    seasonPhaseOverride: profile.seasonPhaseOverride === true ? true : null,
+    runningProgressionLevel: profile.runningProgressionLevel ?? 0,
+  };
   const values = keys.map((key) => {
     const value =
-      (profile as unknown as Record<string, unknown>)[key] ?? (arrayKeys.has(key) ? [] : null);
+      (key in readBack ? readBack[key] : (profile as unknown as Record<string, unknown>)[key]) ??
+      (arrayKeys.has(key) ? [] : null);
     return [key, Array.isArray(value) ? [...new Set(value)].sort() : value];
   });
   // Keep private inputs out of plan metadata and compact boot caches.

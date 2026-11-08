@@ -2,12 +2,22 @@ import { describe, expect, it } from "vitest";
 import { coachRequest, localCoachReply, techniqueHint } from "./coach";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 
-const squat: TrainingExercise = { id: "sq", name: "Goblet squat", exerciseId: "goblet_squat", sets: "3", reps: "6", tempo: "3–0–X–0", restAfterExercise: "90 s" };
+const squat: TrainingExercise = {
+  id: "sq",
+  name: "Goblet squat",
+  exerciseId: "goblet_squat",
+  sets: "3",
+  reps: "6",
+  tempo: "3–0–X–0",
+  restAfterExercise: "90 s",
+};
 describe("exercise coaching", () => {
   it("uses the session tempo and rest rather than inventing generic numbers", () => {
     expect(localCoachReply("Jakie tempo?", squat)?.text).toContain("3–0–X–0");
     expect(localCoachReply("Ile przerwy?", squat)?.text).toContain("90 s");
-    expect(localCoachReply("Jakie tempo?", { ...squat, tempo: undefined })?.text).toContain("nie zapisano");
+    expect(localCoachReply("Jakie tempo?", { ...squat, tempo: undefined })?.text).toContain(
+      "nie zapisano",
+    );
   });
   it("does not advise through pain or approve suitability", () => {
     expect(localCoachReply("Boli kolano przy ćwiczeniu", squat)?.needsTrainer).toBe(true);

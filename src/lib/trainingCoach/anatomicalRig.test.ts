@@ -70,14 +70,22 @@ describe("anatomical teaching sketch", () => {
         }
       }
   });
-  it("uses white interiors and fine muscle traces, without coloured panels or joint rings", () => {
+  it("uses white skin with volume shading, tinted working-muscle shapes and hair, without coloured panels or joint rings", () => {
     for (const id of ["heavy_back_squat", "push_up", "a_skip", "plank", "bwprep:adductor"]) {
       const svg = rig.drawBallwiseAthlete(rig.BWAnim.models[id].sample(0.4));
       expect(svg).toContain("bw-human-sketch");
       expect(svg).toContain("bw-muscle-traces");
       expect(svg).not.toContain("<circle");
-      for (const match of svg.matchAll(/fill="([^"]+)"/g))
+      // Only the working-muscle shapes may carry a tint. Besides them the
+      // skin is white, with hair and translucent volume shading on top.
+      const body = svg
+        .replace(/<g data-muscle="[^"]+"><path[^>]*\/><\/g>/g, "")
+        .replace(/<path class="bw-human-hair"[^>]*\/>/g, "")
+        .replace(/<path class="bw-human-shade" d="[^"]*" fill="url\(#bw-shade-[a-z-]+\)"\/>/g, "");
+      for (const match of body.matchAll(/fill="([^"]+)"/g))
         expect(["#fff", "none"]).toContain(match[1]);
+      for (const match of svg.matchAll(/data-muscle="[^"]+"><path d="[^"]+" fill="([^"]+)"/g))
+        expect(match[1]).toBe("#f59e6b");
     }
   });
 });

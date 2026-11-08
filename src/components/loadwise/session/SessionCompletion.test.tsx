@@ -63,7 +63,7 @@ afterEach(async () => {
 });
 
 describe("session completion", () => {
-  it("preserves monitoring notes and actual club load while a save is pending", async () => {
+  it("keeps the private note, drops legacy pain scores and preserves actual club load while a save is pending", async () => {
     const session = sessionFixture({ dayType: "club" });
     mocks.state.completions["session-1"] = {
       completed: true,
@@ -83,12 +83,10 @@ describe("session completion", () => {
     expect(host.querySelector("textarea")?.value).toBe("Ciężkie nogi");
     await act(async () => saveButton().click());
     expect(saveButton().disabled).toBe(true);
-    expect(mocks.complete).toHaveBeenCalledWith(
-      session,
-      8,
-      "[Monitoring] pain=3;legFatigue=7\nCiężkie nogi",
-      { durationMin: 73, activityType: "technical" },
-    );
+    expect(mocks.complete).toHaveBeenCalledWith(session, 8, "Ciężkie nogi", {
+      durationMin: 73,
+      activityType: "technical",
+    });
     await act(async () => resolveSave());
     expect(saveButton().disabled).toBe(false);
     expect(mocks.success).toHaveBeenCalledWith("Wpis został zaktualizowany.");
