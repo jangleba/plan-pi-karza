@@ -5,6 +5,7 @@ import { normalizeSessionCategory } from "./sessionClassification";
 import { gymChangeBlockReason } from "./strengthScheduling";
 import { isoDayOfWeek, parseIso } from "./labels";
 import { isConservativeReturnContext } from "./finalPlanPolicy";
+import { recoverySessionContent } from "./recoveryContent";
 
 export function automationCategory(session: SessionDay): AutomationSessionCategory {
   const cls = session.classification;
@@ -25,24 +26,8 @@ export function automationCategory(session: SessionDay): AutomationSessionCatego
 }
 
 function recoverySections(): SessionDay["sections"] {
-  return {
-    warmup: [],
-    main: [
-      {
-        name: "Spokojne rozruszanie",
-        prescription: "10 min marszu, roweru lub bardzo lekkiego truchtu",
-        cue: "Tempo swobodne; przerwij, jeśli pojawia się ból.",
-      },
-      {
-        name: "Mobilność całego ciała",
-        prescription: "8–10 min bez wymuszania zakresu",
-        cue: "Płynny ruch i spokojny oddech.",
-      },
-    ],
-    accessory: [],
-    footballTransfer: [],
-    cooldown: [],
-  };
+  const content = recoverySessionContent({ circulationMin: 10 });
+  return { ...content, footballTransfer: [] };
 }
 
 /**

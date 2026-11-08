@@ -1261,6 +1261,96 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
       aliases: ["Diaphragmatic breathing", "Oddech i wyciszenie", "Wyciszenie i oddech"],
     },
   ),
+  // Concrete stretches and mobilisations. Recovery and cool-down blocks name
+  // these instead of a generic "mobility 10 min", so the athlete knows exactly
+  // what to do, on which side and for how long.
+  supportExercise("calf_wall_stretch", "Calf wall stretch", "mobility", "calf flexibility", {
+    displayNamePl: "Rozciąganie łydki przy ścianie",
+    aliases: ["Calf wall stretch", "Rozciąganie łydki (proste kolano)"],
+    instructionsPl: [
+      "Oprzyj dłonie o ścianę, jedną nogę cofnij; tylna stopa ustawiona prosto, pięta na podłożu.",
+      "Przenieś biodra do przodu przy prostym tylnym kolanie, aż poczujesz łagodne rozciąganie łydki.",
+      "Utrzymaj pozycję spokojnie oddychając, potem zmień nogę. Bez sprężynowania.",
+    ],
+  }),
+  supportExercise(
+    "soleus_bent_knee_stretch",
+    "Bent-knee calf stretch",
+    "mobility",
+    "soleus and Achilles flexibility",
+    {
+      displayNamePl: "Rozciąganie łydki z ugiętym kolanem",
+      aliases: ["Bent-knee calf stretch", "Soleus stretch"],
+      instructionsPl: [
+        "Ustaw się jak przy rozciąganiu łydki przy ścianie, ale ugnij tylne kolano.",
+        "Obniż biodra, trzymając piętę na podłożu, aż poczujesz rozciąganie nisko nad ścięgnem Achillesa.",
+        "Utrzymaj pozycję bez bólu, potem zmień nogę.",
+      ],
+    },
+  ),
+  supportExercise(
+    "half_kneeling_hip_flexor_stretch",
+    "Half-kneeling hip flexor stretch",
+    "mobility",
+    "hip flexor flexibility",
+    {
+      displayNamePl: "Rozciąganie zginacza biodra w półklęku",
+      aliases: ["Half-kneeling hip flexor stretch", "Rozciąganie biodra w wykroku"],
+      instructionsPl: [
+        "Uklęknij na jednym kolanie na miękkim podłożu, druga stopa z przodu.",
+        "Napnij pośladek nogi, na której klęczysz, i lekko podwiń miednicę; przesuń biodra do przodu.",
+        "Utrzymaj pozycję bez wyginania lędźwi, potem zmień stronę.",
+      ],
+    },
+  ),
+  supportExercise(
+    "half_kneeling_hamstring_stretch",
+    "Half-kneeling hamstring stretch",
+    "mobility",
+    "hamstring flexibility",
+    {
+      displayNamePl: "Rozciąganie tylnej strony uda w półklęku",
+      aliases: ["Half-kneeling hamstring stretch", "Rozciąganie tylnej strony uda"],
+      instructionsPl: [
+        "Z półklęku wyprostuj przednią nogę, pięta na podłożu, palce do góry.",
+        "Cofnij biodra i pochyl tułów do przodu z prostymi plecami, aż poczujesz rozciąganie z tyłu uda.",
+        "Utrzymaj pozycję spokojnie, bez szarpania, potem zmień nogę.",
+      ],
+    },
+  ),
+  supportExercise("standing_quad_stretch", "Standing quad stretch", "mobility", "quadriceps flexibility", {
+    displayNamePl: "Rozciąganie przodu uda na stojąco",
+    aliases: ["Standing quad stretch", "Rozciąganie czworogłowego"],
+    instructionsPl: [
+      "Stań przy ścianie lub słupku i przytrzymaj się jedną ręką.",
+      "Chwyć stopę drugą ręką i przyciągnij piętę do pośladka; kolana blisko siebie, miednica lekko podwinięta.",
+      "Utrzymaj pozycję bez wyginania lędźwi, potem zmień nogę.",
+    ],
+  }),
+  supportExercise("cat_cow", "Cat-cow", "mobility", "spinal mobility", {
+    displayNamePl: "Koci grzbiet",
+    aliases: ["Cat-cow", "Cat camel", "Kot–krowa"],
+    instructionsPl: [
+      "Ustaw się w klęku podpartym: dłonie pod barkami, kolana pod biodrami.",
+      "Z wydechem zaokrąglij plecy od miednicy do głowy, z wdechem spokojnie wydłuż przód tułowia.",
+      "Ruch płynny i powolny, w zakresie bez bólu.",
+    ],
+  }),
+  supportExercise(
+    "quadruped_thoracic_rotation",
+    "Quadruped thoracic rotation",
+    "mobility",
+    "thoracic rotation",
+    {
+      displayNamePl: "Rotacja odcinka piersiowego w klęku",
+      aliases: ["Quadruped thoracic rotation", "Open book", "Otwieranie klatki"],
+      instructionsPl: [
+        "W klęku podpartym połóż jedną dłoń za głową.",
+        "Obróć klatkę piersiową i łokieć w górę, wzrok za łokciem; biodra zostają nad kolanami.",
+        "Wróć spokojnie i wykonaj zaplanowane powtórzenia, potem zmień stronę.",
+      ],
+    },
+  ),
   supportExercise("easy_aerobic_run", "Easy aerobic run", "conditioning", "aerobic base", {
     displayNamePl: "Łatwy bieg tlenowy",
     aliases: [

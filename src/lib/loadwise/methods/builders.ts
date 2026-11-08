@@ -9,6 +9,7 @@ import {
   isExerciseAllowedForProfile,
 } from "../exerciseLibrary";
 import { getTrainingMethod } from "./catalogue";
+import { runningCooldown, runningPreparation } from "../recoveryContent";
 import { methodEquipment } from "./eligibility";
 import type { MethodExecution, MethodSessionConditions, TrainingMethodId } from "./types";
 
@@ -494,7 +495,28 @@ export function buildFieldMethod(
   const original = session.structuredSections?.length
     ? clone(session.structuredSections)
     : flatToStructured(session.sections);
-  const edges = original.filter((s) => ["warmup", "prep", "cooldown"].includes(s.type));
+  const running = getTrainingMethod(id)?.domain === "conditioning";
+  // A running method gets running edges: the original session may have been
+  // a gym or recovery day, and an easy run must not be preceded and followed
+  // by another easy jog. M26 starts easy by itself, so it only needs
+  // mobility and drills before it.
+  const runningEdges = running
+    ? flatToStructured({
+        warmup: id === "M26" ? runningPreparation() : [],
+        main: [],
+        accessory: [],
+        footballTransfer: [],
+        cooldown: runningCooldown(),
+      })
+    : [];
+  const edges = running
+    ? [
+        ...(id === "M26"
+          ? runningEdges.filter((s) => s.type === "warmup")
+          : original.filter((s) => s.type === "warmup" || s.type === "prep")),
+        ...runningEdges.filter((s) => s.type === "cooldown"),
+      ]
+    : original.filter((s) => ["warmup", "prep", "cooldown"].includes(s.type));
   let recipe: MethodExecution, canonical: string;
   if (id === "M26") {
     canonical = "easy_aerobic_run";

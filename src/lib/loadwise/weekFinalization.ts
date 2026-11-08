@@ -16,6 +16,7 @@
 // lekką, komplementarną sesję u zawodnika intermediate/advanced.
 // ============================================================================
 
+import { gymCooldown, mobilityCircuit, runningCooldown, runningPreparation } from "./recoveryContent";
 import type { Profile, SessionDay, ExerciseItem, DayType } from "./types";
 import { isoDayOfWeek, dayName as dayNameOf, parseIso } from "./labels";
 import {
@@ -309,11 +310,13 @@ function buildEnduranceSessionDay(
     mdLabel: templateDay.mdLabel ?? null,
     slotLabel: opts.slotLabel ?? null,
     sections: {
-      warmup: [{ name: "Rozgrzewka tlenowa", prescription: "5–8 min trucht + mobilizacja" }],
+      // The run itself starts and ends easy, so preparation is mobility and
+      // drills, and the cool-down is a walk with named stretches.
+      warmup: runningPreparation(),
       main: build.main,
       accessory: [],
       footballTransfer: [],
-      cooldown: [{ name: "Wyciszenie", prescription: "5 min trucht + oddech" }],
+      cooldown: runningCooldown(),
     },
     secondSession: null,
   };
@@ -1484,9 +1487,10 @@ function buildGymSessionDay(
     sections: {
       warmup: [
         canonicalizeGeneratedExercise(
-          { exerciseId: "hip_mobility_flow", name: "Rozgrzewka dynamiczna", prescription: "5–8 min mobilizacja" },
-          "mobility",
+          { exerciseId: "easy_cycle_recovery", name: "Lekki rower regeneracyjny", prescription: "3 min, swobodnie" },
+          "recovery",
         ),
+        ...mobilityCircuit(1).slice(2),
       ],
       main: opts.upperBodyOnly
         ? upperBodyAndTrunkMain(profile)
@@ -1518,12 +1522,7 @@ function buildGymSessionDay(
         ),
       ],
       footballTransfer: [],
-      cooldown: [
-        canonicalizeGeneratedExercise(
-          { exerciseId: "static_stretch_cooldown", name: "Rozciąganie", prescription: "5 min" },
-          "mobility",
-        ),
-      ],
+      cooldown: gymCooldown(),
     },
     secondSession: null,
   };

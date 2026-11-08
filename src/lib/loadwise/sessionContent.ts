@@ -7,6 +7,7 @@
 // ============================================================
 
 import type { ExerciseItem, Profile, SessionDay } from "./types";
+import { recoverySessionContent, runningCooldown } from "./recoveryContent";
 import { buildIndividualFootballSession } from "./individualFootballSessionEngine";
 import { buildAthleteTrainingProfile } from "./athleteProfile";
 import { getExerciseDefinition, isExerciseAllowedForProfile } from "./exerciseLibrary";
@@ -398,19 +399,18 @@ function sprintWarmup(young: boolean, level: Profile["level"]): CatExercise[] {
 }
 
 function sprintCooldown(): CatExercise[] {
-  return [
-    mk(
-      { name: "Trucht wyciszający", prescription: "5 min bardzo lekko" },
-      { isRunningBased: true, primaryQuality: "wyciszenie" },
-    ),
-    mk(
-      {
-        name: "Rozciąganie i mobilność tylnej taśmy",
-        prescription: "6 min: tylne uda, łydki, biodra",
-      },
-      { primaryQuality: "mobilność", tissueLoadTags: ["tylne uda", "łydka"] },
-    ),
-  ];
+  // Walk-down and named stretches with a dose; no second jog after running.
+  return runningCooldown().map((exercise) =>
+    mk(exercise, {
+      primaryQuality: exercise.exerciseId === "sprint_cooldown_walk" ? "wyciszenie" : "mobilność",
+      tissueLoadTags:
+        exercise.exerciseId === "calf_wall_stretch"
+          ? ["łydka"]
+          : exercise.exerciseId === "half_kneeling_hamstring_stretch"
+            ? ["tylne uda"]
+            : [],
+    }),
+  );
 }
 
 // ============================================================
@@ -900,24 +900,20 @@ export function buildRunningConditioning(
 // ============================================================
 
 export function buildRecoveryPrehab(): BuiltContent {
+  const content = recoverySessionContent();
   return {
     title: "Regeneracja i prehab",
     sessionType: "Regeneracja / prehab",
-    goalOfSession: "Niskie obciążenie: mobilność, oddech, lekka praca tlenowa i odporność tkanek bez generowania zmęczenia.",
+    goalOfSession:
+      "Niskie obciążenie: krążenie, mobilność stawów, lekka praca ścięgien i rozciąganie bez generowania zmęczenia.",
     riskManaged: "Brak intensywności i bez ukrytego kondycyjnego — sesja wspiera regenerację.",
     avoidToday: "Bez sprintów, twardych interwałów i ciężkich obciążeń.",
     sections: {
-      warmup: [],
-      main: [
-        { name: "Mobilność całego ciała", prescription: "10 min: biodra, kostki, kręgosłup", cue: "Powoli, kontroluj końcowy zakres." },
-        { name: "Lekka praca tlenowa (opcjonalnie)", prescription: "10–15 min spacer / rower bardzo lekko", cue: "Tylko rozruszanie, zero forsowania." },
-      ],
-      accessory: [
-        { name: "Prehab tkanek: przywodziciele, łydki, tylne uda", prescription: "8 min, kontrola, bez bólu", cue: "Lekko i kontrolowanie — reset tkanek, nie trening siłowy." },
-        { name: "Oddech i wyciszenie", prescription: "5 min wydłużony wydech", cue: "Nos–wdech, długi wydech, rozluźnij barki." },
-      ],
+      warmup: content.warmup,
+      main: content.main,
+      accessory: content.accessory,
       footballTransfer: [],
-      cooldown: [],
+      cooldown: content.cooldown,
     },
   };
 }
