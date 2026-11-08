@@ -52,6 +52,19 @@ async function render(protocol = bilateral()) {
   );
 }
 describe("prowadzenie ćwiczeń na ekranie", () => {
+  it("pokazuje ustawienie, anatomię, powód dawki i wibruje przy zmianie strony", async () => {
+    const vibrate = vi.fn();
+    Object.defineProperty(navigator, "vibrate", { value: vibrate, configurable: true });
+    await render();
+    await click("Rozpocznij regenerację");
+    expect(host.querySelector(".bw-prep-setup")?.textContent).toMatch(/Ustawienie:.*pięta/i);
+    expect(host.querySelector(".bw-prep-why")?.textContent).toMatch(/brzuchaty/);
+    expect(host.querySelector(".bw-prep-why")?.textContent).toMatch(/60 s na mięsień/);
+    expect(vibrate).not.toHaveBeenCalled();
+    await tick(31_000);
+    expect(host.textContent).toContain("Zmień stronę");
+    expect(vibrate).toHaveBeenCalledWith([120, 80, 120]);
+  });
   it("pokazuje obrazek, dwie instrukcje i prowadzi przez stronę, zmianę i przerwę", async () => {
     await render();
     await click("Rozpocznij regenerację");

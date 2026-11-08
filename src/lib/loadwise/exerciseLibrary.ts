@@ -1265,6 +1265,12 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
   // these instead of a generic "mobility 10 min", so the athlete knows exactly
   // what to do, on which side and for how long.
   supportExercise("calf_wall_stretch", "Calf wall stretch", "mobility", "calf flexibility", {
+    coachingCues: [
+      "Tylna pięta cały czas na podłożu",
+      "Stopy ustawione prosto, palce do ściany",
+      "Tylne kolano wyprostowane",
+    ],
+    commonErrors: ["Odrywanie pięty", "Stopa wykręcona na zewnątrz"],
     displayNamePl: "Rozciąganie łydki przy ścianie",
     aliases: ["Calf wall stretch", "Rozciąganie łydki (proste kolano)"],
     instructionsPl: [
@@ -1279,6 +1285,12 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
     "mobility",
     "soleus and Achilles flexibility",
     {
+      coachingCues: [
+        "Tylne kolano ugięte nad palcami",
+        "Pięta na podłożu",
+        "Ciężar lekko do przodu",
+      ],
+      commonErrors: ["Odrywanie pięty", "Prostowanie kolana"],
       displayNamePl: "Rozciąganie łydki z ugiętym kolanem",
       aliases: ["Bent-knee calf stretch", "Soleus stretch"],
       instructionsPl: [
@@ -1294,6 +1306,12 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
     "mobility",
     "hip flexor flexibility",
     {
+      coachingCues: [
+        "Napnij pośladek nogi z tyłu",
+        "Miednica lekko podwinięta",
+        "Przednie kolano nad kostką",
+      ],
+      commonErrors: ["Wyginanie lędźwi zamiast ruchu biodra", "Przednie kolano wysunięte za palce"],
       displayNamePl: "Rozciąganie zginacza biodra w półklęku",
       aliases: ["Half-kneeling hip flexor stretch", "Rozciąganie biodra w wykroku"],
       instructionsPl: [
@@ -1309,6 +1327,12 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
     "mobility",
     "hamstring flexibility",
     {
+      coachingCues: [
+        "Przednia noga prosta, palce do góry",
+        "Plecy proste, biodra w tył",
+        "Spokojny oddech",
+      ],
+      commonErrors: ["Zaokrąglanie pleców", "Sprężynowanie"],
       displayNamePl: "Rozciąganie tylnej strony uda w półklęku",
       aliases: ["Half-kneeling hamstring stretch", "Rozciąganie tylnej strony uda"],
       instructionsPl: [
@@ -1318,16 +1342,30 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
       ],
     },
   ),
-  supportExercise("standing_quad_stretch", "Standing quad stretch", "mobility", "quadriceps flexibility", {
-    displayNamePl: "Rozciąganie przodu uda na stojąco",
-    aliases: ["Standing quad stretch", "Rozciąganie czworogłowego"],
-    instructionsPl: [
-      "Stań przy ścianie lub słupku i przytrzymaj się jedną ręką.",
-      "Chwyć stopę drugą ręką i przyciągnij piętę do pośladka; kolana blisko siebie, miednica lekko podwinięta.",
-      "Utrzymaj pozycję bez wyginania lędźwi, potem zmień nogę.",
-    ],
-  }),
+  supportExercise(
+    "standing_quad_stretch",
+    "Standing quad stretch",
+    "mobility",
+    "quadriceps flexibility",
+    {
+      coachingCues: ["Kolana obok siebie", "Miednica lekko podwinięta", "Przytrzymaj się ściany"],
+      commonErrors: ["Wyginanie lędźwi", "Kolano odchodzi do przodu lub w bok"],
+      displayNamePl: "Rozciąganie przodu uda na stojąco",
+      aliases: ["Standing quad stretch", "Rozciąganie czworogłowego"],
+      instructionsPl: [
+        "Stań przy ścianie lub słupku i przytrzymaj się jedną ręką.",
+        "Chwyć stopę drugą ręką i przyciągnij piętę do pośladka; kolana blisko siebie, miednica lekko podwinięta.",
+        "Utrzymaj pozycję bez wyginania lędźwi, potem zmień nogę.",
+      ],
+    },
+  ),
   supportExercise("cat_cow", "Cat-cow", "mobility", "spinal mobility", {
+    coachingCues: [
+      "Dłonie pod barkami, kolana pod biodrami",
+      "Ruch w rytmie oddechu",
+      "Płynnie, bez szarpania",
+    ],
+    commonErrors: ["Ruch tylko w odcinku lędźwiowym", "Wstrzymywanie oddechu"],
     displayNamePl: "Koci grzbiet",
     aliases: ["Cat-cow", "Cat camel", "Kot–krowa"],
     instructionsPl: [
@@ -1342,6 +1380,8 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
     "mobility",
     "thoracic rotation",
     {
+      coachingCues: ["Biodra zostają nad kolanami", "Wzrok za łokciem", "Wracaj powoli"],
+      commonErrors: ["Obracanie bioder zamiast klatki", "Szarpanie na końcu ruchu"],
       displayNamePl: "Rotacja odcinka piersiowego w klęku",
       aliases: ["Quadruped thoracic rotation", "Open book", "Otwieranie klatki"],
       instructionsPl: [

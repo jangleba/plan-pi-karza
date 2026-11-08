@@ -403,3 +403,24 @@
     animation: none !important;
   }
 }
+.bw-prep-setup {
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 6px;
+}
+.bw-prep-why {
+  margin: -8px 0 18px;
+  font-size: 13px;
+  color: #4e6073;
+}
+.bw-prep-why summary {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  color: var(--prep-navy);
+  cursor: pointer;
+}
+.bw-prep-why p {
+  margin: 6px 0;
+  line-height: 1.5;
+}

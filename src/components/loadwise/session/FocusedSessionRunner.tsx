@@ -16,6 +16,8 @@ import { ExerciseRunnerScreen } from "../ExerciseRunnerScreen";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { SprintRestTimer } from "./SprintRestTimer";
 import { SprintTimingPanel } from "./SprintTimingPanel";
+import { CooldownCoach } from "../preparation/PreparationGuide";
+import { cooldownFromExercises } from "@/lib/loadwise/preparation/protocols";
 
 const parseIndex = (v: unknown) =>
   typeof v === "number" && Number.isInteger(v) && v >= 0 && v < 500 ? v : undefined;
@@ -61,6 +63,18 @@ export function FocusedSessionRunner({
   );
   const index = Math.min(selection.value, Math.max(0, rows.length - 1));
   const record = useSessionExecution(exercises, sessionId, date);
+  // A cool-down made only of guided movements runs as one timed sequence:
+  // side, switch, set and rest are announced, so the phone can stay down.
+  const guidedCooldowns = useMemo(
+    () =>
+      new Map(
+        sections
+          .filter((s) => s.type === "cooldown")
+          .map((s) => [s.id, cooldownFromExercises(s.blocks.flatMap((b) => b.exercises))] as const)
+          .filter((entry) => entry[1] !== undefined),
+      ),
+    [sections],
+  );
   const [planOpen, setPlanOpen] = useState(false),
     [technique, setTechnique] = useState(false),
     [busy, setBusy] = useState(false);
@@ -78,6 +92,7 @@ export function FocusedSessionRunner({
     section.type === "main" &&
     /sprint|start|przyspiesz|akcelera|bieg lotny/i.test(exercise.name);
   const dose = compactPrescription(exercise);
+  const guidedCooldown = guidedCooldowns.get(section.id);
   const stageRows = rows.filter((r) => r.section.id === section.id);
   const stageIndex = stageRows.findIndex((r) => r.exercise.id === exercise.id);
   const isLast = index === rows.length - 1;
@@ -132,79 +147,101 @@ export function FocusedSessionRunner({
           <List size={16} /> Plan sesji
         </button>
       </div>
-      <article className="bw-focus-card" key={`${fingerprint}:${exercise.id}`}>
-        <div className="bw-focus-stage">
-          <span>{labels[section.type] ?? section.title}</span>
-          <span>
-            {stageIndex + 1}/{stageRows.length}
-          </span>
-        </div>
-        <h2>{canonicalExerciseName(exercise)}</h2>
-        <p className="bw-focus-dose">{dose}</p>
-        {exercise.rir && (
-          <p className="bw-session-muted">
-            Zapas: {exercise.rir.replace(/\s*RIR/gi, "")} powtórzeń
-          </p>
-        )}
-        {(exercise.restAfterPair || exercise.restAfterExercise) && (
-          <p className="bw-session-muted">
-            Przerwa {formatRestValue(exercise.restAfterPair || exercise.restAfterExercise || "")}
-          </p>
-        )}
-        <button type="button" className="bw-technique-open" onClick={() => setTechnique(true)}>
-          <BookOpen size={17} /> Technika i animacja <ChevronRight size={16} />
-        </button>
-        {exercise.executionBlockedReason && (
-          <p role="status" className="bw-training-error">
-            {exercise.executionBlockedReason}
-          </p>
-        )}
-        {canRecord && strength && !exercise.executionBlockedReason && (
-          <ExerciseRunnerScreen
-            exercise={exercise}
-            sessionId={sessionId}
-            date={date}
-            open
-            inline
-            showVisuals={false}
-            manageRest={!block.exercises.some((e) => e.restAfterPair)}
-            onClose={() => {}}
-            onSetSaved={(_, finished) => {
-              void setSaved(finished);
+      {guidedCooldown ? (
+        <article className="bw-focus-card" key={`${fingerprint}:${section.id}:guided`}>
+          <div className="bw-focus-stage">
+            <span>{labels[section.type] ?? section.title}</span>
+            <span>{stageRows.length} ćwiczenia</span>
+          </div>
+          <CooldownCoach
+            protocol={guidedCooldown}
+            storageKey={`${trainingStorageKey("cooldown", user?.id, sessionId ?? date, fingerprint)}${canRecord ? "" : ":preview"}`}
+            onFinish={async () => {
+              if (!canRecord) return;
+              for (const r of stageRows) await record.markDone(r.exercise.id, true);
+              const after = rows.findIndex((r, i) => i > index && r.section.id !== section.id);
+              if (after === -1) onFinish();
+              else go(after);
             }}
           />
-        )}
-        {canRecord && sprint && (
-          <SprintTimingPanel
-            exercise={exercise}
-            sessionId={sessionId}
-            onRepeat={() => {
-              const label =
-                exercise.restAfterExercise || exercise.restAfterPair || block.restAfterBlock;
-              if (label) setRest((r) => ({ label, token: r.token + 1 }));
-            }}
-          />
-        )}
-        {canRecord && !strength && (
-          <button
-            type="button"
-            className="bw-session-primary"
-            disabled={busy || Boolean(exercise.executionBlockedReason)}
-            onClick={() => void complete()}
-          >
-            {busy
-              ? "Zapisuję…"
-              : isLast
-                ? "Gotowe · podsumowanie"
-                : done
-                  ? "Następne ćwiczenie"
-                  : "Wykonane · dalej"}
+        </article>
+      ) : (
+        <article className="bw-focus-card" key={`${fingerprint}:${exercise.id}`}>
+          <div className="bw-focus-stage">
+            <span>{labels[section.type] ?? section.title}</span>
+            <span>
+              {stageIndex + 1}/{stageRows.length}
+            </span>
+          </div>
+          <h2>{canonicalExerciseName(exercise)}</h2>
+          <p className="bw-focus-dose">{dose}</p>
+          {exercise.rir && (
+            <p className="bw-session-muted">
+              Zapas: {exercise.rir.replace(/\s*RIR/gi, "")} powtórzeń
+            </p>
+          )}
+          {(exercise.restAfterPair || exercise.restAfterExercise) && (
+            <p className="bw-session-muted">
+              Przerwa {formatRestValue(exercise.restAfterPair || exercise.restAfterExercise || "")}
+            </p>
+          )}
+          <button type="button" className="bw-technique-open" onClick={() => setTechnique(true)}>
+            <BookOpen size={17} /> Technika i animacja <ChevronRight size={16} />
           </button>
-        )}
-        {!canRecord && (
-          <p className="bw-session-muted">Zapis wykonania będzie dostępny po rozpoczęciu sesji.</p>
-        )}
-      </article>
+          {exercise.executionBlockedReason && (
+            <p role="status" className="bw-training-error">
+              {exercise.executionBlockedReason}
+            </p>
+          )}
+          {canRecord && strength && !exercise.executionBlockedReason && (
+            <ExerciseRunnerScreen
+              exercise={exercise}
+              sessionId={sessionId}
+              date={date}
+              open
+              inline
+              showVisuals={false}
+              manageRest={!block.exercises.some((e) => e.restAfterPair)}
+              onClose={() => {}}
+              onSetSaved={(_, finished) => {
+                void setSaved(finished);
+              }}
+            />
+          )}
+          {canRecord && sprint && (
+            <SprintTimingPanel
+              exercise={exercise}
+              sessionId={sessionId}
+              onRepeat={() => {
+                const label =
+                  exercise.restAfterExercise || exercise.restAfterPair || block.restAfterBlock;
+                if (label) setRest((r) => ({ label, token: r.token + 1 }));
+              }}
+            />
+          )}
+          {canRecord && !strength && (
+            <button
+              type="button"
+              className="bw-session-primary"
+              disabled={busy || Boolean(exercise.executionBlockedReason)}
+              onClick={() => void complete()}
+            >
+              {busy
+                ? "Zapisuję…"
+                : isLast
+                  ? "Gotowe · podsumowanie"
+                  : done
+                    ? "Następne ćwiczenie"
+                    : "Wykonane · dalej"}
+            </button>
+          )}
+          {!canRecord && (
+            <p className="bw-session-muted">
+              Zapis wykonania będzie dostępny po rozpoczęciu sesji.
+            </p>
+          )}
+        </article>
+      )}
       {rest.label && (
         <div className="bw-focus-rest">
           <SprintRestTimer label={rest.label} compact startToken={rest.token} />

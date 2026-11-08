@@ -1,4 +1,5 @@
 import { getExerciseDefinition } from "./exerciseLibrary";
+import { preparationMoveFor } from "./preparation/protocols";
 import type { ExerciseItem } from "./types";
 
 /**
@@ -14,12 +15,21 @@ import type { ExerciseItem } from "./types";
 function item(exerciseId: string, prescription: string, cue?: string): ExerciseItem {
   const definition = getExerciseDefinition(exerciseId);
   if (!definition) throw new Error(`Unknown recovery exercise: ${exerciseId}`);
+  // Same anatomy, setup and dose reasoning as the guided timer, so the list
+  // view and the timer explain the movement identically.
+  const guide = preparationMoveFor({ exerciseId });
   return {
     exerciseId,
     visualId: exerciseId,
     name: definition.displayNamePl,
     prescription,
     ...(cue ? { cue } : {}),
+    ...(guide
+      ? {
+          purpose: `${guide.anatomy} ${guide.doseReason}`,
+          technique: guide.setup,
+        }
+      : {}),
   };
 }
 
@@ -39,21 +49,18 @@ export function runningCooldown(): ExerciseItem[] {
 export function generalCooldown(): ExerciseItem[] {
   return [
     item("sprint_cooldown_walk", "3 min spokojnego marszu", "Wyrównaj oddech."),
-    item("standing_quad_stretch", "1 × 30 s / strona", HOLD),
-    item("half_kneeling_hip_flexor_stretch", "1 × 30 s / strona", "Napnij pośladek nogi z tyłu."),
-    item("half_kneeling_hamstring_stretch", "1 × 30 s / strona", "Plecy proste, biodra w tył."),
-    item("calf_wall_stretch", "1 × 30 s / strona", HOLD),
-    item("diaphragmatic_breathing", "2 min", "Spokojny wdech nosem, dłuższy wydech."),
+    item("standing_quad_stretch", "2 × 30 s / strona", HOLD),
+    item("half_kneeling_hip_flexor_stretch", "2 × 30 s / strona", "Napnij pośladek nogi z tyłu."),
+    item("half_kneeling_hamstring_stretch", "2 × 30 s / strona", "Plecy proste, biodra w tył."),
   ];
 }
 
-/** Short cool-down after a gym session (about 5 min). */
+/** Short cool-down after a gym session (about 6–7 min with side switches). */
 export function gymCooldown(): ExerciseItem[] {
   return [
-    item("half_kneeling_hip_flexor_stretch", "1 × 30 s / strona", "Napnij pośladek nogi z tyłu."),
-    item("half_kneeling_hamstring_stretch", "1 × 30 s / strona", "Plecy proste, biodra w tył."),
-    item("calf_wall_stretch", "1 × 30 s / strona", HOLD),
-    item("diaphragmatic_breathing", "1 min", "Dłuższy wydech niż wdech."),
+    item("half_kneeling_hip_flexor_stretch", "2 × 30 s / strona", "Napnij pośladek nogi z tyłu."),
+    item("half_kneeling_hamstring_stretch", "2 × 30 s / strona", "Plecy proste, biodra w tył."),
+    item("calf_wall_stretch", "2 × 30 s / strona", HOLD),
   ];
 }
 
