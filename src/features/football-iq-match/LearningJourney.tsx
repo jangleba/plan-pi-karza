@@ -21,6 +21,7 @@ import {
   pickerItems,
   startLines,
 } from "./journeyGuide";
+import { loadFieldTask, pickFieldTask, saveFieldTask, type FieldTask } from "./fieldTask";
 import { iqSources, situationBank, situationFor } from "./situationBank";
 import { FootballIQJourney } from "./FootballIQJourney";
 import { TacticalPitch } from "./TacticalPitch";
@@ -118,7 +119,8 @@ export function LearningJourney(props: Props) {
   const [sheet, setSheet] = useState<Sheet>(null),
     [pickAll, setPickAll] = useState(false),
     [optionKey, setOptionKey] = useState<string | null>(null),
-    [revealed, setRevealed] = useState(false);
+    [revealed, setRevealed] = useState(false),
+    [fieldTask, setFieldTask] = useState<FieldTask | null>(null);
   const [draft, setDraft] = useState<JourneyChoice | null>(null),
     [takeover, setTakeover] = useState(false),
     [ready, setReady] = useState(false);
@@ -217,6 +219,13 @@ export function LearningJourney(props: Props) {
             saveJourneyDraft(historyOwner, session, mode, id);
           completed.current.add(id);
           setSaved(!!historyOwner);
+          const task = pickFieldTask(
+            session.definition,
+            session.attack?.finish,
+            loadFieldTask(historyOwner),
+          );
+          saveFieldTask(historyOwner, task);
+          setFieldTask(task);
           onComplete?.({
             scenarioId: session.definition.id,
             verdict: journeyVerdict(session),
@@ -297,6 +306,7 @@ export function LearningJourney(props: Props) {
     setSheet(null);
     setOptionKey(null);
     setRevealed(false);
+    setFieldTask(null);
     setTransfer(test);
   }
   function exportAttempt() {
@@ -788,6 +798,17 @@ export function LearningJourney(props: Props) {
                     : "Piłka utrzymana. Czy udało się wyjść spod nacisku?"}
             </h2>
             <p>{lessonTakeaway(session)}</p>
+            {fieldTask && (
+              <section className="iqE-task" aria-label="Zadanie na boisko">
+                <span>Zadanie na boisko</span>
+                <p>{fieldTask.text}</p>
+                <small>
+                  {props.historyOwner
+                    ? "Zobaczysz je też na ekranie Start."
+                    : "Zaloguj się, żeby widzieć je na ekranie Start."}
+                </small>
+              </section>
+            )}
             <details>
               <summary>Twoje decyzje ({session.decisions.length})</summary>
               {session.decisions.map((d, i) => (
