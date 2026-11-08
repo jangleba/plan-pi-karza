@@ -168,6 +168,11 @@ try {
   ensure((await page.locator('.iqE-task p').innerText()).length>10,'No field task after the action');
   ensure(await page.evaluate(()=>!!localStorage.getItem('ballwise:iq:field-task:v1:iq-browser-qa')),'Field task not stored for Start');
   await page.screenshot({path:path.join(work,'IQ-64-WYNIK.png')});
+  ensure(await page.locator('.iqE-review li').count()>0,'No decision review after the action');
+  ensure(await page.locator('.iqE-review .iqE-grade').count()===await page.locator('.iqE-review li').count(),'Every decision needs a grade');
+  await page.locator('.iqE-review li button').first().click();
+  await page.waitForSelector('.iqE-better');
+  await page.screenshot({path:path.join(work,'IQ-64-OCENA.png')});
   await page.getByRole('button',{name:'Cała akcja',exact:true}).click();
   await page.waitForSelector('.iqE-replay-key');
   await page.getByRole('slider',{name:'Czas powtórki',exact:true}).fill('5');

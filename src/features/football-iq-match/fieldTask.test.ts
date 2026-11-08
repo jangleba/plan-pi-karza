@@ -28,6 +28,8 @@ describe("field task", () => {
         expect(text).toMatch(/\.$/);
         expect(text.length).toBeLessThan(100);
         expect(text).not.toMatch(/(^|\s)(bo|ponieważ|dlatego)\s/);
+        // Tactics only: no body details the pitch view cannot show.
+        expect(text).not.toMatch(/głow|ramię|ramie|bioder|ręk|spójrz|spojrz|wzrok/i);
       }
   });
 

@@ -343,28 +343,40 @@ export const OPTION_MARKS = [
   { letter: "D", color: "#8ee86b" },
 ] as const;
 
+/** One chalk arrow for a choice of the controlled player, or none when it does not move. */
+export function choicePath(
+  s: JourneySession,
+  key: string,
+  choice: Pick<JourneyChoice, "intent" | "point" | "targetId">,
+  color: string,
+): PlannedAction | null {
+  const actor = s.controlledId ?? "you";
+  const from = s.world.positions[actor];
+  const to = choice.point;
+  if (distance(from, to) < 1) return null;
+  const base = { id: `option-${key}`, playerId: actor, from, to, analysisColor: color };
+  if (choice.intent === "pass")
+    return { ...base, type: "pass" as const, targetId: choice.targetId ?? "space" };
+  if (choice.intent === "shoot") return { ...base, type: "shot" as const };
+  const type =
+    choice.intent === "carry" ||
+    choice.intent === "press" ||
+    choice.intent === "cover" ||
+    choice.intent === "mark"
+      ? choice.intent
+      : ("run" as const);
+  return { ...base, type };
+}
+
 /** Arrows for the options, like chalk on a tactics board. With a selection only that arrow stays. */
 export function optionPaths(
   s: JourneySession,
   options: DecisionOption[],
   selectedKey?: string | null,
 ): PlannedAction[] {
-  const actor = s.controlledId ?? "you";
-  const from = s.world.positions[actor];
   return options.flatMap((o, i): PlannedAction[] => {
     if (selectedKey && o.key !== selectedKey) return [];
-    const to = o.choice.point;
-    if (distance(from, to) < 1) return [];
-    const color: string = OPTION_MARKS[i % OPTION_MARKS.length].color;
-    const intent = o.choice.intent;
-    const base = { id: `option-${o.key}`, playerId: actor, from, to, analysisColor: color };
-    if (intent === "pass")
-      return [{ ...base, type: "pass" as const, targetId: o.choice.targetId ?? "space" }];
-    if (intent === "shoot") return [{ ...base, type: "shot" as const }];
-    const type =
-      intent === "carry" || intent === "press" || intent === "cover" || intent === "mark"
-        ? intent
-        : ("run" as const);
-    return [{ ...base, type }];
+    const path = choicePath(s, o.key, o.choice, OPTION_MARKS[i % OPTION_MARKS.length].color);
+    return path ? [path] : [];
   });
 }

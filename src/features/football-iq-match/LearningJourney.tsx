@@ -22,6 +22,12 @@ import {
   startLines,
 } from "./journeyGuide";
 import { loadFieldTask, pickFieldTask, saveFieldTask, type FieldTask } from "./fieldTask";
+import {
+  qualityLabels,
+  REVIEW_COLORS,
+  reviewDecision,
+  type DecisionReview,
+} from "./decisionReview";
 import { iqSources, situationBank, situationFor } from "./situationBank";
 import { FootballIQJourney } from "./FootballIQJourney";
 import { TacticalPitch } from "./TacticalPitch";
@@ -126,7 +132,8 @@ export function LearningJourney(props: Props) {
   const [draft, setDraft] = useState<JourneyChoice | null>(null),
     [ready, setReady] = useState(false);
   const [archive, setArchive] = useState(false),
-    [replay, setReplay] = useState<JourneySession | null>(null);
+    [replay, setReplay] = useState<JourneySession | null>(null),
+    [review, setReview] = useState<DecisionReview | null>(null);
   const [paused, setPaused] = useState(false),
     [playTime, setPlayTime] = useState(0);
   const [transfer, setTransfer] = useState(false);
@@ -142,7 +149,7 @@ export function LearningJourney(props: Props) {
   // Only TY is controlled: the player learns their own position, with and without the ball.
   const actor = "you";
   const controlled = useMemo(() => ({ ...session, controlledId: actor }), [session, actor]);
-  const displayed = replay ?? session;
+  const displayed = replay ?? review?.before ?? session;
   current.current = displayed;
   const sampleFrame = useCallback(() => sampleJourney(current.current, playhead.current), []);
   const idleFrame = useMemo(
@@ -246,6 +253,7 @@ export function LearningJourney(props: Props) {
     setPlayTime(from);
     setPaused(false);
     if (asReplay) setReplay(s);
+    setReview(null);
     returnPhase.current = after;
     setPhase("playing");
   }
@@ -302,6 +310,7 @@ export function LearningJourney(props: Props) {
     setPhase("intro");
     setDraft(null);
     setReplay(null);
+    setReview(null);
     setSaved(false);
     setSheet(null);
     setOptionKey(null);
@@ -406,11 +415,13 @@ export function LearningJourney(props: Props) {
   const showOptions = phase === "decision" && (mode === "learn" || revealed);
   const boardActions = showAnalysis
     ? analysisPaths
-    : draft && !optionKey
-      ? preview
-      : showOptions
-        ? optionPaths(controlled, options, optionKey)
-        : preview;
+    : review
+      ? review.paths
+      : draft && !optionKey
+        ? preview
+        : showOptions
+          ? optionPaths(controlled, options, optionKey)
+          : preview;
   const scoreReached = !isPlaying || playTime >= journeyDuration(displayed) - 0.001;
   const visibleHome = scoreReached ? (displayed.attack?.home ?? 0) : 0;
   const visibleAway = scoreReached ? (displayed.attack?.away ?? 0) : 0;
@@ -512,7 +523,7 @@ export function LearningJourney(props: Props) {
           onPitchSelect={(p) => choosePoint(p)}
           onReadyChange={setReady}
           showActionOrders={false}
-          showGuidance={showAnalysis || !!draft || showOptions}
+          showGuidance={showAnalysis || !!review || !!draft || showOptions}
           broadcastView
         />
         {showAnalysis && (
@@ -784,17 +795,41 @@ export function LearningJourney(props: Props) {
                 </small>
               </section>
             )}
-            <details>
-              <summary>Twoje decyzje ({session.decisions.length})</summary>
-              {session.decisions.map((d, i) => (
-                <p key={d.choiceId + i}>
-                  <strong>
-                    {i + 1}. {d.label}.
-                  </strong>{" "}
-                  {d.why}
-                </p>
-              ))}
-            </details>
+            <section className="iqE-review" aria-label="Twoje decyzje">
+              <span>Twoje decyzje · dotknij, żeby zobaczyć na boisku</span>
+              <ol>
+                {session.decisions.map((d, i) => (
+                  <li key={d.choiceId + i}>
+                    <button
+                      type="button"
+                      aria-pressed={review?.index === i}
+                      onClick={() =>
+                        setReview(review?.index === i ? null : reviewDecision(session, i))
+                      }
+                    >
+                      <b>{i + 1}.</b> {d.label}
+                      <em className={`iqE-grade iqE-grade--${d.quality}`}>
+                        {qualityLabels[d.quality]}
+                      </em>
+                    </button>
+                    {review?.index === i && (
+                      <p className="iqE-better">
+                        <i style={{ background: REVIEW_COLORS.yours }} /> Twój wybór
+                        {review.better ? (
+                          <>
+                            {" · "}
+                            <i style={{ background: REVIEW_COLORS.better }} /> Lepiej:{" "}
+                            {review.better.label}
+                          </>
+                        ) : d.quality === "good" ? null : (
+                          " · Żadna z gotowych opcji nie była lepsza."
+                        )}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </section>
             <button
               type="button"
               className="iqE-primary"

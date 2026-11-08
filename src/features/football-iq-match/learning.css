@@ -714,3 +714,74 @@ body.iq-learning-focus .app-shell {
   font-size: 11.5px;
   color: #6b6f75;
 }
+.iqE-review {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+}
+.iqE-review > span {
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b6f75;
+}
+.iqE-review ol {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.iqE-review li button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #dfe3e8;
+  border-radius: 12px;
+  background: white;
+  color: var(--iq-ink);
+  font-size: 14px;
+  text-align: left;
+}
+.iqE-review li button[aria-pressed="true"] {
+  border-color: var(--iq-ink);
+}
+.iqE-grade {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-style: normal;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.iqE-grade--good {
+  background: #e3f6dd;
+  color: #24661a;
+}
+.iqE-grade--possible {
+  background: #fff3cf;
+  color: #7a5a00;
+}
+.iqE-grade--error {
+  background: #fde2e0;
+  color: #9b241b;
+}
+.iqE-better {
+  margin: 6px 4px 2px;
+  font-size: 13px;
+  color: var(--iq-ink);
+}
+.iqE-better i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 2px;
+  border-radius: 50%;
+  border: 1px solid #0003;
+  vertical-align: -1px;
+}
