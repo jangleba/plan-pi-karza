@@ -287,6 +287,7 @@ export function buildProfile(
     createdAt: (ath.created_at as string) ?? new Date().toISOString(),
     seasonPhase: normalizeSeasonPhase(ath.season_phase),
     seasonStage: (ath.season_stage as Profile["seasonStage"]) ?? null,
+    ...(ath.season_phase_override === true ? { seasonPhaseOverride: true } : {}),
     competitionLevel: normalizeCompLevel(ath.competition_level),
     weeklyMatches:
       ath.weekly_matches === null || ath.weekly_matches === undefined

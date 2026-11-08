@@ -204,6 +204,7 @@ export function profileWritePayloads(userId: string, profile: Profile, completed
       double_sessions_allowed: profile.doubleSessionsAllowed,
       guardian_consent: profile.guardianConsent,
       season_phase: profile.seasonPhase,
+      season_phase_override: profile.seasonPhaseOverride === true,
       season_stage: profile.seasonStage,
       competition_level: profile.competitionLevel,
       weekly_matches: profile.weeklyMatches,

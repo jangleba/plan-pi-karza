@@ -62,6 +62,7 @@ export type Database = {
           running_progression_level: number
           running_progression_updated_at: string | null
           season_phase: string | null
+          season_phase_override: boolean
           season_stage: string | null
           secondary_limiter: string | null
           sex_optional: string | null
@@ -122,6 +123,7 @@ export type Database = {
           running_progression_level?: number
           running_progression_updated_at?: string | null
           season_phase?: string | null
+          season_phase_override?: boolean
           season_stage?: string | null
           secondary_limiter?: string | null
           sex_optional?: string | null
@@ -182,6 +184,7 @@ export type Database = {
           running_progression_level?: number
           running_progression_updated_at?: string | null
           season_phase?: string | null
+          season_phase_override?: boolean
           season_stage?: string | null
           secondary_limiter?: string | null
           sex_optional?: string | null
