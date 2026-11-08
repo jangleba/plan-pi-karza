@@ -26,6 +26,7 @@ import {
   manualFuelContext,
   minutesToFuelStart,
   readFuelData,
+  FUEL_HISTORY_LIMIT,
   resolveFuelTiming,
   writeFuelData,
   fuelStorageKey,
@@ -67,7 +68,7 @@ import {
 import type { SessionKind } from "@/lib/fuel/types";
 import { PageHeader } from "@/components/loadwise/PageHeader";
 
-const EMPTY_RESTRICTIONS: string[] = [];
+const EMPTY_FOOD_IDS: string[] = [];
 
 type Speech = {
   lang: string;
@@ -85,13 +86,14 @@ export function FuelWorkspace({
   contexts,
   tomorrowMatch = false,
   tomorrowContext = null,
-  profileRestrictions = EMPTY_RESTRICTIONS,
+  legacyDislikedFoodIds = EMPTY_FOOD_IDS,
 }: {
   userId: string;
   contexts: FuelContext[];
   tomorrowMatch?: boolean;
   tomorrowContext?: FuelContext | null;
-  profileRestrictions?: string[];
+  /** Catalogue food IDs from an old profile, moved once into "Czego nie lubię". */
+  legacyDislikedFoodIds?: string[];
 }) {
   const [data, setData] = useState<FuelDeviceData>(emptyFuelData);
   const [loaded, setLoaded] = useState(false);
@@ -158,9 +160,8 @@ export function FuelWorkspace({
         data,
         pantry,
         quick,
-        restrictions: profileRestrictions,
       }),
-    [context, timing, now, data, pantry, quick, profileRestrictions],
+    [context, timing, now, data, pantry, quick],
   );
   const selectedEntry = data.entries.find(
     (e) => e.contextKey === context.key && e.status === "selected",
@@ -170,10 +171,7 @@ export function FuelWorkspace({
     suggestedHero && selectedEntry?.recipeId === suggestedHero.id
       ? { ...suggestedHero, title: selectedEntry.title, lines: selectedEntry.lines }
       : suggestedHero;
-  const restrictions = useMemo(
-    () => [...profileRestrictions, ...foodPreferenceTerms(data.preferences)],
-    [profileRestrictions, data.preferences],
-  );
+  const restrictions = useMemo(() => foodPreferenceTerms(data.preferences), [data.preferences]);
   const repeat = data.entries.find(
     (entry) =>
       entry.status === "eaten" &&
@@ -198,7 +196,6 @@ export function FuelWorkspace({
           timing: resolveFuelTiming(packContext),
           now,
           data: { ...data, preferences: { ...data.preferences, portable: true } },
-          restrictions: profileRestrictions,
         })[0] ?? null)
       : hero;
   const nextSession =
@@ -233,6 +230,23 @@ export function FuelWorkspace({
     window.addEventListener("ballwise:module-data-applied", applied);
     return () => window.removeEventListener("ballwise:module-data-applied", applied);
   }, [userId]);
+  useEffect(() => {
+    if (!loaded || storageBlocked || !legacyDislikedFoodIds.length) return;
+    setData((d) => {
+      const missing = legacyDislikedFoodIds.filter(
+        (id) => FOOD_BY_ID[id] && !d.preferences.excludedFoodIds.includes(id),
+      );
+      return missing.length
+        ? {
+            ...d,
+            preferences: {
+              ...d.preferences,
+              excludedFoodIds: [...d.preferences.excludedFoodIds, ...missing],
+            },
+          }
+        : d;
+    });
+  }, [loaded, storageBlocked, legacyDislikedFoodIds]);
   useEffect(() => {
     if (!loaded || storageBlocked) return;
     let saved = false;
@@ -408,7 +422,7 @@ export function FuelWorkspace({
     if (data.preferences.excludedFoodIds.includes(id)) return;
     updatePreferences({ excludedFoodIds: [...data.preferences.excludedFoodIds, id] });
     setRecipeIndex(0);
-    toast.success(`${FOOD_BY_ID[id].label}: pomijam w propozycjach.`, {
+    toast.success(`${FOOD_BY_ID[id].label}: dodano do „Czego nie lubię”.`, {
       action: {
         label: "Cofnij",
         onClick: () =>
@@ -440,19 +454,13 @@ export function FuelWorkspace({
     }
     if (entry.minutesBefore != null && entry.minutesBefore > 1440)
       entry = { ...entry, minutesBefore: null };
-    if (
-      !previous &&
-      !data.entries.some((existing) => existing.id === entry.id) &&
-      data.entries.length >= 100
-    ) {
-      toast.info(
-        "Historia ma 100 wpisów. Pobierz kopię i usuń starsze wpisy, żeby zapisać nowy posiłek.",
-      );
-      return;
-    }
     setData((d) => ({
       ...d,
-      entries: [entry, ...d.entries.filter((e) => e.id !== (replaceId ?? entry.id))].slice(0, 100),
+      // Newest first; the oldest entry drops out instead of blocking a new meal.
+      entries: [entry, ...d.entries.filter((e) => e.id !== (replaceId ?? entry.id))].slice(
+        0,
+        FUEL_HISTORY_LIMIT,
+      ),
     }));
     pendingSaveFeedback.current = {
       message:
@@ -971,16 +979,16 @@ export function FuelWorkspace({
             setPanel("pack");
           }}
           onDrink={(ml, kind) => {
-            if ((data.drinks ?? []).length >= 100) {
-              toast.info("Historia napojów ma 100 wpisów. Pobierz kopię i usuń starsze wpisy.");
-              return;
-            }
             const id = crypto.randomUUID();
             const at = Date.now();
             setNow(at);
             setData((d) => ({
               ...d,
-              drinks: [{ id, contextKey: context.key, at, ml, kind }, ...(d.drinks ?? [])],
+              // Newest first; the oldest drink drops out instead of blocking new logs.
+              drinks: [{ id, contextKey: context.key, at, ml, kind }, ...(d.drinks ?? [])].slice(
+                0,
+                FUEL_HISTORY_LIMIT,
+              ),
             }));
             pendingSaveFeedback.current = {
               message: "Zapisano wypity napój.",

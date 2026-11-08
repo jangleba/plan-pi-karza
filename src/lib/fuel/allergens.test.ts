@@ -10,6 +10,8 @@ describe("product restrictions across languages and incomplete labels", () => {
     ["en:eggs", "jaja"],
     ["en:peanuts", "orzechy ziemne"],
     ["en:nuts", "migdały"],
+    ["en:peanuts", "orzeszki ziemne"],
+    ["en:nuts", "orzeszki laskowe"],
     ["en:sesame-seeds", "sezam"],
     ["en:celery", "seler"],
     ["en:mustard", "gorczyca"],

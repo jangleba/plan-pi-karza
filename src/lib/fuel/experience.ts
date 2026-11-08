@@ -1,5 +1,5 @@
-import { normalizeFuelText, type FuelLoadBand, type FuelMoment } from "./assistant";
-import type { SessionDay, SessionCompletion, Profile } from "../loadwise/types";
+import type { FuelLoadBand, FuelMoment } from "./assistant";
+import type { SessionDay, SessionCompletion } from "../loadwise/types";
 import { sessionKindFrom } from "./planAdapter";
 import type { SessionKind } from "./types";
 import type { StoreProduct } from "./storeCheck";
@@ -202,15 +202,8 @@ export function clockFuelStart(clock: string, now: number): number | null {
   return date.getTime() > now ? date.getTime() : null;
 }
 
-export function foodRestrictionTerms(profile: Profile | null): string[] {
-  return [
-    ...(profile?.foodAllergies ?? []),
-    ...(profile?.foodIntolerances ?? []),
-    ...(profile?.foodExclusions ?? []),
-  ]
-    .map(normalizeFuelText)
-    .filter(Boolean);
-}
+/** Rolling cap per list. New rows are prepended, so slicing drops the oldest ones. */
+export const FUEL_HISTORY_LIMIT = 100;
 
 export function fuelStorageKey(userId: string): string {
   return `ballwise:fuel:v3:${userId}`;
@@ -369,8 +362,10 @@ export function readFuelData(
       !isRecord(raw.timings) ||
       !Array.isArray(raw.entries) ||
       (raw.drinks !== undefined &&
-        (!Array.isArray(raw.drinks) || raw.drinks.length > 100 || !raw.drinks.every(isDrink))) ||
-      raw.entries.length > 100 ||
+        (!Array.isArray(raw.drinks) ||
+          raw.drinks.length > FUEL_HISTORY_LIMIT ||
+          !raw.drinks.every(isDrink))) ||
+      raw.entries.length > FUEL_HISTORY_LIMIT ||
       !raw.entries.every(isEntry)
     )
       throw new CorruptFuelDataError();
@@ -430,7 +425,7 @@ export function writeFuelData(
       drinks: (data.drinks ?? [])
         .filter(isDrink)
         .filter((d) => d.at >= now - 30 * 86_400_000 && d.at <= now + 60_000)
-        .slice(0, 100),
+        .slice(0, FUEL_HISTORY_LIMIT),
       selection: isSelection(data.selection, today) ? data.selection : null,
       timings: Object.fromEntries(
         Object.entries(data.timings)
@@ -442,7 +437,7 @@ export function writeFuelData(
         .filter(
           (entry) => entry.createdAt >= now - 30 * 86_400_000 && entry.createdAt <= now + 60_000,
         )
-        .slice(0, 100),
+        .slice(0, FUEL_HISTORY_LIMIT),
     };
     const key = fuelStorageKey(userId);
     const value = JSON.stringify(retained);

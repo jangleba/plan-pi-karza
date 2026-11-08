@@ -11,7 +11,8 @@ import {
   manualFuelContext,
   readFuelData,
 } from "@/lib/fuel/experience";
-import { createRecipeEntry } from "@/lib/fuel/practical";
+import { createRecipeEntry, legacyDislikedFoodIds } from "@/lib/fuel/practical";
+import type { Profile } from "@/lib/loadwise/types";
 import { RECIPES } from "@/lib/fuel/catalog";
 const exports = vi.hoisted(() => ({ deliver: vi.fn() }));
 vi.mock("@/lib/loadwise/deliverExportFile", () => ({ deliverExportFile: exports.deliver }));
@@ -20,9 +21,9 @@ vi.mock("@capacitor/core", () => ({
   Capacitor: { isNativePlatform: () => false, isPluginAvailable: () => false },
 }));
 let host: HTMLDivElement, root: Root;
-const render = async (restrictions: string[] = []) =>
+const render = async (legacyDislikes: string[] = []) =>
   act(async () =>
-    root.render(<FuelWorkspace userId="u" contexts={[]} profileRestrictions={restrictions} />),
+    root.render(<FuelWorkspace userId="u" contexts={[]} legacyDislikedFoodIds={legacyDislikes} />),
   );
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -128,5 +129,38 @@ describe("Fuel persistent user choices", () => {
     await act(async () => eaten.click());
     expect(toast.success).not.toHaveBeenCalled();
     expect(toast.info).toHaveBeenCalledWith(expect.stringContaining("Nie zapisano posiłku"));
+  });
+  it("keeps logging drinks when the history is full by dropping the oldest one", async () => {
+    const now = Date.now();
+    const data = emptyFuelData();
+    data.drinks = Array.from({ length: 100 }, (_, i) => ({
+      id: `d${i}`,
+      contextKey: "old",
+      at: now - (i + 1) * 60_000,
+      ml: 200,
+      kind: "water" as const,
+    }));
+    localStorage.setItem(fuelStorageKey("u"), JSON.stringify(data));
+    await render();
+    const form = host.querySelector<HTMLFormElement>(".fuel-drink-form")!;
+    const input = form.querySelector<HTMLInputElement>("input")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "300");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => form.requestSubmit());
+    const saved = readFuelData(localStorage, "u").drinks ?? [];
+    expect(saved).toHaveLength(100);
+    expect(saved[0].ml).toBe(300);
+    expect(saved.some((d) => d.id === "d99")).toBe(false);
+    expect(toast.info).not.toHaveBeenCalled();
+  });
+  it("moves old profile food terms into the local dislikes list once", async () => {
+    const ids = legacyDislikedFoodIds({ foodAllergies: ["orzechy"] } as Profile);
+    expect(ids).toContain("peanut_butter");
+    await render(ids);
+    await render(ids);
+    const excluded = readFuelData(localStorage, "u").preferences.excludedFoodIds;
+    expect(excluded.filter((id) => id === "peanut_butter")).toHaveLength(1);
   });
 });
