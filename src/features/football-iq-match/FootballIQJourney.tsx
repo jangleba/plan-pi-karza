@@ -856,6 +856,8 @@ export function FootballIQJourney({
     const q = query.trim().toLocaleLowerCase("pl");
     return (spatial ? advancedJourneyBank : iqScenarioBank).filter(
       (s) =>
+        // Live-only situations need the continuous engine of the main IQ screen.
+        s.concept !== "situation" &&
         roles.includes(s.role) &&
         (!q || `${s.title} ${s.focus} ${s.contextLabel}`.toLocaleLowerCase("pl").includes(q)),
     );

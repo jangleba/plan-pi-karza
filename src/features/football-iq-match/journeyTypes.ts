@@ -70,7 +70,7 @@ export type JourneyDefinition = {
   ordinal: number;
   steps: JourneyAction[];
   revision?: 2 | 3;
-  concept?: "third-player" | "overload-switch" | "press-cover";
+  concept?: "third-player" | "overload-switch" | "press-cover" | "situation";
   delivery?: Exclude<BallDelivery, "ground">;
 };
 export type JourneyWorld = {

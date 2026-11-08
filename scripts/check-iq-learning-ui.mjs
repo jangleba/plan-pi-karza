@@ -98,80 +98,107 @@ try {
   const page = activePage = await browser.newPage({viewport:{width:390,height:700}, deviceScaleFactor:1});
   page.on("pageerror", e => { errors.push(e.message); console.error("UI ERROR",e.message); });
   const url = `http://127.0.0.1:${server.address().port}/`;
-  await page.goto(url + '?guide=1');
-  await page.waitForSelector('.iqE-guide');
+  await page.goto(url);
+  await page.waitForSelector('.iqE-start');
   await page.waitForSelector('[data-iq-renderer="ready"]');
-  await page.locator('[data-iq-player="you"]').click();
+  // Free space well ahead of the ball: a quarter of the pitch below the far goal line.
   const tapSpace = async () => {
     const at = await page.locator('canvas[data-iq-pitch-corners]').evaluate(el=>{
-      const box=el.getBoundingClientRect(), corners=JSON.parse(el.dataset.iqPitchCorners);
-      return {x:box.left+corners.reduce((v,p)=>v+p.x,0)/4+10,y:box.top+corners.reduce((v,p)=>v+p.y,0)/4+10};
+      const box=el.getBoundingClientRect(), c=JSON.parse(el.dataset.iqPitchCorners);
+      const top=Math.min(...c.map(p=>p.y)), bottom=Math.max(...c.map(p=>p.y));
+      return {x:box.left+c.reduce((v,p)=>v+p.x,0)/4+25,y:box.top+top+(bottom-top)*0.22};
     });
     await page.mouse.click(at.x,at.y);
   };
-  await tapSpace();
-  await page.getByRole('button',{name:'Widzę podanie · dalej',exact:true}).click();
-  await tapSpace();
-  await page.getByRole('button',{name:'Rozumiem · wróć do lekcji',exact:true}).click();
-  ensure(await page.evaluate(()=>!localStorage.getItem('ballwise:iq:journeys:v1:iq-browser-qa:draft')),'Tutorial changed saved decisions');
-  await page.getByRole('button',{name:'Obserwuj · zaczynam',exact:true}).waitFor({state:'visible'});
+  const start = page.getByRole('button',{name:'Start',exact:true});
+  const steps = await page.locator('.iqE-start .iqE-steps li').allInnerTexts();
+  ensure(steps.length===4,'Start instruction should have four lines');
+  ensure(/Na starcie (masz piłkę|piłkę ma (partner|rywal) \d+)/.test(steps[0]),'Start instruction does not name the ball carrier');
+  await start.waitFor({state:'visible'});
   await page.waitForFunction(()=>!document.querySelector('.iqE-loading'));
   for (const [width,height] of [[390,700],[390,560],[375,667],[844,390]]) {
     await page.setViewportSize({width,height});
-    await page.screenshot({path:path.join(work,`IQ-63-${width}x${height}.png`)});
+    await page.screenshot({path:path.join(work,`IQ-64-${width}x${height}.png`)});
     const result=await page.evaluate(()=>{const p=document.querySelector('.iqE-pitch').getBoundingClientRect();return {width:innerWidth,height:innerHeight,pitch:{width:p.width,height:p.height},overflow:document.documentElement.scrollWidth>innerWidth,bodyHeight:document.documentElement.scrollHeight,nav:getComputedStyle(document.querySelector('.bw-tab-bar')).display};});
     ensure(!result.overflow,'Horizontal overflow'); ensure(result.bodyHeight <= height + 1,'Real tab shell left blank scrolling space'); ensure(result.pitch.height>=150,'Pitch too short'); ensure(result.nav==='none','Navigation should release pitch space');views.push(result);
   }
   await page.setViewportSize({width:390,height:700});
-  await page.getByRole('button',{name:'Obserwuj · zaczynam',exact:true}).click();
-  await page.waitForSelector('[data-iq-phase="decision"]');
-  await page.getByRole('button',{name:'Pozostań w pozycji',exact:true}).click();
-  await page.getByRole('button',{name:'Rozegraj',exact:true}).click();
-  await page.getByRole('button',{name:'Jak grać',exact:true}).click();
-  await page.getByRole('button',{name:'Pomiń',exact:true}).click();
+  const options = page.locator('.iqE-options button');
+  const playOption = async (pattern) => {
+    await page.waitForSelector('[data-iq-phase="decision"]',{timeout:20000});
+    const count = await options.count();
+    ensure(count>=2 && count<=4,`Expected 2–4 options, got ${count}`);
+    const labels = await options.allInnerTexts();
+    const index = pattern ? Math.max(0, labels.findIndex(l=>pattern.test(l))) : 0;
+    await options.nth(index).click();
+    ensure((await options.nth(index).getAttribute('aria-pressed'))==='true','Option not selected');
+    await page.getByRole('button',{name:'Zagraj',exact:true}).click();
+    return labels[index];
+  };
+  await start.click();
+  await playOption();
   await page.waitForSelector('[data-iq-phase="feedback"]',{timeout:20000});
-  await page.screenshot({path:path.join(work,'IQ-63-REAKCJA.png')});
+  await page.screenshot({path:path.join(work,'IQ-64-REAKCJA.png')});
   for(let step=0;step<3;step++) {
-    ensure((await page.getByRole('button',{name:'Zobacz wniosek',exact:true}).count())===0,'Action ended at the old three-decision limit');
-    await page.getByRole('button',{name:'Podejmij następną decyzję',exact:true}).click();
-    await page.getByRole('button',{name:'Pozostań w pozycji',exact:true}).click();
-    await page.getByRole('button',{name:'Rozegraj',exact:true}).click();
+    ensure((await page.getByRole('button',{name:'Zobacz wynik',exact:true}).count())===0,'Action ended at the old three-decision limit');
+    ensure((await page.locator('.iqE-next').innerText()).startsWith('Teraz:'),'Feedback does not say what comes next');
+    await page.getByRole('button',{name:'Dalej',exact:true}).click();
+    await playOption();
     await page.waitForSelector('[data-iq-phase="feedback"]',{timeout:20000});
   }
   await page.goto(url+'?fixture=finish');
   await page.waitForSelector('[data-iq-phase="decision"]');
   await page.waitForSelector('[data-iq-renderer="ready"]');
-  await page.getByRole('button',{name:'Jedno zagranie za 10',exact:true}).click();
-  await page.getByRole('button',{name:'Strzał',exact:true}).click();
-  await page.getByRole('button',{name:'Lewy róg',exact:true}).click();
-  await page.screenshot({path:path.join(work,'IQ-63-STRZAL.png')});
-  await page.getByRole('button',{name:'Rozegraj',exact:true}).click();
-  await page.waitForSelector('[data-iq-phase="feedback"]',{timeout:20000});
-  await page.getByRole('button',{name:'Zobacz wniosek',exact:true}).click();
-  await page.getByRole('heading',{name:'Gol!',exact:true}).waitFor();
-  ensure((await page.locator('.iqE-save').innerText())==='Zapisano','Goal attempt not saved');
-  await page.screenshot({path:path.join(work,'IQ-63-GOL.png')});
+  await page.getByRole('button',{name:'Zagraj jedno zagranie za 10',exact:true}).click();
+  await page.screenshot({path:path.join(work,'IQ-64-OPCJE.png')});
+  for (let i=0;i<12 && !(await page.locator('.iqE-summary').count());i++) {
+    if (await page.locator('[data-iq-phase="feedback"]').count()) {
+      const next = page.getByRole('button',{name:'Zobacz wynik',exact:true});
+      if (await next.count()) { await next.click(); break; }
+      await page.getByRole('button',{name:'Dalej',exact:true}).click();
+    }
+    await playOption(/^Strzał/);
+    await page.waitForSelector('[data-iq-phase="feedback"]',{timeout:20000});
+  }
+  if (!(await page.locator('.iqE-summary').count())) await page.getByRole('button',{name:'Zobacz wynik',exact:true}).click();
+  await page.waitForSelector('.iqE-summary');
+  ensure((await page.locator('.iqE-save').innerText())==='Zapisano','Finished attempt not saved');
+  await page.screenshot({path:path.join(work,'IQ-64-WYNIK.png')});
   await page.getByRole('button',{name:'Cała akcja',exact:true}).click();
   await page.waitForSelector('.iqE-replay-key');
   await page.getByRole('slider',{name:'Czas powtórki',exact:true}).fill('5');
-  await page.screenshot({path:path.join(work,'IQ-63-ANALIZA.png')});
-  await page.getByRole('slider',{name:'Czas powtórki',exact:true}).fill('13.95');
+  await page.screenshot({path:path.join(work,'IQ-64-ANALIZA.png')});
+  const max = await page.getByRole('slider',{name:'Czas powtórki',exact:true}).getAttribute('max');
+  await page.getByRole('slider',{name:'Czas powtórki',exact:true}).fill(String(+max - 0.05));
   await page.getByRole('button',{name:'Wznów akcję',exact:true}).click();
   await page.waitForSelector('.iqE-summary',{timeout:20000});
   await page.getByRole('button',{name:'Sprawdź w nowym układzie',exact:true}).click();
   ensure((await page.locator('.iqE-context').innerText()).includes('Nowy układ'),'No transfer variant');
-  await page.getByRole('button',{name:'Obserwuj · zaczynam',exact:true}).click();
+  await page.getByRole('button',{name:'Start',exact:true}).click();
   await page.waitForSelector('[data-iq-phase="decision"]');
-  ensure((await page.getByRole('button',{name:'Wskazówka',exact:true}).count())===0,'Hints in independent test');
-  const takeover = page.getByRole('button',{name:'Jedno zagranie za 8',exact:true});
+  ensure((await options.count())===0,'Independent mode should start without ready options');
+  await page.getByRole('button',{name:'Pokaż opcje',exact:true}).click();
+  ensure((await options.count())>=2,'Options not revealed on demand');
+  ensure((await page.locator('.iqE-options .iqE-mark').count())===(await options.count()),'Options lack board marks');
+  const takeover = page.getByRole('button',{name:/^Zagraj jedno zagranie za/});
   if(await takeover.count()) {
     await takeover.click(); await tapSpace();
-    await page.getByRole('button',{name:'Rozegraj',exact:true}).click();
+    const planned = await page.locator('.iqE-plan').innerText();
+    ensure(planned.includes('Podanie'),`Free tap far from the ball should plan a pass, got: ${planned}`);
+    await page.getByRole('button',{name:'Zagraj',exact:true}).click();
     await page.waitForFunction(()=>['decision','summary'].includes(document.querySelector('[data-iq-engine="9"]').dataset.iqPhase),{timeout:20000});
     ensure((await page.locator('[data-iq-phase="feedback"]').count())===0,'Intermediate grade in independent mode');
     const raw=await page.evaluate(()=>localStorage.getItem('ballwise:iq:journeys:v1:iq-browser-qa:draft')??localStorage.getItem('ballwise:iq:journeys:v1:iq-browser-qa'));
     ensure(raw.includes(':pass:'),'Free-space pass did not reach stored decisions');
   }
-  await fs.writeFile(path.join(work,'wynik-iq-learning.json'),JSON.stringify({views,errors,flow:'tutorial → full attack beyond 3 decisions → aimed shot → actual goal → saved result → colored replay and seeking → independent variant'},null,2));
+  await page.getByRole('button',{name:'Wybierz sytuację',exact:true}).click();
+  await page.getByRole('button',{name:'Wszystkie pozycje',exact:true}).click();
+  await page.getByRole('button',{name:/Kontra 3 na 2 po odbiorze/}).click();
+  await page.getByRole('heading',{name:'Kontra 3 na 2 po odbiorze',exact:true}).waitFor();
+  await page.waitForSelector('.iqE-start');
+  await page.screenshot({path:path.join(work,'IQ-64-KONTRA.png')});
+  await page.getByRole('button',{name:'Jak grać',exact:true}).click();
+  ensure(await page.locator('.iqE-sources a').count()>0,'Help sheet has no sources');
+  await fs.writeFile(path.join(work,'wynik-iq-learning.json'),JSON.stringify({views,errors,flow:'truthful start → option decisions beyond 3 → shot option → saved result → replay and seeking → independent variant → situation picker → sources'},null,2));
   ensure(errors.length===0,JSON.stringify(errors));
 } catch(e) { console.error(e); console.error("UI errors",errors); await activePage?.screenshot({path:path.join(work,"FAILURE.png")}); console.error(await activePage?.locator("body").innerText()); await fs.writeFile(path.join(work,"failure.json"),JSON.stringify({error:String(e),errors})); throw e; } finally { await browser?.close(); await new Promise(resolve=>server.close(resolve)); }
