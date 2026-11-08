@@ -122,9 +122,6 @@ export function ExerciseRow({
       </button>
       {expanded && (
         <div className="mt-3 space-y-3 rounded-xl bg-muted/40 p-3 text-xs">
-          {details.purpose && (
-            <p className="text-sm leading-relaxed text-foreground">{details.purpose}</p>
-          )}
           {details.steps.length > 0 && (
             <div>
               <div className="font-semibold text-muted-foreground">Jak wykonać</div>

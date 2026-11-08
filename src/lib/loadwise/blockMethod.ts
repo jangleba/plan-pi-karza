@@ -1,32 +1,27 @@
 import type { TrainingBlock, TrainingExercise } from "./types";
 
 /**
- * How a group of exercises is performed together (superset, contrast pair,
- * complex, circuit), explained in one line for the athlete.
+ * Name of the way a group of exercises is performed together (superset,
+ * contrast pair, complex, circuit). The screen says what to do, not why.
  */
 export interface BlockMethod {
   name: string;
-  how: string;
 }
 
 const METHODS: Partial<Record<TrainingBlock["blockType"], BlockMethod>> = {
   contrast: {
     name: "Seria kontrastowa",
-    how: "Najpierw ciężkie ćwiczenie, krótka przerwa, potem dynamiczny skok lub rzut. Po ciężkiej serii mięśnie chwilowo generują więcej mocy.",
   },
   complex: {
     name: "Kompleks",
-    how: "Ćwiczenia jedno po drugim w podanej kolejności, przerwa dopiero po całym kompleksie.",
   },
   superset: {
     name: "Superseria",
-    how: "Dwa ćwiczenia na różne partie jedno po drugim. Jedna partia odpoczywa, gdy druga pracuje, a przerwa jest dopiero po parze.",
   },
 };
 
 const CIRCUIT: BlockMethod = {
   name: "Obwód",
-  how: "Ćwiczenia po kolei bez długich przerw, przerwa dopiero po całej rundzie.",
 };
 
 /** A block whose exercises are done back to back, not one after another set by set. */
@@ -40,15 +35,7 @@ export function isLinkedBlock(block: TrainingBlock): boolean {
 
 export function blockMethod(block: TrainingBlock): BlockMethod | null {
   if (!isLinkedBlock(block)) return null;
-  return (
-    METHODS[block.blockType] ??
-    (block.exercises.length > 2
-      ? CIRCUIT
-      : {
-          name: "Superseria",
-          how: METHODS.superset!.how,
-        })
-  );
+  return METHODS[block.blockType] ?? (block.exercises.length > 2 ? CIRCUIT : METHODS.superset!);
 }
 
 /** Label shown before each exercise of a linked block (A1, A2 …), derived when missing. */

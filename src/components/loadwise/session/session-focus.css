@@ -358,52 +358,38 @@
 }
 
 .bw-focus-linked {
-  margin: 0 0 14px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: color-mix(in oklab, var(--primary) 7%, transparent);
-}
-.bw-focus-linked-name {
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--primary);
-}
-.bw-focus-linked ol {
   display: grid;
-  gap: 6px;
-  margin: 8px 0;
-  padding: 0;
-  list-style: none;
-  font-size: 14px;
+  gap: 10px;
+  min-width: 0;
 }
-.bw-focus-linked li {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  color: var(--muted-foreground);
-  overflow-wrap: anywhere;
+.bw-focus-linked > .bw-focus-stage {
+  margin-bottom: 0;
 }
-.bw-focus-linked li > span {
-  flex-shrink: 0;
-  min-width: 24px;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
+.bw-focus-tile {
+  padding: 14px 16px;
+  border-radius: 18px;
 }
-.bw-focus-linked li[aria-current="step"] {
-  color: var(--foreground);
-  font-weight: 600;
+.bw-focus-tile h2 {
+  font-size: 19px;
 }
-.bw-focus-linked li[aria-current="step"] > span {
-  color: var(--primary);
+.bw-focus-tile .bw-focus-dose {
+  margin-top: 6px;
 }
-.bw-focus-linked .bw-session-muted {
-  font-size: 12px;
-  line-height: 1.45;
+.bw-focus-tile .bw-technique-open {
+  min-height: 36px;
+  margin: 4px 0 0;
+}
+.bw-focus-tile[data-done] {
+  opacity: 0.6;
 }
 .bw-focus-label {
   margin-right: 8px;
   color: var(--primary);
   font-variant-numeric: tabular-nums;
+}
+.bw-focus-done {
+  display: inline;
+  margin-left: 8px;
+  color: var(--primary);
+  vertical-align: -2px;
 }

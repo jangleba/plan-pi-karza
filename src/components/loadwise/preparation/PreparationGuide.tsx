@@ -1,7 +1,6 @@
 import { useExerciseSetLogs } from "@/lib/loadwise/setLogs";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  BookOpen,
   Check,
   ChevronRight,
   Pause,
@@ -14,7 +13,6 @@ import type { TrainingExercise } from "@/lib/loadwise/types";
 import { useTrainingLocalState } from "@/lib/loadwise/useTrainingLocalState";
 import {
   buildRecoveryProtocol,
-  EVIDENCE,
   expandPreparationSteps,
   protocolDuration,
   RECOVERY_FOCI,
@@ -135,46 +133,6 @@ function ExerciseOverview({ protocol }: { protocol: PreparationProtocol }) {
     </ol>
   );
 }
-export function PreparationEvidence({ protocol }: { protocol: PreparationProtocol }) {
-  const ids = [...new Set([...protocol.sources, ...protocol.exercises.flatMap((e) => e.sources)])];
-  return (
-    <details className="bw-prep-evidence">
-      <summary>
-        <BookOpen size={17} />
-        Dlaczego ten zestaw?
-      </summary>
-      <p>{protocol.goal}</p>
-      <p>{protocol.note}</p>
-      <div className="bw-prep-science">
-        {protocol.exercises.map((e) => (
-          <div key={e.id}>
-            <strong>{e.name}</strong>
-            <p>{e.anatomy}</p>
-            <p>{e.mechanism}</p>
-            <p>Ustawienie: {e.setup}</p>
-            <small>
-              Dawka: {plainDose(e)}. {e.doseReason}
-            </small>
-          </div>
-        ))}
-      </div>
-      <ul>
-        {ids.map(
-          (id) =>
-            EVIDENCE[id] && (
-              <li key={id}>
-                <a href={EVIDENCE[id].url} target="_blank" rel="noopener noreferrer">
-                  {EVIDENCE[id].title}
-                </a>
-                <small>{EVIDENCE[id].scope}</small>
-              </li>
-            ),
-        )}
-      </ul>
-    </details>
-  );
-}
-
 export function PreparationGuide({
   protocol,
   storageKey,
@@ -366,7 +324,6 @@ export function PreparationGuide({
           <RotateCcw size={15} />
           Powtórz prowadzenie
         </button>
-        <PreparationEvidence protocol={protocol} />
       </section>
     );
 
@@ -390,7 +347,6 @@ export function PreparationGuide({
           <Play size={18} />
           {protocol.kind === "recovery" ? "Rozpocznij regenerację" : "Rozpocznij rozgrzewkę"}
         </button>
-        <PreparationEvidence protocol={protocol} />
       </section>
     );
 
@@ -455,13 +411,6 @@ export function PreparationGuide({
               </li>
             ))}
           </ol>
-          <details className="bw-prep-why">
-            <summary>Co pracuje i dlaczego tyle</summary>
-            <p>{exercise.anatomy}</p>
-            <p>
-              <strong>{plainDose(exercise)}.</strong> {exercise.doseReason}
-            </p>
-          </details>
         </>
       ) : (
         <p className="bw-prep-transition">
@@ -557,7 +506,6 @@ export function PreparationGuide({
       {!local.available && (
         <p className="bw-prep-rep-note">Postęp zachowany tylko w otwartym widoku.</p>
       )}
-      <PreparationEvidence protocol={protocol} />
     </section>
   );
 }
@@ -632,7 +580,6 @@ export function RecoveryCoach({
             <Play size={18} />
             Rozpocznij
           </button>
-          <PreparationEvidence protocol={protocol} />
         </section>
       ) : (
         <>
