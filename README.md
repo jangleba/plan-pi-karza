@@ -35,11 +35,25 @@ potwierdza aktywnej oferty ani publikacji.
 
 ## Uruchomienie
 
-Używaj **Node.js 22.12+** (dla linii 22, zgodnie z wymaganiami Vite) i **npm**.
-`package-lock.json` jest jedynym utrzymywanym lockfilem. Stos: React 19,
+Używaj **Node.js 22.12+** (dla linii 22, zgodnie z wymaganiami Vite) i
+**npm 11.9.0** (`packageManager` w `package.json`). Stos: React 19,
 TypeScript, TanStack Start/Router, Vite, Tailwind CSS i Supabase.
 
-W ignorowanym pliku `.env.local` ustaw publiczną konfigurację projektu:
+Repozytorium ma dwa lockfile'e i oba muszą zgadzać się z `package.json`:
+`package-lock.json` (CI i `npm ci`) oraz `bun.lock` (podgląd i build Lovable).
+Po każdej zmianie zależności odśwież oba i sprawdź je:
+
+```sh
+npx -y npm@11.9.0 install --package-lock-only --ignore-scripts
+bun install --lockfile-only
+npm run check:lockfiles
+```
+
+Śledzony plik `.env` tworzy i nadpisuje Lovable Cloud. Zawiera wyłącznie
+publiczne wartości (adres projektu Supabase i klucz `sb_publishable_…`), które i tak
+trafiają do kodu aplikacji w przeglądarce; bezpieczeństwo danych zapewniają reguły
+RLS w bazie. Nie usuwaj go z repozytorium (Lovable doda go ponownie) i nie dopisuj
+do niego żadnych sekretów. Własne wartości ustaw w ignorowanym pliku `.env.local`:
 
 ```dotenv
 VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
@@ -89,7 +103,7 @@ Setup sprawdza konfigurację wydania, buduje SPA, tworzy projekt `ios/`, jeśli
 go brakuje, i synchronizuje Capacitor wraz z lokalnymi pluginami kamery/runtime.
 Ustawia opisy kamery i lokalizacji, tryb lokalizacji w tle oraz przygotowuje
 Associated Domains i plik prywatności. Skonfiguruj też domenę powrotu logowania
-według [instrukcji wdrożenia](docs/WDROZENIE-2026-10-29.md). Po
+według [instrukcji wdrożenia](docs/INSTALLATION-2026-10.md). Po
 kolejnych zmianach uruchom
 `BALLWISE_IOS_BUNDLE_ID=pl.twojafirma.ballwise npm run ios:sync`.
 Podpisywanie, uprawnienia, privacy manifest i archiwum wymagają konfiguracji w
@@ -101,6 +115,15 @@ Szczegóły: [Lab w Safari](docs/BROWSER_LAB_SAFARI.md),
 [zachowany protokół natywny](docs/BALLWISE-LAB-PROTOCOL.md) oraz
 [szablony iOS](ios-templates/README.md).
 
+## Wprowadzanie zmian
+
+Każda zmiana trafia na `main` przez pull request, który musi przejść kontrolę
+„BallWise Quality” (`.github/workflows/plan-engine-contract.yml`: lockfile'e,
+ESLint, TypeScript, testy, build web i mobilny). Dawne „paczki” wgrywane jako pliki
+do `.github/workflows`, które same zapisywały commity na `main`, zostały usunięte
+9 listopada 2026 i nie należy ich przywracać. Lovable synchronizuje `main`
+i może sam zapisywać zmiany — po jego commitach sprawdź wynik kontroli jakości.
+
 ## Wdrożenie i dokumentacja
 
 W wybranym projekcie Supabase zastosuj migracje z `supabase/migrations` w
@@ -108,7 +131,7 @@ kolejności nazw, a potem uruchom odczytowe kontrole z `supabase/verification`.
 Do SQL Editora wklejaj SQL, nie wyniki ani eksport CSV. Wdrożenia i testy na
 urządzeniach muszą mieć osobny dowód; lokalne testy ich nie wykonują.
 
-- [Wdrożenie bieżącej paczki](docs/WDROZENIE-2026-10-29.md)
+- [Konfiguracja wdrożenia, iOS i płatności](docs/INSTALLATION-2026-10.md)
 - [Indeks dokumentacji](docs/README.md)
 - [Aktualna macierz QA](docs/QA-MATRIX.md) i [lista wydania](docs/RELEASE-CHECKLIST.md)
 - [Usuwanie konta](supabase/functions/delete-account/README.md)
