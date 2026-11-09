@@ -785,3 +785,62 @@ body.iq-learning-focus .app-shell {
   border: 1px solid #0003;
   vertical-align: -1px;
 }
+.iqE-app .iqE-better p {
+  margin: 2px 0 4px;
+  font-size: 13px;
+  color: var(--iq-ink);
+}
+.iqE-app .iqE-fact {
+  margin: 4px 0 10px;
+  font-size: 13px;
+  color: #4b5560;
+}
+.iqE-feedback .iqE-grade {
+  margin: 0 4px 0 0;
+}
+.iqE-app .iqE-why {
+  margin: -4px 0 10px;
+  font-size: 12px;
+  color: #4b5560;
+}
+.iqE-key {
+  margin: 8px 0;
+  padding: 12px 14px;
+  border: 1px solid #dfe3e8;
+  border-radius: 14px;
+  background: #fff;
+}
+.iqE-key > .iqE-between > span {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b6f75;
+}
+.iqE-key dl {
+  display: grid;
+  gap: 2px;
+  margin: 8px 0 10px;
+}
+.iqE-key dt {
+  font-size: 11px;
+  font-weight: 650;
+  color: #6b6f75;
+}
+.iqE-key dd {
+  margin: 0 0 6px;
+  font-size: 13.5px;
+  color: var(--iq-ink);
+}
+.iqE-app .iqE-key details.iqE-more {
+  margin: 8px 0 0;
+  border-bottom: 0;
+}
+.iqE-app .iqE-more p {
+  margin: 4px 0 8px;
+  font-size: 12.5px;
+  color: #4b5560;
+}
+.iqE-more a {
+  color: inherit;
+}

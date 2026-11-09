@@ -21,14 +21,14 @@ describe("decision review", () => {
         expect(review.before.world.positions).toEqual(d.before.positions);
         expect(review.before.world.carrierId).toBe(d.before.carrierId);
         expect(review.paths.length).toBeLessThanOrEqual(2);
-        if (d.quality === "good") expect(review.better).toBeNull();
+        // Graded on TY's own contribution, the same rule the summary uses.
+        if (review.assessment.grade === "good") expect(review.better).toBeNull();
         if (review.better) {
           expect(review.better.choice.id).not.toBe(d.choiceId);
-          const next = chooseJourney(review.before, review.better.choice.id, 0, false);
-          expect(next.decisions.at(-1)?.quality).toBe("good");
+          expect(review.betterAssessment?.grade).toBe("good");
           expect(review.paths.some((p) => p.analysisColor === REVIEW_COLORS.better)).toBe(true);
         }
-        expect(qualityLabels[d.quality]).toBeTruthy();
+        expect(qualityLabels[review.assessment.grade]).toBeTruthy();
         checked++;
       });
     }
