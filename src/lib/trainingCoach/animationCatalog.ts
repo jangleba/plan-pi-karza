@@ -119,24 +119,24 @@ const originalCatalog: readonly AnimationCatalogEntry[] = [
   },
   {
     id: "a_skip_add_step",
-    title: "Skip A z add-step",
+    title: "Skip A z krokiem dostawnym",
     sourceUrl: "https://coachtube.com/course/track-and-field/sprint-drills-chris-parno/18363570",
   },
   {
     id: "a_skip_no_add_step",
-    title: "Skip A bez add-step",
+    title: "Skip A bez kroku dostawnego",
     sourceUrl:
       "https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf",
   },
   {
     id: "switch_skip_a",
-    title: "Switch → Skip A",
+    title: "Zmiana nóg → Skip A",
     sourceUrl:
       "https://www.sportsmith.co/articles/applying-the-sprint-mechanics-assessment-score-s-mas-as-a-framework-to-address-hamstring-injuries-in-elite-football/",
   },
   {
     id: "double_switch_skip_a",
-    title: "Double switch → Skip A",
+    title: "Podwójna zmiana nóg → Skip A",
     sourceUrl:
       "https://www.sportsmith.co/articles/applying-the-sprint-mechanics-assessment-score-s-mas-as-a-framework-to-address-hamstring-injuries-in-elite-football/",
   },
@@ -154,23 +154,23 @@ const originalCatalog: readonly AnimationCatalogEntry[] = [
   },
   {
     id: "a_accent",
-    title: "A-accent",
+    title: "Skip A z akcentem",
     sourceUrl: "https://ygsp.co.uk/your-gym-sports-performance/free-sc-resources/exercsie-library/",
   },
   {
     id: "c_accent",
-    title: "C-accent",
+    title: "Skip C z akcentem",
     sourceUrl:
       "https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf",
   },
   {
     id: "power_skip_height",
-    title: "Power skip na wysokość",
+    title: "Skip z wybiciem w górę",
     sourceUrl: "https://www.dvidshub.net/video/642016/power-skip-height",
   },
   {
     id: "power_skip_distance",
-    title: "Power skip na odległość",
+    title: "Skip z wybiciem w przód",
     sourceUrl: "https://www.dvidshub.net/video/642014/power-skip-distance",
   },
   {
@@ -211,19 +211,19 @@ const originalCatalog: readonly AnimationCatalogEntry[] = [
   },
   {
     id: "low_dribble",
-    title: "Niski dribble",
+    title: "Drobienie niskie",
     sourceUrl:
       "https://www.sportsmith.co/articles/applying-the-sprint-mechanics-assessment-score-s-mas-as-a-framework-to-address-hamstring-injuries-in-elite-football/",
   },
   {
     id: "high_dribble",
-    title: "Wysoki dribble",
+    title: "Drobienie wysokie",
     sourceUrl:
       "https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=17",
   },
   {
     id: "dribble_to_sprint_transition",
-    title: "Przejście z dribblingu do sprintu",
+    title: "Drobienie → przyspieszenie",
     sourceUrl: "https://simplifaster.com/articles/microdosing-speed-in-season-team-sports/",
   },
   {

@@ -4277,6 +4277,302 @@ for (const [id, guidance] of Object.entries(SPRINT_GUIDANCE)) {
   if (definition) Object.assign(definition, guidance);
 }
 
+/**
+ * Przegląd drilli sprintu 2026-11-09: brakujące instrukcje (wcześniej ogólny
+ * tekst zastępczy), polskie nazwy oraz metadane bezpieczeństwa zgodne z
+ * resztą biblioteki plyometrycznej. Wieloskoki i skoki nożycowe mają tę samą
+ * klasę obciążenia co lateral_bound_to_stick / split_squat_jump, a nie
+ * poziom „low” skipów technicznych.
+ */
+const SPRINT_DRILL_GUIDANCE: Record<string, SprintGuidance> = {
+  a_march: {
+    objective: "Opanować pozycję A w marszu przed skipem A.",
+    instructionsPl: [
+      "Idź do przodu: unieś udo w okolice poziomu, kolano zgięte mniej więcej pod kątem prostym, palce stopy zadarte.",
+      "Opuść stopę aktywnie pod biodro i od razu unieś drugą nogę do tej samej pozycji.",
+      "Tułów pionowo, ręce pracują przeciwnie do nóg; tempo spokojne, każdy krok wygląda tak samo.",
+    ],
+    coachingCues: ["Kolano w górę, stopa zadarta", "Stopa ląduje pod biodrem", "Tułów wysoki"],
+    commonErrors: ["Odchylanie tułowia do tyłu", "Opadająca, luźna stopa"],
+  },
+  ankling: {
+    objective: "Krótki, sztywny kontakt stopy pod biodrem.",
+    instructionsPl: [
+      "Poruszaj się drobnymi krokami na prawie prostych, miękkich kolanach; stopa unosi się tylko kilka centymetrów.",
+      "Każdy kontakt z przodu stopy, dokładnie pod biodrem; pięta nie uderza w podłoże.",
+      "Stopa wraca od razu w górę, kostka pozostaje sztywna; ręce pracują luźno i krótko.",
+    ],
+    coachingCues: ["Krótko i cicho", "Stopa pod biodrem", "Sztywna kostka"],
+    commonErrors: ["Głośne uderzanie piętą", "Stawianie stopy przed ciałem"],
+  },
+  low_dribble: {
+    objective: "Szybki cykl nogi tuż nad podłożem.",
+    instructionsPl: [
+      "Biegnij drobnymi krokami: stopa przechodzi nad kostką nogi podporowej i wraca pod biodro.",
+      "Kontakt z przodu stopy, krótki; posuwasz się powoli do przodu, a kroki są szybkie.",
+      "Tułów pionowo, ręce pracują w tym samym rytmie co nogi.",
+    ],
+    coachingCues: ["Stopa nad kostką", "Szybko, krótko", "Kontakt pod biodrem"],
+    commonErrors: ["Wydłużanie kroku", "Kontakt na pięcie"],
+  },
+  high_dribble: {
+    objective: "Cykl nogi z wyższym przeniesieniem stopy przed prędkością maksymalną.",
+    instructionsPl: [
+      "Jak w niskim drobieniu, ale stopa przechodzi wyżej: na wysokości połowy łydki drugiej nogi.",
+      "Pięta wraca blisko pod pośladek, kolano idzie lekko do przodu, a stopa schodzi aktywnie pod biodro.",
+      "Biodra wysoko, krok krótki i rytmiczny; posuwasz się spokojnie do przodu.",
+    ],
+    coachingCues: ["Stopa nad łydką", "Pięta blisko ciała", "Biodra wysoko"],
+    commonErrors: ["Kopanie piętą do tyłu", "Siadanie w biodrach"],
+  },
+  straight_leg_run_bound: {
+    objective: "Praca z biodra i kontakt pod środkiem masy przy wysokiej postawie.",
+    instructionsPl: [
+      "Biegnij na prawie prostych nogach, bez blokowania kolan; palce stóp zadarte.",
+      "Prowadź nogę z biodra w przód, a potem aktywnie w dół i do tyłu, tak aby stopa trafiła pod biodro.",
+      "Kontakty krótkie i sprężyste, tułów pionowo; ręce pracują szeroko i rytmicznie.",
+    ],
+    coachingCues: ["Ruch z biodra", "Stopa grzebie pod biodro", "Tułów pionowo"],
+    commonErrors: ["Odchylanie tułowia do tyłu", "Lądowanie stopą daleko przed ciałem"],
+  },
+  wall_single_switch: {
+    objective: "Jedna szybka zmiana nogi w pozycji startowej.",
+    instructionsPl: [
+      "Ustaw się jak w marszu przy ścianie: dłonie na ścianie, ciało w jednej linii, jedno kolano z przodu, stopa zadarta.",
+      "Na sygnał zamień nogi jednym szybkim ruchem: uniesiona stopa wbija się pod biodro, druga noga przejmuje pozycję z kolanem z przodu.",
+      "Zatrzymaj nową pozycję na 1–2 s, sprawdź linię ciała i powtórz na drugą stronę.",
+    ],
+    coachingCues: ["Jedna linia ciała", "Szybka zamiana", "Zatrzymaj pozycję"],
+    commonErrors: ["Zgięcie w pasie", "Unoszenie bioder przy zmianie"],
+  },
+  wall_double_switch: {
+    objective: "Dwie szybkie zmiany nogi w pozycji startowej.",
+    instructionsPl: [
+      "Ustaw pozycję jak przy pojedynczej zmianie przy ścianie.",
+      "Wykonaj dwie szybkie zamiany nóg bez pauzy między nimi; każdy kontakt pod biodrem.",
+      "Po drugiej zamianie zatrzymaj pozycję na 1–2 s i sprawdź, czy ciało nadal tworzy jedną linię.",
+    ],
+    coachingCues: ["Raz-dwa i stop", "Stopa pod biodrem", "Biodra nieruchomo"],
+    commonErrors: ["Opadanie bioder", "Coraz krótszy zakres kolana"],
+  },
+  wall_triple_switch: {
+    objective: "Trzy szybkie zmiany nogi w pozycji startowej.",
+    instructionsPl: [
+      "Ustaw pozycję jak przy pojedynczej zmianie przy ścianie.",
+      "Wykonaj trzy szybkie zamiany nóg w równym rytmie; każdy kontakt krótki i pod biodrem.",
+      "Po trzeciej zamianie zatrzymaj pozycję; jeśli linia ciała się łamie, wróć do dwóch zamian.",
+    ],
+    coachingCues: ["Raz-dwa-trzy i stop", "Równy rytm", "Jedna linia ciała"],
+    commonErrors: ["Zgięcie w pasie", "Nierówny rytm prawej i lewej nogi"],
+  },
+  dribble_to_sprint_transition: {
+    objective: "Płynne przejście z drobienia do przyspieszenia.",
+    instructionsPl: [
+      "Zacznij od 8–10 m niskiego drobienia: drobne, szybkie kroki, stopa nad kostką i pod biodrem.",
+      "Bez zatrzymania pochyl całe ciało do przodu i przejdź w przyspieszenie przez kolejne 10 m.",
+      "Kroki wydłużają się stopniowo; stopa nadal ląduje pod lub lekko za biodrem.",
+    ],
+    coachingCues: ["Drobienie — pochyl — pchaj", "Bez zatrzymania", "Krok rośnie stopniowo"],
+    commonErrors: ["Pauza między drobieniem a startem", "Sięganie stopą przy przejściu"],
+  },
+  skip_a_to_d: {
+    objective: "Przejście ze skipu A do skipu D bez zatrzymania.",
+    instructionsPl: [
+      "Zacznij skipem A przez 8–10 m: udo w okolice poziomu, stopa zadarta, kontakt pod biodrem.",
+      "Bez zatrzymania wyprostuj nogi i przejdź w skip D na kolejne 5–10 m: prawie proste nogi, ruch z biodra.",
+      "Rytm i wysokość bioder są takie same w obu częściach; stopa zawsze ląduje pod biodrem.",
+    ],
+    coachingCues: ["A, potem D bez pauzy", "Biodra wysoko", "Stopa pod biodrem"],
+    commonErrors: ["Zatrzymanie przy zmianie skipu", "Odchylanie tułowia w części D"],
+  },
+  skip_b_alternate_bounds: {
+    objective: "Przejście ze skipu B do wieloskoku naprzemiennego.",
+    instructionsPl: [
+      "Zacznij 4–6 cyklami skipu B: kolano w górę, podudzie wysuwa się płynnie i stopa grzebie pod biodro.",
+      "Bez zatrzymania zamień grzebnięcie na mocne odbicie do przodu i przejdź w wieloskok naprzemienny na 4–6 kontaktów.",
+      "Ląduj pod biodrem na przemian lewą i prawą nogą; skróć odbicia, gdy kolano ucieka do środka.",
+    ],
+    coachingCues: ["B, potem odbicie", "Ląduj pod biodrem", "Kolano nad stopą"],
+    commonErrors: ["Sięganie stopą po dystans", "Zapadanie kolana przy lądowaniu"],
+  },
+  power_skip_height: {
+    objective: "Mocne odbicie w górę w rytmie skipu.",
+    instructionsPl: [
+      "Wykonuj skip, ale z każdego odbicia wybij się w górę: przeciwne kolano i ramię idą wysoko.",
+      "Ląduj na tej samej nodze z przodu stopy, pod biodrem; od razu krok i odbicie z drugiej nogi.",
+      "Tułów pionowo, ruch do przodu niewielki; liczy się wysokość i równa praca obu stron.",
+    ],
+    coachingCues: ["Wybij się w górę", "Kolano i ramię razem", "Ląduj pod biodrem"],
+    commonErrors: ["Odchylanie tułowia", "Słabsze odbicie z jednej nogi"],
+  },
+  scissor_exchange_jump: {
+    objective: "Szybka wymiana nóg w powietrzu z pozycji wykrocznej.",
+    instructionsPl: [
+      "Ustaw nogi jak w krótkim wykroku, opuść biodra tylko minimalnie i wybij się w górę.",
+      "W powietrzu zamień nogi i wyląduj miękko na obu stopach w nowym ustawieniu, kolana nad stopami.",
+      "Kolejny skok dopiero po złapaniu równowagi; liczy się szybka wymiana, nie wysokość.",
+    ],
+    coachingCues: ["Szybka wymiana", "Miękkie lądowanie", "Tułów spokojny"],
+    commonErrors: ["Głębokie lądowanie i długa pauza", "Kolano zapadające się do środka"],
+  },
+};
+
+for (const [id, guidance] of Object.entries(SPRINT_DRILL_GUIDANCE)) {
+  const definition = LIBRARY.find((exercise) => exercise.id === id);
+  if (definition) Object.assign(definition, guidance);
+}
+
+/** Polskie nazwy widoczne w sesji; stare nazwy zostają aliasami dla zapisanych planów. */
+const SPRINT_DRILL_NAMES_PL: Record<string, string> = {
+  a_skip_add_step: "Skip A z krokiem dostawnym",
+  a_skip_no_add_step: "Skip A bez kroku dostawnego",
+  switch_skip_a: "Zmiana nóg → Skip A",
+  double_switch_skip_a: "Podwójna zmiana nóg → Skip A",
+  a_accent: "Skip A z akcentem",
+  c_accent: "Skip C z akcentem",
+  power_skip_height: "Skip z wybiciem w górę",
+  power_skip_distance: "Skip z wybiciem w przód",
+  low_dribble: "Drobienie niskie",
+  high_dribble: "Drobienie wysokie",
+  straight_leg_run_bound: "Bieg na prostych nogach",
+  dribble_to_sprint_transition: "Drobienie → przyspieszenie",
+};
+for (const [id, displayNamePl] of Object.entries(SPRINT_DRILL_NAMES_PL)) {
+  const definition = LIBRARY.find((exercise) => exercise.id === id);
+  if (!definition || definition.displayNamePl === displayNamePl) continue;
+  definition.aliases = Array.from(new Set([...definition.aliases, definition.displayNamePl]));
+  definition.displayNamePl = displayNamePl;
+}
+
+type SprintDrillSafety = Pick<
+  ExerciseDefinition,
+  | "difficultyLevel"
+  | "minAge"
+  | "recommendedDevelopmentStage"
+  | "plyometricIntensity"
+  | "impactLevel"
+  | "kneeLoadLevel"
+  | "ankleLoadLevel"
+  | "allowedForYouth"
+  | "allowedForBeginner"
+  | "requiredMovementCompetenceLevel"
+> &
+  Partial<
+    Pick<
+      ExerciseDefinition,
+      | "regressionIds"
+      | "progressionIds"
+      | "contraindications"
+      | "category"
+      | "movementPattern"
+      | "family"
+    >
+  >;
+
+/** Skoki ocenia ta sama bramka co resztę plyometrii (kompetencja z gry, nie staż na siłowni). */
+const JUMP_DRILL = {
+  category: "plyometric",
+  movementPattern: "jump",
+  family: "plyometric",
+} as const;
+
+const BOUND_SAFETY: SprintDrillSafety = {
+  ...JUMP_DRILL,
+  difficultyLevel: 4,
+  minAge: 14,
+  recommendedDevelopmentStage: "early_youth",
+  plyometricIntensity: "high",
+  impactLevel: "moderate",
+  kneeLoadLevel: "moderate",
+  ankleLoadLevel: "moderate",
+  allowedForYouth: false,
+  allowedForBeginner: false,
+  requiredMovementCompetenceLevel: "medium",
+  contraindications: ["ankle", "knee"],
+};
+const SCISSOR_SAFETY: SprintDrillSafety = {
+  ...JUMP_DRILL,
+  difficultyLevel: 3,
+  minAge: 14,
+  recommendedDevelopmentStage: "early_youth",
+  plyometricIntensity: "moderate",
+  impactLevel: "moderate",
+  kneeLoadLevel: "moderate",
+  ankleLoadLevel: "moderate",
+  allowedForYouth: false,
+  allowedForBeginner: false,
+  requiredMovementCompetenceLevel: "medium",
+  contraindications: ["ankle", "knee"],
+};
+const POWER_SKIP_SAFETY: SprintDrillSafety = {
+  ...JUMP_DRILL,
+  difficultyLevel: 3,
+  minAge: 12,
+  recommendedDevelopmentStage: "child_foundation",
+  plyometricIntensity: "moderate",
+  impactLevel: "moderate",
+  kneeLoadLevel: "low",
+  ankleLoadLevel: "moderate",
+  allowedForYouth: true,
+  allowedForBeginner: true,
+  requiredMovementCompetenceLevel: "low",
+};
+
+const SPRINT_DRILL_SAFETY: Record<string, SprintDrillSafety> = {
+  alternate_leg_bounds: {
+    ...BOUND_SAFETY,
+    regressionIds: ["power_skip_distance", "a_accent"],
+  },
+  skip_b_alternate_bounds: {
+    ...BOUND_SAFETY,
+    regressionIds: ["power_skip_distance", "a_accent"],
+  },
+  scissor_bounds: { ...SCISSOR_SAFETY, regressionIds: ["a_switch_progression"] },
+  scissor_exchange_jump: { ...SCISSOR_SAFETY, regressionIds: ["a_switch_progression"] },
+  power_skip_distance: {
+    ...POWER_SKIP_SAFETY,
+    regressionIds: ["a_accent", "switch_skip_a"],
+    progressionIds: ["alternate_leg_bounds"],
+  },
+  power_skip_height: {
+    ...POWER_SKIP_SAFETY,
+    regressionIds: ["ankling", "low_dribble"],
+  },
+};
+for (const [id, safety] of Object.entries(SPRINT_DRILL_SAFETY)) {
+  const definition = LIBRARY.find((exercise) => exercise.id === id);
+  if (definition) Object.assign(definition, safety);
+}
+
+/** Proste ścieżki nauki: marsz → skip → wariant trudniejszy. */
+const SPRINT_DRILL_PROGRESSIONS: Record<
+  string,
+  { progressionIds?: string[]; regressionIds?: string[] }
+> = {
+  a_march: { progressionIds: ["a_skip"] },
+  a_skip: { regressionIds: ["a_march"], progressionIds: ["a_accent", "switch_skip_a"] },
+  a_accent: { regressionIds: ["a_skip"], progressionIds: ["power_skip_distance"] },
+  switch_skip_a: { regressionIds: ["a_skip"], progressionIds: ["double_switch_skip_a"] },
+  double_switch_skip_a: { regressionIds: ["switch_skip_a"] },
+  c_skip: { progressionIds: ["c_accent"] },
+  c_accent: { regressionIds: ["c_skip"] },
+  low_dribble: { progressionIds: ["high_dribble"] },
+  high_dribble: { regressionIds: ["low_dribble"] },
+  ankling: { progressionIds: ["low_dribble"] },
+  wall_march: { progressionIds: ["wall_single_switch"] },
+  wall_single_switch: { regressionIds: ["wall_march"], progressionIds: ["wall_double_switch"] },
+  wall_double_switch: {
+    regressionIds: ["wall_single_switch"],
+    progressionIds: ["wall_triple_switch"],
+  },
+  wall_triple_switch: { regressionIds: ["wall_double_switch"] },
+  d_skip: { progressionIds: ["skip_a_to_d", "straight_leg_run_bound"] },
+};
+for (const [id, chain] of Object.entries(SPRINT_DRILL_PROGRESSIONS)) {
+  const definition = LIBRARY.find((exercise) => exercise.id === id);
+  if (definition) Object.assign(definition, chain);
+}
+
 const existingAcceleration = LIBRARY.find((exercise) => exercise.id === "acceleration_mechanics");
 if (existingAcceleration) {
   existingAcceleration.speedQualities = ["acceleration"];
