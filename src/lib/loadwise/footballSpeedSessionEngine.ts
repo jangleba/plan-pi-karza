@@ -136,7 +136,7 @@ export interface FootballSpeedSession {
 }
 
 const REPEATED_SPRINT: FootballSpeedQuality = "repeated_sprint";
-export const FOOTBALL_SPEED_GENERATOR_VERSION = "football-speed-v8-profile-dose";
+export const FOOTBALL_SPEED_GENERATOR_VERSION = "football-speed-v9-drill-gate";
 
 type DoseMode = "full" | "reduced" | "activation";
 
@@ -169,7 +169,6 @@ interface FamilySpec {
   shortTitle: string;
   title: string;
   goal: string;
-  drills: [RowSpec, RowSpec, RowSpec];
   primary: RowSpec;
   secondary?: RowSpec;
 }
@@ -304,30 +303,6 @@ const FAMILY_SPECS: Record<FootballSpeedFamily, FamilySpec> = {
     shortTitle: "Akceleracja",
     title: "Sprint: akceleracja",
     goal: "Rozwój pierwszych kroków i zdolności przyspieszania na krótkim dystansie.",
-    drills: [
-      {
-        id: "a_switch_progression",
-        name: "Zmiany A: pojedyncza → podwójna → potrójna",
-        purpose: "Nauka mocnego pchnięcia podłoża i szybkiej zmiany nogi w pozycji akceleracyjnej.",
-        dose: "2–3 rundy × 3 na stronę",
-        lowDose: "2 rundy × 3 na stronę",
-        rest: "Przerwa 30–45 s",
-      },
-      {
-        id: "a_skip",
-        name: "Przejście A-skip → A-skip ciągły",
-        purpose: "Rytm i aktywna stopa — przejście z pracy segmentowej do ciągłego rytmu biegu.",
-        dose: "2 × 15–20 m",
-        rest: "Przerwa 45 s",
-      },
-      {
-        id: "scissor_bounds",
-        name: "Naprzemienne wyskoki nożycowe",
-        purpose: "Elastyczność i przekazanie siły w kierunku poziomym przed sprintem.",
-        dose: "2 × 5 na stronę",
-        rest: "Przerwa 60–90 s",
-      },
-    ],
     primary: {
       id: "free_acceleration_sprint",
       name: "Przyspieszenia",
@@ -342,29 +317,6 @@ const FAMILY_SPECS: Record<FootballSpeedFamily, FamilySpec> = {
     shortTitle: "Prędkość maks.",
     title: "Sprint: prędkość maksymalna",
     goal: "Ekspozycja na prędkość maksymalną przy pełnym odpoczynku i zachowanej mechanice.",
-    drills: [
-      {
-        id: "a_skip",
-        name: "Przejście A-skip → A-skip ciągły",
-        purpose: "Rytm, wysoka pozycja miednicy i aktywna stopa przed pracą z wysoką prędkością.",
-        dose: "2 × 20 m",
-        rest: "Przerwa 45 s",
-      },
-      {
-        id: "straight_leg_run_bound",
-        name: "Bieg z prostą nogą",
-        purpose: "Praca nad zamachem i kontaktem stopy pod środkiem masy.",
-        dose: "2 × 20 m",
-        rest: "Przerwa 60 s",
-      },
-      {
-        id: "progressive_build_up_sprint",
-        name: "Bieg narastający do 90%",
-        purpose: "Stopniowe wejście w wysoką prędkość bez gwałtownego skoku obciążenia.",
-        dose: "2 × 30 m",
-        rest: "Przerwa 90 s",
-      },
-    ],
     primary: {
       id: "flying_sprint",
       name: "Sprint lotny",
@@ -379,29 +331,6 @@ const FAMILY_SPECS: Record<FootballSpeedFamily, FamilySpec> = {
     shortTitle: "Sprint po łuku",
     title: "Sprint po łuku",
     goal: "Prędkość w biegu po łuku — najczęstsza forma sprintu w meczu.",
-    drills: [
-      {
-        id: "a_skip",
-        name: "Przejście A-skip → A-skip ciągły",
-        purpose: "Rytm i aktywna stopa przed pracą po łuku.",
-        dose: "2 × 20 m",
-        rest: "Przerwa 45 s",
-      },
-      {
-        id: "ankling",
-        name: "Ankling po łuku",
-        purpose: "Ustawienie stopy i kostki przy biegu z nachyleniem ciała do środka łuku.",
-        dose: "2 × 15 m",
-        rest: "Przerwa 45 s",
-      },
-      {
-        id: "progressive_build_up_sprint",
-        name: "Bieg narastający po łuku",
-        purpose: "Kontrolowane wejście w prędkość przy nachyleniu tułowia.",
-        dose: "2 × 30 m",
-        rest: "Przerwa 90 s",
-      },
-    ],
     primary: {
       id: "football_curved_sprint",
       name: "Sprint po łuku",
@@ -417,29 +346,6 @@ const FAMILY_SPECS: Record<FootballSpeedFamily, FamilySpec> = {
     shortTitle: "Hamowanie i zwroty",
     title: "Hamowanie i zmiana kierunku",
     goal: "Kontrola hamowania i bezpieczna, szybka zmiana kierunku.",
-    drills: [
-      {
-        id: "a_skip",
-        name: "Przejście A-skip → A-skip ciągły",
-        purpose: "Rytm i aktywna stopa przed pracą z hamowaniem.",
-        dose: "2 × 15 m",
-        rest: "Przerwa 45 s",
-      },
-      {
-        id: "run_two_step_stop",
-        name: "Bieg i zatrzymanie w dwóch krokach",
-        purpose: "Nauka przyjmowania sił hamowania w stabilnej pozycji.",
-        dose: "3 × 10 m",
-        rest: "Przerwa 60 s",
-      },
-      {
-        id: "progressive_run_three_step_stop",
-        name: "Bieg i zatrzymanie w trzech krokach",
-        purpose: "Kontrola zatrzymania z wyższej prędkości wejściowej.",
-        dose: "2 × 15 m",
-        rest: "Przerwa 60 s",
-      },
-    ],
     primary: {
       id: "progressive_deceleration_5_10_15",
       name: "Progresywne hamowanie 5 → 10 → 15 m",
@@ -463,29 +369,6 @@ const FAMILY_SPECS: Record<FootballSpeedFamily, FamilySpec> = {
     shortTitle: "Reakcja i zwroty",
     title: "Reakcja i ponowne przyspieszenie",
     goal: "Szybkość decyzji ruchowej i ponowne przyspieszenie po zatrzymaniu.",
-    drills: [
-      {
-        id: "a_skip",
-        name: "Przejście A-skip → A-skip ciągły",
-        purpose: "Rytm i aktywna stopa przed pracą reaktywną.",
-        dose: "2 × 15 m",
-        rest: "Przerwa 45 s",
-      },
-      {
-        id: "run_two_step_stop",
-        name: "Bieg i zatrzymanie w dwóch krokach",
-        purpose: "Stabilne zatrzymanie jako baza ponownego przyspieszenia.",
-        dose: "3 × 10 m",
-        rest: "Przerwa 60 s",
-      },
-      {
-        id: "a_switch_progression",
-        name: "Zmiany A: pojedyncza → podwójna",
-        purpose: "Szybka zmiana nogi i mocne pchnięcie przy ponownym starcie.",
-        dose: "2 rundy × 3 na stronę",
-        rest: "Przerwa 30–45 s",
-      },
-    ],
     primary: {
       id: "app_audio_forward_left_right",
       name: "Start na sygnał: przód / lewo / prawo",
@@ -533,10 +416,10 @@ const POST_SKIP_POOLS: Record<FootballSpeedFamily, RowSpec[][]> = {
     ],
     [
       {
-        id: "a_skip_add_step",
-        name: "Skip A z add-step",
-        purpose: "Rytm i aktywna stopa w pozycji startowej.",
-        dose: "2–3 × 15–20 m",
+        id: "dribble_to_sprint_transition",
+        name: "Drobienie → przyspieszenie",
+        purpose: "Płynne przejście z szybkiego rytmu stóp do przyspieszenia.",
+        dose: "2–3 × 20 m (10 m drobienia + 10 m przyspieszenia)",
         rest: "Przerwa 60 s",
       },
       {
@@ -565,18 +448,18 @@ const POST_SKIP_POOLS: Record<FootballSpeedFamily, RowSpec[][]> = {
         rest: "Przerwa 60 s",
       },
       {
-        id: "a_skip_no_add_step",
-        name: "Skip A bez add-step",
-        purpose: "Wysokie biodra i kontakt pod środkiem masy.",
+        id: "high_dribble",
+        name: "Drobienie wysokie",
+        purpose: "Szybki cykl nogi z wysokim przeniesieniem stopy.",
         dose: "2–3 × 15–20 m",
-        rest: "Przerwa 60 s",
+        rest: "Przerwa 45 s",
       },
       {
-        id: "scissor_exchange_jump",
-        name: "Naprzemienny skok nożycowy z wymianą",
-        purpose: "Sprężysta wymiana nogi przed maksymalną prędkością.",
-        dose: "2 × 4 na stronę",
-        rest: "Przerwa 90 s",
+        id: "straight_leg_run_bound",
+        name: "Bieg na prostych nogach",
+        purpose: "Praca z biodra i kontakt pod środkiem masy.",
+        dose: "2 × 20 m",
+        rest: "Przerwa 60 s",
       },
     ],
     [
@@ -588,11 +471,11 @@ const POST_SKIP_POOLS: Record<FootballSpeedFamily, RowSpec[][]> = {
         rest: "Przerwa 60 s",
       },
       {
-        id: "c_skip",
-        name: "Skip C",
-        purpose: "Aktywna stopa bez sięgania i overstridingu.",
-        dose: "2–3 × 15–20 m",
-        rest: "Przerwa 60 s",
+        id: "ankling",
+        name: "Ankling",
+        purpose: "Krótki, sztywny kontakt stopy pod biodrem.",
+        dose: "2 × 15 m",
+        rest: "Przerwa 45 s",
       },
       {
         id: "power_skip_height",
@@ -613,11 +496,11 @@ const POST_SKIP_POOLS: Record<FootballSpeedFamily, RowSpec[][]> = {
         rest: "Przerwa 60 s",
       },
       {
-        id: "skip_b_alternate_bounds",
-        name: "Skip B → wieloskok naprzemienny",
-        purpose: "Rytm i kontrola wymiany nogi.",
+        id: "ankling",
+        name: "Ankling",
+        purpose: "Sztywna kostka i kontakt pod biodrem przed biegiem po łuku.",
         dose: "2 × 15 m",
-        rest: "Przerwa 60 s",
+        rest: "Przerwa 45 s",
       },
       {
         id: "alternate_leg_bounds",
@@ -654,11 +537,11 @@ const POST_SKIP_POOLS: Record<FootballSpeedFamily, RowSpec[][]> = {
   deceleration_cod: [
     [
       {
-        id: "a_skip_no_add_step",
-        name: "Skip A bez add-step",
-        purpose: "Ustawienie stopy i bioder przed hamowaniem.",
+        id: "ankling",
+        name: "Ankling",
+        purpose: "Sztywna kostka i kontakt pod biodrem przed hamowaniem.",
         dose: "2 × 15 m",
-        rest: "Przerwa 60 s",
+        rest: "Przerwa 45 s",
       },
       {
         id: "run_two_step_stop",
@@ -716,11 +599,11 @@ const POST_SKIP_POOLS: Record<FootballSpeedFamily, RowSpec[][]> = {
         rest: "Przerwa 60 s",
       },
       {
-        id: "scissor_exchange_jump",
-        name: "Naprzemienny skok nożycowy z wymianą",
-        purpose: "Reaktywna wymiana podporu.",
-        dose: "2 × 4 na stronę",
-        rest: "Przerwa 90 s",
+        id: "low_dribble",
+        name: "Drobienie niskie",
+        purpose: "Szybkie stopy przed reaktywnym startem.",
+        dose: "2 × 15 m",
+        rest: "Przerwa 45 s",
       },
     ],
     [
@@ -968,15 +851,109 @@ function resistedSpec(profile: Profile): RowSpec {
   return hasAvailableSled(profile) ? RESISTED_SLED : RESISTED_BODYWEIGHT;
 }
 
-function selectPostSkipDrills(input: FootballSpeedEngineInput, fallback: FamilySpec): RowSpec[] {
-  const pools = POST_SKIP_POOLS[input.family] ?? [fallback.drills];
+/** Zamiennik drilla, gdy pierwotny jest za trudny dla wieku/poziomu lub dnia aktywacji. */
+const DRILL_REGRESSION_ROWS: Record<string, RowSpec> = {
+  power_skip_distance: {
+    id: "power_skip_distance",
+    name: "Skip z wybiciem w przód",
+    purpose: "Mocne pchnięcie podłoża w rytmie skipu.",
+    dose: "2 × 15 m",
+    rest: "Przerwa 90 s",
+  },
+  a_accent: {
+    id: "a_accent",
+    name: "Skip A z akcentem",
+    purpose: "Jeden mocniejszy kontakt pod biodrem co cztery kroki.",
+    dose: "2 × 15 m",
+    rest: "Przerwa 60 s",
+  },
+  switch_skip_a: {
+    id: "switch_skip_a",
+    name: "Zmiana nóg → Skip A",
+    purpose: "Szybka zmiana nogi i wejście w rytm skipu A.",
+    dose: "2 × 15 m",
+    rest: "Przerwa 60 s",
+  },
+  a_switch_progression: {
+    id: "a_switch_progression",
+    name: "Zmiany A: pojedyncza → podwójna → potrójna",
+    purpose: "Szybka zmiana nogi w pozycji startowej.",
+    dose: "2 rundy × 3 na stronę",
+    rest: "Przerwa 45 s",
+  },
+  ankling: {
+    id: "ankling",
+    name: "Ankling",
+    purpose: "Krótki, sztywny kontakt stopy pod biodrem.",
+    dose: "2 × 15 m",
+    rest: "Przerwa 45 s",
+  },
+  low_dribble: {
+    id: "low_dribble",
+    name: "Drobienie niskie",
+    purpose: "Szybki cykl nogi tuż nad podłożem.",
+    dose: "2 × 15 m",
+    rest: "Przerwa 45 s",
+  },
+};
+
+const SKIP_BLOCK_IDS = new Set(SKIP_TRANSITIONS.map((row) => row.id));
+
+/**
+ * Drille po skipach przechodzą przez tę samą bramkę profilu co plyometria.
+ * Wieloskoki i skoki nożycowe nie trafiają do młodych lub początkujących
+ * zawodników; w dniu aktywacji techniczny blok nie dokłada skoków.
+ */
+function fitDrillsToAthlete(
+  input: FootballSpeedEngineInput,
+  mode: DoseMode,
+  drills: RowSpec[],
+): RowSpec[] {
+  const athlete = buildAthleteTrainingProfile(
+    input.profile,
+    {},
+    { readiness: input.readiness, fatigue: input.fatigue },
+  );
+  const used = new Set<string>(SKIP_BLOCK_IDS);
+  const fits = (id: string): boolean => {
+    const def = approved(id);
+    if (!def || used.has(id)) return false;
+    if (
+      mode === "activation" &&
+      (def.plyometricIntensity === "moderate" ||
+        def.plyometricIntensity === "high" ||
+        def.plyometricIntensity === "very_high")
+    ) {
+      return false;
+    }
+    return isExerciseAllowedForProfile(def, athlete).ok;
+  };
+  const chosen: RowSpec[] = [];
+  for (const drill of drills) {
+    const candidates = [drill.id, ...(approved(drill.id)?.regressionIds ?? [])];
+    const pick = candidates.find(fits);
+    if (!pick) continue;
+    used.add(pick);
+    chosen.push(
+      pick === drill.id ? drill : (DRILL_REGRESSION_ROWS[pick] ?? { ...drill, id: pick }),
+    );
+  }
+  return chosen;
+}
+
+function selectPostSkipDrills(input: FootballSpeedEngineInput, mode: DoseMode): RowSpec[] {
+  const pools = POST_SKIP_POOLS[input.family];
   const recent = new Set(input.recentPostSkipExerciseIds ?? []);
   const seed = (input.progressionWeek ?? 1) + Math.max(0, Math.round((input.readiness ?? 6) - 6));
   const preferred = pools[Math.abs(seed) % pools.length];
   const alternative = preferred.every((drill) => !recent.has(drill.id))
     ? preferred
     : (pools.find((pool) => pool.every((drill) => !recent.has(drill.id))) ?? preferred);
-  return alternative.map((drill) => ({ ...drill }));
+  return fitDrillsToAthlete(
+    input,
+    mode,
+    alternative.map((drill) => ({ ...drill })),
+  );
 }
 
 function approved(id: string): ExerciseDefinition | undefined {
@@ -1050,7 +1027,12 @@ function buildRow(
   const isAcceleration = def.speedQualities?.includes("acceleration") === true;
   const isMaxVelocity = def.speedQualities?.includes("maximum_velocity_exposure") === true;
   const useReducedDose = mode !== "full" && Boolean(spec.lowDose);
-  const dose = useReducedDose ? spec.lowDose! : spec.dose;
+  // Drille techniczne nie mają osobnej niskiej dawki: zakres „2–3 ×” schodzi do „2 ×”.
+  const dose = useReducedDose
+    ? spec.lowDose!
+    : mode !== "full" && role === "technical"
+      ? spec.dose.replace(/^2\s*[–-]\s*3\s*×/, "2 ×")
+      : spec.dose;
   const highQualityRole = role === "resisted" || role === "primary" || role === "terminal";
   const cues = [
     ...(def.coachingCues ?? []),
@@ -1333,7 +1315,7 @@ export function generateFootballSpeedSession(
   for (const transition of SKIP_TRANSITIONS) {
     exercises.push(buildRow(transition, order++, "primer", input, mode));
   }
-  for (const [index, drill] of selectPostSkipDrills(input, spec).entries()) {
+  for (const [index, drill] of selectPostSkipDrills(input, mode).entries()) {
     const row = buildRow(drill, order++, "technical", input, mode, index + 1);
     exercises.push(row);
   }
