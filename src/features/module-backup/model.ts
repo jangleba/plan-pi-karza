@@ -3,9 +3,11 @@ import { findRecipe } from "@/lib/fuel/catalog";
 import {
   loadJourneyDraft,
   loadJourneyHistory,
+  verifyJourneyAttempts,
   journeyDraftKey,
   journeyHistoryKey,
 } from "../football-iq-match/journeyHistory";
+import type { JourneyAttempt } from "../football-iq-match/journeyTypes";
 import { loadBrowserResults } from "../browser-lab/storage";
 import {
   loadReactiveCustomSets,
@@ -350,6 +352,15 @@ export function previewModuleRestore(
 ): RestorePreview {
   const incoming = validateModuleSnapshot(snapshot, snapshot.module, owner, now);
   const local = readRecords(snapshot.module, owner, storage, now);
+  // IQ actions from a copy are replayed before they join the local history (only new ones).
+  if (snapshot.module === "iq" && Array.isArray(incoming.records.history)) {
+    const known = new Set(
+      (Array.isArray(local.history) ? local.history : []).map((row) => (row as { id: string }).id),
+    );
+    verifyJourneyAttempts(
+      (incoming.records.history as JourneyAttempt[]).filter((row) => !known.has(row.id)),
+    );
+  }
   const state = readBackupState(owner, snapshot.module, storage);
   const localIds = rowIds(local);
   const keys = moduleKeys(snapshot.module, owner);
