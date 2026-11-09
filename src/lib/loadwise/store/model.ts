@@ -455,6 +455,11 @@ export function rowToRunningActivity(row: AnyRow): RunningActivity | null {
   };
 }
 
+export interface WeeklyConfirmation {
+  /** Rejects with a readable message when the background write fails (the old week is restored). */
+  saved: Promise<void>;
+}
+
 export interface LoadwiseContextValue {
   profileSaveStage?: import("../profileSave").ProfileSaveStage | null;
   state: LoadwiseState;
@@ -491,11 +496,12 @@ export interface LoadwiseContextValue {
   undoExerciseReplacement: (date: string, replacementId: string) => Promise<void>;
   saveRunningActivity: (draft: RunningActivityDraft) => Promise<void>;
   deleteRunningActivity: (activityId: string) => Promise<void>;
+  /** Resolves once the new week is shown; `saved` settles when the server confirms it. */
   confirmWeeklyTransition: (
     weekNumber: number,
     nextMatchDates: string[],
     noMatchNextWeek: boolean,
-  ) => Promise<void>;
+  ) => Promise<WeeklyConfirmation>;
   saveReadiness: (r: Readiness) => Promise<void>;
   todayIso: string;
   todaySession: SessionDay | null;

@@ -14,6 +14,12 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2 } from "lucide-react";
 import { transitionMatchesBlock } from "@/lib/loadwise/confirmedCalendar";
 
+function readableError(failure: unknown) {
+  return failure instanceof Error && failure.message
+    ? failure.message
+    : "Nie udało się zapisać tygodnia. Spróbuj ponownie.";
+}
+
 export function WeeklyGateSheet({
   open,
   onOpenChange,
@@ -49,6 +55,7 @@ export function WeeklyGateSheet({
   const [secondMatchDate, setSecondMatchDate] = useState<string>("");
   const [noMatch, setNoMatch] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -61,6 +68,7 @@ export function WeeklyGateSheet({
       );
       setNoMatch(allowNoMatch && Boolean(existing?.noMatchNextWeek));
       setSaving(false);
+      setError(null);
     }
   }, [open, existing, allowNoMatch, plannedMatches]);
 
@@ -94,23 +102,22 @@ export function WeeklyGateSheet({
   async function handleSave() {
     if (!canSave || saving) return;
     setSaving(true);
+    setError(null);
     try {
-      await confirmWeeklyTransition(
+      const { saved } = await confirmWeeklyTransition(
         weekNumber,
         noMatch ? [] : [matchDate, secondMatchDate].filter(Boolean),
         noMatch,
       );
-      toast.success(
-        noMatch ? "Zapisano tydzień bez meczu." : "Mecz zapisany. Dopasowujemy tydzień.",
-      );
+      // The new week is already on screen; the server write finishes in the background.
+      void saved.catch((failure: unknown) => toast.error(readableError(failure)));
+      toast.success(noMatch ? "Zapisano tydzień bez meczu." : "Mecz zapisany. Tydzień gotowy.");
       onOpenChange(false);
       onConfirmed();
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Nie udało się zapisać tygodnia. Spróbuj ponownie.",
-      );
+    } catch (failure) {
+      const message = readableError(failure);
+      setError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -184,6 +191,12 @@ export function WeeklyGateSheet({
         <Button className="mt-3 w-full" disabled={!canSave || saving} onClick={handleSave}>
           {saving ? "Układamy…" : "Zapisz i ułóż kolejny tydzień"}
         </Button>
+
+        {error && (
+          <p role="alert" className="text-center text-xs font-medium text-destructive">
+            {error}
+          </p>
+        )}
 
         {!canSave && (
           <p className="text-center text-xs text-muted-foreground">

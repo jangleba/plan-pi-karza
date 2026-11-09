@@ -1,5 +1,12 @@
 import type { Profile, SessionDay } from "./types";
 
+/**
+ * One or two weeks take well under a second even on a phone, while starting a
+ * worker means fetching the whole engine again (many requests in the Lovable
+ * preview). Short ranges therefore run inline; a month still uses the worker.
+ */
+export const INLINE_GENERATION_MAX_DAYS = 14;
+
 /** Heavy generation never blocks the installed app's UI. SSR/tests use the same engine. */
 export async function generatePlanAsync(
   profile: Profile,
@@ -9,7 +16,7 @@ export async function generatePlanAsync(
   signal?: AbortSignal,
 ): Promise<SessionDay[]> {
   signal?.throwIfAborted();
-  if (typeof Worker === "undefined") {
+  if (typeof Worker === "undefined" || days <= INLINE_GENERATION_MAX_DAYS) {
     const { generatePlan } = await import("./planEngine");
     return generatePlan(profile, start, days, weekOffset);
   }

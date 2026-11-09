@@ -4,14 +4,15 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WeeklyGateSheet } from "./WeeklyGateSheet";
 
-const confirmWeeklyTransition = vi.fn().mockResolvedValue(undefined);
+const confirmWeeklyTransition = vi.fn();
+const toastError = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/loadwise/store", () => ({
   useLoadwise: () => ({
     state: { plan: [], transitions: {} },
     confirmWeeklyTransition,
   }),
 }));
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: toastError } }));
 
 let host: HTMLDivElement;
 let root: Root;
@@ -20,7 +21,9 @@ beforeEach(() => {
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
-  confirmWeeklyTransition.mockClear();
+  confirmWeeklyTransition.mockReset();
+  confirmWeeklyTransition.mockResolvedValue({ saved: Promise.resolve() });
+  toastError.mockClear();
 });
 afterEach(async () => {
   await act(async () => root.unmount());
@@ -89,5 +92,57 @@ describe("wybór dnia meczu", () => {
     expect(days()[0].closest("fieldset")?.disabled).toBe(true);
     await act(async () => button("Zapisz").click());
     expect(confirmWeeklyTransition).toHaveBeenCalledWith(1, [], true);
+  });
+
+  it("po błędzie pokazuje komunikat i odblokowuje przycisk zamiast wiecznego „Układamy…”", async () => {
+    confirmWeeklyTransition.mockRejectedValue(
+      new Error("Nie udało się połączyć z serwerem. Sprawdź internet i spróbuj ponownie."),
+    );
+    const onConfirmed = vi.fn();
+    await act(async () =>
+      root.render(
+        <WeeklyGateSheet
+          open
+          onOpenChange={() => undefined}
+          weekNumber={1}
+          nextWeekStart="2026-11-16"
+          nextWeekEnd="2026-11-22"
+          onConfirmed={onConfirmed}
+        />,
+      ),
+    );
+    await act(async () => days()[5].click());
+    await act(async () => button("Zapisz").click());
+    expect(onConfirmed).not.toHaveBeenCalled();
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain("Sprawdź internet");
+    expect(button("Zapisz").disabled).toBe(false);
+    expect(document.body.textContent).not.toContain("Układamy");
+  });
+
+  it("zamyka okno od razu, a błąd zapisu w tle zgłasza komunikatem", async () => {
+    let failSave: (error: Error) => void = () => undefined;
+    const saved = new Promise<void>((_, reject) => {
+      failSave = reject;
+    });
+    confirmWeeklyTransition.mockResolvedValue({ saved });
+    const onConfirmed = vi.fn();
+    await act(async () =>
+      root.render(
+        <WeeklyGateSheet
+          open
+          onOpenChange={() => undefined}
+          weekNumber={1}
+          nextWeekStart="2026-11-16"
+          nextWeekEnd="2026-11-22"
+          onConfirmed={onConfirmed}
+        />,
+      ),
+    );
+    await act(async () => days()[5].click());
+    await act(async () => button("Zapisz").click());
+    // The week is shown before the server answers.
+    expect(onConfirmed).toHaveBeenCalled();
+    await act(async () => failSave(new Error("Zapis planu trwa za długo.")));
+    expect(toastError).toHaveBeenCalledWith("Zapis planu trwa za długo.");
   });
 });
