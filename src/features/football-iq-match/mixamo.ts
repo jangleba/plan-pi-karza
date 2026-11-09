@@ -32,14 +32,8 @@ export const PLAYER_HEIGHT = 6.8;
 export type AdditionalAnimation =
   "idle" | "walking" | "soccer-pass" | "receive" | AerialAnimation;
 type AdditionalClips = Partial<Record<AdditionalAnimation, AnimationClip>>;
-const originalUrls = import.meta.glob<string>(
-  "./assets/{idle,walking,soccer-pass,receive}.fbx",
-  {
-    eager: true,
-    query: "?url",
-    import: "default",
-  },
-);
+// Only the compact motion tracks ship with the app. The original licensed FBX files stay in the
+// repository as sources for scripts/prepare-iq-clips.mjs and the tests (they add ~5.6 MB otherwise).
 const compactUrls = import.meta.glob<string>(
   "./assets/{idle,walking,soccer-pass,receive}.clip.json",
   {
@@ -48,15 +42,12 @@ const compactUrls = import.meta.glob<string>(
     import: "default",
   },
 );
-const additionalUrls = {
-  ...originalUrls,
-  ...Object.fromEntries(
-    Object.entries(compactUrls).map(([path, url]) => [
-      path.replace(".clip.json", ".fbx"),
-      url,
-    ]),
-  ),
-};
+const additionalUrls = Object.fromEntries(
+  Object.entries(compactUrls).map(([path, url]) => [
+    path.replace(".clip.json", ".fbx"),
+    url,
+  ]),
+);
 const aerialUrls = import.meta.glob<string>("./assets/{long-kick,header}.fbx", {
   eager: true,
   query: "?url",

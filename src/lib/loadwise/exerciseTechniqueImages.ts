@@ -109,7 +109,7 @@ function buildCategory(
     exerciseId,
     category,
     title,
-    src: `/${category}/small/${exerciseId}.png`,
+    src: `/${category}/small/${exerciseId}.webp`,
     alt: `${title} — trzy fazy prawidłowej techniki ruchu.`,
   }));
 }
@@ -122,7 +122,7 @@ export const EXERCISE_TECHNIQUE_IMAGES: readonly ExerciseTechniqueImage[] = [
     exerciseId: guide.exerciseId,
     category: "sprint",
     title: guide.title,
-    src: `/sprint/small/${guide.exerciseId}.png`,
+    src: `/sprint/small/${guide.exerciseId}.webp`,
     alt: guide.imageAlt,
   })),
 ];
