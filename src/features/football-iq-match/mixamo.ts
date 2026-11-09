@@ -17,7 +17,10 @@ import {
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import runningUrl from "./assets/running.fbx?url";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+// The app ships a light version of the running model (simplified mesh, no UVs) made from
+// assets/running.fbx by scripts/prepare-iq-clips.mjs: ~10x fewer triangles for 22 players.
+import runningUrl from "./assets/running.glb?url";
 import { RUN_STRIDE_UNITS, WALK_STRIDE_UNITS } from "./playback";
 import type { PlayerMotion } from "./playback";
 import type { MatchPlayer } from "./types";
@@ -222,10 +225,20 @@ export async function attachOptionalClips(
     }),
   );
 }
+/** The shipped running model: skinned mesh, skeleton and running clip in one GLB. */
+export async function parseRunningModel(bytes: ArrayBuffer): Promise<Group> {
+  const gltf = await new GLTFLoader().parseAsync(bytes, "");
+  const model = new Group();
+  model.add(...gltf.scene.children);
+  model.animations = gltf.animations;
+  return model;
+}
 async function loadAsset(signal?: AbortSignal) {
   const bytes = await readAnimationFile(runningUrl, signal);
   signal?.throwIfAborted();
-  return prepareRunningModel(new FBXLoader().parse(bytes, ""));
+  const model = await parseRunningModel(bytes);
+  signal?.throwIfAborted();
+  return prepareRunningModel(model);
 }
 function loadOptionalAnimations(
   asset: ReturnType<typeof prepareRunningModel>,
