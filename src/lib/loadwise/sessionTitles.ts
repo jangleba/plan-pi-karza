@@ -2,7 +2,7 @@
  * One naming scheme for every training unit shown to the athlete.
  *
  * The engines name sessions in many styles ("Siłownia: całe ciało A —
- * podstawy", "Własna technika z piłką + reakcja", "Sprint — akceleracja").
+ * podstawy", "Własna technika z piłką", "Sprint — akceleracja").
  * The interface shows them as "Kategoria: akcent", short and concrete:
  *
  *   Sprint: przyspieszenie · Siła: całe ciało A · Bieg: spokojny ·

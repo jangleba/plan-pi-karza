@@ -320,7 +320,7 @@ function drill(id: DrillId): FootballDrill {
 
 function declared(profile: Profile, pattern: RegExp): boolean {
   return (
-    [...profile.equipment, ...(profile.homeEquipment ?? [])].some((value) =>
+    [...(profile.equipment ?? []), ...(profile.homeEquipment ?? [])].some((value) =>
       pattern.test(value),
     ) && !(profile.unavailableEquipmentIds ?? []).some((value) => pattern.test(value))
   );
@@ -333,12 +333,27 @@ function hasWall(profile: Profile): boolean {
 const SPACE_RANK: Record<FootballSpace, number> = { small: 0, yard: 1, pitch: 2 };
 
 /** What the athlete declared in onboarding: pitch, a safe straight, a wall, a goal. */
-export function footballConditions(profile: Profile) {
+export interface FootballConditions {
+  space: FootballSpace;
+  wall: boolean;
+  goal: boolean;
+}
+
+export function footballConditions(profile: Profile): FootballConditions {
   const space: FootballSpace = profile.hasPitch ? "pitch" : profile.hasSprintSpace ? "yard" : "small";
   const goal =
     space !== "small" &&
     (profile.hasPitch || declared(profile, /bramk|\bgoal\b/i));
   return { space, wall: hasWall(profile), goal };
+}
+
+function fitsConditions(item: FootballDrill, conditions: FootballConditions, light: boolean): boolean {
+  return (
+    SPACE_RANK[item.space] <= SPACE_RANK[conditions.space] &&
+    (!item.wall || conditions.wall) &&
+    (!item.goal || conditions.goal) &&
+    (!item.intense || !light)
+  );
 }
 
 function exercise(id: DrillId, prescription: string, cue?: string): ExerciseItem {
@@ -376,7 +391,14 @@ function timedPractice(id: DrillId, totalSec: number, youngOrNovice: boolean): E
 
 export function buildIndividualFootballSession(
   profile: Profile,
-  options: { seed: number; light?: boolean; durationMin?: number; weekIndex?: number },
+  options: {
+    seed: number;
+    light?: boolean;
+    durationMin?: number;
+    weekIndex?: number;
+    /** Where this session happens, when the athlete chose it for today. */
+    conditions?: FootballConditions;
+  },
 ): {
   title: string;
   sessionType: string;
@@ -402,12 +424,8 @@ export function buildIndividualFootballSession(
     Math.floor(mainMin / blockCount) + (index < mainMin % blockCount ? 1 : 0),
   );
   const seed = Math.abs(Math.floor(options.seed));
-  const conditions = footballConditions(profile);
-  const available = (item: FootballDrill) =>
-    SPACE_RANK[item.space] <= SPACE_RANK[conditions.space] &&
-    (!item.wall || conditions.wall) &&
-    (!item.goal || conditions.goal) &&
-    (!item.intense || !light);
+  const conditions = options.conditions ?? footballConditions(profile);
+  const available = (item: FootballDrill) => fitsConditions(item, conditions, light);
   const pool = (role: DrillRole, exclude: readonly string[] = []) =>
     DRILLS.filter((item) => item.roles.includes(role) && available(item) && !exclude.includes(item.id));
   // Rotate through what the athlete can actually do, so sessions differ week to week.
@@ -451,4 +469,150 @@ export function buildIndividualFootballSession(
       cooldown: [exercise("football_easy_contacts", `${cooldownMin} min spokojnych kontaktów i odpoczynku`)],
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Ball work written outside this engine (second sessions, match-week primers,
+// the weekly ball minimum, check-in swaps) used to prescribe generic blocks
+// such as "finishing" or "positional action on the pitch", whatever the athlete
+// declared. Every such block becomes a concrete solo drill they can do where
+// they actually train.
+// ---------------------------------------------------------------------------
+
+const GENERIC_BALL_ID = "football_technical_self_selected";
+const DRILL_BY_ID = new Map<string, FootballDrill>(DRILLS.map((item) => [item.id, item]));
+const WORK_SECTIONS = new Set(["main", "accessory", "footballTransfer"]);
+
+type BallRow = { name: string; exerciseId?: string; prescription?: string };
+
+function needsSoloDrill(row: BallRow, conditions: FootballConditions, light: boolean): boolean {
+  if (row.exerciseId === GENERIC_BALL_ID) return true;
+  const known = row.exerciseId ? DRILL_BY_ID.get(row.exerciseId) : undefined;
+  return Boolean(known && !fitsConditions(known, conditions, light));
+}
+
+function minutesOf(prescription: string | undefined): number | null {
+  const match = /(\d+)\s*(?:–\s*\d+\s*)?min/i.exec(prescription ?? "");
+  return match ? Number(match[1]) : null;
+}
+
+function rowRole(section: string, row: BallRow): DrillRole {
+  if (section === "warmup") return "warmup";
+  if (section === "cooldown") return "cooldown";
+  if (/pozycj|\brol[aiię]\b|wykończ|akcj|meczow/i.test(row.name)) return "position";
+  if (section === "footballTransfer") return "challenge";
+  return "technique";
+}
+
+function soloDrillFor(
+  profile: Profile,
+  role: DrillRole,
+  row: BallRow,
+  conditions: FootballConditions,
+  light: boolean,
+  used: Set<string>,
+  seed: number,
+): FootballDrill {
+  const fits = (item: FootballDrill) => fitsConditions(item, conditions, light);
+  const firstTouch = /kontakt|przyj/i.test(row.name);
+  const candidates: FootballDrill[][] = [
+    firstTouch
+      ? DRILLS.filter((item) =>
+          item.id === (conditions.wall ? "football_wall_first_touch" : "football_self_feed_first_touch"))
+      : [],
+    DRILLS.filter(
+      (item) =>
+        item.roles.includes(role) &&
+        (role !== "position" || item.positions?.includes(profile.position)),
+    ),
+    DRILLS.filter((item) => item.roles.includes(role)),
+    DRILLS.filter((item) => item.roles.includes("technique")),
+  ];
+  // A drill already in the session is reused only when nothing else fits.
+  for (const allowUsed of [false, true])
+    for (const list of candidates) {
+      const pool = list.filter((item) => fits(item) && (allowUsed || !used.has(item.id)));
+      if (pool.length) return pool[seed % pool.length]!;
+    }
+  return drill("football_ball_mastery");
+}
+
+function seedOf(text: string): number {
+  let hash = 0;
+  for (const char of text) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return hash;
+}
+
+/**
+ * Replaces generic or out-of-reach ball blocks with solo drills that fit the
+ * athlete's space, wall and goal. Other exercises and the dose stay as they are.
+ */
+export function fitBallWorkToConditions(
+  session: SessionDay,
+  profile: Profile,
+  conditionsOverride?: FootballConditions,
+): SessionDay {
+  const conditions = conditionsOverride ?? footballConditions(profile);
+  const light = session.intensity === "niska";
+  const novice = profile.age < 16 || profile.level === "beginner";
+  const flat = Object.entries(session.sections ?? {}).flatMap(([section, list]) =>
+    ((list ?? []) as BallRow[]).map((row) => ({ section, row })),
+  );
+  const structured = (session.structuredSections ?? []).flatMap((section) =>
+    section.blocks.flatMap((block) =>
+      block.exercises.map((row) => ({ section: section.type as string, row: row as BallRow })),
+    ),
+  );
+  if (![...flat, ...structured].some(({ row }) => needsSoloDrill(row, conditions, light)))
+    return session;
+
+  const used = new Set(
+    [...flat, ...structured]
+      .map(({ row }) => row.exerciseId)
+      .filter((id): id is string => Boolean(id && DRILL_BY_ID.has(id))),
+  );
+  const seed = seedOf(`${session.date}|${session.title}`);
+  const chosen = new Map<string, FootballDrill>();
+  const replace = (section: string, row: BallRow, index: number): ExerciseItem => {
+    const key = `${section}|${row.name}`;
+    let picked = chosen.get(key);
+    if (!picked) {
+      picked = soloDrillFor(profile, rowRole(section, row), row, conditions, light, used, seed + index);
+      used.add(picked.id);
+      chosen.set(key, picked);
+    }
+    const id = picked.id as DrillId;
+    const minutes = minutesOf(row.prescription);
+    if (WORK_SECTIONS.has(section) && minutes && minutes >= 3)
+      return timedPractice(id, minutes * 60, novice);
+    return exercise(id, row.prescription || "5 min spokojnie");
+  };
+
+  const sections = Object.fromEntries(
+    Object.entries(session.sections ?? {}).map(([section, list]) => [
+      section,
+      ((list ?? []) as ExerciseItem[]).map((row, index) =>
+        needsSoloDrill(row, conditions, light) ? replace(section, row, index) : row,
+      ),
+    ]),
+  ) as SessionDay["sections"];
+  const structuredSections = session.structuredSections?.map((section) => ({
+    ...section,
+    blocks: section.blocks.map((block) => ({
+      ...block,
+      exercises: block.exercises.map((row, index) => {
+        if (!needsSoloDrill(row, conditions, light)) return row;
+        const item = replace(section.type, row, index);
+        return {
+          ...row,
+          ...item,
+          id: row.id,
+          duration: item.prescription,
+          sets: undefined,
+          reps: undefined,
+        };
+      }),
+    })),
+  }));
+  return { ...session, sections, ...(structuredSections ? { structuredSections } : {}) };
 }
