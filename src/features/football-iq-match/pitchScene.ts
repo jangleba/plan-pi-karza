@@ -330,23 +330,35 @@ export async function createPitchScene(
   const BROADCAST_ELEVATION = (28 * Math.PI) / 180;
   const scaleNow = () => (broadcast ? BROADCAST_SCALE : figureScale);
   /** Frames the ball and your player together, eased while the action runs. */
-  const followBall = (frame: PlaybackFrame, moving: boolean) => {
+  /** Frames the ball and your player, plus, while you decide, every option target. */
+  const followBall = (
+    frame: PlaybackFrame,
+    moving: boolean,
+    extra: Point[] = [],
+  ) => {
     const ballAt = frame.ballVisual;
     const controlled = players.find((p) => p.controlled);
     const you = (controlled && frame.positions.get(controlled.id)) || ballAt;
-    const aim = {
-      x: Math.max(12, Math.min(88, ballAt.x * 0.6 + you.x * 0.4)),
-      y: Math.max(14, Math.min(126, ballAt.y * 0.6 + you.y * 0.4)),
-    };
+    const points = [ballAt, you, ...(moving ? [] : extra)];
+    const xs = points.map((p) => p.x),
+      ys = points.map((p) => p.y);
+    const xMin = Math.min(...xs),
+      xMax = Math.max(...xs),
+      yMin = Math.min(...ys),
+      yMax = Math.max(...ys);
+    const aim =
+      points.length > 2
+        ? {
+            x: Math.max(12, Math.min(88, (xMin + xMax) / 2)),
+            y: Math.max(14, Math.min(126, (yMin + yMax) / 2)),
+          }
+        : {
+            x: Math.max(12, Math.min(88, ballAt.x * 0.6 + you.x * 0.4)),
+            y: Math.max(14, Math.min(126, ballAt.y * 0.6 + you.y * 0.4)),
+          };
     // Along the pitch is the screen width, across the pitch is the screen depth.
-    const spanAlong = Math.max(
-      30,
-      Math.min(80, Math.abs(ballAt.y - you.y) + 22),
-    );
-    const spanAcross = Math.max(
-      28,
-      Math.min(70, Math.abs(ballAt.x - you.x) + 22),
-    );
+    const spanAlong = Math.max(30, Math.min(90, yMax - yMin + 22));
+    const spanAcross = Math.max(28, Math.min(80, xMax - xMin + 22));
     const halfV = (broadcastCamera.fov * Math.PI) / 360;
     const halfH = Math.atan(Math.tan(halfV) * broadcastCamera.aspect);
     // Never closer than 42 m: wide, short screens would otherwise put a giant player in front.
@@ -527,7 +539,16 @@ export async function createPitchScene(
       paintPitch(broadcast);
       followTarget = null;
     }
-    if (broadcast) followBall(frame, isPlaying);
+    if (broadcast)
+      followBall(
+        frame,
+        isPlaying,
+        actions.flatMap((a) =>
+          a.type === "pass" && a.targetId && frame.positions.get(a.targetId)
+            ? [a.to, frame.positions.get(a.targetId)!]
+            : [a.to],
+        ),
+      );
     if (
       fixedCamera !== fixedView ||
       wideCamera !== landscapeView ||

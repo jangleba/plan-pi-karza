@@ -327,7 +327,8 @@ function TacticalScenePitch({
     let api: PitchScene | null = null;
     let observer: ResizeObserver | null = null;
     setStatus("loading");
-    latest.current.onReadyChange?.(true);
+    // The TV view has no flat stand-in, so nothing is playable until the 3D pitch is ready.
+    latest.current.onReadyChange?.(!latest.current.broadcastView);
     const fail = () => {
       if (cancelled) return;
       failed = true;
@@ -466,9 +467,7 @@ function TacticalScenePitch({
       <div className="bwiq-pitch-canvas" ref={host} />
       {/* The TV view never shows flat figures while the 3D players load. */}
       {status === "loading" && broadcastView && (
-        <div className="bwiq-pitch-loading" role="status">
-          Ładuję boisko…
-        </div>
+        <div className="bwiq-pitch-loading" aria-hidden="true" />
       )}
       {status !== "ready" && !(status === "loading" && broadcastView) && (
         <TacticalDiagram

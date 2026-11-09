@@ -14,7 +14,7 @@ export type FieldTask = {
 
 const SPACE = "Gdy partner ma piłkę, stań w wolnym miejscu między dwoma rywalami.";
 const OFFSIDE =
-  "Przy podaniu do przodu stój na linii ostatniego obrońcy i ruszaj w chwili podania.";
+  "W chwili podania do przodu bądź najdalej na linii przedostatniego rywala, potem ruszaj.";
 
 /** Tactical tasks per topic: where and when to move against the rival shape.
  * No body details (head, hips, scanning): only position, timing and space.
@@ -29,11 +29,11 @@ export const fieldTasks: Record<string, string[]> = {
     "Gdy napastnik rywala doskakuje do bramkarza, przesuń się w miejsce, które on opuścił.",
   ],
   cross: [
-    "Przy dośrodkowaniu wbiegaj w lukę między dwoma obrońcami, nie za ich plecy.",
+    "Przy dośrodkowaniu wbiegaj w strefę, której żaden obrońca nie zamyka.",
     "Gdy partner atakuje bliższy słupek, Ty zajmij punkt karny albo dalszy słupek.",
   ],
   "counter-press": [
-    "Po stracie od razu zamknij najbliższe podanie do przodu, zamiast cofać się na pozycję.",
+    "Po stracie blisko piłki, z partnerami obok, zamknij najbliższe podanie do przodu.",
     "Po stracie skróć odległość do partnerów, żeby rywal z piłką był otoczony.",
   ],
   "low-block": [
@@ -41,12 +41,12 @@ export const fieldTasks: Record<string, string[]> = {
     "Gdy rywal broni środka, przenieś grę na stronę, na której jest mniej obrońców.",
   ],
   "wide-1v1": [
-    "Atakuj obrońcę 1 na 1 tylko wtedy, gdy za nim nie ma drugiego obrońcy.",
+    "Atakuj 1 na 1 chętniej, gdy obrońca nie ma blisko asekuracji.",
     "Gdy obrońca ma asekurację, oddaj piłkę i wbiegnij w miejsce za nim.",
   ],
   "defend-centre": [
     "Gdy rywal ma piłkę przed polem karnym, stań między nim a środkiem bramki.",
-    "Trzymaj linię z partnerami z obrony, żeby nikt nie zostawił rywala na spalonym.",
+    "Nie łam linii obrony: cofaj się i wychodź razem z partnerami.",
   ],
   "hold-up": [
     "Tyłem do bramki odegraj do partnera, który stoi przodem do gry.",
@@ -121,7 +121,7 @@ export const fieldTasks: Record<string, string[]> = {
     "Po pierwszym doskoku wróć zasłonić szóstkę rywala.",
   ],
   "nine-depth": [
-    "Stój na linii ostatniego obrońcy i ruszaj za plecy obrońców w chwili podania.",
+    "W chwili podania bądź najdalej na linii przedostatniego rywala i ruszaj za obrońców.",
     "Gdy obrońcy stoją wysoko, raz w akcji wbiegnij za ich plecy.",
   ],
   "third-player": [

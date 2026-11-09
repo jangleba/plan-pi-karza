@@ -30,6 +30,8 @@ describe("field task", () => {
         expect(text).not.toMatch(/(^|\s)(bo|ponieważ|dlatego)\s/);
         // Tactics only: no body details the pitch view cannot show.
         expect(text).not.toMatch(/głow|ramię|ramie|bioder|ręk|spójrz|spojrz|wzrok/i);
+        // Offside is judged against the second-last opponent, never the last defender.
+        expect(text).not.toMatch(/ostatniego obrońcy/);
       }
   });
 
@@ -51,7 +53,7 @@ describe("field task", () => {
 
   it("gives the offside task after an offside finish", () => {
     const def = situationBank[0];
-    expect(pickFieldTask(def, "offside", null).text).toMatch(/linii ostatniego obrońcy/);
+    expect(pickFieldTask(def, "offside", null).text).toMatch(/przedostatniego rywala/);
   });
 
   it("stores one open task per player until it is marked done", () => {

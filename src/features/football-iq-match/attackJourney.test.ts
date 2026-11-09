@@ -64,6 +64,10 @@ describe("full attacking episodes", () => {
     expect(
       next.beats.at(-1)?.events?.some((e) => e.text.includes("Bramkarz broni")),
     ).toBe(true);
+    // A saved shot is a save, never also a pass interception.
+    expect(
+      next.beats.at(-1)?.events?.some((e) => e.text.includes("tor podania")),
+    ).toBe(false);
   });
   it("a shot outside the posts is a miss rather than a goal", () => {
     const s = shotFixture(36),

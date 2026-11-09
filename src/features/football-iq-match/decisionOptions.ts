@@ -340,7 +340,7 @@ export const OPTION_MARKS = [
   { letter: "A", color: "#ffd84d" },
   { letter: "B", color: "#ffffff" },
   { letter: "C", color: "#ff7ad9" },
-  { letter: "D", color: "#8ee86b" },
+  { letter: "D", color: "#b69cff" },
 ] as const;
 
 /** One chalk arrow for a choice of the controlled player, or none when it does not move. */
