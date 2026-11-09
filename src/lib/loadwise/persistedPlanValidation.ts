@@ -11,6 +11,8 @@ import {
   isSpeedSession,
 } from "./sessionClassification";
 import { calculateWeeklyMinimumRequirements } from "./weeklyRequirements";
+import { getDevelopmentStage } from "./athleteProfile";
+import { requirementGymExperience, seasonPhaseForWeek } from "./offseasonPeriod";
 import { profileMatchDates } from "./matchSchedule";
 import { hasHighGymToSpeedConflict, gymSpacingIssues } from "./strengthScheduling";
 import {
@@ -277,7 +279,7 @@ export function validatePersistedPlan(
     const matchCount = sessions.filter(isMatchSession).length;
     const requirements = calculateWeeklyMinimumRequirements(
       {
-        seasonPhase: profile.seasonPhase,
+        seasonPhase: seasonPhaseForWeek(profile, monday),
         clubTrainingCount: sessions.filter((session) => session.dayType === "club").length,
         matchCount,
         isFullWeek: matchCount < 2,
@@ -285,7 +287,8 @@ export function validatePersistedPlan(
       { hasGym: profile.hasGym },
       profile.goal,
       {
-        gymExperienceLevel: profile.gymExperienceLevel,
+        developmentStage: getDevelopmentStage(profile.age),
+        gymExperienceLevel: requirementGymExperience(profile),
         hasActivePain: profile.painInjury || (profile.painLocations?.length ?? 0) > 0,
       },
     );
