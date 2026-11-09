@@ -192,7 +192,8 @@ export function pickFieldTask(
   };
 }
 
-const storageKey = (owner: string) => `ballwise:iq:field-task:v1:${owner}`;
+export const fieldTaskKey = (owner: string) => `ballwise:iq:field-task:v1:${owner}`;
+const storageKey = fieldTaskKey;
 type Store = Pick<Storage, "getItem" | "setItem">;
 
 export function loadFieldTask(

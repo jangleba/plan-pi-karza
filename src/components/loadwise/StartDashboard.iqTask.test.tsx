@@ -6,7 +6,10 @@ import { StartDashboard } from "./StartDashboard";
 
 let root: Root, host: HTMLDivElement;
 const noop = () => {};
-function render(iqTask?: { text: string; onDone: () => void }) {
+function render(
+  iqTask?: { text: string; onDone: () => void },
+  iqGoal?: { label: string; percent: number; onOpen: () => void },
+) {
   return act(async () =>
     root.render(
       <StartDashboard
@@ -25,6 +28,7 @@ function render(iqTask?: { text: string; onDone: () => void }) {
         onOpen={noop}
         onPrepare={noop}
         iqTask={iqTask}
+        iqGoal={iqGoal}
       />,
     ),
   );
@@ -54,4 +58,17 @@ it("shows the Football IQ field task with a done button", async () => {
 it("shows no card without an open task", async () => {
   await render();
   expect(host.querySelector('[aria-label="Zadanie na boisko z Football IQ"]')).toBeNull();
+});
+
+it("shows the weakest Football IQ aim with its progress and a way to practise it", async () => {
+  const onOpen = vi.fn();
+  await render(undefined, { label: "Pressing", percent: 40, onOpen });
+  const card = host.querySelector('[aria-label="Twój cel w Football IQ"]');
+  expect(card?.textContent).toContain("Pressing");
+  expect(card?.textContent).toContain("40% dobrych decyzji");
+  const button = [...card!.querySelectorAll("button")].find((b) => b.textContent === "Ćwicz");
+  await act(async () => button!.click());
+  expect(onOpen).toHaveBeenCalledOnce();
+  await render();
+  expect(host.querySelector('[aria-label="Twój cel w Football IQ"]')).toBeNull();
 });

@@ -14,6 +14,8 @@ import { addForecast } from "../football-iq-match/tacticalForecast";
 import { journeyBank } from "../football-iq-match/journeyBank";
 import { createJourney, chooseJourney, journeyStep } from "../football-iq-match/journeyEngine";
 import { emptyFuelData, fuelStorageKey } from "@/lib/fuel/experience";
+import { masteryKey } from "../football-iq-match/mastery";
+import { fieldTaskKey } from "../football-iq-match/fieldTask";
 import {
   applyModuleRestore,
   createModuleSnapshot,
@@ -92,10 +94,66 @@ describe("explicit per-device module snapshots", () => {
       final.forecasts,
     );
   });
+  it("carries IQ progress per aim and the pitch task to another device", () => {
+    const store = memory();
+    store.setItem(masteryKey("source"), JSON.stringify({ press: ["good", "error", "good"] }));
+    store.setItem(
+      fieldTaskKey("source"),
+      JSON.stringify({
+        id: "t:1",
+        text: "Zamknij podanie do środka.",
+        topicId: "t",
+        createdAt: "2026-10-18T11:00:00.000Z",
+      }),
+    );
+    // The other device already has a shorter record for the same aim and an older task.
+    store.setItem(masteryKey("target"), JSON.stringify({ press: ["error"], cover: ["good"] }));
+    store.setItem(
+      fieldTaskKey("target"),
+      JSON.stringify({
+        id: "u:0",
+        text: "Starsze zadanie.",
+        topicId: "u",
+        createdAt: "2026-10-17T11:00:00.000Z",
+      }),
+    );
+    const snapshot = createModuleSnapshot("iq", "source", store, false, now);
+    applyModuleRestore(previewModuleRestore(snapshot, "target", store, now), "target", store);
+    expect(JSON.parse(store.getItem(masteryKey("target"))!)).toEqual({
+      press: ["good", "error", "good"],
+      cover: ["good"],
+    });
+    expect(JSON.parse(store.getItem(fieldTaskKey("target"))!).id).toBe("t:1");
+    // Restoring an older task never replaces a newer one.
+    applyModuleRestore(
+      previewModuleRestore(
+        {
+          ...snapshot,
+          records: {
+            ...snapshot.records,
+            fieldTask: {
+              id: "x:0",
+              text: "Bardzo stare.",
+              topicId: "x",
+              createdAt: "2026-01-01T00:00:00.000Z",
+            },
+          },
+        },
+        "target",
+        store,
+        now,
+      ),
+      "target",
+      store,
+    );
+    expect(JSON.parse(store.getItem(fieldTaskKey("target"))!).id).toBe("t:1");
+  });
   it("uses only exact account module keys", () => {
     expect(moduleKeys("iq", "a")).toEqual({
       history: journeyHistoryKey("a"),
       draft: journeyDraftKey("a"),
+      mastery: masteryKey("a"),
+      fieldTask: fieldTaskKey("a"),
     });
     const store = memory();
     store.setItem(journeyHistoryKey("b"), "broken other account");

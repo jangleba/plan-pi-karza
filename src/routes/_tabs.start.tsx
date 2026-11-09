@@ -37,6 +37,7 @@ import {
   openFieldTask,
   type FieldTask,
 } from "@/features/football-iq-match/fieldTask";
+import { focusAim, loadMastery, type AimProgress } from "@/features/football-iq-match/masteryStore";
 import { UpcomingWeekPrompt } from "@/components/loadwise/UpcomingWeekPrompt";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
@@ -404,9 +405,11 @@ function PlanLoadingState() {
 function StartScreen() {
   const { user } = useAuth();
   const [iqTask, setIqTask] = useState<FieldTask | null>(null);
+  const [iqGoal, setIqGoal] = useState<AimProgress | null>(null);
   useEffect(() => {
     // Read after mount: storage is browser-only.
     setIqTask(openFieldTask(user?.id));
+    setIqGoal(user?.id ? focusAim(loadMastery(user.id)) : null);
   }, [user?.id]);
   const {
     state,
@@ -872,6 +875,15 @@ function StartScreen() {
                   completeFieldTask(user?.id);
                   setIqTask(null);
                 },
+              }
+            : undefined
+        }
+        iqGoal={
+          iqGoal
+            ? {
+                label: iqGoal.label,
+                percent: Math.round(iqGoal.score * 100),
+                onOpen: () => void navigate({ to: "/football-iq" }),
               }
             : undefined
         }
