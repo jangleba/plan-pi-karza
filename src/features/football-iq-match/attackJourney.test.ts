@@ -76,9 +76,16 @@ describe("full attacking episodes", () => {
     expect(next.attack?.home).toBe(0);
   });
   it("supports more than ten persisted choices without changing old bank limits", () => {
+    // Find a deterministic line of play that lasts more than ten decisions.
     let s = start();
-    while (s.step < 12 && !s.outcome)
-      s = chooseJourney(s, journeyStep(s).choices.at(-1)!.id, 1);
+    for (const pick of [-1, 0, 1, -2, 2]) {
+      s = start();
+      while (s.step < 12 && !s.outcome) {
+        const choices = journeyStep(s).choices;
+        s = chooseJourney(s, choices.at(pick)?.id ?? choices[0].id, 1);
+      }
+      if (s.step > 10) break;
+    }
     expect(s.step).toBeGreaterThan(10);
     const draft = makeJourneyDraft(s, "challenge", "long");
     expect(draft.bankVersion).toBe(ATTACK_BANK_VERSION);

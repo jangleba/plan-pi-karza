@@ -4,6 +4,7 @@ import {
   attackChoice,
   parseAttackChoice,
   chooseAttackJourney,
+  HEADER_HEIGHT,
 } from "./attackJourney";
 import {
   createLiveJourney,
@@ -1571,6 +1572,31 @@ export function journeyFrame(
     ballInFlight: false,
   };
 }
+/** Ball contacts in a live beat that animate a player: who, when, and how high. */
+const CONTACT_TYPES = new Set([
+  "reception",
+  "space-won",
+  "space-lost",
+  "interception",
+  "save",
+  "block",
+]);
+const TOUCH_BEFORE = 0.3,
+  TOUCH_AFTER = 0.3;
+function contactNear(beat: JourneyBeat, id: string, time: number) {
+  for (const e of beat.events ?? []) {
+    if (e.actorId !== id || !CONTACT_TYPES.has(e.type ?? "")) continue;
+    if (time < e.time - TOUCH_BEFORE || time > e.time + TOUCH_AFTER) continue;
+    const frame =
+      beat.live!.find((f) => f.time >= e.time) ?? beat.live!.at(-1)!;
+    return {
+      phase: (time - (e.time - TOUCH_BEFORE)) / (TOUCH_BEFORE + TOUCH_AFTER),
+      header: e.type !== "save" && frame.height > HEADER_HEIGHT,
+      aerial: frame.height > 0.9,
+    };
+  }
+  return undefined;
+}
 export function sampleJourneyBeat(
   beat: JourneyBeat,
   players: readonly MatchPlayer[],
@@ -1592,11 +1618,28 @@ export function sampleJourneyBeat(
       const motion = frame.motions.get(id)!;
       const kickTime = live.a.kicker === id ? live.a.kickTime : undefined;
       const phase = kickTime === undefined ? -1 : (live.time - kickTime) / 1.6;
+      const kicking = phase >= 0 && phase < 1;
+      // A touch on an arriving ball: chest/foot control, or a header when it is high.
+      const touch = kicking ? undefined : contactNear(beat, id, live.time);
       frame.motions.set(id, {
         ...motion,
         moving,
-        state: phase >= 0 && phase < 1 ? "pass" : moving ? "move" : "idle",
-        phase: phase >= 0 && phase < 1 ? phase : undefined,
+        state: kicking
+          ? "pass"
+          : touch
+            ? touch.header
+              ? "header"
+              : "receive"
+            : moving
+              ? "move"
+              : "idle",
+        phase: kicking ? phase : touch ? touch.phase : undefined,
+        ...(kicking && live.a.kickDelivery
+          ? { delivery: live.a.kickDelivery }
+          : {}),
+        ...(touch && !touch.header && touch.aerial
+          ? { control: "aerial" as const }
+          : {}),
         weight: 1,
         gait: "run",
         elapsed: live.time,

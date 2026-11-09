@@ -1,4 +1,9 @@
-import { LIVE_BANK_VERSION, ATTACK_BANK_VERSION } from "./liveLesson";
+import {
+  LIVE_BANK_VERSION,
+  ATTACK_BANK_VERSION,
+  ATTACK_BANK_VERSION_V9,
+  ATTACK_BANK_VERSIONS,
+} from "./liveLesson";
 import {
   JOURNEY_BANK_VERSION,
   SUPPORTED_JOURNEY_BANK_VERSIONS,
@@ -76,13 +81,15 @@ function validBase(v: unknown): v is JourneyDraft {
       TACTICAL_BANK_VERSION,
       LIVE_BANK_VERSION,
       ATTACK_BANK_VERSION,
+      ATTACK_BANK_VERSION_V9,
     ].includes(v.bankVersion) ===
       (definitionById.get(v.scenarioId)?.revision === 3) &&
     (v.bankVersion !== "2026-10-15.1" ||
       definitionById.get(v.scenarioId)?.revision !== 2) &&
     ["learn", "challenge"].includes(String(v.mode)) &&
     Array.isArray(v.choices) &&
-    v.choices.length <= (v.bankVersion === ATTACK_BANK_VERSION ? 80 : 10) &&
+    v.choices.length <=
+      (ATTACK_BANK_VERSIONS.includes(v.bankVersion) ? 80 : 10) &&
     v.choices.every(validChoice) &&
     (v.forecasts === undefined ||
       ([TACTICAL_BANK_VERSION, LIVE_BANK_VERSION].includes(v.bankVersion) &&
@@ -143,7 +150,7 @@ export function restoreJourney(value: JourneyDraft): JourneySession {
   if (!validBase(value)) throw new Error("Nieobsługiwana wersja zapisu akcji.");
   let session = createJourneyForRules(
     definitionById.get(value.scenarioId)!,
-    value.bankVersion === ATTACK_BANK_VERSION
+    ATTACK_BANK_VERSIONS.includes(value.bankVersion)
       ? 9
       : value.bankVersion === LIVE_BANK_VERSION
         ? 8
@@ -157,6 +164,9 @@ export function restoreJourney(value: JourneyDraft): JourneySession {
                 ? 4
                 : 3,
   );
+  // Actions saved before revision 2 replay with the original rules.
+  if (value.bankVersion === ATTACK_BANK_VERSION_V9)
+    delete session.attackRevision;
   for (const [index, choice] of value.choices.entries()) {
     const before = session;
     session = chooseJourney(session, choice.id, choice.seconds);
@@ -208,7 +218,9 @@ export function makeJourneyAttempt(
     version: 1,
     bankVersion:
       session.rulesVersion === 9
-        ? ATTACK_BANK_VERSION
+        ? session.attackRevision === 2
+          ? ATTACK_BANK_VERSION
+          : ATTACK_BANK_VERSION_V9
         : session.rulesVersion === 8
           ? LIVE_BANK_VERSION
           : session.rulesVersion === 7
@@ -323,7 +335,9 @@ export function makeJourneyDraft(
     version: 1,
     bankVersion:
       session.rulesVersion === 9
-        ? ATTACK_BANK_VERSION
+        ? session.attackRevision === 2
+          ? ATTACK_BANK_VERSION
+          : ATTACK_BANK_VERSION_V9
         : session.rulesVersion === 8
           ? LIVE_BANK_VERSION
           : session.rulesVersion === 7

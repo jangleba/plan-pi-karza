@@ -1,6 +1,7 @@
 import {
-  ArrowHelper,
   BufferGeometry,
+  DoubleSide,
+  Float32BufferAttribute,
   CircleGeometry,
   Color,
   DirectionalLight,
@@ -180,7 +181,7 @@ export async function createPitchScene(
 
   const routes = new Group();
   scene.add(routes);
-  let routeObjects: ArrowHelper[] = [];
+  let routeObjects: Mesh<BufferGeometry, MeshBasicMaterial>[] = [];
   let previousRoutes: PlannedAction[] | null = null;
   const shadowGeometry = new CircleGeometry(2.0, 20);
   const shadowMaterial = new MeshBasicMaterial({
@@ -393,8 +394,52 @@ export async function createPitchScene(
     broadcastCamera.lookAt(followTarget);
     broadcastCamera.updateMatrixWorld();
   };
+  /** A flat, wide arrow on the grass: readable from the side camera, unlike 1 px lines. */
+  const routeArrow = (from: Vector3, to: Vector3, color: string) => {
+    const dir = to.clone().sub(from);
+    const length = dir.length();
+    dir.normalize();
+    const side = new Vector3(-dir.z, 0, dir.x);
+    const half = broadcast ? 0.42 : 0.5;
+    const headLength = Math.min(broadcast ? 2.6 : 3, length * 0.55);
+    const headHalf = broadcast ? 1.3 : 1.5;
+    const base = from.clone().addScaledVector(dir, length - headLength);
+    const v = (p: Vector3, k: number) => p.clone().addScaledVector(side, k);
+    const points = [
+      v(from, -half),
+      v(base, -half),
+      v(base, half),
+      v(from, -half),
+      v(base, half),
+      v(from, half),
+      v(base, -headHalf),
+      to.clone(),
+      v(base, headHalf),
+    ];
+    const geometry = new BufferGeometry();
+    geometry.setAttribute(
+      "position",
+      new Float32BufferAttribute(
+        points.flatMap((p) => [p.x, p.y, p.z]),
+        3,
+      ),
+    );
+    const material = new MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false,
+      side: DoubleSide,
+    });
+    const mesh = new Mesh(geometry, material);
+    mesh.renderOrder = 2;
+    return mesh;
+  };
   const clearRoutes = () => {
-    routeObjects.forEach((arrow) => arrow.dispose());
+    routeObjects.forEach((arrow) => {
+      arrow.geometry.dispose();
+      arrow.material.dispose();
+    });
     routeObjects = [];
     routes.clear();
   };
@@ -447,11 +492,18 @@ export async function createPitchScene(
     const frame = currentFrame;
     actors.forEach((actor, id) => {
       const point = frame.positions.get(id)!;
-      actor.root.position.copy(world(point));
+      const motion = frame.motions.get(id)!;
+      // A header is a small jump to meet the ball.
+      const lift =
+        motion.state === "header"
+          ? Math.sin(Math.PI * Math.max(0, Math.min(1, motion.phase ?? 0))) *
+            0.9 *
+            scaleNow()
+          : 0;
+      actor.root.position.copy(world(point, lift));
       actor.root.scale.setScalar(scaleNow());
       actor.shadow.position.copy(world(point, 0.06));
       actor.shadow.scale.setScalar(markScale());
-      const motion = frame.motions.get(id)!;
       // Leg stride follows map distance at this display scale; field coordinates stay unchanged.
       actor.pose(
         scaleNow() === 1
@@ -671,10 +723,9 @@ export async function createPitchScene(
       actions.forEach((action) => {
         const delta = world(action.to).sub(world(action.from));
         if (delta.length() < 0.1) return;
-        const arrow = new ArrowHelper(
-          delta.clone().normalize(),
-          world(action.from, 0.12),
-          delta.length(),
+        const arrow = routeArrow(
+          world(action.from, 0.14),
+          world(action.to, 0.14),
           action.analysisColor ??
             (action.type === "shot"
               ? "#f3cf73"
@@ -683,8 +734,6 @@ export async function createPitchScene(
                 : ["cover", "mark", "press"].includes(action.type)
                   ? "#376951"
                   : "#347eb4"),
-          2.5,
-          1.25,
         );
         arrow.userData.actionId = action.id;
         routes.add(arrow);
@@ -698,13 +747,7 @@ export async function createPitchScene(
           ? 1
           : 0.24
         : 0.85;
-      for (const material of [
-        arrow.line.material,
-        arrow.cone.material,
-      ].flat()) {
-        material.transparent = true;
-        material.opacity = opacity;
-      }
+      arrow.material.opacity = opacity;
     });
     cue.visible = !!teachingPoint;
     if (teachingPoint) cue.position.copy(world(teachingPoint, 0.08));

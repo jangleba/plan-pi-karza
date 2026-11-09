@@ -137,6 +137,7 @@ export type JourneyBeat = {
     inFlight: boolean;
     kicker?: string;
     kickTime?: number;
+    kickDelivery?: BallDelivery;
   }[];
   events?: JourneyEvent[];
   revision?: 2;
@@ -191,6 +192,9 @@ export type JourneySession = {
   forecasts?: TacticalForecast[];
   /** Absent in saved pre-22 engines; their replays retain the original rules. */
   rulesVersion?: 4 | 5 | 6 | 7 | 8 | 9;
+  /** Rules v9, revision 2: partners also cross, switch and chip, and headers are
+   * possible. Absent in actions saved before it, which replay as before. */
+  attackRevision?: 2;
   attack?: {
     elapsed: number;
     home: number;

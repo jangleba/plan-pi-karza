@@ -534,12 +534,17 @@ export function makeActor(
   });
   // AnimationMixer can skip writing unchanged tracks while paused. Restore the
   // unmodified pose first so procedural offsets never accumulate on redraw.
-  const gestureBones = ["RightUpLeg", "RightLeg", "Spine", "LeftArm"].flatMap(
-    (name) => {
-      const bone = model.getObjectByName(`mixamorig${name}`);
-      return bone ? [{ bone, base: bone.quaternion.clone() }] : [];
-    },
-  );
+  const gestureBones = [
+    "RightUpLeg",
+    "RightLeg",
+    "Spine",
+    "LeftArm",
+    "RightArm",
+    "Neck",
+  ].flatMap((name) => {
+    const bone = model.getObjectByName(`mixamorig${name}`);
+    return bone ? [{ bone, base: bone.quaternion.clone() }] : [];
+  });
 
   const attached = new Map(Object.entries(asset.clips));
   const pose = (motion: PlayerMotion, idleClock = motion.clock ?? 0) => {
@@ -579,7 +584,13 @@ export function makeActor(
         : motion.state === "receive"
           ? receive
           : null;
-    const active = motion.moving ? movement : gesture;
+    // A kick shows the kicking clip even when the player is still running into it.
+    const active =
+      motion.state === "pass" && gesture
+        ? gesture
+        : motion.moving
+          ? movement
+          : gesture;
     const blend = active
       ? Math.max(
           0,
@@ -636,6 +647,17 @@ export function makeActor(
       model.getObjectByName("mixamorigRightUpLeg")?.rotateX(-0.46 * touch);
       model.getObjectByName("mixamorigRightLeg")?.rotateX(0.42 * touch);
       model.getObjectByName("mixamorigSpine")?.rotateX(0.1 * touch);
+    }
+    if (motion.state === "header") {
+      // Procedural header: lean back while the ball comes, then attack it.
+      const p = Math.max(0, Math.min(1, motion.phase ?? 0));
+      const lean = -0.32 * Math.sin(2 * Math.PI * p) * (motion.weight ?? 1);
+      const reach = Math.sin(Math.PI * p) * (motion.weight ?? 1);
+      model.getObjectByName("mixamorigSpine")?.rotateX(lean);
+      model.getObjectByName("mixamorigNeck")?.rotateX(lean * 0.8);
+      model.getObjectByName("mixamorigLeftArm")?.rotateZ(-0.55 * reach);
+      model.getObjectByName("mixamorigRightArm")?.rotateZ(0.55 * reach);
+      model.getObjectByName("mixamorigRightUpLeg")?.rotateX(-0.25 * reach);
     }
     root.rotation.y = motion.heading;
   };

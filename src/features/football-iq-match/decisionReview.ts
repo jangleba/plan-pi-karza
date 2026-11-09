@@ -29,6 +29,8 @@ export type DecisionReview = {
 /** Rebuilds the picture before decision `index` by replaying the saved choices. */
 export function stateBefore(session: JourneySession, index: number): JourneySession {
   let s = createJourneyForRules(session.definition, session.rulesVersion ?? 9);
+  // Same rules revision as the action being reviewed.
+  if (session.attackRevision !== 2) delete s.attackRevision;
   for (const d of session.decisions.slice(0, index))
     s = chooseJourney(s, d.choiceId, d.decisionSeconds, false);
   return { ...s, controlledId: "you" };

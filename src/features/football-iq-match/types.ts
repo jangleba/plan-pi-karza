@@ -50,6 +50,8 @@ export type ShotAction = {
 };
 export type PlannedAction = (MovementAction | PassAction | ShotAction) & {
   analysisColor?: string;
+  /** Option letter shown at the end of the arrow (A–D). */
+  mark?: string;
 };
 export type DecisionGoal = {
   id: string;
