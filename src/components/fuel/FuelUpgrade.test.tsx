@@ -49,12 +49,10 @@ describe("Fuel25 corrected application flows", () => {
     const title = host.querySelector(".fuel-v4-hero h3")!.textContent!;
     vi.mocked(Date.now).mockReturnValue(now + 10_000);
     await click("Zjadłem", host);
-    expect(host.querySelector(".fuel-recent-meal p")?.textContent).toContain(title);
+    expect(host.querySelector(".fuel-recent-meal")?.textContent).toContain(title);
     vi.mocked(Date.now).mockReturnValue(now + 15_000);
     await click("Zapisz napój", host);
-    expect(host.querySelector(".fuel-next-steps")?.textContent).toContain(
-      "250 ml zapisane do tej sesji dziś",
-    );
+    expect(host.querySelector(".fuel-next-steps")?.textContent).toContain("250 ml dziś");
   });
   it("describes the selected pre-match meal as before exercise", async () => {
     const match = { ...manualFuelContext(localDate(now), "match", 90, "high"), fromPlan: true };
@@ -180,7 +178,7 @@ describe("Fuel25 corrected application flows", () => {
     expect(readFuelData(localStorage, "u", now).drinks?.[0].ml).toBe(250);
     await click("Zjadłem", host);
     const original = readFuelData(localStorage, "u", now).entries[0];
-    await click("Historia · zapisano dziś", host);
+    await click("HistoriaZapisano dziś", host);
     await click("Było ciężko");
     const row = readFuelData(localStorage, "u", now).entries[0];
     expect(row.feedback).toBe("heavy");

@@ -1,21 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Bell,
-  Check,
-  ChevronRight,
-  Clock3,
-  Heart,
-  History,
-  PackageCheck,
-  RefreshCw,
-  ShoppingBag,
-  SlidersHorizontal,
-  Utensils,
-} from "lucide-react";
+import { Check, ChevronRight, Clock3, Heart, RefreshCw, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { FuelMealSheet, type FuelMealDraft } from "./FuelMealSheet";
 import { FuelNextSteps } from "./FuelNextSteps";
-import { fuelDayGuide } from "@/lib/fuel/guidance";
 import { FuelPanels, downloadFuelFile, type FuelPanelName } from "./FuelPanels";
 import { StoreCheckSheet } from "./StoreCheckSheet";
 import { FOOD_BY_ID, findRecipe, parsePantry, type FuelRecipe } from "@/lib/fuel/catalog";
@@ -205,7 +192,6 @@ export function FuelWorkspace({
         !c.completed &&
         (resolveFuelTiming(c, data.timings[c.key]).startsAt ?? Infinity) > (timing.startsAt ?? now),
     ) ?? null;
-  const dayGuide = fuelDayGuide(context, timing, now, data, nextSession);
   const native = nativeFuelRemindersAvailable();
 
   useEffect(() => {
@@ -791,33 +777,11 @@ export function FuelWorkspace({
           </div>
         )}
         <section className="fuel-v4-time" aria-label="Czas do treningu">
-          <div className="fuel-row">
-            <div className="fuel-v4-time-value">
-              <Clock3
-                size={21}
-                className={
-                  timing.phase === "before" && (minutes === null || minutes === 0)
-                    ? "bw-tone--warning"
-                    : undefined
-                }
-              />
-              <div>
-                <span>
-                  {timing.phase === "before"
-                    ? context.kind === "match"
-                      ? "Do meczu"
-                      : "Do treningu"
-                    : "Twój moment"}
-                </span>
-                <strong className="tabular-nums">{timingTitle}</strong>
-              </div>
-            </div>
-            <button className="fuel-text-button" onClick={() => setPanel("time")}>
-              Zmień
-            </button>
-          </div>
-          {timing.phase === "before" && minutes === null && (
+          {timing.phase === "before" && minutes === null ? (
             <div className="fuel-time-options">
+              <h2 className="fuel-v4-time-question">
+                {context.kind === "match" ? "Za ile zaczynasz mecz?" : "Za ile zaczynasz trening?"}
+              </h2>
               <div className="fuel-v4-presets">
                 {FUEL_TIME_PRESETS.map((v) => (
                   <button
@@ -830,7 +794,31 @@ export function FuelWorkspace({
                 ))}
               </div>
               <button className="fuel-v4-clock-link" onClick={() => setPanel("time")}>
-                Wpisz godzinę lub inny czas
+                Inna godzina
+              </button>
+            </div>
+          ) : (
+            <div className="fuel-row">
+              <div className="fuel-v4-time-value">
+                <Clock3
+                  size={20}
+                  className={
+                    timing.phase === "before" && minutes === 0 ? "bw-tone--warning" : undefined
+                  }
+                />
+                <div>
+                  <span>
+                    {timing.phase === "before"
+                      ? context.kind === "match"
+                        ? "Do meczu"
+                        : "Do treningu"
+                      : "Teraz"}
+                  </span>
+                  <strong className="tabular-nums">{timingTitle}</strong>
+                </div>
+              </div>
+              <button className="fuel-text-button" onClick={() => setPanel("time")}>
+                Zmień
               </button>
             </div>
           )}
@@ -887,24 +875,17 @@ export function FuelWorkspace({
               {hero.prepMin} min{hero.noCook ? " · bez gotowania" : ""}
               {hero.portable ? " · do zabrania" : ""}
             </p>
-            <details className="fuel-reason">
-              <summary>Dlaczego ten posiłek?</summary>
-              <p>{dayGuide.reason}</p>
-            </details>
             <ul className="fuel-v4-ingredients">
               {hero.lines.map((line) => (
                 <li key={line.foodId}>
-                  <span className="fuel-v4-food-dot" aria-hidden="true" />
-                  <div>
-                    <span>{FOOD_BY_ID[line.foodId].label}</span>
-                    <small>{householdPortion(line)}</small>
-                  </div>
                   <button
                     className="fuel-v4-ingredient-change"
                     aria-label={`Zmień ${FOOD_BY_ID[line.foodId].label}`}
                     onClick={() => openRecipe(hero, line.foodId)}
                   >
-                    <RefreshCw size={15} />
+                    <span className="fuel-v4-ingredient-name">{FOOD_BY_ID[line.foodId].label}</span>
+                    <small>{householdPortion(line)}</small>
+                    <RefreshCw size={14} aria-hidden="true" />
                   </button>
                 </li>
               ))}
@@ -931,7 +912,7 @@ export function FuelWorkspace({
               </button>
             </div>
             <button className="fuel-v4-details-link" onClick={() => openRecipe(hero)}>
-              Porcje i przygotowanie <ChevronRight size={15} />
+              Porcje i przygotowanie <ChevronRight size={14} />
             </button>
           </article>
         ) : (
@@ -943,32 +924,23 @@ export function FuelWorkspace({
             </button>
           </div>
         )}
-        <div className="fuel-v4-secondary-actions">
-          <button
-            onClick={() => {
-              setProduct(null);
-              setStoreOpen(true);
-            }}
-          >
-            <ShoppingBag size={19} />
-            <span>W sklepie</span>
-          </button>
-          <button
-            onClick={() => {
-              setText("");
-              setPanel("own");
-            }}
-          >
-            <Utensils size={19} />
-            <span>Mam swoje jedzenie</span>
-          </button>
-        </div>
         <FuelNextSteps
           context={context}
           timing={timing}
           now={now}
           data={data}
           nextSession={nextSession}
+          laterTitle={selectedEntry?.title ?? null}
+          tomorrowMatch={tomorrowMatch || !!tomorrowContext}
+          savedToday={!!latest}
+          canRepeat={!!repeat}
+          native={native}
+          remindersOn={reminders.enabled}
+          reminderBusy={reminderBusy || !loaded}
+          onStore={() => {
+            setProduct(null);
+            setStoreOpen(true);
+          }}
           onOwn={() => {
             setText("");
             setPanel("own");
@@ -978,6 +950,24 @@ export function FuelWorkspace({
             setPackingTomorrow(false);
             setPanel("pack");
           }}
+          onTomorrow={() => {
+            setPackingTomorrow(true);
+            setPanel("pack");
+          }}
+          onRepeat={() => {
+            if (!repeat) return;
+            setEditingId(null);
+            setDraft({
+              id: repeat.recipeId,
+              title: repeat.title,
+              lines: repeat.lines.map((line) => ({ ...line })),
+              recipe: findRecipe(repeat.recipeId),
+              repeated: true,
+              fraction: repeat.fraction,
+            });
+          }}
+          onReminders={() => setPanel("reminders")}
+          onToggleReminders={() => void toggleReminders()}
           onDrink={(ml, kind) => {
             const id = crypto.randomUUID();
             const at = Date.now();
@@ -997,86 +987,8 @@ export function FuelWorkspace({
             };
           }}
         />
-        <div className="fuel-v4-reminder">
-          <button onClick={() => setPanel("reminders")}>
-            <Bell size={19} />
-            <span>{native ? "Przypomnij mi" : "Przypomnienie"}</span>
-          </button>
-          {native ? (
-            <button
-              role="switch"
-              aria-checked={reminders.enabled}
-              aria-label="Przypomnienia Fuel"
-              className={`fuel-v4-switch ${reminders.enabled ? "is-on" : ""}`}
-              disabled={reminderBusy || !loaded}
-              onClick={() => void toggleReminders()}
-            >
-              <span />
-            </button>
-          ) : (
-            <button className="fuel-text-button" onClick={() => setPanel("reminders")}>
-              Kalendarz <ChevronRight size={14} />
-            </button>
-          )}
-        </div>
-        {selectedEntry && (
-          <button
-            className="fuel-v4-next"
-            onClick={() => {
-              setPackingTomorrow(false);
-              setPanel("pack");
-            }}
-          >
-            <PackageCheck size={19} />
-            <div>
-              <strong>Na później</strong>
-              <span>{selectedEntry.title}</span>
-            </div>
-            <ChevronRight size={17} />
-          </button>
-        )}
-        {(tomorrowMatch || tomorrowContext) && (
-          <button
-            className="fuel-v4-next"
-            onClick={() => {
-              setPackingTomorrow(true);
-              setPanel("pack");
-            }}
-          >
-            <PackageCheck size={19} />
-            <div>
-              <strong>Jutro mecz</strong>
-              <span>Przygotuj własny zestaw do zabrania</span>
-            </div>
-            <ChevronRight size={17} />
-          </button>
-        )}
-        <div className="fuel-v4-foot-actions">
-          <button onClick={() => setPanel("history")}>
-            <History size={15} className={latest ? "bw-tone--success" : undefined} /> Historia
-            {latest ? <span className="bw-tone--success"> · zapisano dziś</span> : ""}
-          </button>
-          {repeat && (
-            <button
-              onClick={() => {
-                setEditingId(null);
-                setDraft({
-                  id: repeat.recipeId,
-                  title: repeat.title,
-                  lines: repeat.lines.map((line) => ({ ...line })),
-                  recipe: findRecipe(repeat.recipeId),
-                  repeated: true,
-                  fraction: repeat.fraction,
-                });
-              }}
-            >
-              Powtórz zestaw
-            </button>
-          )}
-        </div>
         <p className="fuel-v4-discreet">
-          Propozycje do wysiłku. Porcje i miary są orientacyjne; Fuel nie wylicza dawek z masy
-          ciała.
+          Porcje są orientacyjne. Fuel nie liczy dawek z masy ciała.
         </p>
       </main>
       <FuelPanels

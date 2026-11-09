@@ -20,13 +20,17 @@ await esbuild.build({
   platform: "browser",
   format: "iife",
   jsx: "automatic",
-  loader: { ".fbx": "file" },
+  loader: { ".fbx": "file", ".glb": "file" },
   alias: { "@": path.join(root, "src") },
   define: { "process.env.NODE_ENV": '"production"', "import.meta.env": "{}" },
   plugins: [
     {
       name: "fuel-qa-adapters",
       setup(build) {
+        // Vite-style "?url" asset imports (IQ clips) become plain file assets.
+        build.onResolve({ filter: /\?url$/ }, (args) => ({
+          path: path.resolve(args.resolveDir, args.path.replace(/\?url$/, "")),
+        }));
         build.onResolve({ filter: /\/loadwise\/store$/ }, () => ({
           path: "store",
           namespace: "visual",
@@ -241,22 +245,25 @@ try {
     "Tomorrow packing saved to today",
   );
   await goto();
-  await page.getByText("Napoje · dodaj wypitą ilość", { exact: true }).click();
+  await page.locator(".fuel-v4-list-details summary").click();
   await page.getByRole("button", { name: "Zapisz napój", exact: true }).click();
   ensure(
     (await page.evaluate(() => window.__fuelQA.read().drinks[0].ml)) === 250,
     "Drink not saved",
   );
   await page
-    .getByText("Napoje · 250 ml zapisane do tej sesji dziś", { exact: true })
+    .locator(".fuel-v4-list-details summary")
+    .getByText("250 ml dziś", { exact: true })
     .waitFor({ timeout: 1500 });
   await page.mouse.move(0, 0);
   await page
     .getByText("Zapisano wypity napój.", { exact: true })
     .waitFor({ state: "hidden", timeout: 7000 });
   await snap("napoje");
-  await page.getByText("Twój plan · Teraz / Zabierz / Po sesji", { exact: true }).click();
-  await snap("plan-sesji");
+  ensure(
+    (await page.getByText("Dlaczego ten posiłek?").count()) === 0,
+    "Meal screen should show only what to eat, not why",
+  );
   ensure(
     (await page.evaluate(() => window.__fuelQA.allergenVerdict)) === "Sprawdź ograniczenia",
     "Declared allergen conflict ignored",
