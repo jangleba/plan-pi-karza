@@ -120,7 +120,7 @@ export function createLiveJourney(def: JourneyDefinition): JourneySession {
       duration: 0.8,
       from: openingBefore.positions[s.world.carrierId],
       to: s.world.positions[s.world.carrierId],
-      text: "Rywal skraca odległość do piłki. Zatrzymaj wzrok na jego ustawieniu.",
+      text: "Rywal skraca odległość do piłki. Sprawdź, gdzie zostawia wolne miejsce.",
       live: samples,
       events: [
         {

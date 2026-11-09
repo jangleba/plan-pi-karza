@@ -29,6 +29,13 @@ import {
   type DecisionReview,
 } from "./decisionReview";
 import { iqSources, situationBank, situationFor } from "./situationBank";
+import {
+  assessAction,
+  assessDecision,
+  contributionCounts,
+  keyMoment,
+  momentRange,
+} from "./decisionAssessment";
 import { FootballIQJourney } from "./FootballIQJourney";
 import { TacticalPitch } from "./TacticalPitch";
 import { advancedJourneyBank } from "./advancedJourneyBank";
@@ -45,7 +52,7 @@ import { liveChoice as legacyChoice } from "./liveJourney";
 import { attackChoice } from "./attackJourney";
 const liveChoice: typeof legacyChoice = (s, ...args) =>
   s.rulesVersion === 9 ? attackChoice(s, ...args) : legacyChoice(s, ...args);
-import { lessonGoal, lessonTakeaway, LIVE_BANK_VERSION, ATTACK_BANK_VERSION } from "./liveLesson";
+import { lessonGoal, LIVE_BANK_VERSION, ATTACK_BANK_VERSION } from "./liveLesson";
 import {
   createJourneyBackup,
   loadJourneyHistory,
@@ -228,11 +235,16 @@ export function LearningJourney(props: Props) {
             saveJourneyDraft(historyOwner, session, mode, id);
           completed.current.add(id);
           setSaved(!!historyOwner);
-          const task = pickFieldTask(
+          // The task for next time comes from the problem found in TY's key moment.
+          const found = keyMoment(assessAction(session));
+          const rotated = pickFieldTask(
             session.definition,
             session.attack?.finish,
             loadFieldTask(historyOwner),
           );
+          const task = found?.problem
+            ? { ...rotated, id: `${session.definition.topicId}:${found.problem}`, text: found.task }
+            : rotated;
           saveFieldTask(historyOwner, task);
           setFieldTask(task);
           onComplete?.({
@@ -393,7 +405,19 @@ export function LearningJourney(props: Props) {
           .filter((e) => e.time <= playTime && e.time >= range.current.from)
           .at(-1)
       : null;
-  const lastDecision = session.decisions.at(-1);
+  // TY's own contribution, measured from the saved worlds and simulation events.
+  const lastAssessment = useMemo(
+    () => (session.decisions.length ? assessDecision(session, session.decisions.length - 1) : null),
+    [session],
+  );
+  const assessments = useMemo(() => (session.outcome ? assessAction(session) : []), [session]);
+  const key = useMemo(() => keyMoment(assessments), [assessments]);
+  const counts = contributionCounts(assessments);
+  const summaryFact = `Twoje decyzje — dobre: ${counts.good} · do poprawy: ${counts.possible} · błędy: ${counts.error}. Liczy się Twój ruch, nie wynik drużyny.`;
+  const keyReview = useMemo(
+    () => (phase === "summary" && key ? reviewDecision(session, key.index) : null),
+    [phase, key, session],
+  );
   let replayBeat = displayed.beats.length - 1,
     cursor = 0;
   if (isPlaying)
@@ -722,7 +746,17 @@ export function LearningJourney(props: Props) {
         ) : phase === "feedback" ? (
           <>
             <span className="iqE-eyebrow">Co się stało</span>
-            <p className="iqE-feedback">{lastDecision?.why}</p>
+            {lastAssessment && (
+              <>
+                <p className="iqE-feedback">
+                  <em className={`iqE-grade iqE-grade--${lastAssessment.grade}`}>
+                    {qualityLabels[lastAssessment.grade]}
+                  </em>{" "}
+                  {lastAssessment.happened}
+                </p>
+                {lastAssessment.grade !== "good" && <p className="iqE-why">{lastAssessment.why}</p>}
+              </>
+            )}
             {!session.outcome && (
               <p className="iqE-next">
                 <strong>Teraz:</strong> {situationLine(session, "you")}
@@ -785,10 +819,66 @@ export function LearningJourney(props: Props) {
                     ? "Wyjście spod nacisku z dalszą opcją"
                     : "Piłka utrzymana. Czy udało się wyjść spod nacisku?"}
             </h2>
-            <p>{lessonTakeaway(session)}</p>
+            <p className="iqE-fact">{summaryFact}</p>
+            {key && (
+              <section className="iqE-key" aria-label="Kluczowy moment">
+                <div className="iqE-between">
+                  <span>Kluczowy moment · decyzja {key.index + 1}</span>
+                  <em className={`iqE-grade iqE-grade--${key.grade}`}>
+                    {qualityLabels[key.grade]}
+                  </em>
+                </div>
+                <dl>
+                  <dt>Co zrobiłeś</dt>
+                  <dd>{key.did}</dd>
+                  <dt>Co się stało</dt>
+                  <dd>{key.happened}</dd>
+                  <dt>Dlaczego to ważne</dt>
+                  <dd>{key.why}</dd>
+                </dl>
+                <button
+                  type="button"
+                  className="iqE-secondary"
+                  onClick={() => {
+                    const { from, to } = momentRange(session, key.index);
+                    play(session, from, to, "summary", true);
+                  }}
+                >
+                  <Play size={16} /> Pokaż moment
+                </button>
+                <details className="iqE-more">
+                  <summary>Więcej o tym momencie</summary>
+                  {keyReview?.better && keyReview.betterAssessment && (
+                    <p>
+                      <b>Wariant wzorcowy:</b> {keyReview.better.label}. W tej samej sytuacji:{" "}
+                      {keyReview.betterAssessment.happened}{" "}
+                      <button
+                        type="button"
+                        className="iqE-link"
+                        aria-pressed={review?.index === key.index}
+                        onClick={() => setReview(review?.index === key.index ? null : keyReview)}
+                      >
+                        {review?.index === key.index ? "Ukryj na boisku" : "Pokaż na boisku"}
+                      </button>
+                    </p>
+                  )}
+                  {key.rivalReaction && (
+                    <p>
+                      <b>Reakcja rywala:</b> {key.rivalReaction}
+                    </p>
+                  )}
+                  <p>
+                    <b>Źródło zasady:</b>{" "}
+                    <a href={key.source.url} target="_blank" rel="noreferrer">
+                      {key.source.label}
+                    </a>
+                  </p>
+                </details>
+              </section>
+            )}
             {fieldTask && (
-              <section className="iqE-task" aria-label="Zadanie na boisko">
-                <span>Zadanie na boisko</span>
+              <section className="iqE-task" aria-label="Zadanie na następny raz">
+                <span>Zadanie na następny raz</span>
                 <p>{fieldTask.text}</p>
                 <small>
                   {props.historyOwner
@@ -797,11 +887,11 @@ export function LearningJourney(props: Props) {
                 </small>
               </section>
             )}
-            <section className="iqE-review" aria-label="Twoje decyzje">
-              <span>Twoje decyzje · dotknij, żeby zobaczyć na boisku</span>
+            <details className="iqE-review">
+              <summary>Wszystkie Twoje decyzje ({assessments.length})</summary>
               <ol>
-                {session.decisions.map((d, i) => (
-                  <li key={d.choiceId + i}>
+                {assessments.map((a, i) => (
+                  <li key={session.decisions[i].choiceId + i}>
                     <button
                       type="button"
                       aria-pressed={review?.index === i}
@@ -809,29 +899,32 @@ export function LearningJourney(props: Props) {
                         setReview(review?.index === i ? null : reviewDecision(session, i))
                       }
                     >
-                      <b>{i + 1}.</b> {d.label}
-                      <em className={`iqE-grade iqE-grade--${d.quality}`}>
-                        {qualityLabels[d.quality]}
+                      <b>{i + 1}.</b> {a.did}
+                      <em className={`iqE-grade iqE-grade--${a.grade}`}>
+                        {qualityLabels[a.grade]}
                       </em>
                     </button>
                     {review?.index === i && (
-                      <p className="iqE-better">
-                        <i style={{ background: REVIEW_COLORS.yours }} /> Twój wybór
-                        {review.better ? (
-                          <>
-                            {" · "}
-                            <i style={{ background: REVIEW_COLORS.better }} /> Lepiej:{" "}
-                            {review.better.label}
-                          </>
-                        ) : d.quality === "good" ? null : (
-                          " · Żadna z gotowych opcji nie była lepsza."
-                        )}
-                      </p>
+                      <div className="iqE-better">
+                        <p>{a.happened}</p>
+                        <p>
+                          <i style={{ background: REVIEW_COLORS.yours }} /> Twój wybór
+                          {review.better ? (
+                            <>
+                              {" · "}
+                              <i style={{ background: REVIEW_COLORS.better }} /> Lepiej:{" "}
+                              {review.better.label}
+                            </>
+                          ) : a.grade === "good" ? null : (
+                            " · Żadna z gotowych opcji nie była lepsza."
+                          )}
+                        </p>
+                      </div>
                     )}
                   </li>
                 ))}
               </ol>
-            </section>
+            </details>
             <button
               type="button"
               className="iqE-primary"

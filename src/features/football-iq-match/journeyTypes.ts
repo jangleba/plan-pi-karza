@@ -99,6 +99,34 @@ export type JourneyStep = {
   cue: string;
   choices: JourneyChoice[];
 };
+/** What really happened during a live decision, typed so the review can quote facts. */
+export type JourneyEventType =
+  | "kick"
+  | "shot"
+  | "goal"
+  | "miss"
+  | "save"
+  | "block"
+  | "interception"
+  | "reception"
+  | "space-won"
+  | "space-lost"
+  | "loose"
+  | "recovery"
+  | "tackle"
+  | "marker"
+  | "offside"
+  | "approach";
+export type JourneyEvent = {
+  time: number;
+  text: string;
+  /** Absent only in events made before typed events existed. */
+  type?: JourneyEventType;
+  /** Who did it (the kicker, the receiver, the rival who intercepted…). */
+  actorId?: string;
+  /** Who it was aimed at or taken from (the passer, the intended receiver…). */
+  targetId?: string;
+};
 export type JourneyBeat = {
   /** Version 8: simultaneous, deterministic simulation samples; never used by old replays. */
   live?: {
@@ -110,7 +138,7 @@ export type JourneyBeat = {
     kicker?: string;
     kickTime?: number;
   }[];
-  events?: { time: number; text: string }[];
+  events?: JourneyEvent[];
   revision?: 2;
   id: string;
   before: JourneyWorld;

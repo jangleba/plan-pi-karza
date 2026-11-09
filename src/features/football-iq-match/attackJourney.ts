@@ -21,6 +21,7 @@ import { situationLayout } from "./situationBank";
 import type { Point } from "./types";
 import type {
   JourneyBeat,
+  JourneyEventType,
   JourneyChoice,
   JourneyDefinition,
   JourneySession,
@@ -145,12 +146,13 @@ export function createAttackJourney(def: JourneyDefinition): JourneySession {
       duration: 0.8,
       from: openingBefore.positions[s.world.carrierId],
       to: s.world.positions[s.world.carrierId],
-      text: "Rywal skraca odległość do piłki. Zatrzymaj wzrok na jego ustawieniu.",
+      text: "Rywal skraca odległość do piłki. Sprawdź, gdzie zostawia wolne miejsce.",
       live: samples,
       events: [
         {
           time: 0.25,
           text: "Rywal rusza do piłki. Sprawdź przestrzeń za jego plecami.",
+          type: "approach",
         },
       ],
     },
@@ -346,9 +348,21 @@ export function chooseAttackJourney(
     ownAtStart = before.carrierId === actor && !before.looseBall;
   const frames: NonNullable<JourneyBeat["live"]> = [],
     events: NonNullable<JourneyBeat["events"]> = [];
-  const event = (time: number, text: string) => {
+  const event = (
+    time: number,
+    text: string,
+    type: JourneyEventType,
+    actorId?: string,
+    targetId?: string,
+  ) => {
     if (!events.some((e) => e.text === text))
-      events.push({ time: +time.toFixed(3), text });
+      events.push({
+        time: +time.toFixed(3),
+        text,
+        type,
+        ...(actorId ? { actorId } : {}),
+        ...(targetId ? { targetId } : {}),
+      });
   };
   let ball = { ...(s.world.looseBall ?? s.world.positions[s.world.carrierId]) },
     height = BALL_REST_HEIGHT,
@@ -356,6 +370,7 @@ export function chooseAttackJourney(
   let kick: { actor: string; time: number } | undefined,
     loss = false,
     offsideCall = false,
+    offsider: { id: string; passer: string } | undefined,
     touched = false;
   let terminal: "goal" | "miss" | "offside" | undefined;
   let goalTeam: "home" | "away" | undefined;
@@ -400,6 +415,9 @@ export function chooseAttackJourney(
         : id === actor
           ? "Zagranie wybrane przez Ciebie."
           : `Nr ${s.players.find((p) => p.id === id)!.number} wybiera własne zagranie.`,
+      shot ? "shot" : "kick",
+      id,
+      receiver,
     );
     return result;
   };
@@ -686,6 +704,8 @@ export function chooseAttackJourney(
                 ? "Gol! Piłka przekracza linię bramkową."
                 : "Gol rywali. Sprawdź osłonę po stracie."
               : "Strzał mija bramkę. Akcja kończy się niecelnym uderzeniem.",
+            valid ? "goal" : "miss",
+            f.actor,
           );
           flight = null;
           record(t);
@@ -708,6 +728,7 @@ export function chooseAttackJourney(
       const contact = t >= f.start ? candidates[0]?.p : undefined;
       if (contact) {
         offsideCall = !f.shot && !!f.offsidePlayers?.includes(contact.id);
+        if (offsideCall) offsider = { id: contact.id, passer: f.actor };
         lastContact = t;
         s.world.carrierId = contact.id;
         if (teamOf(s, contact.id) !== teamOf(s, f.actor)) {
@@ -720,6 +741,13 @@ export function chooseAttackJourney(
               : f.shot
                 ? `Nr ${contact.number} blokuje strzał.`
                 : `Nr ${contact.number} przecina tor podania, zanim piłka dociera do celu.`,
+            f.shot && contact.goalkeeper
+              ? "save"
+              : f.shot
+                ? "block"
+                : "interception",
+            contact.id,
+            f.shot ? f.actor : (f.receiver ?? f.actor),
           );
         } else {
           firstReceiver = contact.id;
@@ -727,6 +755,9 @@ export function chooseAttackJourney(
           event(
             t,
             `Nr ${contact.number} dochodzi do piłki. Sprawdź jego kolejną opcję.`,
+            "reception",
+            contact.id,
+            f.actor,
           );
         }
         touched = true;
@@ -746,11 +777,16 @@ export function chooseAttackJourney(
           completedPass = !loss;
           firstReceiver = !loss ? s.world.carrierId : "";
           offsideCall = !!f.offsidePlayers?.includes(s.world.carrierId);
+          if (offsideCall)
+            offsider = { id: s.world.carrierId, passer: f.actor };
           event(
             t,
             loss
               ? "Rywal pierwszy dochodzi do podania w przestrzeń."
               : "Partner dobiega do podania w przestrzeń.",
+            loss ? "space-lost" : "space-won",
+            s.world.carrierId,
+            f.actor,
           );
           touched = true;
           flight = null;
@@ -759,6 +795,8 @@ export function chooseAttackJourney(
           event(
             t,
             "Podanie w przestrzeń. Obie drużyny walczą o dojście do piłki.",
+            "loose",
+            f.actor,
           );
           flight = null;
         }
@@ -775,6 +813,8 @@ export function chooseAttackJourney(
         event(
           t,
           `Nr ${closest.p.number} zbiera piłkę. Ponownie oceń kierunek gry.`,
+          "recovery",
+          closest.p.id,
         );
       }
     } else {
@@ -795,7 +835,13 @@ export function chooseAttackJourney(
         s.world.carrierId = rivals[0].id;
         loss = rivals[0].team !== "home";
         lastContact = t;
-        event(t, "Nacisk kończy się odbiorem. Zmienia się kierunek gry.");
+        event(
+          t,
+          "Nacisk kończy się odbiorem. Zmienia się kierunek gry.",
+          "tackle",
+          rivals[0].id,
+          owner,
+        );
       }
       if (
         !autoPassed &&
@@ -874,8 +920,18 @@ export function chooseAttackJourney(
         s.definition.context === 0
           ? "Obrońca zmienia pozycję za Twoim ruchem. Sprawdź miejsce, które zostawia."
           : "Obrońca zmienia pozycję, kryjąc linię do środka. Sprawdź, co pozostaje dostępne.",
+        "marker",
+        marker,
+        actor,
       );
-    if (offsideCall) event(t, "Odbiorca był na spalonym w chwili zagrania.");
+    if (offsideCall)
+      event(
+        t,
+        "Odbiorca był na spalonym w chwili zagrania.",
+        "offside",
+        offsider?.id,
+        offsider?.passer,
+      );
     record(t);
     if (offsideCall) {
       terminal = "offside";
