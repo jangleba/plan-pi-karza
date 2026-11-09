@@ -6,6 +6,8 @@ import {
   journeyDraftKey,
   journeyHistoryKey,
 } from "../football-iq-match/journeyHistory";
+import { fieldTaskKey, loadFieldTask } from "../football-iq-match/fieldTask";
+import { loadMastery, masteryKey } from "../football-iq-match/mastery";
 import { loadBrowserResults } from "../browser-lab/storage";
 import {
   loadReactiveCustomSets,
@@ -44,7 +46,12 @@ export function moduleKeys(module: BackupModule, owner: string): Record<string, 
     case "fuel":
       return { data: fuelStorageKey(owner) };
     case "iq":
-      return { history: journeyHistoryKey(owner), draft: journeyDraftKey(owner) };
+      return {
+        history: journeyHistoryKey(owner),
+        draft: journeyDraftKey(owner),
+        mastery: masteryKey(owner),
+        fieldTask: fieldTaskKey(owner),
+      };
     case "lab":
       return { history: `ballwise.browser-lab.v1:${encodeURIComponent(owner)}` };
     case "reactive": {
@@ -118,6 +125,12 @@ function readRecords(
               choices: draft.choices.map((choice) => pick(choice, ["id", "seconds"])),
             }
           : null;
+      }),
+      // Progress per lesson aim and the open task for the pitch (no user text).
+      mastery: present("mastery", () => loadMastery(owner, storage)),
+      fieldTask: present("fieldTask", () => {
+        const task = loadFieldTask(owner, storage);
+        return task ? pick(task, ["id", "text", "topicId", "createdAt", "done"]) : null;
       }),
     };
   if (module === "lab")
@@ -394,6 +407,21 @@ export function previewModuleRestore(
       else if (before == null) {
         result = next;
         preview.added++;
+      } else if (snapshot.module === "iq" && slot === "mastery") {
+        // Progress per aim: keep the longer record of recent decisions for each aim.
+        const current = before as Record<string, unknown[]>;
+        const remote = next as Record<string, unknown[]>;
+        result = { ...current };
+        for (const [aim, list] of Object.entries(remote))
+          if (list.length > (current[aim]?.length ?? 0)) {
+            (result as Record<string, unknown[]>)[aim] = list;
+            preview.added++;
+          }
+      } else if (snapshot.module === "iq" && slot === "fieldTask") {
+        // The newer task for the pitch wins.
+        const current = before as { createdAt: string };
+        const remote = next as { createdAt: string };
+        if (Date.parse(remote.createdAt) > Date.parse(current.createdAt)) result = remote;
       } else if (slot === "data") {
         const current = before as Record<string, unknown>;
         const remote = next as Record<string, unknown>;

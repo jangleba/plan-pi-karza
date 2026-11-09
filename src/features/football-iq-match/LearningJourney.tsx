@@ -67,6 +67,7 @@ import {
   saveMastery,
   type Mastery,
 } from "./mastery";
+import { backupIqNow, cloudBackupEnabled, restoreIqFromAccount, setCloudBackup } from "./iqCloud";
 import { downloadText } from "../browser-lab/download";
 import type {
   JourneyChoice,
@@ -168,6 +169,19 @@ export function LearningJourney(props: Props) {
     [skipPrediction, setSkipPrediction] = useState(false);
   const [mastery, setMastery] = useState<Mastery>(() => loadMastery(historyOwner));
   const masteryNow = useRef(mastery);
+  // Opt-in copy on the account after each action; restore merges copies from other devices.
+  const [cloudOn, setCloudOn] = useState(() => cloudBackupEnabled(historyOwner)),
+    [cloudStatus, setCloudStatus] = useState(""),
+    [cloudBusy, setCloudBusy] = useState(false);
+  const backupToAccount = useCallback(async () => {
+    if (!historyOwner) return;
+    try {
+      await backupIqNow(historyOwner);
+      setCloudStatus(`Kopia na koncie: ${new Date().toLocaleTimeString("pl")}.`);
+    } catch {
+      setCloudStatus("Nie udało się zapisać kopii na koncie. Postęp jest bezpieczny w telefonie.");
+    }
+  }, [historyOwner]);
   const playhead = useRef(0),
     range = useRef({ from: 0, to: 0 }),
     current = useRef(session),
@@ -284,6 +298,7 @@ export function LearningJourney(props: Props) {
             : rotated;
           saveFieldTask(historyOwner, task);
           setFieldTask(task);
+          if (cloudBackupEnabled(historyOwner)) void backupToAccount();
           onComplete?.({
             scenarioId: session.definition.id,
             verdict: journeyVerdict(session),
@@ -295,7 +310,7 @@ export function LearningJourney(props: Props) {
         "Nie udało się zapisać postępu. Pobierz kopię poprzedniego zapisu, zanim zapiszesz bieżącą lekcję.",
       );
     }
-  }, [session, mode, id, historyOwner, onComplete, boot.error, error, replay]);
+  }, [session, mode, id, historyOwner, onComplete, boot.error, error, replay, backupToAccount]);
   function play(s: JourneySession, from: number, to: number, after: Phase, asReplay = false) {
     range.current = { from, to };
     playhead.current = from;
@@ -1182,6 +1197,57 @@ export function LearningJourney(props: Props) {
                 );
               }
             })()}
+            {historyOwner && (
+              <section className="iqE-cloud" aria-label="Postęp na koncie">
+                <h3 className="iqE-sources-title">Postęp na koncie</h3>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={cloudOn}
+                    onChange={(e) => {
+                      const on = e.target.checked;
+                      try {
+                        setCloudBackup(historyOwner, on);
+                        setCloudOn(on);
+                        if (on) void backupToAccount();
+                        else setCloudStatus("");
+                      } catch {
+                        setCloudStatus("Nie udało się zapisać ustawienia.");
+                      }
+                    }}
+                  />
+                  Zapisuj kopię IQ na koncie po każdej akcji (historia, postęp i zadanie)
+                </label>
+                <button
+                  type="button"
+                  className="iqE-secondary"
+                  disabled={cloudBusy}
+                  onClick={() => {
+                    setCloudBusy(true);
+                    setCloudStatus("Pobieram kopie z konta…");
+                    void restoreIqFromAccount(historyOwner)
+                      .then(({ copies, added }) => {
+                        masteryNow.current = loadMastery(historyOwner);
+                        setMastery(masteryNow.current);
+                        setCloudStatus(
+                          copies
+                            ? `Połączono ${copies} ${copies === 1 ? "kopię" : "kopie"} z konta. Nowe wpisy: ${added}.`
+                            : "Na koncie nie ma jeszcze kopii IQ.",
+                        );
+                      })
+                      .catch(() =>
+                        setCloudStatus(
+                          "Nie udało się przywrócić kopii. Dane w telefonie są nienaruszone.",
+                        ),
+                      )
+                      .finally(() => setCloudBusy(false));
+                  }}
+                >
+                  Przywróć postęp z konta
+                </button>
+                {cloudStatus && <p role="status">{cloudStatus}</p>}
+              </section>
+            )}
             <button
               className="iqE-link"
               type="button"
