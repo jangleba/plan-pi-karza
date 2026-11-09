@@ -98,7 +98,9 @@ export function nextByMastery(
   return { def, progress, reason };
 }
 
-const storageKey = (owner: string | undefined) => `ballwise:iq:mastery:v1:${owner ?? "local"}`;
+export const masteryKey = (owner: string | undefined) =>
+  `ballwise:iq:mastery:v1:${owner ?? "local"}`;
+const storageKey = masteryKey;
 const GRADES: JourneyQuality[] = ["good", "possible", "error"];
 
 export function loadMastery(
