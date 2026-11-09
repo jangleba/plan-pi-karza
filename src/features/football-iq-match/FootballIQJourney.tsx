@@ -1,3 +1,4 @@
+import { sameRevision } from "./liveLesson";
 import { SpatialHeader, SpatialDecisionPanel } from "./SpatialControls";
 import {
   spatialPointChoice,
@@ -386,8 +387,10 @@ export function FootballIQJourney({
   const destinations = EMPTY_DESTINATIONS;
   const currentChoices = useMemo(() => {
     if (!decision || view !== "review") return null;
-    let base = createJourneyForRules(session.definition, session.rulesVersion ?? 3);
-    if (session.attackRevision !== 2) delete base.attackRevision;
+    let base = sameRevision(
+      createJourneyForRules(session.definition, session.rulesVersion ?? 3),
+      { attackRevision: session.attackRevision },
+    );
     session.decisions.slice(0, reviewIndex).forEach((d) => {
       base = chooseJourney(base, d.choiceId, d.decisionSeconds);
     });

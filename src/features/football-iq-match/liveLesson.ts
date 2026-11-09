@@ -1,15 +1,43 @@
 import type { JourneySession } from "./journeyTypes";
 import { situationFor } from "./situationBank";
 
-/** Rules v9 revision 2: partners cross, switch and chip; headers. */
-export const ATTACK_BANK_VERSION = "2026-11-09.10";
+/** Rules v9 revision 3: the carrier reads the game continuously; goal-side tackles only. */
+export const ATTACK_BANK_VERSION = "2026-11-10.11";
+/** Rules v9 revision 2: partners cross, switch and chip; headers. Still replayed. */
+export const ATTACK_BANK_VERSION_R2 = "2026-11-09.10";
 /** Rules v9 before revision 2 (all partner passes on the ground). Still replayed. */
 export const ATTACK_BANK_VERSION_V9 = "2026-11-07.9";
 /** Every saved attack version that still replays. */
 export const ATTACK_BANK_VERSIONS: readonly string[] = [
   ATTACK_BANK_VERSION,
+  ATTACK_BANK_VERSION_R2,
   ATTACK_BANK_VERSION_V9,
 ];
+/** Saved bank version for a rules-v9 session, from its revision. */
+export function attackBankVersion(revision: 2 | 3 | undefined) {
+  return revision === 3
+    ? ATTACK_BANK_VERSION
+    : revision === 2
+      ? ATTACK_BANK_VERSION_R2
+      : ATTACK_BANK_VERSION_V9;
+}
+/** Revision of a rules-v9 session saved under `bankVersion`. */
+export function attackRevisionOf(bankVersion: string): 2 | 3 | undefined {
+  return bankVersion === ATTACK_BANK_VERSION
+    ? 3
+    : bankVersion === ATTACK_BANK_VERSION_R2
+      ? 2
+      : undefined;
+}
+/** Gives a freshly created session the same rules revision as `source` (for replays). */
+export function sameRevision<T extends { attackRevision?: 2 | 3 }>(
+  fresh: T,
+  source: { attackRevision?: 2 | 3 },
+): T {
+  if (source.attackRevision) fresh.attackRevision = source.attackRevision;
+  else delete fresh.attackRevision;
+  return fresh;
+}
 export const LIVE_BANK_VERSION = "2026-11-06.8";
 export function lessonGoal(s: JourneySession) {
   const situation = situationFor(s.definition);
@@ -28,8 +56,7 @@ export function lessonGoal(s: JourneySession) {
 }
 export function lessonQuestion(s: JourneySession) {
   if (s.rulesVersion === 9) {
-    if (s.world.looseBall)
-      return "Piłka jest wolna. Jak dojdziesz do niej przed rywalem?";
+    if (s.world.looseBall) return "Piłka jest wolna. Jak dojdziesz do niej przed rywalem?";
     if (s.players.find((p) => p.id === s.world.carrierId)?.team === "away")
       return "Strata to część akcji. Gdzie zamkniesz wyjście rywala i odzyskasz piłkę?";
     if (s.world.positions[s.world.carrierId].y < 32)
@@ -41,8 +68,7 @@ export function lessonQuestion(s: JourneySession) {
     return s.world.carrierId === "you"
       ? "Gdzie będzie miejsce, gdy rywal ruszy do piłki?"
       : "Co Twój ruch zmieni dla partnera z piłką?";
-  if (s.step === 1)
-    return "Układ się zmienił. Co teraz pozwoli kontynuować grę?";
+  if (s.step === 1) return "Układ się zmienił. Co teraz pozwoli kontynuować grę?";
   return "Pomyśl o następnej akcji. Jak zachowasz wsparcie i osłonę?";
 }
 export function lessonHint(s: JourneySession) {

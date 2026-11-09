@@ -195,7 +195,10 @@ export type JourneySession = {
   rulesVersion?: 4 | 5 | 6 | 7 | 8 | 9;
   /** Rules v9, revision 2: partners also cross, switch and chip, and headers are
    * possible. Absent in actions saved before it, which replay as before. */
-  attackRevision?: 2;
+  /** Rules v9 revision 3: the ball carrier reads the game continuously and a tackle needs
+   * a goal-side defender, so TY's runs and positions change the play. Revision 2 and older
+   * actions replay with their own rules. */
+  attackRevision?: 2 | 3;
   attack?: {
     elapsed: number;
     home: number;

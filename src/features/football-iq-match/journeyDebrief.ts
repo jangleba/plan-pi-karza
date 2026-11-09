@@ -7,6 +7,7 @@ import {
   journeyStep,
 } from "./journeyEngine";
 import type { JourneyChoice, JourneyDecision, JourneySession } from "./journeyTypes";
+import { sameRevision } from "./liveLesson";
 import { controlTacticalActor, tacticalGroup, tacticalAlternatives } from "./tacticalJourney";
 
 export const IQ_COACHING_SOURCES = [
@@ -218,8 +219,10 @@ export function journeyDebrief(session: JourneySession): JourneyDebrief | null {
           return value(d) > value(session.decisions[best]) ? index : best;
         }, 0);
   const decision = session.decisions[decisionIndex];
-  let before = createJourneyForRules(session.definition, session.rulesVersion ?? 3);
-  if (session.attackRevision !== 2) delete before.attackRevision;
+  let before = sameRevision(
+    createJourneyForRules(session.definition, session.rulesVersion ?? 3),
+    session,
+  );
   for (const d of session.decisions.slice(0, decisionIndex))
     before = chooseJourney(before, d.choiceId, d.decisionSeconds);
   if (

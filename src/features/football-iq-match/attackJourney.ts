@@ -40,7 +40,7 @@ const angle = (a: Point, b: Point) => Math.atan2(b.x - a.x, b.y - a.y);
 export function createAttackJourney(def: JourneyDefinition): JourneySession {
   const s = createTacticalJourney(def, 7);
   s.rulesVersion = 9;
-  s.attackRevision = 2;
+  s.attackRevision = 3;
   s.attack = { elapsed: 0, home: 0, away: 0, shots: 0 };
   if (def.role === "wing" && def.concept === "third-player") {
     const points: Record<string, Point> = {
@@ -393,7 +393,11 @@ export function chooseAttackJourney(
   const team = teamOf(s, actor),
     ownAtStart = before.carrierId === actor && !before.looseBall;
   // Actions saved before revision 2 replay with their original rules.
-  const aerial = s.attackRevision === 2;
+  const aerial = (s.attackRevision ?? 0) >= 2;
+  // Revision 3: the ball carrier judges receivers where their runs take them (not where they
+  // stand), and a tackle needs a goal-side defender (or a slow carrier). TY's run, drag or
+  // covering position therefore changes what the partner and the rivals do.
+  const reactive = s.attackRevision === 3;
   const frames: NonNullable<JourneyBeat["live"]> = [],
     events: NonNullable<JourneyBeat["events"]> = [];
   const event = (
@@ -887,19 +891,29 @@ export function chooseAttackJourney(
           p.team !== teamOf(s, owner) &&
           distance(s.world.positions[p.id], at) < 1.15,
       );
+      // Rev. 3: only a defender between the ball and his own goal, or one meeting a
+      // slow/standing carrier, wins the ball; a defender chasing from behind does not.
+      const winner = reactive
+        ? rivals.find((r) => {
+            const goalY = r.team === "home" ? 140 : 0;
+            const goalSide =
+              Math.abs(s.world.positions[r.id].y - goalY) < Math.abs(at.y - goalY);
+            return goalSide || Math.hypot(velocity[owner].x, velocity[owner].y) < 2.5;
+          })
+        : rivals[0];
       if (
-        rivals.length &&
+        winner &&
         t > lastContact + 0.6 &&
         !(kick && t - kick.time < 0.5)
       ) {
-        s.world.carrierId = rivals[0].id;
-        loss = rivals[0].team !== "home";
+        s.world.carrierId = winner.id;
+        loss = winner.team !== "home";
         lastContact = t;
         event(
           t,
           "Nacisk kończy się odbiorem. Zmienia się kierunek gry.",
           "tackle",
-          rivals[0].id,
+          winner.id,
           owner,
         );
       }
@@ -941,8 +955,17 @@ export function chooseAttackJourney(
               !p.goalkeeper &&
               !offside(s, owner, p.id),
           );
+          // Rev. 3: a receiver is judged where his run takes him (0.8 s ahead), so a run
+          // that has just started already changes the carrier's choice.
+          const ahead = (id: string) =>
+            reactive
+              ? bound(
+                  s.world.positions[id].x + velocity[id].x * 0.8,
+                  s.world.positions[id].y + velocity[id].y * 0.8,
+                )
+              : s.world.positions[id];
           const score = (id: string) => {
-            const target = s.world.positions[id];
+            const target = ahead(id);
             return (
               laneScore(s, at, target, ownerTeam) +
               dir * (target.y - at.y) * 0.65 -
@@ -966,7 +989,8 @@ export function chooseAttackJourney(
           if (receiver && (crossTo || score(receiver.id) > 10)) {
             const target = s.world.positions[receiver.id],
               v = velocity[receiver.id];
-            const lead = bound(target.x + v.x * 0.35, target.y + v.y * 0.35);
+            const leadTime = reactive ? 0.6 : 0.35;
+            const lead = bound(target.x + v.x * leadTime, target.y + v.y * leadTime);
             flight = startPass(
               owner,
               lead,
