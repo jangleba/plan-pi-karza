@@ -78,8 +78,8 @@ describe("decision options", () => {
 
 describe("situation bank", () => {
   it("has sourced match situations in three contexts for every position", () => {
-    expect(situations).toHaveLength(26);
-    expect(situationBank).toHaveLength(78);
+    expect(situations).toHaveLength(34);
+    expect(situationBank).toHaveLength(102);
     for (const role of ["gk", "cb", "fb", "six", "eight", "ten", "wing", "nine"])
       expect(situations.filter((s) => s.role === role).length, role).toBeGreaterThanOrEqual(3);
     for (const s of situations) {
