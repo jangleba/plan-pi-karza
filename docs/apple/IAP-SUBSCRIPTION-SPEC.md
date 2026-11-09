@@ -28,8 +28,7 @@ Wymagane są konfiguracja produktu i oferty w Apple/RevenueCat, publiczny klucz
 iOS `appl_…`, klucze/identyfikatory backendu, sekret webhooka oraz dozwolone
 originy. `VITE_BILLING_ENFORCED=true` i `BILLING_ENFORCED=true` włączają odpowiednie
 bramki klienta i backendu. Sekrety nigdy nie należą do `VITE_*` ani ZIP-a z kodem.
-Szczegóły instalacji: [bieżące wdrożenie](../WDROZENIE-2026-10-29.md) oraz
-[konfiguracja październikowa](../INSTALLATION-2026-10.md).
+Szczegóły instalacji: [konfiguracja październikowa](../INSTALLATION-2026-10.md).
 
 ## Odbiór ekranu zakupu
 

@@ -4,7 +4,7 @@
 tworzy/synchronizuje projekt Capacitor na macOS z Xcode. `npm run ios:sync`
 powtarza te kontrole dla istniejącego projektu. Oba polecenia wymagają tego
 samego `BALLWISE_IOS_BUNDLE_ID` oraz konfiguracji domeny/logowania opisanej w
-[instrukcji wdrożenia](../docs/WDROZENIE-2026-10-29.md).
+[instrukcji wdrożenia](../docs/INSTALLATION-2026-10.md).
 
 Aktualny setup dodaje opis kamery i lokalizacji, tryb lokalizacji w tle,
 Associated Domains oraz kopię pliku prywatności. Istniejące entitlements
