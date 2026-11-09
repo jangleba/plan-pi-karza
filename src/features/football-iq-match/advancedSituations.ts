@@ -15,10 +15,10 @@ const KEEPERS = {
 export const advancedSituations: Situation[] = [
   {
     key: "gk-switch",
-    title: "Bramkarz: krótko pod pressing czy na wolną stronę?",
+    title: "Bramkarz: pressing na jedną stronę",
     moment: "build",
     role: "gk",
-    goal: "Wyprowadź piłkę na wolną stronę boiska.",
+    goal: "Rywal naciska wysoko. Rozpocznij atak bez straty.",
     sources: ["pzpn-nmg", "uefa-ucl-2324"],
     layout: {
       carrier: "you",
@@ -53,10 +53,10 @@ export const advancedSituations: Situation[] = [
   },
   {
     key: "gk-sweep",
-    title: "Bramkarz: asekuracja za wysoką linią obrony",
+    title: "Bramkarz: wysoka linia obrony",
     moment: "defend",
     role: "gk",
-    goal: "Zabezpiecz przestrzeń za plecami obrońców.",
+    goal: "Twoja linia obrony stoi wysoko. Nie dopuść do sytuacji sam na sam.",
     sources: ["uefa-ucl-2324", "fa-dna"],
     layout: {
       carrier: "r0",
@@ -91,10 +91,10 @@ export const advancedSituations: Situation[] = [
   },
   {
     key: "gk-counter",
-    title: "Bramkarz: szybkie wznowienie po złapaniu piłki",
+    title: "Bramkarz: piłka złapana, rywale wysoko",
     moment: "transition",
     role: "gk",
-    goal: "Rozpocznij kontrę, zanim rywal wróci za piłkę.",
+    goal: "Złapałeś piłkę, rywale są wysoko. Zdecyduj, jak zaczynasz grę.",
     sources: ["fifa-tc", "uefa-ucl-2324"],
     layout: {
       carrier: "you",
@@ -129,10 +129,10 @@ export const advancedSituations: Situation[] = [
   },
   {
     key: "cb-carry",
-    title: "Wolny stoper: wprowadź piłkę i ściągnij rywala",
+    title: "Stoper: nikt nie atakuje",
     moment: "build",
     role: "cb",
-    goal: "Wprowadź piłkę, ściągnij rywala i podaj za jego plecy.",
+    goal: "Masz piłkę i nikt Cię nie atakuje. Pomóż drużynie przejść wyżej.",
     sources: ["pzpn-nmg", "wein"],
     layout: {
       carrier: "you",
@@ -167,10 +167,10 @@ export const advancedSituations: Situation[] = [
   },
   {
     key: "cb-step-out",
-    title: "Stoper: wyjść do dziesiątki czy trzymać linię?",
+    title: "Stoper: dziesiątka rywala między liniami",
     moment: "defend",
     role: "cb",
-    goal: "Nie pozwól rywalowi obrócić się między liniami.",
+    goal: "Rywal szuka podania między liniami. Nie dopuść do groźnej akcji.",
     sources: ["fa-dna", "pzpn-nmg"],
     layout: {
       carrier: "r0",
@@ -205,10 +205,10 @@ export const advancedSituations: Situation[] = [
   },
   {
     key: "fb-inverted",
-    title: "Boczny obrońca: szeroko czy do środka?",
+    title: "Boczny obrońca: stoper z piłką",
     moment: "build",
     role: "fb",
-    goal: "Ustaw się tak, żeby otworzyć podanie do skrzydłowego.",
+    goal: "Stoper ma piłkę. Pomóż drużynie przejść wyżej.",
     sources: ["uefa-ucl-2324", "pzpn-nmg"],
     layout: {
       carrier: "anchor",
@@ -246,7 +246,7 @@ export const advancedSituations: Situation[] = [
     title: "Boczny obrońca: dwóch rywali przy linii",
     moment: "defend",
     role: "fb",
-    goal: "Opóźnij atak dwóch rywali, aż wróci partner.",
+    goal: "Dwóch rywali atakuje Twoją stronę. Nie dopuść do strzału.",
     sources: ["fa-dna", "wein"],
     layout: {
       carrier: "r0",
@@ -281,10 +281,10 @@ export const advancedSituations: Situation[] = [
   },
   {
     key: "six-pivot",
-    title: "Szóstka: pokaż się między liniami pressingu",
+    title: "Szóstka: stoper pod pressingiem",
     moment: "build",
     role: "six",
-    goal: "Daj stoperowi podanie przez pierwszą linię pressingu.",
+    goal: "Stoper jest pod pressingiem. Pomóż mu wyprowadzić piłkę.",
     sources: ["pzpn-nmg", "uefa-ucl-2324"],
     layout: {
       carrier: "anchor",
@@ -319,10 +319,10 @@ export const advancedSituations: Situation[] = [
   },
   {
     key: "six-screen",
-    title: "Szóstka: osłoń strefę przed stoperami",
+    title: "Szóstka: rywal atakuje środkiem",
     moment: "defend",
     role: "six",
-    goal: "Zamknij podanie do rywala za Twoimi plecami.",
+    goal: "Rywal buduje atak środkiem. Nie dopuść do groźnego podania.",
     sources: ["fa-dna", "pzpn-nmg"],
     layout: {
       carrier: "r0",
@@ -360,7 +360,7 @@ export const advancedSituations: Situation[] = [
     title: "Szóstka: tłok po jednej stronie",
     moment: "attack",
     role: "six",
-    goal: "Przenieś grę tam, gdzie jest wolne miejsce.",
+    goal: "Masz piłkę w tłoku po jednej stronie. Utrzymaj ją i przejdź wyżej.",
     sources: ["uefa-ucl-2324", "wein"],
     layout: {
       carrier: "you",
@@ -395,10 +395,10 @@ export const advancedSituations: Situation[] = [
   },
   {
     key: "eight-third-man",
-    title: "Ósemka: krótko, za plecy czy dla trzeciego?",
+    title: "Ósemka: krycie w środku pola",
     moment: "build",
     role: "eight",
-    goal: "Uwolnij się od krycia i otwórz podanie do przodu.",
+    goal: "Jesteś kryty w środku pola. Pomóż drużynie zagrać do przodu.",
     sources: ["pzpn-nmg", "wein"],
     layout: {
       carrier: "anchor",
@@ -433,10 +433,10 @@ export const advancedSituations: Situation[] = [
   },
   {
     key: "eight-box",
-    title: "Ósemka: spóźnione wejście w pole karne",
+    title: "Ósemka: akcja przy polu karnym",
     moment: "attack",
     role: "eight",
-    goal: "Wejdź w pole karne tam, gdzie nikt Cię nie pilnuje.",
+    goal: "Partner ma piłkę blisko pola karnego. Stwórz zagrożenie.",
     sources: ["uefa-ucl-2324", "pzpn-nmg"],
     layout: {
       carrier: "wide",
@@ -471,10 +471,10 @@ export const advancedSituations: Situation[] = [
   },
   {
     key: "ten-turn",
-    title: "Dziesiątka: obróć się czy odegraj?",
+    title: "Dziesiątka: piłka między liniami",
     moment: "build",
     role: "ten",
-    goal: "Przyjmij między liniami i zagraj do przodu.",
+    goal: "Jesteś między liniami rywala. Pomóż drużynie przejść do ataku.",
     sources: ["wein", "uefa-ucl-2324"],
     layout: {
       carrier: "support",
@@ -509,10 +509,10 @@ export const advancedSituations: Situation[] = [
   },
   {
     key: "ten-press",
-    title: "Dziesiątka: doskok do stopera z cieniem krycia",
+    title: "Dziesiątka: stoper rywala z piłką",
     moment: "defend",
     role: "ten",
-    goal: "Naciskaj na piłkę i nie wypuść podania do szóstki.",
+    goal: "Rywal wyprowadza piłkę. Utrudnij mu grę do przodu.",
     sources: ["uefa-ucl-2324", "fa-dna"],
     layout: {
       carrier: "r0",
@@ -550,7 +550,7 @@ export const advancedSituations: Situation[] = [
     title: "Skrzydłowy: pressing stopera i bocznego obrońcy",
     moment: "defend",
     role: "wing",
-    goal: "Doskocz tak, żeby piłka nie trafiła do bocznego obrońcy.",
+    goal: "Rywal buduje grę przy Twojej stronie. Odzyskaj piłkę wysoko.",
     sources: ["uefa-ucl-2324", "fa-dna"],
     layout: {
       carrier: "r0",
@@ -585,10 +585,10 @@ export const advancedSituations: Situation[] = [
   },
   {
     key: "nine-press",
-    title: "Napastnik: doskok po łuku do stopera",
+    title: "Napastnik: stoperzy rywala z piłką",
     moment: "defend",
     role: "nine",
-    goal: "Zmuś rywala do gry jedną stroną boiska.",
+    goal: "Stoperzy rywala mają piłkę. Utrudnij im wyjście.",
     sources: ["uefa-ucl-2324", "pzpn-nmg"],
     layout: {
       carrier: "r0",
@@ -623,10 +623,10 @@ export const advancedSituations: Situation[] = [
   },
   {
     key: "nine-depth",
-    title: "Napastnik: wbiegnięcie za wysoką linię",
+    title: "Napastnik: rywal broni wysoko",
     moment: "attack",
     role: "nine",
-    goal: "Wbiegnij za obrońców w chwili podania, bez spalonego.",
+    goal: "Rywal broni wysoko. Zagroź bramce.",
     sources: ["ifab", "uefa-ucl-2324"],
     layout: {
       carrier: "support",
@@ -664,7 +664,7 @@ export const advancedSituations: Situation[] = [
     title: "Bramkarz: napastnicy wyszli do stoperów",
     moment: "build",
     role: "gk",
-    goal: "Zagraj przez środek, gdy napastnicy rywala wyszli do stoperów.",
+    goal: "Napastnicy rywala naciskają stoperów. Rozpocznij atak bez straty.",
     sources: ["pzpn-nmg", "uefa-ucl-2324"],
     layout: {
       carrier: "you",
@@ -699,10 +699,10 @@ export const advancedSituations: Situation[] = [
   },
   {
     key: "gk-channel",
-    title: "Bramkarz: podanie w kanał za obrońców",
+    title: "Bramkarz: rywal szuka podania za linię",
     moment: "defend",
     role: "gk",
-    goal: "Zabezpiecz kanał między stoperem a bocznym obrońcą.",
+    goal: "Rywal szuka podania za Twoją linię. Nie dopuść do sytuacji sam na sam.",
     sources: ["uefa-ucl-2324", "fa-dna"],
     layout: {
       carrier: "r0",
@@ -737,10 +737,10 @@ export const advancedSituations: Situation[] = [
   },
   {
     key: "cb-cover",
-    title: "Stoper: asekuracja za bocznym obrońcą",
+    title: "Stoper: boczny obrońca wyszedł do skrzydła",
     moment: "defend",
     role: "cb",
-    goal: "Zabezpiecz miejsce za partnerem, który doskoczył do skrzydłowego.",
+    goal: "Partner doskoczył do skrzydłowego. Chroń bramkę.",
     sources: ["pzpn-nmg", "fa-dna"],
     layout: {
       carrier: "r0",
@@ -775,10 +775,10 @@ export const advancedSituations: Situation[] = [
   },
   {
     key: "six-cover",
-    title: "Szóstka: zasłoń miejsce stopera",
+    title: "Szóstka: stoper wyszedł z linii",
     moment: "defend",
     role: "six",
-    goal: "Zajmij miejsce stopera, który wyszedł do rywala.",
+    goal: "Stoper wyszedł do rywala. Chroń bramkę.",
     sources: ["pzpn-nmg", "uefa-ucl-2324"],
     layout: {
       carrier: "r0",
@@ -816,7 +816,7 @@ export const advancedSituations: Situation[] = [
     title: "Stoper: sam przeciw dwóm w kontrze",
     moment: "transition",
     role: "cb",
-    goal: "Opóźnij kontrę, aż wrócą partnerzy.",
+    goal: "Kontra rywala, jesteś sam przeciw dwóm. Nie dopuść do strzału.",
     sources: ["fa-dna", "fifa-tc", "wein"],
     layout: {
       carrier: "r0",
@@ -851,10 +851,10 @@ export const advancedSituations: Situation[] = [
   },
   {
     key: "six-delay",
-    title: "Szóstka: zatrzymaj kontrę po stracie",
+    title: "Szóstka: kontra po stracie w środku",
     moment: "transition",
     role: "six",
-    goal: "Zatrzymaj kontrę w środku, zanim nabierze tempa.",
+    goal: "Straciliśmy piłkę w środku pola. Nie dopuść do groźnej kontry.",
     sources: ["fifa-tc", "fa-dna"],
     layout: {
       carrier: "r0",
@@ -889,10 +889,10 @@ export const advancedSituations: Situation[] = [
   },
   {
     key: "wing-behind",
-    title: "Skrzydłowy: za plecy bocznego obrońcy",
+    title: "Skrzydłowy: boczny obrońca blisko",
     moment: "attack",
     role: "wing",
-    goal: "Wbiegnij za bocznego obrońcę, gdy wyjdzie do Ciebie.",
+    goal: "Boczny obrońca rywala gra blisko Ciebie. Zagroź bramce.",
     sources: ["ifab", "pzpn-nmg"],
     layout: {
       carrier: "support",
@@ -927,10 +927,10 @@ export const advancedSituations: Situation[] = [
   },
   {
     key: "ten-behind",
-    title: "Dziesiątka: wbiegnięcie z drugiej linii",
+    title: "Dziesiątka: napastnik tyłem do bramki",
     moment: "attack",
     role: "ten",
-    goal: "Wbiegnij za obrońców z drugiej linii, gdy napastnik ich ściąga.",
+    goal: "Napastnik ma piłkę tyłem do bramki. Stwórz zagrożenie.",
     sources: ["ifab", "uefa-ucl-2324"],
     layout: {
       carrier: "support",

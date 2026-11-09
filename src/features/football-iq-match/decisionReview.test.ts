@@ -5,7 +5,7 @@ import { chooseJourney, createJourneyForRules } from "./journeyEngine";
 import { situationBank } from "./situationBank";
 
 describe("decision review", () => {
-  it("shows the real picture before each decision and only better options", () => {
+  it("shows the real picture before each decision and another good option", () => {
     let checked = 0;
     for (const id of ["iqs-gk-switch-0", "iqs-six-pivot-1", "iqs-cb-step-out-2"]) {
       let s = createJourneyForRules(
@@ -22,11 +22,22 @@ describe("decision review", () => {
         expect(review.before.world.carrierId).toBe(d.before.carrierId);
         expect(review.paths.length).toBeLessThanOrEqual(2);
         // Graded on TY's own contribution, the same rule the summary uses.
-        if (review.assessment.grade === "good") expect(review.better).toBeNull();
+        // After a good choice the other option must be a different action or target.
+        if (review.assessment.grade === "good" && review.better) {
+          const [, , intent, , , , , target] = d.choiceId.split(":");
+          const other = review.better.choice;
+          expect(`${other.intent}:${other.targetId ?? "space"}`).not.toBe(`${intent}:${target}`);
+        }
         if (review.better) {
           expect(review.better.choice.id).not.toBe(d.choiceId);
           expect(review.betterAssessment?.grade).toBe("good");
-          expect(review.paths.some((p) => p.analysisColor === REVIEW_COLORS.better)).toBe(true);
+          const from = review.before.world.positions[d.actorId ?? "you"];
+          const moves =
+            Math.hypot(
+              review.better.choice.point.x - from.x,
+              review.better.choice.point.y - from.y,
+            ) >= 1;
+          expect(review.paths.some((p) => p.analysisColor === REVIEW_COLORS.better)).toBe(moves);
         }
         expect(qualityLabels[review.assessment.grade]).toBeTruthy();
         checked++;

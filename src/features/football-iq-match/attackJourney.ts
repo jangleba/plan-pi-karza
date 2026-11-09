@@ -147,12 +147,12 @@ export function createAttackJourney(def: JourneyDefinition): JourneySession {
       duration: 0.8,
       from: openingBefore.positions[s.world.carrierId],
       to: s.world.positions[s.world.carrierId],
-      text: "Rywal skraca odległość do piłki. Sprawdź, gdzie zostawia wolne miejsce.",
+      text: "Rywal skraca odległość do piłki.",
       live: samples,
       events: [
         {
           time: 0.25,
-          text: "Rywal rusza do piłki. Sprawdź przestrzeń za jego plecami.",
+          text: "Rywal rusza do piłki.",
           type: "approach",
         },
       ],

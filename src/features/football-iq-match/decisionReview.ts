@@ -1,5 +1,6 @@
-/** Review of one decision after a whole action: TY's own grade and a better
- * ready-made option tried on the same picture, with what it produced there.
+/** Review of one decision after it was played: TY's own grade and another good
+ * option tried on the same picture (a better one after a weaker choice, a different
+ * one after a good choice), with what it produced there.
  */
 import { assessDecision, type DecisionAssessment } from "./decisionAssessment";
 import { choicePath, decisionOptions, type DecisionOption } from "./decisionOptions";
@@ -20,6 +21,7 @@ export type DecisionReview = {
   before: JourneySession;
   /** TY's own contribution in this decision. */
   assessment: DecisionAssessment;
+  /** Another good option on the same picture: better than TY's, or different when TY's was good. */
   better: DecisionOption | null;
   /** What the better option produced when played on the same picture. */
   betterAssessment: DecisionAssessment | null;
@@ -54,18 +56,25 @@ export function reviewDecision(session: JourneySession, index: number): Decision
   let better: DecisionOption | null = null,
     betterAssessment: DecisionAssessment | null = null;
   // The model variant is graded by the same rule as TY: own contribution, not the team result.
-  if (assessment.grade !== "good")
-    for (const option of decisionOptions(before)) {
-      if (option.choice.id === decision.choiceId) continue;
-      const next = chooseJourney(before, option.choice.id, 0, false);
-      const tried = assessDecision(next, next.decisions.length - 1);
-      if (tried.grade === "good") {
-        better = option;
-        betterAssessment = tried;
-        break;
-      }
-    }
+  // When TY's own choice was good, look for a different good one (another target or action),
+  // so the player sees that the same picture has more than one sensible answer.
   const yours = savedChoice(decision.choiceId);
+  for (const option of decisionOptions(before)) {
+    if (option.choice.id === decision.choiceId) continue;
+    if (
+      assessment.grade === "good" &&
+      option.choice.intent === yours?.intent &&
+      option.choice.targetId === yours?.targetId
+    )
+      continue;
+    const next = chooseJourney(before, option.choice.id, 0, false);
+    const tried = assessDecision(next, next.decisions.length - 1);
+    if (tried.grade === "good") {
+      better = option;
+      betterAssessment = tried;
+      break;
+    }
+  }
   const paths = [
     yours && choicePath(before, "yours", yours, REVIEW_COLORS.yours),
     better && choicePath(before, "better", better.choice, REVIEW_COLORS.better),

@@ -126,9 +126,32 @@ try {
     ensure(!result.overflow,'Horizontal overflow'); ensure(result.bodyHeight <= height + 1,'Real tab shell left blank scrolling space'); ensure(result.pitch.height>=150,'Pitch too short'); ensure(result.nav==='none','Navigation should release pitch space');views.push(result);
   }
   await page.setViewportSize({width:390,height:700});
-  const options = page.locator('.iqE-options button');
+  // Before a decision nothing may suggest an answer: no ready options, no option arrows or letters.
+  const noHints = async () => {
+    ensure((await page.locator('.iqE-options button').count())===0,'Ready-made options shown before the decision');
+    ensure((await page.locator('[data-iq-option-end], [data-iq-option]').count())===0,'Option arrows shown before the decision');
+    ensure((await page.getByRole('button',{name:'Pokaż opcje'}).count())===0,'"Pokaż opcje" must not exist');
+    ensure((await page.locator('.iqE-controls').innerText()).startsWith('Dotknij'),'Gestures are not explained');
+  };
+  const canvasPoint = async (fn) => page.locator('canvas[data-iq-pitch-corners]').evaluate((el, src) => {
+    const box = el.getBoundingClientRect(), c = JSON.parse(el.dataset.iqPitchCorners), players = JSON.parse(el.dataset.iqProjectedPlayers);
+    const at = new Function('c','players',src)(c, players);
+    return at && { x: box.left + at.x, y: box.top + at.y };
+  }, fn);
+  // Screen point of a player (the same projection the pitch uses to pick players).
+  const tapPlayer = async (ids) => {
+    const at = await canvasPoint(`for (const id of ${JSON.stringify(ids)}) if (players[id]) return players[id];`);
+    await page.mouse.click(at.x, at.y);
+  };
+  // A shot: tap at the rival keeper, i.e. the goal mouth (rival keeper is not selectable with the ball).
+  const tapGoal = () => tapPlayer(['keeper']);
+  // Off the ball: tap the middle of the pitch view.
+  const tapMiddle = async () => {
+    const box = await page.locator('canvas[data-iq-pitch-corners]').boundingBox();
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.6);
+  };
   let predictions = 0;
-  const playOption = async (pattern) => {
+  const playDecision = async (shoot = false) => {
     await page.waitForSelector('[data-iq-phase="decision"]',{timeout:20000});
     // Prediction loop: once per action, before the first decision with our ball.
     if (await page.locator('.iqE-predict').count()) {
@@ -138,17 +161,19 @@ try {
       await page.locator('.iqE-predict .iqE-options button').first().click();
       await page.waitForSelector('.iqE-prediction');
     }
-    const count = await options.count();
-    ensure(count>=2 && count<=4,`Expected 2–4 options, got ${count}`);
-    const labels = await options.allInnerTexts();
-    const index = pattern ? Math.max(0, labels.findIndex(l=>pattern.test(l))) : 0;
-    await options.nth(index).click();
-    ensure((await options.nth(index).getAttribute('aria-pressed'))==='true','Option not selected');
+    await noHints();
+    const own = (await page.locator('.iqE-now').innerText()).startsWith('Masz piłkę');
+    if (own && shoot) await tapGoal();
+    else if (own) await tapPlayer(['support','third','wide','forward','anchor']);
+    else await tapMiddle();
+    const planned = await page.locator('.iqE-plan').innerText();
+    ensure(planned.startsWith('Twój wybór:'),`Tap did not plan a move: ${planned}`);
+    if (own && shoot) ensure(planned.includes('Strzał'),`Goal tap should plan a shot, got: ${planned}`);
     await page.getByRole('button',{name:'Zagraj',exact:true}).click();
-    return labels[index];
+    return planned;
   };
   await start.click();
-  await playOption();
+  await playDecision();
   await page.waitForSelector('[data-iq-phase="feedback"]',{timeout:20000});
   await page.screenshot({path:path.join(work,'IQ-64-REAKCJA.png')});
   ensure(predictions===1,'The first decision with our ball needs a prediction');
@@ -157,9 +182,14 @@ try {
     ensure((await page.getByRole('button',{name:'Zobacz wynik',exact:true}).count())===0,'Action ended at the old three-decision limit');
     ensure((await page.locator('.iqE-next').innerText()).startsWith('Teraz:'),'Feedback does not say what comes next');
     await page.getByRole('button',{name:'Dalej',exact:true}).click();
-    await playOption();
+    await playDecision();
     await page.waitForSelector('[data-iq-phase="feedback"]',{timeout:20000});
   }
+  // After a decision: another solution can be replayed on demand.
+  await page.getByRole('button',{name:'Zobacz inne rozwiązanie',exact:true}).click();
+  await page.waitForSelector('[data-iq-phase="feedback"]',{timeout:20000});
+  await page.waitForSelector('.iqE-alternative');
+  await page.screenshot({path:path.join(work,'IQ-64-INNE.png')});
   await page.goto(url+'?fixture=finish');
   await page.waitForSelector('[data-iq-phase="decision"]');
   await page.waitForSelector('[data-iq-renderer="ready"]');
@@ -171,7 +201,7 @@ try {
       if (await next.count()) { await next.click(); break; }
       await page.getByRole('button',{name:'Dalej',exact:true}).click();
     }
-    await playOption(/^Strzał/);
+    await playDecision(true);
     await page.waitForSelector('[data-iq-phase="feedback"]',{timeout:20000});
   }
   if (!(await page.locator('.iqE-summary').count())) await page.getByRole('button',{name:'Zobacz wynik',exact:true}).click();
@@ -216,11 +246,7 @@ try {
   await page.getByRole('button',{name:'Start',exact:true}).click();
   await page.waitForSelector('[data-iq-phase="decision"]');
   if (await page.locator('.iqE-predict').count()) await page.locator('.iqE-predict .iqE-options button').first().click();
-  ensure((await options.count())===0,'Independent mode should start without ready options');
-  await page.getByRole('button',{name:'Pokaż opcje',exact:true}).click();
-  ensure((await options.count())>=2,'Options not revealed on demand');
-  ensure((await page.locator('.iqE-options .iqE-mark').count())===(await options.count()),'Options lack board marks');
-  ensure((await page.locator('[data-iq-option-end]').count())>=2,'Option arrows need their letter at the arrow end');
+  await noHints();
   ensure(await page.locator('canvas[data-iq-broadcast="true"]').count()===1,'The TV side view is the only view');
   ensure(await page.getByRole('button',{name:/^Widok /}).count()===0,'No view toggle');
   if(await page.getByText('Masz piłkę.',{exact:false}).count()) {
@@ -241,11 +267,11 @@ try {
   await page.screenshot({path:path.join(work,'IQ-64-KONTRA.png')});
   await page.getByRole('button',{name:'Jak grać',exact:true}).click();
   ensure(await page.locator('.iqE-sources a').count()>0,'Help sheet has no sources');
-  await fs.writeFile(path.join(work,'wynik-iq-learning.json'),JSON.stringify({views,errors,flow:'truthful start → option decisions beyond 3 → shot option → saved result → replay and seeking → independent variant → situation picker → sources'},null,2));
+  await fs.writeFile(path.join(work,'wynik-iq-learning.json'),JSON.stringify({views,errors,flow:'truthful start → no hints before decisions → tap decisions beyond 3 → other solution replay → shot by goal tap → saved result → replay and seeking → independent variant → situation picker → sources'},null,2));
   ensure(errors.length===0,JSON.stringify(errors));
   // With the 3D models blocked the lesson must not start on an empty pitch.
   const blocked = await browser.newPage({viewport:{width:390,height:700}, deviceScaleFactor:1});
-  await blocked.route('**/*.fbx', () => {});
+  await blocked.route(/\.(fbx|glb)(\?.*)?$/, () => {});
   await blocked.goto(url+'?position=goalkeeper');
   await blocked.waitForSelector('.iqE-start');
   await blocked.waitForTimeout(1500);
