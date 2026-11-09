@@ -1,5 +1,5 @@
 import { attackReplay } from "./attackReplay";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -36,7 +36,7 @@ import {
   keyMoment,
   momentRange,
 } from "./decisionAssessment";
-import { FootballIQJourney } from "./FootballIQJourney";
+import type { FootballIQJourney as ArchiveJourney } from "./FootballIQJourney";
 import { TacticalPitch } from "./TacticalPitch";
 import { advancedJourneyBank } from "./advancedJourneyBank";
 import { roleLabels, rolesForPosition } from "./journeyBank";
@@ -68,7 +68,11 @@ import type { JourneyChoice, JourneyDefinition, JourneyMode, JourneySession } fr
 import type { PlannedAction, Point } from "./types";
 import "./learning.css";
 
-type Props = React.ComponentProps<typeof FootballIQJourney>;
+type Props = React.ComponentProps<typeof ArchiveJourney>;
+// The archive of older attempts is opened rarely; load it on demand so it is not part of the IQ screen.
+const FootballIQJourney = lazy(() =>
+  import("./FootballIQJourney").then((module) => ({ default: module.FootballIQJourney })),
+);
 type Phase = "intro" | "decision" | "playing" | "feedback" | "summary";
 type Sheet = "help" | "roles" | "settings" | "history" | null;
 const EMPTY: PlannedAction[] = [];
@@ -461,7 +465,12 @@ export function LearningJourney(props: Props) {
       ? session.step + 1
       : Math.max(1, session.step);
 
-  if (archive) return <FootballIQJourney {...props} onBack={() => setArchive(false)} />;
+  if (archive)
+    return (
+      <Suspense fallback={<p role="status">Ładowanie archiwum…</p>}>
+        <FootballIQJourney {...props} onBack={() => setArchive(false)} />
+      </Suspense>
+    );
   const contextText = session.attack
     ? `${session.definition.context === 0 ? "78" : session.definition.context === 1 ? "54" : "82"}′ · ${(session.definition.context === 0 ? 1 : 0) + visibleHome}:${(session.definition.context === 2 ? 1 : 0) + visibleAway}`
     : session.definition.contextLabel.split(" · ").slice(0, 2).join(" · ");

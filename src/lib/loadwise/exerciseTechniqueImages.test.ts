@@ -25,9 +25,9 @@ describe("exercise technique images", () => {
     expect(count("sprint")).toBe(4);
   });
 
-  it("points every entry to an existing public PNG", () => {
+  it("points every entry to an existing public WebP image", () => {
     for (const image of EXERCISE_TECHNIQUE_IMAGES) {
-      expect(image.src).toBe(`/${image.category}/small/${image.exerciseId}.png`);
+      expect(image.src).toBe(`/${image.category}/small/${image.exerciseId}.webp`);
       expect(existsSync(join(process.cwd(), "public", image.src.slice(1)))).toBe(true);
     }
   });
