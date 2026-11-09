@@ -26,6 +26,7 @@ import {
   WebGLRenderer,
 } from "three";
 import { loadRunningModel, makeActor, PLAYER_HEIGHT } from "./mixamo";
+import { buildStadium } from "./stadium";
 import type { PlaybackFrame } from "./playback";
 import { BALL_RADIUS } from "./playback";
 import type { MatchPlayer, PlannedAction, Point } from "./types";
@@ -164,8 +165,14 @@ export async function createPitchScene(
     ownedGeometries.add(geometry);
     ground.add(new Line(geometry, goalPaint));
   }
+  // The TV view gets a real-looking stadium; the board view keeps its flat style.
+  const stadium = buildStadium(world, GOAL_HEIGHT);
+  stadium.group.visible = false;
+  scene.add(stadium.group);
   /** Board colours for the top view, natural grass and white paint for the TV side view. */
   const paintPitch = (tv: boolean) => {
+    ground.visible = !tv;
+    stadium.group.visible = tv;
     stripes.forEach((m, i) =>
       m.color.set(
         tv ? (i % 2 ? "#3f8a3c" : "#47963f") : i % 2 ? "#205347" : "#1c4e43",
@@ -173,7 +180,7 @@ export async function createPitchScene(
     );
     paint.color.set(tv ? "#f2f5ef" : "#c5dacb");
     paint.opacity = tv ? 0.85 : 0.6;
-    scene.background = new Color(tv ? "#1d2f24" : "#1b4a40");
+    scene.background = new Color(tv ? "#9fbfd8" : "#1b4a40");
     shadowMaterial.opacity = tv ? 0.34 : 0.24;
     if (tv) sun.position.set(70, 90, -25);
     else sun.position.set(-40, 90, 45);
@@ -450,6 +457,7 @@ export async function createPitchScene(
     renderer.domElement.removeEventListener("webglcontextlost", lost);
     ownedGeometries.forEach((g) => g.dispose());
     ownedMaterials.forEach((m) => m.dispose());
+    stadium.dispose();
     renderer.dispose();
     renderer.forceContextLoss();
     renderer.domElement.remove();
@@ -801,6 +809,7 @@ export async function createPitchScene(
     clearRoutes();
     ownedGeometries.forEach((g) => g.dispose());
     ownedMaterials.forEach((m) => m.dispose());
+    stadium.dispose();
     renderer.dispose();
     renderer.forceContextLoss();
     renderer.domElement.remove();
