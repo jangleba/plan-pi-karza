@@ -52,7 +52,7 @@ import { liveChoice as legacyChoice } from "./liveJourney";
 import { attackChoice } from "./attackJourney";
 const liveChoice: typeof legacyChoice = (s, ...args) =>
   s.rulesVersion === 9 ? attackChoice(s, ...args) : legacyChoice(s, ...args);
-import { lessonGoal, LIVE_BANK_VERSION, ATTACK_BANK_VERSION } from "./liveLesson";
+import { lessonGoal, LIVE_BANK_VERSION, ATTACK_BANK_VERSIONS } from "./liveLesson";
 import {
   createJourneyBackup,
   loadJourneyHistory,
@@ -97,7 +97,7 @@ function initial(props: Props) {
   if (!props.historyOwner) return fresh();
   try {
     const draft = loadJourneyDraft(props.historyOwner);
-    if (draft && [LIVE_BANK_VERSION, ATTACK_BANK_VERSION].includes(draft.bankVersion))
+    if (draft && [LIVE_BANK_VERSION, ...ATTACK_BANK_VERSIONS].includes(draft.bankVersion))
       return {
         session: restoreJourney(draft),
         mode: draft.mode,
@@ -109,7 +109,7 @@ function initial(props: Props) {
     return {
       ...fresh(),
       firstVisit: !loadJourneyHistory(props.historyOwner).some((r) =>
-        [LIVE_BANK_VERSION, ATTACK_BANK_VERSION].includes(r.bankVersion),
+        [LIVE_BANK_VERSION, ...ATTACK_BANK_VERSIONS].includes(r.bankVersion),
       ),
     };
   } catch {
@@ -1014,7 +1014,7 @@ export function LearningJourney(props: Props) {
                     <div className="iqE-role-list">
                       {rows
                         .filter((r) =>
-                          [LIVE_BANK_VERSION, ATTACK_BANK_VERSION].includes(r.bankVersion),
+                          [LIVE_BANK_VERSION, ...ATTACK_BANK_VERSIONS].includes(r.bankVersion),
                         )
                         .slice(-20)
                         .reverse()

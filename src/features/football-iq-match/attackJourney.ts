@@ -40,6 +40,7 @@ const angle = (a: Point, b: Point) => Math.atan2(b.x - a.x, b.y - a.y);
 export function createAttackJourney(def: JourneyDefinition): JourneySession {
   const s = createTacticalJourney(def, 7);
   s.rulesVersion = 9;
+  s.attackRevision = 2;
   s.attack = { elapsed: 0, home: 0, away: 0, shots: 0 };
   if (def.role === "wing" && def.concept === "third-player") {
     const points: Record<string, Point> = {
@@ -292,6 +293,51 @@ function laneScore(
   );
   return Math.min(12, nearest) + Math.min(12, pressure(s, to, team));
 }
+/** Highest ball (pitch units) an outfield player reaches with the head; rules v9 rev. 2. */
+const HEADER_REACH = 3.1;
+/** Above this, a contact is a header rather than a chest or foot touch. */
+export const HEADER_HEIGHT = 2.3;
+/** Clearance of the ground lane, ignoring the rival who presses the passer. */
+function groundLane(
+  s: JourneySession,
+  from: Point,
+  to: Point,
+  team: "home" | "away",
+) {
+  return Math.min(
+    25,
+    ...s.players
+      .filter(
+        (p) => p.team !== team && distance(s.world.positions[p.id], from) > 3,
+      )
+      .map((p) => {
+        const line = segment(s.world.positions[p.id], from, to);
+        return line.t > 0.1 && line.t < 0.9 ? line.gap : 25;
+      }),
+  );
+}
+/** Wide in the final third, where a cross is the natural next ball. */
+function crossingZone(at: Point, team: "home" | "away") {
+  const deep = team === "home" ? at.y < 38 : at.y > 102;
+  return deep && Math.abs(at.x - 50) > 24;
+}
+function inBox(at: Point, team: "home" | "away") {
+  return Math.abs(at.x - 50) < 21 && (team === "home" ? at.y < 24 : at.y > 116);
+}
+/** How a partner plays the ball (rules v9 rev. 2): long balls in the air,
+ * a chip over a rival who blocks the lane, a cross from wide. */
+export function naturalDelivery(
+  s: JourneySession,
+  from: Point,
+  to: Point,
+  team: "home" | "away",
+): BallDelivery {
+  if (crossingZone(from, team) && inBox(to, team)) return "cross";
+  const length = distance(from, to);
+  if (length > 34) return "lofted";
+  if (length >= 12 && groundLane(s, from, to, team) < 2) return "chip";
+  return "ground";
+}
 export function attackOpenings(s: JourneySession) {
   if (teamOf(s, s.world.carrierId) !== "home") return 0;
   return s.players.filter(
@@ -346,6 +392,8 @@ export function chooseAttackJourney(
     actor = choiceId.split(":")[1];
   const team = teamOf(s, actor),
     ownAtStart = before.carrierId === actor && !before.looseBall;
+  // Actions saved before revision 2 replay with their original rules.
+  const aerial = s.attackRevision === 2;
   const frames: NonNullable<JourneyBeat["live"]> = [],
     events: NonNullable<JourneyBeat["events"]> = [];
   const event = (
@@ -367,7 +415,7 @@ export function chooseAttackJourney(
   let ball = { ...(s.world.looseBall ?? s.world.positions[s.world.carrierId]) },
     height = BALL_REST_HEIGHT,
     flight: Flight | null = null;
-  let kick: { actor: string; time: number } | undefined,
+  let kick: { actor: string; time: number; delivery: BallDelivery } | undefined,
     loss = false,
     offsideCall = false,
     offsider: { id: string; passer: string } | undefined,
@@ -404,7 +452,7 @@ export function chooseAttackJourney(
       offside: !!receiver && offside(s, id, receiver),
       shot,
     };
-    kick = { actor: id, time: t };
+    kick = { actor: id, time: t, delivery };
     delete s.world.looseBall;
     if (shot) s.attack!.shots++;
     s.world.headings[id] = angle(from, to);
@@ -428,7 +476,15 @@ export function chooseAttackJourney(
       ball: { ...ball },
       height,
       inFlight: !!flight && time >= flight.start,
-      ...(kick ? { kicker: kick.actor, kickTime: kick.time } : {}),
+      ...(kick
+        ? {
+            kicker: kick.actor,
+            kickTime: kick.time,
+            ...(kick.delivery !== "ground"
+              ? { kickDelivery: kick.delivery }
+              : {}),
+          }
+        : {}),
     });
   const ownDelay = c.timing === "delay" ? 0.65 : 0;
   let ownPassStarted = false;
@@ -719,7 +775,7 @@ export function chooseAttackJourney(
         .map((p) => ({ p, d: distance(s.world.positions[p.id], ball) }))
         .filter(
           ({ d, p }) =>
-            height < (p.goalkeeper ? 3.4 : 2.3) &&
+            height < (p.goalkeeper ? 3.4 : aerial ? HEADER_REACH : 2.3) &&
             d < (p.goalkeeper ? 2.15 : 1.6) &&
             progress > 0.08 &&
             (!f.shot || p.team !== teamOf(s, f.actor)),
@@ -740,7 +796,9 @@ export function chooseAttackJourney(
               ? "Bramkarz broni i przejmuje piłkę. Akcja trwa — przejdź do obrony."
               : f.shot
                 ? `Nr ${contact.number} blokuje strzał.`
-                : `Nr ${contact.number} przecina tor podania, zanim piłka dociera do celu.`,
+                : height > HEADER_HEIGHT
+                  ? `Nr ${contact.number} wybija piłkę głową.`
+                  : `Nr ${contact.number} przecina tor podania, zanim piłka dociera do celu.`,
             f.shot && contact.goalkeeper
               ? "save"
               : f.shot
@@ -754,7 +812,9 @@ export function chooseAttackJourney(
           completedPass = true;
           event(
             t,
-            `Nr ${contact.number} dochodzi do piłki. Sprawdź jego kolejną opcję.`,
+            height > HEADER_HEIGHT
+              ? `Nr ${contact.number} zgrywa piłkę głową.`
+              : `Nr ${contact.number} dochodzi do piłki. Sprawdź jego kolejną opcję.`,
             "reception",
             contact.id,
             f.actor,
@@ -889,12 +949,31 @@ export function chooseAttackJourney(
               distance(at, target) * 0.12
             );
           };
-          const receiver = options.sort((a, b) => score(b.id) - score(a.id))[0];
-          if (receiver && score(receiver.id) > 10) {
+          // Rev. 2: from wide in the final third, cross to the freest runner in the box.
+          const crossTo =
+            aerial && crossingZone(at, ownerTeam)
+              ? options
+                  .filter((p) => inBox(s.world.positions[p.id], ownerTeam))
+                  .map((p) => ({
+                    p,
+                    space: pressure(s, s.world.positions[p.id], ownerTeam),
+                  }))
+                  .filter((r) => r.space >= 2.5)
+                  .sort((a, b) => b.space - a.space)[0]?.p
+              : undefined;
+          const receiver =
+            crossTo ?? options.sort((a, b) => score(b.id) - score(a.id))[0];
+          if (receiver && (crossTo || score(receiver.id) > 10)) {
             const target = s.world.positions[receiver.id],
               v = velocity[receiver.id];
             const lead = bound(target.x + v.x * 0.35, target.y + v.y * 0.35);
-            flight = startPass(owner, lead, receiver.id, "ground", t);
+            flight = startPass(
+              owner,
+              lead,
+              receiver.id,
+              aerial ? naturalDelivery(s, at, lead, ownerTeam) : "ground",
+              t,
+            );
             autoPassed = true;
             lastAuto = t;
             finishAt = Math.max(finishAt, flight.end + 0.3);

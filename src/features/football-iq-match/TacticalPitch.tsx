@@ -110,6 +110,7 @@ function TacticalScenePitch({
   const highlightLabels = useRef(new Map<number, HTMLDivElement>());
   const playerLabels = useRef(new Map<string, HTMLButtonElement>());
   const routeLabels = useRef(new Map<string, HTMLSpanElement>());
+  const optionMarks = useRef(new Map<string, HTMLSpanElement>());
   const destinationLabels = useRef(new Map<string, HTMLButtonElement>());
   const labelLeaders = useRef(new Map<string, SVGLineElement>());
   const destinationDots = useRef(new Map<string, SVGCircleElement>());
@@ -306,6 +307,13 @@ function TacticalScenePitch({
       }
     });
     state.actions.forEach((action) => {
+      const mark = optionMarks.current.get(action.id);
+      if (mark) {
+        // The letter sits just past the arrow tip, so short arrows stay readable.
+        const p = api.project(action.to, 0.2);
+        mark.style.left = `${p.x}px`;
+        mark.style.top = `${p.y}px`;
+      }
       const element = routeLabels.current.get(action.id);
       if (!element) return;
       const p = api.project(action.from, 0.2);
@@ -671,6 +679,23 @@ function TacticalScenePitch({
             >
               <span />
             </div>
+            {showGuidance &&
+              actions.map((action) =>
+                action.mark ? (
+                  <span
+                    key={`mark-${action.id}`}
+                    className="bwiq-option-end"
+                    data-iq-option-end={action.mark}
+                    style={{ background: action.analysisColor }}
+                    ref={(element) => {
+                      if (element) optionMarks.current.set(action.id, element);
+                      else optionMarks.current.delete(action.id);
+                    }}
+                  >
+                    {action.mark}
+                  </span>
+                ) : null,
+              )}
             {showGuidance &&
               showActionOrders &&
               actions.map((action, index) =>

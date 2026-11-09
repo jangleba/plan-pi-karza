@@ -205,6 +205,7 @@ try {
   await page.getByRole('button',{name:'Pokaż opcje',exact:true}).click();
   ensure((await options.count())>=2,'Options not revealed on demand');
   ensure((await page.locator('.iqE-options .iqE-mark').count())===(await options.count()),'Options lack board marks');
+  ensure((await page.locator('[data-iq-option-end]').count())>=2,'Option arrows need their letter at the arrow end');
   ensure(await page.locator('canvas[data-iq-broadcast="true"]').count()===1,'The TV side view is the only view');
   ensure(await page.getByRole('button',{name:/^Widok /}).count()===0,'No view toggle');
   if(await page.getByText('Masz piłkę.',{exact:false}).count()) {

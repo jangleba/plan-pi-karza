@@ -219,6 +219,7 @@ export function journeyDebrief(session: JourneySession): JourneyDebrief | null {
         }, 0);
   const decision = session.decisions[decisionIndex];
   let before = createJourneyForRules(session.definition, session.rulesVersion ?? 3);
+  if (session.attackRevision !== 2) delete before.attackRevision;
   for (const d of session.decisions.slice(0, decisionIndex))
     before = chooseJourney(before, d.choiceId, d.decisionSeconds);
   if (

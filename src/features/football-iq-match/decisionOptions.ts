@@ -2,7 +2,8 @@
  * Every option is a normal `attackChoice`, so playing it is identical to tapping
  * the same point on the pitch. Labels say only what to do.
  */
-import { attackChoice } from "./attackJourney";
+import { attackChoice, naturalDelivery } from "./attackJourney";
+import type { BallDelivery } from "./ballFlight";
 import { bound, distance, offside, pressure, segment, teamOf } from "./tacticalWorld";
 import type { JourneyChoice, JourneySession } from "./journeyTypes";
 import type { PlannedAction, Point } from "./types";
@@ -23,6 +24,7 @@ function choose(
   intent: Parameters<typeof attackChoice>[1],
   to: Point,
   targetId?: string,
+  delivery: BallDelivery = "ground",
 ) {
   const from = s.world.positions[s.controlledId ?? "you"];
   const d = distance(from, to);
@@ -33,7 +35,7 @@ function choose(
           y: from.y + ((to.y - from.y) * MAX_RUN) / d,
         }
       : to;
-  return attackChoice(s, intent, point, targetId);
+  return attackChoice(s, intent, point, targetId, delivery);
 }
 const number = (s: JourneySession, id: string) => s.players.find((p) => p.id === id)?.number ?? 0;
 
@@ -70,7 +72,11 @@ function laneSafety(s: JourneySession, from: Point, to: Point) {
   return { lane, space: Math.min(12, pressure(s, to, "home")) };
 }
 
-function passLabel(from: Point, to: Point, n: number) {
+function passLabel(from: Point, to: Point, n: number, delivery: BallDelivery = "ground") {
+  if (delivery === "cross") return `Dośrodkuj do ${n}`;
+  if (delivery === "chip") return `Podcinka nad rywalem do ${n}`;
+  if (delivery === "lofted")
+    return Math.abs(to.x - from.x) > 34 ? `Zmień stronę przerzutem do ${n}` : `Przerzut do ${n}`;
   if (Math.abs(to.x - from.x) > 34) return `Zmień stronę: podaj do ${n}`;
   if (to.y < from.y - 6) return `Podaj do ${n} do przodu`;
   if (to.y > from.y + 6) return `Podaj do ${n} do tyłu`;
@@ -125,11 +131,52 @@ function ownOptions(s: JourneySession, actor: string): DecisionOption[] {
         !offside(s, actor, r.p.id),
     )
     .sort((a, b) => a.to.y - b.to.y)[0];
-  for (const r of [best, risky, safest].filter(Boolean))
+  // Over the top: a forward receiver who is free but whose ground lane is shut.
+  const chip = !risky
+    ? candidates
+        .filter(
+          (r) =>
+            r !== best &&
+            r !== safest &&
+            !r.p.goalkeeper &&
+            r.lane < 1.5 &&
+            r.space >= 5 &&
+            r.to.y < at.y - 8 &&
+            distance(at, r.to) >= 12 &&
+            distance(at, r.to) <= 34 &&
+            !offside(s, actor, r.p.id),
+        )
+        .sort((a, b) => a.to.y - b.to.y)[0]
+    : undefined;
+  for (const r of [best, risky ?? chip, safest].filter(Boolean)) {
+    // A short risky pass stays on the ground: judging the tight lane is the point.
+    const delivery: BallDelivery =
+      r === chip
+        ? "chip"
+        : r === risky && distance(at, r.to) <= 34
+          ? "ground"
+          : naturalDelivery(s, at, r.to, "home");
     out.push({
       key: `pass-${r.p.id}`,
-      label: passLabel(at, r.to, r.p.number),
-      choice: choose(s, "pass", r.to, r.p.id),
+      label: passLabel(at, r.to, r.p.number, delivery),
+      choice: choose(s, "pass", r.to, r.p.id, delivery),
+    });
+  }
+  // From wide in the final third: cross to the freest partner in the box.
+  const cross = candidates
+    .filter(
+      (r) =>
+        !r.p.goalkeeper &&
+        naturalDelivery(s, at, r.to, "home") === "cross" &&
+        r.space >= 2.5 &&
+        !offside(s, actor, r.p.id),
+    )
+    .sort((a, b) => b.space - a.space)[0];
+  if (cross && !out.some((o) => o.key === `pass-${cross.p.id}`))
+    out.unshift({
+      key: `pass-${cross.p.id}`,
+      label: passLabel(at, cross.to, cross.p.number, "cross"),
+      choice: choose(s, "pass", cross.to, cross.p.id, "cross"),
     });
   if (at.y < 40 && !s.players.find((p) => p.id === actor)?.goalkeeper) {
     const keeper = s.players.find((p) => p.team === "away" && p.goalkeeper);
@@ -376,7 +423,8 @@ export function optionPaths(
 ): PlannedAction[] {
   return options.flatMap((o, i): PlannedAction[] => {
     if (selectedKey && o.key !== selectedKey) return [];
-    const path = choicePath(s, o.key, o.choice, OPTION_MARKS[i % OPTION_MARKS.length].color);
-    return path ? [path] : [];
+    const mark = OPTION_MARKS[i % OPTION_MARKS.length];
+    const path = choicePath(s, o.key, o.choice, mark.color);
+    return path ? [{ ...path, mark: mark.letter }] : [];
   });
 }

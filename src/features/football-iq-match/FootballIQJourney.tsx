@@ -387,11 +387,20 @@ export function FootballIQJourney({
   const currentChoices = useMemo(() => {
     if (!decision || view !== "review") return null;
     let base = createJourneyForRules(session.definition, session.rulesVersion ?? 3);
+    if (session.attackRevision !== 2) delete base.attackRevision;
     session.decisions.slice(0, reviewIndex).forEach((d) => {
       base = chooseJourney(base, d.choiceId, d.decisionSeconds);
     });
     return { base, step: journeyStep(base) };
-  }, [decision, view, session.definition, session.decisions, session.rulesVersion, reviewIndex]);
+  }, [
+    decision,
+    view,
+    session.definition,
+    session.decisions,
+    session.rulesVersion,
+    session.attackRevision,
+    reviewIndex,
+  ]);
   const reviewActions = useMemo<PlannedAction[]>(() => {
     if (view !== "review" || !decision || !currentChoices || transport) return EMPTY_ACTIONS;
     const c = comparing

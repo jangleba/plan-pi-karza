@@ -1,7 +1,15 @@
 import type { JourneySession } from "./journeyTypes";
 import { situationFor } from "./situationBank";
 
-export const ATTACK_BANK_VERSION = "2026-11-07.9";
+/** Rules v9 revision 2: partners cross, switch and chip; headers. */
+export const ATTACK_BANK_VERSION = "2026-11-09.10";
+/** Rules v9 before revision 2 (all partner passes on the ground). Still replayed. */
+export const ATTACK_BANK_VERSION_V9 = "2026-11-07.9";
+/** Every saved attack version that still replays. */
+export const ATTACK_BANK_VERSIONS: readonly string[] = [
+  ATTACK_BANK_VERSION,
+  ATTACK_BANK_VERSION_V9,
+];
 export const LIVE_BANK_VERSION = "2026-11-06.8";
 export function lessonGoal(s: JourneySession) {
   const situation = situationFor(s.definition);

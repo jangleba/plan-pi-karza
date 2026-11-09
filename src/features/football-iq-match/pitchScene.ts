@@ -1,6 +1,8 @@
 import {
-  ArrowHelper,
   BufferGeometry,
+  DoubleSide,
+  Fog,
+  Float32BufferAttribute,
   CircleGeometry,
   Color,
   DirectionalLight,
@@ -25,6 +27,7 @@ import {
   WebGLRenderer,
 } from "three";
 import { loadRunningModel, makeActor, PLAYER_HEIGHT } from "./mixamo";
+import { buildStadium } from "./stadium";
 import type { PlaybackFrame } from "./playback";
 import { BALL_RADIUS } from "./playback";
 import type { MatchPlayer, PlannedAction, Point } from "./types";
@@ -76,9 +79,11 @@ export async function createPitchScene(
   camera.position.copy(initialCenter).add(new Vector3(0, 170, 120));
   camera.lookAt(initialCenter);
   camera.updateMatrixWorld();
-  scene.add(new HemisphereLight("#eef6ff", "#536044", 2.5));
-  const sun = new DirectionalLight("#fff4df", 2.0);
-  sun.position.set(-40, 90, 45);
+  // Lower ambient fill and a stronger key light give the players shading
+  // and volume instead of a flat, cartoon-like look.
+  scene.add(new HemisphereLight("#e6eefa", "#3d4a34", 1.6));
+  const sun = new DirectionalLight("#fff1dc", 2.9);
+  sun.position.set(-55, 110, 30);
   scene.add(sun);
   const ownedGeometries = new Set<BufferGeometry>();
   const ownedMaterials = new Set<
@@ -163,8 +168,14 @@ export async function createPitchScene(
     ownedGeometries.add(geometry);
     ground.add(new Line(geometry, goalPaint));
   }
+  // The TV view gets a real-looking stadium; the board view keeps its flat style.
+  const stadium = buildStadium(world, GOAL_HEIGHT);
+  stadium.group.visible = false;
+  scene.add(stadium.group);
   /** Board colours for the top view, natural grass and white paint for the TV side view. */
   const paintPitch = (tv: boolean) => {
+    ground.visible = !tv;
+    stadium.group.visible = tv;
     stripes.forEach((m, i) =>
       m.color.set(
         tv ? (i % 2 ? "#3f8a3c" : "#47963f") : i % 2 ? "#205347" : "#1c4e43",
@@ -172,7 +183,9 @@ export async function createPitchScene(
     );
     paint.color.set(tv ? "#f2f5ef" : "#c5dacb");
     paint.opacity = tv ? 0.85 : 0.6;
-    scene.background = new Color(tv ? "#1d2f24" : "#1b4a40");
+    // Evening-broadcast surround: everything beyond the pitch fades to dark.
+    scene.background = new Color(tv ? "#1c2c20" : "#1b4a40");
+    scene.fog = tv ? new Fog("#1c2c20", 150, 360) : null;
     shadowMaterial.opacity = tv ? 0.34 : 0.24;
     if (tv) sun.position.set(70, 90, -25);
     else sun.position.set(-40, 90, 45);
@@ -180,7 +193,7 @@ export async function createPitchScene(
 
   const routes = new Group();
   scene.add(routes);
-  let routeObjects: ArrowHelper[] = [];
+  let routeObjects: Mesh<BufferGeometry, MeshBasicMaterial>[] = [];
   let previousRoutes: PlannedAction[] | null = null;
   const shadowGeometry = new CircleGeometry(2.0, 20);
   const shadowMaterial = new MeshBasicMaterial({
@@ -393,8 +406,52 @@ export async function createPitchScene(
     broadcastCamera.lookAt(followTarget);
     broadcastCamera.updateMatrixWorld();
   };
+  /** A flat, wide arrow on the grass: readable from the side camera, unlike 1 px lines. */
+  const routeArrow = (from: Vector3, to: Vector3, color: string) => {
+    const dir = to.clone().sub(from);
+    const length = dir.length();
+    dir.normalize();
+    const side = new Vector3(-dir.z, 0, dir.x);
+    const half = broadcast ? 0.42 : 0.5;
+    const headLength = Math.min(broadcast ? 2.6 : 3, length * 0.55);
+    const headHalf = broadcast ? 1.3 : 1.5;
+    const base = from.clone().addScaledVector(dir, length - headLength);
+    const v = (p: Vector3, k: number) => p.clone().addScaledVector(side, k);
+    const points = [
+      v(from, -half),
+      v(base, -half),
+      v(base, half),
+      v(from, -half),
+      v(base, half),
+      v(from, half),
+      v(base, -headHalf),
+      to.clone(),
+      v(base, headHalf),
+    ];
+    const geometry = new BufferGeometry();
+    geometry.setAttribute(
+      "position",
+      new Float32BufferAttribute(
+        points.flatMap((p) => [p.x, p.y, p.z]),
+        3,
+      ),
+    );
+    const material = new MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false,
+      side: DoubleSide,
+    });
+    const mesh = new Mesh(geometry, material);
+    mesh.renderOrder = 2;
+    return mesh;
+  };
   const clearRoutes = () => {
-    routeObjects.forEach((arrow) => arrow.dispose());
+    routeObjects.forEach((arrow) => {
+      arrow.geometry.dispose();
+      arrow.material.dispose();
+    });
     routeObjects = [];
     routes.clear();
   };
@@ -405,6 +462,7 @@ export async function createPitchScene(
     renderer.domElement.removeEventListener("webglcontextlost", lost);
     ownedGeometries.forEach((g) => g.dispose());
     ownedMaterials.forEach((m) => m.dispose());
+    stadium.dispose();
     renderer.dispose();
     renderer.forceContextLoss();
     renderer.domElement.remove();
@@ -447,11 +505,18 @@ export async function createPitchScene(
     const frame = currentFrame;
     actors.forEach((actor, id) => {
       const point = frame.positions.get(id)!;
-      actor.root.position.copy(world(point));
+      const motion = frame.motions.get(id)!;
+      // A header is a small jump to meet the ball.
+      const lift =
+        motion.state === "header"
+          ? Math.sin(Math.PI * Math.max(0, Math.min(1, motion.phase ?? 0))) *
+            0.9 *
+            scaleNow()
+          : 0;
+      actor.root.position.copy(world(point, lift));
       actor.root.scale.setScalar(scaleNow());
       actor.shadow.position.copy(world(point, 0.06));
       actor.shadow.scale.setScalar(markScale());
-      const motion = frame.motions.get(id)!;
       // Leg stride follows map distance at this display scale; field coordinates stay unchanged.
       actor.pose(
         scaleNow() === 1
@@ -671,10 +736,9 @@ export async function createPitchScene(
       actions.forEach((action) => {
         const delta = world(action.to).sub(world(action.from));
         if (delta.length() < 0.1) return;
-        const arrow = new ArrowHelper(
-          delta.clone().normalize(),
-          world(action.from, 0.12),
-          delta.length(),
+        const arrow = routeArrow(
+          world(action.from, 0.14),
+          world(action.to, 0.14),
           action.analysisColor ??
             (action.type === "shot"
               ? "#f3cf73"
@@ -683,8 +747,6 @@ export async function createPitchScene(
                 : ["cover", "mark", "press"].includes(action.type)
                   ? "#376951"
                   : "#347eb4"),
-          2.5,
-          1.25,
         );
         arrow.userData.actionId = action.id;
         routes.add(arrow);
@@ -698,13 +760,7 @@ export async function createPitchScene(
           ? 1
           : 0.24
         : 0.85;
-      for (const material of [
-        arrow.line.material,
-        arrow.cone.material,
-      ].flat()) {
-        material.transparent = true;
-        material.opacity = opacity;
-      }
+      arrow.material.opacity = opacity;
     });
     cue.visible = !!teachingPoint;
     if (teachingPoint) cue.position.copy(world(teachingPoint, 0.08));
@@ -758,6 +814,7 @@ export async function createPitchScene(
     clearRoutes();
     ownedGeometries.forEach((g) => g.dispose());
     ownedMaterials.forEach((m) => m.dispose());
+    stadium.dispose();
     renderer.dispose();
     renderer.forceContextLoss();
     renderer.domElement.remove();
