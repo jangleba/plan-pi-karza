@@ -10,6 +10,11 @@ import type {
 } from "./types";
 import { parseIso, isoDayOfWeek, dayName, addDays, isoDate } from "./labels";
 import { canonicalizeGeneratedExercise } from "./exerciseLibrary";
+import {
+  fitBallWorkToConditions,
+  footballConditions,
+  type FootballConditions,
+} from "./individualFootballSessionEngine";
 import { gymChangeBlockReason } from "./strengthScheduling";
 import { gymCooldown, mobilityCircuit } from "./recoveryContent";
 
@@ -205,7 +210,7 @@ const CANDIDATES: Candidate[] = [
   },
   {
     category: "ball",
-    title: "Własna technika z piłką + reakcja",
+    title: "Własna technika z piłką",
     sessionType: "Technika z piłką — własna sesja",
     intensity: "niska",
     intensityLabel: "niska",
@@ -216,13 +221,13 @@ const CANDIDATES: Candidate[] = [
       main: [
         {
           name: "Własny blok techniczny",
-          prescription: `${clampTime(30, timeMin)} min łącznie`,
-          cue: "Wybierz element, który chcesz poprawić: prowadzenie, pierwszy kontakt, zwód, podanie albo wykończenie.",
+          prescription: `${Math.max(5, Math.round((clampTime(30, timeMin) - 10) / 2))} min`,
+          cue: "Obie nogi, kontrola przed tempem.",
         },
         {
-          name: "Trener reakcji BallWise",
-          prescription: "Uruchamiaj w wybranych fragmentach",
-          cue: "Telefon pokazuje kierunek, kolor lub zamknięty sektor. Ty przypisujesz bodźcowi akcję z piłką.",
+          name: "Pierwszy kontakt i przyjęcie",
+          prescription: `${Math.max(5, Math.round((clampTime(30, timeMin) - 10) / 2))} min`,
+          cue: "Przyjęcie w kierunku kolejnego ruchu.",
         },
       ],
       accessory: [],
@@ -389,11 +394,25 @@ const CANDIDATES: Candidate[] = [
   },
 ];
 
-function makeSession(c: Candidate, ctx: DayContext, place: Place, timeMin: number): SessionDay {
+/** The place picked for today decides the space; a wall comes from the profile. */
+function conditionsAt(profile: Profile, place: Place): FootballConditions {
+  const declared = footballConditions(profile);
+  return place === "boisko"
+    ? { space: "pitch", wall: declared.wall, goal: true }
+    : { space: "small", wall: declared.wall, goal: false };
+}
+
+function makeSession(
+  c: Candidate,
+  ctx: DayContext,
+  profile: Profile,
+  place: Place,
+  timeMin: number,
+): SessionDay {
   const sections = c.build(place, timeMin);
   const canonicalize = (items: ExerciseItem[]) =>
     items.map((exercise) => canonicalizeGeneratedExercise(exercise));
-  return {
+  const session: SessionDay = {
     date: ctx.date,
     dayName: dayName(parseIso(ctx.date)),
     dayType: c.category === "recovery" ? "recovery" : "training",
@@ -422,6 +441,7 @@ function makeSession(c: Candidate, ctx: DayContext, place: Place, timeMin: numbe
     },
     secondSession: null,
   };
+  return fitBallWorkToConditions(session, profile, conditionsAt(profile, place));
 }
 
 // ---------- logika bezpieczeństwa ----------
@@ -569,7 +589,7 @@ export function buildProposals(
     category: c.category,
     reason: c.reason,
     type: choice,
-    session: makeSession(c, ctx, place, timeMin),
+    session: makeSession(c, ctx, profile, place, timeMin),
   }));
 
   const spacingBlocks: BlockedProposal[] = [];

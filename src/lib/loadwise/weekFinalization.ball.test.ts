@@ -77,7 +77,7 @@ describe("week finalization — własna piłka", () => {
     expect(countBallSessions(completeWeekWithoutBall())).toBe(0);
   });
 
-  it("dodaje 30-minutową własną sesję z przyciskiem Trenera reakcji", () => {
+  it("dodaje 30-minutową własną sesję z piłką; Trener reakcji to przycisk sesji, nie ćwiczenie", () => {
     const p = profile();
     const week = completeWeekWithoutBall();
     const requirements = calculateWeeklyMinimumRequirements(
@@ -91,7 +91,9 @@ describe("week finalization — własna piłka", () => {
     const ball = week.flatMap((entry) => [entry, ...(entry.secondSession ? [entry.secondSession] : [])])
       .find((entry) => entry.classification?.subcategory === "ball_technical");
     expect(ball?.durationMin).toBe(30);
-    expect(ball?.sections.main.some((item) => item.name.includes("Trener reakcji"))).toBe(true);
+    // generatePlan swaps these blocks for solo drills that fit the athlete's space.
+    expect(ball?.sections.main.map((item) => item.prescription)).toEqual(["12 min", "12 min"]);
+    expect(ball?.sections.main.some((item) => item.name.includes("Trener reakcji"))).toBe(false);
   });
 
   it("finalny gate wymaga własnej piłki nawet gdy w tygodniu jest klub", () => {

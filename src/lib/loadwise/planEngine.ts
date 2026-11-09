@@ -26,6 +26,7 @@ import {
   type GymWeekPhase,
 } from "./strengthBlocks";
 import { enforceSessionCategory, newContentCounters, type ContentCounters } from "./sessionContent";
+import { fitBallWorkToConditions } from "./individualFootballSessionEngine";
 import { effectiveSeasonPhase } from "./seasonValidation";
 import { normalizeSessionCategory, classifySession } from "./sessionClassification";
 import { repairUnsafeExercisesForAthleteProfile } from "./athleteProfileRepair";
@@ -3381,6 +3382,13 @@ function applyRuleBasedWeekLayer(
 
 /** Główny generator — zwraca bezpieczny plan miesięczny (domyślnie 28 dni) od dziś. */
 
+/** Ball blocks in both slots follow the athlete's declared pitch, wall and goal. */
+function fitDayBallWork(day: SessionDay, profile: Profile): SessionDay {
+  const fitted = fitBallWorkToConditions(day, profile);
+  const second = day.secondSession ? fitBallWorkToConditions(day.secondSession, profile) : day.secondSession;
+  return second === fitted.secondSession ? fitted : { ...fitted, secondSession: second };
+}
+
 export function generatePlan(
   rawProfile: Profile,
   start?: Date,
@@ -4229,7 +4237,7 @@ export function generatePlan(
     rawProfile,
   );
   const constrainedPlan = enforceFinalPlanPolicy(methodPlan, rawProfile).map((day) =>
-    alignSessionTitleWithContent(day, rawProfile),
+    alignSessionTitleWithContent(fitDayBallWork(day, rawProfile), rawProfile),
   );
   for (const range of metadataRanges) {
     const week = constrainedPlan.slice(range.start, range.end);

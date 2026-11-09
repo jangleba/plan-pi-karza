@@ -36,6 +36,7 @@ const CASES: Array<[string, string]> = [
   ["Interwały biegowe kontrolowane", "Bieg: interwały"],
   ["Test biegowy 5 min", "Bieg: test 5 min"],
   ["Własna technika z piłką + reakcja", "Piłka: technika"],
+  ["Własna technika z piłką", "Piłka: technika"],
   ["Technika i decyzje z piłką", "Piłka: technika"],
   ["Lekka technika piłkarska", "Piłka: lekka technika"],
   ["Piłka: bramkarz solo", "Piłka: bramkarz"],

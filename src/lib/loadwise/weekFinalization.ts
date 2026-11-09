@@ -1193,7 +1193,7 @@ function buildBallSessionDay(
     date: templateDay.date,
     dayName: templateDay.dayName || dayNameOf(parseIso(templateDay.date)),
     dayType: "training" as DayType,
-    title: "Własna technika z piłką + reakcja",
+    title: "Własna technika z piłką",
     goalLabel: "Piłka",
     intensity: "niska",
     durationMin: 30,
@@ -1202,7 +1202,7 @@ function buildBallSessionDay(
     whyToday: placementReason,
     sessionType: "Technika z piłką — własna sesja",
     goalOfSession:
-      "Minimum 30 minut własnej pracy z piłką. Zawodnik wybiera ćwiczenia, a Trener reakcji dostarcza bodźce wizualne.",
+      "Minimum 30 minut własnej pracy z piłką, dopasowanej do miejsca, w którym trenujesz.",
     riskManaged:
       "Niska intensywność planowana wokół stałych punktów tygodnia; bez automatycznej oceny jakości wykonania.",
     avoidToday:
@@ -1220,13 +1220,13 @@ function buildBallSessionDay(
       main: [
         {
           name: "Własny blok techniczny",
-          prescription: "Łącznie minimum 30 min sesji",
-          cue: "Wybierz element, który chcesz poprawić: prowadzenie, pierwszy kontakt, zwód, podanie albo wykończenie.",
+          prescription: "12 min",
+          cue: "Obie nogi, kontrola przed tempem.",
         },
         {
-          name: "Trener reakcji BallWise",
-          prescription: "Uruchamiaj w wybranych fragmentach",
-          cue: "Telefon pokazuje kierunek, kolor lub zamknięty sektor. Ty przypisujesz bodźcowi konkretną akcję z piłką.",
+          name: "Pierwszy kontakt i przyjęcie",
+          prescription: "12 min",
+          cue: "Przyjęcie w kierunku kolejnego ruchu.",
         },
       ],
       accessory: [],
