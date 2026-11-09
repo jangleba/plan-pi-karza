@@ -124,6 +124,38 @@ export const fieldTasks: Record<string, string[]> = {
     "W chwili podania bądź najdalej na linii przedostatniego rywala i ruszaj za obrońców.",
     "Gdy obrońcy stoją wysoko, raz w akcji wbiegnij za ich plecy.",
   ],
+  "gk-middle": [
+    "Gdy napastnicy rywala wychodzą do stoperów, zagraj do szóstki między nimi.",
+    "Przed podaniem sprawdź, który partner stoi za pierwszą linią pressingu.",
+  ],
+  "gk-channel": [
+    "Gdy rywal może zagrać w kanał między stoperem a bocznym, wyjdź przed bramkę w stronę tego kanału.",
+    "Przy wysokiej linii obrony stań tak, by zdążyć do podania za plecy obrońców.",
+  ],
+  "cb-cover": [
+    "Gdy boczny obrońca doskakuje do skrzydłowego, przesuń się w stronę jego miejsca za nim.",
+    "Asekurując partnera, stój między nim a bramką, nie w jednej linii z nim.",
+  ],
+  "six-cover": [
+    "Gdy stoper wychodzi do rywala, zajmij jego miejsce w linii obrony.",
+    "Po wyjściu stopera zamknij podanie do napastnika za jego plecami.",
+  ],
+  "cb-delay": [
+    "Sam przeciw dwóm: cofaj się i zamykaj podanie do drugiego rywala, nie doskakuj.",
+    "Opóźniaj kontrę, aż wróci partner i będzie dwóch na dwóch.",
+  ],
+  "six-delay": [
+    "Po stracie, gdy jesteś blisko rywala z piłką, doskocz od razu i zamknij mu drogę do przodu.",
+    "Gdy jesteś dalej od piłki, cofaj się i zamknij podanie do napastnika rywala.",
+  ],
+  "wing-behind": [
+    "Gdy boczny obrońca wychodzi do Ciebie, wbiegnij za jego plecy w chwili podania.",
+    "Startuj z linii przedostatniego rywala, żeby nie być na spalonym.",
+  ],
+  "ten-behind": [
+    "Gdy napastnik ściąga stoperów, wbiegnij w lukę za nimi z drugiej linii.",
+    "Ruszaj w chwili podania, z linii przedostatniego rywala.",
+  ],
   "third-player": [
     "Po podaniu od razu ruszaj w nowe wolne miejsce, żeby dostać piłkę od trzeciego.",
     SPACE,

@@ -65,6 +65,14 @@ const SITUATION_AIMS: Record<string, LessonAim> = {
   "wing-press": "close-lane",
   "nine-press": "press",
   "nine-depth": "run-behind",
+  "gk-middle": "progress",
+  "gk-channel": "sweep",
+  "cb-cover": "cover",
+  "six-cover": "cover",
+  "cb-delay": "delay",
+  "six-delay": "delay",
+  "wing-behind": "run-behind",
+  "ten-behind": "run-behind",
 };
 
 export function lessonAim(def: JourneyDefinition): LessonAim {

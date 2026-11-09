@@ -9,7 +9,7 @@ import {
 } from "../football-iq-match/journeyHistory";
 import type { JourneyAttempt } from "../football-iq-match/journeyTypes";
 import { fieldTaskKey, loadFieldTask } from "../football-iq-match/fieldTask";
-import { loadMastery, masteryKey } from "../football-iq-match/mastery";
+import { loadMastery, masteryKey } from "../football-iq-match/masteryStore";
 import { loadBrowserResults } from "../browser-lab/storage";
 import {
   loadReactiveCustomSets,

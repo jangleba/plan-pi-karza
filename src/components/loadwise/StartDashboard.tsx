@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CalendarDays, Check, Move, ScanLine, Target } from "lucide-react";
+import { Brain, CalendarDays, Check, Move, ScanLine, Target } from "lucide-react";
 import { TodaySessionCard } from "./TodaySessionCard";
 import type { SessionDay, SessionCompletion } from "@/lib/loadwise/types";
 import { PageHeader } from "./PageHeader";
@@ -22,6 +22,7 @@ export function StartDashboard({
   onPrepareLab,
   onPrepareReaction,
   iqTask,
+  iqGoal,
 }: {
   name: string;
   avatar: ReactNode;
@@ -41,6 +42,8 @@ export function StartDashboard({
   onPrepareReaction?: () => void;
   /** Open "on the pitch" task from the last Football IQ action. */
   iqTask?: { text: string; onDone: () => void };
+  /** The Football IQ aim the player is weakest at, from their own graded decisions. */
+  iqGoal?: { label: string; percent: number; onOpen: () => void };
 }) {
   return (
     <main className="bw-home-compact">
@@ -84,6 +87,18 @@ export function StartDashboard({
           </span>
           <button type="button" onClick={iqTask.onDone}>
             Zrobione
+          </button>
+        </section>
+      )}
+      {iqGoal && (
+        <section className="bw-home-iq-task" aria-label="Twój cel w Football IQ">
+          <Brain size={18} aria-hidden="true" />
+          <span>
+            <small>Twój cel IQ · {iqGoal.percent}% dobrych decyzji</small>
+            <strong>{iqGoal.label}</strong>
+          </span>
+          <button type="button" onClick={iqGoal.onOpen}>
+            Ćwicz
           </button>
         </section>
       )}

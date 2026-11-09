@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { execFileSync } from "node:child_process";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import {
@@ -7,11 +8,21 @@ import {
   attachOptionalClips,
   readAnimationFile,
   makeActor,
+  parseRunningModel,
   prepareAdditionalClip,
   prepareRunningModel,
   PLAYER_HEIGHT,
 } from "./mixamo";
-import { AnimationClip, Bone, Group, QuaternionKeyframeTrack, Vector3 } from "three";
+import {
+  AnimationClip,
+  AnimationMixer,
+  Bone,
+  Group,
+  Mesh,
+  QuaternionKeyframeTrack,
+  SkinnedMesh,
+  Vector3,
+} from "three";
 import type { AerialCalibration } from "./aerialClips";
 import type { RunningModel } from "./mixamo";
 import {
@@ -27,13 +38,21 @@ import {
 import type { Scenario } from "./types";
 
 let asset: RunningModel;
-beforeAll(() => {
-  const bytes = fs.readFileSync(new URL("./assets/running.fbx", import.meta.url));
-  const model = new FBXLoader().parse(
-    bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
-    "",
-  );
-  asset = prepareRunningModel(model);
+const readModel = (name: string) => {
+  const bytes = fs.readFileSync(new URL(`./assets/${name}`, import.meta.url));
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+};
+const triangles = (model: Group) => {
+  let n = 0;
+  model.traverse((o) => {
+    if (o instanceof Mesh)
+      n += (o.geometry.index?.count ?? o.geometry.attributes.position.count) / 3;
+  });
+  return n;
+};
+beforeAll(async () => {
+  // The tests use the model the app ships (running.glb), not the licensed FBX source.
+  asset = prepareRunningModel(await parseRunningModel(readModel("running.glb")));
   const passBytes = fs.readFileSync(new URL("./assets/soccer-pass.fbx", import.meta.url));
   const passModel = new FBXLoader().parse(
     passBytes.buffer.slice(passBytes.byteOffset, passBytes.byteOffset + passBytes.byteLength),
@@ -52,6 +71,62 @@ beforeAll(() => {
     "",
   );
   asset.clips.walking = prepareAdditionalClip(walkModel, asset.model, "walking");
+});
+
+describe("light running model shipped with the app", () => {
+  it("keeps the skeleton, the running clip and the height of the FBX source", async () => {
+    const source = new FBXLoader().parse(readModel("running.fbx"), "");
+    const light = await parseRunningModel(readModel("running.glb"));
+    // The source has a second, same-named skeleton for the joint mesh; GLTF numbers it (_1).
+    const bones = (model: Group) => {
+      const names: string[] = [];
+      model.traverse((o) => {
+        if (o instanceof Bone) names.push(o.name.replace(/_\d+$/, ""));
+      });
+      return names.sort();
+    };
+    expect(bones(light)).toEqual(bones(source));
+    // Both meshes move exactly as in the source while running.
+    const hands = (model: Group) => {
+      const clip = model.animations.find((c) => c.duration > 0 && c.tracks.length > 0)!;
+      const mixer = new AnimationMixer(model);
+      mixer.clipAction(clip).play();
+      mixer.update(0.3);
+      model.updateMatrixWorld(true);
+      const out: number[] = [];
+      model.traverse((o) => {
+        if (o instanceof SkinnedMesh)
+          out.push(
+            ...o.skeleton.bones
+              .find((b) => /^mixamorigLeftHand(_\d+)?$/.test(b.name))!
+              .getWorldPosition(new Vector3())
+              .toArray(),
+          );
+      });
+      return out;
+    };
+    const a = hands(light),
+      b = hands(new FBXLoader().parse(readModel("running.fbx"), ""));
+    expect(a).toHaveLength(b.length);
+    a.forEach((v, i) => expect(v).toBeCloseTo(b[i], 1));
+    const tracks = (model: Group) =>
+      model.animations
+        .find((clip) => clip.duration > 0 && clip.tracks.length > 0)!
+        .tracks.map((t) => t.name)
+        .sort();
+    expect(tracks(light)).toEqual(tracks(source));
+    const full = prepareRunningModel(source);
+    expect(asset.scale).toBeCloseTo(full.scale, 2);
+    expect(asset.running.duration).toBeCloseTo(full.running.duration, 3);
+    // 22 players on a phone: about a tenth of the source triangles.
+    expect(triangles(asset.model)).toBeLessThan(triangles(full.model) * 0.12);
+  });
+
+  it("is up to date with its FBX source", () => {
+    execFileSync(process.execPath, ["scripts/prepare-iq-clips.mjs", "--check"], {
+      stdio: "pipe",
+    });
+  }, 60_000);
 });
 
 describe("actual Mixamo asset", () => {
