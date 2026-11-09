@@ -253,7 +253,7 @@ export function getExerciseSafetyProfile(
     (a.gymExperienceLevel === "intermediate" || a.gymExperienceLevel === "advanced");
 
   // Plyo
-  let maxPlyoLevel = 1;
+  let maxPlyoLevel: number;
   if (!restrict) {
     if (a.gymExperienceLevel === "advanced") maxPlyoLevel = 4;
     else if (a.gymExperienceLevel === "intermediate") maxPlyoLevel = 3;

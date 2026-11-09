@@ -629,7 +629,7 @@ export function applyReadiness(
   const painOverride = profile.painInjury || dailyPain;
 
   let factor = 1;
-  let adjustment: string | null = null;
+  let adjustment: string | null;
   let removeHard = false;
   let keepIntensity = false;
   let recoveryOnly = false;

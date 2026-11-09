@@ -170,9 +170,7 @@ function moveAssessment(s: JourneySession, p: Point, intent: TacticalIntent) {
   repositionWorld(predicted, 0.65, follow);
   const room = pressure(predicted, p, team),
     gain = teamOf(s, holder) === team ? teamOpenings(predicted) - teamOpenings(s) : 0;
-  let quality: JourneyQuality = "possible",
-    why =
-      "Ta pozycja zmienia układ, ale nie daje automatycznej przewagi ani prawa do otrzymania piłki.";
+  let quality: JourneyQuality, why: string;
   if (intent === "decoy") {
     quality = gain > 0 ? "good" : distance(from, p) < 2 ? "error" : "possible";
     why =

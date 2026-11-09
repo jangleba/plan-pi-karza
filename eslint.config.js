@@ -27,6 +27,15 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // Reguły React Compilera z eslint-plugin-react-hooks 7, których obecny kod
+      // jeszcze nie spełnia (ok. 120 miejsc). Wyłączone do osobnego refaktoru,
+      // żeby aktualizacja narzędzi nie zmieniała zachowania ekranów.
+      "react-hooks/refs": "off",
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/globals": "off",
+      "react-hooks/purity": "off",
+      "react-hooks/immutability": "off",
+      "react-hooks/use-memo": "off",
       "no-restricted-imports": [
         "error",
         {
