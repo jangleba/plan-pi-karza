@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play, RotateCcw } from "lucide-react";
 import { formatRestTime, parseRestDuration } from "@/lib/loadwise/restTimer";
+import { vibrate } from "@/lib/haptics";
 import "./sprint-session.css";
 
 export function SprintRestTimer({
@@ -54,6 +55,8 @@ export function SprintRestTimer({
     function update() {
       const next = Math.max(0, Math.ceil(((deadline.current ?? Date.now()) - Date.now()) / 1000));
       if (next === 0) {
+        // Buzz once when the rest ends, so the athlete can put the phone down.
+        if (deadline.current !== null) vibrate([200, 100, 200]);
         setRunning(false);
         setRemaining(null);
         setFinished(true);

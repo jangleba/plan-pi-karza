@@ -43,6 +43,7 @@ import {
 } from "@/lib/reactive-training/storage";
 import { deliverExportFile } from "@/lib/loadwise/deliverExportFile";
 import { ReactiveClock } from "@/lib/reactive-training/clock";
+import { vibrate } from "@/lib/haptics";
 import type {
   ReactiveColor,
   ReactiveCue,
@@ -586,7 +587,7 @@ function ReactiveTrainerSession({ storageKey, onBack }: ReactiveTrainerProps) {
       const nextStats = recordReactiveCue(statsRef.current, next);
       statsRef.current = nextStats;
       setStats(nextStats);
-      if (normalized.vibration && typeof navigator.vibrate === "function") navigator.vibrate(60);
+      if (normalized.vibration) vibrate(60);
       if (normalized.mode === "flash") {
         if (flashTimer !== undefined) {
           window.clearTimeout(flashTimer);
