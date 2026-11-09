@@ -883,3 +883,10 @@ body.iq-learning-focus .app-shell {
 .iqE-role-list button .iqE-progress--mastered {
   color: #2f8a52;
 }
+/* Start screen: one line and the Start button; rules and mode live in the help sheet. */
+.iqE-app .iqE-start-line {
+  margin: 2px 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--iq-ink);
+}

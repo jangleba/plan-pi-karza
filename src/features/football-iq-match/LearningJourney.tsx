@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { decisionOptions, OPTION_MARKS, optionPaths, situationLine } from "./decisionOptions";
-import { momentLabel, momentOf, nextContext, pickerItems, startLines } from "./journeyGuide";
+import { momentLabel, nextContext, pickerItems, startLine, startLines } from "./journeyGuide";
 import { loadFieldTask, pickFieldTask, saveFieldTask, type FieldTask } from "./fieldTask";
 import {
   qualityLabels,
@@ -671,32 +671,8 @@ export function LearningJourney(props: Props) {
           </div>
         )}
         {phase === "intro" ? (
-          <section className="iqE-start" aria-label="Jak przebiega lekcja">
-            <span className="iqE-eyebrow">
-              {momentLabel(momentOf(session.definition))} ·{" "}
-              {transfer ? "nowy układ" : session.definition.contextLabel}
-            </span>
-            <ol className="iqE-steps">
-              {startLines(session, mode).map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ol>
-            <div className="iqE-intro-options">
-              <button
-                type="button"
-                aria-pressed={mode === "learn"}
-                onClick={() => setMode("learn")}
-              >
-                Nauka z opcjami
-              </button>
-              <button
-                type="button"
-                aria-pressed={mode === "challenge"}
-                onClick={() => setMode("challenge")}
-              >
-                Samodzielnie
-              </button>
-            </div>
+          <section className="iqE-start" aria-label="Start akcji">
+            <p className="iqE-start-line">{startLine(session)}</p>
             <button
               type="button"
               className="iqE-primary"
@@ -1098,6 +1074,24 @@ export function LearningJourney(props: Props) {
         {sheet === "help" && (
           <>
             <h2>Jak grać</h2>
+            <div className="iqE-intro-options" role="group" aria-label="Tryb gry">
+              <button
+                type="button"
+                aria-pressed={mode === "learn"}
+                disabled={phase !== "intro"}
+                onClick={() => setMode("learn")}
+              >
+                Z podpowiedziami
+              </button>
+              <button
+                type="button"
+                aria-pressed={mode === "challenge"}
+                disabled={phase !== "intro"}
+                onClick={() => setMode("challenge")}
+              >
+                Samodzielnie
+              </button>
+            </div>
             <ol className="iqE-steps">
               {startLines(session, mode).map((line) => (
                 <li key={line}>{line}</li>

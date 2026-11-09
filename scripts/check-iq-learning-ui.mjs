@@ -113,9 +113,10 @@ try {
     await page.mouse.click(at.x,at.y);
   };
   const start = page.getByRole('button',{name:'Start',exact:true});
-  const steps = await page.locator('.iqE-start .iqE-steps li').allInnerTexts();
-  ensure(steps.length===4,'Start instruction should have four lines');
-  ensure(/Na starcie (masz piłkę|piłkę ma (partner|rywal) \d+)/.test(steps[0]),'Start instruction does not name the ball carrier');
+  // Start screen is one line and the Start button: rules and mode live in the help sheet.
+  const startText = await page.locator('.iqE-start').innerText();
+  ensure(/^Jesteś nr \d+(\. Piłkę ma (partner|rywal) \d+\.| i masz piłkę\.|\. Piłka jest wolna\.)/.test(startText),'Start line does not name TY and the ball carrier');
+  ensure(await page.locator('.iqE-start button').count()===1,'Start screen should have only the Start button');
   await start.waitFor({state:'visible'});
   await page.waitForFunction(()=>!document.querySelector('.iqE-loading'));
   for (const [width,height] of [[390,700],[390,560],[375,667],[844,390]]) {

@@ -35,6 +35,20 @@ export function startLines(s: JourneySession, mode: JourneyMode): string[] {
   ];
 }
 
+/** The only line on the start screen: who TY is and who has the ball. */
+export function startLine(s: JourneySession): string {
+  const you = s.players.find((p) => p.id === "you")!;
+  const carrier = s.players.find((p) => p.id === s.world.carrierId)!;
+  const kind = decisionSituation(s, "you");
+  return kind === "own"
+    ? `Jesteś nr ${you.number} i masz piłkę.`
+    : kind === "partner"
+      ? `Jesteś nr ${you.number}. Piłkę ma partner ${carrier.number}.`
+      : kind === "rival"
+        ? `Jesteś nr ${you.number}. Piłkę ma rywal ${carrier.number}.`
+        : `Jesteś nr ${you.number}. Piłka jest wolna.`;
+}
+
 const conceptMoment: Record<string, GameMoment> = {
   "third-player": "build",
   "overload-switch": "attack",
