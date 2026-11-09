@@ -94,7 +94,10 @@ describe("Fuel persistent user choices", () => {
     data.entries = [entry];
     localStorage.setItem(fuelStorageKey("u"), JSON.stringify(data));
     await render();
-    await act(async () => (host.querySelector(".fuel-v4-next") as HTMLButtonElement).click());
+    const laterRow = [...host.querySelectorAll("button")].find((b) =>
+      b.textContent?.startsWith("Na później"),
+    )!;
+    await act(async () => laterRow.click());
     const panel = document.querySelector('[role="dialog"]')!;
     expect(panel.textContent).toContain(`${entry.lines[0].grams} g`);
     const save = [...panel.querySelectorAll("button")].find((b) =>
@@ -111,7 +114,10 @@ describe("Fuel persistent user choices", () => {
         }),
       ),
     );
-    await act(async () => (host.querySelector(".fuel-v4-next") as HTMLButtonElement).click());
+    const later = [...host.querySelectorAll("button")].find((b) =>
+      b.textContent?.startsWith("Na później"),
+    )!;
+    await act(async () => later.click());
     const blocked = [
       ...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
     ].find((b) => b.textContent?.includes("Zachowaj wybrany"))!;

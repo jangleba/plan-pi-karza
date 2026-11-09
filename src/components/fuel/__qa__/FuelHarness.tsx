@@ -78,6 +78,8 @@ Object.assign(window, {
 const data = emptyFuelData();
 data.timings[context.key] = relativeFuelTiming(120, now)!;
 const recipe = practicalRecipes({ context, timing: data.timings[context.key], now, data })[0];
+// "no-time": the athlete has not said yet when the session starts.
+if (mode === "no-time") delete data.timings[context.key];
 if (mode === "adjusted") {
   const entry = createRecipeEntry(recipe, context.key, "selected", now, "adjusted");
   entry.lines = entry.lines.map((l) => ({ ...l, grams: l.grams * 2 }));

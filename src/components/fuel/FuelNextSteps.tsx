@@ -1,16 +1,40 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import {
+  Backpack,
+  Bell,
+  ChevronRight,
+  GlassWater,
+  History,
+  PackageCheck,
+  RotateCcw,
+  ShoppingBag,
+  Utensils,
+} from "lucide-react";
 import { fuelDayGuide } from "@/lib/fuel/guidance";
 import type { FuelContext, FuelDeviceData, FuelTiming } from "@/lib/fuel/experience";
 
+/** One quiet list under the meal card: every secondary tool in the same row style. */
 export function FuelNextSteps({
   context,
   timing,
   now,
   data,
   nextSession,
+  laterTitle,
+  tomorrowMatch,
+  savedToday,
+  canRepeat,
+  native,
+  remindersOn,
+  reminderBusy,
   onOwn,
+  onStore,
   onPack,
+  onTomorrow,
   onHistory,
+  onRepeat,
+  onReminders,
+  onToggleReminders,
   onDrink,
 }: {
   context: FuelContext;
@@ -18,9 +42,22 @@ export function FuelNextSteps({
   now: number;
   data: FuelDeviceData;
   nextSession?: FuelContext | null;
+  /** Title of a set saved for later, if any. */
+  laterTitle?: string | null;
+  tomorrowMatch?: boolean;
+  savedToday?: boolean;
+  canRepeat?: boolean;
+  native?: boolean;
+  remindersOn?: boolean;
+  reminderBusy?: boolean;
   onOwn(): void;
+  onStore?(): void;
   onPack(): void;
+  onTomorrow?(): void;
   onHistory(): void;
+  onRepeat?(): void;
+  onReminders?(): void;
+  onToggleReminders?(): void;
   onDrink(ml: number, kind: "water" | "sports"): void;
 }) {
   const [ml, setMl] = useState("250");
@@ -29,41 +66,42 @@ export function FuelNextSteps({
   const valid =
     ml.trim() !== "" && Number.isFinite(Number(ml)) && Number(ml) >= 1 && Number(ml) <= 2000;
   return (
-    <section className="fuel-next-steps" aria-label="Jedzenie i napoje wokół sesji">
-      <details>
-        <summary>Twój plan · Teraz / Zabierz / Po sesji</summary>
-        <ol>
-          {guide.steps.map((step) => (
-            <li key={step.title}>
-              <strong>{step.title}</strong>
-              <span>{step.text}</span>
-            </li>
-          ))}
-        </ol>
-        <button className="fuel-secondary" onClick={onPack}>
-          Lista do zabrania
-        </button>
-      </details>
-      <div className="fuel-recent-meal">
-        <strong>Wcześniejsze jedzenie</strong>
-        <p>{guide.eaten}</p>
-        <button className="fuel-text-button" onClick={onOwn}>
-          Już jadłem · dodaj posiłek
-        </button>
-        {guide.last && (
-          <button className="fuel-text-button" onClick={onHistory}>
-            Popraw wpis
-          </button>
-        )}
-      </div>
-      <details>
-        <summary>
-          Napoje ·{" "}
-          {guide.drinkMl ? `${guide.drinkMl} ml zapisane do tej sesji dziś` : "dodaj wypitą ilość"}
+    <section className="fuel-next-steps fuel-v4-list" aria-label="Więcej w Fuel">
+      {laterTitle ? (
+        <Row
+          icon={<PackageCheck size={18} />}
+          label="Na później"
+          value={laterTitle}
+          onClick={onPack}
+        />
+      ) : (
+        <Row icon={<Backpack size={18} />} label="Do zabrania" onClick={onPack} />
+      )}
+      {tomorrowMatch && onTomorrow && (
+        <Row
+          icon={<PackageCheck size={18} />}
+          label="Jutro mecz"
+          value="Spakuj zestaw"
+          onClick={onTomorrow}
+        />
+      )}
+      {onStore && <Row icon={<ShoppingBag size={18} />} label="W sklepie" onClick={onStore} />}
+      <Row
+        icon={<Utensils size={18} />}
+        label={guide.last ? "Już jadłem" : "Mam swoje jedzenie"}
+        onClick={onOwn}
+        className="fuel-recent-meal"
+        value={guide.last ? guide.eaten : undefined}
+      />
+      <details className="fuel-v4-list-details">
+        <summary className="fuel-v4-row">
+          <GlassWater size={18} aria-hidden="true" />
+          <span className="fuel-v4-row-label">Napoje</span>
+          <span className="fuel-v4-row-value">
+            {guide.drinkMl ? `${guide.drinkMl} ml dziś` : "Dodaj"}
+          </span>
+          <ChevronRight size={16} className="fuel-v4-row-chevron" aria-hidden="true" />
         </summary>
-        <p className="fuel-note">
-          Zapis ilości, którą wypiłeś. To nie jest cel ani ocena nawodnienia.
-        </p>
         <form
           className="fuel-drink-form"
           onSubmit={(e) => {
@@ -95,6 +133,66 @@ export function FuelNextSteps({
           </button>
         </form>
       </details>
+      {onReminders &&
+        (native ? (
+          <div className="fuel-v4-row">
+            <Bell size={18} aria-hidden="true" />
+            <button className="fuel-v4-row-label" onClick={onReminders}>
+              Przypomnij mi
+            </button>
+            <button
+              role="switch"
+              aria-checked={!!remindersOn}
+              aria-label="Przypomnienia Fuel"
+              className={`fuel-v4-switch ${remindersOn ? "is-on" : ""}`}
+              disabled={reminderBusy}
+              onClick={onToggleReminders}
+            >
+              <span />
+            </button>
+          </div>
+        ) : (
+          <Row
+            icon={<Bell size={18} />}
+            label="Przypomnienie"
+            value="Kalendarz"
+            onClick={onReminders}
+          />
+        ))}
+      {canRepeat && onRepeat && (
+        <Row icon={<RotateCcw size={18} />} label="Powtórz zestaw" onClick={onRepeat} />
+      )}
+      <Row
+        icon={<History size={18} className={savedToday ? "bw-tone--success" : undefined} />}
+        label="Historia"
+        value={savedToday ? <span className="bw-tone--success">Zapisano dziś</span> : undefined}
+        onClick={onHistory}
+      />
     </section>
+  );
+}
+
+function Row({
+  icon,
+  label,
+  value,
+  onClick,
+  className,
+}: {
+  icon: ReactNode;
+  label: string;
+  value?: ReactNode;
+  onClick(): void;
+  className?: string;
+}) {
+  return (
+    <button className={`fuel-v4-row ${className ?? ""}`} onClick={onClick}>
+      <span aria-hidden="true" className="fuel-v4-row-icon">
+        {icon}
+      </span>
+      <span className="fuel-v4-row-label">{label}</span>
+      {value != null && <span className="fuel-v4-row-value">{value}</span>}
+      <ChevronRight size={16} className="fuel-v4-row-chevron" aria-hidden="true" />
+    </button>
   );
 }
