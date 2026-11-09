@@ -16,6 +16,21 @@ import { configuredAuthRedirect, installNativeAuthCallbacks } from "./nativeAuth
 import { nativeRecorder, nativeRunningAvailable } from "@/lib/running/nativeRecorder";
 import { forgetOfflineOwner, loadOfflineOwner, rememberOfflineOwner } from "./offlineOwner";
 
+export const AUTH_STARTUP_TIMEOUT_MS = 12_000;
+export const SIGN_IN_TIMEOUT_MS = 15_000;
+const STARTUP_TIMEOUT_MESSAGE =
+  "Sprawdzenie logowania trwa za długo. Sprawdź połączenie i spróbuj ponownie.";
+const SIGN_IN_TIMEOUT_MESSAGE = "Logowanie trwa za długo. Sprawdź połączenie i spróbuj ponownie.";
+
+/** Rejects when `value` does not settle in time; the underlying request is left to finish. */
+function withTimeout<T>(value: PromiseLike<T>, ms: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([Promise.resolve(value), timeout]).finally(() => clearTimeout(timer));
+}
+
 interface AuthContextValue {
   user: User | null;
   session: Session | null;
@@ -90,12 +105,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useClientLayoutEffect(() => {
     let active = true;
+    let startupSettled = false;
+    // Bez limitu wolna sieć zostawia ekran ładowania na zawsze.
+    const startupTimeout = setTimeout(() => {
+      if (!active || startupSettled) return;
+      startupSettled = true;
+      setCallbackError(STARTUP_TIMEOUT_MESSAGE);
+      setLoading(false);
+    }, AUTH_STARTUP_TIMEOUT_MS);
+    const settleStartup = () => {
+      clearTimeout(startupTimeout);
+      if (startupSettled) {
+        setCallbackError((current) => (current === STARTUP_TIMEOUT_MESSAGE ? null : current));
+      }
+      startupSettled = true;
+    };
 
     // Listener rejestrujemy przed odczytem. Numer rewizji chroni przed sytuacją,
     // w której wolniejszy getSession nadpisuje nowsze zdarzenie logowania.
     const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
       if (!active) return;
       authRevision.current += 1;
+      settleStartup();
       setSession(sess);
       const localOwner =
         !sess && event !== "SIGNED_OUT" && navigator.onLine === false ? loadOfflineOwner() : null;
@@ -125,6 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .getSession()
       .then(({ data }) => {
         if (!active || authRevision.current !== revisionAtRequest) return;
+        settleStartup();
         setSession(data.session);
         const localOwner = !data.session && navigator.onLine === false ? loadOfflineOwner() : null;
         setOfflineIdentity(!!localOwner);
@@ -134,11 +166,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Auth listener pozostaje źródłem prawdy; brak sesji obsłuży routing.
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (!active) return;
+        clearTimeout(startupTimeout);
+        startupSettled = true;
+        setLoading(false);
       });
 
     return () => {
       active = false;
+      clearTimeout(startupTimeout);
       sub.subscription.unsubscribe();
     };
   }, []);
@@ -201,11 +237,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signIn(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error: error?.message ?? null };
+    try {
+      const { error } = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        SIGN_IN_TIMEOUT_MS,
+        SIGN_IN_TIMEOUT_MESSAGE,
+      );
+      return { error: error?.message ?? null };
+    } catch (error) {
+      return {
+        error:
+          error instanceof Error ? error.message : "Nie udało się zalogować. Spróbuj ponownie.",
+      };
+    }
   }
 
   async function resendSignupConfirmation(email: string) {

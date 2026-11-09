@@ -3,9 +3,14 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthProvider, useAuth } from "./auth";
+import { AUTH_STARTUP_TIMEOUT_MS, AuthProvider, SIGN_IN_TIMEOUT_MS, useAuth } from "./auth";
 
-const mocks = vi.hoisted(() => ({ getSession: vi.fn(), clear: vi.fn(), unsubscribe: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  getSession: vi.fn(),
+  signInWithPassword: vi.fn(),
+  clear: vi.fn(),
+  unsubscribe: vi.fn(),
+}));
 let listener: (event: AuthChangeEvent, session: Session | null) => void;
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
@@ -15,6 +20,7 @@ vi.mock("@/integrations/supabase/client", () => ({
         return { data: { subscription: { unsubscribe: mocks.unsubscribe } } };
       },
       getSession: mocks.getSession,
+      signInWithPassword: mocks.signInWithPassword,
     },
   },
 }));
@@ -49,6 +55,7 @@ afterEach(async () => {
   host.remove();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 describe("authentication startup", () => {
   it("finishes startup on sign-in even if the earlier session read is still pending", async () => {
@@ -157,5 +164,74 @@ describe("authentication startup", () => {
     expect(snapshot.user).toBeNull();
     expect(snapshot.session).toBeNull();
     expect(snapshot.offlineIdentity).toBe(false);
+  });
+
+  it("stops the loading screen with a message when the session check hangs, and clears it once it answers", async () => {
+    vi.useFakeTimers();
+    let resolve!: (value: unknown) => void;
+    mocks.getSession.mockReturnValue(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    await act(async () =>
+      root.render(
+        <AuthProvider>
+          <Harness />
+        </AuthProvider>,
+      ),
+    );
+    await act(async () => vi.advanceTimersByTime(AUTH_STARTUP_TIMEOUT_MS - 1));
+    expect(snapshot.loading).toBe(true);
+    await act(async () => vi.advanceTimersByTime(1));
+    expect(snapshot.loading).toBe(false);
+    expect(snapshot.callbackError).toMatch(/trwa za długo/);
+    await act(async () => resolve({ data: { session: session("a") } }));
+    expect(snapshot.user?.id).toBe("a");
+    expect(snapshot.callbackError).toBeNull();
+  });
+
+  it("does not show the timeout message when startup finished in time", async () => {
+    vi.useFakeTimers();
+    mocks.getSession.mockResolvedValue({ data: { session: null } });
+    await act(async () =>
+      root.render(
+        <AuthProvider>
+          <Harness />
+        </AuthProvider>,
+      ),
+    );
+    expect(snapshot.loading).toBe(false);
+    await act(async () => vi.advanceTimersByTime(AUTH_STARTUP_TIMEOUT_MS * 2));
+    expect(snapshot.callbackError).toBeNull();
+  });
+
+  it("returns a timeout error when password sign-in hangs", async () => {
+    vi.useFakeTimers();
+    mocks.signInWithPassword.mockReturnValue(new Promise(() => undefined));
+    await act(async () =>
+      root.render(
+        <AuthProvider>
+          <Harness />
+        </AuthProvider>,
+      ),
+    );
+    const pending = snapshot.signIn("a@b.pl", "haslo123");
+    await act(async () => vi.advanceTimersByTime(SIGN_IN_TIMEOUT_MS));
+    await expect(pending).resolves.toEqual({ error: expect.stringMatching(/trwa za długo/) });
+  });
+
+  it("passes the server error through when sign-in answers in time", async () => {
+    mocks.signInWithPassword.mockResolvedValue({ error: { message: "Invalid login credentials" } });
+    await act(async () =>
+      root.render(
+        <AuthProvider>
+          <Harness />
+        </AuthProvider>,
+      ),
+    );
+    await expect(snapshot.signIn("a@b.pl", "zle")).resolves.toEqual({
+      error: "Invalid login credentials",
+    });
   });
 });
