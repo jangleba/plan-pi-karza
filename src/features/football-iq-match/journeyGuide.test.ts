@@ -7,6 +7,7 @@ import {
   nextContext,
   nextDefinition,
   pickerItems,
+  startLine,
   startLines,
 } from "./journeyGuide";
 import { situationBank } from "./situationBank";
@@ -25,6 +26,21 @@ describe("start instruction", () => {
       expect(choose).toContain(`jedną z ${decisionOptions(s).length} opcji`);
       expect(flow).toContain(`${ACTION_TIME_LIMIT_SECONDS / 60} minuty`);
       expect(mode).toMatch(/Po każdej decyzji/);
+    }
+  });
+
+  it("the one-line start names TY and the real ball carrier", () => {
+    for (const def of [...advancedJourneyBank, ...situationBank]) {
+      const s = createJourneyForRules(def, 9);
+      const line = startLine(s);
+      const you = s.players.find((p) => p.id === "you")!;
+      const carrier = s.players.find((p) => p.id === s.world.carrierId)!;
+      expect(line, def.id).toMatch(new RegExp(`^Jesteś nr ${you.number}\\b`));
+      if (carrier.id === "you") expect(line).toContain("masz piłkę");
+      else
+        expect(line).toContain(
+          `${carrier.team === "home" ? "partner" : "rywal"} ${carrier.number}`,
+        );
     }
   });
 

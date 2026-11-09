@@ -186,7 +186,8 @@ export type TacticalForecast = {
   rivalId: string;
   predicted: "ball" | "follow" | "cover";
   actual: "ball" | "follow" | "cover" | "mixed";
-  plan: "support" | "protect" | "scan";
+  /** Own plan for the next step (older lessons only; rules v9 asks just for the reaction). */
+  plan?: "support" | "protect" | "scan";
 };
 export type JourneySession = {
   forecasts?: TacticalForecast[];

@@ -113,9 +113,10 @@ try {
     await page.mouse.click(at.x,at.y);
   };
   const start = page.getByRole('button',{name:'Start',exact:true});
-  const steps = await page.locator('.iqE-start .iqE-steps li').allInnerTexts();
-  ensure(steps.length===4,'Start instruction should have four lines');
-  ensure(/Na starcie (masz piłkę|piłkę ma (partner|rywal) \d+)/.test(steps[0]),'Start instruction does not name the ball carrier');
+  // Start screen is one line and the Start button: rules and mode live in the help sheet.
+  const startText = await page.locator('.iqE-start').innerText();
+  ensure(/^Jesteś nr \d+(\. Piłkę ma (partner|rywal) \d+\.| i masz piłkę\.|\. Piłka jest wolna\.)/.test(startText),'Start line does not name TY and the ball carrier');
+  ensure(await page.locator('.iqE-start button').count()===1,'Start screen should have only the Start button');
   await start.waitFor({state:'visible'});
   await page.waitForFunction(()=>!document.querySelector('.iqE-loading'));
   for (const [width,height] of [[390,700],[390,560],[375,667],[844,390]]) {
@@ -126,8 +127,17 @@ try {
   }
   await page.setViewportSize({width:390,height:700});
   const options = page.locator('.iqE-options button');
+  let predictions = 0;
   const playOption = async (pattern) => {
     await page.waitForSelector('[data-iq-phase="decision"]',{timeout:20000});
+    // Prediction loop: once per action, before the first decision with our ball.
+    if (await page.locator('.iqE-predict').count()) {
+      ensure(/rywal nr \d+/.test(await page.locator('.iqE-predict').innerText()),'Prediction must name the rival');
+      if (!predictions) await page.screenshot({path:path.join(work,'IQ-64-PROGNOZA.png')});
+      predictions++;
+      await page.locator('.iqE-predict .iqE-options button').first().click();
+      await page.waitForSelector('.iqE-prediction');
+    }
     const count = await options.count();
     ensure(count>=2 && count<=4,`Expected 2–4 options, got ${count}`);
     const labels = await options.allInnerTexts();
@@ -141,6 +151,8 @@ try {
   await playOption();
   await page.waitForSelector('[data-iq-phase="feedback"]',{timeout:20000});
   await page.screenshot({path:path.join(work,'IQ-64-REAKCJA.png')});
+  ensure(predictions===1,'The first decision with our ball needs a prediction');
+  ensure(/^Prognoza (trafiona|nietrafiona)/.test(await page.locator('.iqE-forecast').innerText()),'Feedback must compare the prediction with the animation');
   for(let step=0;step<3;step++) {
     ensure((await page.getByRole('button',{name:'Zobacz wynik',exact:true}).count())===0,'Action ended at the old three-decision limit');
     ensure((await page.locator('.iqE-next').innerText()).startsWith('Teraz:'),'Feedback does not say what comes next');
@@ -172,6 +184,8 @@ try {
   for (const label of ['Co zrobiłeś','Co się stało','Dlaczego to ważne']) ensure(keyText.includes(label),`Key moment lacks "${label}"`);
   ensure(!/głow|ramię|bioder|spójrz|wzrok/i.test(keyText),'Key moment uses body-detail cues');
   ensure(await page.locator('.iqE-key .iqE-grade').count()===1,'Key moment needs TY grade');
+  ensure((await page.locator('.iqE-upnext').innerText()).startsWith('Następna:'),'Summary must name the next situation and why');
+  ensure(await page.evaluate(()=>!!localStorage.getItem('ballwise:iq:mastery:v1:iq-browser-qa')),'Progress per aim not stored');
   await page.screenshot({path:path.join(work,'IQ-64-WYNIK.png')});
   await page.locator('.iqE-more summary').click();
   ensure((await page.locator('.iqE-more a').getAttribute('href')).startsWith('https://'),'Key moment lacks the principle source');
@@ -201,6 +215,7 @@ try {
   ensure((await page.locator('.iqE-context').innerText()).includes('Nowy układ'),'No transfer variant');
   await page.getByRole('button',{name:'Start',exact:true}).click();
   await page.waitForSelector('[data-iq-phase="decision"]');
+  if (await page.locator('.iqE-predict').count()) await page.locator('.iqE-predict .iqE-options button').first().click();
   ensure((await options.count())===0,'Independent mode should start without ready options');
   await page.getByRole('button',{name:'Pokaż opcje',exact:true}).click();
   ensure((await options.count())>=2,'Options not revealed on demand');

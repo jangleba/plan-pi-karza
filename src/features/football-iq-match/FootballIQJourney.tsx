@@ -1518,9 +1518,11 @@ export function FootballIQJourney({
                 <details className="iqF-feedback-details" key={f.decisionIndex}>
                   <summary>Twoja prognoza i następny krok</summary>
                   <p>Twoja prognoza: {reactionLabels[f.predicted].toLowerCase()}.</p>
-                  <p>
-                    Twój plan: {planLabels[f.plan].toLowerCase()}. {forecastReflection(f).plan}
-                  </p>
+                  {f.plan && (
+                    <p>
+                      Twój plan: {planLabels[f.plan].toLowerCase()}. {forecastReflection(f).plan}
+                    </p>
+                  )}
                 </details>
               ))}
           </section>
@@ -1740,9 +1742,12 @@ export function FootballIQJourney({
                           <strong>Prognoza:</strong> {reactionLabels[f.predicted]}.{" "}
                           {forecastReflection(f).reaction}
                         </p>
-                        <p>
-                          <strong>Plan:</strong> {planLabels[f.plan]}. {forecastReflection(f).plan}
-                        </p>
+                        {f.plan && (
+                          <p>
+                            <strong>Plan:</strong> {planLabels[f.plan]}.{" "}
+                            {forecastReflection(f).plan}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </details>

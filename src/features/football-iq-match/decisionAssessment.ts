@@ -154,6 +154,8 @@ export type DecisionFacts = {
 
 export type DecisionAssessment = {
   index: number;
+  /** The aim this decision was graded against (the lesson aim for this phase of play). */
+  aim: LessonAim;
   grade: JourneyQuality;
   problem: ContributionProblem | null;
   facts: DecisionFacts;
@@ -676,12 +678,14 @@ function sourceFor(session: JourneySession, problem: ContributionProblem | null)
 
 export function assessDecision(session: JourneySession, index: number): DecisionAssessment {
   const facts = decisionFacts(session, index);
-  const { grade: g, problem } = grade(facts, phaseAim(facts, facts.keeper));
+  const aim = phaseAim(facts, facts.keeper);
+  const { grade: g, problem } = grade(facts, aim);
   const reaction = facts.markerFollowed
     ? `Nr ${facts.markerFollowed.number} poszedł za Tobą (${metres(facts.markerFollowed.metres)}) i zostawił miejsce, z którego wyszedł.`
     : null;
   return {
     index,
+    aim,
     grade: g,
     problem,
     facts,

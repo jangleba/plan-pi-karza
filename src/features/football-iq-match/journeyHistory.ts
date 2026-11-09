@@ -92,7 +92,9 @@ function validBase(v: unknown): v is JourneyDraft {
       (ATTACK_BANK_VERSIONS.includes(v.bankVersion) ? 80 : 10) &&
     v.choices.every(validChoice) &&
     (v.forecasts === undefined ||
-      ([TACTICAL_BANK_VERSION, LIVE_BANK_VERSION].includes(v.bankVersion) &&
+      ([TACTICAL_BANK_VERSION, LIVE_BANK_VERSION, ATTACK_BANK_VERSION].includes(
+        v.bankVersion,
+      ) &&
         Array.isArray(v.forecasts) &&
         v.forecasts.length <= v.choices.length &&
         v.forecasts.every(
@@ -107,8 +109,11 @@ function validBase(v: unknown): v is JourneyDraft {
             ["ball", "follow", "cover"].includes(f.predicted) &&
             typeof f.actual === "string" &&
             ["ball", "follow", "cover", "mixed"].includes(f.actual) &&
-            typeof f.plan === "string" &&
-            ["support", "protect", "scan"].includes(f.plan),
+            // Rules v9 asks only for the reaction; older lessons also stored a plan.
+            (v.bankVersion === ATTACK_BANK_VERSION
+              ? f.plan === undefined
+              : typeof f.plan === "string" &&
+                ["support", "protect", "scan"].includes(f.plan)),
         ) &&
         new Set(v.forecasts.map((f) => f.decisionIndex)).size ===
           v.forecasts.length)) &&
