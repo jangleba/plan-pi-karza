@@ -3,7 +3,7 @@
  * describe a different picture than the one the player is about to play.
  */
 import { advancedJourneyBank } from "./advancedJourneyBank";
-import { decisionOptions, decisionSituation } from "./decisionOptions";
+import { decisionSituation } from "./decisionOptions";
 import { roleLabels, rolesForPosition } from "./journeyBank";
 import { gameMomentLabels, situationBank, situationFor, type GameMoment } from "./situationBank";
 import type { JourneyDefinition, JourneyMode, JourneySession } from "./journeyTypes";
@@ -22,17 +22,23 @@ export function startLines(s: JourneySession, mode: JourneyMode): string[] {
         : kind === "rival"
           ? `Na starcie piłkę ma rywal ${carrier.number}.`
           : "Na starcie piłka jest wolna.";
-  const count = decisionOptions({ ...s, controlledId: "you" }).length;
   return [
     `Grasz jako TY – nr ${you.number}, ${roleLabels[s.definition.role].toLowerCase()}. ${ball}`,
-    mode === "learn"
-      ? `Przy każdej decyzji wybierasz jedną z ${count} opcji (strzałki na boisku) albo dotykasz boiska.`
-      : `Przy każdej decyzji najpierw sam dotykasz boiska. ${count} gotowe opcje pokażesz przyciskiem.`,
+    "Przed decyzją nic nie podpowiada odpowiedzi: sam patrzysz na rywali, partnerów i wolne miejsce.",
+    `Z piłką: ${controlsLine(true)} Bez piłki: ${controlsLine(false)}`,
+    "„Wykonanie” zmienia moment zagrania (teraz albo po chwili) i rodzaj podania.",
     `Akcja toczy się dalej sama: do gola, niecelnego strzału albo spalonego, najdłużej ${ACTION_TIME_LIMIT_SECONDS / 60} minuty gry. Po stracie bronisz dalej.`,
     mode === "learn"
-      ? "Po każdej decyzji zobaczysz, co się stało."
-      : "Bez podsumowań po drodze. Wynik zobaczysz na końcu.",
+      ? "Po każdej decyzji zobaczysz, co się stało, i możesz obejrzeć inne rozwiązanie."
+      : "Bez przerw po drodze. Omówienie zobaczysz na końcu.",
   ];
+}
+
+/** How taps map to actions. Says what a gesture does, never which action is right. */
+export function controlsLine(own: boolean): string {
+  return own
+    ? "Dotknij partnera (podanie), wolnego pola (podanie w przestrzeń), miejsca obok siebie (prowadzenie), bramki (strzał) albo siebie (utrzymanie)."
+    : "Dotknij miejsca, do którego biegniesz, albo siebie, żeby zostać.";
 }
 
 /** The only line on the start screen: who TY is and who has the ball. */

@@ -16,14 +16,20 @@ describe("start instruction", () => {
   it("describes the real starting picture of every lesson", () => {
     for (const def of [...advancedJourneyBank, ...situationBank]) {
       const s = createJourneyForRules(def, 9);
-      const [who, choose, flow, mode] = startLines(s, "learn");
+      const lines = startLines(s, "learn");
+      const [who, independent, controls] = lines;
+      const flow = lines.at(-2)!,
+        mode = lines.at(-1)!;
       const you = s.players.find((p) => p.id === "you")!;
       const carrier = s.players.find((p) => p.id === s.world.carrierId)!;
       expect(who, def.id).toContain(`nr ${you.number}`);
       if (carrier.id === "you") expect(who).toContain("masz piłkę");
       else
         expect(who).toContain(`${carrier.team === "home" ? "partner" : "rywal"} ${carrier.number}`);
-      expect(choose).toContain(`jedną z ${decisionOptions(s).length} opcji`);
+      // No ready-made options before a decision: the help explains gestures, not answers.
+      expect(independent).toMatch(/nic nie podpowiada/);
+      expect(controls).toMatch(/Dotknij partnera/);
+      expect(lines.join(" ")).not.toMatch(/opcj|strzałk/i);
       expect(flow).toContain(`${ACTION_TIME_LIMIT_SECONDS / 60} minuty`);
       expect(mode).toMatch(/Po każdej decyzji/);
     }
@@ -44,12 +50,10 @@ describe("start instruction", () => {
     }
   });
 
-  it("promises a summary after each decision only in learning mode", () => {
+  it("promises a review after each decision only in learning mode", () => {
     const s = createJourneyForRules(situationBank[0], 9);
-    const [, choose, , mode] = startLines(s, "challenge");
-    expect(choose).toMatch(/najpierw sam dotykasz boiska/);
-    expect(choose).toContain(`${decisionOptions(s).length} gotowe opcje`);
-    expect(mode).toMatch(/Bez podsumowań/);
+    expect(startLines(s, "challenge").at(-1)).toMatch(/Bez przerw/);
+    expect(startLines(s, "learn").at(-1)).toMatch(/inne rozwiązanie/);
   });
 
   it("keeps the promised end conditions of a whole action", () => {

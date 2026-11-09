@@ -79,7 +79,7 @@ export const situations: Situation[] = [
     title: "Kontra 3 na 2 po odbiorze",
     moment: "transition",
     role: "wing",
-    goal: "Wykorzystaj przewagę i skończ akcję strzałem.",
+    goal: "Odebraliśmy piłkę, rywale wracają. Zamień to w okazję.",
     sources: ["fifa-tc", "uefa-ucl-2324", "fa-dna"],
     layout: {
       carrier: "support",
@@ -153,10 +153,10 @@ export const situations: Situation[] = [
   },
   {
     key: "cross",
-    title: "Wejście w pole karne przy dośrodkowaniu",
+    title: "Pole karne przed dośrodkowaniem",
     moment: "attack",
     role: "nine",
-    goal: "Zaatakuj wolne miejsce w polu karnym przed piłką.",
+    goal: "Partner zaraz dośrodkuje. Stwórz zagrożenie w polu karnym.",
     sources: ["uefa-ucl-2324", "pzpn-nmg"],
     layout: {
       carrier: "wide",
@@ -191,7 +191,7 @@ export const situations: Situation[] = [
   },
   {
     key: "counter-press",
-    title: "Odbiór zaraz po stracie",
+    title: "Reakcja zaraz po stracie",
     moment: "transition",
     role: "eight",
     goal: "Odzyskaj piłkę albo zatrzymaj kontrę rywala.",
@@ -232,7 +232,7 @@ export const situations: Situation[] = [
     title: "Atak na rywala w niskiej obronie",
     moment: "attack",
     role: "ten",
-    goal: "Znajdź wolne miejsce między liniami albo zmień stronę.",
+    goal: "Rywal broni nisko i ciasno. Pomóż drużynie dojść bliżej bramki.",
     sources: ["uefa-ucl-2324", "pzpn-nmg", "jordet"],
     layout: {
       carrier: "support",
@@ -270,7 +270,7 @@ export const situations: Situation[] = [
     title: "Pojedynek 1 na 1 przy linii",
     moment: "attack",
     role: "wing",
-    goal: "Minij obrońcę albo zagraj do nabiegającego partnera.",
+    goal: "Masz piłkę przy linii naprzeciw obrońcy. Stwórz przewagę.",
     sources: ["wein", "pzpn-nmg"],
     layout: {
       carrier: "you",
@@ -346,7 +346,7 @@ export const situations: Situation[] = [
     title: "Dziewiątka tyłem do bramki",
     moment: "attack",
     role: "nine",
-    goal: "Utrzymaj piłkę i zagraj do partnera przodem do gry.",
+    goal: "Jesteś tyłem do bramki, obrońca jest blisko. Pomóż drużynie iść do przodu.",
     sources: ["pzpn-nmg", "wein", "jordet"],
     layout: {
       carrier: "you",
@@ -381,10 +381,10 @@ export const situations: Situation[] = [
   },
   {
     key: "fullback-overlap",
-    title: "Obieg bocznego obrońcy",
+    title: "Boczny obrońca za skrzydłowym",
     moment: "attack",
     role: "fb",
-    goal: "Daj skrzydłowemu opcję na zewnątrz i dokończ akcję.",
+    goal: "Skrzydłowy ma piłkę przy linii. Pomóż mu stworzyć przewagę.",
     sources: ["pzpn-nmg", "uefa-ucl-2324"],
     layout: {
       carrier: "wide",

@@ -12,8 +12,15 @@ import {
   Settings2,
   X,
 } from "lucide-react";
-import { decisionOptions, OPTION_MARKS, optionPaths, situationLine } from "./decisionOptions";
-import { momentLabel, nextContext, pickerItems, startLine, startLines } from "./journeyGuide";
+import { situationLine } from "./decisionOptions";
+import {
+  controlsLine,
+  momentLabel,
+  nextContext,
+  pickerItems,
+  startLine,
+  startLines,
+} from "./journeyGuide";
 import { loadFieldTask, pickFieldTask, saveFieldTask, type FieldTask } from "./fieldTask";
 import {
   qualityLabels,
@@ -94,6 +101,9 @@ type Phase = "intro" | "decision" | "playing" | "feedback" | "summary";
 type Sheet = "help" | "roles" | "settings" | "history" | null;
 const EMPTY: PlannedAction[] = [];
 const CARRY_TAP_RADIUS = 14;
+/** Taps this close to the rival goal line, between these widths, mean a shot. */
+const GOAL_TAP_DEPTH = 8;
+const GOAL_TAP_HALF_WIDTH = 14;
 const newId = () => `iq8-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 function startDefinition(position?: string, index?: number) {
   const roles = rolesForPosition(position);
@@ -169,9 +179,9 @@ export function LearningJourney(props: Props) {
     [saved, setSaved] = useState(false);
   const [sheet, setSheet] = useState<Sheet>(null),
     [pickAll, setPickAll] = useState(false),
-    [optionKey, setOptionKey] = useState<string | null>(null),
-    [revealed, setRevealed] = useState(false),
-    [fieldTask, setFieldTask] = useState<FieldTask | null>(null);
+    [fieldTask, setFieldTask] = useState<FieldTask | null>(null),
+    // After a decision: what another good solution produced on the same picture.
+    [alternative, setAlternative] = useState<{ step: number; text: string } | null>(null);
   const [draft, setDraft] = useState<JourneyChoice | null>(null),
     [ready, setReady] = useState(false);
   const [archive, setArchive] = useState(false),
@@ -341,9 +351,18 @@ export function LearningJourney(props: Props) {
     if (!playable) return;
     try {
       const target = session.players.find((p) => p.id === targetId);
-      setOptionKey(null);
       if (targetId === actor) {
         setDraft(liveChoice(controlled, own ? "hold" : "wait", point));
+        return;
+      }
+      // With the ball: a tap on the rival goal mouth is a shot at that point.
+      if (
+        own &&
+        !targetId &&
+        point.y <= GOAL_TAP_DEPTH &&
+        Math.abs(point.x - 50) <= GOAL_TAP_HALF_WIDTH
+      ) {
+        setDraft(liveChoice(controlled, "shoot", point));
         return;
       }
       const toPartner = own && target?.team === "home";
@@ -372,8 +391,6 @@ export function LearningJourney(props: Props) {
         next = addForecast(next, controlled, { predicted: prediction });
       setSession(next);
       setDraft(null);
-      setOptionKey(null);
-      setRevealed(false);
       play(
         next,
         from,
@@ -382,6 +399,29 @@ export function LearningJourney(props: Props) {
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Nie udało się rozegrać akcji.");
+    }
+  }
+  /** Replays another good option on the picture before the last decision (after the decision only). */
+  function showAlternative() {
+    const index = session.decisions.length - 1;
+    if (index < 0) return;
+    try {
+      const r = reviewDecision(session, index);
+      if (!r.better || !r.betterAssessment) {
+        setAlternative({
+          step: session.step,
+          text: "W tym układzie nie znaleziono innego dobrego rozwiązania.",
+        });
+        return;
+      }
+      const other = chooseJourney(r.before, r.better.choice.id, 0, false);
+      setAlternative({
+        step: session.step,
+        text: `${r.assessment.grade === "good" ? "Inne dobre rozwiązanie" : "Lepsze rozwiązanie"}: ${r.better.label}. ${r.betterAssessment.happened}`,
+      });
+      play(other, journeyDuration(r.before), journeyDuration(other), "feedback", true);
+    } catch {
+      setError("Nie udało się pokazać innego rozwiązania.");
     }
   }
   function start(def: JourneyDefinition, test = false) {
@@ -395,8 +435,6 @@ export function LearningJourney(props: Props) {
     setReview(null);
     setSaved(false);
     setSheet(null);
-    setOptionKey(null);
-    setRevealed(false);
     setFieldTask(null);
     setTransfer(test);
     setPrediction(null);
@@ -510,22 +548,8 @@ export function LearningJourney(props: Props) {
     }
   const analysisPaths = useMemo(() => attackReplay(displayed, replayBeat), [displayed, replayBeat]);
   const showAnalysis = !!replay;
-  const options = useMemo(
-    () => (phase === "decision" ? decisionOptions(controlled) : []),
-    [controlled, phase],
-  );
   const situation = situationFor(session.definition);
-  // Learning shows the options at once; on your own you first read the pitch yourself.
-  const showOptions = phase === "decision" && (mode === "learn" || revealed);
-  const boardActions = showAnalysis
-    ? analysisPaths
-    : review
-      ? review.paths
-      : draft && !optionKey
-        ? preview
-        : showOptions
-          ? optionPaths(controlled, options, optionKey)
-          : preview;
+  const boardActions = showAnalysis ? analysisPaths : review ? review.paths : preview;
   const scoreReached = !isPlaying || playTime >= journeyDuration(displayed) - 0.001;
   // Opening an earlier decision for review never changes the final score of the action.
   const scored = review ? session : displayed;
@@ -551,12 +575,6 @@ export function LearningJourney(props: Props) {
     ? `${session.definition.context === 0 ? "78" : session.definition.context === 1 ? "54" : "82"}′ · ${(session.definition.context === 0 ? 1 : 0) + visibleHome}:${(session.definition.context === 2 ? 1 : 0) + visibleAway}`
     : session.definition.contextLabel.split(" · ").slice(0, 2).join(" · ");
   const nowLine = situationLine(controlled, actor);
-  const chooseOption = (key: string) => {
-    const option = options.find((o) => o.key === key);
-    if (!option) return;
-    setOptionKey(key);
-    setDraft(option.choice);
-  };
   const items = pickerItems(props.position, pickAll);
   return (
     <div
@@ -615,7 +633,9 @@ export function LearningJourney(props: Props) {
           scenario={displayed.scenario}
           actions={boardActions}
           selectedPlayerId={actor}
-          mode={draft?.intent === "shoot" ? "shot" : draft?.intent === "pass" ? "pass" : "run"}
+          mode={
+            draft?.intent === "shoot" ? "shot" : own || draft?.intent === "pass" ? "pass" : "run"
+          }
           interactive={playable && !isPlaying}
           playing={isPlaying && !paused}
           fixedView
@@ -627,14 +647,17 @@ export function LearningJourney(props: Props) {
               ? displayed.players.filter((p) => !p.goalkeeper).map((p) => p.id)
               : ["you", carrier.id].filter((v, i, a) => a.indexOf(v) === i)
           }
-          selectablePlayerIds={displayed.players.map((p) => p.id)}
+          selectablePlayerIds={displayed.players
+            // With the ball, a tap at the rival goal is a shot, never a "pass" to their keeper.
+            .filter((p) => !(own && p.goalkeeper && p.team !== "home"))
+            .map((p) => p.id)}
           frameOverride={isPlaying ? liveFrame : idleFrame}
           frameSource={isPlaying ? sampleFrame : undefined}
           onPlayerSelect={(p) => choosePoint(displayed.world.positions[p.id], p.id)}
           onPitchSelect={(p) => choosePoint(p)}
           onReadyChange={setReady}
           showActionOrders={false}
-          showGuidance={showAnalysis || !!review || !!draft || showOptions}
+          showGuidance={showAnalysis || !!review || !!draft}
           broadcastView
         />
         {showAnalysis && (
@@ -746,63 +769,20 @@ export function LearningJourney(props: Props) {
               </p>
             )}
             <p className="iqE-now">{nowLine}</p>
-            {showOptions ? (
-              <div className="iqE-options" role="group" aria-label="Twoje opcje">
-                {options.map((o, i) => (
-                  <button
-                    key={o.key}
-                    type="button"
-                    aria-pressed={optionKey === o.key}
-                    disabled={!playable}
-                    onClick={() => chooseOption(o.key)}
-                  >
-                    <b
-                      className="iqE-mark"
-                      style={{ background: OPTION_MARKS[i % OPTION_MARKS.length].color }}
-                      aria-hidden="true"
-                    >
-                      {OPTION_MARKS[i % OPTION_MARKS.length].letter}
-                    </b>
-                    {o.label}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="iqE-think">
-                <p>Pomyśl sam: gdzie jest wolne miejsce? Dotknij boiska.</p>
+            {draft ? (
+              <div className="iqE-plan">
+                <span>Twój wybór: {draft.label}</span>
                 <button
+                  className="iqE-icon"
                   type="button"
-                  className="iqE-secondary"
-                  disabled={!playable}
-                  onClick={() => setRevealed(true)}
+                  aria-label="Usuń wybór"
+                  onClick={() => setDraft(null)}
                 >
-                  Pokaż opcje
+                  <X size={16} />
                 </button>
               </div>
-            )}
-            {(showOptions || draft) && (
-              <div className="iqE-plan">
-                <span>
-                  {draft && !optionKey
-                    ? `Własny ruch: ${draft.label}`
-                    : own
-                      ? "Albo dotknij boiska: blisko siebie – prowadzenie, dalej – podanie."
-                      : "Albo dotknij boiska, by wybrać własne miejsce."}
-                </span>
-                {draft && (
-                  <button
-                    className="iqE-icon"
-                    type="button"
-                    aria-label="Usuń wybór"
-                    onClick={() => {
-                      setDraft(null);
-                      setOptionKey(null);
-                    }}
-                  >
-                    <X size={16} />
-                  </button>
-                )}
-              </div>
+            ) : (
+              <p className="iqE-controls">{controlsLine(own)}</p>
             )}
             <div className="iqE-actions">
               <button
@@ -848,6 +828,9 @@ export function LearningJourney(props: Props) {
                 {lastAssessment.grade !== "good" && <p className="iqE-why">{lastAssessment.why}</p>}
               </>
             )}
+            {alternative?.step === session.step && (
+              <p className="iqE-alternative">{alternative.text}</p>
+            )}
             {lastForecast && (
               <p className="iqE-forecast" data-iq-forecast={String(lastForecast.hit)}>
                 <b>
@@ -890,6 +873,11 @@ export function LearningJourney(props: Props) {
                 <RotateCcw size={17} />
               </button>
             </div>
+            {alternative?.step !== session.step && (
+              <button type="button" className="iqE-link" onClick={showAlternative}>
+                Zobacz inne rozwiązanie
+              </button>
+            )}
           </>
         ) : (
           <section className="iqE-summary" aria-label="Wynik akcji">
@@ -965,7 +953,10 @@ export function LearningJourney(props: Props) {
                   <summary>Więcej o tym momencie</summary>
                   {keyReview?.better && keyReview.betterAssessment && (
                     <p>
-                      <b>Wariant wzorcowy:</b> {keyReview.better.label}. W tej samej sytuacji:{" "}
+                      <b>
+                        {key.grade === "good" ? "Inne dobre rozwiązanie" : "Lepsze rozwiązanie"}:
+                      </b>{" "}
+                      {keyReview.better.label}. W tej samej sytuacji:{" "}
                       {keyReview.betterAssessment.happened}{" "}
                       <button
                         type="button"
@@ -1112,7 +1103,7 @@ export function LearningJourney(props: Props) {
                 disabled={phase !== "intro"}
                 onClick={() => setMode("learn")}
               >
-                Z podpowiedziami
+                Z omówieniem
               </button>
               <button
                 type="button"
@@ -1120,7 +1111,7 @@ export function LearningJourney(props: Props) {
                 disabled={phase !== "intro"}
                 onClick={() => setMode("challenge")}
               >
-                Samodzielnie
+                Bez przerw
               </button>
             </div>
             <ol className="iqE-steps">
@@ -1176,7 +1167,7 @@ export function LearningJourney(props: Props) {
                           >
                             <span>
                               {new Date(row.createdAt).toLocaleDateString("pl")} ·{" "}
-                              {row.mode === "learn" ? "Lekcja" : "Samodzielnie"}
+                              {row.mode === "learn" ? "Z omówieniem" : "Bez przerw"}
                             </span>
                             {
                               [...advancedJourneyBank, ...situationBank].find(

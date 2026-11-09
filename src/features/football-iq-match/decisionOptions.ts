@@ -1,6 +1,9 @@
-/** Ready-made options for one decision of the continuous attack (rules v9).
+/** Candidate actions for one decision of the continuous attack (rules v9).
+ * Used only AFTER a decision, to find and replay another solution on the same
+ * picture. They are never shown before the player decides: the screen gives no
+ * suggested direction, receiver or best option.
  * Every option is a normal `attackChoice`, so playing it is identical to tapping
- * the same point on the pitch. Labels say only what to do.
+ * the same point on the pitch.
  */
 import { attackChoice, naturalDelivery } from "./attackJourney";
 import type { BallDelivery } from "./ballFlight";
@@ -382,14 +385,6 @@ export function decisionOptions(s: JourneySession): DecisionOption[] {
   return raw.filter((o) => !seen.has(o.choice.id) && !!seen.add(o.choice.id)).slice(0, MAX_OPTIONS);
 }
 
-/** Tactics-board marker colours, readable on the green pitch and distinct from both kits. */
-export const OPTION_MARKS = [
-  { letter: "A", color: "#ffd84d" },
-  { letter: "B", color: "#ffffff" },
-  { letter: "C", color: "#ff7ad9" },
-  { letter: "D", color: "#b69cff" },
-] as const;
-
 /** One chalk arrow for a choice of the controlled player, or none when it does not move. */
 export function choicePath(
   s: JourneySession,
@@ -413,18 +408,4 @@ export function choicePath(
       ? choice.intent
       : ("run" as const);
   return { ...base, type };
-}
-
-/** Arrows for the options, like chalk on a tactics board. With a selection only that arrow stays. */
-export function optionPaths(
-  s: JourneySession,
-  options: DecisionOption[],
-  selectedKey?: string | null,
-): PlannedAction[] {
-  return options.flatMap((o, i): PlannedAction[] => {
-    if (selectedKey && o.key !== selectedKey) return [];
-    const mark = OPTION_MARKS[i % OPTION_MARKS.length];
-    const path = choicePath(s, o.key, o.choice, mark.color);
-    return path ? [{ ...path, mark: mark.letter }] : [];
-  });
 }
