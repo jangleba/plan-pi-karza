@@ -5,9 +5,7 @@ potwierdzenia wdrożenia, odbioru prawnego ani testów na fizycznym urządzeniu.
 
 ## Utrzymywane instrukcje
 
-- [Szybkość reakcji aplikacji — paczka 17](REAKCJA-2026-10-29.md)
-- [Płynność aplikacji i podglądu — paczka 16](PLYNNOSC-2026-10-29.md)
-- [Wdrożenie bieżącej paczki](WDROZENIE-2026-10-29.md)
+- [Konfiguracja wdrożenia, iOS i płatności](INSTALLATION-2026-10.md)
 - [Uruchomienie, npm, web i iOS](../README.md)
 - [Macierz QA produktu](QA-MATRIX.md)
 - [Jedna lista kontroli wydania](RELEASE-CHECKLIST.md)
@@ -29,6 +27,14 @@ potwierdzenia wdrożenia, odbioru prawnego ani testów na fizycznym urządzeniu.
 
 ## Archiwum
 
+Dawne paczki instalowane przez pliki workflow zostały wycofane 9 listopada 2026.
+Zmiany trafiają na `main` wyłącznie przez pull requesty z zielonym „BallWise Quality”.
+
+- [Wdrożenie paczki 15 (29 października)](archive/WDROZENIE-2026-10-29.md)
+- [Szybkość reakcji — paczka 17](archive/REAKCJA-2026-10-29.md)
+- [Płynność aplikacji — paczka 16](archive/PLYNNOSC-2026-10-29.md)
+- [Płynne działanie (10 października)](archive/PLYNNE-DZIALANIE-2026-10-10.md)
+- [Rejestry dawnych paczek naprawczych](archive/ballwise-ledgers/)
 - [Historyczna macierz QA z 12 września](archive/FULL-PRODUCT-QA-MATRIX-2026-09-12.md)
 - [Historyczny audyt z 16 września](../.lovable/plan/audyt-ballwise-commit-69b905cd-iq-14-09-tryb-tylko-odczyt-2026-09-16.md)
 - [Historyczny audyt z 23 sierpnia](../.lovable/plan/audyt-przepływu-biblioteka-plan-sesja-log-adaptacja-vision-2026-08-23.md)

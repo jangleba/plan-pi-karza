@@ -1,5 +1,9 @@
 # Wdrożenie poprawek BallWise — 29 października 2026
 
+> **Archiwum.** Instalacja paczek przez wgrywanie plików do `.github/workflows` została
+> wycofana 9 listopada 2026, a historyczne instalatory usunięto z repozytorium.
+> Zmiany trafiają na `main` przez pull requesty. Nie przywracaj tych instalatorów.
+
 Projekt: **Plan Piłkarza / BallWise**, repozytorium `jangleba/plan-pi-karza`.
 Baza przeglądu: `1780cf8cc460e1f727c6a52180aa159f63ecb729`.
 Paczka nie wymaga wywoływania agenta Lovable ani kupowania jego kredytów.
@@ -66,7 +70,7 @@ Nie zmienia schematu bazy, reguł treningowych, cen ani konfiguracji kont usług
 Ta aktualizacja nie dodaje migracji SQL. Jeżeli obecna baza już obsługuje wersję
 październikową, nie wykonuj ponownie starych skryptów naprawczych.
 Sprawdzenie zgodności istniejącego środowiska opisują
-[instrukcje październikowe](INSTALLATION-2026-10.md) i `supabase/verification`.
+[instrukcje październikowe](../INSTALLATION-2026-10.md) i `supabase/verification`.
 Samo wgranie źródeł na GitHub nie wykonuje SQL w bazie ani nie wdraża Edge Functions.
 
 Jedyna zmiana źródła funkcji serwerowej to przypięcie biblioteki w
@@ -97,12 +101,12 @@ ZIP nie jest podpisanym IPA. Projekt iOS tworzysz na macOS z Xcode lub we
 własnej usłudze budowania macOS. Kod zawiera `ios:setup`, `ios:sync` i bramkę
 konfiguracji płatnego wydania. Sprawdź dane operatora, publiczny klucz backendu,
 RevenueCat, bundle ID, domenę Universal Links i redirect Auth według
-[INSTALLATION-2026-10.md](INSTALLATION-2026-10.md).
+[INSTALLATION-2026-10.md](../INSTALLATION-2026-10.md).
 
 `npm run release:check` ma zatrzymać wydanie, gdy brakuje prawdziwej konfiguracji;
 nie podstawiaj fikcyjnych wartości, żeby go ominąć. Przejście bramki potwierdza
 format i kompletność konfiguracji, nie poprawność usług zewnętrznych.
-Pełna lista odbioru: [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md).
+Pełna lista odbioru: [RELEASE-CHECKLIST.md](../RELEASE-CHECKLIST.md).
 
 ## Cofnięcie
 

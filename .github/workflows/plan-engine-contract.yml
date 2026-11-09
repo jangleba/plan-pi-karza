@@ -35,6 +35,9 @@ jobs:
       - name: Ustaw npm zgodny z package-lock
         run: npm install --global npm@11.9.0
 
+      - name: Sprawdź zgodność package-lock.json i bun.lock
+        run: npm run check:lockfiles
+
       - name: Zainstaluj zależności
         run: npm ci
 
