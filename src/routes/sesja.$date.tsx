@@ -39,6 +39,7 @@ import {
   recoveryContextForSession,
 } from "@/lib/loadwise/preparation/protocols";
 import { SessionStartPanel } from "@/components/loadwise/session/SessionStartPanel";
+import { ClubTacticsCard } from "@/components/loadwise/session/ClubTacticsCard";
 import {
   ClubMonitoring,
   CompletionPanel,
@@ -332,6 +333,14 @@ function SessionDetail() {
           <MatchStartPanel session={session} isToday={isToday} />
         ) : (
           <SessionStartPanel session={displayedSession} canStart={isToday} />
+        )}
+        {isClub && state.profile && (
+          <ClubTacticsCard
+            ownerId={user?.id}
+            position={state.profile.position}
+            level={state.profile.level}
+            date={session.date}
+          />
         )}
 
         {/* Teaching remains available in previews; each runner gates its recording controls. */}
