@@ -1,4 +1,5 @@
 import { assertSafePlanChange } from "../planChangeValidation";
+import { boundedRequest } from "@/lib/boundedRequest";
 import { generatePlanAsync } from "../generatePlanAsync";
 import { reconcilePlanIdentity, sessionPrescription } from "../planIdentity";
 import { ONBOARDING_SCHEMA_VERSION, stampPlanRevision } from "./model";
@@ -26,7 +27,23 @@ import type {
   WeeklyTransition,
 } from "../types";
 import { persistLocal } from "./localState";
-import { type LoadwiseContextValue, type StoreActionContext } from "./model";
+import {
+  type LoadwiseContextValue,
+  type StoreActionContext,
+  type WeeklyConfirmation,
+} from "./model";
+
+export const WEEK_STAGE_TIMEOUT_MS = 12_000;
+export const WEEK_STAGE_TIMEOUT_MESSAGE =
+  "Nie udało się połączyć z serwerem. Sprawdź internet i spróbuj ponownie.";
+
+// Each snapshot names the plan it replaces, so writes must land in order.
+let planCommitQueue: Promise<unknown> = Promise.resolve();
+function queuePlanCommit<T>(commit: () => Promise<T>): Promise<T> {
+  const run = planCommitQueue.then(commit, commit);
+  planCommitQueue = run.catch(() => undefined);
+  return run;
+}
 
 export function createPlanActions(
   context: StoreActionContext & { replacementInFlightRef: RefObject<Set<string>> },
@@ -336,11 +353,11 @@ export function createPlanActions(
     weekNumber: number,
     nextMatchDates: string[],
     noMatchNextWeek: boolean,
-  ) {
-    if (!user) return;
+  ): Promise<WeeklyConfirmation> {
+    if (!user) throw new Error("Zaloguj się, żeby zapisać tydzień.");
     const profile = state.profile;
-    if (!profile) return;
-    const [{ weekRanges }, { persistMonthlyPlan }] = await Promise.all([
+    if (!profile) throw new Error("Najpierw uzupełnij profil.");
+    const [{ weekRanges }, { stageMonthlyPlan }] = await Promise.all([
       import("../planEngine"),
       import("../persist"),
     ]);
@@ -454,12 +471,37 @@ export function createPlanActions(
       confirmedAt: new Date().toISOString(),
     };
 
-    newPlan = await persistMonthlyPlan(user.id, profile, newPlan, transition);
+    // Ids come from one small read; the week is shown right away and the atomic
+    // snapshot is sent in the background. A failed write restores the old week.
+    const staged = await boundedRequest(
+      () => stageMonthlyPlan(user.id, profile, newPlan, transition),
+      WEEK_STAGE_TIMEOUT_MS,
+      WEEK_STAGE_TIMEOUT_MESSAGE,
+    );
+    const previousPlan = state.plan;
+    const previousTransition = state.transitions[weekNumber];
     setState((s) => ({
       ...s,
-      plan: newPlan,
+      plan: staged.plan,
       transitions: { ...s.transitions, [weekNumber]: transition },
     }));
+    const saved = queuePlanCommit(staged.commit).then(
+      () => undefined,
+      (error: unknown) => {
+        setState((s) => {
+          // A newer change (or a fresh load) owns the plan now; keep it.
+          if (s.plan !== staged.plan) return s;
+          const transitions = { ...s.transitions };
+          if (previousTransition) transitions[weekNumber] = previousTransition;
+          else delete transitions[weekNumber];
+          return { ...s, plan: previousPlan, transitions };
+        });
+        throw error instanceof Error
+          ? error
+          : new Error("Nie udało się zapisać tygodnia. Spróbuj ponownie.");
+      },
+    );
+    return { saved };
   }
 
   async function saveReadiness(r: Readiness) {

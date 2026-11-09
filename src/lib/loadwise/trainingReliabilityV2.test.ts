@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { prepareMonthlyPlan } from "./persist";
+import {
+  PLAN_COMMIT_TIMEOUT_MESSAGE,
+  PLAN_COMMIT_TIMEOUT_MS,
+  prepareMonthlyPlan,
+} from "./persist";
 import { sessionFixture, sectionFixture } from "@/components/loadwise/session/testFixtures";
 import { resolveEffectivePlan } from "./effectivePlan";
 import { applyReadiness, generatePlan } from "./planEngine";
@@ -387,6 +391,49 @@ describe("training contracts after reliability repair", () => {
     expect(
       state.plan.filter((day) => day.date >= "2026-10-26").some((day) => day.dayType === "match"),
     ).toBe(false);
+  });
+  it("shows the confirmed week at once and restores it with a message when the write never answers", async () => {
+    const plan = generatePlan(profile, new Date(2026, 9, 19), 14).map((day, index) => ({
+      ...day,
+      cycleId: "cycle",
+      planDbId: "plan",
+      dayDbId: `day-${index}`,
+      dbId: `session-${index}`,
+    }));
+    let state: LoadwiseState = { ...initialState, profile, plan };
+    const actions = createPlanActions({
+      user: { id: "u" },
+      state,
+      todayIso: "2026-10-19",
+      setState: (update: Parameters<StoreActionContext["setState"]>[0]) => {
+        state = typeof update === "function" ? update(state) : update;
+      },
+      replacementInFlightRef: { current: new Set() },
+    } as unknown as Parameters<typeof createPlanActions>[0]);
+    mocks.sessions = prepareMonthlyPlan("u", profile, plan).args.p_sessions as Record<
+      string,
+      unknown
+    >[];
+    // The database never answers (stalled network or session refresh).
+    mocks.rpc.mockReturnValueOnce(new Promise(() => undefined));
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const { saved } = await actions.confirmWeeklyTransition(1, ["2026-10-31"], false);
+      const failure = saved.then(
+        () => null,
+        (error: Error) => error.message,
+      );
+      // The new week is visible before the server confirms it.
+      expect(state.transitions[1]?.nextMatchDate).toBe("2026-10-31");
+      expect(state.plan.find((day) => day.date === "2026-10-31")?.dayType).toBe("match");
+      expect(mocks.rpc).toHaveBeenCalledWith("persist_training_plan_v2", expect.anything());
+      await vi.advanceTimersByTimeAsync(PLAN_COMMIT_TIMEOUT_MS);
+      expect(await failure).toBe(PLAN_COMMIT_TIMEOUT_MESSAGE);
+      expect(state.plan).toBe(plan);
+      expect(state.transitions[1]).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
   it.each([
     ["2026-11-01", 4, "2026-11-29", "2026-11-23"],

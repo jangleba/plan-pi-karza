@@ -1,3 +1,4 @@
+import { boundedRequest } from "@/lib/boundedRequest";
 import { supabase } from "@/integrations/supabase/client";
 import { assertNoSupabaseError } from "@/integrations/supabase/errors";
 import type { Json } from "@/integrations/supabase/types";
@@ -155,6 +156,11 @@ export function prepareMonthlyPlan(
   };
 }
 
+/** A plan write that has not answered by then is reported instead of waiting forever. */
+export const PLAN_COMMIT_TIMEOUT_MS = 20_000;
+export const PLAN_COMMIT_TIMEOUT_MESSAGE =
+  "Zapis planu trwa za długo. Sprawdź internet i spróbuj ponownie.";
+
 /**
  * Assigns the final database ids (one small read) without writing. The returned plan
  * can be shown at once; `commit` sends the atomic snapshot and resolves to the same plan.
@@ -170,7 +176,13 @@ export async function stageMonthlyPlan(
   return {
     plan: prepared.plan,
     commit: async () => {
-      const atomicWrite = await supabase.rpc("persist_training_plan_v2", prepared.args);
+      // The client can also stall before the request (session refresh), so the
+      // deadline covers the whole call, not only the network transfer.
+      const atomicWrite = await boundedRequest(
+        async () => await supabase.rpc("persist_training_plan_v2", prepared.args),
+        PLAN_COMMIT_TIMEOUT_MS,
+        PLAN_COMMIT_TIMEOUT_MESSAGE,
+      );
       assertNoSupabaseError("persist_training_plan_v2", atomicWrite.error);
       return prepared.plan;
     },
