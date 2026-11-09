@@ -1,5 +1,6 @@
 /** The TV side view's pitch: mown grass with painted markings in one texture,
- * 3D goals with nets, corner flags, advertising boards and a stand.
+ * 3D goals with nets, corner flags and LED boards. No stands: a dark surround
+ * fades into fog, like a broadcast at an evening match.
  * Everything is static and built once, so it costs nothing per frame.
  *
  * Pitch coordinates: x 0–100 across, y 0–140 between the goal lines' outer
@@ -52,21 +53,34 @@ function grassTexture(): CanvasTexture {
   const g = canvas.getContext("2d")!;
   const px = (u: number) => (u + MARGIN) * PX_PER_UNIT;
   // Base and mowing stripes across the pitch (perpendicular to the touchlines).
-  g.fillStyle = "#3a7f37";
+  // Natural, slightly muted turf: real grass is far less saturated than a cartoon.
+  g.fillStyle = "#3f7230";
   g.fillRect(0, 0, width, height);
   const stripe = 140 / 14;
   for (let i = -2; i < 16; i++) {
-    g.fillStyle = i % 2 ? "#3f8a3b" : "#479442";
+    g.fillStyle = i % 2 ? "#3c6d2e" : "#467b34";
     g.fillRect(0, px(i * stripe), width, stripe * PX_PER_UNIT + 1);
   }
-  // Fine grain: thousands of short blades in lighter and darker tones.
   const random = noise(7);
-  for (let i = 0; i < 26000; i++) {
+  // Large, soft patches so the turf is never a flat colour.
+  for (let i = 0; i < 420; i++) {
+    const x = random() * width,
+      y = random() * height,
+      r = (3 + random() * 9) * PX_PER_UNIT;
+    const patch = g.createRadialGradient(x, y, 0, x, y, r);
+    const tone = random() > 0.5 ? "255,250,210" : "10,35,5";
+    patch.addColorStop(0, `rgba(${tone},0.05)`);
+    patch.addColorStop(1, `rgba(${tone},0)`);
+    g.fillStyle = patch;
+    g.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  // Fine grain: short blades in lighter and darker tones.
+  for (let i = 0; i < 40000; i++) {
     const x = random() * width,
       y = random() * height,
       light = random() > 0.5;
-    g.fillStyle = light ? "rgba(255,255,230,0.05)" : "rgba(0,30,0,0.07)";
-    g.fillRect(x, y, 1.5, 3 + random() * 3);
+    g.fillStyle = light ? "rgba(230,240,200,0.045)" : "rgba(0,25,0,0.06)";
+    g.fillRect(x, y, 1, 2 + random() * 3);
   }
   // Worn areas in front of both goals and in the centre circle.
   for (const [x, y, r] of [
@@ -75,8 +89,8 @@ function grassTexture(): CanvasTexture {
     [50, 70, 6],
   ]) {
     const glow = g.createRadialGradient(px(x), px(y), 0, px(x), px(y), r * PX_PER_UNIT);
-    glow.addColorStop(0, "rgba(120,110,60,0.22)");
-    glow.addColorStop(1, "rgba(120,110,60,0)");
+    glow.addColorStop(0, "rgba(125,115,70,0.16)");
+    glow.addColorStop(1, "rgba(125,115,70,0)");
     g.fillStyle = glow;
     g.fillRect(px(x - r), px(y - r), r * 2 * PX_PER_UNIT, r * 2 * PX_PER_UNIT);
   }
@@ -87,8 +101,8 @@ function grassTexture(): CanvasTexture {
   g.fillRect(0, 0, px(2.2), height);
   g.fillRect(px(97.8), 0, width - px(97.8), height);
   // Painted markings: 12 cm lines at this scale read as ~0.3 units.
-  g.strokeStyle = "rgba(250,252,246,0.92)";
-  g.lineWidth = 0.3 * PX_PER_UNIT;
+  g.strokeStyle = "rgba(244,246,240,0.88)";
+  g.lineWidth = 0.26 * PX_PER_UNIT;
   g.lineJoin = "miter";
   const rect = (x: number, y: number, w: number, h: number) =>
     g.strokeRect(px(x), px(y), w * PX_PER_UNIT, h * PX_PER_UNIT);
@@ -132,47 +146,28 @@ function grassTexture(): CanvasTexture {
   return texture;
 }
 
-/** Spectators as small coloured dots on dark seats. */
-function crowdTexture(): CanvasTexture {
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 64;
-  const g = canvas.getContext("2d")!;
-  g.fillStyle = "#26303a";
-  g.fillRect(0, 0, 512, 64);
-  const random = noise(11);
-  const shirts = ["#d9dde2", "#c8202f", "#113a63", "#f2b705", "#e9e4d8", "#2c6e49", "#8a8f96"];
-  for (let i = 0; i < 2600; i++) {
-    g.fillStyle = shirts[Math.floor(random() * shirts.length)];
-    g.fillRect(random() * 512, random() * 64, 2, 3);
-  }
-  const texture = new CanvasTexture(canvas);
-  texture.colorSpace = SRGBColorSpace;
-  texture.wrapS = RepeatWrapping;
-  texture.wrapT = RepeatWrapping;
-  return texture;
-}
-
+/** LED boards: black panels with the app's name, like a real broadcast. */
 function boardTexture(): CanvasTexture {
   const canvas = document.createElement("canvas");
   canvas.width = 1024;
-  canvas.height = 32;
+  canvas.height = 64;
   const g = canvas.getContext("2d")!;
-  const panels = ["#113a63", "#f4f4f0", "#c8202f", "#0f5132", "#f2b705", "#1b1f24"];
-  const words = ["BALLWISE", "IQ", "FOOTBALL", "PLAN", "TRENING", "TAKTYKA"];
-  for (let i = 0; i < 8; i++) {
-    const color = panels[i % panels.length];
-    g.fillStyle = color;
-    g.fillRect(i * 128, 0, 128, 32);
-    g.fillStyle = ["#f4f4f0", "#f2b705"].includes(color) ? "#1b1f24" : "#f4f4f0";
-    g.font = "bold 18px sans-serif";
-    g.textAlign = "center";
-    g.textBaseline = "middle";
-    g.fillText(words[i % words.length], i * 128 + 64, 17);
+  g.fillStyle = "#0b0f0d";
+  g.fillRect(0, 0, 1024, 64);
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  for (let i = 0; i < 4; i++) {
+    const x = i * 256 + 128;
+    g.fillStyle = "#22c55e";
+    g.fillRect(i * 256 + 18, 26, 10, 12);
+    g.fillStyle = "#f3f5f2";
+    g.font = "600 30px system-ui, -apple-system, sans-serif";
+    g.fillText(i % 2 ? "Football IQ" : "BallWise", x + 8, 33);
   }
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   texture.wrapS = RepeatWrapping;
+  texture.anisotropy = 4;
   return texture;
 }
 
@@ -275,7 +270,7 @@ export function buildStadium(world: World, goalHeight: number) {
   const addBoard = (center: Point, length: number, along: "x" | "y") => {
     const texture = boards.clone();
     texture.needsUpdate = true;
-    texture.repeat.set(length / 24, 1);
+    texture.repeat.set(length / 30, 1);
     textures.push(texture);
     const material = new MeshBasicMaterial({ map: texture });
     materials.push(material);
@@ -295,24 +290,13 @@ export function buildStadium(world: World, goalHeight: number) {
   addBoard({ x: 50, y: -5 }, 70, "x");
   addBoard({ x: 50, y: 145 }, 70, "x");
 
-  // A low stand behind the far touchline, in steps, so the horizon is not empty.
-  const standMaterial = new MeshStandardMaterial({ color: "#3b4651", roughness: 0.9 });
-  const crowd = crowdTexture();
-  crowd.repeat.set(8, 1);
-  textures.push(crowd);
-  const seatMaterial = new MeshBasicMaterial({ map: crowd });
-  materials.push(standMaterial, seatMaterial);
-  for (let row = 0; row < 6; row++) {
-    const height = (row + 1) * 1.6;
-    const step = new Mesh(own(new BoxGeometry(3, height, 190)), seatMaterial);
-    step.position.copy(world({ x: -9 - row * 3, y: 70 }, height / 2));
-    group.add(step);
-  }
-  for (const side of [-1, 1]) {
-    const end = new Mesh(own(new BoxGeometry(150, 6, 3)), standMaterial);
-    end.position.copy(world({ x: 50, y: side < 0 ? -12 : 152 }, 3));
-    group.add(end);
-  }
+  // Dark surround beyond the run-off; it fades into the scene fog.
+  const surroundMaterial = new MeshBasicMaterial({ color: "#26402b" });
+  materials.push(surroundMaterial);
+  const surround = new Mesh(own(new PlaneGeometry(700, 700)), surroundMaterial);
+  surround.rotation.x = -Math.PI / 2;
+  surround.position.copy(world({ x: 50, y: 70 }, -0.02));
+  group.add(surround);
 
   const dispose = () => {
     geometries.forEach((g) => g.dispose());

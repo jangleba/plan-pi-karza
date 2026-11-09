@@ -1,6 +1,7 @@
 import {
   BufferGeometry,
   DoubleSide,
+  Fog,
   Float32BufferAttribute,
   CircleGeometry,
   Color,
@@ -78,9 +79,11 @@ export async function createPitchScene(
   camera.position.copy(initialCenter).add(new Vector3(0, 170, 120));
   camera.lookAt(initialCenter);
   camera.updateMatrixWorld();
-  scene.add(new HemisphereLight("#eef6ff", "#536044", 2.5));
-  const sun = new DirectionalLight("#fff4df", 2.0);
-  sun.position.set(-40, 90, 45);
+  // Lower ambient fill and a stronger key light give the players shading
+  // and volume instead of a flat, cartoon-like look.
+  scene.add(new HemisphereLight("#e6eefa", "#3d4a34", 1.6));
+  const sun = new DirectionalLight("#fff1dc", 2.9);
+  sun.position.set(-55, 110, 30);
   scene.add(sun);
   const ownedGeometries = new Set<BufferGeometry>();
   const ownedMaterials = new Set<
@@ -180,7 +183,9 @@ export async function createPitchScene(
     );
     paint.color.set(tv ? "#f2f5ef" : "#c5dacb");
     paint.opacity = tv ? 0.85 : 0.6;
-    scene.background = new Color(tv ? "#9fbfd8" : "#1b4a40");
+    // Evening-broadcast surround: everything beyond the pitch fades to dark.
+    scene.background = new Color(tv ? "#1c2c20" : "#1b4a40");
+    scene.fog = tv ? new Fog("#1c2c20", 150, 360) : null;
     shadowMaterial.opacity = tv ? 0.34 : 0.24;
     if (tv) sun.position.set(70, 90, -25);
     else sun.position.set(-40, 90, 45);

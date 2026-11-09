@@ -493,8 +493,8 @@ export function makeActor(
     object.material = new MeshStandardMaterial({
       color: "#ffffff",
       vertexColors: true,
-      roughness: 0.82,
-      metalness: 0,
+      roughness: 0.66,
+      metalness: 0.02,
     });
   });
   const root = new Group();
