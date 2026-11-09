@@ -423,8 +423,10 @@ export function LearningJourney(props: Props) {
           ? optionPaths(controlled, options, optionKey)
           : preview;
   const scoreReached = !isPlaying || playTime >= journeyDuration(displayed) - 0.001;
-  const visibleHome = scoreReached ? (displayed.attack?.home ?? 0) : 0;
-  const visibleAway = scoreReached ? (displayed.attack?.away ?? 0) : 0;
+  // Opening an earlier decision for review never changes the final score of the action.
+  const scored = review ? session : displayed;
+  const visibleHome = scoreReached ? (scored.attack?.home ?? 0) : 0;
+  const visibleAway = scoreReached ? (scored.attack?.away ?? 0) : 0;
   const decisionNumber = isPlaying
     ? Math.max(
         1,
@@ -769,7 +771,7 @@ export function LearningJourney(props: Props) {
             <h2>
               {session.attack
                 ? session.attack.finish === "goal"
-                  ? visibleHome
+                  ? session.attack.home
                     ? "Gol!"
                     : "Gol rywali"
                   : session.attack.finish === "miss"

@@ -709,17 +709,17 @@ export function chooseAttackJourney(
       if (contact) {
         offsideCall = !f.shot && !!f.offsidePlayers?.includes(contact.id);
         lastContact = t;
-        if (f.shot && contact.goalkeeper)
-          event(
-            t,
-            "Bramkarz broni i przejmuje piłkę. Akcja trwa — przejdź do obrony.",
-          );
         s.world.carrierId = contact.id;
         if (teamOf(s, contact.id) !== teamOf(s, f.actor)) {
           loss = teamOf(s, contact.id) !== "home";
+          // One event per contact, named after what really happened: a save, a block or an interception.
           event(
             t,
-            `Nr ${contact.number} przecina tor podania, zanim piłka dociera do celu.`,
+            f.shot && contact.goalkeeper
+              ? "Bramkarz broni i przejmuje piłkę. Akcja trwa — przejdź do obrony."
+              : f.shot
+                ? `Nr ${contact.number} blokuje strzał.`
+                : `Nr ${contact.number} przecina tor podania, zanim piłka dociera do celu.`,
           );
         } else {
           firstReceiver = contact.id;

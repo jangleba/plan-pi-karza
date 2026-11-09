@@ -170,8 +170,12 @@ try {
   await page.screenshot({path:path.join(work,'IQ-64-WYNIK.png')});
   ensure(await page.locator('.iqE-review li').count()>0,'No decision review after the action');
   ensure(await page.locator('.iqE-review .iqE-grade').count()===await page.locator('.iqE-review li').count(),'Every decision needs a grade');
+  const headingBefore = await page.locator('.iqE-summary h2').innerText();
+  const scoreBefore = await page.locator('.iqE-context > span').first().innerText();
   await page.locator('.iqE-review li button').first().click();
   await page.waitForSelector('.iqE-better');
+  ensure(await page.locator('.iqE-summary h2').innerText()===headingBefore,'Opening a decision changed the result heading');
+  ensure(await page.locator('.iqE-context > span').first().innerText()===scoreBefore,'Opening a decision changed the score');
   await page.screenshot({path:path.join(work,'IQ-64-OCENA.png')});
   await page.getByRole('button',{name:'Cała akcja',exact:true}).click();
   await page.waitForSelector('.iqE-replay-key');
@@ -211,4 +215,13 @@ try {
   ensure(await page.locator('.iqE-sources a').count()>0,'Help sheet has no sources');
   await fs.writeFile(path.join(work,'wynik-iq-learning.json'),JSON.stringify({views,errors,flow:'truthful start → option decisions beyond 3 → shot option → saved result → replay and seeking → independent variant → situation picker → sources'},null,2));
   ensure(errors.length===0,JSON.stringify(errors));
+  // With the 3D models blocked the lesson must not start on an empty pitch.
+  const blocked = await browser.newPage({viewport:{width:390,height:700}, deviceScaleFactor:1});
+  await blocked.route('**/*.fbx', () => {});
+  await blocked.goto(url+'?position=goalkeeper');
+  await blocked.waitForSelector('.iqE-start');
+  await blocked.waitForTimeout(1500);
+  ensure(await blocked.locator('[data-iq-renderer="loading"]').count()===1,'Blocked FBX should keep the pitch loading');
+  ensure(await blocked.getByRole('button',{name:'Start',exact:true}).isDisabled(),'Start must wait for the 3D pitch');
+  await blocked.close();
 } catch(e) { console.error(e); console.error("UI errors",errors); await activePage?.screenshot({path:path.join(work,"FAILURE.png")}); console.error(await activePage?.locator("body").innerText()); await fs.writeFile(path.join(work,"failure.json"),JSON.stringify({error:String(e),errors})); throw e; } finally { await browser?.close(); await new Promise(resolve=>server.close(resolve)); }
