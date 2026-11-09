@@ -29,6 +29,39 @@ export function forecastRival(s: JourneySession) {
     )[0];
 }
 
+/** Window (s) after the decision in which the rival's first reaction is read (rules v9). */
+export const REACTION_WINDOW = 2;
+const REACTION_MIN = 1.5;
+
+/** Rules v9: read the reaction from the live samples in the first seconds after the
+ * decision. When TY still has the ball, moving to TY and to the ball is the same move. */
+function observedLiveReaction(
+  s: JourneySession,
+  decisionIndex: number,
+  rivalId: string,
+  actor: string,
+): TacticalForecast["actual"] {
+  const decision = s.decisions[decisionIndex];
+  const frames = s.beats
+    .slice(decision.firstBeat, decision.lastBeat + 1)
+    .flatMap((b) => b.live ?? []);
+  const first = frames[0];
+  if (!first) return "cover";
+  const start = first.time;
+  const last = frames.filter((f) => f.time - start <= REACTION_WINDOW).at(-1) ?? first;
+  const from = first.world.positions[rivalId],
+    to = last.world.positions[rivalId];
+  if (!from || !to) throw new Error("Brak rywala w zapisie.");
+  if (distance(from, to) < REACTION_MIN) return "cover";
+  const you = last.world.positions[actor];
+  const follow = distance(from, you) - distance(to, you);
+  const ball = distance(from, last.ball) - distance(to, last.ball);
+  const youHaveBall = !last.inFlight && !last.world.looseBall && last.world.carrierId === actor;
+  if (youHaveBall) return Math.max(follow, ball) > REACTION_MIN ? "ball" : "cover";
+  if (Math.max(follow, ball) <= REACTION_MIN) return "cover";
+  return follow > ball ? "follow" : "ball";
+}
+
 /** Inspect the first visible reaction, not the final score or a hidden answer key. */
 export function observedReaction(
   s: JourneySession,
@@ -38,6 +71,7 @@ export function observedReaction(
   const decision = s.decisions[decisionIndex];
   if (!decision) throw new Error("Brak decyzji do analizy.");
   const actor = decision.actorId ?? "you";
+  if (s.rulesVersion === 9) return observedLiveReaction(s, decisionIndex, rivalId, actor);
   for (const beat of s.beats.slice(decision.firstBeat, decision.lastBeat + 1)) {
     const from = beat.before.positions[rivalId],
       to = beat.after.positions[rivalId];
@@ -60,7 +94,7 @@ export function addForecast(
   input: Pick<TacticalForecast, "predicted" | "plan">,
 ): JourneySession {
   const rival = forecastRival(before);
-  if (!rival || s.rulesVersion !== 7 || !s.decisions.length) return s;
+  if (!rival || (s.rulesVersion !== 7 && s.rulesVersion !== 9) || !s.decisions.length) return s;
   const decisionIndex = s.decisions.length - 1;
   const record: TacticalForecast = {
     ...input,
@@ -93,5 +127,55 @@ export function forecastReflection(f: TacticalForecast) {
   };
   const reaction =
     f.actual === "mixed" ? actualReactionLabels.mixed : `W animacji ${past[f.actual]}.`;
-  return { matches: f.actual === "mixed" ? null : f.actual === f.predicted, reaction, plan };
+  return {
+    matches: f.actual === "mixed" ? null : f.actual === f.predicted,
+    reaction,
+    plan,
+  };
+}
+
+/** Rules v9: the question asked before TY's decision, in tactical words. */
+export const predictionLabels = {
+  ball: "Ruszy do piłki",
+  follow: "Pójdzie za mną",
+  cover: "Zostanie na pozycji",
+} as const;
+
+/** Rules v9: did TY still have the ball when the reaction was read? Then moving to TY
+ * and moving to the ball are the same move. */
+export function keptBallDuringReaction(s: JourneySession, decisionIndex: number) {
+  const decision = s.decisions[decisionIndex];
+  const actor = decision?.actorId ?? "you";
+  const frames = decision
+    ? s.beats.slice(decision.firstBeat, decision.lastBeat + 1).flatMap((b) => b.live ?? [])
+    : [];
+  if (!frames.length) return false;
+  const last = frames.filter((f) => f.time - frames[0].time <= REACTION_WINDOW).at(-1) ?? frames[0];
+  return !last.inFlight && !last.world.looseBall && last.world.carrierId === actor;
+}
+
+/** Compares the prediction with the reaction read from the animation, with its tactical meaning. */
+export function predictionResult(s: JourneySession, f: TacticalForecast) {
+  const rival = s.players.find((p) => p.id === f.rivalId);
+  const n = rival?.number ?? "?";
+  const hit =
+    f.actual === "mixed"
+      ? null
+      : f.predicted === f.actual ||
+        (f.actual === "ball" &&
+          f.predicted === "follow" &&
+          keptBallDuringReaction(s, f.decisionIndex));
+  const actual =
+    f.actual === "ball"
+      ? `Nr ${n} ruszył do piłki. Za nim zostaje wolne miejsce: tam szukaj kolejnego podania.`
+      : f.actual === "follow"
+        ? `Nr ${n} poszedł za Tobą i zostawił miejsce, z którego wyszedł. Partner może je zająć.`
+        : f.actual === "cover"
+          ? `Nr ${n} został na pozycji i pilnuje środka. Szukaj miejsca obok niego, nie przed nim.`
+          : `Nr ${n} ruszył jednocześnie do piłki i w Twoją stronę.`;
+  return {
+    hit,
+    predicted: predictionLabels[f.predicted],
+    actual,
+  };
 }

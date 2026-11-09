@@ -297,7 +297,7 @@ export function journeyDebriefText(session: JourneySession, report: JourneyDebri
     ...(session.forecasts ?? []).flatMap((f) => [
       `PROGNOZA — DECYZJA ${f.decisionIndex + 1}`,
       `Przewidywanie: ${reactionLabels[f.predicted]}. ${forecastReflection(f).reaction}`,
-      `Plan: ${planLabels[f.plan]}. ${forecastReflection(f).plan}`,
+      f.plan ? `Plan: ${planLabels[f.plan]}. ${forecastReflection(f).plan}` : "",
       "",
     ]),
     "DO WYKORZYSTANIA W MECZU",

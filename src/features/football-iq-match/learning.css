@@ -844,3 +844,42 @@ body.iq-learning-focus .app-shell {
 .iqE-more a {
   color: inherit;
 }
+/* Prediction loop: predict the nearest rival's reaction, then compare with the animation. */
+.iqE-predict .iqE-link {
+  display: block;
+  margin: 6px auto 0;
+}
+.iqE-app .iqE-prediction {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: #4b5560;
+}
+.iqE-app .iqE-forecast {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-left: 3px solid #8a96a3;
+  border-radius: 6px;
+  background: #f3f5f7;
+  font-size: 12.5px;
+  color: #2f3b46;
+}
+.iqE-app .iqE-forecast[data-iq-forecast="true"] {
+  border-left-color: #2f9e5b;
+}
+.iqE-app .iqE-forecast[data-iq-forecast="false"] {
+  border-left-color: #d08a1f;
+}
+.iqE-app .iqE-upnext {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  color: #4b5560;
+}
+.iqE-role-list button .iqE-progress {
+  grid-column: 1;
+  font-size: 11px;
+  font-weight: 650;
+  color: #8a6a1f;
+}
+.iqE-role-list button .iqE-progress--mastered {
+  color: #2f8a52;
+}

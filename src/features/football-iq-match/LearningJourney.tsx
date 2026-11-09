@@ -13,14 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { decisionOptions, OPTION_MARKS, optionPaths, situationLine } from "./decisionOptions";
-import {
-  momentLabel,
-  momentOf,
-  nextContext,
-  nextDefinition,
-  pickerItems,
-  startLines,
-} from "./journeyGuide";
+import { momentLabel, momentOf, nextContext, pickerItems, startLines } from "./journeyGuide";
 import { loadFieldTask, pickFieldTask, saveFieldTask, type FieldTask } from "./fieldTask";
 import {
   qualityLabels,
@@ -34,6 +27,7 @@ import {
   assessDecision,
   contributionCounts,
   keyMoment,
+  lessonAim,
   momentRange,
 } from "./decisionAssessment";
 import type { FootballIQJourney as ArchiveJourney } from "./FootballIQJourney";
@@ -63,9 +57,30 @@ import {
   saveJourneyDraft,
   makeJourneyDraft,
 } from "./journeyHistory";
+import { addForecast, forecastRival, predictionLabels, predictionResult } from "./tacticalForecast";
+import { teamOf } from "./tacticalWorld";
+import {
+  addAssessments,
+  aimProgress,
+  loadMastery,
+  nextByMastery,
+  saveMastery,
+  type Mastery,
+} from "./mastery";
 import { downloadText } from "../browser-lab/download";
-import type { JourneyChoice, JourneyDefinition, JourneyMode, JourneySession } from "./journeyTypes";
+import type {
+  JourneyChoice,
+  JourneyDefinition,
+  JourneyMode,
+  JourneySession,
+  TacticalForecast,
+} from "./journeyTypes";
 import type { PlannedAction, Point } from "./types";
+// The pitch overlay, labels and option markers are styled here. They used to arrive with the
+// archive screen; since the archive loads on demand, the IQ screen imports them itself.
+import "./football-iq.css";
+import "./journey.css";
+import "./spatial.css";
 import "./learning.css";
 
 type Props = React.ComponentProps<typeof ArchiveJourney>;
@@ -148,6 +163,11 @@ export function LearningJourney(props: Props) {
   const [paused, setPaused] = useState(false),
     [playTime, setPlayTime] = useState(0);
   const [transfer, setTransfer] = useState(false);
+  // Before the first decision with the ball in our team, TY predicts the nearest rival's reaction.
+  const [prediction, setPrediction] = useState<TacticalForecast["predicted"] | null>(null),
+    [skipPrediction, setSkipPrediction] = useState(false);
+  const [mastery, setMastery] = useState<Mastery>(() => loadMastery(historyOwner));
+  const masteryNow = useRef(mastery);
   const playhead = useRef(0),
     range = useRef({ from: 0, to: 0 }),
     current = useRef(session),
@@ -168,7 +188,16 @@ export function LearningJourney(props: Props) {
     [displayed],
   );
   const isPlaying = phase === "playing";
-  const playable = ready && phase === "decision" && !sheet && !error;
+  const predictionRival =
+    phase === "decision" && !session.forecasts?.length && !skipPrediction && !prediction
+      ? forecastRival({ ...session, controlledId: "you" })
+      : undefined;
+  // Asked only while our team has the ball: then "to the ball" and "after me" are different moves.
+  const askPrediction =
+    !!predictionRival &&
+    !session.world.looseBall &&
+    teamOf(session, session.world.carrierId) === teamOf(session, "you");
+  const playable = ready && phase === "decision" && !sheet && !error && !askPrediction;
   const own = controlled.world.carrierId === actor && !controlled.world.looseBall;
   const liveFrame = isPlaying ? sampleFrame() : idleFrame;
   const carrier = displayed.players.find((p) => p.id === liveFrame.ballCarrierId)!;
@@ -183,7 +212,7 @@ export function LearningJourney(props: Props) {
   }, [sheet]);
   useEffect(() => {
     if (phase === "decision") decisionStart.current = performance.now();
-  }, [phase, session.step]);
+  }, [phase, session.step, prediction, skipPrediction]);
   useEffect(() => {
     if (!isPlaying || paused || !ready || sheet || archive) return;
     let frame = 0,
@@ -240,7 +269,11 @@ export function LearningJourney(props: Props) {
           completed.current.add(id);
           setSaved(!!historyOwner);
           // The task for next time comes from the problem found in TY's key moment.
-          const found = keyMoment(assessAction(session));
+          const graded = assessAction(session);
+          const found = keyMoment(graded);
+          masteryNow.current = addAssessments(masteryNow.current, graded);
+          saveMastery(historyOwner, masteryNow.current);
+          setMastery(masteryNow.current);
           const rotated = pickFieldTask(
             session.definition,
             session.attack?.finish,
@@ -298,12 +331,14 @@ export function LearningJourney(props: Props) {
   function commit() {
     if (!draft || !playable) return;
     try {
-      const from = journeyDuration(session),
-        next = chooseJourney(
-          controlled,
-          draft.id,
-          (performance.now() - decisionStart.current) / 1000,
-        );
+      const from = journeyDuration(session);
+      let next = chooseJourney(
+        controlled,
+        draft.id,
+        (performance.now() - decisionStart.current) / 1000,
+      );
+      if (prediction && !session.forecasts?.length)
+        next = addForecast(next, controlled, { predicted: prediction });
       setSession(next);
       setDraft(null);
       setOptionKey(null);
@@ -333,6 +368,8 @@ export function LearningJourney(props: Props) {
     setRevealed(false);
     setFieldTask(null);
     setTransfer(test);
+    setPrediction(null);
+    setSkipPrediction(false);
   }
   function exportAttempt() {
     try {
@@ -415,6 +452,14 @@ export function LearningJourney(props: Props) {
     [session],
   );
   const assessments = useMemo(() => (session.outcome ? assessAction(session) : []), [session]);
+  const forecast = session.forecasts?.[0];
+  const forecastShown = forecast ? predictionResult(session, forecast) : null;
+  const lastForecast =
+    forecast && forecast.decisionIndex === session.decisions.length - 1 ? forecastShown : null;
+  const upNext = useMemo(
+    () => (phase === "summary" ? nextByMastery(session.definition, props.position, mastery) : null),
+    [phase, session.definition, props.position, mastery],
+  );
   const key = useMemo(() => keyMoment(assessments), [assessments]);
   const counts = contributionCounts(assessments);
   const summaryFact = `Twoje decyzje — dobre: ${counts.good} · do poprawy: ${counts.possible} · błędy: ${counts.error}. Liczy się Twój ruch, nie wynik drużyny.`;
@@ -661,8 +706,38 @@ export function LearningJourney(props: Props) {
               Start <ArrowRight size={17} />
             </button>
           </section>
+        ) : phase === "decision" && askPrediction && predictionRival ? (
+          <section className="iqE-predict" aria-label="Przewidź reakcję rywala">
+            <span className="iqE-eyebrow">Najpierw przewidź</span>
+            <p className="iqE-now">
+              Co zrobi rywal nr {predictionRival.number} po Twojej decyzji? Sprawdzisz to w
+              animacji.
+            </p>
+            <div className="iqE-options" role="group" aria-label="Reakcja rywala">
+              {(Object.entries(predictionLabels) as [TacticalForecast["predicted"], string][]).map(
+                ([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    disabled={!ready || !!sheet || !!error}
+                    onClick={() => setPrediction(value)}
+                  >
+                    {label}
+                  </button>
+                ),
+              )}
+            </div>
+            <button type="button" className="iqE-link" onClick={() => setSkipPrediction(true)}>
+              Pomiń
+            </button>
+          </section>
         ) : phase === "decision" ? (
           <>
+            {prediction && !session.forecasts?.length && (
+              <p className="iqE-prediction">
+                Twoja prognoza: {predictionLabels[prediction].toLowerCase()}.
+              </p>
+            )}
             <p className="iqE-now">{nowLine}</p>
             {showOptions ? (
               <div className="iqE-options" role="group" aria-label="Twoje opcje">
@@ -766,6 +841,18 @@ export function LearningJourney(props: Props) {
                 {lastAssessment.grade !== "good" && <p className="iqE-why">{lastAssessment.why}</p>}
               </>
             )}
+            {lastForecast && (
+              <p className="iqE-forecast" data-iq-forecast={String(lastForecast.hit)}>
+                <b>
+                  {lastForecast.hit === null
+                    ? "Prognoza bez rozstrzygnięcia."
+                    : lastForecast.hit
+                      ? "Prognoza trafiona."
+                      : "Prognoza nietrafiona."}
+                </b>{" "}
+                Przewidziałeś: {lastForecast.predicted.toLowerCase()}. {lastForecast.actual}
+              </p>
+            )}
             {!session.outcome && (
               <p className="iqE-next">
                 <strong>Teraz:</strong> {situationLine(session, "you")}
@@ -829,6 +916,18 @@ export function LearningJourney(props: Props) {
                     : "Piłka utrzymana. Czy udało się wyjść spod nacisku?"}
             </h2>
             <p className="iqE-fact">{summaryFact}</p>
+            {forecastShown && (
+              <p className="iqE-forecast" data-iq-forecast={String(forecastShown.hit)}>
+                <b>
+                  {forecastShown.hit === null
+                    ? "Prognoza bez rozstrzygnięcia."
+                    : forecastShown.hit
+                      ? "Prognoza trafiona."
+                      : "Prognoza nietrafiona."}
+                </b>{" "}
+                {forecastShown.actual}
+              </p>
+            )}
             {key && (
               <section className="iqE-key" aria-label="Kluczowy moment">
                 <div className="iqE-between">
@@ -934,10 +1033,17 @@ export function LearningJourney(props: Props) {
                 ))}
               </ol>
             </details>
+            {upNext && (
+              <p className="iqE-upnext" data-iq-next={upNext.def.topicId}>
+                <b>Następna: {upNext.def.title}.</b> {upNext.reason}
+              </p>
+            )}
             <button
               type="button"
               className="iqE-primary"
-              onClick={() => start(nextDefinition(session.definition, props.position))}
+              onClick={() =>
+                start((upNext ?? nextByMastery(session.definition, props.position, mastery)).def)
+              }
             >
               Następna sytuacja <ArrowRight size={16} />
             </button>
@@ -1121,6 +1227,7 @@ export function LearningJourney(props: Props) {
                       >
                         <span>{i.role}</span>
                         {i.def.title}
+                        <ProgressTag mastery={mastery} def={i.def} />
                         <ArrowRight size={17} />
                       </button>
                     ))}
@@ -1199,5 +1306,15 @@ export function LearningJourney(props: Props) {
         )}
       </dialog>
     </div>
+  );
+}
+
+function ProgressTag({ mastery, def }: { mastery: Mastery; def: JourneyDefinition }) {
+  const p = aimProgress(mastery, lessonAim(def));
+  if (p.level === "new") return null;
+  return (
+    <small className={`iqE-progress iqE-progress--${p.level}`}>
+      {p.level === "mastered" ? "Opanowane" : `${Math.round(p.score * 100)}%`}
+    </small>
   );
 }
