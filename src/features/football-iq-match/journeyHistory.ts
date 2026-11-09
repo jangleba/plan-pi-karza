@@ -208,8 +208,15 @@ export function loadJourneyHistory(
     new Set(value.map((row) => row.id)).size !== value.length
   )
     throw new Error("Nie udało się odczytać historii akcji.");
-  value.forEach(validateCompletedAttempt);
+  // Local history is written only by this app after each attempt was replayed and checked
+  // (saveJourneyAttempt). Replaying every stored action again on each read took seconds per
+  // 20 actions and froze the IQ and progress screens, so reads check structure only.
+  // Data from outside (backup files, account copies) is replayed with verifyJourneyAttempts.
   return value as JourneyAttempt[];
+}
+/** Replays each attempt and checks its stored outcome and verdict (imports only). */
+export function verifyJourneyAttempts(attempts: JourneyAttempt[]) {
+  attempts.forEach(validateCompletedAttempt);
 }
 export function makeJourneyAttempt(
   session: JourneySession,

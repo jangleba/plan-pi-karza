@@ -94,6 +94,26 @@ describe("explicit per-device module snapshots", () => {
       final.forecasts,
     );
   });
+  it("replays IQ actions from a copy before they join the history", () => {
+    const store = memory();
+    const good = attempt("copy-ok");
+    store.setItem(journeyHistoryKey("source"), JSON.stringify([good]));
+    const snapshot = createModuleSnapshot("iq", "source", store, false, now);
+    const changed = {
+      ...snapshot,
+      records: {
+        ...snapshot.records,
+        history: (snapshot.records.history as (typeof good)[]).map((row) => ({
+          ...row,
+          verdict: row.verdict === "strong" ? "risky" : "strong",
+        })),
+      },
+    };
+    expect(() => previewModuleRestore(changed, "target", store, now)).toThrow();
+    expect(store.getItem(journeyHistoryKey("target"))).toBeNull();
+    applyModuleRestore(previewModuleRestore(snapshot, "target", store, now), "target", store);
+    expect(JSON.parse(store.getItem(journeyHistoryKey("target"))!)).toHaveLength(1);
+  });
   it("carries IQ progress per aim and the pitch task to another device", () => {
     const store = memory();
     store.setItem(masteryKey("source"), JSON.stringify({ press: ["good", "error", "good"] }));
