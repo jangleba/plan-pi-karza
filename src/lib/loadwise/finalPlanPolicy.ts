@@ -15,6 +15,8 @@ import {
   gymSpacingIssues,
 } from "./strengthScheduling";
 import { calculateWeeklyMinimumRequirements } from "./weeklyRequirements";
+import { getDevelopmentStage } from "./athleteProfile";
+import { requirementGymExperience, seasonPhaseForWeek } from "./offseasonPeriod";
 import { computeWeeklyLoadScore, countWeekRoles, MAIN_GOAL_RULES } from "./planRules";
 import { FINAL_PLAN_POLICY_VERSION } from "./planPolicyStamp";
 
@@ -34,7 +36,11 @@ export function finalPolicyRequirementsFor(week: SessionDay[], profile: Profile)
   const matchCount = sessions.filter(isMatchSession).length;
   return calculateWeeklyMinimumRequirements(
     {
-      seasonPhase: isConservativeReturnContext(profile) ? "transition" : profile.seasonPhase,
+      seasonPhase: isConservativeReturnContext(profile)
+        ? "transition"
+        : week[0]
+          ? seasonPhaseForWeek(profile, week[0].date)
+          : profile.seasonPhase,
       clubTrainingCount: sessions.filter((session) => session.dayType === "club").length,
       matchCount,
       isFullWeek: matchCount < 2,
@@ -42,7 +48,8 @@ export function finalPolicyRequirementsFor(week: SessionDay[], profile: Profile)
     { hasGym: profile.hasGym, clubTrainingDays: profile.clubTrainingDays },
     profile.goal,
     {
-      gymExperienceLevel: profile.gymExperienceLevel,
+      developmentStage: getDevelopmentStage(profile.age),
+      gymExperienceLevel: requirementGymExperience(profile),
       hasActivePain: profile.painInjury || (profile.painLocations?.length ?? 0) > 0,
     },
   );

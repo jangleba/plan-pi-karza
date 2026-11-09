@@ -1443,7 +1443,8 @@ function buildGymSessionDay(
     placementReason?: string;
   },
 ): SessionDay {
-  const youth = isYouthOrBeginner(profile);
+  // Bez dostępu do siłowni uzupełniamy siłę wariantem z masą ciała.
+  const youth = isYouthOrBeginner(profile) || !profile.hasGym;
   const title = opts.upperBodyOnly
     ? "Lekki tułów i góra ciała"
     : youth

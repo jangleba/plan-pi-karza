@@ -189,10 +189,30 @@ describe("weeklyRequirements — wiek/poziom nie kasują kategorii", () => {
     gymExperienceLevel: "beginner",
   };
 
-  it("14 lat beginner nadal ma 2 gym, ale requiresYouthSafeContent = true", () => {
-    const r = calculateWeeklyMinimumRequirements(ctx(), settings, "general", youth14);
+  it("14 lat beginner w sezonie nadal ma 2 gym, ale requiresYouthSafeContent = true", () => {
+    const r = calculateWeeklyMinimumRequirements(
+      ctx({ seasonPhase: "inseason" }),
+      settings,
+      "general",
+      youth14,
+    );
     expect(r.requiredGymSessions).toBe(2);
     expect(r.requiresYouthSafeContent).toBe(true);
+  });
+
+  it("poza sezonem 14-latek ma 1 siłę (mniej sesji), dorosły zaawansowany dalej 2", () => {
+    for (const seasonPhase of ["offseason", "preseason"]) {
+      expect(
+        calculateWeeklyMinimumRequirements(ctx({ seasonPhase }), settings, "general", youth14)
+          .requiredGymSessions,
+      ).toBe(1);
+      expect(
+        calculateWeeklyMinimumRequirements(ctx({ seasonPhase }), settings, "general", {
+          developmentStage: "adult",
+          gymExperienceLevel: "advanced",
+        }).requiredGymSessions,
+      ).toBe(2);
+    }
   });
 
   it("14 lat cel szybkość nadal ma 2 speed, ale youth-safe", () => {

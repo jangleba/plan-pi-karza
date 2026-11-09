@@ -278,6 +278,13 @@ export function getRequiredGymSessions(
   const congestion = getCongestionLevel(ctx);
   if (congestion === "very_dense" && getMatchCount(ctx) >= 2) return 0;
   if (congestion !== "normal" || getClubTrainingCount(ctx) >= 4) return 1;
+  // Poza sezonem młodsi (do 15 lat) i początkujący mają mniej sesji w tygodniu:
+  // jedna siła zostawia miejsce na szybkość, wytrzymałość i piłkę.
+  if (
+    (ctx.seasonPhase === "offseason" || ctx.seasonPhase === "preseason") &&
+    resolveSafetyLevel(athlete).level !== "performance"
+  )
+    return 1;
   return 2;
 }
 

@@ -28,9 +28,23 @@ import {
 import { enforceSessionCategory, newContentCounters, type ContentCounters } from "./sessionContent";
 import { fitBallWorkToConditions } from "./individualFootballSessionEngine";
 import { effectiveSeasonPhase } from "./seasonValidation";
-import { normalizeSessionCategory, classifySession } from "./sessionClassification";
+import {
+  requirementGymExperience,
+  offseasonGroup,
+  offseasonWeekLoad,
+  seasonPhaseForWeek,
+  offseasonStageOf,
+  type OffseasonStage,
+} from "./offseasonPeriod";
+import {
+  normalizeSessionCategory,
+  classifySession,
+  isBallTechnicalSession,
+  isEnduranceSession,
+  isMainGymSession,
+} from "./sessionClassification";
 import { repairUnsafeExercisesForAthleteProfile } from "./athleteProfileRepair";
-import { buildAthleteTrainingProfile } from "./athleteProfile";
+import { buildAthleteTrainingProfile, getDevelopmentStage } from "./athleteProfile";
 import { enforceStrengthEligibility } from "./strengthEligibility";
 import {
   generateFootballSpeedSession,
@@ -103,7 +117,7 @@ export {
 export type { PlanSessionCategory, PlanValidationIssue, DecisionResult } from "./sessionRuntime";
 
 export { PLAN_ENGINE_VERSION } from "./planVersion";
-import { enforceFinalPlanPolicy } from "./finalPlanPolicy";
+import { enforceFinalPlanPolicy, finalPolicyRequirementsFor } from "./finalPlanPolicy";
 import { enforceSprintOnlyContent } from "./sprintContentPolicy";
 
 const MAX_SPRINT_M = 240;
@@ -244,7 +258,7 @@ function buildByGoal(profile: Profile): Built {
       // Non-gym or fallback: bodyweight / minimal-equipment canonical exercises.
       return {
         title: young ? "Sesja siły bazowej" : "Sesja siły piłkarskiej",
-        sessionType: "Siła",
+        sessionType: profile.hasGym ? "Siła" : "Siła — masa ciała",
         intensity: young ? "umiarkowana" : "wysoka",
         durationMin: 55,
         goalOfSession: young
@@ -255,7 +269,8 @@ function buildByGoal(profile: Profile): Built {
           : "Kontrolowany ciężar i RIR ograniczają ryzyko przeciążenia.",
         avoidToday:
           "Nie planuj dziś dodatkowo twardych sprintów ani plyometrii. Bez ciężkich nóg na 48 h przed meczem.",
-        main: young
+        // Bez siłowni (lub dla młodszych) tylko ćwiczenia z masą ciała.
+        main: young || !profile.hasGym
           ? [
               {
                 exerciseId: "bodyweight_squat",
@@ -1782,19 +1797,23 @@ function weekLoadConfig(
   let cap = tier === "high" ? 6 : tier === "mid" ? 5 : 4;
   let maxDoubles = tier === "high" ? 4 : tier === "mid" ? 3 : 2;
 
+  const offseasonStage = offseasonStageOf(profile);
+  if (offseasonStage) {
+    // Bez meczów liczba sesji wynika z wieku i poziomu zawodnika.
+    ({ cap, maxDoubles } = offseasonWeekLoad(profile, offseasonStage));
+    // Pierwszy tydzień bloku wprowadza obciążenie: jedna sesja mniej.
+    if (offseasonStage !== "transition" && periodPhase === "adaptation") cap = Math.max(3, cap - 1);
+  }
+
   switch (profile.seasonPhase) {
     case "offseason":
     case "preseason":
-      // Pełny, ambitny tydzień rozwojowy — tu pchamy rozwój najmocniej.
+    case "transition":
       break;
     case "inseason":
       // Świeżość pod mecz; bez meczu zwiększamy gęstość.
       cap = hasMatchThisWeek ? cap - 1 : cap;
       maxDoubles = Math.min(maxDoubles, hasMatchThisWeek ? 2 : 3);
-      break;
-    case "transition":
-      cap = Math.min(cap, 3);
-      maxDoubles = 0;
       break;
     case "return_injury":
       cap = Math.min(cap, 3);
@@ -2069,6 +2088,8 @@ function interleaveStimuli(list: Stimulus[]): Stimulus[] {
 interface PlanCell {
   type: DayType;
   isUnavailable?: boolean;
+  /** Dzień wolny wynikający z limitu sesji (nie z kalendarza zawodnika). */
+  restReason?: string;
   stimulus?: Stimulus;
   secondStimulus?: Stimulus;
 }
@@ -2150,12 +2171,84 @@ function limiterSupportStimulus(profile: Profile): Stimulus | null {
   }
 }
 
+function isDevelopingOffseasonGroup(profile: Profile): boolean {
+  const group = offseasonGroup(profile);
+  return group === "u14" || group === "developing";
+}
+
+/**
+ * Tydzień bez meczów dla roztrenowania oraz młodszych (do 15 lat) i
+ * początkujących. Kolejność = priorytet (lista jest przycinana do limitu
+ * sesji). Szybkość jest w każdym etapie, żeby nie tracić jej w przerwie.
+ */
+function developingOffseasonQuota(
+  profile: Profile,
+  stage: OffseasonStage,
+  phase: WeekPhase,
+): Stimulus[] {
+  if (stage === "transition") {
+    // Roztrenowanie: mało sesji, ale krótka szybkość i siła bazowa podtrzymują
+    // to, co najszybciej zanika w przerwie; reszta to luźna piłka i lekki bieg.
+    return ["speed_exposure", "strength_base", "ball", "endurance_light", "prehab"];
+  }
+  const strengthMain: Stimulus =
+    phase === "deload" ? "strength_deload" : profile.hasGym ? "strength" : "strength_base";
+  const sprint: Stimulus = phase === "deload" ? "speed_exposure" : "sprint";
+  // Dużo piłki, krótkie sprinty z pełną przerwą, siła techniczna, lekki tlen
+  // zamiast długiego biegania „na kondycję”.
+  const list: Stimulus[] =
+    stage === "base"
+      ? ["ball", sprint, strengthMain, "cod", "endurance_light", "prehab"]
+      : [sprint, "ball", strengthMain, "cod", "endurance_light"];
+  return frontLoadGoal(profile, list);
+}
+
+/**
+ * Starsi i zaawansowani zachowują tydzień celu głównego; etap zmienia
+ * wytrzymałość: baza = tlen, przedsezon = dodatkowe interwały specyficzne
+ * zaraz po rdzeniu celu, od 2. tygodnia bloku (lekki bieg zostaje, bo w nim
+ * jest test tempa).
+ * Zaawansowani dostają jeszcze jeden bodziec, na który mają miejsce w limicie.
+ */
+function applyOffseasonStage(
+  profile: Profile,
+  stage: Exclude<OffseasonStage, "transition">,
+  quota: Stimulus[],
+  matchCount: number,
+  phase: WeekPhase,
+): Stimulus[] {
+  if (phase === "deload" || matchCount > 0) return quota;
+  let staged: Stimulus[];
+  if (stage === "base") {
+    staged = quota.map((s) => (s === "endurance_light" ? "endurance_aerobic" : s));
+  } else {
+    staged = [...quota];
+    // Intensywność rośnie stopniowo: interwały specyficzne od 2. tygodnia bloku.
+    if (phase !== "adaptation" && !staged.includes("endurance_special"))
+      staged.splice(2, 0, "endurance_special");
+  }
+  if (profile.level === "advanced" || profile.level === "elite") {
+    staged.push(stage === "preseason" ? "endurance_rsa" : "speed_exposure");
+  }
+  return Array.from(new Set(staged));
+}
+
 function hardWeeklyQuota(
   profile: Profile,
   clubCount: number,
   matchCount: number,
   phase: WeekPhase,
 ): Stimulus[] {
+  const offseasonStage = offseasonStageOf(profile);
+  if (
+    offseasonStage &&
+    !profile.painInjury &&
+    profile.goal !== "mobility" &&
+    profile.goal !== "return" &&
+    (offseasonStage === "transition" || isDevelopingOffseasonGroup(profile))
+  ) {
+    return developingOffseasonQuota(profile, offseasonStage, phase);
+  }
   if (!isHealthyPerformanceProfile(profile)) {
     return interleaveStimuli(seasonWeeklyStimuli(profile, clubCount, matchCount, phase));
   }
@@ -2178,7 +2271,9 @@ function hardWeeklyQuota(
   ) {
     quota.push("prehab");
   }
-  return quota;
+  return offseasonStage && offseasonStage !== "transition"
+    ? applyOffseasonStage(profile, offseasonStage, quota, matchCount, phase)
+    : quota;
 }
 
 /**
@@ -2374,6 +2469,10 @@ function enforceMinimumGymSession(
       isFullWeek: matchCount < 2,
     },
     { hasGym: profile.hasGym, clubTrainingDays: profile.clubTrainingDays },
+    {
+      developmentStage: getDevelopmentStage(profile.age),
+      gymExperienceLevel: requirementGymExperience(profile),
+    },
   );
 
   let guard = 0;
@@ -2499,6 +2598,56 @@ function repairWeekCells(
  * typ, a dni treningowe — konkretny bodziec. Bez losowych dni wolnych:
  * nadmiarowe dni dostępne stają się aktywną regeneracją, nie pustym "wolne".
  */
+/**
+ * Walidatory kategorii dokładają sesje ponad limit. Poza sezonem limit wynika
+ * z wieku i poziomu, więc nadmiar zdejmujemy w kolejności: prehab, powtórzona
+ * zwinność / wytrzymałość / piłka, potem pojedyncze sesje tych kategorii
+ * (drugie sesje dnia najpierw). Siły i szybkości nie zdejmujemy: ich minimum
+ * pilnują reguły tygodnia.
+ */
+function trimOffseasonWeek(
+  avail: { iso: string }[],
+  result: Record<string, PlanCell>,
+  cap: number,
+): void {
+  type Slot = { iso: string; second: boolean; stimulus: Stimulus };
+  const slots = (): Slot[] =>
+    avail.flatMap((it) => {
+      const cell = result[it.iso];
+      const list: Slot[] = [];
+      if (cell?.stimulus) list.push({ iso: it.iso, second: false, stimulus: cell.stimulus });
+      if (cell?.secondStimulus)
+        list.push({ iso: it.iso, second: true, stimulus: cell.secondStimulus });
+      return list;
+    });
+  const trimmable: PerfCategory[] = ["athletic", "conditioning", "ball"];
+  const remove = (slot: Slot) => {
+    if (slot.second) delete result[slot.iso].secondStimulus;
+    else if (result[slot.iso].secondStimulus) {
+      // Druga sesja dnia przejmuje miejsce pierwszej.
+      result[slot.iso] = { type: "training", stimulus: result[slot.iso].secondStimulus };
+    } else result[slot.iso] = { type: "recovery" };
+  };
+  let guard = 0;
+  while (slots().length > cap && guard++ < 14) {
+    // Od końca tygodnia, drugie sesje dnia przed pierwszymi.
+    const all = slots()
+      .reverse()
+      .sort((a, b) => Number(b.second) - Number(a.second));
+    const inCategory = (category: PerfCategory) =>
+      all.filter((slot) => categoryOf(slot.stimulus) === category);
+    const victim =
+      all.find((slot) => slot.stimulus === "prehab") ??
+      trimmable.flatMap((c) => (inCategory(c).length > 1 ? inCategory(c) : [])).at(0) ??
+      trimmable.flatMap((c) => inCategory(c)).at(0);
+    if (!victim) break;
+    remove(victim);
+  }
+}
+
+const OFFSEASON_REST_REASON =
+  "Poza sezonem liczba treningów zależy od wieku i poziomu — ten dzień jest wolny, żeby organizm nadążył z adaptacją.";
+
 function planBlock(
   profile: Profile,
   startDate: Date,
@@ -2580,6 +2729,17 @@ function planBlock(
     repairWeekCells(profile, items, result, maxDoubles);
     enforcePrimaryGoalTarget(profile, items, result);
     enforceMinimumGymSession(profile, matchCount, items, result);
+
+    // Bez meczów limit sesji wynika z wieku i poziomu: pozostałe dni są wolne,
+    // a nie „aktywną regeneracją”, którą walidatory zamieniłyby w kolejne treningi.
+    if (offseasonStageOf(profile) && !profile.painInjury) {
+      trimOffseasonWeek(avail, result, cap);
+      for (const it of avail) {
+        if (result[it.iso]?.type === "recovery" && !result[it.iso].stimulus) {
+          result[it.iso] = { type: "rest", restReason: OFFSEASON_REST_REASON };
+        }
+      }
+    }
   });
 
   return result;
@@ -2901,6 +3061,7 @@ function replaceMainRecoveryPrehab(session: SessionDay, profile: Profile, reason
     makeRestDay(session, reason);
     return;
   }
+
   const built = buildNonRecoveryFallback(profile);
   session.dayType = "training";
   session.title = built.title;
@@ -3407,8 +3568,34 @@ export function generatePlan(
     needsReintroduction && !rawProfile.painInjury && rawProfile.seasonPhase !== "return_injury"
       ? "transition"
       : effectiveSeasonPhase(rawProfile, startDate);
-  const profile: Profile =
+  const validatedProfile: Profile =
     effPhase === rawProfile.seasonPhase ? rawProfile : { ...rawProfile, seasonPhase: effPhase };
+  // Bez meczów etap (roztrenowanie → baza → przedsezon) zależy od tygodnia:
+  // ostatni mecz i pierwszy mecz nowego sezonu przesuwają granice.
+  const autoStages = !needsReintroduction && offseasonStageOf(validatedProfile) !== null;
+  if (autoStages) {
+    const weekPhases = weekRanges(startDate, days).map((range) =>
+      seasonPhaseForWeek(validatedProfile, isoDate(addDays(startDate, range.start))),
+    );
+    if (new Set(weekPhases).size > 1) {
+      // Każdy tydzień układamy z własnym etapem (zatwierdzonym, bez ponownej walidacji).
+      return weekRanges(startDate, days).flatMap((range, index) =>
+        generatePlan(
+          { ...validatedProfile, seasonPhase: weekPhases[index], seasonPhaseOverride: true },
+          addDays(startDate, range.start),
+          range.end - range.start,
+          weekOffset + index,
+        ),
+      );
+    }
+  }
+  const stagePhase = autoStages
+    ? seasonPhaseForWeek(validatedProfile, isoDate(startDate))
+    : validatedProfile.seasonPhase;
+  const profile: Profile =
+    stagePhase === validatedProfile.seasonPhase
+      ? validatedProfile
+      : { ...validatedProfile, seasonPhase: stagePhase };
   const out: SessionDay[] = [];
   const blockMap = planBlock(profile, startDate, days, weekOffset);
 
@@ -3773,6 +3960,7 @@ export function generatePlan(
         intensity: "niska",
         durationMin: 0,
         reason:
+          cell?.restReason ??
           "Nie wybrałeś tego dnia jako dnia treningu indywidualnego — BallWise nie dokłada sesji losowo.",
         safetyNote: null,
         whyToday:
@@ -4239,6 +4427,7 @@ export function generatePlan(
   const constrainedPlan = enforceFinalPlanPolicy(methodPlan, rawProfile).map((day) =>
     alignSessionTitleWithContent(fitDayBallWork(day, rawProfile), rawProfile),
   );
+  enforceOffseasonSessionCap(constrainedPlan, profile, startDate, weekOffset);
   for (const range of metadataRanges) {
     const week = constrainedPlan.slice(range.start, range.end);
     const score = computeWeeklyLoadScore(week);
@@ -4255,6 +4444,87 @@ export function generatePlan(
     }
   assertPlanExerciseContract(constrainedPlan);
   return constrainedPlan;
+}
+
+/**
+ * Poza sezonem liczba sesji w tygodniu to limit z wieku i poziomu. Naprawy
+ * walidatorów mogą go przekroczyć, więc na końcu zdejmujemy nadmiar (od końca
+ * tygodnia: drugie sesje, regeneracja, dodatkowa piłka, zwinność, nadmiarowa
+ * wytrzymałość / szybkość / siła), nigdy poniżej minimum tygodnia.
+ */
+function enforceOffseasonSessionCap(
+  plan: SessionDay[],
+  profile: Profile,
+  startDate: Date,
+  weekOffset: number,
+): void {
+  if (!offseasonStageOf(profile) || profile.painInjury) return;
+  const ranges = weekRanges(startDate, plan.length);
+  ranges.forEach((range, weekIndex) => {
+    const week = plan.slice(range.start, range.end);
+    const phase = phaseOf(weekOffset + weekIndex, plan.length <= 7 ? 4 : ranges.length);
+    const { cap } = weekLoadConfig(profile, phase, week.some((day) => day.dayType === "match"));
+    const required = finalPolicyRequirementsFor(week, profile);
+    const own = () =>
+      week.flatMap((day) => [
+        ...(day.dayType === "training" || day.dayType === "recovery" ? [day] : []),
+        ...(day.secondSession ? [day.secondSession] : []),
+      ]);
+    const all = () => week.flatMap((day) => [day, day.secondSession].filter(Boolean) as SessionDay[]);
+    const counts = (sessions: SessionDay[]) => ({
+      gym: sessions.filter(isMainGymSession).length,
+      speed: sessions.filter((session) => classifySession(session).countsAsSpeed).length,
+      endurance: sessions.filter(isEnduranceSession).length,
+      ball: sessions.filter(isBallTechnicalSession).length,
+    });
+    const keepsMinimum = (removed: SessionDay) => {
+      const after = counts(all().filter((session) => session !== removed));
+      return (
+        after.gym >= required.requiredGymSessions &&
+        after.speed >= required.requiredSpeedSessions &&
+        after.endurance >= required.requiredEnduranceSessions &&
+        after.ball >= required.requiredBallSessions
+      );
+    };
+    const rank = (session: SessionDay, second: boolean): number => {
+      if (second) return 0;
+      if (session.dayType === "recovery") return 1;
+      if (isBallTechnicalSession(session)) return 2;
+      if (
+        !isMainGymSession(session) &&
+        !isEnduranceSession(session) &&
+        !classifySession(session).countsAsSpeed
+      )
+        return 3;
+      if (isEnduranceSession(session)) return 4;
+      if (classifySession(session).countsAsSpeed) return 5;
+      return 6;
+    };
+    let guard = 0;
+    while (own().length > cap && guard++ < 14) {
+      const candidates = [...week]
+        .reverse()
+        .flatMap((day) => [
+          ...(day.secondSession ? [{ day, session: day.secondSession, second: true }] : []),
+          ...((day.dayType === "training" || day.dayType === "recovery") && !day.secondSession
+            ? [{ day, session: day as SessionDay, second: false }]
+            : []),
+        ])
+        .filter(({ session }) => keepsMinimum(session))
+        .sort((a, b) => rank(a.session, a.second) - rank(b.session, b.second));
+      const victim = candidates[0];
+      if (!victim) break;
+      if (victim.second) {
+        victim.day.secondSession = null;
+        victim.day.slotLabel = null;
+      } else {
+        makeRestDay(victim.day, OFFSEASON_REST_REASON);
+        victim.day.goalOfSession = "Odpoczynek — poza sezonem limit sesji zależy od wieku i poziomu.";
+        victim.day.riskManaged = "Mniej sesji w tygodniu daje czas na adaptację i chroni przed przeciążeniem.";
+        victim.day.avoidToday = "Bez obowiązkowego treningu — jeśli chcesz, tylko lekki ruch.";
+      }
+    }
+  });
 }
 
 /**

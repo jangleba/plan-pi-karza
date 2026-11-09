@@ -160,14 +160,17 @@ export const POSITION_RULES: Record<Position, { accent: string }> = {
   forward: { accent: "Pierwszy krok, biegi po łuku, wykończenie po sprincie." },
 };
 
-/** 7. seasonRules — okres sezonu steruje kompletnością/intensywnością tygodnia. */
-export const SEASON_RULES: Record<SeasonPhase, { loadFactor: number; note: string }> = {
-  offseason: { loadFactor: 1.05, note: "Poza sezonem: pełny rozwój." },
-  preseason: { loadFactor: 1.1, note: "Przedsezon: budowanie bazy i intensywności." },
-  inseason: { loadFactor: 0.9, note: "W sezonie: freshness, ostrość, utrzymanie." },
-  transition: { loadFactor: 0.7, note: "Okres przejściowy: lżej, mobilność." },
+/**
+ * 7. seasonRules — okres sezonu. Liczbę sesji i dni podwójnych bez meczów
+ * ustala offseasonWeekLoad (wiek i poziom), a etap tygodnia (roztrenowanie →
+ * baza → przedsezon) — offseasonStageForWeek. Tu zostaje tylko opis okresu.
+ */
+export const SEASON_RULES: Record<SeasonPhase, { note: string }> = {
+  offseason: { note: "Poza sezonem: baza — siła, szybkość, tlen i piłka." },
+  preseason: { note: "Przedsezon: więcej intensywności i wytrzymałości meczowej, mniej objętości." },
+  inseason: { note: "W sezonie: freshness, ostrość, utrzymanie." },
+  transition: { note: "Roztrenowanie: lżej, mało sesji, krótki bodziec szybkości." },
   return_injury: {
-    loadFactor: 0.6,
     note: "Ograniczony trening po przerwie. Powrót po urazie ustala lekarz lub fizjoterapeuta.",
   },
 };
