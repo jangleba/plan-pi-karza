@@ -135,6 +135,7 @@ beforeEach(() => {
     start: { corners: startMarker, quality: 0.95 },
     range: { corners: rangeMarker, quality: 0.95 },
   });
+  // getContext has many overloads (2d, webgl, webgpu); the mock stands in for the 2d one.
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
     clearRect: vi.fn(),
     beginPath: vi.fn(),
@@ -147,7 +148,7 @@ beforeEach(() => {
     drawImage: vi.fn(),
     restore: vi.fn(),
     getImageData: vi.fn(() => ({ width: 1280, height: 720, data: new Uint8ClampedArray() })),
-  } as unknown as CanvasRenderingContext2D);
+  } as unknown as CanvasRenderingContext2D as never);
   mocks.open.mockReset().mockResolvedValue(video);
   mocks.decode.mockReset().mockImplementation(async (_video, index) => ({
     timestamp: timeline.frames[index].timestampUs,
