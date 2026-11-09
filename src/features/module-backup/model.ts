@@ -7,7 +7,7 @@ import {
   journeyHistoryKey,
 } from "../football-iq-match/journeyHistory";
 import { fieldTaskKey, loadFieldTask } from "../football-iq-match/fieldTask";
-import { loadMastery, masteryKey } from "../football-iq-match/mastery";
+import { loadMastery, masteryKey } from "../football-iq-match/masteryStore";
 import { loadBrowserResults } from "../browser-lab/storage";
 import {
   loadReactiveCustomSets,

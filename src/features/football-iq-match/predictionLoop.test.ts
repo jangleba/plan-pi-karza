@@ -12,6 +12,7 @@ import type { JourneySession } from "./journeyTypes";
 import {
   addAssessments,
   aimProgress,
+  focusAim,
   loadMastery,
   MASTERY_WINDOW,
   nextByMastery,
@@ -132,6 +133,19 @@ describe("progress per lesson aim and the next situation", () => {
     const fresh = nextByMastery(current, "midfielder", mastered);
     expect(aimProgress(mastered, lessonAim(fresh.def)).level).toBe("new");
     expect(fresh.reason).toContain("Nowy cel");
+  });
+
+  it("the Start goal is the weakest aim being learnt, never a new or mastered one", () => {
+    expect(focusAim({})).toBeNull();
+    const m = addAssessments(
+      addAssessments(
+        addAssessments({}, graded("press", ["error", "possible", "good"])),
+        graded("cover", ["error", "error"]),
+      ),
+      graded("space", Array(6).fill("good")),
+    );
+    expect(focusAim(m)).toMatchObject({ aim: "cover", label: "Asekuracja", score: 0 });
+    expect(focusAim(addAssessments({}, graded("space", Array(6).fill("good"))))).toBeNull();
   });
 
   it("stores progress per owner and ignores damaged data", () => {

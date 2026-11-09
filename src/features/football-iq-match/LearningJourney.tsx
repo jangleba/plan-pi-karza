@@ -62,6 +62,7 @@ import { teamOf } from "./tacticalWorld";
 import {
   addAssessments,
   aimProgress,
+  focusAim,
   loadMastery,
   nextByMastery,
   saveMastery,
@@ -105,9 +106,24 @@ function startDefinition(position?: string, index?: number) {
     )!
   );
 }
+/** A fresh lesson starts on the weakest aim the player is learning, when there is one. */
+function firstDefinition(props: Props) {
+  const def = startDefinition(props.position, props.initialScenario);
+  if (props.initialScenario !== undefined) return def;
+  try {
+    const mastery = loadMastery(props.historyOwner);
+    const focus = focusAim(mastery);
+    if (!focus) return def;
+    if (lessonAim(def) === focus.aim) return def;
+    const next = nextByMastery(def, props.position, mastery);
+    return next.progress.aim === focus.aim ? next.def : def;
+  } catch {
+    return def;
+  }
+}
 function initial(props: Props) {
   const fresh = () => ({
-    session: createJourneyForRules(startDefinition(props.position, props.initialScenario), 9),
+    session: createJourneyForRules(firstDefinition(props), 9),
     mode: "learn" as JourneyMode,
     id: newId(),
     resumed: false,
