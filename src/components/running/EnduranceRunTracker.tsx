@@ -27,6 +27,7 @@ import {
   intervalStepProgress,
 } from "@/lib/running/intervals";
 import { classifyPace, vibrationForPace, type PaceGuidance } from "@/lib/running/paceGuidance";
+import { vibrate } from "@/lib/haptics";
 import type {
   RoutePoint,
   RunningActivity,
@@ -67,7 +68,7 @@ function positionErrorMessage(error: GeolocationPositionError): string {
 
 function announceStep(step: RunningIntervalStep | null) {
   if (typeof window === "undefined") return;
-  navigator.vibrate?.(step ? [120, 70, 120] : [150, 80, 150, 80, 220]);
+  vibrate(step ? [120, 70, 120] : [150, 80, 150, 80, 220]);
   if (!("speechSynthesis" in window)) return;
   window.speechSynthesis.cancel();
   const text = step
@@ -817,7 +818,7 @@ function RunTracker({
     const sustainedFor = elapsedSec - state.sinceSec;
     if (sustainedFor < 8 || elapsedSec - state.lastSignalSec < 20) return;
     const pattern = vibrationForPace(paceGuidance);
-    if (pattern) navigator.vibrate?.(pattern);
+    if (pattern) vibrate(pattern);
     state.lastSignalSec = elapsedSec;
   }, [elapsedSec, paceGuidance, phase]);
 

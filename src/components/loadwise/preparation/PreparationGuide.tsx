@@ -1,14 +1,6 @@
 import { useExerciseSetLogs } from "@/lib/loadwise/setLogs";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Check,
-  ChevronRight,
-  Pause,
-  Play,
-  RotateCcw,
-  Volume2,
-  VolumeX,
-} from "lucide-react";
+import { Check, ChevronRight, Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import { useTrainingLocalState } from "@/lib/loadwise/useTrainingLocalState";
 import {
@@ -32,6 +24,7 @@ import {
   tickPlayback,
   type PreparationPlayback,
 } from "@/lib/loadwise/preparation/playback";
+import { vibrate } from "@/lib/haptics";
 import { PreparationIllustration } from "./PreparationIllustration";
 import "./preparation.css";
 
@@ -92,14 +85,11 @@ function speak(text: string) {
 /**
  * Short buzz when the step changes (switch side, next set, rest), so the
  * athlete does not have to watch the screen while holding a stretch.
- * Browsers without the Vibration API (iOS WebView) rely on the voice cue.
+ * In the iPhone app this goes through native haptics; browsers without
+ * the Vibration API (Safari) rely on the voice cue.
  */
 function buzz(type: "work" | "switch" | "rest") {
-  try {
-    navigator.vibrate?.(type === "switch" ? [120, 80, 120] : type === "rest" ? 200 : [60]);
-  } catch {
-    /* Vibration is optional. */
-  }
+  vibrate(type === "switch" ? [120, 80, 120] : type === "rest" ? 200 : [60]);
 }
 /** Plain-language dose: what to do, how long and on which side. */
 function plainDose(e: PreparationProtocol["exercises"][number]): string {
