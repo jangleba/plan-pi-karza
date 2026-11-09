@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { brokeredPreviewStorage } from "./previewAuthStorage";
+import { brokeredPreviewStorage } from "@/lib/loadwise/previewSessionStorage";
+import { createClient } from "@supabase/supabase-js";
 const host = "id-preview--de7e9c03-6af5-4ba0-9a0c-426417d42531.lovable.app";
 const editor = { postMessage: vi.fn() };
 beforeEach(() => {
@@ -16,6 +17,113 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("preview session storage", () => {
+  it("lets the real Supabase SDK complete sign-in before editor replication responds", async () => {
+    editor.postMessage.mockImplementation((message) => {
+      if (message.type !== "lovable-preview-auth:get") return;
+      queueMicrotask(() =>
+        window.dispatchEvent(
+          new MessageEvent("message", {
+            origin: "https://lovable.dev",
+            source: window.parent,
+            data: {
+              type: "lovable-preview-auth:result",
+              requestId: message.requestId,
+              ok: true,
+              value: null,
+            },
+          }),
+        ),
+      );
+    });
+    const client = createClient("https://example.supabase.co", "public-test-key", {
+      auth: {
+        storage: brokeredPreviewStorage(),
+        persistSession: true,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+      global: {
+        fetch: vi.fn(
+          async () =>
+            new Response(
+              JSON.stringify({
+                access_token: "test-access-token",
+                refresh_token: "test-refresh-token",
+                token_type: "bearer",
+                expires_in: 3600,
+                user: {
+                  id: "athlete",
+                  aud: "authenticated",
+                  app_metadata: {},
+                  user_metadata: {},
+                  created_at: "2026-11-09T00:00:00Z",
+                },
+              }),
+              { status: 200, headers: { "Content-Type": "application/json" } },
+            ),
+        ),
+      },
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    const signedIn = vi.fn();
+    const { data: listener } = client.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN") signedIn();
+    });
+    let finished = false;
+    const login = client.auth
+      .signInWithPassword({ email: "qa@example.com", password: "test-password" })
+      .then((result) => {
+        expect(result.error).toBeNull();
+        finished = true;
+      });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(finished).toBe(true);
+    expect(signedIn).toHaveBeenCalledTimes(1);
+    expect(
+      editor.postMessage.mock.calls.some(
+        ([request]) => request.type === "lovable-preview-auth:set",
+      ),
+    ).toBe(true);
+    await login;
+    listener.subscription.unsubscribe();
+    await vi.advanceTimersByTimeAsync(4000);
+  });
+  it("commits login immediately without waiting for an absent editor and reads that session during replication", async () => {
+    const storage = brokeredPreviewStorage()!;
+    expect(storage.setItem("session", "new-session")).toBeUndefined();
+    expect(localStorage.getItem("session")).toBe("new-session");
+    expect(await storage.getItem("session")).toBe("new-session");
+    expect(editor.postMessage).toHaveBeenCalledTimes(1);
+    // No broker timeout needs to elapse before the SDK can announce SIGNED_IN.
+    expect(vi.getTimerCount()).toBe(1);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(await storage.getItem("session")).toBe("new-session");
+  });
+
+  it("replicates a rapid login then logout in order and cannot revive the old login", async () => {
+    const storage = brokeredPreviewStorage()!;
+    storage.setItem("session", "new-session");
+    storage.removeItem("session");
+    expect(await storage.getItem("session")).toBeNull();
+    expect(editor.postMessage).toHaveBeenCalledTimes(1);
+    const reply = (requestId: string, value: string) =>
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          origin: "https://lovable.dev",
+          source: window.parent,
+          data: { type: "lovable-preview-auth:result", requestId, ok: true, value },
+        }),
+      );
+    reply(editor.postMessage.mock.calls[0][0].requestId, "new-session");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(localStorage.getItem("session")).toBeNull();
+    expect(editor.postMessage.mock.calls[1][0].type).toBe("lovable-preview-auth:remove");
+    reply(editor.postMessage.mock.calls[1][0].requestId, "");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(localStorage.getItem("session")).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("waits only for the initial handshake when the editor is absent; further SDK reads and writes are immediate", async () => {
     const storage = brokeredPreviewStorage()!;
     const initial = storage.getItem("session");

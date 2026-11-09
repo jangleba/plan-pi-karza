@@ -12,6 +12,7 @@ import { clearBootState, loadBootState } from "../bootCache";
 import { primeConsentRows } from "../legalStatus";
 import {
   hasLocalPlanChanges,
+  mergeHydratedRecord,
   mergeHydratedHistory,
   mergeHydratedState,
   mergePendingCompletionRows,
@@ -58,7 +59,7 @@ interface HydrationOptions {
   user: StoreUser;
   authLoading: boolean;
   recoveryMode: boolean;
-  profileWritePending?:boolean;
+  profileWritePending?: boolean;
   todayIso: string;
   setState: StateSetter;
   state: LoadwiseState;
@@ -87,7 +88,7 @@ export function useHydration({
   user,
   authLoading,
   recoveryMode,
-  profileWritePending=false,
+  profileWritePending = false,
   todayIso,
   setState,
   state,
@@ -142,7 +143,10 @@ export function useHydration({
       return;
     }
     // A profile command owns the transition: cancel previous reads and do not launch a new full hydration mid-save.
-    if(profileWritePending){setSyncing?.(false);return;}
+    if (profileWritePending) {
+      setSyncing?.(false);
+      return;
+    }
     const sameUser = activeUserIdRef.current === user.id;
     activeUserIdRef.current = user.id;
     setSyncing?.(true);
@@ -191,6 +195,31 @@ export function useHydration({
               completions: { ...current.completions, ...localCompletions },
             };
           });
+        // Run summaries are used by Progress, not to decide today's plan. Their
+        // paginated history must never hold the whole application on the splash.
+        const runningController = new AbortController();
+        const cancelRunning = () => runningController.abort();
+        controller.signal.addEventListener("abort", cancelRunning, { once: true });
+        const runningTimeout = setTimeout(cancelRunning, 15_000);
+        const runningPromise = readAllPages(
+          (from, to) =>
+            supabase
+              .from("running_activities")
+              .select(
+                "id,session_id,date,started_at,ended_at,duration_sec,distance_m,avg_pace_sec_per_km,interval_results,is_field_mas_test,created_at,updated_at,write_version",
+              )
+              .abortSignal(runningController.signal)
+              .eq("user_id", user.id)
+              .order("date", { ascending: false })
+              .order("id", { ascending: true })
+              .range(from, to),
+          runningController.signal,
+        )
+          .catch(() => null)
+          .finally(() => {
+            clearTimeout(runningTimeout);
+            controller.signal.removeEventListener("abort", cancelRunning);
+          });
         const [
           profRes,
           athRes,
@@ -200,7 +229,6 @@ export function useHydration({
           modRes,
           transRes,
           replacementRes,
-          runningRes,
           readinessRes,
         ] = await Promise.all([
           supabase
@@ -283,19 +311,6 @@ export function useHydration({
                 .range(from, to),
             controller.signal,
           ),
-          readAllPages(
-            (from, to) =>
-              supabase
-                .from("running_activities")
-
-                .select("*")
-                .abortSignal(controller.signal)
-                .eq("user_id", user.id)
-                .order("date", { ascending: false })
-                .order("id", { ascending: true })
-                .range(from, to),
-            controller.signal,
-          ),
           supabase
             .from("readiness_logs")
 
@@ -338,13 +353,9 @@ export function useHydration({
                 : local.unavailableEquipmentIds,
             }
           : null;
-        const runningActivities: Record<string, RunningActivity> = {};
-        if (!runningRes.error) {
-          for (const row of (runningRes.data as AnyRow[] | null) ?? []) {
-            const activity = rowToRunningActivity(row);
-            if (activity) runningActivities[activity.sessionId] = activity;
-          }
-        }
+        const runningActivities: Record<string, RunningActivity> = {
+          ...cachedState?.runningActivities,
+        };
         safeProfile = profile;
         assertNoSupabaseError("training_plans.load", planRes.error);
         assertNoSupabaseError("session_logs.load", logRes.error);
@@ -577,7 +588,10 @@ export function useHydration({
             plan = staged.plan;
             backgroundWrite = { ...backgroundWrite, plan, commit: staged.commit };
           } catch (error) {
-            console.warn("[loadwise] plan snapshot could not be prepared; showing the stored plan", error);
+            console.warn(
+              "[loadwise] plan snapshot could not be prepared; showing the stored plan",
+              error,
+            );
             plan = backgroundWrite.fallback;
             planGeneratedFor = backgroundWrite.fallbackGeneratedFor;
             clearFutureOverlays = false;
@@ -694,6 +708,30 @@ export function useHydration({
         };
         setState((current) => mergeHydratedState(current, baselineState, remoteState));
         setHydrated(true);
+        void runningPromise.then((result) => {
+          if (cancelled || !result || result.error) return;
+          const remoteRuns: Record<string, RunningActivity> = {};
+          for (const row of (result.data as AnyRow[] | null) ?? []) {
+            const activity = rowToRunningActivity(row);
+            if (activity) remoteRuns[activity.sessionId] = activity;
+          }
+          for (const write of [...pendingWrites, ...readPendingTrainingWrites(user.id)]) {
+            if (write.kind !== "running_activity") continue;
+            const activity = rowToRunningActivity({
+              ...write.payload,
+              write_version: write.expectedVersion ?? write.payload.write_version ?? 0,
+            } as AnyRow);
+            if (activity) remoteRuns[activity.sessionId] = activity;
+          }
+          setState((current) => ({
+            ...current,
+            runningActivities: mergeHydratedRecord(
+              current.runningActivities,
+              runningActivities,
+              remoteRuns,
+            ),
+          }));
+        });
         if (backgroundWrite && profile) {
           const { key, plan: shown, fallback, fallbackGeneratedFor, commit } = backgroundWrite;
           const futureModificationIds = ((modRes.data as AnyRow[] | null) ?? [])
