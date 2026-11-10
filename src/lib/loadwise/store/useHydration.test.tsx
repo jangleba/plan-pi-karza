@@ -37,7 +37,7 @@ vi.mock("@/integrations/supabase/client", () => ({
         },
         then(resolve: (value: unknown) => unknown, reject: (error: unknown) => unknown) {
           mocks.queries(table, userId, filters);
-          const request = mocks.requests.get(userId);
+          const request = mocks.requests.get(`${userId}:${table}`) ?? mocks.requests.get(userId);
           if (!request) throw new Error(`Missing request for ${userId}`);
           return request
             .then((rows) => ({ data: rows[table] ?? null, error: null }))
@@ -95,7 +95,15 @@ let snapshot: { state: LoadwiseState; hydrated: boolean };
 let mounted: boolean;
 let changeState: (update: (current: LoadwiseState) => LoadwiseState) => void;
 const onRender = vi.fn();
-function Harness({ user, recoveryMode = false, profileWritePending=false }: { user: StoreUser; recoveryMode?: boolean;profileWritePending?:boolean }) {
+function Harness({
+  user,
+  recoveryMode = false,
+  profileWritePending = false,
+}: {
+  user: StoreUser;
+  recoveryMode?: boolean;
+  profileWritePending?: boolean;
+}) {
   const [state, setState] = useState(initialState);
   changeState = setState;
   const hydrated = useHydration({
@@ -140,6 +148,86 @@ afterEach(async () => {
 });
 
 describe("store hydration", () => {
+  it("opens the plan while running history is still loading and merges it without undoing a new local result", async () => {
+    const runs = deferred<RemoteRows>();
+    const rows = remoteRows("Athlete");
+    rows.profiles = { full_name: "Athlete", onboarding_completed: true };
+    mocks.requests.set("a", Promise.resolve(rows));
+    mocks.requests.set("a:running_activities", runs.promise);
+    await render({ id: "a" });
+    await act(async () => {
+      await vi.waitFor(() => expect(mocks.persist).toHaveBeenCalled(), {
+        timeout: 5000,
+      });
+    });
+    expect(snapshot.hydrated).toBe(true);
+    expect(snapshot.state.plan.length).toBeGreaterThan(0);
+    const localRun = {
+      id: "local",
+      sessionId: "new-run",
+      distanceM: 4000,
+    } as LoadwiseState["runningActivities"][string];
+    await act(async () =>
+      changeState((current) => ({
+        ...current,
+        runningActivities: { ...current.runningActivities, "new-run": localRun },
+      })),
+    );
+    await act(async () =>
+      runs.resolve({
+        running_activities: [
+          {
+            id: "old",
+            session_id: "old-run",
+            date: "2026-09-28",
+            duration_sec: 600,
+            distance_m: 2000,
+          },
+        ],
+      }),
+    );
+    expect(snapshot.state.runningActivities["old-run"].distanceM).toBe(2000);
+    expect(snapshot.state.runningActivities["new-run"]).toBe(localRun);
+  });
+
+  it("does not restore a previous account's delayed running history", async () => {
+    const runs = deferred<RemoteRows>();
+    mocks.requests.set("a", Promise.resolve(remoteRows("Athlete A")));
+    mocks.requests.set("a:running_activities", runs.promise);
+    mocks.requests.set("b", Promise.resolve(remoteRows("Athlete B")));
+    await render({ id: "a" });
+    await render({ id: "b" });
+    await act(async () =>
+      runs.resolve({
+        running_activities: [
+          {
+            id: "old",
+            session_id: "private-run-a",
+            date: "2026-09-28",
+            duration_sec: 600,
+            distance_m: 2000,
+          },
+        ],
+      }),
+    );
+    expect(snapshot.state.profile?.name).toBe("Athlete B");
+    expect(snapshot.state.runningActivities).toEqual({});
+  });
+
+  it("retains cached runs when their background refresh fails", async () => {
+    const runs = deferred<RemoteRows>();
+    const cached = cachedState("Athlete");
+    cached.runningActivities = {
+      saved: { id: "saved" } as LoadwiseState["runningActivities"][string],
+    };
+    mocks.cached.set("a", cached);
+    mocks.requests.set("a", Promise.resolve(remoteRows("Athlete")));
+    mocks.requests.set("a:running_activities", runs.promise);
+    await render({ id: "a" });
+    await act(async () => runs.reject(new Error("Run history unavailable")));
+    expect(snapshot.hydrated).toBe(true);
+    expect(snapshot.state.runningActivities.saved.id).toBe("saved");
+  });
   it("shows cached state before refreshing it, then merges background history", async () => {
     const remote = deferred<RemoteRows>();
     const history = deferred<SessionHistoryRecord[]>();
@@ -153,7 +241,9 @@ describe("store hydration", () => {
 
     await act(async () => remote.resolve(remoteRows("Updated athlete")));
     expect(mocks.queries).toHaveBeenCalledWith("training_plans", "a", {
-      user_id: "a", status: "active", active: true,
+      user_id: "a",
+      status: "active",
+      active: true,
     });
     expect(snapshot.state.profile?.name).toBe("Updated athlete");
     expect(snapshot.state.history).toEqual([]);
@@ -329,12 +419,15 @@ describe("store hydration", () => {
   });
 });
 
-it("does not start hydration queries while an atomic profile write is active, then refreshes once",async()=>{
-  mocks.requests.set("a",Promise.resolve(remoteRows("Saved athlete")));
-  await act(async()=>root.render(<Harness user={{id:"a"}} profileWritePending/>));
+it("does not start hydration queries while an atomic profile write is active, then refreshes once", async () => {
+  mocks.requests.set("a", Promise.resolve(remoteRows("Saved athlete")));
+  await act(async () => root.render(<Harness user={{ id: "a" }} profileWritePending />));
   expect(mocks.queries).not.toHaveBeenCalled();
-  await act(async()=>{window.dispatchEvent(new Event("ballwise:consent-changed"));window.dispatchEvent(new Event("ballwise:server-state-changed"));});
+  await act(async () => {
+    window.dispatchEvent(new Event("ballwise:consent-changed"));
+    window.dispatchEvent(new Event("ballwise:server-state-changed"));
+  });
   expect(mocks.queries).not.toHaveBeenCalled();
-  await render({id:"a"});
-  expect(mocks.queries.mock.calls.filter(([table])=>table==="training_plans")).toHaveLength(1);
+  await render({ id: "a" });
+  expect(mocks.queries.mock.calls.filter(([table]) => table === "training_plans")).toHaveLength(1);
 });

@@ -1,5 +1,4 @@
-import { SurfaceSketch } from "@/components/design/SurfaceSketch";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/loadwise/auth";
@@ -16,6 +15,7 @@ import {
 import { authErrorMessage } from "@/lib/authMessages";
 import { AppLaunchScreen } from "@/components/loadwise/AppLaunchScreen";
 import { AppDataError } from "@/components/loadwise/AppDataError";
+import { scheduleRouteWarmup } from "@/lib/routeWarmup";
 
 export const Route = createFileRoute("/auth")({
   component: AuthScreen,
@@ -34,9 +34,10 @@ function AuthScreen() {
   } = useAuth();
   const { hydrated, hydrationError, state } = useLoadwise();
   const navigate = useNavigate();
+  const router = useRouter();
   const usablePlan = !!state.profile?.onboardingComplete && state.plan.length > 0;
 
-  const [mode, setMode] = useState<"login" | "register" | "forgot" | "recovery">("register");
+  const [mode, setMode] = useState<"login" | "register" | "forgot" | "recovery">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,6 +45,19 @@ function AuthScreen() {
   const [accountOwnerType, setAccountOwnerType] = useState<AccountOwnerType>("athlete");
   const [athleteBirthDate, setAthleteBirthDate] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    // Fetch the destination code while the player enters credentials, not after sign-in.
+    return scheduleRouteWarmup(["/start"] as const, (to) => router.preloadRoute({ to }));
+  }, [router]);
+
+  function changeMode(next: typeof mode) {
+    setMode(next);
+    setPassword("");
+    setPasswordConfirmation("");
+    setShowPassword(false);
+  }
 
   useEffect(() => {
     if (recoveryMode) setMode("recovery");
@@ -147,6 +161,7 @@ function AuthScreen() {
             ? "Sprawdź pocztę i potwierdź e-mail. Potem zaloguj się do aplikacji."
             : "Konto utworzone. Przejdźmy do konfiguracji.",
         );
+        if (needsEmailConfirmation) changeMode("login");
       } else {
         const { error } = await signIn(email.trim(), password);
         if (error) {
@@ -154,6 +169,13 @@ function AuthScreen() {
           return;
         }
       }
+    } catch (error) {
+      toast.error(
+        authErrorMessage(
+          error instanceof Error ? error.message : String(error),
+          mode === "register" ? "register" : "login",
+        ),
+      );
     } finally {
       setBusy(false);
     }
@@ -165,200 +187,245 @@ function AuthScreen() {
     return <AppLaunchScreen />;
   }
 
-  return (
-    <div className="app-shell auth-premium flex min-h-screen flex-col justify-center px-6 py-10">
-      <div className="mx-auto w-full max-w-sm">
-        <div className="text-center bw-auth-heading bw-sketch-surface">
-          <SurfaceSketch kind="pitch" />
-          <div className="text-[25px] font-medium tracking-[-0.04em] text-foreground">BallWise</div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {mode === "register"
-              ? "Twój tydzień. Jedna właściwa decyzja."
-              : mode === "forgot"
-                ? "Podaj e-mail, a wyślemy link do zmiany hasła."
-                : mode === "recovery"
-                  ? "Ustaw nowe hasło do swojego konta."
-                  : "Zaloguj się do swojego konta."}
-          </p>
-        </div>
+  const title =
+    mode === "register"
+      ? "Zacznij swój plan."
+      : mode === "forgot"
+        ? "Nie pamiętasz hasła?"
+        : mode === "recovery"
+          ? "Ustaw nowe hasło."
+          : "Wróć do gry.";
 
-        {callbackError && (
-          <p
-            role="alert"
-            className="mt-5 rounded-xl border border-destructive/30 p-3 text-sm text-destructive"
-          >
-            {callbackError}
-          </p>
-        )}
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-          {mode === "register" && (
-            <>
-              <div className="space-y-2">
-                <Label>Kto będzie właścicielem konta?</Label>
-                <div className="grid gap-2">
+  return (
+    <main className="app-shell auth-premium bw-auth">
+      <div className="bw-auth__content">
+        <header className="bw-auth__header">
+          <span className="bw-auth__wordmark">
+            BallWise<span aria-hidden="true">.</span>
+          </span>
+          <span className="bw-auth__eyebrow">TWÓJ PLAN. TWOJA GRA.</span>
+        </header>
+
+        <section aria-labelledby="auth-title" className="bw-auth__panel">
+          {(mode === "login" || mode === "register") && (
+            <div className="bw-auth__modes" aria-label="Dostęp do konta">
+              <button
+                type="button"
+                aria-pressed={mode === "login"}
+                disabled={busy}
+                onClick={() => changeMode("login")}
+              >
+                Logowanie
+              </button>
+              <button
+                type="button"
+                aria-pressed={mode === "register"}
+                disabled={busy}
+                onClick={() => changeMode("register")}
+              >
+                Nowe konto
+              </button>
+            </div>
+          )}
+          <div className="bw-auth__intro">
+            <h1 id="auth-title">{title}</h1>
+            <p>
+              {mode === "register"
+                ? "Kilka danych i zaczynamy."
+                : mode === "forgot"
+                  ? "Wyślemy Ci link do zmiany hasła."
+                  : mode === "recovery"
+                    ? "Wybierz hasło mające co najmniej 12 znaków."
+                    : "Zaloguj się i przejdź do swojego planu."}
+            </p>
+          </div>
+          {callbackError && (
+            <p role="alert" className="bw-auth__error">
+              {callbackError}
+            </p>
+          )}
+
+          <form onSubmit={handleSubmit} className="bw-auth__form" aria-busy={busy}>
+            {mode === "register" && (
+              <>
+                <fieldset className="bw-auth__owner" disabled={busy}>
+                  <legend>Dla kogo tworzysz konto?</legend>
+                  <div>
+                    <label>
+                      <input
+                        type="radio"
+                        name="account-owner"
+                        value="athlete"
+                        checked={accountOwnerType === "athlete"}
+                        onChange={() => setAccountOwnerType("athlete")}
+                      />
+                      <span>
+                        <strong>Dla siebie</strong>
+                        <small>Zawodnik, 16+ lat</small>
+                      </span>
+                    </label>
+                    <label>
+                      <input
+                        type="radio"
+                        name="account-owner"
+                        value="guardian"
+                        checked={accountOwnerType === "guardian"}
+                        onChange={() => setAccountOwnerType("guardian")}
+                      />
+                      <span>
+                        <strong>Dla dziecka</strong>
+                        <small>Zawodnik, 13–15 lat</small>
+                      </span>
+                    </label>
+                  </div>
+                </fieldset>
+                {accountOwnerType === "guardian" && (
+                  <p className="bw-auth__hint">
+                    Rodzic lub opiekun jest właścicielem konta. Podaj swój e-mail i swoje imię.
+                  </p>
+                )}
+                <div className="bw-auth__field">
+                  <Label htmlFor="register-birth-date">Data urodzenia zawodnika</Label>
+                  <Input
+                    id="register-birth-date"
+                    type="date"
+                    required
+                    min={birthDateForApproximateAge(80)}
+                    max={birthDateForApproximateAge(13)}
+                    value={athleteBirthDate}
+                    disabled={busy}
+                    onChange={(event) => setAthleteBirthDate(event.target.value)}
+                  />
+                </div>
+                <div className="bw-auth__field">
+                  <Label htmlFor="name">
+                    {accountOwnerType === "guardian" ? "Imię opiekuna" : "Twoje imię"}
+                  </Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    required
+                    minLength={2}
+                    disabled={busy}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Imię"
+                    autoComplete="given-name"
+                  />
+                </div>
+              </>
+            )}
+            {mode !== "recovery" && (
+              <div className="bw-auth__field">
+                <Label htmlFor="email">
+                  {mode === "register" && accountOwnerType === "guardian"
+                    ? "E-mail opiekuna"
+                    : "E-mail"}
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  disabled={busy}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="twoj@email.pl"
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                />
+              </div>
+            )}
+            {mode !== "forgot" && (
+              <div className="bw-auth__field">
+                <div className="bw-auth__label-row">
+                  <Label htmlFor="password">{mode === "recovery" ? "Nowe hasło" : "Hasło"}</Label>
+                  {mode === "login" && (
+                    <button type="button" disabled={busy} onClick={() => changeMode("forgot")}>
+                      Nie pamiętam hasła
+                    </button>
+                  )}
+                </div>
+                <div className="bw-auth__password">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    disabled={busy}
+                    minLength={mode === "login" ? 1 : 12}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder={mode === "login" ? "Wpisz hasło" : "Co najmniej 12 znaków"}
+                    autoComplete={
+                      mode === "register" || mode === "recovery"
+                        ? "new-password"
+                        : "current-password"
+                    }
+                  />
                   <button
                     type="button"
-                    aria-pressed={accountOwnerType === "athlete"}
-                    onClick={() => setAccountOwnerType("athlete")}
-                    className={`rounded-2xl border p-3 text-left text-sm ${
-                      accountOwnerType === "athlete"
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-card"
-                    }`}
+                    aria-label={showPassword ? "Ukryj hasło" : "Pokaż hasło"}
+                    aria-pressed={showPassword}
+                    onClick={() => setShowPassword((value) => !value)}
                   >
-                    <span className="font-semibold">Zawodnik — mam co najmniej 16 lat</span>
-                    <span className="mt-1 block text-xs text-muted-foreground">
-                      Konto i adres e-mail należą do zawodnika.
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={accountOwnerType === "guardian"}
-                    onClick={() => setAccountOwnerType("guardian")}
-                    className={`rounded-2xl border p-3 text-left text-sm ${
-                      accountOwnerType === "guardian"
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-card"
-                    }`}
-                  >
-                    <span className="font-semibold">Rodzic lub opiekun zawodnika 13–15</span>
-                    <span className="mt-1 block text-xs text-muted-foreground">
-                      Dorosły posiada konto, potwierdza e-mail i zarządza profilem dziecka.
-                    </span>
+                    {showPassword ? "Ukryj" : "Pokaż"}
                   </button>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="register-birth-date">Data urodzenia zawodnika</Label>
+            )}
+            {mode === "recovery" && (
+              <div className="bw-auth__field">
+                <Label htmlFor="password-confirmation">Powtórz nowe hasło</Label>
                 <Input
-                  id="register-birth-date"
-                  type="date"
+                  id="password-confirmation"
+                  type={showPassword ? "text" : "password"}
                   required
-                  min={birthDateForApproximateAge(80)}
-                  max={birthDateForApproximateAge(13)}
-                  value={athleteBirthDate}
-                  onChange={(event) => setAthleteBirthDate(event.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Służy do sprawdzenia progów 13, 16 i 18 lat. Osoba poniżej 13 lat może korzystać
-                  tylko z demo bez konta.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="name">
-                  {accountOwnerType === "guardian" ? "Imię rodzica lub opiekuna" : "Imię zawodnika"}
-                </Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder={accountOwnerType === "guardian" ? "Imię opiekuna" : "Twoje imię"}
-                  autoComplete="given-name"
+                  minLength={12}
+                  value={passwordConfirmation}
+                  disabled={busy}
+                  onChange={(e) => setPasswordConfirmation(e.target.value)}
+                  autoComplete="new-password"
                 />
               </div>
-            </>
+            )}
+            <Button type="submit" className="bw-auth__submit w-full" size="lg" disabled={busy}>
+              {busy
+                ? mode === "login"
+                  ? "Logowanie…"
+                  : "Zapisujemy…"
+                : mode === "register"
+                  ? "Utwórz konto"
+                  : mode === "forgot"
+                    ? "Wyślij link"
+                    : mode === "recovery"
+                      ? "Zapisz nowe hasło"
+                      : "Zaloguj się"}
+            </Button>
+          </form>
+          {mode === "forgot" && (
+            <button
+              type="button"
+              className="bw-auth__back"
+              disabled={busy}
+              onClick={() => changeMode("login")}
+            >
+              Wróć do logowania
+            </button>
           )}
-          {mode !== "recovery" && (
-            <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
-              <Input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="ty@example.com"
-                autoComplete="email"
-              />
-            </div>
+          {mode === "register" && (
+            <p className="bw-auth__hint bw-auth__registration-note">
+              Konto od 13 lat. Regulamin i zgody zatwierdzisz podczas konfiguracji profilu.
+            </p>
           )}
-          {mode !== "forgot" && (
-            <div className="space-y-2">
-              <Label htmlFor="password">{mode === "recovery" ? "Nowe hasło" : "Hasło"}</Label>
-              <Input
-                id="password"
-                type="password"
-                required
-                minLength={mode === "login" ? 1 : 12}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={mode === "login" ? "Twoje hasło" : "min. 12 znaków"}
-                autoComplete={
-                  mode === "register" || mode === "recovery" ? "new-password" : "current-password"
-                }
-              />
-            </div>
-          )}
-
-          {mode === "recovery" && (
-            <div className="space-y-2">
-              <Label htmlFor="password-confirmation">Powtórz nowe hasło</Label>
-              <Input
-                id="password-confirmation"
-                type="password"
-                required
-                minLength={12}
-                value={passwordConfirmation}
-                onChange={(e) => setPasswordConfirmation(e.target.value)}
-                autoComplete="new-password"
-              />
-            </div>
-          )}
-
-          <Button type="submit" className="w-full" size="lg" disabled={busy}>
-            {busy
-              ? "Chwila…"
-              : mode === "register"
-                ? "Utwórz konto"
-                : mode === "forgot"
-                  ? "Wyślij link"
-                  : mode === "recovery"
-                    ? "Ustaw nowe hasło"
-                    : "Zaloguj się"}
-          </Button>
-        </form>
-
-        {mode === "login" && (
-          <button
-            type="button"
-            onClick={() => setMode("forgot")}
-            className="mt-4 min-h-11 w-full text-center text-sm text-primary"
-          >
-            Nie pamiętam hasła
-          </button>
-        )}
-
-        {mode !== "recovery" && (
-          <button
-            type="button"
-            onClick={() => setMode(mode === "register" ? "login" : "register")}
-            className="mt-3 min-h-11 w-full text-center text-sm text-muted-foreground"
-          >
-            {mode === "register"
-              ? "Masz już konto? Zaloguj się"
-              : "Nie masz konta? Zarejestruj się"}
-          </button>
-        )}
-
-        <p className="mt-7 text-center text-xs leading-relaxed text-muted-foreground">
-          Regulamin i zgody zatwierdzisz osobno podczas konfiguracji profilu. Zobacz{" "}
-          <Link to="/terms" className="underline">
-            Regulamin
-          </Link>{" "}
-          oraz{" "}
-          <Link to="/privacy-policy" className="underline">
-            Politykę prywatności
-          </Link>
-          .
-        </p>
-        <p className="mt-3 text-center text-xs leading-relaxed text-muted-foreground">
-          Masz mniej niż 13 lat? Nie twórz konta. Możesz bezpiecznie zobaczyć{" "}
-          <Link to="/demo" className="font-medium text-primary underline">
-            publiczną wersję demonstracyjną
-          </Link>
-          , która niczego nie zapisuje.
-        </p>
+        </section>
+        <footer className="bw-auth__footer">
+          <Link to="/demo">Zobacz demo</Link>
+          <div>
+            <Link to="/terms">Regulamin</Link>
+            <span aria-hidden="true">·</span>
+            <Link to="/privacy-policy">Prywatność</Link>
+          </div>
+        </footer>
       </div>
-    </div>
+    </main>
   );
 }
