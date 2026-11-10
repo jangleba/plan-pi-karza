@@ -1,10 +1,6 @@
 import type { SessionDay, TrainingSection, TrainingExercise } from "./types";
 import { getExerciseDefinition, specialistEquipmentForExercise } from "./exerciseLibrary";
-import {
-  equipmentNamesFor,
-  canonicalExerciseName,
-  resolveDefinitionForExercise,
-} from "./sessionPresentation";
+import { equipmentNamesFor, canonicalExerciseName } from "./sessionPresentation";
 
 const SPRINT_BLOCK_FLOW = [
   { key: "ramp", index: "01", title: "Przygotowanie RAMP", estMin: 10 },
@@ -26,7 +22,6 @@ const SPRINT_BLOCK_FLOW = [
   },
   { key: "cooldown", index: "08", title: "Wyciszenie", estMin: 4 },
 ] as const;
-const SPRINT_SKIP_PRESCRIPTION = "2 × 15–20 m";
 export const SPRINT_RUNNER_CONTAINER_CLASS = "space-y-3 overflow-x-hidden";
 
 type SprintBlockKey = (typeof SPRINT_BLOCK_FLOW)[number]["key"];
@@ -36,7 +31,6 @@ export type SprintExerciseView = {
   exercise: TrainingExercise;
   canonicalName: string;
   prescription: string;
-  showSkipSetLabels?: boolean;
 };
 
 export type SprintBlockView = {
@@ -212,27 +206,14 @@ export function buildSprintRunnerBlocks(sections: TrainingSection[]): SprintBloc
     }
   }
 
-  const skipById = new Map<string, SprintExerciseMeta>();
-  for (const meta of buckets.skip) {
-    const id = resolveDefinitionForExercise(meta.exercise)?.id ?? meta.exercise.exerciseId;
-    if (id && !skipById.has(id)) skipById.set(id, meta);
-  }
-
   return SPRINT_BLOCK_FLOW.map((block) => {
-    const source =
-      block.key === "skip"
-        ? (["a_skip", "c_skip", "b_skip", "d_skip"]
-            .map((id) => skipById.get(id))
-            .filter(Boolean) as SprintExerciseMeta[])
-        : buckets[block.key];
-    const exercises = source.map((meta) => ({
+    // Każda zaplanowana runda skipu zostaje osobną pozycją z własną dawką;
+    // nazwa (canonicalExerciseName) niesie numer rundy i rytm.
+    const exercises = buckets[block.key].map((meta) => ({
       id: meta.exercise.id,
       exercise: meta.exercise,
-      // Każdy blok korzysta z tej samej zatwierdzonej polskiej nazwy bibliotecznej.
       canonicalName: canonicalExerciseName(meta.exercise),
-      prescription:
-        block.key === "skip" ? SPRINT_SKIP_PRESCRIPTION : formatSprintPrescription(meta.exercise),
-      showSkipSetLabels: block.key === "skip",
+      prescription: formatSprintPrescription(meta.exercise),
     }));
     return {
       key: block.key,

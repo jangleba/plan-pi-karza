@@ -228,15 +228,18 @@ describe("sprint runner layout", () => {
     ]);
   });
 
-  it("pokazuje pełne nazwy Skip A/C/B/D i scala serie w cztery pozycje", () => {
+  it("zachowuje obie rundy skipów zamiast scalać je w cztery pozycje", () => {
     const skipBlock = buildSprintRunnerBlocks(sprintSectionsFixture())[1];
-    expect(skipBlock.exercises.map((exercise) => exercise.canonicalName)).toEqual([
-      "Skip A",
-      "Skip C",
-      "Skip B",
-      "Skip D",
+    expect(skipBlock.exercises.map((exercise) => exercise.exercise.exerciseId)).toEqual([
+      "a_skip",
+      "c_skip",
+      "b_skip",
+      "d_skip",
+      "a_skip",
+      "c_skip",
+      "b_skip",
+      "d_skip",
     ]);
-    expect(skipBlock.exercises).toHaveLength(4);
   });
 
   it("usuwa duplikacje i zbędne oznaczenia w dawce", () => {
@@ -375,14 +378,38 @@ describe("sprint runner layout", () => {
         "Bez przerw",
         "Krótka ogólna rozgrzewka.",
       ),
-      sprintItem("a_skip", "primer", "Skip A — seria 1", "1 × 15–20 m", "Przerwa 30 s"),
-      sprintItem("c_skip", "primer", "Skip C — seria 1", "1 × 15–20 m", "Przerwa 30 s"),
-      sprintItem("b_skip", "primer", "Skip B — seria 1", "1 × 15–20 m", "Przerwa 30 s"),
-      sprintItem("d_skip", "primer", "Skip D — seria 1", "1 × 15–20 m", "Przerwa 45 s"),
-      sprintItem("a_skip", "primer", "Skip A — seria 2", "1 × 15–20 m", "Przerwa 30 s"),
-      sprintItem("c_skip", "primer", "Skip C — seria 2", "1 × 15–20 m", "Przerwa 30 s"),
-      sprintItem("b_skip", "primer", "Skip B — seria 2", "1 × 15–20 m", "Przerwa 30 s"),
-      sprintItem("d_skip", "primer", "Skip D — seria 2", "1 × 15–20 m", "Przerwa 45 s"),
+      {
+        ...sprintItem("a_skip", "primer", "Skip A — seria 1", "1 × 15–20 m", "Przerwa 30 s"),
+        animationVariant: "gather",
+      },
+      {
+        ...sprintItem("c_skip", "primer", "Skip C — seria 1", "1 × 15–20 m", "Przerwa 30 s"),
+        animationVariant: "gather",
+      },
+      {
+        ...sprintItem("b_skip", "primer", "Skip B — seria 1", "1 × 15–20 m", "Przerwa 30 s"),
+        animationVariant: "gather",
+      },
+      {
+        ...sprintItem("d_skip", "primer", "Skip D — seria 1", "1 × 15–20 m", "Przerwa 45 s"),
+        animationVariant: "gather",
+      },
+      {
+        ...sprintItem("a_skip", "primer", "Skip A — seria 2", "1 × 15–20 m", "Przerwa 30 s"),
+        animationVariant: "continuous",
+      },
+      {
+        ...sprintItem("c_skip", "primer", "Skip C — seria 2", "1 × 15–20 m", "Przerwa 30 s"),
+        animationVariant: "continuous",
+      },
+      {
+        ...sprintItem("b_skip", "primer", "Skip B — seria 2", "1 × 15–20 m", "Przerwa 30 s"),
+        animationVariant: "continuous",
+      },
+      {
+        ...sprintItem("d_skip", "primer", "Skip D — seria 2", "1 × 15–20 m", "Przerwa 45 s"),
+        animationVariant: "continuous",
+      },
     ];
     const technical =
       kind === "acceleration"
@@ -531,18 +558,20 @@ describe("sprint runner layout", () => {
     ]);
 
     const byKey = Object.fromEntries(detailsBlocks.map((block) => [block.key, block]));
-    expect(byKey.skip.exercises.map((exercise) => exercise.exercise.exerciseId)).toEqual([
-      "a_skip",
-      "c_skip",
-      "b_skip",
-      "d_skip",
-    ]);
+    // Obie zaplanowane rundy zostają; każda ma własną rundę, rytm i dawkę.
     expect(byKey.skip.exercises.map((exercise) => exercise.canonicalName)).toEqual([
-      "Skip A",
-      "Skip C",
-      "Skip B",
-      "Skip D",
+      "Skip A — runda 1 · z dostawieniem",
+      "Skip C — runda 1 · z dostawieniem",
+      "Skip B — runda 1 · z dostawieniem",
+      "Skip D — runda 1 · z dostawieniem",
+      "Skip A — runda 2 · ciągły",
+      "Skip C — runda 2 · ciągły",
+      "Skip B — runda 2 · ciągły",
+      "Skip D — runda 2 · ciągły",
     ]);
+    expect(byKey.skip.exercises.every((exercise) => exercise.prescription === "1 × 15–20 m")).toBe(
+      true,
+    );
     expect(byKey.technical.exercises.map((exercise) => exercise.exercise.exerciseId)).toEqual(
       expectedTechnicalIds,
     );
@@ -572,6 +601,11 @@ describe("sprint runner layout", () => {
         if (exercise.exercise.speedRole && block.key !== "skip") {
           // Precyzyjna nazwa z silnika, nie ogólna etykieta kanoniczna.
           expect(exercise.canonicalName).toBe(exercise.exercise.name);
+        } else if (block.key === "skip") {
+          // Nazwa biblioteczna + runda i rytm, żeby dwie rundy nie wyglądały identycznie.
+          expect(exercise.canonicalName.startsWith(`${definition?.displayNamePl} — runda `)).toBe(
+            true,
+          );
         } else {
           expect(exercise.canonicalName).toBe(definition?.displayNamePl);
         }

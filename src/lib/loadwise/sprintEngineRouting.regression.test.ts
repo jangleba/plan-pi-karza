@@ -289,7 +289,13 @@ describe("sprint runner blocks from the real engine", () => {
       "c_skip",
       "b_skip",
       "d_skip",
+      "a_skip",
+      "c_skip",
+      "b_skip",
+      "d_skip",
     ]);
+    const skipNames = byKey.skip.exercises.map((e) => e.canonicalName);
+    expect(new Set(skipNames).size).toBe(skipNames.length);
     expect(byKey.technical.exercises).toHaveLength(3);
     expect(byKey.resisted.exercises).toHaveLength(1);
     expect(byKey.terminal.exercises).toHaveLength(1);

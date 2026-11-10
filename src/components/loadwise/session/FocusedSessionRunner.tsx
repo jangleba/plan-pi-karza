@@ -9,7 +9,7 @@ import { plannedSets } from "@/lib/loadwise/setLogs";
 import {
   canonicalExerciseName,
   compactPrescription,
-  formatRestValue,
+  restLine,
 } from "@/lib/loadwise/sessionPresentation";
 import { ExerciseDetailSheet } from "../ExerciseDetailSheet";
 import { ExerciseRunnerScreen } from "../ExerciseRunnerScreen";
@@ -197,9 +197,9 @@ export function FocusedSessionRunner({
         {step.kind === "linked" ? (
           <p className="bw-session-muted">{linkedNextStep(block, exercise)}</p>
         ) : (
-          (exercise.restAfterPair || exercise.restAfterExercise) && (
+          restLine(exercise.restAfterPair || exercise.restAfterExercise) && (
             <p className="bw-session-muted">
-              Przerwa {formatRestValue(exercise.restAfterPair || exercise.restAfterExercise || "")}
+              {restLine(exercise.restAfterPair || exercise.restAfterExercise)}
             </p>
           )
         )}

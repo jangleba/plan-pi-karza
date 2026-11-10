@@ -45,7 +45,7 @@ describe("football speed session engine", () => {
       family: "acceleration",
     });
     const expected = result.exercises.filter((e) => e.role === "primer").map((e) => e.variant);
-    expect(new Set(expected)).toEqual(new Set(["step_in", "continuous"]));
+    expect(expected).toEqual([...Array(4).fill("gather"), ...Array(4).fill("continuous")]);
     const structured =
       result.session?.structuredSections
         ?.flatMap((s) => s.blocks.flatMap((b) => b.exercises))

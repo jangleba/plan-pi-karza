@@ -15,6 +15,7 @@ import type {
   TrainingSection,
 } from "./types";
 import { validateFootballSpeedDate } from "./footballSpeedScheduling";
+import { skipRhythmCue } from "./skipRounds";
 import { enforceSprintOnlyContent } from "./sprintContentPolicy";
 import { isProfileMatchDate, profileMatchDates } from "./matchSchedule";
 import { buildAthleteTrainingProfile } from "./athleteProfile";
@@ -136,7 +137,7 @@ export interface FootballSpeedSession {
 }
 
 const REPEATED_SPRINT: FootballSpeedQuality = "repeated_sprint";
-export const FOOTBALL_SPEED_GENERATOR_VERSION = "football-speed-v9-drill-gate";
+export const FOOTBALL_SPEED_GENERATOR_VERSION = "football-speed-v10-skip-rounds";
 
 type DoseMode = "full" | "reduced" | "activation";
 
@@ -195,39 +196,39 @@ const COOLDOWN: RowSpec = {
 const SKIP_TRANSITIONS: RowSpec[] = [
   {
     id: "a_skip",
-    name: "Skip A — seria 1",
+    name: "Skip A — runda 1",
     purpose: "Kontrolowana technika, rytm i aktywna stopa przed sprintem.",
     dose: "1 × 15–20 m",
     rest: "Przerwa 30 s",
-    variant: "step_in",
+    variant: "gather",
   },
   {
     id: "c_skip",
-    name: "Skip C — seria 1",
+    name: "Skip C — runda 1",
     purpose: "Kontrolowana praca cykliczna i stabilna miednica.",
     dose: "1 × 15–20 m",
     rest: "Przerwa 30 s",
-    variant: "step_in",
+    variant: "gather",
   },
   {
     id: "b_skip",
-    name: "Skip B — seria 1",
+    name: "Skip B — runda 1",
     purpose: "Kontrola kolana i stopy w rytmie biegowym.",
     dose: "1 × 15–20 m",
     rest: "Przerwa 30 s",
-    variant: "step_in",
+    variant: "gather",
   },
   {
     id: "d_skip",
-    name: "Skip D — seria 1",
+    name: "Skip D — runda 1",
     purpose: "Aktywna stopa i sprężystość bez utraty pozycji.",
     dose: "1 × 15–20 m",
     rest: "Przerwa 45 s",
-    variant: "step_in",
+    variant: "gather",
   },
   {
     id: "a_skip",
-    name: "Skip A — seria 2",
+    name: "Skip A — runda 2",
     purpose: "Szybszy, dynamiczny strike pod biodrem bez utraty postawy.",
     dose: "1 × 15–20 m",
     rest: "Przerwa 30 s",
@@ -235,7 +236,7 @@ const SKIP_TRANSITIONS: RowSpec[] = [
   },
   {
     id: "c_skip",
-    name: "Skip C — seria 2",
+    name: "Skip C — runda 2",
     purpose: "Szybsza praca cykliczna z aktywną stopą pod biodrem.",
     dose: "1 × 15–20 m",
     rest: "Przerwa 30 s",
@@ -243,7 +244,7 @@ const SKIP_TRANSITIONS: RowSpec[] = [
   },
   {
     id: "b_skip",
-    name: "Skip B — seria 2",
+    name: "Skip B — runda 2",
     purpose: "Dynamiczny rytm i skoordynowane ramiona bez ruchu bocznego.",
     dose: "1 × 15–20 m",
     rest: "Przerwa 30 s",
@@ -251,7 +252,7 @@ const SKIP_TRANSITIONS: RowSpec[] = [
   },
   {
     id: "d_skip",
-    name: "Skip D — seria 2",
+    name: "Skip D — runda 2",
     purpose: "Najszybszy jakościowy strike pod biodrem przed drillami.",
     dose: "1 × 15–20 m",
     rest: "Przerwa 45 s",
@@ -1034,7 +1035,9 @@ function buildRow(
       ? spec.dose.replace(/^2\s*[–-]\s*3\s*×/, "2 ×")
       : spec.dose;
   const highQualityRole = role === "resisted" || role === "primary" || role === "terminal";
+  const rhythmCue = skipRhythmCue(spec.id, variant ?? spec.variant);
   const cues = [
+    ...(rhythmCue ? [rhythmCue] : []),
     ...(def.coachingCues ?? []),
     ...(isAcceleration ? ACCELERATION_CUES : []),
     ...(isMaxVelocity ? MAX_VELOCITY_CUES : []),

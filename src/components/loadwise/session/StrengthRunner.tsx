@@ -8,7 +8,7 @@ import { specialistEquipmentForExercise } from "@/lib/loadwise/exerciseLibrary";
 import {
   canonicalExerciseName,
   compactPrescription,
-  formatRestValue,
+  restLine,
   normalizeStrengthBlockRest,
   resolveDefinitionForExercise,
   buildStrengthStages,
@@ -289,10 +289,8 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
                                         {preview.occurrences.get(exercise.id)!.length}
                                       </span>
                                     )}
-                                  {!paired && rest && (
-                                    <span className="bw-exercise-rest">
-                                      Przerwa {formatRestValue(rest)}
-                                    </span>
+                                  {!paired && restLine(rest) && (
+                                    <span className="bw-exercise-rest">{restLine(rest)}</span>
                                   )}
                                   {!canRecord && exercise.executionBlockedReason && (
                                     <span className="bw-exercise-preview-warning">

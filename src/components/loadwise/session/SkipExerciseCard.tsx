@@ -2,6 +2,7 @@ import { useId, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import { getSkipGuide } from "@/lib/loadwise/skipGuides";
+import { canonicalExerciseName } from "@/lib/loadwise/sessionPresentation";
 import { ExerciseQuickGuide } from "./ExerciseQuickGuide";
 import { SprintRestTimer } from "./SprintRestTimer";
 import { PersistentExercisePanel } from "./PersistentExercisePanel";
@@ -32,8 +33,10 @@ export function SkipExerciseCard({
   const panelId = useId();
   const guide = getSkipGuide(exercise.exerciseId);
   if (!guide) return null;
+  // Runda i rytm („Skip A — runda 1 · z dostawieniem”), nie samo „Skip A”.
+  const title = canonicalExerciseName(exercise);
   return (
-    <article className="bw-skip-card" aria-label={guide.title}>
+    <article className="bw-skip-card" aria-label={title}>
       <div className="bw-skip-header">
         <div className="min-w-0 flex-1">
           {compact ? (
@@ -47,16 +50,14 @@ export function SkipExerciseCard({
               }
             >
               <span>
-                <strong className="bw-skip-title">{guide.title}</strong>
+                <strong className="bw-skip-title">{title}</strong>
                 {prescription && <span className="bw-skip-dose">{prescription}</span>}
               </span>
               <ChevronDown aria-hidden="true" className={expanded ? "rotate-180" : ""} />
             </button>
           ) : (
             <>
-              <h3 className={"bw-skip-title " + (done ? "text-muted-foreground" : "")}>
-                {guide.title}
-              </h3>
+              <h3 className={"bw-skip-title " + (done ? "text-muted-foreground" : "")}>{title}</h3>
               {prescription && <p className="bw-skip-dose">{prescription}</p>}
             </>
           )}
