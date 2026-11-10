@@ -1,6 +1,7 @@
 import {
   LIVE_BANK_VERSION,
   ATTACK_BANK_VERSION,
+  ATTACK_BANK_VERSION_R2,
   ATTACK_BANK_VERSION_V9,
 } from "./liveLesson";
 import type {
@@ -32,6 +33,7 @@ export const SUPPORTED_JOURNEY_BANK_VERSIONS = [
   TACTICAL_BANK_VERSION,
   LIVE_BANK_VERSION,
   ATTACK_BANK_VERSION,
+  ATTACK_BANK_VERSION_R2,
   ATTACK_BANK_VERSION_V9,
 ];
 export const roleLabels: Record<IQRole, string> = {

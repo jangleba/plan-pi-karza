@@ -1,8 +1,11 @@
 import {
   LIVE_BANK_VERSION,
   ATTACK_BANK_VERSION,
-  ATTACK_BANK_VERSION_V9,
+  ATTACK_BANK_VERSION_R2,
   ATTACK_BANK_VERSIONS,
+  attackBankVersion,
+  attackRevisionOf,
+  sameRevision,
 } from "./liveLesson";
 import {
   JOURNEY_BANK_VERSION,
@@ -80,8 +83,7 @@ function validBase(v: unknown): v is JourneyDraft {
       LEGACY_TACTICAL_BANK_VERSION,
       TACTICAL_BANK_VERSION,
       LIVE_BANK_VERSION,
-      ATTACK_BANK_VERSION,
-      ATTACK_BANK_VERSION_V9,
+      ...ATTACK_BANK_VERSIONS,
     ].includes(v.bankVersion) ===
       (definitionById.get(v.scenarioId)?.revision === 3) &&
     (v.bankVersion !== "2026-10-15.1" ||
@@ -92,7 +94,12 @@ function validBase(v: unknown): v is JourneyDraft {
       (ATTACK_BANK_VERSIONS.includes(v.bankVersion) ? 80 : 10) &&
     v.choices.every(validChoice) &&
     (v.forecasts === undefined ||
-      ([TACTICAL_BANK_VERSION, LIVE_BANK_VERSION, ATTACK_BANK_VERSION].includes(
+      ([
+        TACTICAL_BANK_VERSION,
+        LIVE_BANK_VERSION,
+        ATTACK_BANK_VERSION,
+        ATTACK_BANK_VERSION_R2,
+      ].includes(
         v.bankVersion,
       ) &&
         Array.isArray(v.forecasts) &&
@@ -110,7 +117,7 @@ function validBase(v: unknown): v is JourneyDraft {
             typeof f.actual === "string" &&
             ["ball", "follow", "cover", "mixed"].includes(f.actual) &&
             // Rules v9 asks only for the reaction; older lessons also stored a plan.
-            (v.bankVersion === ATTACK_BANK_VERSION
+            ([ATTACK_BANK_VERSION, ATTACK_BANK_VERSION_R2].includes(String(v.bankVersion))
               ? f.plan === undefined
               : typeof f.plan === "string" &&
                 ["support", "protect", "scan"].includes(f.plan)),
@@ -169,9 +176,9 @@ export function restoreJourney(value: JourneyDraft): JourneySession {
                 ? 4
                 : 3,
   );
-  // Actions saved before revision 2 replay with the original rules.
-  if (value.bankVersion === ATTACK_BANK_VERSION_V9)
-    delete session.attackRevision;
+  // Each action replays with the rules revision it was played with.
+  if (ATTACK_BANK_VERSIONS.includes(value.bankVersion))
+    session = sameRevision(session, { attackRevision: attackRevisionOf(value.bankVersion) });
   for (const [index, choice] of value.choices.entries()) {
     const before = session;
     session = chooseJourney(session, choice.id, choice.seconds);
@@ -230,9 +237,7 @@ export function makeJourneyAttempt(
     version: 1,
     bankVersion:
       session.rulesVersion === 9
-        ? session.attackRevision === 2
-          ? ATTACK_BANK_VERSION
-          : ATTACK_BANK_VERSION_V9
+        ? attackBankVersion(session.attackRevision)
         : session.rulesVersion === 8
           ? LIVE_BANK_VERSION
           : session.rulesVersion === 7
@@ -347,9 +352,7 @@ export function makeJourneyDraft(
     version: 1,
     bankVersion:
       session.rulesVersion === 9
-        ? session.attackRevision === 2
-          ? ATTACK_BANK_VERSION
-          : ATTACK_BANK_VERSION_V9
+        ? attackBankVersion(session.attackRevision)
         : session.rulesVersion === 8
           ? LIVE_BANK_VERSION
           : session.rulesVersion === 7

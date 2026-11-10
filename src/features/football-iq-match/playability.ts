@@ -20,6 +20,9 @@ export type Playability = {
   error: number;
   /** Different ball outcomes (team + 8 m cell of the ball) after the first decision. */
   outcomes: number;
+  /** Different ball outcomes one window later (TY then holds or stays): whether the first
+   * choice still shapes the play once partners and rivals have reacted to it. */
+  laterOutcomes: number;
   /** TY's team still had (or never had) the ball for no choice at all. */
   forcedLoss: boolean;
 };
@@ -61,8 +64,17 @@ function ballCell(s: JourneySession) {
   return `${teamOf(s, s.world.carrierId)}:${Math.round(b.x / 8)}:${Math.round(b.y / 8)}`;
 }
 
-export function playability(def: JourneyDefinition): Playability {
+/** One more window in which TY keeps the ball (or stays) and everyone else plays on. */
+function stayOn(s: JourneySession): JourneySession {
+  const own = s.world.carrierId === "you" && !s.world.looseBall;
+  const at = s.world.positions.you;
+  return chooseJourney(s, attackChoice(s, own ? "hold" : "wait", at).id, 3, false);
+}
+
+/** `revision` replays the audit under an older rules revision (for before/after comparisons). */
+export function playability(def: JourneyDefinition, revision?: 2 | 3): Playability {
   const start = createJourneyForRules(def, 9);
+  if (revision) start.attackRevision = revision;
   const own = start.world.carrierId === "you" && !start.world.looseBall;
   const kind: Playability["kind"] = start.world.looseBall
     ? "loose"
@@ -79,18 +91,22 @@ export function playability(def: JourneyDefinition): Playability {
     possible: 0,
     error: 0,
     outcomes: 0,
+    laterOutcomes: 0,
     forcedLoss: false,
   };
-  const cells = new Set<string>();
+  const cells = new Set<string>(),
+    later = new Set<string>();
   let kept = 0;
   for (const c of sampleChoices(start)) {
     const next = chooseJourney(start, c.id, 3, false);
     result.tried++;
     result[assessDecision(next, 0).grade]++;
     cells.add(ballCell(next));
+    later.add(next.outcome ? `end:${ballCell(next)}` : ballCell(stayOn(next)));
     if (teamOf(next, next.world.carrierId) === "home" || next.outcome === "chance") kept++;
   }
   result.outcomes = cells.size;
+  result.laterOutcomes = later.size;
   result.forcedLoss = kind !== "rival" && kept === 0;
   return result;
 }
