@@ -131,7 +131,7 @@ function classifyGym(text: string): SessionSubcategory {
   if (has(text, /full body|całe ciało|full-body/)) return "full_body_strength";
   if (has(text, /\bmoc(?:y|ą|owy|owa|owe)?\b|power/)) return "power_maintenance";
   if (has(text, /podtrzyman|maintenance/)) return "strength_maintenance";
-  if (has(text, /górn|upper|wyciskan|wiosł|podciąg|press|pull/))
+  if (has(text, /górn|gór[ay] ciała|upper|wyciskan|wiosł|podciąg|press|pull/))
     return "upper_strength";
   return "lower_strength";
 }
@@ -178,10 +178,11 @@ function resolveCategory(session: SessionDay): CategoryResult {
   }
 
   // 2) Mecz / klub wykryty z nagłówka (sesje bez dayType, np. dodane ręcznie).
-  if (has(header, /\bmecz\b|\bmatch\b/)) {
+  // Tylko tytuł i typ: cel sesji „kończysz świeży na mecz” nie czyni jej meczem.
+  if (has(explicitHeader, /\bmecz\b|\bmatch\b/)) {
     return { category: "match", subcategory: "match", sourceRule: "header=match" };
   }
-  if (has(header, /trening klubow|\bklub\b|team training/)) {
+  if (has(explicitHeader, /trening klubow|\bklub\b|team training/)) {
     if (has(header, RE_SPEED_FOCUS_CLUB)) {
       return {
         category: "club",
