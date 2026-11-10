@@ -7,6 +7,7 @@ import {
   situationBank,
 } from "./situationBank";
 import { RETIRED_SITUATION_IDS } from "./situationVariants";
+import { GOOD_SHARE } from "./pictureDifficulty";
 
 /** Ratchet on the scenario bank; the limits may only go down.
  * Audit 2026-11-09 (rules v9 rev. 2): 40 of 102 variants where TY's first choice does not
@@ -28,7 +29,11 @@ describe("IQ scenario playability", () => {
       expect(row.good + row.possible + row.error).toBe(row.tried);
       rows.set(def.id, row);
       // Whatever the player is offered must hold a real decision.
-      if (!RETIRED_SITUATION_IDS.has(def.id)) expect(isPlayable(row), def.id).toBe(true);
+      if (!RETIRED_SITUATION_IDS.has(def.id)) {
+        expect(isPlayable(row), def.id).toBe(true);
+        // Difficulty data used to pick the next picture (regenerate after engine changes).
+        expect(GOOD_SHARE[def.id], def.id).toBe(Math.round((row.good / row.tried) * 100));
+      }
     }
   });
   afterAll(() => {
@@ -58,5 +63,6 @@ describe("IQ scenario playability", () => {
       }
     }
     expect(generatedSituationBank.length).toBeGreaterThanOrEqual(90);
+    expect(Object.keys(GOOD_SHARE).sort()).toEqual(playableSituationBank.map((d) => d.id).sort());
   });
 });
