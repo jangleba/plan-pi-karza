@@ -427,8 +427,6 @@ function useLoadRecommendation(
             mdLabel: context?.mdLabel,
             exercise,
             recentSessionRpe: feedback?.rpe,
-            recentPain: feedback?.pain,
-            recentLegFatigue: feedback?.legFatigue,
           })
         : null,
     [
@@ -439,8 +437,6 @@ function useLoadRecommendation(
       state.profile,
       context,
       feedback?.rpe,
-      feedback?.pain,
-      feedback?.legFatigue,
     ],
   );
 }

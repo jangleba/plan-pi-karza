@@ -223,8 +223,6 @@ export function ExerciseRunnerScreen({
             mdLabel: sessionContext?.mdLabel,
             exercise,
             recentSessionRpe: feedback?.rpe,
-            recentPain: feedback?.pain,
-            recentLegFatigue: feedback?.legFatigue,
           })
         : null,
     [
@@ -235,8 +233,6 @@ export function ExerciseRunnerScreen({
       sessionContext,
       repetitionsOnly,
       feedback?.rpe,
-      feedback?.pain,
-      feedback?.legFatigue,
     ],
   );
 
