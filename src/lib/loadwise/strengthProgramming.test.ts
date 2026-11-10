@@ -102,10 +102,14 @@ describe("strength programming repair", () => {
   it.each([
     { weekPhase: "adaptation" },
     { weekPhase: "deload" },
-    { mdLabel: "MD-3" },
+    { mdLabel: "MD-2" },
     { readiness: 5 },
   ])("does not prescribe a contrast when the day calls for simpler work: %o", (over) => {
     expect(selectStrengthMethod(base, { ...ctx, ...over }).method).not.toBe("contrast");
+  });
+  it("does not downgrade the method only because the match is in three days (MD-3)", () => {
+    expect(selectStrengthMethod(base, ctx).method).toBe("contrast");
+    expect(selectStrengthMethod(base, { ...ctx, mdLabel: "MD-3" }).method).toBe("contrast");
   });
   it("uses exactly one matched contrast with equal rounds and both intra-pair and post-pair rest", () => {
     const p = buildStrengthPowerStructured(base, ctx)!;
