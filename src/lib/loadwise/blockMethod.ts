@@ -24,12 +24,22 @@ const CIRCUIT: BlockMethod = {
   name: "Obwód",
 };
 
-/** A block whose exercises are done back to back, not one after another set by set. */
+const PAIR_LABEL = /^[A-Z]\d$/;
+
+/**
+ * A block whose exercises are done back to back, not one after another set by set.
+ * Only an explicit pair counts: a paired block type, or A1/A2 labels of one
+ * letter together with a pair rest. Older speed sessions copied the set rest
+ * into `restAfterPair` on every single exercise — that is not a pair.
+ */
 export function isLinkedBlock(block: TrainingBlock): boolean {
+  if (block.exercises.length < 2) return false;
+  if (["superset", "contrast", "complex"].includes(block.blockType)) return true;
+  const labels = block.exercises.map((exercise) => exercise.label ?? "");
   return (
-    block.exercises.length > 1 &&
-    (block.exercises.some((exercise) => exercise.restAfterPair) ||
-      ["superset", "contrast", "complex"].includes(block.blockType))
+    labels.every((label) => PAIR_LABEL.test(label)) &&
+    new Set(labels.map((label) => label[0])).size === 1 &&
+    block.exercises.some((exercise) => exercise.restAfterPair)
   );
 }
 

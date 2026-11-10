@@ -132,7 +132,7 @@ function ClubView() {
   const { state } = useLoadwise();
   return (
     <div className="bw-session-page pb-6">
-      <SessionHeader session={club} strengthRunner={false} isToday onBack={() => undefined} />
+      <SessionHeader session={club} isToday preview={false} onBack={() => undefined} />
       <div className="bw-session-body mt-5 space-y-4 px-5">
         <SessionStartPanel session={club} canStart />
         <ClubMonitoring session={club} />

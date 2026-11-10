@@ -5,7 +5,10 @@
     C = window.BWCoaching,
     T = window.BWTempo;
   const params = new URLSearchParams(location.search);
-  if (params.get("compact") === "1") {
+  // Minimal embed: only the drawing; the app renders play, 0,5× and phase controls.
+  const minimal = params.get("minimal") === "1";
+  if (minimal) document.documentElement.classList.add("minimal-player");
+  if (params.get("compact") === "1" && !minimal) {
     document.documentElement.classList.add("compact-player");
     const details = document.createElement("details"),
       summary = document.createElement("summary");
@@ -27,7 +30,7 @@
     $("player").append(details);
   }
 
-  const response = await fetch("./catalog.json?v=2026.11.07.61", { cache: "no-cache" });
+  const response = await fetch("./catalog.json?v=2026.11.10.62", { cache: "no-cache" });
   if (!response.ok) throw new Error("Animation catalog unavailable");
   const data = await response.json(),
     records = new Map(data.records.map((r) => [r.id, r]));
@@ -63,6 +66,56 @@
     if (raf !== null) cancelAnimationFrame(raf);
     raf = null;
     text("play", "Odtwórz");
+    postState();
+  }
+  let phaseMarks = [],
+    postedLabel = null;
+  /** Named movement phases of the active drawing, read from the model itself. */
+  function computePhases() {
+    phaseMarks = [];
+    if (!active) return;
+    const marks = [];
+    for (let i = 0; i < 240; i++) {
+      const p = i / 240,
+        frame = tempoPlan ? T.tempoFrameAt(tempoPlan, p) : null,
+        label = active.sample(frame?.modelPhase ?? p).phase;
+      if (!label) continue;
+      if (!marks.length || marks[marks.length - 1].label !== label) marks.push({ label, at: p });
+    }
+    if (marks.length > 1 && marks[0].label === marks[marks.length - 1].label) marks.pop();
+    const distinct = new Set(marks.map((m) => m.label)).size;
+    // Only clear, non-repeating phase lists become chips; otherwise the scrubber is enough.
+    if (marks.length >= 2 && marks.length <= 6 && distinct === marks.length) phaseMarks = marks;
+  }
+  function postState(force = false) {
+    if (parent === window) return;
+    const label = active ? phaseLabelAt(phase) : null;
+    if (!force && label === postedLabel && postState.playing === playing && postState.speed === speed)
+      return;
+    postedLabel = label;
+    postState.playing = playing;
+    postState.speed = speed;
+    parent.postMessage(
+      {
+        type: "ballwise-animation-state",
+        ready: Boolean(active),
+        playing,
+        speed,
+        phases: phaseMarks.map((m) => m.label),
+        current: phaseMarks.length ? currentPhaseIndex() : -1,
+      },
+      location.origin,
+    );
+  }
+  function phaseLabelAt(p) {
+    const frame = tempoPlan ? T.tempoFrameAt(tempoPlan, M.mod(p)) : null;
+    return active?.sample(frame?.modelPhase ?? M.mod(p)).phase ?? null;
+  }
+  function currentPhaseIndex() {
+    const p = M.mod(phase);
+    let index = phaseMarks.length - 1;
+    for (let i = 0; i < phaseMarks.length; i++) if (phaseMarks[i].at <= p) index = i;
+    return index;
   }
   function height() {
     if (parent !== window)
@@ -201,6 +254,7 @@
         chip.classList.toggle("is-current", chip.dataset.phase === tempoFrame.key);
       if (tempoFrame.complete && playing) stop();
     }
+    if (minimal) postState();
     return scene;
   }
   function notes(record) {
@@ -305,7 +359,9 @@
         : `Pełna pętla przy 1×: ${(model.durationMs / 1000).toLocaleString("pl", { maximumFractionDigits: 2 })} s. ${id === contextId && params.get("tempo") ? "Zapis z sesji: " + params.get("tempo") + ". " : ""}To rytm rysunku, a nie narzucone tempo ćwiczenia. ${coaching?.tempo?.label ?? ""}`,
     );
     bounds();
+    computePhases();
     render(tempoPlan ? 0 : id === "a_skip" || id === "review:a_skip:extra_bounce" ? 16 / 39 : 0.16);
+    postState(true);
     height();
     if (params.get("autoplay") === "1" && !reduced.matches && !document.hidden) start();
     return true;
@@ -366,6 +422,7 @@
     text("play", "Pauza");
     if (parent !== window)
       parent.postMessage({ type: "ballwise-animation-playing" }, location.origin);
+    postState();
     raf = requestAnimationFrame(tick);
   }
   $("play").onclick = () => {
@@ -456,6 +513,30 @@
       event.data?.type === "ballwise-animation-pause"
     )
       stop();
+    if (
+      event.source !== parent ||
+      event.origin !== location.origin ||
+      event.data?.type !== "ballwise-animation-command"
+    )
+      return;
+    const { command, value } = event.data;
+    if (command === "play") {
+      userPaused = false;
+      start();
+    } else if (command === "pause") {
+      userPaused = true;
+      stop();
+    } else if (command === "speed" && [0.25, 0.5, 1].includes(value)) {
+      speed = value;
+      $("speed").value = String(value);
+      last = null;
+      postState(true);
+    } else if (command === "phase" && Number.isInteger(value) && phaseMarks[value]) {
+      userPaused = true;
+      stop();
+      render(phaseMarks[value].at + 0.002);
+      postState(true);
+    }
   });
   if ("IntersectionObserver" in window)
     new IntersectionObserver((entries) => {

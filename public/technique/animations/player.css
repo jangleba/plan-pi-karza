@@ -476,3 +476,20 @@ a:focus-visible {
   color: #6f7b86;
   font-size: 11px;
 }
+
+/* Minimal embed inside the session screen: the drawing only; controls live in the app. */
+.minimal-player body,
+.minimal-player html {
+  background: #f5f8fa;
+}
+.minimal-player main {
+  padding: 0;
+}
+.minimal-player #main > :not(#player):not(#error),
+.minimal-player #player > :not(#stage) {
+  display: none !important;
+}
+.minimal-player #stage {
+  height: 240px;
+  border-radius: 0;
+}

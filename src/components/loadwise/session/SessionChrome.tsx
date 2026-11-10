@@ -1,10 +1,10 @@
-import { SurfaceSketch } from "@/components/design/SurfaceSketch";
 import type { ReactNode } from "react";
-import { ChevronLeft, Clock, Flag, Target } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import type { SessionDay } from "@/lib/loadwise/types";
 import { formatDateFull, professionalSessionTitle } from "@/lib/loadwise/labels";
 import { statusBadgeLabel } from "@/lib/loadwise/sessionPresentation";
-import { IntensityBadge, DayTypeTag } from "../ui";
+import { IntensityBadge } from "../ui";
+import { sessionHeading, slotLabels } from "@/lib/loadwise/sessionRunner/heading";
 import {
   Accordion,
   AccordionContent,
@@ -93,98 +93,41 @@ export function DecisionLogic({ session }: { session: SessionDay }) {
 
 export function SessionHeader({
   session,
-  strengthRunner,
   isToday,
+  preview,
   onBack,
 }: {
   session: SessionDay;
-  strengthRunner: boolean;
   isToday: boolean;
+  /** True while the screen only shows the plan (another day, or not started). */
+  preview: boolean;
   onBack: () => void;
 }) {
+  const heading = sessionHeading(session);
+  const status = statusBadgeLabel(session);
   return (
-    <div className="bw-session-header bw-sketch-surface px-5 pt-6">
-      <SurfaceSketch
-        kind={
-          strengthRunner
-            ? "strength"
-            : /bieg|endurance|sprint/i.test(session.sessionType)
-              ? "track"
-              : /piłk|football|techn/i.test(session.sessionType)
-                ? "play"
-                : "pitch"
-        }
-      />
-      <button
-        onClick={onBack}
-        className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground active:opacity-60"
-      >
-        <ChevronLeft className="h-4 w-4" /> Wstecz
+    <header className="bw-session-head">
+      <button type="button" onClick={onBack} className="bw-session-back">
+        <ChevronLeft aria-hidden="true" /> Wstecz
       </button>
-
-      {strengthRunner ? (
-        <>
-          <h1 className="text-[20px] font-semibold leading-tight tracking-[-0.025em] text-foreground">
-            {professionalSessionTitle(session.title)}
-          </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-x-1.5 text-[13px] text-muted-foreground">
-            <span>{formatDateFull(session.date)}</span>
-            <span aria-hidden="true">·</span>
-            <span>{session.durationMin} min</span>
-            {session.mdLabel && (
-              <>
-                <span aria-hidden="true">·</span>
-                <span>{session.mdLabel}</span>
-              </>
-            )}
-          </div>
-          {statusBadgeLabel(session) && (
-            <div className="mt-3">
-              <IntensityBadge intensity={session.intensity} label={statusBadgeLabel(session)} />
-            </div>
-          )}
-        </>
-      ) : (
-        <>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            {formatDateFull(session.date)}
-            {session.mdLabel && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 font-medium">
-                <Flag className="h-3 w-3" /> {session.mdLabel}
-              </span>
-            )}
-            {isToday && (
-              <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
-                Dziś
-              </span>
-            )}
-          </div>
-
-          {session.slotLabel && (
-            <div className="mt-2 inline-flex rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">
-              {session.slotLabel}
-            </div>
-          )}
-
-          <h1 className="mt-1.5 text-[24px] font-medium leading-tight tracking-[-0.03em]">
-            {professionalSessionTitle(session.title)}
-          </h1>
-
-          <div className="bw-session-meta mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            {session.dayType !== "club" && <DayTypeTag type={session.dayType} />}
-            <IntensityBadge intensity={session.intensity} label={statusBadgeLabel(session)} />
-            {session.dayType !== "club" && (
-              <span className="inline-flex items-center gap-1">
-                <Target className="h-3.5 w-3.5" /> {session.sessionType}
-              </span>
-            )}
-            <span className="inline-flex items-center gap-1">
-              <Clock className="h-3.5 w-3.5" /> {session.durationMin} min
-            </span>
-          </div>
-        </>
+      <p className="bw-session-date">
+        <span data-today={isToday || undefined}>
+          {isToday ? "Dziś" : formatDateFull(session.date)}
+        </span>
+        {isToday && <span>{formatDateFull(session.date)}</span>}
+        {session.mdLabel && <span>{session.mdLabel}</span>}
+        {preview && !isToday && <span className="bw-session-mode">Podgląd</span>}
+      </p>
+      <h1>{heading.title}</h1>
+      {heading.meta.length > 0 && (
+        <p className="bw-session-meta-line">{heading.meta.join(" · ")}</p>
       )}
-    </div>
+      {status && (
+        <div className="mt-2">
+          <IntensityBadge intensity={session.intensity} label={status} />
+        </div>
+      )}
+    </header>
   );
 }
 
@@ -198,19 +141,20 @@ export function SessionSlotSwitcher({
   onSelect: (slot: 1 | 2) => void;
 }) {
   if (!primary.secondSession) return null;
+  const labels = slotLabels(primary, primary.secondSession);
   return (
-    <div className="flex gap-1 rounded-xl bg-muted/50 p-1">
+    <div className="bw-session-slots" role="group" aria-label="Sesje tego dnia">
       {([primary, primary.secondSession] as const).map((session, index) => {
         const sessionSlot = index === 0 ? 1 : 2;
         return (
           <button
             key={sessionSlot}
+            type="button"
+            aria-pressed={slot === sessionSlot}
+            title={professionalSessionTitle(session.title)}
             onClick={() => onSelect(sessionSlot)}
-            className={`flex min-h-11 flex-1 items-center justify-center rounded-xl px-3 py-1.5 text-center text-xs font-semibold leading-tight ${
-              slot === sessionSlot ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-            }`}
           >
-            {professionalSessionTitle(session.title)}
+            {labels[index]}
           </button>
         );
       })}

@@ -38,14 +38,21 @@ describe("exercises done together", () => {
     );
   });
 
-  it("treats an unlabelled pair with a pair rest as a superset and a single exercise as plain", () => {
-    const pair: TrainingBlock = {
-      ...contrast,
-      blockType: "accessory",
-      exercises: contrast.exercises.map((e) => ({ ...e, label: undefined })),
-    };
+  it("needs an explicit pair: labels with a pair rest, never a copied set rest", () => {
+    const pair: TrainingBlock = { ...contrast, blockType: "accessory" };
     expect(blockMethod(pair)?.name).toBe("Superseria");
     expect(linkedLabel(pair, pair.exercises[1])).toBe("A2");
+    // Older speed sessions copied the set rest into restAfterPair on single rows.
+    const legacySingles: TrainingBlock = {
+      ...contrast,
+      blockType: "single",
+      exercises: contrast.exercises.map((e) => ({
+        ...e,
+        label: undefined,
+        restAfterPair: "Przerwa 30 s",
+      })),
+    };
+    expect(blockMethod(legacySingles)).toBeNull();
     const single = {
       ...contrast,
       blockType: "single" as const,

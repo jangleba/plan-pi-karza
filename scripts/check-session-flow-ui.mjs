@@ -128,7 +128,13 @@ try {
   p.on("console", (m) => {
     if (m.type() === "error") errors.push(m.text());
   });
-  for (const width of [390, 320])
+  // Animation material is loaded only on demand ("Jak wykonać"), never with the session.
+  const animationRequests = [];
+  p.on("request", (r) => {
+    if (/\/technique\/animations\/(?!thumbs\/)/.test(new URL(r.url()).pathname))
+      animationRequests.push(r.url());
+  });
+  for (const width of [430, 390, 320])
     for (const kind of [
       "strength",
       "sprint",
@@ -149,31 +155,73 @@ try {
         const r = await p.evaluate(() => ({
           height: document.documentElement.scrollHeight,
           overflow: document.documentElement.scrollWidth - innerWidth,
-          focusCards: document.querySelectorAll(".bw-focus-card").length,
+          runnerCards: document.querySelectorAll(".bw-runner-card").length,
+          smallTargets: [...document.querySelectorAll(".bw-runner button, .bw-session-head button")]
+            .map((el) => el.getBoundingClientRect())
+            .filter((box) => box.width > 0 && (box.width < 44 || box.height < 44)).length,
           text: document.body.innerText,
         }));
         reports.push({ width, kind, phase, ...r });
         if (r.overflow > 1) throw new Error(`Overflow ${width} ${kind}: ${r.overflow}`);
+        if (r.smallTargets) throw new Error(`Touch target < 44 px ${width} ${kind} ${phase}`);
+        if (/zapis będzie dostępny po rozpoczęciu/i.test(r.text))
+          throw new Error(`Inactive-recording notice in ${kind} ${phase}`);
         if (width === 390) await p.waitForTimeout(1000);
-        await p.screenshot({ path: path.join(work, `${kind}-${phase}.png`) });
+        await p.screenshot({ path: path.join(work, `${kind}-${phase}-${width}.png`) });
       }
+  if (animationRequests.length)
+    throw Error("Animations loaded before opening: " + animationRequests.slice(0, 3).join(", "));
   await p.setViewportSize({ width: 390, height: 844 });
+  // Start from the preview goes to the first open task, warm-up included.
+  await p.goto(base + "?kind=strength&phase=preview");
+  await p.getByRole("button", { name: /^Rozpocznij/ }).click();
+  await p.locator(".bw-runner-card").first().waitFor();
+  const eyebrow = await p.locator(".bw-runner-eyebrow").first().innerText();
+  if (!/Rozgrzewka|Przygotowanie/.test(eyebrow))
+    throw Error("Start skipped the warm-up: " + eyebrow);
+  reports.push({ case: "start-to-warmup", passed: true });
   await p.goto(base + "?kind=strength&phase=active");
-  await p.getByRole("button", { name: "Technika i animacja", exact: false }).first().click();
-  await p.getByRole("dialog").waitFor();
+  await p.getByRole("button", { name: "Jak wykonać", exact: false }).first().click();
+  await p.locator(".bw-runner-card iframe").first().waitFor();
+  if (!animationRequests.length) throw Error("Opening „Jak wykonać” did not load the animation");
   await p.waitForTimeout(1000);
-  await p.screenshot({ path: work + "/technique-sheet.png" });
-  await p.getByRole("button", { name: "Zamknij", exact: true }).click();
+  await p.screenshot({ path: work + "/how-to-open.png" });
+  await p.getByRole("button", { name: "Jak wykonać", exact: false }).first().click();
+  if (await p.locator(".bw-runner-card iframe").count())
+    throw Error("Collapsed „Jak wykonać” kept the player running");
+  reports.push({ case: "how-to-on-demand", passed: true });
   // A completion mark survives a reload and does not change the prescription.
   await p.goto(base + "?kind=football&phase=active");
-  await p.getByRole("button", { name: "Wykonane · dalej", exact: true }).click();
-  await p.waitForFunction(() =>
-    document.querySelector(".bw-focus-navigation")?.textContent.includes("1/"),
-  );
+  const confirm = p
+    .locator(".bw-runner-card button")
+    .filter({ hasText: /^(Wykonane|Seria wykonana|Odcinek wykonany|Lewa wykonana|Prawa wykonana)/ })
+    .first();
+  if (!(await confirm.count()))
+    await p
+      .getByRole("button", { name: /bez odliczania/ })
+      .first()
+      .click();
+  else await confirm.click();
+  const counted = () =>
+    p.waitForFunction(() =>
+      /Wykonane\s*1\s*z/.test(document.querySelector(".bw-runner-count")?.textContent ?? ""),
+    );
+  // A multi-set task needs every set; keep confirming until the exercise is marked.
+  for (let i = 0; i < 8; i += 1) {
+    const marked = await p.evaluate(() =>
+      /Wykonane\s*1\s*z/.test(document.querySelector(".bw-runner-count")?.textContent ?? ""),
+    );
+    if (marked) break;
+    const more = p
+      .locator(".bw-runner-card button")
+      .filter({ hasText: /wykonan|bez odliczania/i })
+      .first();
+    if (!(await more.count())) break;
+    await more.click();
+  }
+  await counted();
   await p.reload();
-  await p.waitForFunction(() =>
-    document.querySelector(".bw-focus-navigation")?.textContent.includes("1/"),
-  );
+  await counted();
   reports.push({ case: "completion-reload", passed: true });
   // Import a 12-minute run, then explicitly rate and finish the entire session.
   await p.goto(base + "?kind=run&phase=active");
@@ -221,24 +269,37 @@ try {
   reports.push({ case: "run-finish-history", receipts, passed: true });
   // Actual gym entry -> reload -> completed session -> lazy results in Progress.
   await p.goto(base + "?kind=strength&phase=active");
-  await p.getByRole("button", { name: "Plan sesji", exact: true }).click();
-  await p.locator(".bw-focus-plan button").nth(5).click();
-  await p.getByRole("textbox", { name: "Ciężar", exact: true }).fill("60");
-  await p.getByRole("textbox", { name: "Powt.", exact: true }).fill("5");
-  await p.getByRole("textbox", { name: "RIR", exact: true }).fill("3");
-  await p.getByRole("button", { name: "Zapisz serię", exact: true }).click();
+  const kg = p.getByRole("textbox", { name: "Seria 1: ciężar w kg", exact: true });
+  for (let i = 0; i < 30 && !(await kg.count()); i += 1)
+    await p.getByRole("button", { name: "Następne", exact: false }).click();
+  await kg.fill("60");
+  await p.getByRole("textbox", { name: "Seria 1: powtórzenia", exact: true }).fill("5");
+  await p.getByRole("textbox", { name: "Seria 1: zapas powtórzeń", exact: true }).fill("3");
+  await p.getByRole("button", { name: "Zatwierdź serię 1", exact: true }).click();
+  await p.locator(".bw-rest-card").waitFor();
+  await p.getByRole("button", { name: "Seria 1 zapisana", exact: true }).waitFor();
   await p.waitForFunction(() =>
     JSON.parse(localStorage.getItem("session66:qa-rows") || "[]").some(
       (r) => r.weight_kg === 60 && r.reps === 5 && r.rir === 3,
     ),
   );
   await p.reload();
-  await p.getByRole("combobox", { name: "Wybierz serię", exact: true }).selectOption("1");
-  if ((await p.getByRole("textbox", { name: "Ciężar", exact: true }).inputValue()) !== "60")
-    throw Error("Gym result lost on reload");
+  if ((await kg.inputValue()) !== "60") throw Error("Gym result lost on reload");
+  // Correction keeps the same set number (no second log for set 1).
+  await p.getByRole("textbox", { name: "Seria 1: powtórzenia", exact: true }).fill("6");
+  await p.getByRole("button", { name: "Zapisz poprawkę serii 1", exact: true }).click();
+  await p.waitForFunction(() =>
+    JSON.parse(localStorage.getItem("session66:qa-rows") || "[]").some(
+      (r) => r.weight_kg === 60 && r.reps === 6,
+    ),
+  );
+  await p.getByRole("textbox", { name: "Seria 1: powtórzenia", exact: true }).fill("5");
+  await p.getByRole("button", { name: "Zapisz poprawkę serii 1", exact: true }).click();
+  await p.getByRole("button", { name: "Seria 1 zapisana", exact: true }).waitFor();
   await p.waitForTimeout(1000);
   await p.screenshot({ path: work + "/strength-set.png" });
-  await p.getByRole("button", { name: "Zakończ trening", exact: true }).click();
+  await p.getByRole("button", { name: "Cały plan", exact: false }).click();
+  await p.getByRole("button", { name: "Zakończ trening teraz", exact: true }).click();
   await p.getByRole("button", { name: "RPE 5", exact: true }).click();
   await p.getByRole("button", { name: "Zapisz trening", exact: true }).click();
   await p.locator("summary").filter({ hasText: "Wyniki sesji" }).click();
