@@ -4,6 +4,7 @@ import {
   getAllEquipmentDefinitions,
   resolveExerciseByName,
 } from "./exerciseLibrary";
+import { skipRoundLabel } from "./skipRounds";
 
 const EQUIPMENT_DEFINITIONS = getAllEquipmentDefinitions();
 
@@ -89,12 +90,30 @@ export function restLabel(e: TrainingExercise): string | null {
   return /przerwa|rest/i.test(r) ? r : `Przerwa: ${r}`;
 }
 
+/**
+ * Wartość przerwy bez etykiety — ekran sam dopisuje „Przerwa”.
+ * Silnik zapisuje m.in. „Przerwa 30 s” i „Pełna przerwa 2 min”; bez tego
+ * ekran pokazywał „Przerwa Przerwa 30 s” i „Przerwa Pełna przerwa 2 min”.
+ */
 export function formatRestValue(value: string | undefined): string {
   if (!value) return "";
   return value
-    .replace(/^Przerwa:\s*/i, "")
-    .replace(/^Rest:\s*/i, "")
+    .trim()
+    .replace(/^(?:przerwa|rest)\s*:?\s*/i, "")
+    .replace(/^pełna\s+przerwa\s*:?\s*(.+)$/i, "$1 (pełny odpoczynek)")
     .trim();
+}
+
+/**
+ * Cała linia przerwy na ekranie sesji: „Przerwa 30 s”, „Przerwa 2 min
+ * (pełny odpoczynek)”, „Bez przerw — …”. Pusta lub „—” = brak linii.
+ */
+export function restLine(value: string | undefined): string | null {
+  const raw = value?.trim() ?? "";
+  if (!raw || /^[—–-]+$/.test(raw)) return null;
+  if (/^bez\s+przerw/i.test(raw)) return raw;
+  const rest = formatRestValue(raw);
+  return rest ? `Przerwa ${rest}` : null;
 }
 
 export function exerciseDataLineParts(e: TrainingExercise): {
@@ -118,7 +137,11 @@ export function resolveDefinitionForExercise(e: TrainingExercise) {
 }
 
 export function canonicalExerciseName(e: TrainingExercise): string {
-  return resolveDefinitionForExercise(e)?.displayNamePl?.trim() || e.name;
+  const definition = resolveDefinitionForExercise(e);
+  const name = definition?.displayNamePl?.trim() || e.name;
+  // Dwie rundy tego samego skipu muszą różnić się na ekranie rundą i rytmem.
+  const round = skipRoundLabel(definition?.id ?? e.exerciseId, e.animationVariant);
+  return round ? `${name} — ${round}` : name;
 }
 
 export type StrengthStageKey = "warmup" | "main" | "accessory" | "cooldown";

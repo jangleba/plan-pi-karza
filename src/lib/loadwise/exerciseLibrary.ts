@@ -3566,8 +3566,9 @@ for (const id of ["a_march", "a_skip", "c_skip", "b_skip", "d_skip"]) {
   const def = FOOTBALL_SPEED_EXERCISES.find((exercise) => exercise.id === id);
   if (def) {
     def.variants = [
-      { id: "step_in", labelPl: "Wariant step-in" },
-      { id: "continuous", labelPl: "Wariant ciągły" },
+      { id: "gather", labelPl: "Runda 1: z dostawieniem nóg" },
+      { id: "step_in", labelPl: "Wariant step-in (stare plany)" },
+      { id: "continuous", labelPl: "Runda 2: ciągły" },
     ];
     def.defaultPrescription = {
       repetitions: { min: 2, max: 4 },

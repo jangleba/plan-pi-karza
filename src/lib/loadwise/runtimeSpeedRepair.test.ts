@@ -96,7 +96,7 @@ describe("runtime speed payload repair", () => {
 
     const { buildSprintRunnerBlocks } = await import("./sprintPresentation");
     const runner = buildSprintRunnerBlocks(repaired.structuredSections ?? []);
-    expect(runner.map((block) => block.exercises.length)).toEqual([1, 4, 3, 1, 1, 2, 1, 1]);
+    expect(runner.map((block) => block.exercises.length)).toEqual([1, 8, 3, 1, 1, 2, 1, 1]);
     expect(runner.every((block) => !block.hasDataError)).toBe(true);
     // Naprawa nie może udawać check-inu 7/10 i samodzielnie obniżać dawki.
     expect(

@@ -125,16 +125,6 @@ function SprintExerciseRow({
               {view.prescription}
             </div>
           )}
-          {view.showSkipSetLabels && (
-            <div className="mt-1 flex flex-wrap gap-1.5">
-              <span className="rounded border border-border px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                1 Z DODATKOWYM ODBICIEM
-              </span>
-              <span className="rounded border border-border px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                2 BEZ DODATKOWEGO ODBICIA
-              </span>
-            </div>
-          )}
           <PersistentExercisePanel open={expanded} id={panelId}>
             {preparation}
             <ExerciseQuickGuide exercise={exercise} autoAnimation />
