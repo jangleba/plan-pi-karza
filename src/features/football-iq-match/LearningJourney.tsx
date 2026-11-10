@@ -80,8 +80,11 @@ import {
   aimProgress,
   focusAim,
   loadMastery,
+  loadProblems,
   nextByMastery,
   saveMastery,
+  saveProblems,
+  updateProblems,
   type Mastery,
 } from "./mastery";
 import { backupIqNow, cloudBackupEnabled, restoreIqFromAccount, setCloudBackup } from "./iqCloud";
@@ -212,6 +215,8 @@ export function LearningJourney(props: Props) {
     [skipPrediction, setSkipPrediction] = useState(false);
   const [mastery, setMastery] = useState<Mastery>(() => loadMastery(historyOwner));
   const masteryNow = useRef(mastery);
+  // Recent problems in TY's decisions: a recurring one sends the player to a transfer task.
+  const problemsNow = useRef(loadProblems(historyOwner));
   // Opt-in copy on the account after each action; restore merges copies from other devices.
   const [cloudOn, setCloudOn] = useState(() => cloudBackupEnabled(historyOwner)),
     [cloudStatus, setCloudStatus] = useState(""),
@@ -334,6 +339,8 @@ export function LearningJourney(props: Props) {
           masteryNow.current = addAssessments(masteryNow.current, graded);
           saveMastery(historyOwner, masteryNow.current);
           setMastery(masteryNow.current);
+          problemsNow.current = updateProblems(problemsNow.current, graded, session.definition);
+          saveProblems(historyOwner, problemsNow.current);
           const rotated = pickFieldTask(
             session.definition,
             session.attack?.finish,
@@ -607,7 +614,10 @@ export function LearningJourney(props: Props) {
   const lastForecast =
     forecast && forecast.decisionIndex === session.decisions.length - 1 ? forecastShown : null;
   const upNext = useMemo(
-    () => (phase === "summary" ? nextByMastery(session.definition, props.position, mastery) : null),
+    () =>
+      phase === "summary"
+        ? nextByMastery(session.definition, props.position, mastery, problemsNow.current)
+        : null,
     [phase, session.definition, props.position, mastery],
   );
   const key = useMemo(() => keyMoment(assessments), [assessments]);
@@ -1164,7 +1174,12 @@ export function LearningJourney(props: Props) {
               type="button"
               className="iqE-primary"
               onClick={() =>
-                start((upNext ?? nextByMastery(session.definition, props.position, mastery)).def)
+                start(
+                  (
+                    upNext ??
+                    nextByMastery(session.definition, props.position, mastery, problemsNow.current)
+                  ).def,
+                )
               }
             >
               Następna sytuacja <ArrowRight size={16} />
