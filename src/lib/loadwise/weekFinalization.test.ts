@@ -263,7 +263,10 @@ describe("weekFinalization — twarda zasada endurance", () => {
     const club = clubDay(DATES[0]);
     club.intensity = "wysoka";
     club.secondSession = baseDay("training", { date: DATES[0], title: "Ciężkie interwały", sessionType: "Wytrzymałość", intensity: "wysoka" });
-    const res = validateNoEnduranceOnClubDays([club], profile({ age: 17, level: "intermediate" }));
+    const res = validateNoEnduranceOnClubDays(
+      [club],
+      profile({ age: 17, level: "intermediate", doubleSessionsAllowed: "yes_if_safe" }),
+    );
     expect(res.removed).toBe(0);
     expect(club.secondSession).not.toBeNull();
   });

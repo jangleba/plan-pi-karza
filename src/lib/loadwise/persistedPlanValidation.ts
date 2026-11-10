@@ -35,6 +35,7 @@ export type PersistedPlanIssueCode =
   | "high-gym-before-speed"
   | "duplicate-dominant-stimulus"
   | "invalid-beginner-double"
+  | "invalid-double-heavy"
   | "double-sessions-disabled"
   | "sprint-space-unavailable"
   | "own-training-unavailable"
@@ -146,7 +147,9 @@ export function validatePersistedPlan(
             ? "Profil nie dopuszcza drugiej sesji tego dnia."
             : secondViolation === "invalid-beginner-double"
               ? "Profil dopuszcza wyłącznie lekką drugą sesję."
-              : "Dwie sesje tego dnia mają ten sam główny bodziec.",
+              : secondViolation === "invalid-double-heavy"
+                ? "Dwie ciężkie jednostki jednego dnia wymagają 17 lat i potwierdzonego przygotowania."
+                : "Dwie sesje tego dnia mają ten sam główny bodziec.",
       });
     const ownSessions = [day, day.secondSession].filter(
       (session): session is SessionDay =>

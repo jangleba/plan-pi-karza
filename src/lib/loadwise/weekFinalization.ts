@@ -16,6 +16,7 @@
 // lekką, komplementarną sesję u zawodnika intermediate/advanced.
 // ============================================================================
 
+import { qualifiesForDoubleHeavy } from "./doubleHeavyPolicy";
 import { gymCooldown, mobilityCircuit, runningCooldown, runningPreparation } from "./recoveryContent";
 import type { Profile, SessionDay, ExerciseItem, DayType } from "./types";
 import { isoDayOfWeek, dayName as dayNameOf, parseIso } from "./labels";
@@ -337,11 +338,7 @@ function buildEnduranceSessionDay(
 // ---------------------------------------------------------------------------
 
 function profileAllowsHeavyClubEndurance(profile?: Profile): boolean {
-  if (!profile || profile.age < 17) return false;
-  if (!(["intermediate", "advanced", "elite"] as const).includes(profile.level as "intermediate" | "advanced" | "elite")) {
-    return false;
-  }
-  return !profile.painInjury && (profile.painLocations?.length ?? 0) === 0;
+  return qualifiesForDoubleHeavy(profile);
 }
 
 function isFieldMasTestSession(session: SessionDay | null | undefined): boolean {

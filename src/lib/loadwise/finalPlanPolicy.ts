@@ -19,6 +19,7 @@ import { getDevelopmentStage } from "./athleteProfile";
 import { requirementGymExperience, seasonPhaseForWeek } from "./offseasonPeriod";
 import { computeWeeklyLoadScore, countWeekRoles, MAIN_GOAL_RULES } from "./planRules";
 import { FINAL_PLAN_POLICY_VERSION } from "./planPolicyStamp";
+import { isDoubleHeavyDay, qualifiesForDoubleHeavy } from "./doubleHeavyPolicy";
 import {
   isDedicatedSprintSession,
   ownSprintMeters,
@@ -112,7 +113,12 @@ export function matchWeekPolicyViolation(session: SessionDay, mdLabel = session.
 export function secondSessionPolicyViolation(
   day: SessionDay,
   profile: Profile,
-): "double-sessions-disabled" | "invalid-beginner-double" | "duplicate-dominant-stimulus" | null {
+):
+  | "double-sessions-disabled"
+  | "invalid-beginner-double"
+  | "invalid-double-heavy"
+  | "duplicate-dominant-stimulus"
+  | null {
   const second = day.secondSession;
   if (!second || !hasWork(second) || !hasWork(day)) return null;
   if (profile.doubleSessionsAllowed === "no") return "double-sessions-disabled";
@@ -124,6 +130,8 @@ export function secondSessionPolicyViolation(
     second.intensity !== "niska"
   )
     return "invalid-beginner-double";
+  // Two heavy units (incl. heavy club or match + own work) need 17+ AND qualification.
+  if (isDoubleHeavyDay(day) && !qualifiesForDoubleHeavy(profile)) return "invalid-double-heavy";
   const firstCategory = classifySession(day).category;
   const secondCategory = classifySession(second).category;
   const duplicateTrainingCategory =
@@ -438,7 +446,9 @@ export function enforceFinalPlanPolicy(input: SessionDay[], profile: Profile): S
           ? "Zastosowano limit: najwyżej jedna sesja dziennie."
           : violation === "invalid-beginner-double"
             ? "Zastosowano ograniczenie: druga sesja może być wyłącznie lekka."
-            : "Rozdzielono treningi o tym samym dominującym bodźcu.";
+            : violation === "invalid-double-heavy"
+              ? "Dwie ciężkie jednostki jednego dnia są możliwe dopiero od 17 lat i przy potwierdzonym przygotowaniu."
+              : "Rozdzielono treningi o tym samym dominującym bodźcu.";
       const first = plan[index],
         second = first.secondSession;
       if (
