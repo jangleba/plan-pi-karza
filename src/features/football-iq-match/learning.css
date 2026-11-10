@@ -887,3 +887,15 @@ body.iq-learning-focus .app-shell {
   font-size: 13px;
   color: var(--iq-ink);
 }
+.iqE-app .iqE-result {
+  margin: -4px 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4b5560;
+}
+.iqE-retry {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--iq-ink);
+}
