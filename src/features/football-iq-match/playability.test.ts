@@ -6,8 +6,9 @@ import { situationBank } from "./situationBank";
  * Audit 2026-11-09 (rules v9 rev. 2): 40 of 102 variants where TY's first choice does not
  * change where the ball goes, 10 where it does not even one window later, 14 with no good
  * answer, 8 where the ball is lost whatever TY does.
- * Rev. 3 (carrier reads runs, goal-side tackles): 29 / 5 / 13 / 8. */
-const LIMITS = { deadDecision: 29, deadLater: 5, noGoodAnswer: 13, forcedLoss: 8 };
+ * Rev. 3 (carrier reads runs, goal-side tackles): 29 / 5 / 13 / 8.
+ * With press, mark and shielding among TY's actions: 24 / 4 / 9 / 8. */
+const LIMITS = { deadDecision: 24, deadLater: 4, noGoodAnswer: 9, forcedLoss: 8 };
 
 const rows: Playability[] = [];
 describe("IQ scenario playability", () => {

@@ -181,15 +181,26 @@ export function attackChoice(
       "wait",
       "hold",
       "shoot",
+      "shield",
     ].includes(intent)
   )
     throw new Error("Niedostępny ruch.");
-  if (["pass", "carry", "shoot", "hold"].includes(intent) && !own)
+  if (["pass", "carry", "shoot", "hold", "shield"].includes(intent) && !own)
     throw new Error("Ten zawodnik nie ma piłki. Wybierz własny ruch.");
+  // Press and mark follow a rival (the carrier or a receiver); a pass goes to a partner.
+  const rivalTarget = intent === "press" || intent === "mark";
   if (
     targetId &&
-    (!s.players.some((p) => p.id === targetId && p.team === "home") ||
-      targetId === actor)
+    (!s.players.some(
+      (p) =>
+        p.id === targetId &&
+        p.team === (rivalTarget ? "away" : "home") &&
+        !(rivalTarget && p.goalkeeper),
+    ) ||
+      targetId === actor ||
+      (rivalTarget && own) ||
+      (intent === "press" && targetId !== s.world.carrierId) ||
+      (intent === "mark" && targetId === s.world.carrierId))
   )
     throw new Error("Nieprawidłowy odbiorca.");
   const p =
@@ -204,6 +215,7 @@ export function attackChoice(
       : p;
   const id = `attack9:${actor}:${intent}:${delivery}:${timing}:${endpoint.x.toFixed(2)}:${endpoint.y.toFixed(2)}:${targetId ?? "space"}`;
   const receiver = s.players.find((p) => p.id === targetId);
+  const rival = rivalTarget && receiver ? receiver.number : undefined;
   return {
     id,
     intent,
@@ -222,14 +234,20 @@ export function attackChoice(
           ? "Prowadzenie piłki"
           : intent === "shoot"
             ? "Strzał"
-            : ["wait", "hold"].includes(intent)
-              ? "Utrzymanie pozycji"
-              : "Twój ruch",
+            : intent === "shield"
+              ? "Ochrona piłki"
+              : intent === "press" && rival
+                ? `Doskok do ${rival}`
+                : intent === "mark" && rival
+                  ? `Zamknięcie podania do ${rival}`
+                  : ["wait", "hold"].includes(intent)
+                    ? "Utrzymanie pozycji"
+                    : "Twój ruch",
   };
 }
 export function parseAttackChoice(s: JourneySession, id: string) {
   const m =
-    /^attack9:([a-z0-9-]+):(pass|move|carry|cover|press|mark|wait|hold|shoot):(ground|chip|lofted|cross):(now|delay):(\d{1,2}\.\d{2}):(\d{1,3}\.\d{2}):([a-z0-9-]+)$/.exec(
+    /^attack9:([a-z0-9-]+):(pass|move|carry|cover|press|mark|wait|hold|shoot|shield):(ground|chip|lofted|cross):(now|delay):(\d{1,2}\.\d{2}):(\d{1,3}\.\d{2}):([a-z0-9-]+)$/.exec(
       id,
     );
   if (!m) return undefined;
@@ -317,7 +335,7 @@ function groundLane(
   );
 }
 /** Wide in the final third, where a cross is the natural next ball. */
-function crossingZone(at: Point, team: "home" | "away") {
+export function crossingZone(at: Point, team: "home" | "away") {
   const deep = team === "home" ? at.y < 38 : at.y > 102;
   return deep && Math.abs(at.x - 50) > 24;
 }
@@ -571,6 +589,36 @@ export function chooseAttackJourney(
         )
           target = c.point;
         speed = c.intent === "carry" ? 6 : 7;
+        // A press or a mark with a named rival follows him: the press goes at the ball from
+        // the goal side, the mark takes the nearest point of the line between the ball and him.
+        const followed = c.targetId && teamOf(s, c.targetId) !== teamOf(s, actor) ? c.targetId : "";
+        if (followed && t >= ownDelay) {
+          const rivalAt = old.positions[followed];
+          const ownGoalY = teamOf(s, actor) === "home" ? 140 : 0;
+          const goalward = Math.sign(ownGoalY - rivalAt.y) || 1;
+          target =
+            c.intent === "press"
+              ? bound(rivalAt.x, rivalAt.y + goalward * 1.2)
+              : (() => {
+                  // Nearest point of the ball→rival lane, kept off both ends.
+                  const lane = segment(at, ball, rivalAt);
+                  const t = clamp(lane.t, 0.25, 0.8);
+                  return bound(
+                    ball.x + (rivalAt.x - ball.x) * t,
+                    ball.y + (rivalAt.y - ball.y) * t + goalward * 0.5,
+                  );
+                })();
+        }
+        // Shielding: stay on the ball, turned away from the nearest rival.
+        if (c.intent === "shield") {
+          const near = s.players
+            .filter((q) => q.team !== teamOf(s, actor))
+            .map((q) => old.positions[q.id])
+            .sort((a, b) => distance(a, at) - distance(b, at))[0];
+          const d = near ? Math.max(0.1, distance(near, at)) : 1;
+          target = near && d < 4 ? bound(at.x + ((at.x - near.x) / d) * 1.5, at.y + ((at.y - near.y) / d) * 1.5) : at;
+          speed = 2;
+        }
       } else if (p.goalkeeper && p.id !== carrier) {
         const ownGoal = p.team === "home" ? 132 : 8;
         const incomingShot = flight?.shot && teamOf(s, flight.actor) !== p.team;
@@ -898,6 +946,8 @@ export function chooseAttackJourney(
             const goalY = r.team === "home" ? 140 : 0;
             const goalSide =
               Math.abs(s.world.positions[r.id].y - goalY) < Math.abs(at.y - goalY);
+            // A shielding player keeps the ball through the first 1.2 s of contact.
+            if (owner === actor && c.intent === "shield" && t < 1.2) return false;
             return goalSide || Math.hypot(velocity[owner].x, velocity[owner].y) < 2.5;
           })
         : rivals[0];

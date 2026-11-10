@@ -25,7 +25,7 @@ export function startLines(s: JourneySession, mode: JourneyMode): string[] {
   return [
     `Grasz jako TY – nr ${you.number}, ${roleLabels[s.definition.role].toLowerCase()}. ${ball}`,
     "Przed decyzją nic nie podpowiada odpowiedzi: sam patrzysz na rywali, partnerów i wolne miejsce.",
-    `Z piłką: ${controlsLine(true)} Bez piłki: ${controlsLine(false)}`,
+    `Z piłką: ${controlsLine("own")} Gdy piłkę ma partner: ${controlsLine("partner")} W obronie: ${controlsLine("rival")}`,
     "„Wykonanie” zmienia moment zagrania (teraz albo po chwili) i rodzaj podania.",
     `Akcja toczy się dalej sama: do gola, niecelnego strzału albo spalonego, najdłużej ${ACTION_TIME_LIMIT_SECONDS / 60} minuty gry. Po stracie bronisz dalej.`,
     mode === "learn"
@@ -35,10 +35,12 @@ export function startLines(s: JourneySession, mode: JourneyMode): string[] {
 }
 
 /** How taps map to actions. Says what a gesture does, never which action is right. */
-export function controlsLine(own: boolean): string {
-  return own
-    ? "Dotknij partnera (podanie), wolnego pola (podanie w przestrzeń), miejsca obok siebie (prowadzenie), bramki (strzał) albo siebie (utrzymanie)."
-    : "Dotknij miejsca, do którego biegniesz, albo siebie, żeby zostać.";
+export function controlsLine(kind: "own" | "partner" | "rival"): string {
+  return kind === "own"
+    ? "Dotknij partnera (podanie), wolnego pola (podanie w przestrzeń), miejsca obok siebie (prowadzenie), bramki (strzał) albo siebie (ochrona piłki)."
+    : kind === "rival"
+      ? "Dotknij rywala z piłką (doskok), innego rywala (zamknięcie podania do niego), miejsca (ustawienie lub powrót) albo siebie (zostajesz)."
+      : "Dotknij miejsca, do którego biegniesz, albo siebie, żeby zostać.";
 }
 
 /** The only line on the start screen: who TY is and who has the ball. */

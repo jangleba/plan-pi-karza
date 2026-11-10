@@ -447,7 +447,10 @@ function grade(f: DecisionFacts, aim: LessonAim): Grade {
     if (f.passResult === "offside") return error("offside-pass");
     if (f.passResult === "intercepted" || f.passResult === "space-lost")
       return error("lane-closed");
-    if (f.lostByYou) return error(f.intent === "hold" ? "held-too-long" : "carried-into-pressure");
+    if (f.lostByYou)
+      return error(
+        f.intent === "hold" || f.intent === "shield" ? "held-too-long" : "carried-into-pressure",
+      );
     if (f.passResult === "loose") return possible("pass-not-reached");
     if (aim === "switch") return f.switched || f.bypassed >= 2 ? good : possible("stayed-crowded");
     if (f.bypassed >= 1 || f.gain >= 8) return good;
@@ -515,13 +518,16 @@ function didText(f: DecisionFacts) {
     case "shoot":
       return `Uderzyłeś na bramkę z ${metres(f.shot?.metres ?? len)}.`;
     case "hold":
+    case "shield":
       return "Osłoniłeś piłkę.";
     case "wait":
       return "Zostałeś na miejscu.";
     case "press":
       return f.carrierNumber ? `Doskoczyłeś do nr ${f.carrierNumber}.` : "Doskoczyłeś do piłki.";
     case "mark":
-      return "Przesunąłeś się na tor podania rywala.";
+      return f.targetNumber
+        ? `Zamknąłeś podanie do nr ${f.targetNumber}.`
+        : "Przesunąłeś się na tor podania rywala.";
     case "cover":
       return f.keeper
         ? `Wyszedłeś ${metres(len)} przed bramkę.`

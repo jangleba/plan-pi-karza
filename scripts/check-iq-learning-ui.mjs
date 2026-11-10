@@ -150,7 +150,7 @@ try {
     const box = await page.locator('canvas[data-iq-pitch-corners]').boundingBox();
     await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.6);
   };
-  let predictions = 0;
+  let predictions = 0, pressed = 0;
   const playDecision = async (shoot = false) => {
     await page.waitForSelector('[data-iq-phase="decision"]',{timeout:20000});
     // Prediction loop: once per action, before the first decision with our ball.
@@ -162,11 +162,14 @@ try {
       await page.waitForSelector('.iqE-prediction');
     }
     await noHints();
-    const own = (await page.locator('.iqE-now').innerText()).startsWith('Masz piłkę');
+    const now = await page.locator('.iqE-now').innerText();
+    const own = now.startsWith('Masz piłkę'), rival = now.startsWith('Piłkę ma rywal');
     if (own && shoot) await tapGoal();
     else if (own) await tapPlayer(['support','third','wide','forward','anchor']);
+    else if (rival) await page.locator('button[aria-label*="z piłką"]').first().click();
     else await tapMiddle();
     const planned = await page.locator('.iqE-plan').innerText();
+    if (rival) { ensure(planned.includes('Doskok do'),`Tap on the rival with the ball should plan a press, got: ${planned}`); pressed++; }
     ensure(planned.startsWith('Twój wybór:'),`Tap did not plan a move: ${planned}`);
     if (own && shoot) ensure(planned.includes('Strzał'),`Goal tap should plan a shot, got: ${planned}`);
     await page.getByRole('button',{name:'Zagraj',exact:true}).click();
@@ -265,9 +268,21 @@ try {
   await page.getByRole('heading',{name:'Kontra 3 na 2 po odbiorze',exact:true}).waitFor();
   await page.waitForSelector('.iqE-start');
   await page.screenshot({path:path.join(work,'IQ-64-KONTRA.png')});
+  // Defending gestures: a tap on the rival with the ball plans a press.
+  await page.getByRole('button',{name:'Wybierz sytuację',exact:true}).click();
+  await page.getByRole('button',{name:/Reakcja zaraz po stracie/}).click();
+  await page.getByRole('heading',{name:'Reakcja zaraz po stracie',exact:true}).waitFor();
+  await page.waitForSelector('[data-iq-renderer="ready"]');
+  await page.getByRole('button',{name:'Start',exact:true}).click();
+  await playDecision();
+  ensure(pressed>0,'No defending decision was checked');
+  await page.screenshot({path:path.join(work,'IQ-64-DOSKOK.png')});
+  await page.getByRole('button',{name:'Wybierz sytuację',exact:true}).click();
+  await page.getByRole('button',{name:/Kontra 3 na 2 po odbiorze/}).click();
+  await page.waitForSelector('.iqE-start');
   await page.getByRole('button',{name:'Jak grać',exact:true}).click();
   ensure(await page.locator('.iqE-sources a').count()>0,'Help sheet has no sources');
-  await fs.writeFile(path.join(work,'wynik-iq-learning.json'),JSON.stringify({views,errors,flow:'truthful start → no hints before decisions → tap decisions beyond 3 → other solution replay → shot by goal tap → saved result → replay and seeking → independent variant → situation picker → sources'},null,2));
+  await fs.writeFile(path.join(work,'wynik-iq-learning.json'),JSON.stringify({views,errors,pressed,flow:'truthful start → no hints before decisions → tap decisions beyond 3 → other solution replay → shot by goal tap → saved result → replay and seeking → independent variant → situation picker → sources'},null,2));
   ensure(errors.length===0,JSON.stringify(errors));
   // With the 3D models blocked the lesson must not start on an empty pitch.
   const blocked = await browser.newPage({viewport:{width:390,height:700}, deviceScaleFactor:1});

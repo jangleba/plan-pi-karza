@@ -45,7 +45,9 @@ export type TacticalIntent =
   | "mark"
   | "hold"
   | "wait"
-  | "shoot";
+  | "shoot"
+  /** Rules v9 rev. 3: protect the ball with the body; a defender needs longer contact. */
+  | "shield";
 export type DribbleStyle =
   "direct" | "cut-left" | "cut-right" | "stop-go" | "turn-back" | "shield";
 export type ActionTiming = "now" | "delay";
