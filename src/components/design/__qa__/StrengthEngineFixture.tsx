@@ -48,7 +48,7 @@ export function StrengthEngineFixture() {
   }, [profile]);
   return (
     <main className="app-shell bw-strength-page">
-      <SessionHeader session={session} strengthRunner isToday={false} onBack={() => {}} />
+      <SessionHeader session={session} isToday={false} preview onBack={() => {}} />
       <div className="bw-sprint-content">
         <StrengthExperienceSetup />
         <StrengthStructuredSections

@@ -15,15 +15,18 @@ import { useInstantBack, useDelayedFlag } from "@/lib/loadwise/uiHooks";
 import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
 import { activeSessionForRoute, isActiveSessionWithinGrace } from "@/lib/loadwise/activeSession";
 import { repairRuntimeSpeedDay } from "@/lib/loadwise/runtimeSpeedRepair";
-import { professionalSessionTitle } from "@/lib/loadwise/labels";
+import { formatDateFull, professionalSessionTitle } from "@/lib/loadwise/labels";
 import { ModifySheet } from "@/components/loadwise/ModifySheet";
 import { Button } from "@/components/ui/button";
 import type { SessionDay, TrainingSection } from "@/lib/loadwise/types";
 import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
 import { ArrowRight, Plus, Repeat, Undo2 } from "lucide-react";
 import { EnduranceRunTracker } from "@/components/running/EnduranceRunTracker";
+import { RunPlanPreview } from "@/components/running/RunPlanPreview";
+import "@/components/loadwise/session/runner/session-runner.css";
 import { isTrackableEnduranceRun, normalizeRunningPreparation } from "@/lib/running/session";
 import { isBallTechnicalSession, isStrengthSession } from "@/lib/loadwise/sessionClassification";
+import type { SessionKind } from "@/lib/loadwise/sessionRunner/presentation";
 import {
   canShowPostSessionForm,
   matchCanBeCompleted,
@@ -38,7 +41,10 @@ import {
   canGuideRecoverySession,
   recoveryContextForSession,
 } from "@/lib/loadwise/preparation/protocols";
-import { SessionStartPanel } from "@/components/loadwise/session/SessionStartPanel";
+import {
+  SessionStartPanel,
+  useSessionStart,
+} from "@/components/loadwise/session/SessionStartPanel";
 import { ClubTacticsCard } from "@/components/loadwise/session/ClubTacticsCard";
 import {
   ClubMonitoring,
@@ -272,6 +278,21 @@ function SessionDetail() {
     !!completion?.completed ||
     (hasStarted && (isToday || isActiveSessionWithinGrace(session.date, completion, todayIso)));
 
+  const runnerKind: SessionKind = strengthRunner ? "strength" : sprintRunner ? "sprint" : "general";
+  // The exercise runner owns start, progress and finish for every planned training session.
+  const usesRunner =
+    !isClub &&
+    !recoveryRunner &&
+    !enduranceSession &&
+    session.dayType !== "match" &&
+    session.loadLabelOverride !== "Wstrzymaj trening" &&
+    structured.length > 0;
+  const startLabel = ballTechnicalSession
+    ? "Rozpocznij trening z piłką"
+    : sprintRunner
+      ? "Rozpocznij trening szybkości"
+      : "Rozpocznij trening";
+
   async function undo(dateToUndo: string, id: string) {
     try {
       await undoModification(dateToUndo, id);
@@ -282,11 +303,14 @@ function SessionDetail() {
   }
 
   return (
-    <div
-      className={`app-shell bw-session-page bw-session-66 min-h-screen pb-[100px] ${sprintRunner ? "bw-sprint-page" : strengthRunner ? "bw-training-page" : ""}`}
-    >
-      <SessionHeader session={presentedSession} strengthRunner isToday={isToday} onBack={goBack} />
-      <div className="bw-session-body space-y-3 px-5">
+    <div className="app-shell bw-session-page bw-session-66 bw-session-v2 min-h-screen pb-[100px]">
+      <SessionHeader
+        session={presentedSession}
+        isToday={isToday}
+        preview={!hasStarted}
+        onBack={goBack}
+      />
+      <div className="bw-session-body space-y-3">
         {/* Sesje dnia — przełącznik gdy są dwie */}
         <SessionSlotSwitcher
           primary={primary}
@@ -297,42 +321,25 @@ function SessionDetail() {
         />
 
         {/* Krótki komunikat decyzji — max 1 zdanie */}
-        {shortNote &&
-          ((!strengthRunner && !sprintRunner) ||
-            session.loadLabelOverride ||
-            session.safetyNote) && <div className="bw-session-notice">{shortNote}</div>}
+        {shortNote && (session.loadLabelOverride || isClub) && (
+          <div className="bw-session-notice">{shortNote}</div>
+        )}
         {state.equipmentNotice && (
           <div className="soft-card px-4 py-3 text-sm text-muted-foreground">
             {state.equipmentNotice}
           </div>
         )}
 
-        <details className="bw-session-settings">
-          <summary>Opcje i metoda treningu</summary>
-          <div className={strengthRunner ? "bw-strength-session-tools" : undefined}>
-            {strengthRunner && !completed && <StrengthExperienceSetup compact />}
-            <TrainingMethodPanel
-              key={`methods:${session.dbId ?? `${date}:${slot}`}`}
-              session={displayedSession}
-              wholeDay={primary}
-              slot={session.dbId && session.dbId === primary.secondSession?.dbId ? 2 : 1}
-              locked={
-                !!completed ||
-                !!session.executionProtected ||
-                hasStarted ||
-                !!(
-                  selectedAdd &&
-                  session.dbId !== primary.dbId &&
-                  session.dbId !== primary.secondSession?.dbId
-                )
-              }
-            />
-          </div>
-        </details>
         {session.dayType === "match" ? (
           <MatchStartPanel session={session} isToday={isToday} />
         ) : (
-          <SessionStartPanel session={displayedSession} canStart={isToday} />
+          !usesRunner && (
+            <SessionStartPanel
+              session={displayedSession}
+              canStart={isToday}
+              label={enduranceSession ? "Rozpocznij bieg" : "Rozpocznij sesję"}
+            />
+          )
         )}
         {isClub && state.profile && (
           <ClubTacticsCard
@@ -345,7 +352,7 @@ function SessionDetail() {
 
         {/* Teaching remains available in previews; each runner gates its recording controls. */}
         <div className="min-w-0 space-y-3">
-          {ballTechnicalSession && (
+          {ballTechnicalSession && canExecute && (
             <Link
               to="/reakcja"
               aria-disabled={!canExecute}
@@ -353,15 +360,10 @@ function SessionDetail() {
               onClick={(event) => {
                 if (!canExecute) event.preventDefault();
               }}
-              className="flex items-center justify-between gap-3 rounded-2xl bg-primary px-4 py-4 text-primary-foreground shadow-sm transition-transform active:scale-[0.99]"
+              className="bw-session-link"
             >
-              <div>
-                <p className="text-sm font-bold">Uruchom Trenera reakcji</p>
-                <p className="mt-0.5 text-xs text-primary-foreground/75">
-                  Włącz bodźce w wybranym fragmencie własnego treningu.
-                </p>
-              </div>
-              <ArrowRight className="h-5 w-5 shrink-0" />
+              <span>Trener reakcji</span>
+              <ArrowRight aria-hidden="true" />
             </Link>
           )}
 
@@ -378,12 +380,6 @@ function SessionDetail() {
                   enabled={canExecute && !completion?.completed}
                 />
               ))}
-          {ballTechnicalSession && (
-            <div className="bw-method-reflection">
-              Jedna rzecz na ten blok: spójrz przed przyjęciem. Po próbie nazwij sygnał, który
-              zmienił Twój wybór — ustawienie rywala, partnera albo wolną przestrzeń.
-            </div>
-          )}
           {trackableEndurance &&
             session.dbId &&
             hasStarted &&
@@ -437,6 +433,7 @@ function SessionDetail() {
                 )}
               </>
             )}
+          {enduranceSession && !hasStarted && <RunPlanPreview session={displayedSession} />}
           {enduranceSession && (
             <details className="bw-session-extra">
               <summary>Rozgrzewka i zakończenie</summary>
@@ -502,12 +499,14 @@ function SessionDetail() {
               />
             </fieldset>
           ) : enduranceSession ? null : (
-            <FocusedSessionRunner
+            <SessionRunner
+              session={displayedSession}
               sections={structured}
-              sessionId={session.dbId}
-              date={date}
-              kind={strengthRunner ? "strength" : sprintRunner ? "sprint" : "general"}
+              isToday={isToday}
+              kind={runnerKind}
+              startLabel={startLabel}
               canRecord={canExecute && !completion?.completed}
+              completed={!!completion?.completed}
               onFinish={() => setFinishOpen(true)}
             />
           )}
@@ -547,14 +546,16 @@ function SessionDetail() {
           (session.classification?.subcategory !== "field_mas_test" ||
             Boolean(session.dbId && state.runningActivities[session.dbId])) && (
             <>
-              <button
-                type="button"
-                className="bw-session-finish-trigger"
-                disabled={runBusy}
-                onClick={() => setFinishOpen(true)}
-              >
-                {completion?.completed ? "Edytuj podsumowanie" : "Zakończ trening"}
-              </button>
+              {(completion?.completed || !usesRunner) && (
+                <button
+                  type="button"
+                  className="bw-session-finish-trigger"
+                  disabled={runBusy}
+                  onClick={() => setFinishOpen(true)}
+                >
+                  {completion?.completed ? "Edytuj podsumowanie" : "Zakończ trening"}
+                </button>
+              )}
               <Drawer open={finishOpen} onOpenChange={setFinishOpen} initialDetent="large">
                 <DrawerContent aria-describedby={undefined}>
                   <DrawerTitle>Podsumowanie treningu</DrawerTitle>
@@ -626,7 +627,26 @@ function SessionDetail() {
           ))}
 
         <details className="bw-training-tools">
-          <summary>Opcje treningu</summary>
+          <summary>Opcje</summary>
+          <div className={strengthRunner ? "bw-strength-session-tools" : undefined}>
+            {strengthRunner && !completed && <StrengthExperienceSetup compact />}
+            <TrainingMethodPanel
+              key={`methods:${session.dbId ?? `${date}:${slot}`}`}
+              session={displayedSession}
+              wholeDay={primary}
+              slot={session.dbId && session.dbId === primary.secondSession?.dbId ? 2 : 1}
+              locked={
+                !!completed ||
+                !!session.executionProtected ||
+                hasStarted ||
+                !!(
+                  selectedAdd &&
+                  session.dbId !== primary.dbId &&
+                  session.dbId !== primary.secondSession?.dbId
+                )
+              }
+            />
+          </div>
           {/* Dodaj / zamień sesję */}
           {!isClub && session.dayType !== "match" && (
             <div className="grid grid-cols-2 gap-2">
@@ -643,5 +663,55 @@ function SessionDetail() {
 
       <ModifySheet open={modifyOpen} onOpenChange={setModifyOpen} date={date} />
     </div>
+  );
+}
+
+/** The exercise runner with its start action; the start pins the prescription first. */
+function SessionRunner({
+  session,
+  sections,
+  isToday,
+  kind,
+  startLabel,
+  canRecord,
+  completed,
+  onFinish,
+}: {
+  session: SessionDay;
+  sections: TrainingSection[];
+  isToday: boolean;
+  kind: SessionKind;
+  startLabel: string;
+  canRecord: boolean;
+  completed: boolean;
+  onFinish: () => void;
+}) {
+  const start = useSessionStart(session, isToday);
+  return (
+    <FocusedSessionRunner
+      sections={sections}
+      sessionId={session.dbId}
+      date={session.date}
+      kind={kind}
+      canRecord={canRecord}
+      onFinish={onFinish}
+      start={
+        start.availability === "start"
+          ? {
+              label: startLabel,
+              busy: start.busy,
+              error: start.error,
+              onStart: () => void start.start(),
+            }
+          : null
+      }
+      previewNote={
+        start.availability === "other-day"
+          ? `Podgląd sesji: ${formatDateFull(session.date).toLocaleLowerCase("pl-PL")}. Start i zapis wykonania są dostępne w dniu treningu.`
+          : completed
+            ? "Sesja zakończona. Oznaczenia poniżej są tylko do wglądu."
+            : null
+      }
+    />
   );
 }

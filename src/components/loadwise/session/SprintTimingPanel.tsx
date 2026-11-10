@@ -10,13 +10,16 @@ export function SprintTimingPanel({
   exercise,
   sessionId,
   onRepeat,
+  logKey,
 }: {
   exercise: TrainingExercise;
   sessionId?: string | null;
   onRepeat: () => void;
+  /** Occurrence-specific key when the same exercise appears more than once. */
+  logKey?: string;
 }) {
   const { user } = useAuth(),
-    logs = useExerciseSetLogs(sessionId, exerciseKey(exercise));
+    logs = useExerciseSetLogs(sessionId, logKey ?? exerciseKey(exercise));
   const [time, setTime] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null),

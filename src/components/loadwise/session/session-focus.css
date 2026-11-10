@@ -393,3 +393,119 @@
   color: var(--primary);
   vertical-align: -2px;
 }
+
+/* Session screen v2: one header, 16 px gutters, one options menu. */
+.bw-session-v2 {
+  background: var(--background);
+}
+.bw-session-v2 > .bw-session-body {
+  margin-top: 4px;
+  padding: 0 16px;
+}
+.bw-session-head {
+  padding: max(12px, env(safe-area-inset-top)) 16px 12px;
+}
+.bw-session-back {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 4px;
+  margin-left: -4px;
+  color: var(--muted-foreground);
+  font-size: 15px;
+}
+.bw-session-back svg {
+  width: 18px;
+  height: 18px;
+}
+.bw-session-date {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 4px 0 6px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+.bw-session-date span + span::before {
+  content: "·";
+  margin-right: 8px;
+}
+.bw-session-date [data-today] {
+  color: var(--primary);
+  font-weight: 650;
+}
+.bw-session-mode {
+  font-weight: 650;
+  color: var(--foreground);
+}
+.bw-session-head h1 {
+  margin: 0;
+  font-size: 25px;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+.bw-session-meta-line {
+  margin: 6px 0 0;
+  font-size: 15px;
+  color: var(--muted-foreground);
+}
+.bw-session-slots {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--muted);
+}
+.bw-session-slots button {
+  min-height: 44px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+.bw-session-slots button[aria-pressed="true"] {
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 1px 3px rgb(15 30 55 / 0.12);
+}
+.bw-session-link {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--primary);
+  font-size: 15px;
+  font-weight: 600;
+}
+.bw-session-link svg {
+  width: 18px;
+  height: 18px;
+}
+.bw-session-v2 .bw-training-tools {
+  margin-top: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+}
+.bw-session-v2 .bw-training-tools > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.bw-session-v2 .bw-training-tools[open] > * + * {
+  margin-top: 12px;
+}

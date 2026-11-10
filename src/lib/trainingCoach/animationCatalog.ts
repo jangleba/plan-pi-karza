@@ -755,6 +755,12 @@ const SHARED_FOOTBALL_ANIMATIONS: Readonly<Record<string, string>> = {
   football_gk_kick_zone: "football_technical_self_selected",
 };
 
+/** True when the exercise has no own drawing and borrows a shared football example. */
+export function usesSharedAnimation(exerciseId: string | null | undefined): boolean {
+  const id = exerciseId?.trim().toLowerCase();
+  return Boolean(id && !byId.has(id) && SHARED_FOOTBALL_ANIMATIONS[id]);
+}
+
 function knownId(value: string | undefined): string | null {
   const id = value?.trim().toLowerCase();
   if (!id) return null;

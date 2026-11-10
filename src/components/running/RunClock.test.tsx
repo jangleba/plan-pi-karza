@@ -52,7 +52,7 @@ it("advances work and rest while earlier network saves are still pending", async
   expect(host.textContent).toContain("Przerwa");
   expect(m.save).toHaveBeenCalledTimes(1);
   await act(async () => vi.advanceTimersByTime(1000));
-  expect(host.querySelector(".bw-focus-stage")?.textContent).toContain("Bieg bez GPS");
+  expect(host.querySelector(".bw-focus-stage")?.textContent).toContain("Praca");
   expect(m.save).toHaveBeenCalledTimes(2);
   await act(async () => vi.advanceTimersByTime(1000));
   expect(m.save).toHaveBeenCalledTimes(3);
