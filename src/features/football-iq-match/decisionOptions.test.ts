@@ -8,7 +8,12 @@ import {
 import { chooseJourney, createJourneyForRules } from "./journeyEngine";
 import { makeJourneyAttempt, makeJourneyDraft, restoreJourney } from "./journeyHistory";
 import { iqScenarioBank } from "./journeyBank";
-import { situationBank, situations, iqSources } from "./situationBank";
+import {
+  authoredSituationBank,
+  situationBank,
+  situations,
+  iqSources,
+} from "./situationBank";
 import type { JourneySession } from "./journeyTypes";
 
 const all = [...advancedJourneyBank, ...situationBank];
@@ -77,7 +82,7 @@ describe("decision options", () => {
 describe("situation bank", () => {
   it("has sourced match situations in three contexts for every position", () => {
     expect(situations).toHaveLength(34);
-    expect(situationBank).toHaveLength(102);
+    expect(authoredSituationBank).toHaveLength(102);
     for (const role of ["gk", "cb", "fb", "six", "eight", "ten", "wing", "nine"])
       expect(situations.filter((s) => s.role === role).length, role).toBeGreaterThanOrEqual(3);
     for (const s of situations) {

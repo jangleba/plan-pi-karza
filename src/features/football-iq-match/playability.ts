@@ -25,6 +25,8 @@ export type Playability = {
   laterOutcomes: number;
   /** TY's team still had (or never had) the ball for no choice at all. */
   forcedLoss: boolean;
+  /** Classes (action + target or 10 m cell) of the first decisions graded good. */
+  goodKeys: string[];
 };
 
 const DIRECTIONS = [0, 45, 90, 135, 180, 225, 270, 315];
@@ -71,6 +73,12 @@ export function sampleChoices(s: JourneySession): JourneyChoice[] {
   return out;
 }
 
+/** What a choice is, coarsely: the same action to the same player or 10 m cell. */
+export function choiceClass(c: JourneyChoice) {
+  const where = c.targetId ?? `${Math.round(c.point.x / 10)}:${Math.round(c.point.y / 10)}`;
+  return `${c.intent ?? "move"}:${c.delivery ?? ""}:${where}`;
+}
+
 function ballCell(s: JourneySession) {
   const b = s.world.looseBall ?? s.world.positions[s.world.carrierId];
   return `${teamOf(s, s.world.carrierId)}:${Math.round(b.x / 8)}:${Math.round(b.y / 8)}`;
@@ -105,14 +113,18 @@ export function playability(def: JourneyDefinition, revision?: 2 | 3): Playabili
     outcomes: 0,
     laterOutcomes: 0,
     forcedLoss: false,
+    goodKeys: [],
   };
   const cells = new Set<string>(),
     later = new Set<string>();
   let kept = 0;
+  const good = new Set<string>();
   for (const c of sampleChoices(start)) {
     const next = chooseJourney(start, c.id, 3, false);
     result.tried++;
-    result[assessDecision(next, 0).grade]++;
+    const grade = assessDecision(next, 0).grade;
+    result[grade]++;
+    if (grade === "good") good.add(choiceClass(c));
     cells.add(ballCell(next));
     later.add(next.outcome ? `end:${ballCell(next)}` : ballCell(stayOn(next)));
     if (teamOf(next, next.world.carrierId) === "home" || next.outcome === "chance") kept++;
@@ -120,5 +132,11 @@ export function playability(def: JourneyDefinition, revision?: 2 | 3): Playabili
   result.outcomes = cells.size;
   result.laterOutcomes = later.size;
   result.forcedLoss = kind !== "rival" && kept === 0;
+  result.goodKeys = [...good].sort();
   return result;
 }
+
+/** A variant worth playing: TY's first choice changes where the ball goes, at least one
+ * choice is good and at least one is not, and the ball is not lost whatever TY does. */
+export const isPlayable = (r: Playability) =>
+  r.outcomes >= 2 && r.good >= 1 && r.good < r.tried && !r.forcedLoss;

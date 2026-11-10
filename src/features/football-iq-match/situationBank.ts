@@ -8,6 +8,8 @@
 import type { IQRole, JourneyDefinition } from "./journeyTypes";
 import type { Point } from "./types";
 import { advancedSituations } from "./advancedSituations";
+import { GENERATOR_VERSION, generateVariant } from "./variantGenerator";
+import { RETIRED_SITUATION_IDS, VARIANT_SEEDS } from "./situationVariants";
 
 export type GameMoment = "attack" | "build" | "transition" | "defend";
 export const gameMomentLabels: Record<GameMoment, string> = {
@@ -427,6 +429,7 @@ export const SITUATION_CONCEPT = "situation" as const;
 export function situationLayout(def: JourneyDefinition): Layout | undefined {
   const s = situations.find((x) => `iqs-${x.key}` === def.topicId);
   if (!s) return undefined;
+  if (def.variantSeed !== undefined) return generateVariant(s.layout, def.variantSeed).layout;
   const positions = { ...s.layout.positions };
   const shift = def.context;
   if (shift) {
@@ -441,22 +444,53 @@ export function situationLayout(def: JourneyDefinition): Layout | undefined {
   return { ...s.layout, positions };
 }
 
-export const situationBank: JourneyDefinition[] = situations.flatMap((s, i) =>
-  contexts.map((contextLabel, context) => ({
-    id: `iqs-${s.key}-${context}`,
-    topicId: `iqs-${s.key}`,
-    title: s.title,
-    role: s.role,
-    pattern: "third-air" as const,
-    focus: s.goal,
-    context: context as 0 | 1 | 2,
-    contextLabel,
-    ordinal: 1000 + i * 3 + context,
-    revision: 3 as const,
-    concept: SITUATION_CONCEPT,
-    delivery: "chip" as const,
-    steps: ["pass", "move", "pass", "move", "carry", "pass"],
-  })),
+const authored = (s: Situation, i: number, context: 0 | 1 | 2): JourneyDefinition => ({
+  id: `iqs-${s.key}-${context}`,
+  topicId: `iqs-${s.key}`,
+  title: s.title,
+  role: s.role,
+  pattern: "third-air" as const,
+  focus: s.goal,
+  context,
+  contextLabel: contexts[context],
+  ordinal: 1000 + i * 3 + context,
+  revision: 3 as const,
+  concept: SITUATION_CONCEPT,
+  delivery: "chip" as const,
+  steps: ["pass", "move", "pass", "move", "carry", "pass"],
+});
+
+/** The original three pictures per situation; ids and layouts never change (saved replays). */
+export const authoredSituationBank: JourneyDefinition[] = situations.flatMap((s, i) =>
+  ([0, 1, 2] as const).map((context) => authored(s, i, context)),
+);
+
+/** The definition of one seeded variant of situation number `i` (also used by the search). */
+export function variantDefinition(s: Situation, i: number, seed: number): JourneyDefinition {
+  const context = (seed % 3) as 0 | 1 | 2;
+  return {
+    ...authored(s, i, context),
+    id: `iqs-${s.key}-g${GENERATOR_VERSION}-${seed}`,
+    // From the seed, not the list position, so adding seeds never renumbers older ones.
+    ordinal: 2000 + i * 1000 + seed,
+    variantSeed: seed,
+  };
+}
+
+/** Seeded variants that passed the playability check (situationVariants.ts). */
+export const generatedSituationBank: JourneyDefinition[] = situations.flatMap((s, i) =>
+  (VARIANT_SEEDS[s.key] ?? []).map((seed) => variantDefinition(s, i, seed)),
+);
+
+/** Every situation definition, also the retired ones, so old attempts still replay. */
+export const situationBank: JourneyDefinition[] = [
+  ...authoredSituationBank,
+  ...generatedSituationBank,
+];
+
+/** What the player is offered: retired pictures (no real decision in them) are left out. */
+export const playableSituationBank: JourneyDefinition[] = situationBank.filter(
+  (d) => !RETIRED_SITUATION_IDS.has(d.id),
 );
 
 export const situationFor = (def: JourneyDefinition) =>

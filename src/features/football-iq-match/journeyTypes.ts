@@ -74,6 +74,8 @@ export type JourneyDefinition = {
   revision?: 2 | 3;
   concept?: "third-player" | "overload-switch" | "press-cover" | "situation";
   delivery?: Exclude<BallDelivery, "ground">;
+  /** Seed of a generated situation variant (variantGenerator.ts); absent for authored ones. */
+  variantSeed?: number;
 };
 export type JourneyWorld = {
   looseBall?: Point;
