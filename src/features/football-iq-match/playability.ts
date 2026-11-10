@@ -29,7 +29,8 @@ export type Playability = {
 
 const DIRECTIONS = [0, 45, 90, 135, 180, 225, 270, 315];
 
-/** A spread of legal first decisions for TY: every pass, carries/runs in 8 directions, hold/wait. */
+/** A spread of legal first decisions for TY: every pass, carries/runs in 8 directions, shot,
+ * shielding or staying, and in defence a press on the carrier and a mark on each rival. */
 export function sampleChoices(s: JourneySession): JourneyChoice[] {
   const at = s.world.positions.you;
   const own = s.world.carrierId === "you" && !s.world.looseBall;
@@ -50,10 +51,21 @@ export function sampleChoices(s: JourneySession): JourneyChoice[] {
     for (const a of DIRECTIONS) add(() => attackChoice(s, "carry", around(10, a)));
     for (const a of [-40, 0, 40]) add(() => attackChoice(s, "pass", around(25, a)));
     add(() => attackChoice(s, "shoot", { x: 50, y: 6 }));
-    add(() => attackChoice(s, "hold", at));
+    add(() => attackChoice(s, "shield", at));
   } else {
     for (const r of [8, 18])
       for (const a of DIRECTIONS) add(() => attackChoice(s, "move", around(r, a)));
+    // Defending: press the carrier, or close the pass to each other outfield rival.
+    if (!s.world.looseBall && teamOf(s, s.world.carrierId) === "away")
+      for (const p of s.players.filter((p) => p.team === "away" && !p.goalkeeper))
+        add(() =>
+          attackChoice(
+            s,
+            p.id === s.world.carrierId ? "press" : "mark",
+            s.world.positions[p.id],
+            p.id,
+          ),
+        );
     add(() => attackChoice(s, "wait", at));
   }
   return out;

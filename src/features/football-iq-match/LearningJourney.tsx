@@ -50,7 +50,7 @@ import {
   journeyVerdict,
 } from "./journeyEngine";
 import { liveChoice as legacyChoice } from "./liveJourney";
-import { attackChoice } from "./attackJourney";
+import { attackChoice, crossingZone } from "./attackJourney";
 const liveChoice: typeof legacyChoice = (s, ...args) =>
   s.rulesVersion === 9 ? attackChoice(s, ...args) : legacyChoice(s, ...args);
 import { lessonGoal, LIVE_BANK_VERSION, ATTACK_BANK_VERSIONS } from "./liveLesson";
@@ -239,6 +239,8 @@ export function LearningJourney(props: Props) {
     teamOf(session, session.world.carrierId) === teamOf(session, "you");
   const playable = ready && phase === "decision" && !sheet && !error && !askPrediction;
   const own = controlled.world.carrierId === actor && !controlled.world.looseBall;
+  const defending =
+    !controlled.world.looseBall && teamOf(controlled, controlled.world.carrierId) !== "home";
   const liveFrame = isPlaying ? sampleFrame() : idleFrame;
   const carrier = displayed.players.find((p) => p.id === liveFrame.ballCarrierId)!;
   const you = displayed.players.find((p) => p.id === "you")!;
@@ -351,8 +353,16 @@ export function LearningJourney(props: Props) {
     if (!playable) return;
     try {
       const target = session.players.find((p) => p.id === targetId);
+      const v9 = session.rulesVersion === 9;
       if (targetId === actor) {
-        setDraft(liveChoice(controlled, own ? "hold" : "wait", point));
+        setDraft(liveChoice(controlled, own ? (v9 ? "shield" : "hold") : "wait", point));
+        return;
+      }
+      // Defending: a tap on the rival with the ball is a press, on another rival a mark
+      // (closing the pass to him). Both follow that rival while the play goes on.
+      if (v9 && defending && target && target.team !== "home" && !target.goalkeeper) {
+        const press = target.id === session.world.carrierId;
+        setDraft(liveChoice(controlled, press ? "press" : "mark", point, target.id));
         return;
       }
       // With the ball: a tap on the rival goal mouth is a shot at that point.
@@ -634,7 +644,11 @@ export function LearningJourney(props: Props) {
           actions={boardActions}
           selectedPlayerId={actor}
           mode={
-            draft?.intent === "shoot" ? "shot" : own || draft?.intent === "pass" ? "pass" : "run"
+            draft?.intent === "shoot"
+              ? "shot"
+              : own || defending || draft?.intent === "pass"
+                ? "pass"
+                : "run"
           }
           interactive={playable && !isPlaying}
           playing={isPlaying && !paused}
@@ -782,7 +796,9 @@ export function LearningJourney(props: Props) {
                 </button>
               </div>
             ) : (
-              <p className="iqE-controls">{controlsLine(own)}</p>
+              <p className="iqE-controls">
+                {controlsLine(own ? "own" : defending ? "rival" : "partner")}
+              </p>
             )}
             <div className="iqE-actions">
               <button
@@ -1339,7 +1355,10 @@ export function LearningJourney(props: Props) {
             </div>
             {draft.intent === "pass" && (
               <div className="iqE-intro-options">
-                {(["ground", "chip", "lofted"] as const).map((delivery) => (
+                {(crossingZone(session.world.positions[actor], "home")
+                  ? (["ground", "chip", "lofted", "cross"] as const)
+                  : (["ground", "chip", "lofted"] as const)
+                ).map((delivery) => (
                   <button
                     type="button"
                     key={delivery}
@@ -1361,7 +1380,9 @@ export function LearningJourney(props: Props) {
                       ? "Po ziemi"
                       : delivery === "chip"
                         ? "Podcięcie"
-                        : "Przerzut"}
+                        : delivery === "cross"
+                          ? "Dośrodkowanie"
+                          : "Przerzut"}
                   </button>
                 ))}
               </div>
