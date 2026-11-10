@@ -231,13 +231,22 @@ export function RunClock({
   return (
     <section className="bw-run-clock bw-focus-card" aria-label="Bieg bez GPS">
       <div className="bw-focus-stage">
-        <span>{step?.kind === "recovery" ? "Przerwa" : "Bieg bez GPS"}</span>
-        <span>{step ? `${step.repeatIndex}/${step.repeatTotal}` : "Stoper"}</span>
+        <span>{step ? (step.kind === "recovery" ? "Przerwa" : "Praca") : "Bieg bez GPS"}</span>
+        <span>
+          {step
+            ? step.kind === "recovery"
+              ? `po odcinku ${step.repeatIndex} z ${step.repeatTotal}`
+              : `Odcinek ${step.repeatIndex} z ${step.repeatTotal}`
+            : "Stoper"}
+        </span>
       </div>
       <h2>{protocol?.summary ?? professionalSessionTitle(session.title)}</h2>
       <div className="bw-run-readout" role="timer">
         {formatRunDuration(remaining)}
       </div>
+      {step?.target.paceTarget && (
+        <p className="bw-session-muted">Tempo {step.target.paceTarget.label}</p>
+      )}
       <p className="bw-session-muted">{step?.instruction ?? "Biegnij zgodnie z planem."}</p>
       <p className="bw-session-muted">
         Czas zapisu: {formatRunDuration(local.value.totalSec + extra)}. Bez pomiaru dystansu.

@@ -71,12 +71,7 @@ export function MethodFixture() {
   );
   return (
     <main className="app-shell bw-strength-page">
-      <SessionHeader
-        session={session}
-        strengthRunner={strength}
-        isToday={false}
-        onBack={() => {}}
-      />
+      <SessionHeader session={session} isToday={false} preview onBack={() => {}} />
       <div className="bw-sprint-content">
         <TrainingMethodPanel session={session} wholeDay={session} />
         {strength ? (

@@ -8,6 +8,22 @@ import { FocusedSessionRunner } from "./FocusedSessionRunner";
 vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: "user-1" } }) }));
 vi.mock("../ExerciseDetailSheet", () => ({ ExerciseDetailSheet: () => null }));
 vi.mock("../ExerciseRunnerScreen", () => ({ ExerciseRunnerScreen: () => null }));
+vi.mock("@/lib/loadwise/store", () => ({
+  useLoadwise: () => ({
+    state: { plan: [], modifications: {}, profile: null, readiness: {}, completions: {} },
+    todayIso: "2026-11-10",
+  }),
+}));
+vi.mock("@/lib/loadwise/setLogs", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/loadwise/setLogs")>()),
+  useExerciseSetLogs: () => ({
+    current: [],
+    previous: [],
+    recentSessions: [],
+    loading: false,
+    saveSet: vi.fn().mockResolvedValue(true),
+  }),
+}));
 
 let host: HTMLDivElement;
 let root: Root;
@@ -62,7 +78,7 @@ const sections: TrainingSection[] = [
 ];
 
 describe("serie łączone na ekranie sesji", () => {
-  it("pokazuje parę jako dwa kafelki na jednym ekranie, a Dalej przechodzi do kolejnej serii", async () => {
+  it("pokazuje parę jako dwa kafelki na jednym ekranie, a Następne przechodzi do kolejnego ćwiczenia", async () => {
     const withSingle: TrainingSection[] = [
       {
         ...sections[0],
@@ -93,30 +109,38 @@ describe("serie łączone na ekranie sesji", () => {
           sections={withSingle}
           date="2026-11-10"
           kind="strength"
+          canRecord
           onFinish={() => undefined}
         />,
       ),
     );
-    const linked = host.querySelector(".bw-focus-linked")!;
-    expect(linked.querySelector(".bw-focus-stage")?.textContent).toContain("Seria kontrastowa");
-    const tiles = [...linked.querySelectorAll(".bw-focus-tile")];
+    const linked = host.querySelector(".bw-runner-linked")!;
+    expect(linked.querySelector(".bw-runner-eyebrow")?.textContent).toContain("Seria kontrastowa");
+    const tiles = [...linked.querySelectorAll(".bw-runner-tile")];
     expect(tiles.map((t) => t.querySelector("h2")?.textContent)).toEqual([
       "A1Przysiad goblet",
       "A2Lądowanie snap-down",
     ]);
     expect(tiles[0].textContent).toContain("Potem A2 po 60 s.");
     expect(tiles[1].textContent).toContain("Przerwa 2–4 min, potem znowu A1.");
+    // A pair shows its pair rest once, never a separate per-exercise rest line.
+    expect(linked.textContent).not.toMatch(/Odpoczynek/);
     // No "why" explanations, only what to do.
     expect(linked.textContent).not.toMatch(/mięśnie|ponieważ|dlaczego/i);
-    expect(host.querySelector(".bw-focus-browse span")?.textContent).toBe("1/2");
-    if (process.env.BW_DUMP)
-      (await import("node:fs")).writeFileSync(process.env.BW_DUMP, host.innerHTML);
-    const next = [...host.querySelectorAll("button")].find((b) =>
-      b.textContent?.includes("Dalej"),
+    // Power work is described by a quality criterion, strength work by RIR once.
+    // The RIR target appears once; the table only has an entry column for it.
+    expect(tiles[0].querySelector(".bw-runner-facts")?.textContent).toContain("Zapas2–3 powt.");
+    expect(tiles[0].textContent?.match(/RIR/g)).toBeNull();
+    expect(tiles[0].querySelector(".bw-runner-dose")?.textContent).toBe("3 × 5");
+    expect(tiles[1].textContent).not.toMatch(/Zapas|RIR/);
+    const next = [...host.querySelectorAll<HTMLButtonElement>(".bw-runner-nav button")].find((b) =>
+      b.textContent?.includes("Następne"),
     )!;
     await act(async () => next.click());
-    expect(host.querySelector(".bw-focus-linked")).toBeNull();
-    expect(host.querySelector("h2")?.textContent).toBe("Most biodrowy");
-    expect(host.textContent).toContain("Przerwa 60 s");
+    expect(host.querySelector(".bw-runner-linked")).toBeNull();
+    expect(host.querySelector(".bw-runner-card h2")?.textContent).toBe("Most biodrowy");
+    expect(host.querySelector(".bw-runner-facts")?.textContent).toContain("Odpoczynek60 s");
+    // Moving on is not a mark.
+    expect(host.querySelector(".bw-runner-count strong")?.textContent).toBe("0");
   });
 });

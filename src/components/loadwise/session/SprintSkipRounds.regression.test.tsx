@@ -68,7 +68,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-/** Przechodzi przez całą sesję przyciskiem „Dalej” i zbiera tytuły oraz linie przerw. */
+/** Przechodzi przez całą sesję przyciskiem „Następne” i zbiera tytuły oraz odpoczynki. */
 async function walkSession(session: SessionDay) {
   // Ten sam kształt co plan odtworzony z bazy: płaskie pozycje → bloki.
   const sections = flatToStructured(JSON.parse(JSON.stringify(session.sections)));
@@ -78,6 +78,7 @@ async function walkSession(session: SessionDay) {
         sections={sections}
         date={session.date}
         kind="sprint"
+        canRecord
         onFinish={() => undefined}
       />,
     ),
@@ -85,16 +86,16 @@ async function walkSession(session: SessionDay) {
   const titles: string[] = [];
   const restLines: string[] = [];
   for (let guard = 0; guard < 60; guard += 1) {
-    const card = host.querySelector(".bw-focus-card");
-    if (card) {
-      titles.push(card.querySelector("h2")?.textContent ?? "");
-      for (const line of card.querySelectorAll(".bw-session-muted"))
-        restLines.push(line.textContent ?? "");
+    for (const card of host.querySelectorAll(".bw-runner-card")) {
+      titles.push(card.querySelector("h2 .bw-runner-name")?.textContent ?? "");
+      for (const fact of card.querySelectorAll(".bw-runner-facts > div"))
+        if (fact.querySelector("dt")?.textContent === "Odpoczynek")
+          restLines.push(fact.querySelector("dd")?.textContent ?? "");
     }
-    const next = [...host.querySelectorAll("button")].find(
-      (b) => b.textContent?.trim() === "Dalej",
+    const next = [...host.querySelectorAll<HTMLButtonElement>(".bw-runner-nav button")].find(
+      (b) => b.textContent?.trim() === "Następne",
     );
-    if (!next) break;
+    if (!next || next.disabled) break;
     await act(async () => next.click());
   }
   return { titles, restLines };
@@ -122,10 +123,10 @@ describe("skipy w sesji sprinterskiej — ekran", () => {
 
       expect(restLines.length).toBeGreaterThan(0);
       for (const line of restLines) {
-        expect(line).not.toMatch(/przerwa\s+(?:pełna\s+)?przerwa/i);
-        expect(line).not.toMatch(/^Przerwa\s+(?:Bez|—)/);
+        expect(line).not.toMatch(/przerwa/i);
+        expect(line).not.toMatch(/^—/);
       }
-      expect(restLines).toContain("Przerwa 30 s");
+      expect(restLines).toContain("30 s");
     },
   );
 });

@@ -80,6 +80,12 @@ vi.mock("@/components/loadwise/session/FocusedSessionRunner", async (importOrigi
         <FocusedSessionRunner {...props} />
       ) : (
         <>
+          {props.previewNote && <p>{props.previewNote}</p>}
+          {props.start && !props.canRecord && (
+            <button disabled={props.start.busy} onClick={props.start.onStart}>
+              {props.start.label}
+            </button>
+          )}
           <button data-strength-preview data-generic-preview data-preview-control>
             Instrukcja ćwiczenia
           </button>
@@ -94,7 +100,8 @@ vi.mock("@/components/loadwise/session/FocusedSessionRunner", async (importOrigi
       ),
   };
 });
-vi.mock("@/lib/loadwise/setLogs", () => ({
+vi.mock("@/lib/loadwise/setLogs", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/loadwise/setLogs")>()),
   useExerciseSetLogs: () => ({ sets: [], saveSet: vi.fn().mockResolvedValue(true) }),
   plannedSets: () => 2,
 }));
@@ -122,15 +129,19 @@ function completionId() {
   return document.querySelector<HTMLElement>("[data-completion]")?.dataset.completion;
 }
 async function openSummary() {
-  const b = [...host.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
-    ["Zakończ trening", "Edytuj podsumowanie"].includes(b.textContent?.trim() ?? ""),
-  );
+  // Runner sessions finish from the runner itself; others keep the bottom trigger.
+  const b =
+    [...host.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
+      ["Zakończ trening", "Edytuj podsumowanie"].includes(b.textContent?.trim() ?? ""),
+    ) ??
+    host.querySelector<HTMLButtonElement>("[data-runner]:not(:disabled)") ??
+    undefined;
   expect(b).toBeDefined();
   await act(async () => b!.click());
 }
 async function startSelectedSession() {
   const button = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find(
-    (item) => item.textContent === "Rozpocznij trening",
+    (item) => item.textContent?.startsWith("Rozpocznij") ?? false,
   );
   expect(button).toBeDefined();
   await act(async () => {
@@ -265,14 +276,20 @@ describe("session route gates", () => {
       }),
     ];
     await render();
-    expect(host.querySelector(".bw-focused-runner")).not.toBeNull();
-    const technique = [...host.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
-      b.textContent?.includes("Technika i animacja"),
+    expect(host.querySelector('.bw-runner[data-mode="preview"]')).not.toBeNull();
+    // Preview is a plan list: no animation is loaded until the row and its how-to are opened.
+    expect(document.querySelector("iframe")).toBeNull();
+    const row = [...host.querySelectorAll<HTMLButtonElement>(".bw-rplan-row button")].find((b) =>
+      b.textContent?.includes("Ankling"),
     )!;
-    await act(async () => technique.click());
-    expect(document.querySelector('[role="dialog"]')?.textContent).toContain("Ankling");
+    await act(async () => row.click());
+    const howTo = [...host.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
+      b.textContent?.includes("Jak wykonać"),
+    )!;
+    await act(async () => howTo.click());
     expect(document.querySelector("iframe")?.getAttribute("src")).toContain("id=ankling&embed=1");
-    expect(host.textContent).toContain("Zapis wykonania będzie dostępny po rozpoczęciu");
+    expect(host.textContent).not.toContain("Zapis wykonania będzie dostępny po rozpoczęciu");
+    expect(host.querySelector("input")).toBeNull();
     expect(
       [...host.querySelectorAll("button")].some((b) => b.textContent?.includes("Wykonane ·")),
     ).toBe(false);
@@ -304,7 +321,7 @@ describe("session route gates", () => {
       expect(mocks.startSession).not.toHaveBeenCalled();
       expect(completionId()).toBeUndefined();
       if (today !== "2026-09-29")
-        expect(host.textContent).toContain("Podgląd jednostki z innego dnia");
+        expect(host.textContent).toContain("Start i zapis wykonania są dostępne w dniu treningu");
     },
   );
   it("waits for authentication and opens today's runner without forcing a check-in", async () => {

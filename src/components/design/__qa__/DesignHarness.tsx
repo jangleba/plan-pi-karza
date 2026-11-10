@@ -79,8 +79,8 @@ function Strength() {
           date: "2026-11-02",
           sessionType: "strength_power",
         })}
-        strengthRunner
         isToday
+        preview={false}
         onBack={() => {}}
       />
       <div className="px-5">
