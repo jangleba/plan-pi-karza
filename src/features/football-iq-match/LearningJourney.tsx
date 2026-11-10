@@ -26,6 +26,7 @@ import {
   qualityLabels,
   REVIEW_COLORS,
   reviewDecision,
+  stateBefore,
   type DecisionReview,
 } from "./decisionReview";
 import { iqSources, situationBank, situationFor } from "./situationBank";
@@ -66,6 +67,14 @@ import {
 } from "./journeyHistory";
 import { addForecast, forecastRival, predictionLabels, predictionResult } from "./tacticalForecast";
 import { teamOf } from "./tacticalWorld";
+import {
+  retryVerdict,
+  solutionKind,
+  solutionLabels,
+  solutionMap,
+  type RetryVerdict,
+  type SolutionKind,
+} from "./solutionSpace";
 import {
   addAssessments,
   aimProgress,
@@ -181,7 +190,15 @@ export function LearningJourney(props: Props) {
     [pickAll, setPickAll] = useState(false),
     [fieldTask, setFieldTask] = useState<FieldTask | null>(null),
     // After a decision: what another good solution produced on the same picture.
-    [alternative, setAlternative] = useState<{ step: number; text: string } | null>(null);
+    [alternative, setAlternative] = useState<{ step: number; text: string } | null>(null),
+    // "Find another solution": the same picture again after a good decision. Not saved.
+    [retry, setRetry] = useState<{
+      original: JourneySession;
+      index: number;
+      firstId: string;
+      kinds: SolutionKind[];
+      verdict: { kind: RetryVerdict; text: string } | null;
+    } | null>(null);
   const [draft, setDraft] = useState<JourneyChoice | null>(null),
     [ready, setReady] = useState(false);
   const [archive, setArchive] = useState(false),
@@ -229,7 +246,7 @@ export function LearningJourney(props: Props) {
   );
   const isPlaying = phase === "playing";
   const predictionRival =
-    phase === "decision" && !session.forecasts?.length && !skipPrediction && !prediction
+    phase === "decision" && !retry && !session.forecasts?.length && !skipPrediction && !prediction
       ? forecastRival({ ...session, controlledId: "you" })
       : undefined;
   // Asked only while our team has the ball: then "to the ball" and "after me" are different moves.
@@ -291,6 +308,7 @@ export function LearningJourney(props: Props) {
       boot.error ||
       error ||
       replay ||
+      retry ||
       (session.outcome && completed.current.has(id))
     )
       return;
@@ -338,7 +356,18 @@ export function LearningJourney(props: Props) {
         "Nie udało się zapisać postępu. Pobierz kopię poprzedniego zapisu, zanim zapiszesz bieżącą lekcję.",
       );
     }
-  }, [session, mode, id, historyOwner, onComplete, boot.error, error, replay, backupToAccount]);
+  }, [
+    session,
+    mode,
+    id,
+    historyOwner,
+    onComplete,
+    boot.error,
+    error,
+    replay,
+    retry,
+    backupToAccount,
+  ]);
   function play(s: JourneySession, from: number, to: number, after: Phase, asReplay = false) {
     range.current = { from, to };
     playhead.current = from;
@@ -397,8 +426,20 @@ export function LearningJourney(props: Props) {
         draft.id,
         (performance.now() - decisionStart.current) / 1000,
       );
-      if (prediction && !session.forecasts?.length)
+      if (prediction && !session.forecasts?.length && !retry)
         next = addForecast(next, controlled, { predicted: prediction });
+      if (retry) {
+        const second = assessDecision(next, next.decisions.length - 1);
+        const kind = retryVerdict(retry.firstId, draft.id, second);
+        const style = solutionKind(second);
+        const text =
+          kind === "another"
+            ? `Masz drugie dobre rozwiązanie${style ? ` (${solutionLabels[style]})` : ""}. ${second.happened}`
+            : kind === "same"
+              ? "To ten sam pomysł co za pierwszym razem: ta sama akcja do tego samego celu. Poszukaj innego."
+              : `${qualityLabels[second.grade]}. ${second.happened} ${second.why}`;
+        setRetry({ ...retry, verdict: { kind, text } });
+      }
       setSession(next);
       setDraft(null);
       play(
@@ -434,8 +475,38 @@ export function LearningJourney(props: Props) {
       setError("Nie udało się pokazać innego rozwiązania.");
     }
   }
+  /** After a good decision: the same picture again, to be solved another way. */
+  function findAnother() {
+    const original = retry?.original ?? session;
+    const index = retry?.index ?? session.decisions.length - 1;
+    if (index < 0) return;
+    try {
+      const before = stateBefore(original, index);
+      setRetry({
+        original,
+        index,
+        firstId: original.decisions[index].choiceId,
+        kinds: retry?.kinds ?? solutionMap(before).map((o) => o.kind),
+        verdict: null,
+      });
+      setSession(before);
+      setDraft(null);
+      setAlternative(null);
+      setPhase("decision");
+    } catch {
+      setError("Nie udało się odtworzyć tej sytuacji.");
+    }
+  }
+  function leaveRetry() {
+    if (!retry) return;
+    setSession(retry.original);
+    setRetry(null);
+    setDraft(null);
+    setPhase("feedback");
+  }
   function start(def: JourneyDefinition, test = false) {
     allowedReplacement.current = false;
+    setRetry(null);
     setSession(createJourneyForRules(def, 9));
     setMode(test ? "challenge" : "learn");
     setId(newId());
@@ -782,6 +853,12 @@ export function LearningJourney(props: Props) {
                 Twoja prognoza: {predictionLabels[prediction].toLowerCase()}.
               </p>
             )}
+            {retry && (
+              <p className="iqE-retry">
+                Rozwiąż ten sam moment inaczej niż za pierwszym razem: inną akcją albo z innym
+                celem.
+              </p>
+            )}
             <p className="iqE-now">{nowLine}</p>
             {draft ? (
               <div className="iqE-plan">
@@ -830,6 +907,27 @@ export function LearningJourney(props: Props) {
                 : "Patrz, co się zmienia. Za chwilę kolejna decyzja."}
             </p>
           </div>
+        ) : phase === "feedback" && retry?.verdict ? (
+          <>
+            <span className="iqE-eyebrow">Inne rozwiązanie</span>
+            <p className="iqE-feedback" data-iq-retry={retry.verdict.kind}>
+              {retry.verdict.text}
+            </p>
+            {retry.kinds.length > 0 && (
+              <p className="iqE-why">
+                W tym momencie są dobre rozwiązania:{" "}
+                {retry.kinds.map((k) => solutionLabels[k]).join(", ")}.
+              </p>
+            )}
+            <div className="iqE-actions">
+              <button type="button" className="iqE-primary" onClick={leaveRetry}>
+                Wróć do akcji <ArrowRight size={16} />
+              </button>
+              <button type="button" className="iqE-secondary" onClick={findAnother}>
+                <RotateCcw size={16} /> Jeszcze raz
+              </button>
+            </div>
+          </>
         ) : phase === "feedback" ? (
           <>
             <span className="iqE-eyebrow">Co się stało</span>
@@ -838,8 +936,13 @@ export function LearningJourney(props: Props) {
                 <p className="iqE-feedback">
                   <em className={`iqE-grade iqE-grade--${lastAssessment.grade}`}>
                     {qualityLabels[lastAssessment.grade]}
+                    {solutionKind(lastAssessment) &&
+                      ` · ${solutionLabels[solutionKind(lastAssessment)!]}`}
                   </em>{" "}
                   {lastAssessment.happened}
+                </p>
+                <p className="iqE-result" data-iq-result>
+                  Skutek: {lastAssessment.result}
                 </p>
                 {lastAssessment.grade !== "good" && <p className="iqE-why">{lastAssessment.why}</p>}
               </>
@@ -889,6 +992,11 @@ export function LearningJourney(props: Props) {
                 <RotateCcw size={17} />
               </button>
             </div>
+            {lastAssessment?.grade === "good" && (
+              <button type="button" className="iqE-secondary" onClick={findAnother}>
+                Znajdź inne rozwiązanie
+              </button>
+            )}
             {alternative?.step !== session.step && (
               <button type="button" className="iqE-link" onClick={showAlternative}>
                 Zobacz inne rozwiązanie

@@ -86,6 +86,7 @@ export function lessonAim(def: JourneyDefinition): LessonAim {
 export type DecisionKind = "own" | "partner" | "rival" | "loose";
 export type ContributionProblem =
   | "lane-closed"
+  | "lane-read"
   | "offside-pass"
   | "no-progress"
   | "stayed-crowded"
@@ -134,6 +135,8 @@ export type DecisionFacts = {
   };
   /** Free metres of the carrier → TY pass lane (no rival closer to its track). */
   laneBefore: number;
+  /** TY's own pass: free metres of its lane at the moment TY decided (0 otherwise). */
+  passLane: number;
   laneAfter: number;
   /** Off the ball: lane and space were measured when the partner played the ball. */
   atPartnerKick: boolean;
@@ -169,6 +172,8 @@ export type DecisionAssessment = {
   facts: DecisionFacts;
   /** What TY chose. */
   did: string;
+  /** The consequence (resultLabel), separate from the grade of the decision. */
+  result: string;
   /** What really happened, from the simulation events. */
   happened: string;
   /** Why it mattered: a conditional principle with the measured value. */
@@ -372,6 +377,15 @@ export function decisionFacts(session: JourneySession, index: number): DecisionF
       : undefined,
     laneBefore,
     laneAfter,
+    passLane:
+      kind === "own" && intent === "pass" && parsed.point
+        ? laneClearance(
+            session,
+            before,
+            ballBefore,
+            parsed.targetId ? before.positions[parsed.targetId] : parsed.point,
+          )
+        : 0,
     spaceBefore: nearestRival(session, before, start),
     spaceAfter:
       kind === "partner"
@@ -432,6 +446,8 @@ function phaseAim(f: DecisionFacts, keeper: boolean): LessonAim {
 }
 
 type Grade = { grade: JourneyQuality; problem: ContributionProblem | null };
+/** Metres of free lane that count as an open pass at the moment of the decision. */
+export const LANE_OPEN = 5;
 const good: Grade = { grade: "good", problem: null };
 const possible = (problem: ContributionProblem): Grade => ({ grade: "possible", problem });
 const error = (problem: ContributionProblem): Grade => ({ grade: "error", problem });
@@ -445,8 +461,10 @@ function grade(f: DecisionFacts, aim: LessonAim): Grade {
       return f.shot.metres <= 18 && Math.abs(f.start.x - 50) <= 12 ? good : possible("shot-angle");
     }
     if (f.passResult === "offside") return error("offside-pass");
+    // Decision and execution apart: a lane that was clearly open when TY decided is a
+    // sensible idea that the rival read in time, not a blind pass into a closed lane.
     if (f.passResult === "intercepted" || f.passResult === "space-lost")
-      return error("lane-closed");
+      return f.passLane >= LANE_OPEN ? possible("lane-read") : error("lane-closed");
     if (f.lostByYou)
       return error(
         f.intent === "hold" || f.intent === "shield" ? "held-too-long" : "carried-into-pressure",
@@ -586,6 +604,8 @@ function happenedText(f: DecisionFacts): string {
 
 const WHY: Record<ContributionProblem | "good", (f: DecisionFacts) => string> = {
   good: () => "",
+  "lane-read": (f) =>
+    `W chwili Twojej decyzji tor miał ${metres(f.passLane)} wolnego, więc pomysł miał sens. Nr ${f.interceptorNumber ?? "rywala"} przewidział podanie i zdążył dobiec do toru w czasie lotu piłki.`,
   "lane-closed": (f) =>
     `Podanie przechodzi bezpiecznie, gdy na jego torze nie stoi rywal. Tu nr ${f.interceptorNumber ?? "rywala"} zdążył wejść w tor.`,
   "offside-pass": () =>
@@ -648,6 +668,8 @@ const GOOD_WHY: Record<DecisionKind, (f: DecisionFacts) => string> = {
 };
 
 const TASK: Record<ContributionProblem, string> = {
+  "lane-read":
+    "Przed podaniem sprawdź, który rywal może dobiec do toru, zanim piłka doleci. Wtedy wybierz bliższego partnera albo inny tor.",
   "lane-closed":
     "Zanim podasz, sprawdź, czy żaden rywal nie stoi blisko toru podania. Jeśli stoi, wybierz innego partnera.",
   "offside-pass":
@@ -690,6 +712,27 @@ function sourceFor(session: JourneySession, problem: ContributionProblem | null)
   return iqSources[id];
 }
 
+/** The consequence of the decision in two or three words, kept apart from its grade:
+ * a good decision can still end in a save, a weaker one can still keep the ball. */
+export function resultLabel(f: DecisionFacts): string {
+  if (f.shot)
+    return {
+      goal: "Gol",
+      save: "Obrona bramkarza",
+      block: "Strzał zablokowany",
+      miss: "Strzał obok",
+      none: "Strzał",
+    }[f.shot.result];
+  if (f.passResult === "offside" || f.youOffside) return "Spalony";
+  if (f.passResult === "intercepted" || f.passResult === "space-lost" || f.lostByYou)
+    return "Strata piłki";
+  if (f.kind === "own") return f.passResult === "loose" ? "Piłka wolna" : "Piłka przy nas";
+  if (f.kind === "partner") return f.received ? "Dostajesz piłkę" : "Piłka przy nas";
+  if (f.wonByYou) return "Odbiór";
+  if (f.conceded) return "Gol dla rywala";
+  return f.kind === "rival" ? "Rywal przy piłce" : "Piłka u innego zawodnika";
+}
+
 export function assessDecision(session: JourneySession, index: number): DecisionAssessment {
   const facts = decisionFacts(session, index);
   const aim = phaseAim(facts, facts.keeper);
@@ -704,6 +747,7 @@ export function assessDecision(session: JourneySession, index: number): Decision
     problem,
     facts,
     did: didText(facts),
+    result: resultLabel(facts),
     happened: happenedText(facts),
     why: problem ? WHY[problem](facts) : GOOD_WHY[facts.kind](facts),
     task: problem ? TASK[problem] : KEEP_GOING[facts.kind],

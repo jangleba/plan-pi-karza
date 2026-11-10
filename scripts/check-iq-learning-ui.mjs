@@ -193,6 +193,32 @@ try {
   await page.waitForSelector('[data-iq-phase="feedback"]',{timeout:20000});
   await page.waitForSelector('.iqE-alternative');
   await page.screenshot({path:path.join(work,'IQ-64-INNE.png')});
+  ensure((await page.locator('[data-iq-result]').innerText()).startsWith('Skutek:'),'Feedback must show the consequence apart from the grade');
+  // After a good decision: solve the same moment another way (not saved, back to the action).
+  let retried = 0;
+  for (let step=0; step<6 && !retried; step++) {
+    const find = page.getByRole('button',{name:'Znajdź inne rozwiązanie',exact:true});
+    if (await find.count()) {
+      const before = await page.locator('.iqE-feedback').first().innerText();
+      await find.click();
+      await page.waitForSelector('.iqE-retry');
+      ensure(predictions===1,'No prediction question inside the retry');
+      await playDecision();
+      await page.waitForSelector('[data-iq-retry]',{timeout:20000});
+      await page.screenshot({path:path.join(work,'IQ-64-DRUGIE.png')});
+      await page.getByRole('button',{name:'Wróć do akcji',exact:true}).click();
+      await page.waitForSelector('[data-iq-phase="feedback"]');
+      ensure((await page.locator('.iqE-feedback').first().innerText())===before,'Leaving the retry must restore the action');
+      retried++;
+      break;
+    }
+    const next = page.getByRole('button',{name:'Dalej',exact:true});
+    if (!(await next.count())) break;
+    await next.click();
+    await playDecision();
+    await page.waitForSelector('[data-iq-phase="feedback"]',{timeout:20000});
+  }
+  ensure(retried===1,'No good decision offered "Znajdź inne rozwiązanie"');
   await page.goto(url+'?fixture=finish');
   await page.waitForSelector('[data-iq-phase="decision"]');
   await page.waitForSelector('[data-iq-renderer="ready"]');
@@ -282,7 +308,7 @@ try {
   await page.waitForSelector('.iqE-start');
   await page.getByRole('button',{name:'Jak grać',exact:true}).click();
   ensure(await page.locator('.iqE-sources a').count()>0,'Help sheet has no sources');
-  await fs.writeFile(path.join(work,'wynik-iq-learning.json'),JSON.stringify({views,errors,pressed,flow:'truthful start → no hints before decisions → tap decisions beyond 3 → other solution replay → shot by goal tap → saved result → replay and seeking → independent variant → situation picker → sources'},null,2));
+  await fs.writeFile(path.join(work,'wynik-iq-learning.json'),JSON.stringify({views,errors,pressed,retried,flow:'truthful start → no hints before decisions → tap decisions beyond 3 → other solution replay → find another solution → shot by goal tap → saved result → replay and seeking → independent variant → situation picker → sources'},null,2));
   ensure(errors.length===0,JSON.stringify(errors));
   // With the 3D models blocked the lesson must not start on an empty pitch.
   const blocked = await browser.newPage({viewport:{width:390,height:700}, deviceScaleFactor:1});
