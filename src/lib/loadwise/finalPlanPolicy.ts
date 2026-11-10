@@ -19,6 +19,12 @@ import { getDevelopmentStage } from "./athleteProfile";
 import { requirementGymExperience, seasonPhaseForWeek } from "./offseasonPeriod";
 import { computeWeeklyLoadScore, countWeekRoles, MAIN_GOAL_RULES } from "./planRules";
 import { FINAL_PLAN_POLICY_VERSION } from "./planPolicyStamp";
+import {
+  isDedicatedSprintSession,
+  ownSprintMeters,
+  weeklySprintIssues,
+  calendarMonday,
+} from "./weeklySprintPolicy";
 
 /** Internal conservative app policy, not a universal physiological recovery threshold. */
 export { FINAL_PLAN_POLICY_VERSION } from "./planPolicyStamp";
@@ -311,6 +317,7 @@ export function enforceFinalPlanPolicy(input: SessionDay[], profile: Profile): S
       if (speed.blocksAdjacentSpeedDay && next && assessDaySpeedLoad(next).realExposureCount > 0)
         continue;
       const trial = plan.map((day, i) => (i === index ? candidate : day));
+      if (weeklySprintIssues(trial).length > weeklySprintIssues(plan).length) continue;
       if (
         gymSpacingIssues(trial).some(
           (issue) =>
@@ -468,6 +475,73 @@ export function enforceFinalPlanPolicy(input: SessionDay[], profile: Profile): S
       (session) => assessSpeedLoad(session).countsAsSpeedExposure,
       reason,
     );
+  }
+  // Product limits per calendar week: one dedicated sprint session and 240 m.
+  // Executed/started sessions and club/match stay; only future own work is removed.
+  for (let pass = 0; pass < plan.length * 2; pass++) {
+    const issue = weeklySprintIssues(plan)[0];
+    if (!issue) break;
+    const inWeek = plan
+      .map((_, index) => index)
+      .filter((index) => calendarMonday(plan[index].date) === issue.week);
+    const candidates = (
+      issue.code === "extra-sprint-session"
+        ? (s: SessionDay) => isDedicatedSprintSession(s)
+        : (s: SessionDay) => ownSprintMeters(s) > 0 && !isDedicatedSprintSession(s)
+    ) as (s: SessionDay) => boolean;
+    const reason =
+      issue.code === "extra-sprint-session"
+        ? "Limit tygodnia: najwyżej jedna dedykowana sesja sprintu. Druga sesja nie jest dokładana."
+        : "Limit tygodnia: najwyżej 240 m sprintu. Pominięto dodatkowy akcent sprintu.";
+    const removable = (index: number, second: boolean) => {
+      const target = second ? plan[index].secondSession : plan[index];
+      return (
+        !!target &&
+        !target.executionProtected &&
+        !plan[index].executionProtected &&
+        !external(target) &&
+        candidates(target)
+      );
+    };
+    // Keep the sprint session that best fits the goal; remove the weakest future one.
+    const codGoal = profile.goal === "agility";
+    const fit = (session: SessionDay) => {
+      const sub = classifySession(session).subcategory ?? "";
+      const cod = /change_of_direction|deceleration|braking|agility|reactive/.test(sub);
+      return (codGoal ? cod : !cod) ? 2 : 1;
+    };
+    const options = inWeek
+      .flatMap((index) => [false, true].map((second) => ({ index, second })))
+      .filter(({ index, second }) => removable(index, second))
+      .sort((a, b) => {
+        const sa = (a.second ? plan[a.index].secondSession : plan[a.index])!;
+        const sb = (b.second ? plan[b.index].secondSession : plan[b.index])!;
+        return fit(sa) - fit(sb) || b.index - a.index;
+      });
+    const keepOne =
+      issue.code === "extra-sprint-session" &&
+      !inWeek.some((index) =>
+        [plan[index], plan[index].secondSession].some(
+          (s) =>
+            s &&
+            isDedicatedSprintSession(s) &&
+            (s.executionProtected || plan[index].executionProtected),
+        ),
+      );
+    let removed = false;
+    for (const option of keepOne ? options.slice(0, -1) : options) {
+      if (remove(option.index, option.second, reason)) {
+        removed = true;
+        break;
+      }
+    }
+    if (!removed) {
+      note(
+        issue.date,
+        `${issue.message} Nie znaleziono przyszłej sesji, którą można bezpiecznie zmienić.`,
+      );
+      break;
+    }
   }
   // No subsequent filling/rebuilding may reintroduce adjacent or duplicate gym.
   for (const issue of gymSpacingIssues(plan)) {

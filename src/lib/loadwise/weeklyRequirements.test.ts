@@ -65,18 +65,19 @@ describe("weeklyRequirements — cel normalny", () => {
 });
 
 describe("weeklyRequirements — cel szybkościowy", () => {
-  it('cel "szybkość" zwraca 2 gym, 1 endurance, 2 speed', () => {
+  // Produktowy limit: maksymalnie jedna dedykowana sesja sprintu tygodniowo.
+  it('cel "szybkość" zwraca 2 gym, 1 endurance i najwyżej 1 speed', () => {
     const r = calculateWeeklyMinimumRequirements(ctx(), settings, "szybkość");
     expect(r.requiredGymSessions).toBe(2);
     expect(r.requiredEnduranceSessions).toBe(1);
-    expect(r.requiredSpeedSessions).toBe(2);
+    expect(r.requiredSpeedSessions).toBe(1);
     expect(r.isSpeedGoal).toBe(true);
   });
 
-  it('cel "przyspieszenie" zwraca 2 speed', () => {
+  it('cel "przyspieszenie" nie dokłada drugiej sesji sprintu', () => {
     const r = calculateWeeklyMinimumRequirements(ctx(), settings, "przyspieszenie");
-    expect(r.requiredSpeedSessions).toBe(2);
-    expect(shouldAddSecondSpeedSession(ctx(), "przyspieszenie")).toBe(true);
+    expect(r.requiredSpeedSessions).toBe(1);
+    expect(shouldAddSecondSpeedSession(ctx(), "przyspieszenie")).toBe(false);
   });
 
   it("speed/agility/COD liczą się jako cel szybkościowy, ale cel mocy pozostaje odrębny", () => {
@@ -169,7 +170,9 @@ describe("weeklyRequirements — sezon i klub nie kasują kategorii", () => {
   it("duża liczba treningów klubowych redukuje dodatkowe minima", () => {
     const few = calculateWeeklyMinimumRequirements(ctx({ clubTrainingCount: 1 }), settings, "speed");
     const many = calculateWeeklyMinimumRequirements(ctx({ clubTrainingCount: 4 }), settings, "speed");
-    expect(many.requiredSpeedSessions).toBeLessThan(few.requiredSpeedSessions);
+    // Sprint ma limit 1/tydzień, więc przy celu szybkościowym obie wartości wynoszą 1.
+    expect(few.requiredSpeedSessions).toBe(1);
+    expect(many.requiredSpeedSessions).toBeLessThanOrEqual(few.requiredSpeedSessions);
     expect(many.requiredEnduranceSessions).toBe(0);
     expect(many.requiredGymSessions).toBe(1);
   });
@@ -215,9 +218,9 @@ describe("weeklyRequirements — wiek/poziom nie kasują kategorii", () => {
     }
   });
 
-  it("14 lat cel szybkość nadal ma 2 speed, ale youth-safe", () => {
+  it("14 lat cel szybkość ma 1 speed (limit tygodnia) i youth-safe", () => {
     const r = calculateWeeklyMinimumRequirements(ctx(), settings, "szybkość", youth14);
-    expect(r.requiredSpeedSessions).toBe(2);
+    expect(r.requiredSpeedSessions).toBe(1);
     expect(r.requiresYouthSafeContent).toBe(true);
   });
 
@@ -248,7 +251,7 @@ describe("weeklyRequirements — liczniki kontekstu", () => {
     const c = ctx({ clubTrainingCount: 3 });
     expect(getRequiredGymSessions(c, settings)).toBe(2);
     expect(getRequiredEnduranceSessions(c, settings, "wydolność")).toBe(2);
-    expect(getRequiredSpeedSessions(c, settings, "szybkość")).toBe(2);
+    expect(getRequiredSpeedSessions(c, settings, "szybkość")).toBe(1);
   });
 
   it("dwa mecze nie wymuszają dodatkowej siłowni", () => {

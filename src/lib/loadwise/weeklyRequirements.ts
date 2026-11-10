@@ -18,6 +18,7 @@
 // ============================================================
 
 import type { DevelopmentStage } from "./athleteProfile";
+import { MAX_DEDICATED_SPRINT_SESSIONS_PER_WEEK } from "./sprintLimits";
 
 // ---------------------------------------------------------------------------
 // Typy wejścia / wyjścia
@@ -178,7 +179,9 @@ export function getAthleteGoalRules(athleteGoal: string | null | undefined): Ath
     goalDetected: g || "general",
     isEnduranceGoal,
     isSpeedGoal,
-    requiredSpeedSessions: isSpeedGoal ? 2 : 1,
+    // Produktowy limit: najwyżej jedna dedykowana sesja sprintu tygodniowo,
+    // także przy celu szybkościowym. Cel zmienia treść, nie liczbę sesji.
+    requiredSpeedSessions: MAX_DEDICATED_SPRINT_SESSIONS_PER_WEEK,
     baseRequiredEnduranceSessions: 1,
   };
 }
@@ -323,7 +326,7 @@ export function getAbsoluteMinimumEnduranceSessions(
 }
 
 /**
- * Liczba sesji szybkości. Domyślnie 1, cel szybkościowy → 2.
+ * Liczba sesji szybkości: 1 (limit produktu), 0 w bardzo gęstym tygodniu.
  */
 export function getRequiredSpeedSessions(
   ctx: WeekRequirementContext,

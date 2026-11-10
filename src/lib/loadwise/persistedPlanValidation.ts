@@ -22,6 +22,7 @@ import {
   matchWeekPolicyViolation,
 } from "./finalPlanPolicy";
 import { hasAcknowledgedReducedTargets } from "./planPolicyStamp";
+import { weeklySprintIssues } from "./weeklySprintPolicy";
 
 export type PersistedPlanIssueCode =
   | "missing-plan"
@@ -41,7 +42,9 @@ export type PersistedPlanIssueCode =
   | "match-week-load"
   | "missing-weekly-minimum"
   | "match-date-mismatch"
-  | "invalid-exercise-contract";
+  | "invalid-exercise-contract"
+  | "extra-sprint-session"
+  | "weekly-sprint-meters";
 
 export interface PersistedPlanIssue {
   code: PersistedPlanIssueCode;
@@ -240,6 +243,16 @@ export function validatePersistedPlan(
           ? "Siłownie występują dzień po dniu — wymagany co najmniej jeden dzień przerwy."
           : "Dzień zawiera dwie sesje siłowni.",
     });
+  }
+
+  for (const issue of weeklySprintIssues(plan)) {
+    if (
+      versionEffectiveFrom &&
+      (issue.date < versionEffectiveFrom ||
+        plan.find((day) => day.date === issue.date)?.executionProtected)
+    )
+      continue;
+    issues.push({ code: issue.code, date: issue.date, message: issue.message });
   }
 
   const planDates = plan.map((day) => day.date).sort();
