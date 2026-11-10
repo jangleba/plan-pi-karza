@@ -1,19 +1,23 @@
 import type { SessionDay, SessionCompletion } from "./types";
-import { reduceDailySessionDose } from "./dailyDose";
+import { sessionPrescription } from "./planIdentity";
 
-export type DailyPlanCheckinAction =
-  "keep" | "lighter" | "swap" | "add" | "week_change" | "unavailable";
-
-export type SecondSessionCheckinAction = "keep" | "lighter" | "swap" | "remove";
+/**
+ * Daily check-in: exactly three training decisions. No questions about
+ * health, pain, sleep, stress, mood or motivation, and no readiness score
+ * derived from earlier answers or notes.
+ */
+export type DailyPlanCheckinAction = "train" | "less_time" | "cannot_today";
 
 export interface DailyPlanCheckin {
   date: string;
-  primaryAction: DailyPlanCheckinAction;
-  secondAction: SecondSessionCheckinAction | null;
+  action: DailyPlanCheckinAction;
+  /** Planned own minutes for „Mam mniej czasu”; null for the other choices. */
+  minutes: number | null;
   completedAt: string;
 }
 
-const STORAGE_PREFIX = "ballwise:daily-plan-checkin:v2";
+const STORAGE_PREFIX = "ballwise:daily-plan-checkin:v3";
+const ACTIONS: DailyPlanCheckinAction[] = ["train", "less_time", "cannot_today"];
 
 function browserStorage(): Storage | null {
   return typeof window === "undefined" ? null : window.localStorage;
@@ -21,14 +25,6 @@ function browserStorage(): Storage | null {
 
 export function dailyPlanCheckinStorageKey(userId: string, date: string): string {
   return `${STORAGE_PREFIX}:${userId}:${date}`;
-}
-
-function isPrimaryAction(value: unknown): value is DailyPlanCheckinAction {
-  return ["keep", "lighter", "swap", "add", "week_change", "unavailable"].includes(String(value));
-}
-
-function isSecondAction(value: unknown): value is SecondSessionCheckinAction {
-  return ["keep", "lighter", "swap", "remove"].includes(String(value));
 }
 
 export function readDailyPlanCheckin(
@@ -43,15 +39,14 @@ export function readDailyPlanCheckin(
     const parsed = JSON.parse(raw) as Partial<DailyPlanCheckin>;
     if (
       parsed.date !== date ||
-      !isPrimaryAction(parsed.primaryAction) ||
-      (parsed.secondAction !== null && !isSecondAction(parsed.secondAction)) ||
+      !ACTIONS.includes(parsed.action as DailyPlanCheckinAction) ||
       !parsed.completedAt
     )
       return null;
     return {
       date,
-      primaryAction: parsed.primaryAction,
-      secondAction: parsed.secondAction ?? null,
+      action: parsed.action as DailyPlanCheckinAction,
+      minutes: typeof parsed.minutes === "number" ? parsed.minutes : null,
       completedAt: parsed.completedAt,
     };
   } catch {
@@ -62,15 +57,15 @@ export function readDailyPlanCheckin(
 export function saveDailyPlanCheckin(
   userId: string,
   date: string,
-  primaryAction: DailyPlanCheckinAction,
-  secondAction: SecondSessionCheckinAction | null,
+  action: DailyPlanCheckinAction,
+  minutes: number | null = null,
   storage: Pick<Storage, "setItem"> | null = browserStorage(),
   now = new Date(),
 ): DailyPlanCheckin {
   const record: DailyPlanCheckin = {
     date,
-    primaryAction,
-    secondAction,
+    action,
+    minutes: action === "less_time" ? minutes : null,
     completedAt: now.toISOString(),
   };
   try {
@@ -94,94 +89,44 @@ export function clearDailyPlanCheckin(
   }
 }
 
+export function isSessionLocked(
+  session: SessionDay | null | undefined,
+  completions: Record<string, SessionCompletion> = {},
+): boolean {
+  if (!session) return false;
+  const log = session.dbId ? completions[session.dbId] : undefined;
+  return Boolean(
+    session.executionProtected ||
+    log?.completed ||
+    log?.status === "started" ||
+    log?.status === "completed",
+  );
+}
+
 /** Both slots, without deriving health or readiness from training choices. */
 export function hasProtectedExecution(
   day: SessionDay,
   completions: Record<string, SessionCompletion> = {},
 ): boolean {
-  return [day, day.secondSession].some((slot) => {
-    if (!slot) return false;
-    const log = slot.dbId ? completions[slot.dbId] : undefined;
-    return Boolean(
-      slot.executionProtected ||
-      log?.completed ||
-      log?.status === "started" ||
-      log?.status === "completed",
-    );
-  });
+  return [day, day.secondSession].some((slot) => isSessionLocked(slot, completions));
 }
 
-/** Fewer work sets/intervals, with the original technique, intensity and recovery. */
-export function buildLighterSession(session: SessionDay): SessionDay {
-  if (session.executionProtected)
-    throw new Error("Rozpoczęta lub wykonana sesja nie może być zmieniona tym panelem.");
-  if (session.loadLabelOverride === "Lżejszy wariant") return session;
-  const externalCommitment =
-    session.externalCommitment === true ||
-    session.dayType === "club" ||
-    session.dayType === "match";
-
-  if (externalCommitment) {
-    return {
-      ...session,
-      dbId: undefined,
-      sessionId: undefined,
-      loadLabelOverride: "Ogranicz obciążenie",
-      whyToday: "Wybrałeś dziś lżejszy udział.",
-      safetyNote: "Ustal mniejszy udział z trenerem przed rozpoczęciem.",
-    };
-  }
-
-  return {
-    ...reduceDailySessionDose(session),
-    dbId: undefined,
-    sessionId: undefined,
-    title: `${session.title} — lżej`,
-    reason: "Zawodnik wybrał lżejszy wariant dzisiejszej jednostki.",
-    whyToday: "Zachowujemy cel sesji przy mniejszym obciążeniu.",
-    riskManaged:
-      "Mniej serii lub odcinków. Rozgrzewka, intensywność wykonania i przerwy pozostają z planu.",
-    loadLabelOverride: "Lżejszy wariant",
-    classification: undefined,
-  };
+/** The day as planned before today's check-in changed it. */
+export function checkinBase(day: SessionDay): SessionDay {
+  return day.checkinBaseSession ?? day;
 }
 
-/** Usuwa wyłącznie drugi slot, zachowując bieżącą pierwszą sesję. */
-export function withoutSecondSession(session: SessionDay): SessionDay {
-  return {
-    ...session,
-    dbId: undefined,
-    sessionId: undefined,
-    secondSession: null,
-    slotLabel: null,
-  };
+/** Restores the plan as it was before today's check-in (explicit athlete choice). */
+export function restorePlannedDay(day: SessionDay): SessionDay {
+  const base = checkinBase(day);
+  return { ...base, checkinBaseSession: null, checkinTimeBudgetMin: null };
 }
 
-/**
- * Gdy pierwsza sesja odpada, przenosi wybraną drugą sesję do jedynego
- * aktywnego slotu dnia. Dzięki temu nie zostaje pusty „slot 1”.
- */
-export function promoteSecondSession(
-  day: SessionDay,
-  replacement: SessionDay | null = day.secondSession,
-): SessionDay {
-  if (!replacement) return buildUnavailableSession(day);
-
-  return {
-    ...replacement,
-    dbId: undefined,
-    sessionId: undefined,
-    dayDbId: day.dayDbId,
-    date: day.date,
-    dayName: day.dayName,
-    dayOfWeek: day.dayOfWeek,
-    mdRelation: day.mdRelation,
-    mdLabel: day.mdLabel,
-    slotLabel: null,
-    secondSession: null,
-    reason: "Pierwsza sesja została usunięta; pozostaje wybrana druga jednostka.",
-    whyToday: "Wykonujesz tylko wybraną drugą sesję.",
-  };
+/** Same prescription in both slots: re-applying the decision must not write again. */
+export function sameDayPlan(a: SessionDay, b: SessionDay): boolean {
+  const second = (day: SessionDay) =>
+    day.secondSession ? sessionPrescription(day.secondSession) : null;
+  return sessionPrescription(a) === sessionPrescription(b) && second(a) === second(b);
 }
 
 export function buildUnavailableSession(session: SessionDay): SessionDay {
@@ -200,11 +145,12 @@ export function buildUnavailableSession(session: SessionDay): SessionDay {
     goalLabel: "Zmiana dostępności",
     intensity: "niska",
     durationMin: 0,
-    reason: "Zawodnik oznaczył dzisiejszą jednostkę jako niedostępną.",
-    whyToday: "Dzisiejsza sesja nie może zostać wykonana.",
+    reason: "Zawodnik oznaczył, że dziś nie może trenować.",
+    whyToday: "Dzisiejsza sesja nie zostanie wykonana.",
     goalOfSession: "Bez treningu w tym dniu.",
-    riskManaged: "Sesja nie jest nadrabiana na siłę tego samego dnia.",
-    avoidToday: "Nie wykonuj pominiętej objętości dodatkowo.",
+    riskManaged:
+      "Opuszczona praca nie jest automatycznie przenoszona na kolejny dzień ani dokładana później.",
+    avoidToday: "Nie nadrabiaj pominiętej objętości.",
     loadLabelOverride: null,
     sections: {
       warmup: [],
@@ -218,5 +164,37 @@ export function buildUnavailableSession(session: SessionDay): SessionDay {
     classification: undefined,
     secondSession: null,
     slotLabel: null,
+  };
+}
+
+/**
+ * „Dziś nie mogę”: today's unstarted sessions are dropped for today only.
+ * Nothing is moved to another day automatically; started or completed
+ * sessions stay exactly as recorded.
+ */
+export function buildCannotTodayDay(
+  day: SessionDay,
+  completions: Record<string, SessionCompletion> = {},
+): SessionDay {
+  const base = checkinBase(day);
+  const firstLocked = isSessionLocked(base, completions);
+  const second = base.secondSession ?? null;
+  const secondLocked = isSessionLocked(second, completions);
+  if (firstLocked) {
+    if (!second || secondLocked) return day;
+    return {
+      ...base,
+      secondSession: null,
+      slotLabel: null,
+      checkinBaseSession: base,
+      checkinTimeBudgetMin: null,
+    };
+  }
+  return {
+    ...buildUnavailableSession(base),
+    secondSession: secondLocked ? second : null,
+    slotLabel: secondLocked ? "Sesja 1" : null,
+    checkinBaseSession: base,
+    checkinTimeBudgetMin: null,
   };
 }

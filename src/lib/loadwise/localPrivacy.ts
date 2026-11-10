@@ -66,6 +66,7 @@ export function clearLocalUserData(
     `ballwise:fuel-protocol:${userId}:`,
     `loadwise:sprint-progress:${userId}:`,
     `ballwise:daily-plan-checkin:v2:${userId}:`,
+    `ballwise:daily-plan-checkin:v3:${userId}:`,
     `ballwise:warmup:${userId}:`,
     `ballwise:recovery:${userId}:`,
   ];
@@ -169,9 +170,12 @@ export async function clearLocalHealthData(userId: string): Promise<void> {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.removeItem(`loadwise:boot:v2:${userId}`);
-    const prefix = `ballwise:daily-plan-checkin:v2:${userId}:`;
+    const prefixes = [
+      `ballwise:daily-plan-checkin:v2:${userId}:`,
+      `ballwise:daily-plan-checkin:v3:${userId}:`,
+    ];
     for (const key of Object.keys(window.localStorage))
-      if (key.startsWith(prefix)) window.localStorage.removeItem(key);
+      if (prefixes.some((prefix) => key.startsWith(prefix))) window.localStorage.removeItem(key);
   } catch {
     /* Queue redaction still has to run if storage is blocked. */
   }
@@ -210,6 +214,7 @@ export function belongsToLocalUser(key: string, userId: string): boolean {
       `ballwise:fuel-protocol:${userId}:`,
       `loadwise:sprint-progress:${userId}:`,
       `ballwise:daily-plan-checkin:v2:${userId}:`,
+      `ballwise:daily-plan-checkin:v3:${userId}:`,
       `ballwise:warmup:${userId}:`,
       `ballwise:recovery:${userId}:`,
     ].some((prefix) => key.startsWith(prefix)) ||

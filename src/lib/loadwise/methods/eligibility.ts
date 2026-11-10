@@ -127,7 +127,11 @@ export function trainingMethodEligibility(
     Partial<
       Pick<
         SessionDay,
-        "blockPhaseLabel" | "blockWeekNumber" | "readinessAdjustedDate" | "readinessAdjustmentKey"
+        | "blockPhaseLabel"
+        | "blockWeekNumber"
+        | "readinessAdjustedDate"
+        | "readinessAdjustmentKey"
+        | "checkinTimeBudgetMin"
       >
     >,
   rawConditions: MethodSessionConditions = {},
@@ -174,6 +178,11 @@ export function trainingMethodEligibility(
         "Po dzisiejszej korekcie zachowaj dopasowaną dawkę; zmiana metody nie może odtworzyć pełnego treningu.",
       );
   }
+  // „Mam mniej czasu”: a method change must not rebuild the full session.
+  if (session?.checkinTimeBudgetMin)
+    reasons.push(
+      "Po dzisiejszej korekcie zachowaj dopasowaną dawkę; zmiana metody nie może odtworzyć pełnego treningu.",
+    );
   if (
     ["M09", "M10"].includes(id) &&
     (/deload|odciąż|konsolid|świeżość|kalibr|adapt|wprowad/i.test(session?.blockPhaseLabel ?? "") ||

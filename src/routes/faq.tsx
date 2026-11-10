@@ -17,7 +17,7 @@ const FAQ_ITEMS = [
   {
     question: "Dlaczego mój plan zmienił się w trakcie tygodnia?",
     answer:
-      "BallWise dopasowuje obciążenie do meczu, treningów klubowych, dostępności oraz Twojego check-inu. Zmiana ma chronić jakość najważniejszych jednostek, a nie dokładać trening za wszelką cenę.",
+      "BallWise dopasowuje plan do meczu, treningów klubowych, dostępności oraz Twojej decyzji w check-inie. Zmiana ma chronić jakość najważniejszych jednostek, a nie dokładać trening za wszelką cenę.",
   },
   {
     question: "Czy trening klubowy zastępuje trening BallWise?",
@@ -27,12 +27,12 @@ const FAQ_ITEMS = [
   {
     question: "Co oznacza check-in przed treningiem?",
     answer:
-      "To krótka ocena snu, energii, zmęczenia i ewentualnego bólu. Na jej podstawie BallWise może zostawić plan, obniżyć jego trudność albo zaproponować bezpieczniejszy wariant.",
+      "To jedna odpowiedź: „Trenuję”, „Mam mniej czasu” albo „Dziś nie mogę”. Check-in nie pyta o zdrowie, sen ani samopoczucie. „Mam mniej czasu” skraca tylko pracę (rozgrzewka i przerwy zostają), a „Dziś nie mogę” nie przenosi automatycznie treningu na kolejny dzień.",
   },
   {
     question: "Co zrobić, gdy czuję ból?",
     answer:
-      "Zaznacz ból w check-inie i nie wykonuj ruchu, który go nasila. BallWise może ograniczyć obciążenie, ale nie diagnozuje urazów. Przy ostrym, narastającym lub utrzymującym się bólu przerwij trening i skontaktuj się ze specjalistą.",
+      "Nie wykonuj ruchu, który nasila ból, i wybierz w check-inie „Dziś nie mogę”, jeśli nie chcesz dziś trenować. BallWise nie diagnozuje urazów. Przy ostrym, narastającym lub utrzymującym się bólu przerwij trening i skontaktuj się ze specjalistą.",
   },
   {
     question: "Nie mam sprzętu do ćwiczenia — co dalej?",

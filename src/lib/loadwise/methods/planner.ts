@@ -250,6 +250,7 @@ export function applyAutomaticMethod(session: SessionDay, profile: Profile, inde
     session.executionProtected ||
     session.trainingMethods ||
     session.readinessAdjustedDate ||
+    session.checkinTimeBudgetMin ||
     profile.painInjury ||
     profile.seasonPhase === "return_injury"
   )

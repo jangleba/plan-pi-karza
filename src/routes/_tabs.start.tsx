@@ -1,36 +1,25 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ChevronRight } from "lucide-react";
 import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
 import {
-  hasProtectedExecution,
-  buildLighterSession,
-  buildUnavailableSession,
-  promoteSecondSession,
+  buildCannotTodayDay,
+  checkinBase,
+  isSessionLocked,
   readDailyPlanCheckin,
+  restorePlannedDay,
+  sameDayPlan,
   saveDailyPlanCheckin,
-  withoutSecondSession,
   type DailyPlanCheckin,
   type DailyPlanCheckinAction,
-  type SecondSessionCheckinAction,
 } from "@/lib/loadwise/dailyPlanCheckin";
+import { buildTimeVariants, ownDayMinutes, type TimeVariant } from "@/lib/loadwise/dailyTimeBudget";
 import { resolveTrainingDecisionMode } from "@/lib/loadwise/trainingDecisionGate";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { ModifySheet, type ModificationChoice } from "@/components/loadwise/ModifySheet";
 import { ProfileAvatar } from "@/components/loadwise/ui";
-import type { Proposal } from "@/lib/loadwise/modifications";
 import type { SessionDay } from "@/lib/loadwise/types";
 import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
-import { decideRemovedSession, moveSessionToDay } from "@/lib/loadwise/planDecisionEngine";
 import { StartDashboard } from "@/components/loadwise/StartDashboard";
 import {
   completeFieldTask,
@@ -45,107 +34,112 @@ export const Route = createFileRoute("/_tabs/start")({
   component: StartScreen,
 });
 
-type CheckinStep = "confirm" | "change";
+type CheckinStep = "choose" | "time";
 
-function DailyPlanCheckinDialog({
+/**
+ * Minimal bottom panel: three answers only. No questions about health,
+ * pain, sleep, stress, mood or motivation.
+ */
+function DailyCheckinPanel({
   open,
   onOpenChange,
-  hasTraining,
-  canAddSession,
+  summary,
+  variants,
+  shortened,
+  plannedMinutes,
   saving,
-  onAction,
+  onTrain,
+  onCannot,
+  onVariant,
+  onRestore,
 }: {
   open: boolean;
   onOpenChange: (value: boolean) => void;
-  hasTraining: boolean;
-  canAddSession: boolean;
+  summary: string;
+  variants: TimeVariant[];
+  shortened: boolean;
+  plannedMinutes: number;
   saving: boolean;
-  onAction: (action: DailyPlanCheckinAction) => void;
+  onTrain: () => void;
+  onCannot: () => void;
+  onVariant: (variant: TimeVariant) => void;
+  onRestore: () => void;
 }) {
-  const [step, setStep] = useState<CheckinStep>("confirm");
+  const [step, setStep] = useState<CheckinStep>("choose");
 
   useEffect(() => {
-    if (open) setStep("confirm");
+    if (open) setStep("choose");
   }, [open]);
 
-  function changeOpen(nextOpen: boolean) {
-    if (nextOpen) setStep("confirm");
-    onOpenChange(nextOpen);
-  }
-
   return (
-    <Sheet open={open} onOpenChange={changeOpen}>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
-        <DialogHeader>
-          <SheetTitle>
-            {step === "confirm" ? "Czy dzisiejszy plan jest aktualny?" : "Co chcesz zmienić?"}
+        <div className="space-y-1 px-1">
+          <SheetTitle className="text-[17px] font-medium tracking-[-0.01em]">
+            {step === "choose" ? "Dzisiejszy trening" : "Ile masz dziś czasu?"}
           </SheetTitle>
-          <SheetDescription>
-            {step === "confirm"
-              ? "Zmieniasz plan, bez pytań o zdrowie i bez podawania przyczyny."
-              : "Wybierz jedną zmianę. Nie musisz podawać powodu."}
+          <SheetDescription className="text-sm text-muted-foreground">
+            {step === "choose"
+              ? summary
+              : "Skracamy tylko pracę. Rozgrzewka i pełne przerwy zostają."}
           </SheetDescription>
-        </DialogHeader>
+        </div>
 
-        {step === "confirm" ? (
-          <div className="space-y-2 pt-2">
-            <Button className="h-12 w-full" disabled={saving} onClick={() => onAction("keep")}>
-              Trenuję według planu
-            </Button>
-            <Button
-              className="h-12 w-full"
-              variant="outline"
+        {step === "choose" ? (
+          <div className="mt-4 grid gap-2" role="group" aria-label="Decyzja dnia">
+            <CheckinChoice
+              label="Trenuję"
+              hint="Plan bez zmian"
+              tone="primary"
               disabled={saving}
-              onClick={() => setStep("change")}
-            >
-              Chcę coś zmienić
-            </Button>
+              onClick={onTrain}
+            />
+            <CheckinChoice
+              label="Mam mniej czasu"
+              hint="Krótsza praca, bez skracania przerw"
+              disabled={saving}
+              onClick={() => setStep("time")}
+            />
+            <CheckinChoice
+              label="Dziś nie mogę"
+              hint="Bez automatycznego nadrabiania"
+              disabled={saving}
+              onClick={onCannot}
+            />
           </div>
         ) : (
-          <div className="space-y-2 pt-2">
-            <p className="text-sm text-muted-foreground">
-              Mniej pracy zachowuje rozgrzewkę, przerwy i sposób wykonania. Aby zmienić
-              intensywność, wybierz zamianę sesji. Klub i mecz uzgodnij z trenerem.
-            </p>
-            {hasTraining && (
-              <CheckinOption
-                label="Mniej serii lub odcinków"
+          <div className="mt-4 grid gap-2">
+            {variants.map((variant) => (
+              <CheckinChoice
+                key={variant.id}
+                label={variant.label}
+                hint={variant.detail}
                 disabled={saving}
-                onClick={() => onAction("lighter")}
+                onClick={() => onVariant(variant)}
+              />
+            ))}
+            {variants.length === 0 && (
+              <p className="rounded-xl border border-border/60 px-4 py-3 text-sm text-muted-foreground">
+                Nie ma krótszego wariantu, który zachowuje rozgrzewkę i pełne przerwy. Możesz
+                wykonać pełny plan albo wybrać „Dziś nie mogę”.
+              </p>
+            )}
+            {shortened && (
+              <CheckinChoice
+                label={`Pełny plan · ok. ${plannedMinutes} min`}
+                hint="Wróć do planu sprzed dzisiejszej zmiany"
+                disabled={saving}
+                onClick={onRestore}
               />
             )}
-            <CheckinOption
-              label="Chcę zamienić dzisiejszą sesję"
+            <button
+              type="button"
               disabled={saving}
-              onClick={() => onAction("swap")}
-            />
-            {canAddSession && (
-              <CheckinOption
-                label="Chcę dodać sesję"
-                disabled={saving}
-                onClick={() => onAction("add")}
-              />
-            )}
-            <CheckinOption
-              label="Zmienił się mój tydzień"
-              disabled={saving}
-              onClick={() => onAction("week_change")}
-            />
-            {hasTraining && (
-              <CheckinOption
-                label="Pomiń lub zaproponuj inny termin"
-                disabled={saving}
-                onClick={() => onAction("unavailable")}
-              />
-            )}
-            <Button
-              className="mt-2 w-full"
-              variant="ghost"
-              disabled={saving}
-              onClick={() => setStep("confirm")}
+              onClick={() => setStep("choose")}
+              className="mt-1 h-10 rounded-xl text-sm font-medium text-muted-foreground"
             >
               Wróć
-            </Button>
+            </button>
           </div>
         )}
       </SheetContent>
@@ -153,116 +147,16 @@ function DailyPlanCheckinDialog({
   );
 }
 
-type SecondCheckinStep = "want" | "confirm" | "change";
-
-function SecondSessionCheckinDialog({
-  open,
-  onOpenChange,
-  saving,
-  onAction,
-}: {
-  open: boolean;
-  onOpenChange: (value: boolean) => void;
-  saving: boolean;
-  onAction: (action: SecondSessionCheckinAction) => void;
-}) {
-  const [step, setStep] = useState<SecondCheckinStep>("want");
-
-  useEffect(() => {
-    if (open) setStep("want");
-  }, [open]);
-
-  function changeOpen(nextOpen: boolean) {
-    if (nextOpen) setStep("want");
-    onOpenChange(nextOpen);
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={changeOpen}>
-      <DialogContent className="border-border/70 bg-popover">
-        <DialogHeader>
-          <DialogTitle>
-            {step === "want"
-              ? "Czy chcesz dziś wykonać również drugi trening?"
-              : step === "confirm"
-                ? "Czy plan drugiej sesji jest aktualny?"
-                : "Co zmienić w drugiej sesji?"}
-          </DialogTitle>
-          <DialogDescription>
-            {step === "want"
-              ? "Wybierz tylko to, co dotyczy drugiej sesji."
-              : step === "confirm"
-                ? "Możesz ją zostawić albo zmienić niezależnie od pierwszej."
-                : "Jedna zmiana, bez podawania powodu."}
-          </DialogDescription>
-        </DialogHeader>
-
-        {step === "want" ? (
-          <div className="space-y-2 pt-2">
-            <Button className="h-12 w-full" disabled={saving} onClick={() => setStep("confirm")}>
-              Tak
-            </Button>
-            <Button
-              className="h-12 w-full"
-              variant="outline"
-              disabled={saving}
-              onClick={() => onAction("remove")}
-            >
-              Nie — usuń drugi trening
-            </Button>
-          </div>
-        ) : step === "confirm" ? (
-          <div className="space-y-2 pt-2">
-            <Button className="h-12 w-full" disabled={saving} onClick={() => onAction("keep")}>
-              Tak — zostaw bez zmian
-            </Button>
-            <Button
-              className="h-12 w-full"
-              variant="outline"
-              disabled={saving}
-              onClick={() => setStep("change")}
-            >
-              Chcę coś zmienić
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-2 pt-2">
-            <CheckinOption
-              label="Druga sesja lżej"
-              disabled={saving}
-              onClick={() => onAction("lighter")}
-            />
-            <CheckinOption
-              label="Zamień drugą sesję"
-              disabled={saving}
-              onClick={() => onAction("swap")}
-            />
-            <CheckinOption
-              label="Nie mogę wykonać drugiej sesji"
-              disabled={saving}
-              onClick={() => onAction("remove")}
-            />
-            <Button
-              className="mt-2 w-full"
-              variant="ghost"
-              disabled={saving}
-              onClick={() => setStep("confirm")}
-            >
-              Wróć
-            </Button>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function CheckinOption({
+function CheckinChoice({
   label,
+  hint,
+  tone = "neutral",
   disabled,
   onClick,
 }: {
   label: string;
+  hint: string;
+  tone?: "primary" | "neutral";
   disabled: boolean;
   onClick: () => void;
 }) {
@@ -271,116 +165,35 @@ function CheckinOption({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="soft-card flex min-h-14 w-full items-center justify-between gap-3 p-4 text-left text-sm font-medium disabled:opacity-50"
+      className={
+        "flex min-h-14 w-full flex-col items-start justify-center gap-0.5 rounded-xl border px-4 py-3 text-left transition-colors disabled:opacity-50 " +
+        (tone === "primary"
+          ? "border-primary/25 bg-primary/[0.06] hover:bg-primary/[0.1]"
+          : "border-border/60 bg-transparent hover:bg-secondary/60")
+      }
     >
-      {label}
-      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+      <span className="text-[15px] font-medium">{label}</span>
+      <span className="text-xs text-muted-foreground">{hint}</span>
     </button>
   );
 }
 
-function decisionCopy(checkin: DailyPlanCheckin | null, session: SessionDay) {
-  if (!checkin) {
-    return {
-      eyebrow: "Codzienny check-in",
-      title: "Potwierdź dzisiejszy plan",
-      description: "Jedno pytanie. Bez danych o zdrowiu i samopoczuciu.",
-    };
-  }
+function decisionTitle(checkin: DailyPlanCheckin | null, day: SessionDay): string {
+  if (!checkin) return "Sprawdź lub zmień";
+  if (checkin.action === "cannot_today")
+    return day.isUnavailable ? "Dziś bez treningu" : "Dziś bez nierozpoczętej sesji";
+  if (checkin.action === "less_time")
+    return checkin.minutes ? `Krótszy wariant · ok. ${checkin.minutes} min` : "Krótszy wariant";
+  return "Trenuję według planu";
+}
 
-  if (session.isUnavailable || session.dayType === "rest") {
-    return {
-      eyebrow: "Plan zaktualizowany",
-      title: "Dziś bez treningu",
-      description: "Nie nadrabiamy pominiętej jednostki na siłę tego samego dnia.",
-    };
-  }
-
-  if (checkin.primaryAction === "unavailable") {
-    return {
-      eyebrow: "Plan zaktualizowany",
-      title: "Zostaje tylko druga sesja",
-      description:
-        checkin.secondAction === "lighter"
-          ? "Pierwsza sesja została usunięta, a druga jest lżejsza."
-          : checkin.secondAction === "swap"
-            ? "Pierwsza sesja została usunięta, a druga zamieniona."
-            : "Pierwsza sesja została usunięta. Druga pozostaje w planie.",
-    };
-  }
-
-  if (checkin.secondAction === "remove") {
-    return {
-      eyebrow: "Plan zaktualizowany",
-      title: "Druga sesja usunięta",
-      description:
-        checkin.primaryAction === "lighter"
-          ? "Pierwsza sesja pozostaje w lżejszej wersji."
-          : "Wykonujesz dziś tylko pierwszą sesję.",
-    };
-  }
-
-  if (checkin.secondAction === "lighter") {
-    return {
-      eyebrow: "Plan zaktualizowany",
-      title: "Druga sesja jest lżejsza",
-      description:
-        checkin.primaryAction === "lighter"
-          ? "Obie sesje mają osobno zmniejszone obciążenie."
-          : "Pierwsza sesja pozostaje zgodna z Twoim wyborem.",
-    };
-  }
-
-  if (checkin.secondAction === "swap") {
-    return {
-      eyebrow: "Plan zaktualizowany",
-      title: "Druga sesja została zamieniona",
-      description: "Pierwsza sesja pozostaje zgodna z Twoim wyborem.",
-    };
-  }
-
-  if (checkin.primaryAction === "lighter") {
-    return {
-      eyebrow: "Plan zaktualizowany",
-      title: "Pierwsza sesja jest lżejsza",
-      description:
-        checkin.secondAction === "keep"
-          ? "Druga sesja pozostaje bez zmian."
-          : "Otwórz sesję, żeby zobaczyć ćwiczenia.",
-    };
-  }
-  if (checkin.primaryAction === "swap") {
-    return {
-      eyebrow: "Plan zaktualizowany",
-      title: "Pierwsza sesja została zamieniona",
-      description:
-        checkin.secondAction === "keep"
-          ? "Druga sesja pozostaje bez zmian."
-          : "Otwórz sesję, żeby zobaczyć ćwiczenia.",
-    };
-  }
-  if (checkin.primaryAction === "add") {
-    return {
-      eyebrow: "Plan zaktualizowany",
-      title: "Dodatkowa sesja została dodana",
-      description: "Plan dnia uwzględnia wybraną dodatkową jednostkę.",
-    };
-  }
-  if (checkin.primaryAction === "week_change") {
-    return {
-      eyebrow: "Zmiana tygodnia",
-      title: "Sprawdź zaktualizowany plan",
-      description: "Plan wykorzysta zapisany kalendarz i dostępność.",
-    };
-  }
-  return {
-    eyebrow: "Decyzja BallWise",
-    title: "Plan bez zmian",
-    description:
-      checkin.secondAction === "keep"
-        ? "Obie sesje pozostają bez zmian."
-        : "Możesz przejść do zaplanowanej jednostki.",
-  };
+function daySummary(day: SessionDay): string {
+  const slots = [day, day.secondSession].filter(Boolean) as SessionDay[];
+  const own = ownDayMinutes(day);
+  if (day.isUnavailable || slots.every((slot) => slot.dayType === "rest"))
+    return "Dziś nie masz zaplanowanego treningu.";
+  const names = slots.map((slot) => slot.title).join(" + ");
+  return own > 0 ? `${names} · ok. ${own} min` : names;
 }
 
 function PlanLoadingState() {
@@ -439,23 +252,11 @@ function StartScreen() {
   const navigate = useNavigate();
   const router = useRouter();
   const [checkinOpen, setCheckinOpen] = useState(false);
-  const [secondCheckinOpen, setSecondCheckinOpen] = useState(false);
-  const [modifyOpen, setModifyOpen] = useState(false);
-  const [modifyTarget, setModifyTarget] = useState<"primary" | "second" | null>(null);
-  const [modifyChoice, setModifyChoice] = useState<ModificationChoice | null>(null);
-  const [pendingPrimaryAction, setPendingPrimaryAction] = useState<DailyPlanCheckinAction | null>(
-    null,
-  );
   const [checkin, setCheckin] = useState<DailyPlanCheckin | null>(() =>
     user ? readDailyPlanCheckin(user.id, todayIso) : null,
   );
   const [checkinLoaded, setCheckinLoaded] = useState(Boolean(user));
   const [savingAction, setSavingAction] = useState(false);
-  const [pendingRescue, setPendingRescue] = useState<{
-    removed: SessionDay;
-    recommended: SessionDay;
-    alternative?: SessionDay;
-  } | null>(null);
   const autoGenerateRef = useRef(false);
   const [autoGenerateTried, setAutoGenerateTried] = useState(false);
 
@@ -544,309 +345,80 @@ function StartScreen() {
 
   const session = todaySession;
   const userId = user.id;
-  const activeProfile = profile;
   const adjusted = effectivePlan.find((day) => day.date === todayIso) ?? session;
   const commandDay = commandPlan.find((day) => day.date === todayIso) ?? session;
   const decisionMode = resolveTrainingDecisionMode({
     isToday: true,
     hasTodayCheckin: Boolean(checkin),
   });
-  const copy = decisionCopy(checkin, adjusted);
-  const hasTraining = !adjusted.isUnavailable && adjusted.dayType !== "rest";
-  const hasPlannedSecond = Boolean(adjusted.secondSession);
+  const locked = (slot: SessionDay) => isSessionLocked(slot, state.completions);
+  const timeVariants = buildTimeVariants(commandDay, locked);
+  const shortened = Boolean(commandDay.checkinBaseSession);
+  const plannedMinutes = ownDayMinutes(checkinBase(commandDay));
 
-  function completeCheckin(
-    primaryAction: DailyPlanCheckinAction,
-    secondAction: SecondSessionCheckinAction | null,
-  ) {
-    const record = saveDailyPlanCheckin(userId, todayIso, primaryAction, secondAction);
-    setCheckin(record);
+  function remember(action: DailyPlanCheckinAction, minutes: number | null = null) {
+    setCheckin(saveDailyPlanCheckin(userId, todayIso, action, minutes));
     setCheckinOpen(false);
-    setSecondCheckinOpen(false);
-    setPendingPrimaryAction(null);
   }
 
-  function continueAfterPrimary(action: DailyPlanCheckinAction) {
-    setPendingPrimaryAction(action);
-    setCheckinOpen(false);
-    if (hasPlannedSecond) {
-      setSecondCheckinOpen(true);
-    } else {
-      completeCheckin(action, null);
-    }
-  }
-
-  async function handleRemovedStimulus(removed: SessionDay) {
-    const decision = decideRemovedSession({
-      effectivePlan: selectEffectivePlan(state.plan, state.modifications),
-      removed,
-      todayIso,
-      profile: activeProfile,
-      completions: state.completions,
-    });
-    if (decision.action === "already_covered" || decision.action === "drop") {
-      toast.info(decision.reason);
-      return;
-    }
-    if (decision.action === "ask") {
-      setPendingRescue({
-        removed,
-        recommended: decision.recommended,
-        alternative: decision.alternative,
-      });
-      return;
-    }
-    if (decision.action === "move") {
-      setPendingRescue({ removed, recommended: decision.target });
-    }
-  }
-
-  async function applyRescueTarget(target: SessionDay) {
-    if (!pendingRescue || savingAction) return;
-    setSavingAction(true);
-    try {
-      const decision = decideRemovedSession({
-        effectivePlan: selectEffectivePlan(state.plan, state.modifications),
-        removed: pendingRescue.removed,
-        todayIso,
-        profile: activeProfile,
-        completions: state.completions,
-      });
-      const options =
-        decision.action === "move"
-          ? [decision.target]
-          : decision.action === "ask"
-            ? [decision.recommended, decision.alternative]
-            : [];
-      if (!options.some((option) => option.date === target.date))
-        throw new Error(
-          "Kalendarz się zmienił. Ten termin nie jest już proponowany; sesja pozostaje pominięta.",
-        );
-      const currentTarget = commandPlan.find((day) => day.date === target.date);
-      if (!currentTarget) throw new Error("Nie znaleziono terminu w aktualnym planie.");
-      await applyModification(
-        target.date,
-        "swap",
-        moveSessionToDay(pendingRescue.removed, currentTarget),
-        currentTarget,
-        "[engine:athlete-choice] Przeniesiono brakujący bodziec po jednej decyzji zawodnika.",
-      );
-      setPendingRescue(null);
-      toast.success(`Sesja przeniesiona na ${target.dayName}.`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Nie udało się przenieść sesji.");
-    } finally {
-      setSavingAction(false);
-    }
-  }
-
-  async function handleCheckinAction(action: DailyPlanCheckinAction) {
-    if (savingAction) return;
-    const locked = hasProtectedExecution(commandDay, state.completions);
-    if (locked && action !== "keep" && action !== "week_change") {
-      toast.info("Sesja jest rozpoczęta lub wykonana. Ten panel nie zmienia jej zapisu.");
-      return;
-    }
-
-    if (action === "swap" || action === "add") {
-      setCheckinOpen(false);
-      setPendingPrimaryAction(action);
-      setModifyTarget("primary");
-      setModifyChoice(action);
-      setModifyOpen(true);
-      return;
-    }
-
-    if (action === "week_change") {
-      completeCheckin(action, null);
-      void navigate({ to: "/onboarding", search: { edit: true } });
-      return;
-    }
-
-    setSavingAction(true);
-    try {
-      if (action === "lighter") {
-        const lighter = buildLighterSession(commandDay);
-        await applyModification(
-          todayIso,
-          "swap",
-          lighter,
-          commandDay,
-          "[daily-checkin:lighter] Zawodnik wybrał lżejszy wariant.",
-        );
-      } else if (action === "unavailable" && !hasPlannedSecond) {
-        const unavailable = buildUnavailableSession(commandDay);
-        await applyModification(
-          todayIso,
-          "swap",
-          unavailable,
-          commandDay,
-          "[daily-checkin:unavailable] Dzisiejsza sesja jest niedostępna.",
-        );
-        await handleRemovedStimulus(commandDay);
-      }
-      continueAfterPrimary(action);
-      toast.success(
-        action === "keep" && !hasPlannedSecond
-          ? "Plan potwierdzony."
-          : hasPlannedSecond
-            ? "Pierwsza decyzja zapisana."
-            : "Plan został zaktualizowany.",
-      );
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Nie udało się zmienić planu.");
-    } finally {
-      setSavingAction(false);
-    }
-  }
-
-  async function handleSecondSessionAction(action: SecondSessionCheckinAction) {
-    if (savingAction || !pendingPrimaryAction) return;
-    if (
-      action !== "keep" &&
-      commandDay.secondSession &&
-      hasProtectedExecution(commandDay.secondSession, state.completions)
-    ) {
-      toast.info("Sesja jest rozpoczęta lub wykonana. Ten panel nie zmienia jej zapisu.");
-      return;
-    }
-
-    if (action === "swap") {
-      setSecondCheckinOpen(false);
-      setModifyTarget("second");
-      setModifyChoice("swap");
-      setModifyOpen(true);
-      return;
-    }
-
-    const secondSession = commandDay.secondSession;
-    if (!secondSession && action !== "remove") return;
-
-    setSavingAction(true);
-    try {
-      if (pendingPrimaryAction === "unavailable") {
-        const replacement =
-          action === "remove"
-            ? buildUnavailableSession(commandDay)
-            : promoteSecondSession(
-                commandDay,
-                action === "lighter" && secondSession
-                  ? buildLighterSession(secondSession)
-                  : secondSession,
-              );
-        await applyModification(
-          todayIso,
-          "swap",
-          replacement,
-          commandDay,
-          action === "remove"
-            ? "[daily-checkin:both-unavailable] Obie sesje zostały usunięte."
-            : `[daily-checkin:promote-second-${action}] Pozostaje tylko druga sesja.`,
-        );
-        await handleRemovedStimulus(commandDay);
-      } else if (action === "remove") {
-        await applyModification(
-          todayIso,
-          "swap",
-          withoutSecondSession(commandDay),
-          commandDay,
-          "[daily-checkin:remove-second] Druga sesja została usunięta.",
-        );
-        if (secondSession) await handleRemovedStimulus(secondSession);
-      } else if (action === "lighter" && secondSession) {
-        await applyModification(
-          todayIso,
-          "swap",
-          {
-            ...commandDay,
-            secondSession: {
-              ...buildLighterSession(secondSession),
-              slotLabel: "Sesja 2",
-              secondSession: null,
-            },
-          },
-          commandDay,
-          "[daily-checkin:second-lighter] Druga sesja w lżejszej wersji.",
-        );
-      }
-
-      completeCheckin(pendingPrimaryAction, action);
-      toast.success(
-        action === "keep" ? "Plan obu sesji potwierdzony." : "Druga sesja została zaktualizowana.",
-      );
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Nie udało się zmienić planu.");
-    } finally {
-      setSavingAction(false);
-    }
-  }
-
-  async function applySelectedProposal(proposal: Proposal, choice: ModificationChoice) {
-    if (modifyTarget === "second") {
-      const selectedSecond: SessionDay = {
-        ...proposal.session,
-        date: commandDay.date,
-        dayName: commandDay.dayName,
-        dayOfWeek: commandDay.dayOfWeek,
-        mdRelation: commandDay.mdRelation,
-        mdLabel: commandDay.mdLabel,
-        slotLabel: pendingPrimaryAction === "unavailable" ? null : "Sesja 2",
-        secondSession: null,
-      };
-
-      if (pendingPrimaryAction === "unavailable") {
-        await applyModification(
-          todayIso,
-          "swap",
-          promoteSecondSession(commandDay, selectedSecond),
-          commandDay,
-          "[daily-checkin:promote-second-swap] Pozostaje zamieniona druga sesja.",
-        );
-      } else {
-        await applyModification(
-          todayIso,
-          "swap",
-          {
-            ...commandDay,
-            secondSession: selectedSecond,
-            slotLabel: "Sesja 1",
-          },
-          commandDay,
-          `[daily-checkin:second-swap] ${proposal.reason}`,
-        );
-      }
-      return;
-    }
-
-    if (choice === "add") {
-      await applyModification(
-        todayIso,
-        "add",
-        proposal.session,
-        null,
-        `[daily-checkin:add] ${proposal.reason}`,
-      );
-      return;
-    }
-
-    const replacement: SessionDay = {
-      ...proposal.session,
-      date: commandDay.date,
-      dayName: commandDay.dayName,
-      dayOfWeek: commandDay.dayOfWeek,
-      dayDbId: commandDay.dayDbId,
-      mdRelation: commandDay.mdRelation,
-      mdLabel: commandDay.mdLabel,
-      slotLabel: commandDay.secondSession ? "Sesja 1" : null,
-      secondSession: commandDay.secondSession,
-    };
+  /** Writes only a real change; the same decision applied again is a no-op. */
+  async function applyDay(next: SessionDay, tag: string, message: string) {
+    if (sameDayPlan(next, commandDay)) return false;
     await applyModification(
       todayIso,
       "swap",
-      replacement,
+      next,
       commandDay,
-      `[daily-checkin:swap] ${proposal.reason}`,
+      `[daily-checkin:${tag}] ${message}`,
     );
+    return true;
+  }
+
+  async function run(action: () => Promise<void>) {
+    if (savingAction) return;
+    setSavingAction(true);
+    try {
+      await action();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Nie udało się zmienić planu.");
+    } finally {
+      setSavingAction(false);
+    }
+  }
+
+  // „Trenuję” confirms the current plan. It never increases the dose.
+  function handleTrain() {
+    remember("train");
+    toast.success("Plan potwierdzony.");
+  }
+
+  function handleVariant(variant: TimeVariant) {
+    void run(async () => {
+      await applyDay(variant.day, "less-time", `Zawodnik ma dziś ok. ${variant.minutes} min.`);
+      remember("less_time", variant.minutes);
+      toast.success(`Plan na ok. ${variant.minutes} min.`);
+    });
+  }
+
+  function handleRestore() {
+    void run(async () => {
+      await applyDay(restorePlannedDay(commandDay), "restore", "Powrót do pełnego planu dnia.");
+      remember("train");
+      toast.success("Przywrócono pełny plan dnia.");
+    });
+  }
+
+  function handleCannot() {
+    const next = buildCannotTodayDay(commandDay, state.completions);
+    if (next === commandDay) {
+      toast.info("Sesja jest rozpoczęta lub wykonana. Jej zapis pozostaje bez zmian.");
+      return;
+    }
+    void run(async () => {
+      await applyDay(next, "cannot-today", "Zawodnik dziś nie może trenować.");
+      remember("cannot_today");
+      toast.success("Dziś bez treningu. Nie przenosimy tej pracy automatycznie na kolejny dzień.");
+    });
   }
 
   const firstName = profile.name.trim().split(/\s+/)[0] || "Zawodniku";
@@ -862,7 +434,7 @@ function StartScreen() {
         todayIso={todayIso}
         checkinComplete={checkinComplete}
         busy={savingAction}
-        checkinDetail={copy.title}
+        checkinDetail={decisionTitle(checkin, adjusted)}
         onCheckin={() => setCheckinOpen(true)}
         onPlan={() => void navigate({ to: "/plan" })}
         onLab={() => void navigate({ to: "/lab" })}
@@ -908,86 +480,19 @@ function StartScreen() {
       <UpcomingWeekPrompt
         onConfirmed={(week) => void navigate({ to: "/plan", search: { week } })}
       />
-      <DailyPlanCheckinDialog
+      <DailyCheckinPanel
         open={checkinOpen}
         onOpenChange={setCheckinOpen}
-        hasTraining={hasTraining}
-        canAddSession={!hasPlannedSecond}
+        summary={daySummary(adjusted)}
+        variants={timeVariants}
+        shortened={shortened}
+        plannedMinutes={plannedMinutes}
         saving={savingAction}
-        onAction={(action) => void handleCheckinAction(action)}
+        onTrain={handleTrain}
+        onCannot={handleCannot}
+        onVariant={handleVariant}
+        onRestore={handleRestore}
       />
-
-      <SecondSessionCheckinDialog
-        open={secondCheckinOpen}
-        onOpenChange={setSecondCheckinOpen}
-        saving={savingAction}
-        onAction={(action) => void handleSecondSessionAction(action)}
-      />
-
-      <ModifySheet
-        open={modifyOpen}
-        onOpenChange={setModifyOpen}
-        date={todayIso}
-        initialChoice={modifyChoice ?? undefined}
-        context={modifyTarget === "second" ? "second" : "primary"}
-        onSelectProposal={applySelectedProposal}
-        onApplied={(choice) => {
-          if (modifyTarget === "second" && pendingPrimaryAction) {
-            completeCheckin(pendingPrimaryAction, "swap");
-          } else if (choice === "add") {
-            completeCheckin("add", null);
-          } else {
-            continueAfterPrimary("swap");
-          }
-          setModifyChoice(null);
-          setModifyTarget(null);
-        }}
-      />
-
-      <Dialog
-        open={Boolean(pendingRescue)}
-        onOpenChange={(open) => {
-          if (!open) setPendingRescue(null);
-        }}
-      >
-        <DialogContent className="border-border/70 bg-popover">
-          <DialogHeader>
-            <DialogTitle>Chcesz przenieść tę sesję?</DialogTitle>
-            <DialogDescription>
-              To propozycja według kalendarza, nie obowiązek. Możesz pominąć sesję bez odrabiania.
-            </DialogDescription>
-          </DialogHeader>
-          {pendingRescue && (
-            <div className="grid gap-2">
-              <Button
-                disabled={savingAction}
-                onClick={() => void applyRescueTarget(pendingRescue.recommended)}
-              >
-                {pendingRescue.recommended.dayName} — polecane
-              </Button>
-              {pendingRescue.alternative && (
-                <Button
-                  variant="outline"
-                  disabled={savingAction}
-                  onClick={() =>
-                    pendingRescue.alternative && void applyRescueTarget(pendingRescue.alternative)
-                  }
-                >
-                  {pendingRescue.alternative.dayName}
-                </Button>
-              )}
-              <button
-                type="button"
-                disabled={savingAction}
-                onClick={() => setPendingRescue(null)}
-                className="px-3 py-2 text-sm font-medium text-muted-foreground"
-              >
-                Nie nadrabiaj
-              </button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
