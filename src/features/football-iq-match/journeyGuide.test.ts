@@ -10,7 +10,7 @@ import {
   startLine,
   startLines,
 } from "./journeyGuide";
-import { situationBank } from "./situationBank";
+import { playableSituationBank, situationBank } from "./situationBank";
 
 describe("start instruction", () => {
   it("describes the real starting picture of every lesson", () => {
@@ -75,15 +75,25 @@ describe("situation picker", () => {
     expect(own.every((i) => i.own)).toBe(true);
     expect(all.length).toBeGreaterThan(own.length);
     expect(new Set(all.map((i) => i.def.topicId)).size).toBe(all.length);
-    expect(all.length).toBe(34);
+    // Two situations have no playable picture yet (variantGenerator.test.ts).
+    expect(all.length).toBe(32);
+    for (const i of all) expect(playableSituationBank).toContain(i.def);
     expect(all.some((i) => i.moment === "transition")).toBe(true);
   });
 
   it("moves to the next topic and to another context of the same topic", () => {
     const first = pickerItems("defender")[0].def;
     expect(nextDefinition(first, "defender").topicId).not.toBe(first.topicId);
-    const other = nextContext(first);
-    expect(other.topicId).toBe(first.topicId);
-    expect(other.context).toBe((first.context + 1) % 3);
+    // Cycles through every playable picture of the topic and back to the first.
+    const pictures = playableSituationBank.filter((d) => d.topicId === first.topicId);
+    let at = first;
+    const seen = new Set([at.id]);
+    for (let i = 1; i < pictures.length; i++) {
+      at = nextContext(at);
+      expect(at.topicId).toBe(first.topicId);
+      seen.add(at.id);
+    }
+    expect(seen.size).toBe(pictures.length);
+    expect(nextContext(at).id).toBe(first.id);
   });
 });

@@ -5,7 +5,12 @@
 import { advancedJourneyBank } from "./advancedJourneyBank";
 import { decisionSituation } from "./decisionOptions";
 import { roleLabels, rolesForPosition } from "./journeyBank";
-import { gameMomentLabels, situationBank, situationFor, type GameMoment } from "./situationBank";
+import {
+  gameMomentLabels,
+  playableSituationBank,
+  situationFor,
+  type GameMoment,
+} from "./situationBank";
 import type { JourneyDefinition, JourneyMode, JourneySession } from "./journeyTypes";
 
 export const ACTION_TIME_LIMIT_SECONDS = 240;
@@ -72,13 +77,14 @@ export type PickerItem = {
   role: string;
   own: boolean;
 };
-/** One entry per topic (first context), own position first, grouped by game moment.
- * Only hand-placed situations: every position has its own realistic pictures. */
+/** One entry per topic (its first playable picture), own position first, grouped by game
+ * moment. Only hand-placed situations: every position has its own realistic pictures. */
 export function pickerItems(position?: string, all = false): PickerItem[] {
   const roles = rolesForPosition(position);
   const order: GameMoment[] = ["build", "attack", "transition", "defend"];
-  return situationBank
-    .filter((d) => d.context === 0)
+  const seen = new Set<string>();
+  return playableSituationBank
+    .filter((d) => !seen.has(d.topicId) && !!seen.add(d.topicId))
     .map((def) => ({
       def,
       moment: momentOf(def),
@@ -102,9 +108,15 @@ export function nextDefinition(current: JourneyDefinition, position?: string) {
   const index = pool.findIndex((i) => i.def.topicId === current.topicId);
   return pool[(index + 1) % pool.length].def;
 }
-/** Same topic in the next context (different score and positions). */
+/** Same topic in its next playable picture (another pressing side, closed lane, line
+ * height or start spot), cycling through all of them. */
 export function nextContext(current: JourneyDefinition) {
-  return [...situationBank, ...advancedJourneyBank].find(
+  const variants = playableSituationBank.filter((d) => d.topicId === current.topicId);
+  if (variants.length) {
+    const at = variants.findIndex((d) => d.id === current.id);
+    return variants[(at + 1) % variants.length];
+  }
+  return advancedJourneyBank.find(
     (d) => d.topicId === current.topicId && d.context === (current.context + 1) % 3,
   )!;
 }
