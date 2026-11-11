@@ -1,6 +1,7 @@
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex } from "@noble/hashes/utils";
 import type { Profile, SessionCompletion, SessionDay } from "./types";
+import { repairSegmentBoundaries } from "./segmentBoundary";
 
 /** Only actual generator inputs invalidate a plan; timestamps and Fuel do not. */
 export function trainingProfileRevision(profile: Profile): string {
@@ -98,16 +99,20 @@ export function reconcilePlanIdentity(
       return { ...candidate, dbId: old.dbId, sessionId: old.sessionId };
     return { ...candidate, dbId: undefined, sessionId: undefined };
   };
-  return next.map((candidate) => {
+  const reconciled = next.map((candidate) => {
     const old = byDate.get(candidate.date);
     const primary = preserve(candidate, old);
     const oldSecond = old?.secondSession;
     const secondLog = oldSecond?.dbId ? completions[oldSecond.dbId] : undefined;
-    const second = candidate.secondSession
-      ? preserve(candidate.secondSession, oldSecond)
-      : oldSecond &&
-          (oldSecond.date < today || secondLog?.completed || secondLog?.status === "started")
-        ? { ...oldSecond, executionProtected: true }
+    const oldSecondProtected =
+      !!oldSecond &&
+      (oldSecond.date < today || secondLog?.completed || secondLog?.status === "started");
+    // A past day is history: a regenerated plan must not attach new work to it.
+    const pastDay = !!old && old.date < today;
+    const second = oldSecondProtected
+      ? { ...oldSecond, executionProtected: true }
+      : candidate.secondSession && !pastDay
+        ? preserve(candidate.secondSession, oldSecond)
         : null;
     return {
       ...primary,
@@ -118,4 +123,10 @@ export function reconcilePlanIdentity(
       slotLabel: second ? "Sesja 1" : null,
     };
   });
+  // Preserved history and the new future can share one calendar week or meet
+  // at a week boundary. Weekly limits are resolved on future, unstarted days only.
+  return repairSegmentBoundaries(
+    reconciled,
+    reconciled.filter((day) => day.date >= today && !day.executionProtected).map((day) => day.date),
+  );
 }

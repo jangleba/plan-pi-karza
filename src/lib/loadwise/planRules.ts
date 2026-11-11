@@ -10,6 +10,7 @@ import type {
   SessionDay,
 } from "./types";
 import { hasAcknowledgedReducedTargets } from "./planPolicyStamp";
+import { MAX_DEDICATED_SPRINT_SESSIONS_PER_WEEK } from "./sprintLimits";
 
 // ---------------------------------------------------------------------------
 // 1–2. clubSchedule / matchSchedule — obsługiwane w planEngine (kalendarz).
@@ -41,7 +42,8 @@ export interface MainGoalRule {
 export const MAIN_GOAL_RULES: Record<Goal, MainGoalRule> = {
   speed: {
     mandatoryCategories: ["speed_sprint"],
-    mandatoryCount: 2,
+    // Limit produktu: najwyżej jedna dedykowana sesja sprintu tygodniowo.
+    mandatoryCount: MAX_DEDICATED_SPRINT_SESSIONS_PER_WEEK,
     focusLabel: "Szybkość i przyspieszenie",
     safeDefault: {
       subcategory: "sprint_mechanics",
@@ -51,7 +53,8 @@ export const MAIN_GOAL_RULES: Record<Goal, MainGoalRule> = {
   },
   agility: {
     mandatoryCategories: ["speed_sprint"],
-    mandatoryCount: 2,
+    // Limit produktu: najwyżej jedna dedykowana sesja sprintu tygodniowo.
+    mandatoryCount: MAX_DEDICATED_SPRINT_SESSIONS_PER_WEEK,
     focusLabel: "Zwinność i zmiana kierunku (COD)",
     safeDefault: {
       subcategory: "deceleration",

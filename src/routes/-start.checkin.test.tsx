@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   todaySession: null as SessionDay | null,
   user: { id: "checkin-owner" },
   refresh: vi.fn(),
+  applyModification: vi.fn(async () => undefined),
 }));
 vi.mock("@tanstack/react-router", async (original) => ({
   ...(await original<typeof import("@tanstack/react-router")>()),
@@ -29,6 +30,7 @@ vi.mock("@/lib/loadwise/store", () => ({
     hydrationError: null,
     planGenerating: false,
     refreshPlanIfNeeded: mocks.refresh,
+    applyModification: mocks.applyModification,
   }),
 }));
 vi.mock("@/components/loadwise/StartDashboard", () => ({
@@ -37,7 +39,6 @@ vi.mock("@/components/loadwise/StartDashboard", () => ({
   ),
 }));
 vi.mock("@/components/loadwise/UpcomingWeekPrompt", () => ({ UpcomingWeekPrompt: () => null }));
-vi.mock("@/components/loadwise/ModifySheet", () => ({ ModifySheet: () => null }));
 vi.mock("@/components/loadwise/ui", () => ({ ProfileAvatar: () => null }));
 import { Route } from "./_tabs.start";
 const Component = Route.options.component as ComponentType & { preload?: () => Promise<unknown> };
@@ -45,6 +46,7 @@ let root: Root, host: HTMLDivElement;
 beforeEach(async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   localStorage.clear();
+  mocks.applyModification.mockClear();
   mocks.state = {
     ...initialState,
     profile: buildProfile(
@@ -81,23 +83,62 @@ async function click(text: string) {
   expect(button, text).toBeTruthy();
   await act(async () => button!.click());
 }
-it("reopens the primary check-in at its first question after dismissing changes", async () => {
+function buttonLabels() {
+  return [...document.querySelectorAll<HTMLButtonElement>("[role=group] button")].map((button) =>
+    button.querySelector("span")?.textContent?.trim(),
+  );
+}
+async function choose(label: string) {
+  const button = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+    (b) => b.querySelector("span")?.textContent?.trim() === label,
+  );
+  expect(button, label).toBeTruthy();
+  await act(async () => button!.click());
+}
+it("shows exactly three decisions and no health questions", async () => {
   await click("Plan na dziś");
-  await click("Chcę coś zmienić");
-  expect(document.body.textContent).toContain("Co chcesz zmienić?");
-  await click("Zamknij");
-  await click("Plan na dziś");
-  expect(document.body.textContent).toContain("Czy dzisiejszy plan jest aktualny?");
-  expect(document.body.textContent).not.toContain("Co chcesz zmienić?");
+  expect(buttonLabels()).toEqual(["Trenuję", "Mam mniej czasu", "Dziś nie mogę"]);
+  expect(document.body.textContent).not.toMatch(
+    /ból|uraz|sen\b|stres|samopoczu|motywac|zmęcz|zdrow(?!ie i)|gotowo/i,
+  );
 });
-it("reopens second-session check-in at its initial question", async () => {
+it("„Trenuję” confirms without writing a plan change", async () => {
   await click("Plan na dziś");
-  await click("Trenuję według planu");
-  await click("Tak");
-  await click("Chcę coś zmienić");
-  expect(document.body.textContent).toContain("Co zmienić w drugiej sesji?");
+  await choose("Trenuję");
+  expect(mocks.applyModification).not.toHaveBeenCalled();
+  expect(localStorage.getItem("ballwise:daily-plan-checkin:v3:checkin-owner:2026-09-29")).toContain(
+    '"action":"train"',
+  );
+});
+it("„Mam mniej czasu” offers only real shorter variants or an honest message", async () => {
+  await click("Plan na dziś");
+  await choose("Mam mniej czasu");
+  expect(document.body.textContent).toContain("Ile masz dziś czasu?");
+  expect(document.body.textContent).toContain("Rozgrzewka i pełne przerwy zostają");
+  const minutes = [...document.body.textContent!.matchAll(/ok\. (\d+) min/g)].map((m) =>
+    Number(m[1]),
+  );
+  expect(new Set(minutes).size).toBe(minutes.length);
+});
+it("„Dziś nie mogę” changes only today and never proposes moving the work", async () => {
+  await click("Plan na dziś");
+  await choose("Dziś nie mogę");
+  expect(mocks.applyModification).toHaveBeenCalledTimes(1);
+  const [date, type, session] = mocks.applyModification.mock.calls[0] as unknown as [
+    string,
+    string,
+    SessionDay,
+  ];
+  expect(date).toBe("2026-09-29");
+  expect(type).toBe("swap");
+  expect(session.isUnavailable).toBe(true);
+  expect(document.body.textContent).not.toContain("Chcesz przenieść tę sesję?");
+});
+it("reopens the check-in at its first step after leaving the time step", async () => {
+  await click("Plan na dziś");
+  await choose("Mam mniej czasu");
+  expect(document.body.textContent).toContain("Ile masz dziś czasu?");
   await click("Zamknij");
   await click("Plan na dziś");
-  await click("Trenuję według planu");
-  expect(document.body.textContent).toContain("Czy chcesz dziś wykonać również drugi trening?");
+  expect(buttonLabels()).toEqual(["Trenuję", "Mam mniej czasu", "Dziś nie mogę"]);
 });

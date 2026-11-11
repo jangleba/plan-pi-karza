@@ -2,20 +2,24 @@ import type { ExerciseItem, SessionDay, TrainingExercise } from "./types";
 import { reducePrescription } from "./doseAdjustment";
 
 /** Product preset, not a medical threshold or a validated fatigue assessment. */
-const FACTOR = 0.75;
-const reduceCount = (value: string | undefined): string | undefined => {
+const DEFAULT_FACTOR = 0.75;
+const reduceCount = (value: string | undefined, factor: number): string | undefined => {
   if (!value) return value;
   // Preserve percentages, load, distances, tempo and time per repetition.
   if (!/^\s*\d+(?:\s*[–-]\s*\d+)?\s*$/.test(value)) return value;
-  return value.replace(/\d+/g, (n) => String(Math.max(1, Math.floor(Number(n) * FACTOR))));
+  return value.replace(/\d+/g, (n) => String(Math.max(1, Math.floor(Number(n) * factor))));
 };
-const reduceWork = (value: string | undefined, preserveSprintDose = false): string | undefined => {
+const reduceWork = (
+  value: string | undefined,
+  factor: number,
+  preserveSprintDose = false,
+): string | undefined => {
   if (!value) return value;
   if (/^\s*\d+(?:\s*[–-]\s*\d+)?\s*[×x]/i.test(value))
     return value.replace(
       /^(\s*)(\d+)(?:\s*[–-]\s*(\d+))?(\s*[×x])/i,
       (_, space, low, high, times) =>
-        `${space}${Math.max(1, Math.floor(Number(low) * FACTOR))}${high ? `–${Math.max(1, Math.floor(Number(high) * FACTOR))}` : ""}${times}`,
+        `${space}${Math.max(1, Math.floor(Number(low) * factor))}${high ? `–${Math.max(1, Math.floor(Number(high) * factor))}` : ""}${times}`,
     );
   if (preserveSprintDose && /^\s*\d+(?:\s*[–-]\s*\d+)?\s*(?:m|km|s|sek)\b/i.test(value))
     return value;
@@ -24,15 +28,18 @@ const reduceWork = (value: string | undefined, preserveSprintDose = false): stri
     return value.replace(
       duration,
       (_, low, high, unit) =>
-        `${Math.max(1, Math.floor(Number(low) * FACTOR))}${high ? `–${Math.max(1, Math.floor(Number(high) * FACTOR))}` : ""} ${unit}`,
+        `${Math.max(1, Math.floor(Number(low) * factor))}${high ? `–${Math.max(1, Math.floor(Number(high) * factor))}` : ""} ${unit}`,
     );
-  return reducePrescription(value, FACTOR);
+  return reducePrescription(value, factor);
 };
 
-/** Fewer work sets/intervals. Warm-up, preparation, cooldown, load and rest are retained. */
-export function reduceDailySessionDose(session: SessionDay): SessionDay {
+/**
+ * Fewer work sets/intervals. Warm-up, preparation, cooldown, load and rest are retained.
+ * `factor` is the share of work kept for a shorter time window, not a fatigue model.
+ */
+export function reduceDailySessionDose(session: SessionDay, factor = DEFAULT_FACTOR): SessionDay {
   const speed = /sprint|speed|szybko|przyspiesz/i.test(`${session.type} ${session.sessionType}`);
-  const workValue = (value: string | undefined) => reduceWork(value, speed);
+  const workValue = (value: string | undefined) => reduceWork(value, factor, speed);
   const strength = /strength|sił/i.test(`${session.type} ${session.sessionType}`);
   const flat = (item: ExerciseItem): ExerciseItem => ({
     ...item,
@@ -40,7 +47,7 @@ export function reduceDailySessionDose(session: SessionDay): SessionDay {
     displayPrescription: workValue(item.displayPrescription),
   });
   const structured = (item: TrainingExercise): TrainingExercise => {
-    const sets = reduceCount(item.sets);
+    const sets = reduceCount(item.sets, factor);
     const fewerSets = sets !== item.sets;
     const reps = fewerSets ? item.reps : strength ? item.reps : workValue(item.reps);
     const duration =
@@ -88,5 +95,5 @@ export function reduceDailySessionDose(session: SessionDay): SessionDay {
       "Nie ma tu dawki, którą można jednoznacznie zmniejszyć. Wybierz zamianę lub pomiń sesję.",
     );
   // Planned time is only an estimate. Actual time is entered after training.
-  return { ...next, durationMin: Math.max(1, Math.round(session.durationMin * 0.75)) };
+  return { ...next, durationMin: Math.max(1, Math.round(session.durationMin * factor)) };
 }

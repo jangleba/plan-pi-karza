@@ -1,5 +1,6 @@
 import { generatePlanAsync } from "./generatePlanAsync";
 import { parseIso } from "./labels";
+import { repairSegmentBoundaries } from "./segmentBoundary";
 import type { Profile, SessionDay, WeeklyTransition } from "./types";
 
 export function transitionMatchesBlock(
@@ -67,6 +68,11 @@ export async function applyConfirmedCalendar(
       fresh.length,
       ...fresh.map((day) => ({ ...day, cycleId: plan[0].cycleId })),
     );
+    const repaired = repairSegmentBoundaries(
+      next,
+      fresh.map((day) => day.date),
+    );
+    next.splice(0, next.length, ...repaired);
   }
   return next;
 }

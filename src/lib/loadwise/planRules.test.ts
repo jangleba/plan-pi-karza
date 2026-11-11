@@ -214,7 +214,8 @@ describe("cel główny + ograniczenie — twarde minima", () => {
     for (const week of full(
       generatePlan(baseProfile({ goal: "speed", secondaryLimiter: "strength" }), START2, 28),
     )) {
-      expect(countWeekRoles(week, "speed").mandatory).toBeGreaterThanOrEqual(2);
+      // Cel szybkościowy: dokładnie jedna dedykowana sesja sprintu (limit produktu).
+      expect(countWeekRoles(week, "speed").mandatory).toBe(1);
       expect(countLimitationSessions(week, "strength")).toBeGreaterThanOrEqual(1);
     }
   });

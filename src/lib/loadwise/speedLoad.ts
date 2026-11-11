@@ -258,13 +258,21 @@ function hasSpeedPercentage(
 /**
  * Odczytuje np.:
  * - „łącznie 120 m”,
- * - „6 × 20 m”,
- * - „6–8 × 20–25 m”,
- * - „2 × (5 × 20 m)”.
+ * - „6 × 20 m”, „6–8 × 20–25 m”, „6 akcji × 10 m”,
+ * - „2 × (5 × 20 m)”, „4 × (10 m + 10 m)”,
+ * - „3 × 20 m (10 m drobienia + 10 m przyspieszenia)” → liczy tylko 10 m przyspieszenia.
  *
- * Dla zakresów przyjmuje większą wartość, aby reguła
- * bezpieczeństwa nie zaniżała obciążenia.
+ * Najazd („z najazdu 15 m”), hamowanie i drille techniczne nie są liczone.
+ * Odcinki submaksymalne (np. 85%) są liczone zachowawczo, bo nadal są biegiem szybkim.
+ * Dla zakresów przyjmuje większą wartość, aby limit nie zaniżał obciążenia.
  */
+const COUNT_WORD = String.raw`(?:\s*(?:akcj\w*|powt\w*\.?|seri\w*|rund\w*|odcink\w*|starty|startów))?`;
+const RANGE = String.raw`(\d+)(?:\s*[-–]\s*(\d+))?`;
+
+function upper(low: string, high: string | undefined): number {
+  return Number(high ?? low);
+}
+
 function metersFromPrescription(
   prescription: string,
 ): number {
@@ -280,6 +288,20 @@ function metersFromPrescription(
     return Math.max(
       ...explicitTotals.map((match) => Number(match[1])),
     );
+  }
+
+  // Złożony odcinek: liczymy tylko części opisane jako sprint lub przyspieszenie.
+  const labelled = text.match(
+    new RegExp(`^\\s*${RANGE}${COUNT_WORD}\\s*[x×][^(]*\\(([^)]*\\+[^)]*)\\)`, "u"),
+  );
+  if (labelled) {
+    const parts = labelled[3].split("+").map((part) => part.trim());
+    const withLabels = parts.filter((part) => /\d+\s*m\s+\S/.test(part));
+    const counted = (withLabels.length === parts.length
+      ? parts.filter((part) => SPEED_ACTION_RE.test(part))
+      : parts
+    ).reduce((total, part) => total + Number(part.match(/(\d+)\s*m\b/)?.[1] ?? 0), 0);
+    return upper(labelled[1], labelled[2]) * counted;
   }
 
   const nestedSets = [
@@ -300,13 +322,13 @@ function metersFromPrescription(
 
   const repetitions = [
     ...text.matchAll(
-      /(\d+)(?:\s*[-–]\s*(\d+))?\s*[x×]\s*(\d+)(?:\s*[-–]\s*(\d+))?\s*m\b/giu,
+      new RegExp(`${RANGE}${COUNT_WORD}\\s*[x×]\\s*${RANGE}\\s*m\\b`, "giu"),
     ),
   ];
 
   return repetitions.reduce((total, match) => {
-    const reps = Number(match[2] ?? match[1]);
-    const distance = Number(match[4] ?? match[3]);
+    const reps = upper(match[1], match[2]);
+    const distance = upper(match[3], match[4]);
 
     return total + reps * distance;
   }, 0);
@@ -333,6 +355,29 @@ export function estimateSprintMeters(
     },
     0,
   );
+}
+
+const SUBMAXIMAL_RE = /submaks|niemaksymaln|nie maksymaln/i;
+
+function isExplicitlySubmaximal(text: string): boolean {
+  if (SUBMAXIMAL_RE.test(text)) return true;
+  const percents = [...text.matchAll(/(\d{2,3})\s*%/g)].map((match) => Number(match[1]));
+  return percents.length > 0 && Math.max(...percents) < 90;
+}
+
+/**
+ * Metres counted against the weekly product limit (240 m): maximal or
+ * near-maximal (≥90%) sprint distance only. Run-ins, decelerations,
+ * technical drills and explicitly submaximal runs are not counted.
+ */
+export function estimateLimitedSprintMeters(session: SessionDay): number {
+  return sessionExercises(session).reduce((total, exercise) => {
+    const text = exerciseText(exercise);
+    if (!matches(SPEED_ACTION_RE, text) || matches(NEGATED_SPEED_RE, text)) return total;
+    if (isExplicitlySubmaximal(`${exercise.prescription} ${exercise.cue ?? ""} ${exercise.name}`))
+      return total;
+    return total + metersFromPrescription(exercise.prescription);
+  }, 0);
 }
 
 function createAssessment(
