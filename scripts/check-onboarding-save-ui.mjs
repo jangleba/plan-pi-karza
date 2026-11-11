@@ -127,7 +127,7 @@ try {
     await page.getByRole("checkbox").nth(0).check();
     await page.getByRole("checkbox").nth(1).check();
     // One question per screen: go forward until the summary with the save button.
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 24; i++) {
       const step = await page.locator(".ob-step").first().getAttribute("data-step");
       if (step === "summary") break;
       if (step === "match") await page.locator(".ob-date").nth(3).click();

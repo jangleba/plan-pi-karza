@@ -13,8 +13,8 @@ import {
 
 describe("playerDirection", () => {
   it("ma komplet identyfikatorów i polskie etykiety", () => {
-    expect(CURRENT_PITCH_FEELINGS).toHaveLength(7);
-    expect(DESIRED_PITCH_FEELINGS).toHaveLength(6);
+    expect(CURRENT_PITCH_FEELINGS).toHaveLength(9);
+    expect(DESIRED_PITCH_FEELINGS).toHaveLength(9);
     for (const id of CURRENT_PITCH_FEELINGS)
       expect(CURRENT_PITCH_FEELING_LABELS[id]).toBeTruthy();
     for (const id of DESIRED_PITCH_FEELINGS)

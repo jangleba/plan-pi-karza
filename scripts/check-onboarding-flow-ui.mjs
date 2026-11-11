@@ -146,7 +146,7 @@ try {
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto(`http://127.0.0.1:${server.address().port}/?mode=success&fresh=1`);
     const seen = [];
-    for (let guard = 0; guard < 20; guard++) {
+    for (let guard = 0; guard < 24; guard++) {
       const step = page.locator(".ob-step").first();
       await step.waitFor();
       const id = await step.getAttribute("data-step");
@@ -170,6 +170,11 @@ try {
           .getByRole("group", { name: "Dni, w które nie możesz trenować" })
           .getByRole("button", { name: "Niedziela" })
           .click();
+      } else if (id === "feelNow") {
+        await page.getByRole("button", { name: "Słabnę pod koniec meczu" }).click();
+      } else if (id === "feelWant") {
+        await page.getByRole("button", { name: "Zwinny w zwrotach" }).click();
+        await page.getByRole("button", { name: "Świeży cały mecz" }).click();
       } else if (id === "match") {
         await page.locator(".ob-date").nth(4).click();
       } else if (id === "conditions") {
@@ -211,6 +216,10 @@ try {
     );
     const facts = await page.locator("[data-fact]").allTextContents();
     ensure(facts.length >= 4, "Summary lists too few facts");
+    ensure(
+      facts.some((fact) => fact.startsWith("Kierunek") && fact.includes("Zwinny w zwrotach")),
+      "Summary misses the direction fact",
+    );
     if (size.width === 390) {
       await page.getByRole("button", { name: "Zapisz i wygeneruj plan", exact: true }).click();
       await page.getByTestId("plan-days").waitFor({ timeout: 20000 });

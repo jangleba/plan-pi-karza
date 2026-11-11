@@ -39,6 +39,8 @@ export function trainingProfileRevision(profile: Profile): string {
     "movementCompetence",
     "supervisionLevel",
     "trainingMethodPreferences",
+    "currentPitchFeelings",
+    "desiredPitchFeelings",
   ] as const;
   const arrayKeys = new Set<string>([
     "clubTrainingDays",
@@ -48,7 +50,11 @@ export function trainingProfileRevision(profile: Profile): string {
     "equipment",
     "painLocations",
     "unavailableEquipmentIds",
+    "currentPitchFeelings",
+    "desiredPitchFeelings",
   ]);
+  // The first pitch feeling decides the plan accent, so their order counts.
+  const orderedKeys = new Set<string>(["currentPitchFeelings", "desiredPitchFeelings"]);
   // Defaults mirror what buildProfile reads back from the database, so a profile
   // straight from the onboarding form and the same profile after a reload hash
   // identically (otherwise every save triggers a second full plan rebuild).
@@ -60,7 +66,9 @@ export function trainingProfileRevision(profile: Profile): string {
     const value =
       (key in readBack ? readBack[key] : (profile as unknown as Record<string, unknown>)[key]) ??
       (arrayKeys.has(key) ? [] : null);
-    return [key, Array.isArray(value) ? [...new Set(value)].sort() : value];
+    if (!Array.isArray(value)) return [key, value];
+    const unique = [...new Set(value)];
+    return [key, orderedKeys.has(key) ? unique : unique.sort()];
   });
   // Keep private inputs out of plan metadata and compact boot caches.
   return `training-inputs:v1:${bytesToHex(sha256(JSON.stringify(values)))}`;

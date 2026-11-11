@@ -31,6 +31,7 @@ import {
   doubleSessionOptions,
   isoWeekday,
   onboardingPlanFacts,
+  toggleFeeling,
   seasonCheck,
   suggestedSeasonPhase,
   trainingFieldsFromAnswers,
@@ -47,23 +48,53 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   ChoiceList,
   DayPicker,
+  LevelBars,
+  MultiChoiceList,
+  OnboardingArt,
   Option,
+  PositionGlyph,
   StepTitle,
   Toggle,
+  type ArtKind,
 } from "@/components/onboarding/OnboardingControls";
+import {
+  CURRENT_FEELING_SHORT,
+  DESIRED_FEELING_SHORT,
+  MAX_PITCH_FEELINGS,
+  ONBOARDING_CURRENT_FEELINGS,
+  ONBOARDING_DESIRED_FEELINGS,
+} from "@/lib/loadwise/playerDirection";
 import { addDays, format } from "date-fns";
 import { pl } from "date-fns/locale";
 import {
+  Activity,
+  BatteryLow,
+  Brain,
   BrickWall,
   CalendarDays,
+  CalendarRange,
   Check,
   ChevronLeft,
+  CircleSlash,
   Dumbbell,
-  Hand,
+  Feather,
+  Flag,
+  Flame,
+  HeartPulse,
+  Layers,
   LandPlot,
-  Repeat2,
-  Shield,
+  Leaf,
+  Rocket,
+  RotateCcw,
+  Shuffle,
+  Snowflake,
+  Waves,
+  Sun,
+  Sunrise,
   Target,
+  Trophy,
+  Volleyball,
+  Wind,
   Zap,
 } from "lucide-react";
 
@@ -81,6 +112,8 @@ type StepId =
   | "position"
   | "level"
   | "league"
+  | "feelNow"
+  | "feelWant"
   | "goal"
   | "limiter"
   | "week"
@@ -98,6 +131,8 @@ const SECTION: Record<StepId, string> = {
   position: "Twoja gra",
   level: "Twoja gra",
   league: "Twoja gra",
+  feelNow: "Ty na boisku",
+  feelWant: "Ty na boisku",
   goal: "Cel",
   limiter: "Cel",
   week: "Kalendarz",
@@ -108,6 +143,20 @@ const SECTION: Record<StepId, string> = {
   doubles: "Warunki",
   summary: "Twój plan",
 };
+
+/** Light colour and line drawing of each section. */
+const SECTION_LOOK: Record<string, { tone: string; art: ArtKind }> = {
+  Start: { tone: "blue", art: "pitch" },
+  Zawodnik: { tone: "blue", art: "pitch" },
+  "Twoja gra": { tone: "teal", art: "pitch" },
+  "Ty na boisku": { tone: "violet", art: "pulse" },
+  Cel: { tone: "amber", art: "track" },
+  Kalendarz: { tone: "sky", art: "calendar" },
+  Warunki: { tone: "green", art: "field" },
+  "Twój plan": { tone: "blue", art: "pitch" },
+};
+
+const icon = (Icon: typeof Zap) => <Icon className="h-[18px] w-[18px]" />;
 
 /** Single-choice steps go forward by themselves after a tap. */
 const AUTO_ADVANCE: StepId[] = [
@@ -120,18 +169,38 @@ const AUTO_ADVANCE: StepId[] = [
   "doubles",
 ];
 
-const POSITION_OPTIONS: Array<{ id: Position; title: string; icon: React.ReactNode }> = [
-  { id: "goalkeeper", title: "Bramkarz", icon: <Hand className="h-4 w-4" /> },
-  { id: "defender", title: "Obrońca", icon: <Shield className="h-4 w-4" /> },
-  { id: "midfielder", title: "Pomocnik", icon: <Repeat2 className="h-4 w-4" /> },
-  { id: "forward", title: "Napastnik", icon: <Target className="h-4 w-4" /> },
+const POSITION_OPTIONS: Array<{ id: Position; title: string; glyph: React.ReactNode }> = [
+  { id: "goalkeeper", title: "Bramkarz", glyph: <PositionGlyph position="goalkeeper" /> },
+  { id: "defender", title: "Obrońca", glyph: <PositionGlyph position="defender" /> },
+  { id: "midfielder", title: "Pomocnik", glyph: <PositionGlyph position="midfielder" /> },
+  { id: "forward", title: "Napastnik", glyph: <PositionGlyph position="forward" /> },
 ];
 
-const LEVEL_OPTIONS: Array<{ id: Level; title: string; desc: string }> = [
-  { id: "beginner", title: "Początkujący", desc: "Uczę się podstaw treningu" },
-  { id: "intermediate", title: "Średniozaawansowany", desc: "Trenuję regularnie" },
-  { id: "advanced", title: "Zaawansowany", desc: "Znam trening siły i szybkości" },
-  { id: "elite", title: "Wysoki poziom", desc: "Gram i trenuję bardzo intensywnie" },
+const LEVEL_OPTIONS: Array<{ id: Level; title: string; desc: string; glyph: React.ReactNode }> = [
+  {
+    id: "beginner",
+    title: "Początkujący",
+    desc: "Uczę się podstaw treningu",
+    glyph: <LevelBars level={1} />,
+  },
+  {
+    id: "intermediate",
+    title: "Średniozaawansowany",
+    desc: "Trenuję regularnie",
+    glyph: <LevelBars level={2} />,
+  },
+  {
+    id: "advanced",
+    title: "Zaawansowany",
+    desc: "Znam trening siły i szybkości",
+    glyph: <LevelBars level={3} />,
+  },
+  {
+    id: "elite",
+    title: "Wysoki poziom",
+    desc: "Gram i trenuję bardzo intensywnie",
+    glyph: <LevelBars level={4} />,
+  },
 ];
 
 const LEAGUE_OPTIONS: Array<{ id: CompetitionLevel; title: string }> = [
@@ -146,41 +215,107 @@ const LEAGUE_OPTIONS: Array<{ id: CompetitionLevel; title: string }> = [
   { id: "pro", title: "Profi" },
 ];
 
-const GOAL_OPTIONS: Array<{ id: Goal; title: string }> = [
-  { id: "speed", title: "Szybkość" },
-  { id: "strength", title: "Siła" },
-  { id: "endurance", title: "Wytrzymałość" },
-  { id: "power", title: "Moc" },
-  { id: "agility", title: "Zwrotność" },
-  { id: "general", title: "Gra z piłką" },
-  { id: "mobility", title: "Mobilność" },
-  { id: "matchready", title: "Forma na mecz" },
-  { id: "return", title: "Powrót po przerwie" },
+const GOAL_OPTIONS: Array<{ id: Goal; title: string; icon: React.ReactNode }> = [
+  { id: "speed", title: "Szybkość", icon: icon(Zap) },
+  { id: "strength", title: "Siła", icon: icon(Dumbbell) },
+  { id: "endurance", title: "Wytrzymałość", icon: icon(HeartPulse) },
+  { id: "power", title: "Moc", icon: icon(Flame) },
+  { id: "agility", title: "Zwrotność", icon: icon(Shuffle) },
+  { id: "general", title: "Gra z piłką", icon: icon(Volleyball) },
+  { id: "mobility", title: "Mobilność", icon: icon(Waves) },
+  { id: "matchready", title: "Forma na mecz", icon: icon(Trophy) },
+  { id: "return", title: "Powrót po przerwie", icon: icon(RotateCcw) },
 ];
 
-const LIMITER_OPTIONS: Array<{ id: SecondaryLimiter; title: string }> = [
-  { id: "speed", title: "Szybkość" },
-  { id: "strength", title: "Siła" },
-  { id: "endurance", title: "Wytrzymałość" },
-  { id: "cod", title: "Zwrotność" },
-  { id: "power", title: "Moc" },
-  { id: "ball", title: "Gra z piłką" },
-  { id: "fatigue", title: "Zmęczenie" },
-  { id: "return", title: "Powrót po przerwie" },
+const LIMITER_OPTIONS: Array<{ id: SecondaryLimiter; title: string; icon: React.ReactNode }> = [
+  { id: "speed", title: "Szybkość", icon: icon(Zap) },
+  { id: "strength", title: "Siła", icon: icon(Dumbbell) },
+  { id: "endurance", title: "Wytrzymałość", icon: icon(HeartPulse) },
+  { id: "cod", title: "Zwrotność", icon: icon(Shuffle) },
+  { id: "power", title: "Moc", icon: icon(Flame) },
+  { id: "ball", title: "Gra z piłką", icon: icon(Volleyball) },
+  { id: "fatigue", title: "Zmęczenie", icon: icon(BatteryLow) },
+  { id: "return", title: "Powrót po przerwie", icon: icon(RotateCcw) },
 ];
 
-const SEASON_OPTIONS: Array<{ id: SeasonPhase; title: string; desc: string }> = [
-  { id: "inseason", title: "W sezonie", desc: "Gram mecze ligowe" },
-  { id: "preseason", title: "Przygotowania", desc: "Okres przed rundą" },
-  { id: "offseason", title: "Przerwa", desc: "Po sezonie, bez meczów" },
-  { id: "transition", title: "Roztrenowanie", desc: "Lżejszy okres po rundzie" },
-  { id: "return_injury", title: "Powrót po przerwie", desc: "Wracam po dłuższej przerwie" },
+const FEELING_NOW_ICONS: Record<string, React.ReactNode> = {
+  lacking_speed: icon(Zap),
+  lacking_duel_strength: icon(Dumbbell),
+  fading_late_in_match: icon(BatteryLow),
+  slow_to_turn: icon(Shuffle),
+  feeling_stiff: icon(Waves),
+  lacking_confidence: icon(Volleyball),
+};
+
+const FEELING_WANT_ICONS: Record<string, React.ReactNode> = {
+  fast_and_light: icon(Feather),
+  strong_in_duels: icon(Dumbbell),
+  explosive_first_steps: icon(Rocket),
+  agile_in_turns: icon(Shuffle),
+  ready_full_match: icon(HeartPulse),
+  loose_in_movement: icon(Wind),
+  confident_in_decisions: icon(Brain),
+};
+
+const FEELING_NOW_OPTIONS = ONBOARDING_CURRENT_FEELINGS.map((id) => ({
+  id,
+  title: CURRENT_FEELING_SHORT[id] ?? id,
+  icon: FEELING_NOW_ICONS[id],
+}));
+
+const FEELING_WANT_OPTIONS = ONBOARDING_DESIRED_FEELINGS.map((id) => ({
+  id,
+  title: DESIRED_FEELING_SHORT[id] ?? id,
+  icon: FEELING_WANT_ICONS[id],
+}));
+
+const SEASON_OPTIONS: Array<{
+  id: SeasonPhase;
+  title: string;
+  desc: string;
+  icon: React.ReactNode;
+}> = [
+  { id: "inseason", title: "W sezonie", desc: "Gram mecze ligowe", icon: icon(Sun) },
+  { id: "preseason", title: "Przygotowania", desc: "Okres przed rundą", icon: icon(Sunrise) },
+  { id: "offseason", title: "Przerwa", desc: "Po sezonie, bez meczów", icon: icon(Snowflake) },
+  { id: "transition", title: "Roztrenowanie", desc: "Lżejszy okres po rundzie", icon: icon(Leaf) },
+  {
+    id: "return_injury",
+    title: "Powrót po przerwie",
+    desc: "Wracam po dłuższej przerwie",
+    icon: icon(RotateCcw),
+  },
 ];
 
-const DOUBLE_OPTIONS: Record<DoubleSessions, { title: string; desc: string }> = {
-  no: { title: "Jedna sesja dziennie", desc: "Nigdy dwóch tego samego dnia" },
-  light_only: { title: "Druga tylko lekka", desc: "Np. mobilność albo spokojny bieg" },
-  yes_if_safe: { title: "Dwie, gdy to bezpieczne", desc: "Pełna druga sesja w dobre dni" },
+const DOUBLE_OPTIONS: Record<
+  DoubleSessions,
+  { title: string; desc: string; icon: React.ReactNode }
+> = {
+  no: {
+    title: "Jedna sesja dziennie",
+    desc: "Nigdy dwóch tego samego dnia",
+    icon: icon(CircleSlash),
+  },
+  light_only: {
+    title: "Druga tylko lekka",
+    desc: "Np. mobilność albo spokojny bieg",
+    icon: icon(Feather),
+  },
+  yes_if_safe: {
+    title: "Dwie, gdy to bezpieczne",
+    desc: "Pełna druga sesja w dobre dni",
+    icon: icon(Layers),
+  },
+};
+
+const FACT_ICONS: Record<string, React.ReactNode> = {
+  week: <CalendarRange className="h-3.5 w-3.5" />,
+  first: <Flag className="h-3.5 w-3.5" />,
+  match: <Trophy className="h-3.5 w-3.5" />,
+  strength: <Dumbbell className="h-3.5 w-3.5" />,
+  focus: <Target className="h-3.5 w-3.5" />,
+  direction: <Activity className="h-3.5 w-3.5" />,
+  off: <CircleSlash className="h-3.5 w-3.5" />,
 };
 
 const STEP_ERROR: Partial<Record<StepId, string>> = {
@@ -192,6 +327,8 @@ const STEP_ERROR: Partial<Record<StepId, string>> = {
   league: "Wybierz poziom rozgrywkowy.",
   goal: "Wybierz główny cel.",
   limiter: "Wybierz, co Cię ogranicza.",
+  feelNow: "Wybierz jedną albo dwie odpowiedzi.",
+  feelWant: "Wybierz jedną albo dwie odpowiedzi.",
   match: "Wybierz datę meczu albo „Nie mam meczu”.",
   season: "Okres nie pasuje do kalendarza — popraw go.",
 };
@@ -292,6 +429,8 @@ function Onboarding() {
       "position",
       "level",
       "league",
+      "feelNow",
+      "feelWant",
       "goal",
       "limiter",
       "week",
@@ -339,6 +478,10 @@ function Onboarding() {
         return answers.goal !== null;
       case "limiter":
         return answers.secondaryLimiter !== null;
+      case "feelNow":
+        return answers.currentFeelings.length > 0;
+      case "feelWant":
+        return answers.desiredFeelings.length > 0;
       case "match":
         return answers.noMatch || answers.matchDate.length > 0;
       case "season":
@@ -744,6 +887,48 @@ function Onboarding() {
             </div>
           </>
         );
+      case "feelNow":
+        return (
+          <>
+            <StepTitle title="Jak czujesz się teraz na boisku?" />
+            <div className="ob-count">
+              <b>{answers.currentFeelings.length}</b>/{MAX_PITCH_FEELINGS} · wybierz 1–2
+            </div>
+            <div className="ob-gap">
+              <MultiChoiceList
+                variant="compact"
+                options={FEELING_NOW_OPTIONS}
+                value={answers.currentFeelings}
+                onToggle={(id) => {
+                  set("currentFeelings", toggleFeeling(answers.currentFeelings, id));
+                  setShowError(false);
+                }}
+              />
+            </div>
+          </>
+        );
+      case "feelWant":
+        return (
+          <>
+            <StepTitle title="Jak chcesz się czuć na boisku?" />
+            <div className="ob-count">
+              <b>{answers.desiredFeelings.length}</b>/{MAX_PITCH_FEELINGS} · pierwsza odpowiedź
+              ustawia akcent planu
+            </div>
+            <div className="ob-gap">
+              <MultiChoiceList
+                cols={2}
+                variant="compact"
+                options={FEELING_WANT_OPTIONS}
+                value={answers.desiredFeelings}
+                onToggle={(id) => {
+                  set("desiredFeelings", toggleFeeling(answers.desiredFeelings, id));
+                  setShowError(false);
+                }}
+              />
+            </div>
+          </>
+        );
       case "goal":
         return (
           <>
@@ -751,6 +936,7 @@ function Onboarding() {
             <div className="ob-gap">
               <ChoiceList
                 cols={2}
+                variant="compact"
                 options={GOAL_OPTIONS}
                 value={answers.goal}
                 onPick={(v) => pick("goal", v)}
@@ -768,6 +954,7 @@ function Onboarding() {
             <div className="ob-gap">
               <ChoiceList
                 cols={2}
+                variant="compact"
                 options={LIMITER_OPTIONS}
                 value={answers.secondaryLimiter}
                 onPick={(v) => pick("secondaryLimiter", v)}
@@ -1039,9 +1226,6 @@ function Onboarding() {
       case "summary":
         return (
           <>
-            <div className="ob-done" aria-hidden="true">
-              <Check className="h-5 w-5" strokeWidth={3} />
-            </div>
             <StepTitle title="Co wynika z Twoich odpowiedzi" />
             <dl className="ob-facts" aria-busy={facts === null}>
               {facts === null
@@ -1062,7 +1246,12 @@ function Onboarding() {
                       style={{ ["--i" as string]: i }}
                       data-fact={fact.id}
                     >
-                      <dt>{fact.label}</dt>
+                      <dt>
+                        <span className="ob-fact__icon" aria-hidden="true">
+                          {FACT_ICONS[fact.id]}
+                        </span>
+                        {fact.label}
+                      </dt>
                       <dd>{fact.value}</dd>
                     </div>
                   ))}
@@ -1073,10 +1262,12 @@ function Onboarding() {
   })();
 
   const isLast = stepId === "summary";
+  const look = SECTION_LOOK[SECTION[stepId]] ?? SECTION_LOOK.Start;
   const autoStep = AUTO_ADVANCE.includes(stepId);
 
   return (
-    <div className="app-shell onboarding-premium ob">
+    <div className="app-shell onboarding-premium ob" data-tone={look.tone}>
+      <OnboardingArt key={look.art} kind={look.art} />
       <div className="ob__head">
         <div className="ob__bar">
           {index > 0 ? (
@@ -1092,7 +1283,7 @@ function Onboarding() {
             <div className="ob__brand">BallWise</div>
           )}
           <div className="ob__section">
-            {SECTION[stepId]} · {index + 1}/{steps.length}
+            {index + 1}/{steps.length}
           </div>
         </div>
         <div
@@ -1108,6 +1299,7 @@ function Onboarding() {
       </div>
       <main className="ob__body">
         <div key={stepId} className="ob-step" data-dir={dir} data-step={stepId}>
+          <div className="ob-kicker">{SECTION[stepId]}</div>
           {body}
         </div>
       </main>
