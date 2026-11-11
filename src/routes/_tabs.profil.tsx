@@ -14,12 +14,6 @@ import {
   SEASON_PHASE_LABELS,
   formatDate,
 } from "@/lib/loadwise/labels";
-import {
-  CURRENT_PITCH_FEELING_LABELS,
-  DESIRED_PITCH_FEELING_LABELS,
-  normalizeCurrentPitchFeelings,
-  normalizeDesiredPitchFeelings,
-} from "@/lib/loadwise/playerDirection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,7 +28,6 @@ import {
   ChevronRight,
   CircleAlert,
   CircleCheck,
-  Compass,
   Dumbbell,
   FileDown,
   FileText,
@@ -132,8 +125,6 @@ function ProfileScreen() {
     profile.age >= 16 &&
     profile.accountOwnerType === "guardian" &&
     profile.ownershipTransferStatus !== "completed";
-  const currentFeelings = normalizeCurrentPitchFeelings(profile.currentPitchFeelings);
-  const desiredFeelings = normalizeDesiredPitchFeelings(profile.desiredPitchFeelings);
   const usualMatchDay =
     profile.usualMatchDay === "no_fixed_day"
       ? "Brak stałego dnia"
@@ -281,24 +272,6 @@ function ProfileScreen() {
 
         <section className="soft-card p-4">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Compass className="h-3.5 w-3.5" aria-hidden="true" /> Twój kierunek
-          </div>
-          <div className="mt-3 space-y-3">
-            <DirectionTags
-              label="Teraz"
-              values={currentFeelings.map((id) => CURRENT_PITCH_FEELING_LABELS[id])}
-              tone="secondary"
-            />
-            <DirectionTags
-              label="Buduję"
-              values={desiredFeelings.map((id) => DESIRED_PITCH_FEELING_LABELS[id])}
-              tone="primary"
-            />
-          </div>
-        </section>
-
-        <section className="soft-card p-4">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <Dumbbell className="h-3.5 w-3.5" aria-hidden="true" /> Warunki treningowe
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -411,42 +384,6 @@ function ProfileScreen() {
       <p className="mt-3 text-center text-xs text-muted-foreground">
         Wersja aplikacji: {APP_VERSION}
       </p>
-    </div>
-  );
-}
-
-function DirectionTags({
-  label,
-  values,
-  tone,
-}: {
-  label: string;
-  values: string[];
-  tone: "primary" | "secondary";
-}) {
-  return (
-    <div>
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-1.5 flex flex-wrap gap-2">
-        {values.length ? (
-          values.map((value) => (
-            <span
-              key={value}
-              className={`rounded-full px-3 py-1 text-xs font-medium ${
-                tone === "primary"
-                  ? "bg-primary/10 text-primary"
-                  : "bg-secondary text-secondary-foreground"
-              }`}
-            >
-              {value}
-            </span>
-          ))
-        ) : (
-          <span className="text-xs text-muted-foreground">Nie ustawiono</span>
-        )}
-      </div>
     </div>
   );
 }

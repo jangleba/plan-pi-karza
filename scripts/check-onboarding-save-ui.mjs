@@ -126,16 +126,13 @@ try {
     await page.getByRole("checkbox").first().waitFor();
     await page.getByRole("checkbox").nth(0).check();
     await page.getByRole("checkbox").nth(1).check();
-    for (let i = 0; i < 5; i++) {
-      const next = page.getByRole("button", { name: "Dalej", exact: true });
-      await next.waitFor();
-      await next.click();
-      await page.waitForTimeout(80);
-    }
-    const boxes = page.getByRole("checkbox");
-    if ((await boxes.count()) >= 2) {
-      await boxes.nth(0).check();
-      await boxes.nth(1).check();
+    // One question per screen: go forward until the summary with the save button.
+    for (let i = 0; i < 20; i++) {
+      const step = await page.locator(".ob-step").first().getAttribute("data-step");
+      if (step === "summary") break;
+      if (step === "match") await page.locator(".ob-date").nth(3).click();
+      await page.getByRole("button", { name: "Dalej", exact: true }).click();
+      await page.locator(`.ob-step:not([data-step="${step}"])`).waitFor();
     }
     await page.screenshot({ path: path.join(work, mode + "-formularz.png") });
     await fs.writeFile(path.join(work, mode + "-formularz.html"), await page.content());
@@ -156,21 +153,34 @@ try {
       if (mode === "fail_once") {
         await save.click();
         await page.getByTestId("plan-days").waitFor();
+        // The plan is shown first; the save itself finishes in the background.
+        await page.waitForFunction(() => window.__onboardingQA.saveCalls >= 2, null, {
+          timeout: 20000,
+        });
       }
-    } else await page.getByTestId("plan-days").waitFor({ timeout: 20000 });
+    } else {
+      await page.getByTestId("plan-days").waitFor({ timeout: 20000 });
+      // The plan is shown before the background save; let it finish (and any retry happen).
+      await page.waitForFunction(() => window.__onboardingQA.saveCalls >= 1, null, {
+        timeout: 20000,
+      });
+      await page.waitForTimeout(1500);
+    }
     const stats = await page.evaluate(() => window.__onboardingQA);
     ensure(stats.generations === 1, "Regenerated on retry");
     if (mode !== "hung")
       ensure(
-        (await page.getByTestId("plan-days").textContent()).includes("28"),
+        // Full Monday–Sunday weeks: at least 28 days, ending on a Sunday.
+        Number.parseInt(await page.getByTestId("plan-days").textContent(), 10) >= 28,
         "Saved less than the complete plan",
       );
     if (mode === "fail_once")
       ensure(
         stats.saveCalls === 2 && stats.planIds[0] === stats.planIds[1] && stats.consentCalls === 4,
-        "Retry changed plan ID or repeated consents",
+        "Retry changed plan ID or repeated consents: " + JSON.stringify(stats),
       );
-    if (mode === "lost_response") ensure(stats.saveCalls === 1, "Lost response duplicated a write");
+    if (mode === "lost_response")
+      ensure(stats.saveCalls === 1, "Lost response duplicated a write: " + JSON.stringify(stats));
     cases.push({ mode, elapsedMs: Date.now() - at, ...stats });
     await page.close();
   }

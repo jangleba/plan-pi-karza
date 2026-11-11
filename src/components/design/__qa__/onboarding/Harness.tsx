@@ -6,7 +6,9 @@ import {
   createMemoryHistory,
   Outlet,
   RouterProvider,
+  useNavigate,
 } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { Route as OnboardingRoute } from "@/routes/onboarding";
 import { useLoadwise } from "./Store";
@@ -15,6 +17,12 @@ import "@/styles/ballwise-visual-system.css";
 OnboardingRoute.useSearch = (() => ({ edit: true })) as typeof OnboardingRoute.useSearch;
 function Plan() {
   const { state } = useLoadwise();
+  const navigate = useNavigate();
+  const incomplete = state.profile?.onboardingComplete !== true;
+  // Like the app tabs: an unsaved profile goes back to the form.
+  useEffect(() => {
+    if (incomplete) navigate({ to: "/onboarding", replace: true });
+  }, [incomplete, navigate]);
   return (
     <main className="p-6">
       <h1>Plan zapisany</h1>

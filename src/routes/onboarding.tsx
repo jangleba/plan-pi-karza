@@ -1,7 +1,6 @@
 import { PROFILE_SAVE_LABELS } from "@/lib/loadwise/profileSave";
-import { SurfaceSketch } from "@/components/design/SurfaceSketch";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { useAuth } from "@/lib/loadwise/auth";
@@ -12,30 +11,11 @@ import type {
   Level,
   Goal,
   SeasonPhase,
-  SeasonStage,
   CompetitionLevel,
   SecondaryLimiter,
-  CurrentPitchFeeling,
-  DesiredPitchFeeling,
   DoubleSessions,
 } from "@/lib/loadwise/types";
-import {
-  CURRENT_PITCH_FEELINGS,
-  DESIRED_PITCH_FEELINGS,
-  CURRENT_PITCH_FEELING_LABELS,
-  DESIRED_PITCH_FEELING_LABELS,
-  normalizeCurrentPitchFeelings,
-  normalizeDesiredPitchFeelings,
-  togglePitchFeeling,
-} from "@/lib/loadwise/playerDirection";
-import {
-  POSITION_LABELS,
-  ISO_DAY_LABELS,
-  SEASON_PHASE_LABELS,
-  SEASON_STAGE_LABELS,
-  COMPETITION_LEVEL_LABELS,
-  localToday,
-} from "@/lib/loadwise/labels";
+import { ISO_DAY_LABELS, SEASON_PHASE_LABELS, localToday } from "@/lib/loadwise/labels";
 import { CONSENTS, MEDICAL_DISCLAIMER } from "@/lib/loadwise/legal";
 import {
   accountSetupIsAllowed,
@@ -44,8 +24,20 @@ import {
   policyForAge,
   type AccountOwnerType,
 } from "@/lib/loadwise/agePolicy";
-import { validateSeason } from "@/lib/loadwise/seasonValidation";
 import { OWN_EQUIPMENT_OPTIONS } from "@/lib/loadwise/equipmentOptions";
+import {
+  answersFromProfile,
+  cleanUnavailableDays,
+  doubleSessionOptions,
+  isoWeekday,
+  onboardingPlanFacts,
+  seasonCheck,
+  suggestedSeasonPhase,
+  trainingFieldsFromAnswers,
+  type OnboardingAnswers,
+  type PlanFact,
+} from "@/lib/loadwise/onboardingFlow";
+import { generatePlanAsync } from "@/lib/loadwise/generatePlanAsync";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,15 +45,27 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { format } from "date-fns";
+  ChoiceList,
+  DayPicker,
+  Option,
+  StepTitle,
+  Toggle,
+} from "@/components/onboarding/OnboardingControls";
+import { addDays, format } from "date-fns";
 import { pl } from "date-fns/locale";
-import { ChevronLeft, CalendarIcon } from "lucide-react";
+import {
+  BrickWall,
+  CalendarDays,
+  Check,
+  ChevronLeft,
+  Dumbbell,
+  Hand,
+  LandPlot,
+  Repeat2,
+  Shield,
+  Target,
+  Zap,
+} from "lucide-react";
 
 export const Route = createFileRoute("/onboarding")({
   validateSearch: (search: Record<string, unknown>): { edit?: boolean } => ({
@@ -70,133 +74,134 @@ export const Route = createFileRoute("/onboarding")({
   component: Onboarding,
 });
 
-const positions: Position[] = ["goalkeeper", "defender", "midfielder", "forward"];
-const levels: Level[] = ["beginner", "intermediate", "advanced", "elite"];
-const seasonPhases: SeasonPhase[] = [
-  "offseason",
-  "preseason",
-  "inseason",
-  "transition",
-  "return_injury",
-];
-const seasonStages: SeasonStage[] = [
-  "season_start",
-  "season_mid",
-  "season_end",
-  "winter_break",
-  "between_rounds",
-  "no_match_week",
-  "match_week",
-];
-const competitionLevels: CompetitionLevel[] = [
-  "academy",
-  "b_klasa",
-  "a_klasa",
-  "okregowka",
-  "iv_liga",
-  "iii_liga",
-  "ii_liga_plus",
-  "semi_pro",
-  "pro",
-];
-const limiters: SecondaryLimiter[] = [
-  "speed",
-  "strength",
-  "endurance",
-  "cod",
-  "power",
-  "ball",
-  "fatigue",
-  "return",
-];
+type StepId =
+  | "consents"
+  | "athlete"
+  | "guardian"
+  | "position"
+  | "level"
+  | "league"
+  | "goal"
+  | "limiter"
+  | "week"
+  | "match"
+  | "season"
+  | "conditions"
+  | "equipment"
+  | "doubles"
+  | "summary";
 
-// Kolejność celów w UI (spójna z oczekiwaną listą).
-const goalOrder: Goal[] = [
-  "speed",
-  "strength",
-  "endurance",
-  "power",
-  "agility",
-  "general",
-  "mobility",
-  "matchready",
-  "return",
-];
-
-// Krótkie, czysto polskie etykiety celów (bez mieszania języków).
-const GOAL_SHORT_LABELS: Record<Goal, string> = {
-  speed: "Szybkość",
-  strength: "Siła",
-  endurance: "Wytrzymałość",
-  power: "Moc",
-  agility: "Zwrotność i hamowanie",
-  general: "Gra z piłką",
-  mobility: "Mobilność i prehab",
-  return: "Powrót po przerwie",
-  matchready: "Gotowość meczowa",
+const SECTION: Record<StepId, string> = {
+  consents: "Start",
+  athlete: "Zawodnik",
+  guardian: "Zawodnik",
+  position: "Twoja gra",
+  level: "Twoja gra",
+  league: "Twoja gra",
+  goal: "Cel",
+  limiter: "Cel",
+  week: "Kalendarz",
+  match: "Kalendarz",
+  season: "Kalendarz",
+  conditions: "Warunki",
+  equipment: "Warunki",
+  doubles: "Warunki",
+  summary: "Twój plan",
 };
 
-// Krótkie etykiety ograniczeń (bez slashy).
-const LIMITER_SHORT_LABELS: Record<SecondaryLimiter, string> = {
-  speed: "Szybkość",
-  strength: "Siła",
-  endurance: "Wytrzymałość",
-  cod: "Zwrotność",
-  power: "Moc",
-  ball: "Gra z piłką",
-  fatigue: "Zmęczenie",
-  return: "Powrót po przerwie",
+/** Single-choice steps go forward by themselves after a tap. */
+const AUTO_ADVANCE: StepId[] = [
+  "position",
+  "level",
+  "league",
+  "goal",
+  "limiter",
+  "season",
+  "doubles",
+];
+
+const POSITION_OPTIONS: Array<{ id: Position; title: string; icon: React.ReactNode }> = [
+  { id: "goalkeeper", title: "Bramkarz", icon: <Hand className="h-4 w-4" /> },
+  { id: "defender", title: "Obrońca", icon: <Shield className="h-4 w-4" /> },
+  { id: "midfielder", title: "Pomocnik", icon: <Repeat2 className="h-4 w-4" /> },
+  { id: "forward", title: "Napastnik", icon: <Target className="h-4 w-4" /> },
+];
+
+const LEVEL_OPTIONS: Array<{ id: Level; title: string; desc: string }> = [
+  { id: "beginner", title: "Początkujący", desc: "Uczę się podstaw treningu" },
+  { id: "intermediate", title: "Średniozaawansowany", desc: "Trenuję regularnie" },
+  { id: "advanced", title: "Zaawansowany", desc: "Znam trening siły i szybkości" },
+  { id: "elite", title: "Wysoki poziom", desc: "Gram i trenuję bardzo intensywnie" },
+];
+
+const LEAGUE_OPTIONS: Array<{ id: CompetitionLevel; title: string }> = [
+  { id: "academy", title: "Akademia" },
+  { id: "b_klasa", title: "B klasa" },
+  { id: "a_klasa", title: "A klasa" },
+  { id: "okregowka", title: "Okręgówka" },
+  { id: "iv_liga", title: "IV liga" },
+  { id: "iii_liga", title: "III liga" },
+  { id: "ii_liga_plus", title: "II liga +" },
+  { id: "semi_pro", title: "Półprofi" },
+  { id: "pro", title: "Profi" },
+];
+
+const GOAL_OPTIONS: Array<{ id: Goal; title: string }> = [
+  { id: "speed", title: "Szybkość" },
+  { id: "strength", title: "Siła" },
+  { id: "endurance", title: "Wytrzymałość" },
+  { id: "power", title: "Moc" },
+  { id: "agility", title: "Zwrotność" },
+  { id: "general", title: "Gra z piłką" },
+  { id: "mobility", title: "Mobilność" },
+  { id: "matchready", title: "Forma na mecz" },
+  { id: "return", title: "Powrót po przerwie" },
+];
+
+const LIMITER_OPTIONS: Array<{ id: SecondaryLimiter; title: string }> = [
+  { id: "speed", title: "Szybkość" },
+  { id: "strength", title: "Siła" },
+  { id: "endurance", title: "Wytrzymałość" },
+  { id: "cod", title: "Zwrotność" },
+  { id: "power", title: "Moc" },
+  { id: "ball", title: "Gra z piłką" },
+  { id: "fatigue", title: "Zmęczenie" },
+  { id: "return", title: "Powrót po przerwie" },
+];
+
+const SEASON_OPTIONS: Array<{ id: SeasonPhase; title: string; desc: string }> = [
+  { id: "inseason", title: "W sezonie", desc: "Gram mecze ligowe" },
+  { id: "preseason", title: "Przygotowania", desc: "Okres przed rundą" },
+  { id: "offseason", title: "Przerwa", desc: "Po sezonie, bez meczów" },
+  { id: "transition", title: "Roztrenowanie", desc: "Lżejszy okres po rundzie" },
+  { id: "return_injury", title: "Powrót po przerwie", desc: "Wracam po dłuższej przerwie" },
+];
+
+const DOUBLE_OPTIONS: Record<DoubleSessions, { title: string; desc: string }> = {
+  no: { title: "Jedna sesja dziennie", desc: "Nigdy dwóch tego samego dnia" },
+  light_only: { title: "Druga tylko lekka", desc: "Np. mobilność albo spokojny bieg" },
+  yes_if_safe: { title: "Dwie, gdy to bezpieczne", desc: "Pełna druga sesja w dobre dni" },
 };
 
-// Etykiety i opisy poziomu treningowego (czysto polskie).
-const LEVEL_CARD_LABELS: Record<Level, { label: string; desc: string }> = {
-  beginner: { label: "Początkujący", desc: "Uczę się podstaw treningu." },
-  intermediate: {
-    label: "Średniozaawansowany",
-    desc: "Trenuję regularnie.",
-  },
-  advanced: {
-    label: "Zaawansowany",
-    desc: "Mam doświadczenie w treningu siły i szybkości.",
-  },
-  elite: {
-    label: "Wysoki poziom",
-    desc: "Gram i trenuję na wysokiej intensywności.",
-  },
+const STEP_ERROR: Partial<Record<StepId, string>> = {
+  consents: "Zaznacz wymagane zgody (*).",
+  athlete: "Podaj imię i datę urodzenia zawodnika.",
+  guardian: "Uzupełnij dane opiekuna i potwierdź oświadczenie.",
+  position: "Wybierz pozycję.",
+  level: "Wybierz poziom.",
+  league: "Wybierz poziom rozgrywkowy.",
+  goal: "Wybierz główny cel.",
+  limiter: "Wybierz, co Cię ogranicza.",
+  match: "Wybierz datę meczu albo „Nie mam meczu”.",
+  season: "Okres nie pasuje do kalendarza — popraw go.",
 };
 
-function ChoiceGrid<T extends string>({
-  options,
-  value,
-  onChange,
-  labels,
-  cols = 2,
-}: {
-  options: T[];
-  value: T | null;
-  onChange: (v: T) => void;
-  labels: Record<T, string>;
-  cols?: number;
-}) {
-  return (
-    <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-      {options.map((o) => (
-        <button
-          key={o}
-          type="button"
-          onClick={() => onChange(o)}
-          className={`flex min-h-[56px] items-center justify-center rounded-2xl border px-3 py-3 text-center text-sm font-medium transition-all ${
-            value === o
-              ? "border-primary bg-primary/[0.08] text-primary"
-              : "border-border bg-card text-foreground"
-          }`}
-        >
-          {labels[o]}
-        </button>
-      ))}
-    </div>
-  );
-}
+/**
+ * After a failed save the athlete returns to this form with the answers kept in
+ * the profile. The consents given and the place in the flow are kept here, so
+ * a retry opens on the summary with the save button.
+ */
+let pendingRetry: { userId: string; consents: Record<string, boolean> } | null = null;
 
 function Onboarding() {
   const { state, hydrated, completeOnboarding, profileSaveStage } = useLoadwise();
@@ -205,7 +210,6 @@ function Onboarding() {
   const { edit } = Route.useSearch();
   const existing = state.profile;
   const isEditing = Boolean(edit && existing?.onboardingComplete);
-  const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const submitBusy = useRef(false);
 
@@ -242,74 +246,28 @@ function Onboarding() {
       metadataBirthDate ||
       (existing?.age ? birthDateForApproximateAge(existing.age) : ""),
   );
-  const [position, setPosition] = useState<Position | null>(existing?.position ?? null);
-  const [level, setLevel] = useState<Level | null>(existing?.level ?? null);
-  const [goal, setGoal] = useState<Goal | null>(existing?.goal ?? null);
-  const [secondaryLimiter, setSecondaryLimiter] = useState<SecondaryLimiter | null>(
-    existing?.secondaryLimiter ?? null,
-  );
-  const [clubDays, setClubDays] = useState<number[]>(existing?.clubTrainingDays ?? []);
-  const [matchDate, setMatchDate] = useState(existing?.matchDate ?? "");
-  const [noMatch, setNoMatch] = useState(!existing?.matchDate && existing?.weeklyMatches === false);
-  const [equipment, setEquipment] = useState<string[]>(existing?.equipment ?? []);
   const [consent, setConsent] = useState(existing?.guardianConsent ?? false);
-  const [unavailableDays, setUnavailableDays] = useState<number[]>(existing?.unavailableDays ?? []);
-  const [matchDateTouched, setMatchDateTouched] = useState(false);
-  const [triedNext, setTriedNext] = useState(false);
-  const [seasonPhase, setSeasonPhase] = useState<SeasonPhase | null>(existing?.seasonPhase ?? null);
-  const [seasonStage, setSeasonStage] = useState<SeasonStage | null>(existing?.seasonStage ?? null);
-  const [competitionLevel, setCompetitionLevel] = useState<CompetitionLevel | null>(
-    existing?.competitionLevel ?? null,
-  );
-  const [weeklyMatches, setWeeklyMatches] = useState(existing?.weeklyMatches ?? true);
-  const [hasGym, setHasGym] = useState(existing?.hasGym ?? false);
-  const [hasPitch, setHasPitch] = useState(existing?.hasPitch ?? true);
-  const [hasSprintSpace, setHasSprintSpace] = useState(existing?.hasSprintSpace ?? true);
-  const [doubleSessionsAllowed, setDoubleSessionsAllowed] = useState<DoubleSessions>(
-    existing?.doubleSessionsAllowed ?? "no",
-  );
-  const [seasonPhaseOverride, setSeasonPhaseOverride] = useState(
-    existing?.seasonPhaseOverride ?? false,
-  );
-  const [currentFeelings, setCurrentFeelings] = useState<CurrentPitchFeeling[]>(
-    normalizeCurrentPitchFeelings(existing?.currentPitchFeelings),
-  );
-  const [desiredFeelings, setDesiredFeelings] = useState<DesiredPitchFeeling[]>(
-    normalizeDesiredPitchFeelings(existing?.desiredPitchFeelings),
-  );
-
-  function toggleCurrentFeeling(id: CurrentPitchFeeling) {
-    const next = togglePitchFeeling(currentFeelings, id);
-    if (next.limitReached) {
-      toast.info("Możesz wybrać maksymalnie 2 odpowiedzi");
-      return;
-    }
-    setCurrentFeelings(next.value);
-  }
-
-  function toggleDesiredFeeling(id: DesiredPitchFeeling) {
-    const next = togglePitchFeeling(desiredFeelings, id);
-    if (next.limitReached) {
-      toast.info("Możesz wybrać maksymalnie 2 odpowiedzi");
-      return;
-    }
-    setDesiredFeelings(next.value);
-  }
-
-  // Walidacja spójności stanu sezonu z kalendarzem i datą meczu.
-  const seasonValidation = validateSeason({
-    seasonPhase,
-    seasonStage,
-    nextMatchDate: noMatch ? null : matchDate || null,
-    weeklyMatches: noMatch ? false : weeklyMatches,
-    seasonPhaseOverride,
-  });
-  const seasonBlocksContinue = !seasonPhaseOverride && seasonValidation.status === "invalid";
+  const [answers, setAnswers] = useState<OnboardingAnswers>(() => answersFromProfile(existing));
+  const set = <K extends keyof OnboardingAnswers>(key: K, value: OnboardingAnswers[K]) =>
+    setAnswers((prev) => ({ ...prev, [key]: value }));
 
   // Legal consents (RODO/GDPR).
-  const [consents, setConsents] = useState<Record<string, boolean>>({
-    health_data: existing?.healthPersonalizationEnabled === true,
-  });
+  const retry =
+    pendingRetry &&
+    user &&
+    pendingRetry.userId === user.id &&
+    existing &&
+    !existing.onboardingComplete
+      ? pendingRetry
+      : null;
+  const [consents, setConsents] = useState<Record<string, boolean>>(
+    () =>
+      retry?.consents ?? {
+        health_data: existing?.healthPersonalizationEnabled === true,
+      },
+  );
+  const [openConsent, setOpenConsent] = useState<string | null>(null);
+  const requiredConsentsOk = CONSENTS.filter((c) => c.required).every((c) => consents[c.type]);
 
   const ageNum = birthDate ? ageOnDate(birthDate) : null;
   const agePolicy = ageNum == null ? null : policyForAge(ageNum);
@@ -326,124 +284,121 @@ function Onboarding() {
     (accountOwnerType !== "guardian" || (guardianEmailVerified && consent));
   const isGuardianChild = ageNum != null && ageNum >= 13 && ageNum < 16;
 
-  const totalSteps = 6;
+  const steps = useMemo<StepId[]>(
+    () => [
+      "consents",
+      "athlete",
+      ...(accountOwnerType === "guardian" ? (["guardian"] as const) : []),
+      "position",
+      "level",
+      "league",
+      "goal",
+      "limiter",
+      "week",
+      "match",
+      "season",
+      "conditions",
+      "equipment",
+      "doubles",
+      "summary",
+    ],
+    [accountOwnerType],
+  );
+  const [index, setIndex] = useState(() => (retry ? steps.length - 1 : 0));
+  const [dir, setDir] = useState<"forward" | "back">("forward");
+  const [showError, setShowError] = useState(false);
+  const stepId = steps[Math.min(index, steps.length - 1)];
+  const advanceTimer = useRef<number | null>(null);
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [showErrors, setShowErrors] = useState(false);
+  // Local calendar day: a UTC date would allow yesterday after midnight in Poland.
+  const today = localToday();
+  const season = seasonCheck(answers, today);
+  const seasonBlocks = !answers.seasonPhaseOverride && season.status === "invalid";
 
-  // Każdy krok zawsze startuje od samej góry.
-  useEffect(() => {
-    const toTop = (el: { scrollTo: (o: ScrollToOptions) => void } | null) => {
-      if (!el) return;
-      try {
-        el.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
-      } catch {
-        el.scrollTo({ top: 0, behavior: "auto" });
-      }
-    };
-    toTop(scrollRef.current);
-    if (typeof window !== "undefined") toTop(window);
-    setShowErrors(false);
-  }, [step]);
+  function stepValid(id: StepId): boolean {
+    switch (id) {
+      case "consents":
+        return requiredConsentsOk;
+      case "athlete":
+        return (
+          name.trim().length > 0 &&
+          ageNum != null &&
+          ageNum >= 13 &&
+          ageNum <= 80 &&
+          (!agePolicy?.guardianMustOwnAccount || accountOwnerType === "guardian")
+        );
+      case "guardian":
+        return guardianName.trim().length >= 2 && consent && guardianEmailVerified;
+      case "position":
+        return answers.position !== null;
+      case "level":
+        return answers.level !== null;
+      case "league":
+        return answers.competitionLevel !== null;
+      case "goal":
+        return answers.goal !== null;
+      case "limiter":
+        return answers.secondaryLimiter !== null;
+      case "match":
+        return answers.noMatch || answers.matchDate.length > 0;
+      case "season":
+        return answers.seasonPhase !== null && !seasonBlocks;
+      default:
+        return true;
+    }
+  }
+
+  function goTo(next: number) {
+    if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
+    setDir(next < index ? "back" : "forward");
+    setShowError(false);
+    setIndex(Math.max(0, Math.min(next, steps.length - 1)));
+  }
 
   function goNext() {
-    if (!canNext()) {
-      setShowErrors(true);
-      if (step === 4) setTriedNext(true);
-      requestAnimationFrame(() => {
-        const el = document.querySelector('[data-error="true"]');
-        el?.scrollIntoView({ behavior: "smooth", block: "center" });
-      });
+    if (!stepValid(stepId)) {
+      setShowError(true);
       return;
     }
-    setStep((s) => s + 1);
+    goTo(index + 1);
   }
 
-  const requiredConsentsOk = CONSENTS.filter((c) => c.required).every((c) => consents[c.type]);
-
-  function toggleClubDay(d: number) {
-    setClubDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort()));
-  }
-  function toggleUnavailableDay(d: number) {
-    setUnavailableDays((prev) =>
-      prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort(),
-    );
-  }
-  function canNext(): boolean {
-    if (step === 0) return requiredConsentsOk;
-    if (step === 1)
-      return (
-        name.trim().length > 0 &&
-        ageNum != null &&
-        ageNum >= 13 &&
-        ageNum <= 80 &&
-        (accountOwnerType !== "guardian" || guardianName.trim().length >= 2) &&
-        (!agePolicy?.guardianMustOwnAccount || accountOwnerType === "guardian")
-      );
-    if (step === 2)
-      return (
-        position !== null &&
-        level !== null &&
-        seasonPhase !== null &&
-        competitionLevel !== null &&
-        !seasonBlocksContinue
-      );
-    if (step === 3) return goal !== null && secondaryLimiter !== null;
-    if (step === 4) return noMatch || matchDate.trim().length > 0;
-    if (step === 5) return currentFeelings.length > 0 && desiredFeelings.length > 0;
-    return true;
+  /** Records a single choice and moves on shortly after, so the selection is visible. */
+  function pick<K extends keyof OnboardingAnswers>(key: K, value: OnboardingAnswers[K]) {
+    set(key, value);
+    setShowError(false);
+    if (!AUTO_ADVANCE.includes(stepId)) return;
+    if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
+    const from = index;
+    advanceTimer.current = window.setTimeout(() => {
+      setDir("forward");
+      setIndex((current) => (current === from ? from + 1 : current));
+    }, 320);
   }
 
-  async function handleSubmit() {
-    if (submitBusy.current) return;
-    if (!position || !level || !goal || ageNum == null || ageNum < 13) {
-      toast.error("Uzupełnij wymagane pola.");
-      return;
+  useEffect(
+    () => () => {
+      if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
+    },
+    [],
+  );
+
+  // The season question starts on what the calendar and the next match point to.
+  useEffect(() => {
+    if (stepId === "season" && answers.seasonPhase === null)
+      set("seasonPhase", suggestedSeasonPhase(answers, today));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepId]);
+
+  function buildProfile(): Profile | null {
+    if (ageNum == null || ageNum < 13) return null;
+    let training;
+    try {
+      training = trainingFieldsFromAnswers(answers, existing, today);
+    } catch {
+      return null;
     }
-    if (!secondaryLimiter) {
-      toast.error("Wybierz, co najbardziej Cię ogranicza.");
-      setStep(3);
-      return;
-    }
-    if (!seasonPhase || !competitionLevel) {
-      toast.error("Wybierz okres sezonu i poziom rozgrywkowy.");
-      setStep(2);
-      return;
-    }
-    if (seasonBlocksContinue) {
-      toast.error(
-        "Okres sezonu nie pasuje do kalendarza. Popraw go albo włącz tryb niestandardowego sezonu.",
-      );
-      setStep(2);
-      return;
-    }
-    if (!ageAccountIsValid) {
-      toast.error(
-        isGuardianChild
-          ? "Dla zawodnika 13–15 konto musi należeć do rodzica lub opiekuna z potwierdzonym e-mailem."
-          : "Nie można aktywować tego profilu dla wybranego wieku i właściciela konta.",
-      );
-      return;
-    }
-    if (!requiredConsentsOk) {
-      toast.error("Zaakceptuj wymagane zgody, aby kontynuować.");
-      return;
-    }
-    if (!noMatch && !matchDate) {
-      toast.error("Podaj datę najbliższego meczu, żeby dobrze ustawić obciążenia.");
-      setTriedNext(true);
-      setStep(4);
-      return;
-    }
-    if (currentFeelings.length === 0 || desiredFeelings.length === 0) {
-      toast.error("Wybierz, jak czujesz się teraz i jak chcesz się czuć.");
-      setShowErrors(true);
-      setStep(5);
-      return;
-    }
-    // BallWise sam decyduje o dniach — dostępne są wszystkie dni poza niedostępnymi.
-    const availableDays = [1, 2, 3, 4, 5, 6, 7].filter((d) => !unavailableDays.includes(d));
-    const profile: Profile = {
+    return {
       ...existing,
       name: name.trim(),
       age: ageNum,
@@ -474,48 +429,60 @@ function Onboarding() {
       foodAllergies: [],
       foodIntolerances: [],
       foodExclusions: [],
-      position,
-      level,
-      goal,
-      secondaryLimiter,
-      clubTrainingDays: clubDays,
-      individualTrainingDays: availableDays,
-      unavailableDays,
-      usualMatchDay: null,
-      matchDate: noMatch ? null : matchDate || null,
-      matchDates: noMatch
-        ? []
-        : matchDate === existing?.matchDate
-          ? (existing?.matchDates ?? (matchDate ? [matchDate] : []))
-          : matchDate
-            ? [matchDate]
-            : [],
-      equipment,
+      ...training,
       // Onboarding nie zbiera danych o bólu ani urazach (dane wrażliwe, RODO art. 9).
       painInjury: false,
       painLocations: [],
-      doubleSessionsAllowed:
-        level === "beginner" && doubleSessionsAllowed === "yes_if_safe"
-          ? "light_only"
-          : doubleSessionsAllowed,
       guardianConsent: isGuardianChild ? consent : accountOwnerType === "guardian" ? consent : true,
       onboardingComplete: true,
       createdAt: existing?.createdAt ?? new Date().toISOString(),
-      seasonPhase,
-      seasonStage: seasonStage,
-      competitionLevel,
-      weeklyMatches: noMatch ? false : weeklyMatches,
-      seasonPhaseOverride,
-      seasonValidationStatus: seasonPhaseOverride ? "override" : seasonValidation.status,
-      hasGym,
-      hasPitch,
-      hasSprintSpace,
-      currentPitchFeelings: normalizeCurrentPitchFeelings(currentFeelings),
-      desiredPitchFeelings: normalizeDesiredPitchFeelings(desiredFeelings),
     };
+  }
+
+  // Summary: generate the first days of the plan from the answers and list the facts.
+  const [facts, setFacts] = useState<PlanFact[] | null>(null);
+  useEffect(() => {
+    if (stepId !== "summary") return;
+    let alive = true;
+    setFacts(null);
+    const profile = buildProfile();
+    if (!profile) return;
+    generatePlanAsync(profile, today, 14)
+      .then((plan) => alive && setFacts(onboardingPlanFacts(profile, plan)))
+      .catch(() => alive && setFacts([]));
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepId]);
+
+  async function handleSubmit() {
+    if (submitBusy.current) return;
+    const firstInvalid = steps.findIndex((id) => !stepValid(id));
+    if (firstInvalid >= 0 && steps[firstInvalid] !== "summary") {
+      toast.error(STEP_ERROR[steps[firstInvalid]] ?? "Uzupełnij wymagane pola.");
+      goTo(firstInvalid);
+      setShowError(true);
+      return;
+    }
+    if (!ageAccountIsValid) {
+      toast.error(
+        isGuardianChild
+          ? "Dla zawodnika 13–15 konto musi należeć do rodzica lub opiekuna z potwierdzonym e-mailem."
+          : "Nie można aktywować tego profilu dla wybranego wieku i właściciela konta.",
+      );
+      return;
+    }
+    const profile = buildProfile();
+    if (!profile) {
+      toast.error("Uzupełnij wymagane pola.");
+      return;
+    }
     submitBusy.current = true;
     setBusy(true);
     try {
+      pendingRetry = { userId: user!.id, consents };
+      // Not cleared on return: a shown plan may still fail to save and bring the athlete back.
       await completeOnboarding(profile, consents);
       // A new plan is shown at once and saved in the background; only an edit is confirmed here.
       if (isEditing) toast.success("Profil zaktualizowany.");
@@ -535,759 +502,30 @@ function Onboarding() {
     }
   }
 
-  // Local calendar day: a UTC date would allow yesterday after midnight in Poland.
-  const today = localToday();
-
   if (loading || !hydrated || !user) {
     return <AppLaunchScreen />;
   }
 
-  return (
-    <div className="app-shell onboarding-premium flex h-[100dvh] flex-col">
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto overscroll-contain"
-        style={{ overflowAnchor: "none" }}
-      >
-        <div className="px-5 pt-6 bw-sketch-surface">
-          <SurfaceSketch kind="pitch" />
-          <div className="flex items-center gap-3">
-            {step > 0 ? (
-              <button
-                onClick={() => setStep((s) => s - 1)}
-                className="flex h-11 w-11 items-center justify-center rounded-xl border border-border text-foreground"
-                aria-label="Wstecz"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-            ) : (
-              <div className="text-[17px] font-medium tracking-[-0.025em] text-foreground">
-                BallWise
-              </div>
-            )}
-            <div className="ml-auto text-xs text-muted-foreground">
-              Krok {step + 1} z {totalSteps}
-            </div>
-          </div>
-          <div className="mt-4 flex gap-1.5">
-            {Array.from({ length: totalSteps }).map((_, i) => (
-              <div key={i} className={`h-px flex-1 ${i <= step ? "bg-primary" : "bg-muted"}`} />
-            ))}
-          </div>
-        </div>
-        <div className="px-5 pt-6 pb-36">
-          {step === 1 && (
-            <div className="space-y-5">
-              <div>
-                <h2 className="text-xl font-semibold">Zaczynamy</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Dane dotyczą zawodnika. Data urodzenia służy wyłącznie do zastosowania progów 13,
-                  16 i 18 lat.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="name">Imię</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Twoje imię"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="birth-date">Data urodzenia zawodnika</Label>
-                <Input
-                  id="birth-date"
-                  type="date"
-                  min={birthDateForApproximateAge(80)}
-                  max={birthDateForApproximateAge(13)}
-                  value={birthDate}
-                  onChange={(e) => setBirthDate(e.target.value)}
-                />
-                {birthDate !== "" && (ageNum == null || ageNum < 13) && (
-                  <p className="text-xs text-destructive">
-                    Spersonalizowane konto jest dostępne od 13 lat. Młodszy zawodnik może użyć tylko
-                    publicznego demo bez zapisu danych.
-                  </p>
-                )}
-                {agePolicy?.guardianMustOwnAccount && accountOwnerType !== "guardian" && (
-                  <div
-                    data-error="true"
-                    className="rounded-xl border border-destructive/40 bg-destructive/10 p-3"
-                  >
-                    <p className="text-xs font-medium text-destructive">
-                      Zawodnik 13–15 musi korzystać z konta należącego do rodzica lub opiekuna.
-                    </p>
-                    <button
-                      type="button"
-                      className="mt-2 text-xs font-semibold text-primary underline"
-                      onClick={() => setAccountOwnerType("guardian")}
-                    >
-                      Potwierdzam, że ten e-mail i konto należą do opiekuna
-                    </button>
-                  </div>
-                )}
-                {accountOwnerType === "guardian" && (
-                  <div className="space-y-2 pt-2">
-                    <Label htmlFor="guardian-name">Imię rodzica lub opiekuna</Label>
-                    <Input
-                      id="guardian-name"
-                      value={guardianName}
-                      onChange={(event) => setGuardianName(event.target.value)}
-                      placeholder="Imię właściciela konta"
-                      autoComplete="given-name"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      E-mail właściciela konta: {user.email ?? "brak"}
-                    </p>
-                  </div>
-                )}
-                {ageNum != null && ageNum >= 16 && (
-                  <p className="text-xs text-muted-foreground">
-                    Wiek zawodnika: {ageNum} lat. Może posiadać własne konto.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
+  const stripDays = Array.from({ length: 14 }, (_, i) => addDays(today, i));
+  const stripIsos = stripDays.map((d) => format(d, "yyyy-MM-dd"));
+  const matchOutsideStrip =
+    !answers.noMatch && answers.matchDate !== "" && !stripIsos.includes(answers.matchDate);
+  const matchDayName = answers.matchDate
+    ? ISO_DAY_LABELS.find((d) => d.value === isoWeekday(answers.matchDate))?.label.toLowerCase()
+    : null;
+  const progress = ((index + 1) / steps.length) * 100;
 
-          {step === 2 && (
-            <div className="space-y-8">
-              <div>
-                <h2 className="text-2xl font-semibold">Twoja gra</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Dopasujemy plan do pozycji, poziomu i etapu sezonu.
-                </p>
-              </div>
-
-              {/* Pozycja */}
-              <section
-                className="space-y-3"
-                data-error={showErrors && !position ? "true" : undefined}
-              >
-                <Label>Pozycja</Label>
-                <ChoiceGrid
-                  options={positions}
-                  value={position}
-                  onChange={setPosition}
-                  labels={POSITION_LABELS}
-                  cols={2}
-                />
-                {showErrors && !position && (
-                  <p className="text-xs font-medium text-destructive">Wybierz pozycję.</p>
-                )}
-              </section>
-
-              {/* Poziom treningowy */}
-              <section className="space-y-3" data-error={showErrors && !level ? "true" : undefined}>
-                <Label>Poziom treningowy</Label>
-                <div className="grid gap-2">
-                  {levels.map((lv) => (
-                    <button
-                      key={lv}
-                      type="button"
-                      onClick={() => setLevel(lv)}
-                      className={`flex flex-col items-start rounded-2xl border px-4 py-3 text-left transition-all ${
-                        level === lv
-                          ? "border-primary bg-primary/[0.08] text-primary"
-                          : "border-border bg-card text-foreground"
-                      }`}
-                    >
-                      <span className="text-sm font-semibold">{LEVEL_CARD_LABELS[lv].label}</span>
-                      <span
-                        className={`mt-0.5 text-xs ${
-                          level === lv ? "text-primary-foreground/80" : "text-muted-foreground"
-                        }`}
-                      >
-                        {LEVEL_CARD_LABELS[lv].desc}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-                {showErrors && !level && (
-                  <p className="text-xs font-medium text-destructive">Wybierz poziom treningowy.</p>
-                )}
-              </section>
-
-              {/* Okres sezonu */}
-              <section
-                className="space-y-3"
-                data-error={showErrors && !seasonPhase ? "true" : undefined}
-              >
-                <Label>Okres sezonu</Label>
-                <div className="overflow-hidden rounded-2xl border border-border">
-                  {seasonPhases.map((ph, i) => (
-                    <button
-                      key={ph}
-                      type="button"
-                      onClick={() => {
-                        setSeasonPhase(ph);
-                        setSeasonStage(null);
-                        setSeasonPhaseOverride(false);
-                      }}
-                      className={`flex w-full items-center px-4 py-3 text-sm font-medium transition-colors ${
-                        i > 0 ? "border-t border-border" : ""
-                      } ${
-                        seasonPhase === ph
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-card text-foreground"
-                      }`}
-                    >
-                      {SEASON_PHASE_LABELS[ph]}
-                    </button>
-                  ))}
-                </div>
-                {showErrors && !seasonPhase && (
-                  <p className="text-xs font-medium text-destructive">Wybierz okres sezonu.</p>
-                )}
-                {seasonPhase !== null &&
-                  !seasonPhaseOverride &&
-                  (seasonValidation.status === "invalid" ||
-                    seasonValidation.status === "incomplete") && (
-                    <div className="space-y-2 rounded-xl border border-destructive/50 bg-destructive/10 p-3">
-                      <p className="text-xs font-medium text-destructive">
-                        {seasonValidation.message}
-                      </p>
-                      {seasonValidation.suggestion && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSeasonPhase(seasonValidation.suggestion);
-                            setSeasonStage(null);
-                            setSeasonPhaseOverride(false);
-                          }}
-                          className="rounded-full border border-primary bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
-                        >
-                          Ustaw sugerowany: {SEASON_PHASE_LABELS[seasonValidation.suggestion]}
-                        </button>
-                      )}
-                      {seasonValidation.needsConfirm && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const ok = window.confirm(
-                              "Ten okres sezonu nie pasuje do kalendarza. Czy na pewno masz niestandardowy harmonogram (turniej, liga zagraniczna, akademia, plan indywidualny)?",
-                            );
-                            if (ok) setSeasonPhaseOverride(true);
-                          }}
-                          className="ml-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground"
-                        >
-                          Tryb niestandardowego sezonu
-                        </button>
-                      )}
-                    </div>
-                  )}
-                {seasonPhaseOverride && (
-                  <p className="text-xs font-medium text-primary">
-                    Tryb niestandardowego sezonu włączony — plan korzysta z Twojego kalendarza i
-                    daty meczu.
-                  </p>
-                )}
-              </section>
-
-              {(seasonPhase === "inseason" || seasonPhase === "transition") && (
-                <section className="space-y-3">
-                  <Label>Etap w sezonie</Label>
-                  <div className="overflow-hidden rounded-2xl border border-border">
-                    {seasonStages.map((sg, i) => (
-                      <button
-                        key={sg}
-                        type="button"
-                        onClick={() => setSeasonStage(sg)}
-                        className={`flex w-full items-center px-4 py-3 text-sm font-medium transition-colors ${
-                          i > 0 ? "border-t border-border" : ""
-                        } ${
-                          seasonStage === sg
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-card text-foreground"
-                        }`}
-                      >
-                        {SEASON_STAGE_LABELS[sg]}
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* Poziom rozgrywkowy */}
-              <section
-                className="space-y-3"
-                data-error={showErrors && !competitionLevel ? "true" : undefined}
-              >
-                <Label>Poziom rozgrywkowy</Label>
-                <Select
-                  value={competitionLevel ?? undefined}
-                  onValueChange={(v) => setCompetitionLevel(v as CompetitionLevel)}
-                >
-                  <SelectTrigger className="h-14 rounded-2xl">
-                    <SelectValue placeholder="Wybierz poziom" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {competitionLevels.map((cl) => (
-                      <SelectItem key={cl} value={cl}>
-                        {COMPETITION_LEVEL_LABELS[cl]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {showErrors && !competitionLevel && (
-                  <p className="text-xs font-medium text-destructive">
-                    Wybierz poziom rozgrywkowy.
-                  </p>
-                )}
-              </section>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className="space-y-8">
-              <div>
-                <h2 className="text-2xl font-semibold">Główny cel</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Wybierz jeden priorytet. Ograniczenie potraktujemy jako dodatkowe wsparcie, nie
-                  zamiennik celu.
-                </p>
-              </div>
-
-              {/* Priorytet */}
-              <section className="space-y-3" data-error={showErrors && !goal ? "true" : undefined}>
-                <Label>Priorytet</Label>
-                <ChoiceGrid
-                  options={goalOrder}
-                  value={goal}
-                  onChange={setGoal}
-                  labels={GOAL_SHORT_LABELS}
-                  cols={2}
-                />
-                {showErrors && !goal && (
-                  <p className="text-xs font-medium text-destructive">Wybierz główny cel.</p>
-                )}
-              </section>
-
-              {/* Ograniczenie */}
-              <section
-                className="space-y-3"
-                data-error={showErrors && !secondaryLimiter ? "true" : undefined}
-              >
-                <Label>Co najbardziej Cię ogranicza?</Label>
-                <p className="text-sm text-muted-foreground">
-                  To pomaga dobrać akcenty w planie. Nie zastępuje celu głównego.
-                </p>
-                <ChoiceGrid
-                  options={limiters}
-                  value={secondaryLimiter}
-                  onChange={setSecondaryLimiter}
-                  labels={LIMITER_SHORT_LABELS}
-                  cols={2}
-                />
-                {showErrors && !secondaryLimiter && (
-                  <p className="text-xs font-medium text-destructive">
-                    Wybierz, co najbardziej Cię ogranicza.
-                  </p>
-                )}
-              </section>
-            </div>
-          )}
-
-          {step === 4 && (
-            <div className="space-y-8">
-              <div>
-                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Kalendarz tygodnia
-                </span>
-                <h2 className="mt-1 text-2xl font-semibold">Twój tydzień treningowy</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Zaznacz stałe elementy tygodnia. BallWise dopasuje do nich obciążenia, regenerację
-                  i dni mocniejsze.
-                </p>
-              </div>
-
-              {/* Główna karta kalendarza */}
-              <div className="space-y-7 rounded-2xl border border-border bg-card p-5">
-                {/* Treningi klubowe */}
-                <div className="space-y-2.5">
-                  <Label>W jakie dni masz treningi klubowe?</Label>
-                  <div className="grid grid-cols-7 gap-1.5">
-                    {ISO_DAY_LABELS.map((d) => (
-                      <button
-                        key={d.value}
-                        type="button"
-                        onClick={() => toggleClubDay(d.value)}
-                        className={`rounded-full border py-2 text-xs font-medium transition-colors ${
-                          clubDays.includes(d.value)
-                            ? "border-primary bg-primary/[0.08] text-primary"
-                            : "border-border bg-background text-foreground"
-                        }`}
-                      >
-                        {d.short}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Data meczu */}
-                <div className="space-y-2.5">
-                  <Label>Data najbliższego meczu</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={() => setMatchDateTouched(true)}
-                        className={`flex w-full items-center gap-3 rounded-xl border bg-background px-4 py-3 text-left text-sm transition-colors ${
-                          (triedNext || matchDateTouched) && !matchDate && !noMatch
-                            ? "border-destructive"
-                            : "border-border"
-                        }`}
-                      >
-                        <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span
-                          className={
-                            matchDate && !noMatch ? "text-foreground" : "text-muted-foreground"
-                          }
-                        >
-                          {matchDate && !noMatch
-                            ? format(new Date(`${matchDate}T00:00:00`), "d MMMM yyyy", {
-                                locale: pl,
-                              })
-                            : "Wybierz datę meczu"}
-                        </span>
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        locale={pl}
-                        selected={matchDate ? new Date(`${matchDate}T00:00:00`) : undefined}
-                        onSelect={(d) => {
-                          setMatchDateTouched(true);
-                          if (d) {
-                            setMatchDate(format(d, "yyyy-MM-dd"));
-                            setNoMatch(false);
-                          }
-                        }}
-                        disabled={(d) => d < today}
-                        initialFocus
-                        className="pointer-events-auto p-3"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <label className="flex items-start gap-3 rounded-xl border border-border bg-background p-3.5">
-                    <Checkbox
-                      checked={noMatch}
-                      onCheckedChange={(checked) => {
-                        const next = checked === true;
-                        setNoMatch(next);
-                        if (next) {
-                          setMatchDate("");
-                          setWeeklyMatches(false);
-                        }
-                      }}
-                      className="mt-0.5"
-                    />
-                    <span className="text-sm">Nie mam teraz zaplanowanego meczu</span>
-                  </label>
-                  {!noMatch && matchDate && (
-                    <label className="flex items-start gap-3 rounded-xl border border-border bg-background p-3.5">
-                      <Checkbox
-                        checked={weeklyMatches}
-                        onCheckedChange={(checked) => setWeeklyMatches(checked === true)}
-                        className="mt-0.5"
-                      />
-                      <span className="text-sm">W tym okresie zwykle gram mecz co tydzień</span>
-                    </label>
-                  )}
-                  {(triedNext || matchDateTouched) && !matchDate && !noMatch && (
-                    <p className="text-xs font-medium text-destructive">
-                      Podaj datę najbliższego meczu, żeby dobrze ustawić obciążenia.
-                    </p>
-                  )}
-                </div>
-
-                <p className="rounded-xl bg-secondary px-4 py-3 text-xs text-muted-foreground">
-                  Plan uwzględni klub, mecze i Twoją dostępność. Druga sesja u początkujących i
-                  młodszych zawodników może być tylko lekka.
-                </p>
-              </div>
-
-              {/* Warunki treningowe */}
-              <div className="space-y-2.5">
-                <Label>Warunki treningowe</Label>
-                <label className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5">
-                  <Checkbox checked={hasGym} onCheckedChange={(c) => setHasGym(c === true)} />
-                  <span className="text-sm">Mam dostęp do siłowni</span>
-                </label>
-                <label className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5">
-                  <Checkbox checked={hasPitch} onCheckedChange={(c) => setHasPitch(c === true)} />
-                  <span className="text-sm">Mam dostęp do boiska</span>
-                </label>
-                <label className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5">
-                  <Checkbox
-                    checked={hasSprintSpace}
-                    onCheckedChange={(c) => setHasSprintSpace(c === true)}
-                  />
-                  <span className="text-sm">
-                    Mam bezpieczną prostą i miejsce do wyhamowania sprintu
-                  </span>
-                </label>
-                <label className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5">
-                  <Checkbox
-                    checked={equipment.some((item) => /wall|rebounder|odbojnik|ściana/i.test(item))}
-                    onCheckedChange={(checked) =>
-                      setEquipment((items) =>
-                        checked === true
-                          ? [
-                              ...items.filter(
-                                (item) => !/wall|rebounder|odbojnik|ściana/i.test(item),
-                              ),
-                              "rebounder",
-                            ]
-                          : items.filter((item) => !/wall|rebounder|odbojnik|ściana/i.test(item)),
-                      )
-                    }
-                  />
-                  <span className="text-sm">Mam bezpieczną ścianę lub odbojnik do podań</span>
-                </label>
-                <div className="rounded-xl border border-border bg-card p-3.5">
-                  <p className="text-sm font-medium">Sprzęt, który masz poza siłownią</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Plan dobierze ćwiczenia siłowe i piłkarskie do tego, co zaznaczysz.
-                  </p>
-                  <div className="mt-2 grid grid-cols-1 gap-1">
-                    {OWN_EQUIPMENT_OPTIONS.map((item) => (
-                      <label key={item} className="flex min-h-11 items-center gap-3 text-sm">
-                        <Checkbox
-                          checked={equipment.includes(item)}
-                          onCheckedChange={(checked) =>
-                            setEquipment((items) =>
-                              checked === true
-                                ? [...items.filter((value) => value !== item), item]
-                                : items.filter((value) => value !== item),
-                            )
-                          }
-                        />
-                        {item}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-border bg-card p-3.5">
-                  <Label htmlFor="double-sessions">Dwie sesje jednego dnia</Label>
-                  <select
-                    id="double-sessions"
-                    value={doubleSessionsAllowed}
-                    onChange={(event) =>
-                      setDoubleSessionsAllowed(event.target.value as DoubleSessions)
-                    }
-                    className="mt-2 w-full rounded-lg border border-input bg-background p-2.5 text-sm"
-                  >
-                    <option value="no">Maksymalnie jedna sesja dziennie</option>
-                    <option value="light_only">Druga tylko lekka, jeśli jest bezpiecznie</option>
-                    {level !== "beginner" && (
-                      <option value="yes_if_safe">Dopuszczam dwie, jeśli jest bezpiecznie</option>
-                    )}
-                  </select>
-                </div>
-              </div>
-
-              {/* Dni całkowicie niedostępne */}
-              <div className="space-y-2.5">
-                <Label>Dni całkowicie niedostępne</Label>
-                <p className="text-xs text-muted-foreground">
-                  Zaznacz tylko dni, w które w ogóle nie możesz trenować.
-                </p>
-                <div className="grid grid-cols-7 gap-1.5">
-                  {ISO_DAY_LABELS.map((d) => (
-                    <button
-                      key={d.value}
-                      type="button"
-                      onClick={() => toggleUnavailableDay(d.value)}
-                      className={`rounded-full border py-2 text-xs font-medium transition-colors ${
-                        unavailableDays.includes(d.value)
-                          ? "border-destructive bg-destructive text-destructive-foreground"
-                          : "border-border bg-card text-foreground"
-                      }`}
-                    >
-                      {d.short}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {accountOwnerType === "guardian" && ageNum != null && ageNum < 18 && (
-                <label className="flex items-start gap-3 rounded-xl border border-accent bg-accent/30 p-3.5">
-                  <Checkbox
-                    checked={consent}
-                    onCheckedChange={(v) => setConsent(v === true)}
-                    className="mt-0.5"
-                  />
-                  <span className="text-sm">
-                    Oświadczenie rodzica lub opiekuna
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
-                      Oświadczam, że jestem rodzicem lub opiekunem zawodnika i mogę utworzyć oraz
-                      prowadzić jego profil. Dla wieku 13–15 jest to wymagane.
-                    </span>
-                  </span>
-                </label>
-              )}
-              {isGuardianChild && !guardianEmailVerified && (
-                <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3.5">
-                  <p className="text-xs font-medium text-destructive">
-                    Najpierw potwierdź e-mail właściciela konta. Bez tego profil zawodnika 13–15 nie
-                    zostanie aktywowany.
-                  </p>
-                  <button
-                    type="button"
-                    className="mt-2 text-xs font-semibold text-primary underline"
-                    onClick={async () => {
-                      if (!user.email) return;
-                      const result = await resendSignupConfirmation(user.email);
-                      if (result.error) toast.error(result.error);
-                      else toast.success("Wysłaliśmy nową wiadomość. Sprawdź skrzynkę e-mail.");
-                    }}
-                  >
-                    Wyślij wiadomość potwierdzającą ponownie
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {step === 5 && (
-            <div className="space-y-8">
-              <div>
-                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Twój kierunek
-                </span>
-                <h2 className="mt-1 text-2xl font-semibold">Jak chcesz się czuć na boisku?</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  To Twój punkt startu. Nie zmienia obciążeń — pomaga nazwać, po co trenujesz.
-                </p>
-              </div>
-
-              <section className="space-y-3">
-                <Label>Jak czujesz się teraz na boisku?</Label>
-                <p className="text-xs text-muted-foreground">Wybierz 1–2 odpowiedzi.</p>
-                <div className="grid grid-cols-1 gap-2">
-                  {CURRENT_PITCH_FEELINGS.map((id) => {
-                    const active = currentFeelings.includes(id);
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => toggleCurrentFeeling(id)}
-                        aria-pressed={active}
-                        className={`rounded-xl border px-3.5 py-3 text-left text-sm font-medium transition-colors ${
-                          active
-                            ? "border-primary bg-primary/[0.08] text-primary"
-                            : "border-border bg-card text-foreground"
-                        }`}
-                      >
-                        {CURRENT_PITCH_FEELING_LABELS[id]}
-                      </button>
-                    );
-                  })}
-                </div>
-                {showErrors && currentFeelings.length === 0 && (
-                  <p data-error="true" className="text-xs font-medium text-destructive">
-                    Wybierz przynajmniej jedną odpowiedź.
-                  </p>
-                )}
-              </section>
-
-              <section className="space-y-3">
-                <Label>Jak chcesz się czuć na boisku?</Label>
-                <p className="text-xs text-muted-foreground">Wybierz 1–2 odpowiedzi.</p>
-                <div className="grid grid-cols-1 gap-2">
-                  {DESIRED_PITCH_FEELINGS.map((id) => {
-                    const active = desiredFeelings.includes(id);
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => toggleDesiredFeeling(id)}
-                        aria-pressed={active}
-                        className={`rounded-xl border px-3.5 py-3 text-left text-sm font-medium transition-colors ${
-                          active
-                            ? "border-primary bg-primary/[0.08] text-primary"
-                            : "border-border bg-card text-foreground"
-                        }`}
-                      >
-                        {DESIRED_PITCH_FEELING_LABELS[id]}
-                      </button>
-                    );
-                  })}
-                </div>
-                {showErrors && desiredFeelings.length === 0 && (
-                  <p data-error="true" className="text-xs font-medium text-destructive">
-                    Wybierz przynajmniej jedną odpowiedź.
-                  </p>
-                )}
-              </section>
-
-              <div className="rounded-2xl border border-border bg-card p-4">
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Punkt startu
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {currentFeelings.length ? (
-                    currentFeelings.map((id) => (
-                      <span
-                        key={id}
-                        className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground"
-                      >
-                        {CURRENT_PITCH_FEELING_LABELS[id]}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </div>
-
-                <div className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Twój kierunek
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {desiredFeelings.length ? (
-                    desiredFeelings.map((id) => (
-                      <span
-                        key={id}
-                        className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
-                      >
-                        {DESIRED_PITCH_FEELING_LABELS[id]}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </div>
-
-                <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-                  Twój plan będzie prowadził Cię w tym kierunku — zgodnie z celem, kalendarzem i
-                  aktualną gotowością.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {step === 0 && (
-            <div className="space-y-5">
-              <div>
-                <h2 className="text-xl font-semibold">Zgody i prywatność</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Zanim zaczniemy, potrzebujemy Twoich zgód (RODO).
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-accent bg-accent/30 p-3.5 text-xs leading-relaxed text-muted-foreground">
-                {MEDICAL_DISCLAIMER}
-              </div>
-
-              <div className="space-y-2">
-                {CONSENTS.map((c) => (
-                  <label
-                    key={c.type}
-                    className="flex items-start gap-3 rounded-xl border border-border bg-card p-3"
-                  >
+  const body = (() => {
+    switch (stepId) {
+      case "consents":
+        return (
+          <>
+            <StepTitle title="Zanim zaczniemy" sub="Zaznacz zgody (* wymagane)." />
+            <div className="ob-gap ob-stagger">
+              {CONSENTS.map((c, i) => {
+                const open = openConsent === c.type;
+                return (
+                  <label key={c.type} className="ob-consent" style={{ ["--i" as string]: i }}>
                     <Checkbox
                       checked={!!consents[c.type]}
                       onCheckedChange={(v) =>
@@ -1295,72 +533,604 @@ function Onboarding() {
                       }
                       className="mt-0.5"
                     />
-                    <span className="text-sm leading-snug">
-                      {c.type === "terms" ? (
-                        <Link
-                          to="/terms"
-                          onClick={(event) => event.stopPropagation()}
-                          className="font-medium underline underline-offset-2"
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-baseline gap-2">
+                        <span className="min-w-0 flex-1">
+                          {c.type === "terms" ? (
+                            <Link
+                              to="/terms"
+                              onClick={(e) => e.stopPropagation()}
+                              className="font-medium underline underline-offset-2"
+                            >
+                              Regulamin
+                            </Link>
+                          ) : c.type === "privacy" ? (
+                            <Link
+                              to="/privacy-policy"
+                              onClick={(e) => e.stopPropagation()}
+                              className="font-medium underline underline-offset-2"
+                            >
+                              {c.title}
+                            </Link>
+                          ) : (
+                            <span className="font-medium">
+                              {c.type === "health_data"
+                                ? "Personalizacja (dane o zdrowiu)"
+                                : c.title.replace(/\s*\((opcjonalna|opcjonalne)\)/, "")}
+                            </span>
+                          )}
+                          {c.required && <span className="text-destructive"> *</span>}
+                        </span>
+                        <button
+                          type="button"
+                          className="shrink-0 text-xs font-semibold text-primary"
+                          aria-expanded={open}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setOpenConsent(open ? null : c.type);
+                          }}
                         >
-                          {c.title}
-                        </Link>
-                      ) : c.type === "privacy" ? (
-                        <Link
-                          to="/privacy-policy"
-                          onClick={(event) => event.stopPropagation()}
-                          className="font-medium underline underline-offset-2"
-                        >
-                          {c.title}
-                        </Link>
-                      ) : (
-                        <span className="font-medium">{c.title}</span>
-                      )}
-                      {c.required && <span className="text-destructive"> *</span>}
-                      <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                          {open ? "Zwiń" : "Treść"}
+                        </button>
+                      </span>
+                      <span
+                        className={`mt-0.5 text-xs leading-snug text-muted-foreground ${open ? "block" : "line-clamp-1"}`}
+                      >
                         {c.text}
                       </span>
                     </span>
                   </label>
-                ))}
-              </div>
-
-              <p className="text-xs text-muted-foreground">
-                Pełne dokumenty:{" "}
-                <Link to="/terms" className="underline">
-                  Regulamin
-                </Link>{" "}
-                ·{" "}
-                <Link to="/privacy-policy" className="underline">
-                  Polityka prywatności
-                </Link>
-                . Pola oznaczone * są wymagane.
-              </p>
+                );
+              })}
             </div>
+            <button
+              type="button"
+              className="ob-note mt-3 block w-full text-left"
+              aria-expanded={openConsent === "medical"}
+              onClick={() => setOpenConsent(openConsent === "medical" ? null : "medical")}
+            >
+              <span className={openConsent === "medical" ? "block" : "line-clamp-2"}>
+                {MEDICAL_DISCLAIMER}
+              </span>
+            </button>
+          </>
+        );
+      case "athlete":
+        return (
+          <>
+            <StepTitle
+              title="Kto trenuje?"
+              sub="Data urodzenia służy tylko progom wieku 13, 16 i 18 lat."
+            />
+            <div className="ob-gap space-y-4 ob-stagger">
+              <div className="space-y-1.5">
+                <Label htmlFor="name">Imię zawodnika</Label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Imię"
+                  autoComplete="given-name"
+                  className="h-12"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="birth-date">Data urodzenia</Label>
+                <Input
+                  id="birth-date"
+                  type="date"
+                  min={birthDateForApproximateAge(80)}
+                  max={birthDateForApproximateAge(13)}
+                  value={birthDate}
+                  onChange={(e) => setBirthDate(e.target.value)}
+                  className="h-12"
+                />
+              </div>
+              {ageNum != null && ageNum >= 13 && (
+                <span className="ob-chip">
+                  <Check className="h-3.5 w-3.5 text-primary" /> {ageNum} lat
+                </span>
+              )}
+              {birthDate !== "" && (ageNum == null || ageNum < 13) && (
+                <p className="ob-warn">
+                  Konto jest dostępne od 13 lat. Młodszy zawodnik może użyć tylko demo bez zapisu
+                  danych.
+                </p>
+              )}
+              {agePolicy?.guardianMustOwnAccount && accountOwnerType !== "guardian" && (
+                <div className="ob-warn">
+                  Zawodnik 13–15 korzysta z konta rodzica lub opiekuna.
+                  <button
+                    type="button"
+                    className="ob-link mt-1 block"
+                    onClick={() => setAccountOwnerType("guardian")}
+                  >
+                    To konto należy do opiekuna
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
+        );
+      case "guardian":
+        return (
+          <>
+            <StepTitle title="Opiekun konta" sub={`E-mail konta: ${user.email ?? "brak"}`} />
+            <div className="ob-gap space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="guardian-name">Imię rodzica lub opiekuna</Label>
+                <Input
+                  id="guardian-name"
+                  value={guardianName}
+                  onChange={(e) => setGuardianName(e.target.value)}
+                  placeholder="Imię"
+                  autoComplete="given-name"
+                  className="h-12"
+                />
+              </div>
+              <label className="ob-consent">
+                <Checkbox
+                  checked={consent}
+                  onCheckedChange={(v) => setConsent(v === true)}
+                  className="mt-0.5"
+                />
+                <span>
+                  Jestem rodzicem lub opiekunem zawodnika i mogę prowadzić jego profil.
+                  {isGuardianChild && <span className="text-destructive"> *</span>}
+                </span>
+              </label>
+              {!guardianEmailVerified && (
+                <div className="ob-warn">
+                  Najpierw potwierdź e-mail właściciela konta.
+                  <button
+                    type="button"
+                    className="ob-link mt-1 block"
+                    onClick={async () => {
+                      if (!user.email) return;
+                      const result = await resendSignupConfirmation(user.email);
+                      if (result.error) toast.error(result.error);
+                      else toast.success("Wysłaliśmy nową wiadomość. Sprawdź skrzynkę e-mail.");
+                    }}
+                  >
+                    Wyślij wiadomość ponownie
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
+        );
+      case "position":
+        return (
+          <>
+            <StepTitle title="Na jakiej pozycji grasz?" />
+            <div className="ob-gap">
+              <ChoiceList
+                cols={2}
+                variant="tile"
+                options={POSITION_OPTIONS}
+                value={answers.position}
+                onPick={(v) => pick("position", v)}
+              />
+            </div>
+          </>
+        );
+      case "level":
+        return (
+          <>
+            <StepTitle title="Jak zaawansowany jest Twój trening?" />
+            <div className="ob-gap">
+              <ChoiceList
+                options={LEVEL_OPTIONS}
+                value={answers.level}
+                onPick={(v) => pick("level", v)}
+              />
+            </div>
+          </>
+        );
+      case "league":
+        return (
+          <>
+            <StepTitle
+              title="Na jakim poziomie grasz?"
+              sub="Liga albo akademia, w której grasz teraz."
+            />
+            <div className="ob-gap">
+              <ChoiceList
+                cols={3}
+                options={LEAGUE_OPTIONS}
+                value={answers.competitionLevel}
+                onPick={(v) => pick("competitionLevel", v)}
+              />
+            </div>
+          </>
+        );
+      case "goal":
+        return (
+          <>
+            <StepTitle title="Co chcesz poprawić najbardziej?" sub="Jeden główny cel." />
+            <div className="ob-gap">
+              <ChoiceList
+                cols={2}
+                options={GOAL_OPTIONS}
+                value={answers.goal}
+                onPick={(v) => pick("goal", v)}
+              />
+            </div>
+          </>
+        );
+      case "limiter":
+        return (
+          <>
+            <StepTitle
+              title="Co Cię teraz najbardziej ogranicza?"
+              sub="Dodatkowy akcent obok celu."
+            />
+            <div className="ob-gap">
+              <ChoiceList
+                cols={2}
+                options={LIMITER_OPTIONS}
+                value={answers.secondaryLimiter}
+                onPick={(v) => pick("secondaryLimiter", v)}
+              />
+            </div>
+          </>
+        );
+      case "week":
+        return (
+          <>
+            <StepTitle title="Twój tydzień" sub="Resztę dni BallWise ułoży sam." />
+            <div className="ob-gap space-y-6 ob-stagger">
+              <DayPicker
+                label="Treningi w klubie"
+                value={answers.clubDays}
+                onToggle={(d) =>
+                  setAnswers((prev) => {
+                    const clubDays = prev.clubDays.includes(d)
+                      ? prev.clubDays.filter((x) => x !== d)
+                      : [...prev.clubDays, d].sort((a, b) => a - b);
+                    return {
+                      ...prev,
+                      clubDays,
+                      unavailableDays: cleanUnavailableDays(prev.unavailableDays, clubDays),
+                    };
+                  })
+                }
+              />
+              <DayPicker
+                label="Dni, w które nie możesz trenować"
+                tone="off"
+                value={answers.unavailableDays}
+                disabledDays={answers.clubDays}
+                onToggle={(d) =>
+                  set(
+                    "unavailableDays",
+                    answers.unavailableDays.includes(d)
+                      ? answers.unavailableDays.filter((x) => x !== d)
+                      : [...answers.unavailableDays, d].sort((a, b) => a - b),
+                  )
+                }
+              />
+            </div>
+          </>
+        );
+      case "match":
+        return (
+          <>
+            <StepTitle title="Kiedy najbliższy mecz?" />
+            <div className="ob-gap ob-dates ob-stagger" role="group" aria-label="Data meczu">
+              {stripDays.map((d, i) => {
+                const iso = stripIsos[i];
+                const active = !answers.noMatch && answers.matchDate === iso;
+                return (
+                  <button
+                    key={iso}
+                    type="button"
+                    className="ob-date"
+                    aria-pressed={active}
+                    aria-label={format(d, "EEEE d MMMM", { locale: pl })}
+                    style={{ ["--i" as string]: i % 7 }}
+                    onClick={() => {
+                      setAnswers((prev) => ({ ...prev, matchDate: iso, noMatch: false }));
+                      setShowError(false);
+                    }}
+                  >
+                    <small>{i === 0 ? "dziś" : ISO_DAY_LABELS[isoWeekday(iso) - 1].short}</small>
+                    <strong>{format(d, "d")}</strong>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="ob-option ob-option--center gap-2"
+                    aria-pressed={matchOutsideStrip}
+                  >
+                    <CalendarDays className="h-4 w-4 shrink-0" />
+                    <span className="ob-option__title">
+                      {matchOutsideStrip
+                        ? format(new Date(`${answers.matchDate}T00:00:00`), "d MMM", {
+                            locale: pl,
+                          })
+                        : "Inna data"}
+                    </span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    locale={pl}
+                    selected={
+                      answers.matchDate ? new Date(`${answers.matchDate}T00:00:00`) : undefined
+                    }
+                    onSelect={(d) => {
+                      if (d) {
+                        setAnswers((prev) => ({
+                          ...prev,
+                          matchDate: format(d, "yyyy-MM-dd"),
+                          noMatch: false,
+                        }));
+                        setShowError(false);
+                      }
+                    }}
+                    disabled={(d) => d < today}
+                    initialFocus
+                    className="pointer-events-auto p-3"
+                  />
+                </PopoverContent>
+              </Popover>
+              <Option
+                variant="center"
+                title="Nie mam meczu"
+                selected={answers.noMatch}
+                onClick={() => {
+                  setAnswers((prev) => ({ ...prev, noMatch: !prev.noMatch, matchDate: "" }));
+                  setShowError(false);
+                }}
+              />
+            </div>
+            <div className="mt-4">
+              <Toggle
+                label={matchDayName ? `Gram co tydzień (${matchDayName})` : "Gram mecz co tydzień"}
+                checked={!answers.noMatch && answers.matchDate !== "" && answers.weeklyMatches}
+                disabled={answers.noMatch || answers.matchDate === ""}
+                onChange={(v) => set("weeklyMatches", v)}
+              />
+            </div>
+          </>
+        );
+      case "season":
+        return (
+          <>
+            <StepTitle title="Jaki masz teraz okres?" />
+            <div className="ob-gap">
+              <ChoiceList
+                options={SEASON_OPTIONS}
+                value={answers.seasonPhase}
+                onPick={(v) => {
+                  setAnswers((prev) => ({ ...prev, seasonPhaseOverride: false }));
+                  const ok =
+                    seasonCheck({ ...answers, seasonPhase: v, seasonPhaseOverride: false }, today)
+                      .status !== "invalid";
+                  if (ok) pick("seasonPhase", v);
+                  else set("seasonPhase", v);
+                }}
+              />
+            </div>
+            {answers.seasonPhase && seasonBlocks && (
+              <div className="ob-warn mt-3">
+                Ten okres nie pasuje do daty i meczów.
+                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
+                  {season.suggestion && (
+                    <button
+                      type="button"
+                      className="ob-link"
+                      onClick={() => pick("seasonPhase", season.suggestion!)}
+                    >
+                      Ustaw: {SEASON_PHASE_LABELS[season.suggestion]}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="ob-link"
+                    onClick={() => set("seasonPhaseOverride", true)}
+                  >
+                    Mam nietypowy sezon
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        );
+      case "conditions":
+        return (
+          <>
+            <StepTitle title="Gdzie możesz trenować?" sub="Zaznacz wszystko, co masz." />
+            <div className="ob-gap ob-grid ob-grid--2 ob-stagger">
+              <Option
+                index={0}
+                variant="tile"
+                icon={<Dumbbell className="h-4 w-4" />}
+                title="Siłownia"
+                selected={answers.hasGym}
+                onClick={() => set("hasGym", !answers.hasGym)}
+              />
+              <Option
+                index={1}
+                variant="tile"
+                icon={<LandPlot className="h-4 w-4" />}
+                title="Boisko"
+                selected={answers.hasPitch}
+                onClick={() => set("hasPitch", !answers.hasPitch)}
+              />
+              <Option
+                index={2}
+                variant="tile"
+                icon={<Zap className="h-4 w-4" />}
+                title="Prosta do sprintu"
+                desc="z miejscem na hamowanie"
+                selected={answers.hasSprintSpace}
+                onClick={() => set("hasSprintSpace", !answers.hasSprintSpace)}
+              />
+              <Option
+                index={3}
+                variant="tile"
+                icon={<BrickWall className="h-4 w-4" />}
+                title="Ściana do podań"
+                desc="albo odbojnik"
+                selected={answers.hasWall}
+                onClick={() => set("hasWall", !answers.hasWall)}
+              />
+            </div>
+          </>
+        );
+      case "equipment":
+        return (
+          <>
+            <StepTitle
+              title={answers.hasGym ? "Co masz poza siłownią?" : "Jaki masz sprzęt?"}
+              sub="Możesz nic nie zaznaczać."
+            />
+            <div className="ob-gap ob-grid ob-grid--2 ob-stagger">
+              {OWN_EQUIPMENT_OPTIONS.map((item, i) => (
+                <Option
+                  key={item}
+                  index={i}
+                  variant="center"
+                  title={
+                    item === "Bramka lub mini-bramka"
+                      ? "Bramka"
+                      : item === "Skrzynia plyometryczna"
+                        ? "Skrzynia"
+                        : item
+                  }
+                  selected={answers.equipment.includes(item)}
+                  onClick={() =>
+                    set(
+                      "equipment",
+                      answers.equipment.includes(item)
+                        ? answers.equipment.filter((x) => x !== item)
+                        : [...answers.equipment, item],
+                    )
+                  }
+                />
+              ))}
+            </div>
+          </>
+        );
+      case "doubles":
+        return (
+          <>
+            <StepTitle title="Dwa treningi jednego dnia?" />
+            <div className="ob-gap">
+              <ChoiceList
+                options={doubleSessionOptions(answers.level).map((id) => ({
+                  id,
+                  ...DOUBLE_OPTIONS[id],
+                }))}
+                value={answers.doubleSessionsAllowed}
+                onPick={(v) => pick("doubleSessionsAllowed", v)}
+              />
+            </div>
+          </>
+        );
+      case "summary":
+        return (
+          <>
+            <div className="ob-done" aria-hidden="true">
+              <Check className="h-5 w-5" strokeWidth={3} />
+            </div>
+            <StepTitle title="Co wynika z Twoich odpowiedzi" />
+            <dl className="ob-facts" aria-busy={facts === null}>
+              {facts === null
+                ? Array.from({ length: 5 }, (_, i) => (
+                    <div key={i} className="ob-fact" style={{ ["--i" as string]: i }}>
+                      <dt>
+                        <span className="ob-skeleton block w-16" />
+                      </dt>
+                      <dd className="flex-1">
+                        <span className="ob-skeleton block w-3/4" />
+                      </dd>
+                    </div>
+                  ))
+                : facts.map((fact, i) => (
+                    <div
+                      key={fact.id}
+                      className="ob-fact"
+                      style={{ ["--i" as string]: i }}
+                      data-fact={fact.id}
+                    >
+                      <dt>{fact.label}</dt>
+                      <dd>{fact.value}</dd>
+                    </div>
+                  ))}
+            </dl>
+          </>
+        );
+    }
+  })();
+
+  const isLast = stepId === "summary";
+  const autoStep = AUTO_ADVANCE.includes(stepId);
+
+  return (
+    <div className="app-shell onboarding-premium ob">
+      <div className="ob__head">
+        <div className="ob__bar">
+          {index > 0 ? (
+            <button
+              type="button"
+              onClick={() => goTo(index - 1)}
+              className="ob__back"
+              aria-label="Wstecz"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+          ) : (
+            <div className="ob__brand">BallWise</div>
           )}
+          <div className="ob__section">
+            {SECTION[stepId]} · {index + 1}/{steps.length}
+          </div>
+        </div>
+        <div
+          className="ob__progress"
+          role="progressbar"
+          aria-label="Postęp"
+          aria-valuemin={1}
+          aria-valuemax={steps.length}
+          aria-valuenow={index + 1}
+        >
+          <span style={{ width: `${progress}%` }} />
         </div>
       </div>
-
-      <div className="shrink-0 border-t border-border bg-background/95 px-5 py-4 pb-[calc(16px+env(safe-area-inset-bottom))] backdrop-blur">
-        {step < totalSteps - 1 ? (
-          <Button className="w-full" size="lg" onClick={goNext}>
-            Dalej
-          </Button>
-        ) : (
-          <Button
-            className="w-full"
-            size="lg"
-            disabled={busy}
-            onClick={() => {
-              setTriedNext(true);
-              setShowErrors(true);
-              handleSubmit();
-            }}
-          >
+      <main className="ob__body">
+        <div key={stepId} className="ob-step" data-dir={dir} data-step={stepId}>
+          {body}
+        </div>
+      </main>
+      <div className="ob__foot">
+        <p className="ob__hint" aria-live="polite">
+          {showError ? (STEP_ERROR[stepId] ?? "") : ""}
+        </p>
+        {isLast ? (
+          <Button className="h-12 w-full" size="lg" disabled={busy} onClick={handleSubmit}>
             {busy
               ? profileSaveStage
                 ? PROFILE_SAVE_LABELS[profileSaveStage]
                 : "Przygotowuję zapis…"
               : "Zapisz i wygeneruj plan"}
+          </Button>
+        ) : (
+          <Button
+            className="h-12 w-full"
+            size="lg"
+            variant={autoStep && !stepValid(stepId) ? "outline" : "default"}
+            onClick={goNext}
+          >
+            Dalej
           </Button>
         )}
       </div>
