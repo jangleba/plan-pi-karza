@@ -42,7 +42,7 @@ describe("metody wytrzymałości: unikalne ID ćwiczeń", () => {
   // because the cooldown and the warm-up reused the same ex-N identifiers.
   it.each(["M27", "M28", "M29"] as const)("%s zapisuje się bez duplikatu ID", (id) => {
     for (const session of sessions) {
-      let next: SessionDay | null = null;
+      let next: SessionDay;
       try {
         next = createMethodSession(session, profile, id, {}, "athlete");
       } catch (error) {
