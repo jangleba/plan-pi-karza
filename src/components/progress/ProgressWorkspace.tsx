@@ -11,6 +11,7 @@ import { buildCycleBar, buildLoadReport, buildTimeline } from "@/lib/progress/da
 import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
 import { ProgressDashboard } from "./ProgressDashboard";
 import { ProgressHistory } from "./ProgressHistory";
+import { CycleReviewHistory } from "./CycleReviewHistory";
 import { progressSessionTargets } from "@/lib/progress/navigation";
 
 const Measurements = lazy(() => import("./ProgressMeasurements"));
@@ -153,6 +154,7 @@ export function ProgressWorkspace({
           <>
             {tab === "dashboard" ? (
               <>
+                <CycleReviewHistory ownerId={ownerId} plan={state.plan} />
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs text-muted-foreground">Zapisane treningi</span>
                   <div className="bw-segmented" role="group" aria-label="Okres podsumowania">

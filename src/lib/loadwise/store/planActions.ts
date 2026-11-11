@@ -1,3 +1,4 @@
+import { cycleStartOf } from "../cycleReview";
 import { assertSafePlanChange } from "../planChangeValidation";
 import { repairSegmentBoundaries } from "../segmentBoundary";
 import { boundedRequest } from "@/lib/boundedRequest";
@@ -420,6 +421,7 @@ export function createPlanActions(
       const extension = await generatePlanAsync(
         {
           ...profile,
+          cycleStart: cycleStartOf(current),
           usualMatchDay: "no_fixed_day",
           matchDate: dates[0] ?? null,
           matchDates: dates,
@@ -452,6 +454,7 @@ export function createPlanActions(
       // Keep neighboring confirmed matches so Monday still knows about Sunday's load.
       const tempProfile: Profile = {
         ...profile,
+        cycleStart: cycleStartOf(current),
         usualMatchDay: "no_fixed_day",
         matchDate: dates[0] ?? null,
         matchDates: dates,

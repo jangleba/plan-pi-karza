@@ -3,6 +3,8 @@ import { Brain, CalendarDays, Check, Move, ScanLine, Target } from "lucide-react
 import { TodaySessionCard } from "./TodaySessionCard";
 import type { SessionDay, SessionCompletion } from "@/lib/loadwise/types";
 import { PageHeader } from "./PageHeader";
+import { CycleReviewCard } from "./CycleReviewCard";
+import type { CycleReview } from "@/lib/loadwise/cycleReview";
 
 export function StartDashboard({
   name,
@@ -23,6 +25,7 @@ export function StartDashboard({
   onPrepareReaction,
   iqTask,
   iqGoal,
+  cycleReview,
 }: {
   name: string;
   avatar: ReactNode;
@@ -44,6 +47,8 @@ export function StartDashboard({
   iqTask?: { text: string; onDone: () => void };
   /** The Football IQ aim the player is weakest at, from their own graded decisions. */
   iqGoal?: { label: string; percent: number; onOpen: () => void };
+  /** Podsumowanie cyklu, który właśnie się skończył (raz na cykl). */
+  cycleReview?: { review: CycleReview; onDismiss: () => void };
 }) {
   return (
     <main className="bw-home-compact">
@@ -53,6 +58,9 @@ export function StartDashboard({
         actions={avatar}
         className="bw-page-header--inset"
       />
+      {cycleReview && (
+        <CycleReviewCard review={cycleReview.review} onDismiss={cycleReview.onDismiss} />
+      )}
       <div className="bw-home-section-line">
         <h2>Dzisiaj</h2>
         <button onClick={onPlan}>

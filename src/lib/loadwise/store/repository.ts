@@ -1,3 +1,4 @@
+import { cycleStartOf } from "../cycleReview";
 import { generatePlanAsync } from "../generatePlanAsync";
 import { applyConfirmedCalendar } from "../confirmedCalendar";
 import { reconcilePlanIdentity, trainingProfileRevision } from "../planIdentity";
@@ -247,7 +248,20 @@ export function createPlanPersistence(
         : localToday();
     const canonical = stampPlanRevision(
       await applyConfirmedCalendar(
-        (await generatePlanAsync(profile, start, 28, 0, signal)).map((day) => ({
+        (
+          await generatePlanAsync(
+            {
+              ...profile,
+              // Ten sam cykl zachowuje swoją regułę startu (podsumowanie poprzedniego).
+              cycleStart:
+                snapshot?.plan[0]?.date === isoDate(start) ? cycleStartOf(snapshot.plan) : null,
+            },
+            start,
+            28,
+            0,
+            signal,
+          )
+        ).map((day) => ({
           ...day,
           cycleId:
             snapshot?.plan[0]?.date === isoDate(start) ? snapshot.plan[0].cycleId : undefined,

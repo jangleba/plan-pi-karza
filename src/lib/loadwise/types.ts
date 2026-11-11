@@ -1,3 +1,13 @@
+import type { CycleStartPolicy } from "./cyclePolicy";
+import type { CycleReview } from "./cycleReview";
+
+/** Zapis w planie: jak zaczyna się ten cykl i podsumowanie poprzedniego. */
+export interface CycleStartRecord extends CycleStartPolicy {
+  /** Cykl, którego dotyczy podsumowanie. */
+  reviewedCycleId: string | null;
+  review: CycleReview;
+}
+
 import type { RunningActivity } from "@/lib/running/types";
 import type { AccountOwnerType, OwnershipTransferStatus, SubscriptionPayerType } from "./agePolicy";
 import type {
@@ -133,6 +143,11 @@ export interface Profile {
   weeklyMatches: boolean; // czy mecze są co tydzień
   /** Świadomy tryb niestandardowego sezonu — wyłącza walidację kalendarzową. */
   seasonPhaseOverride?: boolean;
+  /**
+   * Start cyklu wynikający z podsumowania poprzedniego (tylko do generowania,
+   * nie zapisuje się w profilu). Źródłem jest plan bieżącego cyklu.
+   */
+  cycleStart?: CycleStartRecord | null;
   /** Status walidacji spójności stanu sezonu (ok/invalid/incomplete/override). */
   seasonValidationStatus?: "ok" | "invalid" | "incomplete" | "override";
   hasGym: boolean; // dostęp do siłowni
@@ -588,6 +603,8 @@ export interface SessionDay {
   dbId?: string; // id wiersza training_sessions (po zapisie do bazy)
   planDbId?: string; // revision header used for optimistic concurrency
   cycleId?: string; // stable across revisions of the same dated block
+  /** Podsumowanie poprzedniego cyklu i reguła startu tego cyklu (ta sama na każdym dniu). */
+  cycleStart?: CycleStartRecord | null;
   executionProtected?: boolean;
   dayDbId?: string; // id wiersza training_days (po zapisie do bazy)
   readinessAdjustedDate?: string | null;
