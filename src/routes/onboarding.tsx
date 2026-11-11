@@ -40,22 +40,18 @@ import {
 } from "@/lib/loadwise/onboardingFlow";
 import { generatePlanAsync } from "@/lib/loadwise/generatePlanAsync";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  ChoiceList,
+  Card,
+  Chips,
   DayPicker,
-  LevelBars,
-  MultiChoiceList,
-  OnboardingArt,
-  Option,
-  PositionGlyph,
+  Group,
+  Row,
+  Segmented,
   StepTitle,
-  Toggle,
-  type ArtKind,
+  SwitchRow,
 } from "@/components/onboarding/OnboardingControls";
 import {
   CURRENT_FEELING_SHORT,
@@ -64,39 +60,10 @@ import {
   ONBOARDING_CURRENT_FEELINGS,
   ONBOARDING_DESIRED_FEELINGS,
 } from "@/lib/loadwise/playerDirection";
+import type { SessionDay } from "@/lib/loadwise/types";
+import { CalendarDays, ChevronLeft } from "lucide-react";
 import { addDays, format } from "date-fns";
 import { pl } from "date-fns/locale";
-import {
-  Activity,
-  BatteryLow,
-  Brain,
-  BrickWall,
-  CalendarDays,
-  CalendarRange,
-  Check,
-  ChevronLeft,
-  CircleSlash,
-  Dumbbell,
-  Feather,
-  Flag,
-  Flame,
-  HeartPulse,
-  Layers,
-  LandPlot,
-  Leaf,
-  Rocket,
-  RotateCcw,
-  Shuffle,
-  Snowflake,
-  Waves,
-  Sun,
-  Sunrise,
-  Target,
-  Trophy,
-  Volleyball,
-  Wind,
-  Zap,
-} from "lucide-react";
 
 export const Route = createFileRoute("/onboarding")({
   validateSearch: (search: Record<string, unknown>): { edit?: boolean } => ({
@@ -109,99 +76,43 @@ type StepId =
   | "consents"
   | "athlete"
   | "guardian"
-  | "position"
-  | "level"
-  | "league"
-  | "feelNow"
-  | "feelWant"
+  | "direction"
   | "goal"
-  | "limiter"
-  | "week"
-  | "match"
-  | "season"
+  | "calendar"
   | "conditions"
-  | "equipment"
-  | "doubles"
   | "summary";
 
-const SECTION: Record<StepId, string> = {
+const STEP_NAME: Record<StepId, string> = {
   consents: "Start",
   athlete: "Zawodnik",
-  guardian: "Zawodnik",
-  position: "Twoja gra",
-  level: "Twoja gra",
-  league: "Twoja gra",
-  feelNow: "Ty na boisku",
-  feelWant: "Ty na boisku",
+  guardian: "Opiekun",
+  direction: "Ty na boisku",
   goal: "Cel",
-  limiter: "Cel",
-  week: "Kalendarz",
-  match: "Kalendarz",
-  season: "Kalendarz",
+  calendar: "Kalendarz",
   conditions: "Warunki",
-  equipment: "Warunki",
-  doubles: "Warunki",
-  summary: "Twój plan",
+  summary: "Plan",
 };
 
-/** Light colour and line drawing of each section. */
-const SECTION_LOOK: Record<string, { tone: string; art: ArtKind }> = {
-  Start: { tone: "blue", art: "pitch" },
-  Zawodnik: { tone: "blue", art: "pitch" },
-  "Twoja gra": { tone: "teal", art: "pitch" },
-  "Ty na boisku": { tone: "violet", art: "pulse" },
-  Cel: { tone: "amber", art: "track" },
-  Kalendarz: { tone: "sky", art: "calendar" },
-  Warunki: { tone: "green", art: "field" },
-  "Twój plan": { tone: "blue", art: "pitch" },
+const POSITION_OPTIONS: Array<{ id: Position; title: string }> = [
+  { id: "goalkeeper", title: "Bramkarz" },
+  { id: "defender", title: "Obrońca" },
+  { id: "midfielder", title: "Pomocnik" },
+  { id: "forward", title: "Napastnik" },
+];
+
+const LEVEL_OPTIONS: Array<{ id: Level; title: string }> = [
+  { id: "beginner", title: "Podstawy" },
+  { id: "intermediate", title: "Regularnie" },
+  { id: "advanced", title: "Zaawans." },
+  { id: "elite", title: "Wysoki" },
+];
+
+const LEVEL_DETAIL: Record<Level, string> = {
+  beginner: "Uczysz się podstaw siłowni i sprintu.",
+  intermediate: "Trenujesz regularnie, znasz podstawowe ćwiczenia.",
+  advanced: "Znasz trening siły i szybkości z obciążeniem.",
+  elite: "Grasz i trenujesz na wysokim poziomie.",
 };
-
-const icon = (Icon: typeof Zap) => <Icon className="h-[18px] w-[18px]" />;
-
-/** Single-choice steps go forward by themselves after a tap. */
-const AUTO_ADVANCE: StepId[] = [
-  "position",
-  "level",
-  "league",
-  "goal",
-  "limiter",
-  "season",
-  "doubles",
-];
-
-const POSITION_OPTIONS: Array<{ id: Position; title: string; glyph: React.ReactNode }> = [
-  { id: "goalkeeper", title: "Bramkarz", glyph: <PositionGlyph position="goalkeeper" /> },
-  { id: "defender", title: "Obrońca", glyph: <PositionGlyph position="defender" /> },
-  { id: "midfielder", title: "Pomocnik", glyph: <PositionGlyph position="midfielder" /> },
-  { id: "forward", title: "Napastnik", glyph: <PositionGlyph position="forward" /> },
-];
-
-const LEVEL_OPTIONS: Array<{ id: Level; title: string; desc: string; glyph: React.ReactNode }> = [
-  {
-    id: "beginner",
-    title: "Początkujący",
-    desc: "Uczę się podstaw treningu",
-    glyph: <LevelBars level={1} />,
-  },
-  {
-    id: "intermediate",
-    title: "Średniozaawansowany",
-    desc: "Trenuję regularnie",
-    glyph: <LevelBars level={2} />,
-  },
-  {
-    id: "advanced",
-    title: "Zaawansowany",
-    desc: "Znam trening siły i szybkości",
-    glyph: <LevelBars level={3} />,
-  },
-  {
-    id: "elite",
-    title: "Wysoki poziom",
-    desc: "Gram i trenuję bardzo intensywnie",
-    glyph: <LevelBars level={4} />,
-  },
-];
 
 const LEAGUE_OPTIONS: Array<{ id: CompetitionLevel; title: string }> = [
   { id: "academy", title: "Akademia" },
@@ -210,128 +121,111 @@ const LEAGUE_OPTIONS: Array<{ id: CompetitionLevel; title: string }> = [
   { id: "okregowka", title: "Okręgówka" },
   { id: "iv_liga", title: "IV liga" },
   { id: "iii_liga", title: "III liga" },
-  { id: "ii_liga_plus", title: "II liga +" },
-  { id: "semi_pro", title: "Półprofi" },
-  { id: "pro", title: "Profi" },
+  { id: "ii_liga_plus", title: "II liga i wyżej" },
+  { id: "semi_pro", title: "Półprofesjonalnie" },
+  { id: "pro", title: "Profesjonalnie" },
 ];
 
-const GOAL_OPTIONS: Array<{ id: Goal; title: string; icon: React.ReactNode }> = [
-  { id: "speed", title: "Szybkość", icon: icon(Zap) },
-  { id: "strength", title: "Siła", icon: icon(Dumbbell) },
-  { id: "endurance", title: "Wytrzymałość", icon: icon(HeartPulse) },
-  { id: "power", title: "Moc", icon: icon(Flame) },
-  { id: "agility", title: "Zwrotność", icon: icon(Shuffle) },
-  { id: "general", title: "Gra z piłką", icon: icon(Volleyball) },
-  { id: "mobility", title: "Mobilność", icon: icon(Waves) },
-  { id: "matchready", title: "Forma na mecz", icon: icon(Trophy) },
-  { id: "return", title: "Powrót po przerwie", icon: icon(RotateCcw) },
+const GOAL_OPTIONS: Array<{ id: Goal; title: string }> = [
+  { id: "speed", title: "Szybkość" },
+  { id: "strength", title: "Siła" },
+  { id: "power", title: "Moc" },
+  { id: "endurance", title: "Wytrzymałość" },
+  { id: "agility", title: "Zwrotność" },
+  { id: "general", title: "Gra z piłką" },
+  { id: "matchready", title: "Forma na mecz" },
+  { id: "mobility", title: "Mobilność" },
+  { id: "return", title: "Powrót" },
 ];
 
-const LIMITER_OPTIONS: Array<{ id: SecondaryLimiter; title: string; icon: React.ReactNode }> = [
-  { id: "speed", title: "Szybkość", icon: icon(Zap) },
-  { id: "strength", title: "Siła", icon: icon(Dumbbell) },
-  { id: "endurance", title: "Wytrzymałość", icon: icon(HeartPulse) },
-  { id: "cod", title: "Zwrotność", icon: icon(Shuffle) },
-  { id: "power", title: "Moc", icon: icon(Flame) },
-  { id: "ball", title: "Gra z piłką", icon: icon(Volleyball) },
-  { id: "fatigue", title: "Zmęczenie", icon: icon(BatteryLow) },
-  { id: "return", title: "Powrót po przerwie", icon: icon(RotateCcw) },
-];
-
-const FEELING_NOW_ICONS: Record<string, React.ReactNode> = {
-  lacking_speed: icon(Zap),
-  lacking_duel_strength: icon(Dumbbell),
-  fading_late_in_match: icon(BatteryLow),
-  slow_to_turn: icon(Shuffle),
-  feeling_stiff: icon(Waves),
-  lacking_confidence: icon(Volleyball),
+const GOAL_DETAIL: Record<Goal, string> = {
+  speed: "Co tydzień sprint: start, prędkość maksymalna albo bieg po łuku, plus siła nóg.",
+  strength: "Dwie sesje siły w tygodniu, progresja ciężaru co blok.",
+  power: "Siła z elementami eksplozywnymi: skoki, rzuty, szybkie powtórzenia.",
+  endurance: "Dwie sesje wytrzymałości: tlen, interwały i bieg pozycyjny.",
+  agility: "Hamowanie, zmiana kierunku i reakcja w sesji sprintu.",
+  general: "Równo siła, sprint, bieg i własna praca z piłką.",
+  matchready: "Świeżość na mecz: mniej objętości, więcej ostrości przed weekendem.",
+  mobility: "Mobilność i stabilizacja jako główne jednostki tygodnia.",
+  return: "Lżejsze wejście w trening, jedna zmiana obciążenia naraz.",
 };
 
-const FEELING_WANT_ICONS: Record<string, React.ReactNode> = {
-  fast_and_light: icon(Feather),
-  strong_in_duels: icon(Dumbbell),
-  explosive_first_steps: icon(Rocket),
-  agile_in_turns: icon(Shuffle),
-  ready_full_match: icon(HeartPulse),
-  loose_in_movement: icon(Wind),
-  confident_in_decisions: icon(Brain),
-};
+const LIMITER_OPTIONS: Array<{ id: SecondaryLimiter; title: string }> = [
+  { id: "speed", title: "Szybkość" },
+  { id: "strength", title: "Siła" },
+  { id: "power", title: "Moc" },
+  { id: "endurance", title: "Wytrzymałość" },
+  { id: "cod", title: "Zwrotność" },
+  { id: "ball", title: "Gra z piłką" },
+  { id: "fatigue", title: "Zmęczenie" },
+  { id: "return", title: "Powrót" },
+];
 
 const FEELING_NOW_OPTIONS = ONBOARDING_CURRENT_FEELINGS.map((id) => ({
   id,
   title: CURRENT_FEELING_SHORT[id] ?? id,
-  icon: FEELING_NOW_ICONS[id],
 }));
 
 const FEELING_WANT_OPTIONS = ONBOARDING_DESIRED_FEELINGS.map((id) => ({
   id,
   title: DESIRED_FEELING_SHORT[id] ?? id,
-  icon: FEELING_WANT_ICONS[id],
 }));
 
-const SEASON_OPTIONS: Array<{
-  id: SeasonPhase;
-  title: string;
-  desc: string;
-  icon: React.ReactNode;
-}> = [
-  { id: "inseason", title: "W sezonie", desc: "Gram mecze ligowe", icon: icon(Sun) },
-  { id: "preseason", title: "Przygotowania", desc: "Okres przed rundą", icon: icon(Sunrise) },
-  { id: "offseason", title: "Przerwa", desc: "Po sezonie, bez meczów", icon: icon(Snowflake) },
-  { id: "transition", title: "Roztrenowanie", desc: "Lżejszy okres po rundzie", icon: icon(Leaf) },
-  {
-    id: "return_injury",
-    title: "Powrót po przerwie",
-    desc: "Wracam po dłuższej przerwie",
-    icon: icon(RotateCcw),
-  },
+const SEASON_OPTIONS: Array<{ id: SeasonPhase; title: string }> = [
+  { id: "inseason", title: "Sezon" },
+  { id: "preseason", title: "Przygot." },
+  { id: "offseason", title: "Przerwa" },
+  { id: "transition", title: "Roztren." },
 ];
 
-const DOUBLE_OPTIONS: Record<
-  DoubleSessions,
-  { title: string; desc: string; icon: React.ReactNode }
-> = {
-  no: {
-    title: "Jedna sesja dziennie",
-    desc: "Nigdy dwóch tego samego dnia",
-    icon: icon(CircleSlash),
-  },
-  light_only: {
-    title: "Druga tylko lekka",
-    desc: "Np. mobilność albo spokojny bieg",
-    icon: icon(Feather),
-  },
-  yes_if_safe: {
-    title: "Dwie, gdy to bezpieczne",
-    desc: "Pełna druga sesja w dobre dni",
-    icon: icon(Layers),
-  },
+const DOUBLE_OPTIONS: Record<DoubleSessions, string> = {
+  no: "Jedna",
+  light_only: "+ lekka",
+  yes_if_safe: "Dwie",
 };
 
-const FACT_ICONS: Record<string, React.ReactNode> = {
-  week: <CalendarRange className="h-3.5 w-3.5" />,
-  first: <Flag className="h-3.5 w-3.5" />,
-  match: <Trophy className="h-3.5 w-3.5" />,
-  strength: <Dumbbell className="h-3.5 w-3.5" />,
-  focus: <Target className="h-3.5 w-3.5" />,
-  direction: <Activity className="h-3.5 w-3.5" />,
-  off: <CircleSlash className="h-3.5 w-3.5" />,
+const DOUBLE_DETAIL: Record<DoubleSessions, string> = {
+  no: "Nigdy dwóch treningów tego samego dnia.",
+  light_only: "Druga sesja tylko lekka, np. mobilność.",
+  yes_if_safe: "Pełna druga sesja, gdy obciążenie na to pozwala.",
+};
+
+const EQUIPMENT_LABEL: Record<string, string> = {
+  "Bramka lub mini-bramka": "Bramka",
+  "Skrzynia plyometryczna": "Skrzynia",
 };
 
 const STEP_ERROR: Partial<Record<StepId, string>> = {
   consents: "Zaznacz wymagane zgody (*).",
-  athlete: "Podaj imię i datę urodzenia zawodnika.",
+  athlete: "Uzupełnij imię, datę urodzenia, pozycję, poziom i ligę.",
   guardian: "Uzupełnij dane opiekuna i potwierdź oświadczenie.",
-  position: "Wybierz pozycję.",
-  level: "Wybierz poziom.",
-  league: "Wybierz poziom rozgrywkowy.",
-  goal: "Wybierz główny cel.",
-  limiter: "Wybierz, co Cię ogranicza.",
-  feelNow: "Wybierz jedną albo dwie odpowiedzi.",
-  feelWant: "Wybierz jedną albo dwie odpowiedzi.",
-  match: "Wybierz datę meczu albo „Nie mam meczu”.",
-  season: "Okres nie pasuje do kalendarza — popraw go.",
+  direction: "Wybierz po jednej odpowiedzi w obu pytaniach.",
+  goal: "Wybierz cel i to, co Cię ogranicza.",
+  calendar: "Wybierz datę meczu albo „Brak meczu” i sprawdź okres.",
 };
+
+/** Short label of a plan day for the first-week preview. */
+function weekCell(day: SessionDay): { kind: string; text: string } {
+  if (day.dayType === "match") return { kind: "match", text: "Mecz" };
+  if (day.dayType === "club") return { kind: "club", text: "Klub" };
+  if (day.dayType === "rest" || day.durationMin === 0) return { kind: "rest", text: "Wolne" };
+  if (day.dayType === "md-1") return { kind: "light", text: "Akty-wacja" };
+  if (day.dayType === "recovery") return { kind: "light", text: "Regen." };
+  const category = day.classification?.category;
+  const text =
+    category === "gym_strength"
+      ? "Siła"
+      : category === "speed_sprint"
+        ? "Sprint"
+        : category === "endurance_conditioning"
+          ? "Bieg"
+          : category === "other"
+            ? "Piłka"
+            : category === "mobility" || category === "recovery_prehab"
+              ? "Mobil."
+              : "Trening";
+  return { kind: day.intensity === "niska" ? "light" : "training", text };
+}
 
 /**
  * After a failed save the athlete returns to this form with the answers kept in
@@ -426,19 +320,10 @@ function Onboarding() {
       "consents",
       "athlete",
       ...(accountOwnerType === "guardian" ? (["guardian"] as const) : []),
-      "position",
-      "level",
-      "league",
-      "feelNow",
-      "feelWant",
+      "direction",
       "goal",
-      "limiter",
-      "week",
-      "match",
-      "season",
+      "calendar",
       "conditions",
-      "equipment",
-      "doubles",
       "summary",
     ],
     [accountOwnerType],
@@ -447,7 +332,6 @@ function Onboarding() {
   const [dir, setDir] = useState<"forward" | "back">("forward");
   const [showError, setShowError] = useState(false);
   const stepId = steps[Math.min(index, steps.length - 1)];
-  const advanceTimer = useRef<number | null>(null);
 
   // Local calendar day: a UTC date would allow yesterday after midnight in Poland.
   const today = localToday();
@@ -461,6 +345,9 @@ function Onboarding() {
       case "athlete":
         return (
           name.trim().length > 0 &&
+          answers.position !== null &&
+          answers.level !== null &&
+          answers.competitionLevel !== null &&
           ageNum != null &&
           ageNum >= 13 &&
           ageNum <= 80 &&
@@ -468,31 +355,22 @@ function Onboarding() {
         );
       case "guardian":
         return guardianName.trim().length >= 2 && consent && guardianEmailVerified;
-      case "position":
-        return answers.position !== null;
-      case "level":
-        return answers.level !== null;
-      case "league":
-        return answers.competitionLevel !== null;
+      case "direction":
+        return answers.currentFeelings.length > 0 && answers.desiredFeelings.length > 0;
       case "goal":
-        return answers.goal !== null;
-      case "limiter":
-        return answers.secondaryLimiter !== null;
-      case "feelNow":
-        return answers.currentFeelings.length > 0;
-      case "feelWant":
-        return answers.desiredFeelings.length > 0;
-      case "match":
-        return answers.noMatch || answers.matchDate.length > 0;
-      case "season":
-        return answers.seasonPhase !== null && !seasonBlocks;
+        return answers.goal !== null && answers.secondaryLimiter !== null;
+      case "calendar":
+        return (
+          (answers.noMatch || answers.matchDate.length > 0) &&
+          answers.seasonPhase !== null &&
+          !seasonBlocks
+        );
       default:
         return true;
     }
   }
 
   function goTo(next: number) {
-    if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
     setDir(next < index ? "back" : "forward");
     setShowError(false);
     setIndex(Math.max(0, Math.min(next, steps.length - 1)));
@@ -506,29 +384,14 @@ function Onboarding() {
     goTo(index + 1);
   }
 
-  /** Records a single choice and moves on shortly after, so the selection is visible. */
   function pick<K extends keyof OnboardingAnswers>(key: K, value: OnboardingAnswers[K]) {
     set(key, value);
     setShowError(false);
-    if (!AUTO_ADVANCE.includes(stepId)) return;
-    if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
-    const from = index;
-    advanceTimer.current = window.setTimeout(() => {
-      setDir("forward");
-      setIndex((current) => (current === from ? from + 1 : current));
-    }, 320);
   }
-
-  useEffect(
-    () => () => {
-      if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
-    },
-    [],
-  );
 
   // The season question starts on what the calendar and the next match point to.
   useEffect(() => {
-    if (stepId === "season" && answers.seasonPhase === null)
+    if (stepId === "calendar" && answers.seasonPhase === null)
       set("seasonPhase", suggestedSeasonPhase(answers, today));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepId]);
@@ -584,6 +447,7 @@ function Onboarding() {
 
   // Summary: generate the first days of the plan from the answers and list the facts.
   const [facts, setFacts] = useState<PlanFact[] | null>(null);
+  const [firstWeek, setFirstWeek] = useState<SessionDay[]>([]);
   useEffect(() => {
     if (stepId !== "summary") return;
     let alive = true;
@@ -591,7 +455,11 @@ function Onboarding() {
     const profile = buildProfile();
     if (!profile) return;
     generatePlanAsync(profile, today, 14)
-      .then((plan) => alive && setFacts(onboardingPlanFacts(profile, plan)))
+      .then((plan) => {
+        if (!alive) return;
+        setFacts(onboardingPlanFacts(profile, plan));
+        setFirstWeek(plan.slice(0, 7));
+      })
       .catch(() => alive && setFacts([]));
     return () => {
       alive = false;
@@ -656,161 +524,211 @@ function Onboarding() {
   const matchDayName = answers.matchDate
     ? ISO_DAY_LABELS.find((d) => d.value === isoWeekday(answers.matchDate))?.label.toLowerCase()
     : null;
-  const progress = ((index + 1) / steps.length) * 100;
+  const toggleList = <T extends string>(list: readonly T[], id: T): T[] =>
+    list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
 
   const body = (() => {
     switch (stepId) {
       case "consents":
         return (
           <>
-            <StepTitle title="Zanim zaczniemy" sub="Zaznacz zgody (* wymagane)." />
-            <div className="ob-gap ob-stagger">
-              {CONSENTS.map((c, i) => {
-                const open = openConsent === c.type;
-                return (
-                  <label key={c.type} className="ob-consent" style={{ ["--i" as string]: i }}>
-                    <Checkbox
-                      checked={!!consents[c.type]}
-                      onCheckedChange={(v) =>
-                        setConsents((prev) => ({ ...prev, [c.type]: v === true }))
-                      }
-                      className="mt-0.5"
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-baseline gap-2">
-                        <span className="min-w-0 flex-1">
-                          {c.type === "terms" ? (
-                            <Link
-                              to="/terms"
-                              onClick={(e) => e.stopPropagation()}
-                              className="font-medium underline underline-offset-2"
-                            >
-                              Regulamin
-                            </Link>
-                          ) : c.type === "privacy" ? (
-                            <Link
-                              to="/privacy-policy"
-                              onClick={(e) => e.stopPropagation()}
-                              className="font-medium underline underline-offset-2"
-                            >
-                              {c.title}
-                            </Link>
-                          ) : (
-                            <span className="font-medium">
-                              {c.type === "health_data"
-                                ? "Personalizacja (dane o zdrowiu)"
-                                : c.title.replace(/\s*\((opcjonalna|opcjonalne)\)/, "")}
-                            </span>
-                          )}
-                          {c.required && <span className="text-destructive"> *</span>}
-                        </span>
-                        <button
-                          type="button"
-                          className="shrink-0 text-xs font-semibold text-primary"
-                          aria-expanded={open}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setOpenConsent(open ? null : c.type);
-                          }}
-                        >
-                          {open ? "Zwiń" : "Treść"}
-                        </button>
-                      </span>
-                      <span
-                        className={`mt-0.5 text-xs leading-snug text-muted-foreground ${open ? "block" : "line-clamp-1"}`}
-                      >
-                        {c.text}
-                      </span>
-                    </span>
-                  </label>
-                );
-              })}
+            <StepTitle
+              title="Plan treningowy pod Twój tydzień"
+              sub="Kilka pytań o zawodnika, cel, kalendarz i warunki. Z odpowiedzi powstaje plan na najbliższe tygodnie."
+            />
+            <div className="ob-intro">
+              <div>
+                <strong>5</strong>
+                <span>sekcji pytań</span>
+              </div>
+              <div>
+                <strong>~2 min</strong>
+                <span>wypełnienia</span>
+              </div>
+              <div>
+                <strong>Pn–Nd</strong>
+                <span>pełne tygodnie planu</span>
+              </div>
             </div>
-            <button
-              type="button"
-              className="ob-note mt-3 block w-full text-left"
-              aria-expanded={openConsent === "medical"}
-              onClick={() => setOpenConsent(openConsent === "medical" ? null : "medical")}
-            >
-              <span className={openConsent === "medical" ? "block" : "line-clamp-2"}>
-                {MEDICAL_DISCLAIMER}
-              </span>
-            </button>
+            <Group label="Zgody" aside="* wymagane">
+              <Card>
+                {CONSENTS.map((c) => {
+                  const open = openConsent === c.type;
+                  return (
+                    <label key={c.type} className="ob-consent">
+                      <Checkbox
+                        checked={!!consents[c.type]}
+                        onCheckedChange={(v) =>
+                          setConsents((prev) => ({ ...prev, [c.type]: v === true }))
+                        }
+                        className="mt-0.5"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-baseline gap-2">
+                          <span className="min-w-0 flex-1 font-medium">
+                            {c.type === "terms" ? (
+                              <Link
+                                to="/terms"
+                                onClick={(e) => e.stopPropagation()}
+                                className="underline underline-offset-2"
+                              >
+                                Regulamin
+                              </Link>
+                            ) : c.type === "privacy" ? (
+                              <Link
+                                to="/privacy-policy"
+                                onClick={(e) => e.stopPropagation()}
+                                className="underline underline-offset-2"
+                              >
+                                {c.title}
+                              </Link>
+                            ) : c.type === "health_data" ? (
+                              "Personalizacja (dane o zdrowiu)"
+                            ) : (
+                              c.title.replace(/\s*\((opcjonalna|opcjonalne)\)/, "")
+                            )}
+                            {c.required && <span className="text-destructive"> *</span>}
+                          </span>
+                          <button
+                            type="button"
+                            className="shrink-0 text-xs font-semibold text-primary"
+                            aria-expanded={open}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setOpenConsent(open ? null : c.type);
+                            }}
+                          >
+                            {open ? "Zwiń" : "Treść"}
+                          </button>
+                        </span>
+                        <span
+                          className={`mt-0.5 text-xs leading-snug text-muted-foreground ${open ? "block" : "line-clamp-1"}`}
+                        >
+                          {c.text}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </Card>
+              <button
+                type="button"
+                className="ob-note mt-2 block w-full px-1 text-left"
+                aria-expanded={openConsent === "medical"}
+                onClick={() => setOpenConsent(openConsent === "medical" ? null : "medical")}
+              >
+                <span className={openConsent === "medical" ? "block" : "line-clamp-2"}>
+                  {MEDICAL_DISCLAIMER}
+                </span>
+              </button>
+            </Group>
           </>
         );
       case "athlete":
         return (
           <>
             <StepTitle
-              title="Kto trenuje?"
-              sub="Data urodzenia służy tylko progom wieku 13, 16 i 18 lat."
+              title="Zawodnik"
+              sub="Wiek ustala bezpieczne obciążenia i progi 13, 16, 18 lat."
             />
-            <div className="ob-gap space-y-4 ob-stagger">
-              <div className="space-y-1.5">
-                <Label htmlFor="name">Imię zawodnika</Label>
-                <Input
+            <Card>
+              <Row label="Imię" htmlFor="name">
+                <input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Imię"
+                  placeholder="Imię zawodnika"
                   autoComplete="given-name"
-                  className="h-12"
                 />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="birth-date">Data urodzenia</Label>
-                <Input
+              </Row>
+              <Row
+                label="Data urodzenia"
+                htmlFor="birth-date"
+                detail={ageNum != null && ageNum >= 13 ? `${ageNum} lat` : undefined}
+              >
+                <input
                   id="birth-date"
                   type="date"
                   min={birthDateForApproximateAge(80)}
                   max={birthDateForApproximateAge(13)}
                   value={birthDate}
                   onChange={(e) => setBirthDate(e.target.value)}
-                  className="h-12"
                 />
+              </Row>
+              <Row label="Poziom rozgrywek" htmlFor="league">
+                <select
+                  id="league"
+                  value={answers.competitionLevel ?? ""}
+                  onChange={(e) => pick("competitionLevel", e.target.value as CompetitionLevel)}
+                >
+                  <option value="" disabled>
+                    Wybierz
+                  </option>
+                  {LEAGUE_OPTIONS.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.title}
+                    </option>
+                  ))}
+                </select>
+              </Row>
+            </Card>
+            {birthDate !== "" && (ageNum == null || ageNum < 13) && (
+              <p className="ob-warn">
+                Konto jest dostępne od 13 lat. Młodszy zawodnik może użyć tylko demo bez zapisu
+                danych.
+              </p>
+            )}
+            {agePolicy?.guardianMustOwnAccount && accountOwnerType !== "guardian" && (
+              <div className="ob-warn">
+                Zawodnik 13–15 korzysta z konta rodzica lub opiekuna.
+                <button
+                  type="button"
+                  className="ob-link mt-1 block"
+                  onClick={() => setAccountOwnerType("guardian")}
+                >
+                  To konto należy do opiekuna
+                </button>
               </div>
-              {ageNum != null && ageNum >= 13 && (
-                <span className="ob-chip">
-                  <Check className="h-3.5 w-3.5 text-primary" /> {ageNum} lat
-                </span>
-              )}
-              {birthDate !== "" && (ageNum == null || ageNum < 13) && (
-                <p className="ob-warn">
-                  Konto jest dostępne od 13 lat. Młodszy zawodnik może użyć tylko demo bez zapisu
-                  danych.
-                </p>
-              )}
-              {agePolicy?.guardianMustOwnAccount && accountOwnerType !== "guardian" && (
-                <div className="ob-warn">
-                  Zawodnik 13–15 korzysta z konta rodzica lub opiekuna.
-                  <button
-                    type="button"
-                    className="ob-link mt-1 block"
-                    onClick={() => setAccountOwnerType("guardian")}
-                  >
-                    To konto należy do opiekuna
-                  </button>
-                </div>
-              )}
-            </div>
+            )}
+            <Group label="Pozycja">
+              <Segmented
+                label="Pozycja"
+                options={POSITION_OPTIONS}
+                value={answers.position}
+                onPick={(v) => pick("position", v)}
+              />
+            </Group>
+            <Group
+              label="Doświadczenie treningowe"
+              note={
+                answers.level
+                  ? LEVEL_DETAIL[answers.level]
+                  : "Od tego zależą ćwiczenia z obciążeniem."
+              }
+            >
+              <Segmented
+                label="Doświadczenie treningowe"
+                options={LEVEL_OPTIONS}
+                value={answers.level}
+                onPick={(v) => pick("level", v)}
+              />
+            </Group>
           </>
         );
       case "guardian":
         return (
           <>
             <StepTitle title="Opiekun konta" sub={`E-mail konta: ${user.email ?? "brak"}`} />
-            <div className="ob-gap space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="guardian-name">Imię rodzica lub opiekuna</Label>
-                <Input
+            <Card>
+              <Row label="Imię opiekuna" htmlFor="guardian-name">
+                <input
                   id="guardian-name"
                   value={guardianName}
                   onChange={(e) => setGuardianName(e.target.value)}
                   placeholder="Imię"
                   autoComplete="given-name"
-                  className="h-12"
                 />
-              </div>
+              </Row>
               <label className="ob-consent">
                 <Checkbox
                   checked={consent}
@@ -822,151 +740,87 @@ function Onboarding() {
                   {isGuardianChild && <span className="text-destructive"> *</span>}
                 </span>
               </label>
-              {!guardianEmailVerified && (
-                <div className="ob-warn">
-                  Najpierw potwierdź e-mail właściciela konta.
-                  <button
-                    type="button"
-                    className="ob-link mt-1 block"
-                    onClick={async () => {
-                      if (!user.email) return;
-                      const result = await resendSignupConfirmation(user.email);
-                      if (result.error) toast.error(result.error);
-                      else toast.success("Wysłaliśmy nową wiadomość. Sprawdź skrzynkę e-mail.");
-                    }}
-                  >
-                    Wyślij wiadomość ponownie
-                  </button>
-                </div>
-              )}
-            </div>
+            </Card>
+            {!guardianEmailVerified && (
+              <div className="ob-warn">
+                Najpierw potwierdź e-mail właściciela konta.
+                <button
+                  type="button"
+                  className="ob-link mt-1 block"
+                  onClick={async () => {
+                    if (!user.email) return;
+                    const result = await resendSignupConfirmation(user.email);
+                    if (result.error) toast.error(result.error);
+                    else toast.success("Wysłaliśmy nową wiadomość. Sprawdź skrzynkę e-mail.");
+                  }}
+                >
+                  Wyślij wiadomość ponownie
+                </button>
+              </div>
+            )}
           </>
         );
-      case "position":
-        return (
-          <>
-            <StepTitle title="Na jakiej pozycji grasz?" />
-            <div className="ob-gap">
-              <ChoiceList
-                cols={2}
-                variant="tile"
-                options={POSITION_OPTIONS}
-                value={answers.position}
-                onPick={(v) => pick("position", v)}
-              />
-            </div>
-          </>
-        );
-      case "level":
-        return (
-          <>
-            <StepTitle title="Jak zaawansowany jest Twój trening?" />
-            <div className="ob-gap">
-              <ChoiceList
-                options={LEVEL_OPTIONS}
-                value={answers.level}
-                onPick={(v) => pick("level", v)}
-              />
-            </div>
-          </>
-        );
-      case "league":
+      case "direction":
         return (
           <>
             <StepTitle
-              title="Na jakim poziomie grasz?"
-              sub="Liga albo akademia, w której grasz teraz."
+              title="Ty na boisku"
+              sub="Pierwsza odpowiedź w drugim pytaniu ustawia akcent planu."
             />
-            <div className="ob-gap">
-              <ChoiceList
-                cols={3}
-                options={LEAGUE_OPTIONS}
-                value={answers.competitionLevel}
-                onPick={(v) => pick("competitionLevel", v)}
-              />
-            </div>
-          </>
-        );
-      case "feelNow":
-        return (
-          <>
-            <StepTitle title="Jak czujesz się teraz na boisku?" />
-            <div className="ob-count">
-              <b>{answers.currentFeelings.length}</b>/{MAX_PITCH_FEELINGS} · wybierz 1–2
-            </div>
-            <div className="ob-gap">
-              <MultiChoiceList
-                variant="compact"
+            <Group
+              label="Jak czujesz się teraz"
+              aside={`${answers.currentFeelings.length}/${MAX_PITCH_FEELINGS}`}
+            >
+              <Chips
+                cols={2}
                 options={FEELING_NOW_OPTIONS}
                 value={answers.currentFeelings}
-                onToggle={(id) => {
-                  set("currentFeelings", toggleFeeling(answers.currentFeelings, id));
-                  setShowError(false);
-                }}
+                onPick={(id) => pick("currentFeelings", toggleFeeling(answers.currentFeelings, id))}
               />
-            </div>
-          </>
-        );
-      case "feelWant":
-        return (
-          <>
-            <StepTitle title="Jak chcesz się czuć na boisku?" />
-            <div className="ob-count">
-              <b>{answers.desiredFeelings.length}</b>/{MAX_PITCH_FEELINGS} · pierwsza odpowiedź
-              ustawia akcent planu
-            </div>
-            <div className="ob-gap">
-              <MultiChoiceList
+            </Group>
+            <Group
+              label="Jak chcesz się czuć"
+              aside={`${answers.desiredFeelings.length}/${MAX_PITCH_FEELINGS}`}
+            >
+              <Chips
                 cols={2}
-                variant="compact"
                 options={FEELING_WANT_OPTIONS}
                 value={answers.desiredFeelings}
-                onToggle={(id) => {
-                  set("desiredFeelings", toggleFeeling(answers.desiredFeelings, id));
-                  setShowError(false);
-                }}
+                onPick={(id) => pick("desiredFeelings", toggleFeeling(answers.desiredFeelings, id))}
               />
-            </div>
+            </Group>
           </>
         );
       case "goal":
         return (
           <>
-            <StepTitle title="Co chcesz poprawić najbardziej?" sub="Jeden główny cel." />
-            <div className="ob-gap">
-              <ChoiceList
-                cols={2}
-                variant="compact"
+            <StepTitle
+              title="Cel"
+              sub="Cel prowadzi plan. Ograniczenie dokłada jedną sesję w tygodniu."
+            />
+            <Group label="Główny cel" note={answers.goal ? GOAL_DETAIL[answers.goal] : undefined}>
+              <Chips
+                cols={3}
                 options={GOAL_OPTIONS}
                 value={answers.goal}
-                onPick={(v) => pick("goal", v)}
+                onPick={(id) => pick("goal", id)}
               />
-            </div>
-          </>
-        );
-      case "limiter":
-        return (
-          <>
-            <StepTitle
-              title="Co Cię teraz najbardziej ogranicza?"
-              sub="Dodatkowy akcent obok celu."
-            />
-            <div className="ob-gap">
-              <ChoiceList
-                cols={2}
-                variant="compact"
+            </Group>
+            <Group label="Co Cię najbardziej ogranicza">
+              <Chips
+                cols={3}
                 options={LIMITER_OPTIONS}
                 value={answers.secondaryLimiter}
-                onPick={(v) => pick("secondaryLimiter", v)}
+                onPick={(id) => pick("secondaryLimiter", id)}
               />
-            </div>
+            </Group>
           </>
         );
-      case "week":
+      case "calendar":
         return (
           <>
-            <StepTitle title="Twój tydzień" sub="Resztę dni BallWise ułoży sam." />
-            <div className="ob-gap space-y-6 ob-stagger">
+            <StepTitle title="Kalendarz" sub="Pozostałe dni BallWise rozplanuje sam." />
+            <Group label="Treningi w klubie">
               <DayPicker
                 label="Treningi w klubie"
                 value={answers.clubDays}
@@ -983,6 +837,8 @@ function Onboarding() {
                   })
                 }
               />
+            </Group>
+            <Group label="Dni bez treningu">
               <DayPicker
                 label="Dni, w które nie możesz trenować"
                 tone="off"
@@ -991,284 +847,262 @@ function Onboarding() {
                 onToggle={(d) =>
                   set(
                     "unavailableDays",
-                    answers.unavailableDays.includes(d)
+                    (answers.unavailableDays.includes(d)
                       ? answers.unavailableDays.filter((x) => x !== d)
-                      : [...answers.unavailableDays, d].sort((a, b) => a - b),
+                      : [...answers.unavailableDays, d]
+                    ).sort((a, b) => a - b),
                   )
                 }
               />
-            </div>
-          </>
-        );
-      case "match":
-        return (
-          <>
-            <StepTitle title="Kiedy najbliższy mecz?" />
-            <div className="ob-gap ob-dates ob-stagger" role="group" aria-label="Data meczu">
-              {stripDays.map((d, i) => {
-                const iso = stripIsos[i];
-                const active = !answers.noMatch && answers.matchDate === iso;
-                return (
-                  <button
-                    key={iso}
-                    type="button"
-                    className="ob-date"
-                    aria-pressed={active}
-                    aria-label={format(d, "EEEE d MMMM", { locale: pl })}
-                    style={{ ["--i" as string]: i % 7 }}
-                    onClick={() => {
-                      setAnswers((prev) => ({ ...prev, matchDate: iso, noMatch: false }));
-                      setShowError(false);
-                    }}
-                  >
-                    <small>{i === 0 ? "dziś" : ISO_DAY_LABELS[isoWeekday(iso) - 1].short}</small>
-                    <strong>{format(d, "d")}</strong>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="ob-option ob-option--center gap-2"
-                    aria-pressed={matchOutsideStrip}
-                  >
-                    <CalendarDays className="h-4 w-4 shrink-0" />
-                    <span className="ob-option__title">
+            </Group>
+            <Group label="Najbliższy mecz">
+              <div className="ob-dates" role="group" aria-label="Data meczu">
+                {stripDays.slice(0, 7).map((d, i) => {
+                  const iso = stripIsos[i];
+                  const active = !answers.noMatch && answers.matchDate === iso;
+                  return (
+                    <button
+                      key={iso}
+                      type="button"
+                      className="ob-date"
+                      aria-pressed={active}
+                      aria-label={format(d, "EEEE d MMMM", { locale: pl })}
+                      onClick={() => {
+                        setAnswers((prev) => ({ ...prev, matchDate: iso, noMatch: false }));
+                        setShowError(false);
+                      }}
+                    >
+                      <small>{i === 0 ? "dziś" : ISO_DAY_LABELS[isoWeekday(iso) - 1].short}</small>
+                      <strong>{format(d, "d")}</strong>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="ob-link-row">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="ob-chip flex-1"
+                      aria-pressed={matchOutsideStrip}
+                    >
+                      <CalendarDays className="mr-1.5 inline h-4 w-4 align-[-3px]" />
                       {matchOutsideStrip
-                        ? format(new Date(`${answers.matchDate}T00:00:00`), "d MMM", {
+                        ? format(new Date(`${answers.matchDate}T00:00:00`), "EEE d MMM", {
                             locale: pl,
                           })
                         : "Inna data"}
-                    </span>
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    locale={pl}
-                    selected={
-                      answers.matchDate ? new Date(`${answers.matchDate}T00:00:00`) : undefined
-                    }
-                    onSelect={(d) => {
-                      if (d) {
-                        setAnswers((prev) => ({
-                          ...prev,
-                          matchDate: format(d, "yyyy-MM-dd"),
-                          noMatch: false,
-                        }));
-                        setShowError(false);
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      locale={pl}
+                      selected={
+                        answers.matchDate ? new Date(`${answers.matchDate}T00:00:00`) : undefined
                       }
-                    }}
-                    disabled={(d) => d < today}
-                    initialFocus
-                    className="pointer-events-auto p-3"
-                  />
-                </PopoverContent>
-              </Popover>
-              <Option
-                variant="center"
-                title="Nie mam meczu"
-                selected={answers.noMatch}
-                onClick={() => {
-                  setAnswers((prev) => ({ ...prev, noMatch: !prev.noMatch, matchDate: "" }));
-                  setShowError(false);
-                }}
-              />
-            </div>
-            <div className="mt-4">
-              <Toggle
-                label={matchDayName ? `Gram co tydzień (${matchDayName})` : "Gram mecz co tydzień"}
+                      onSelect={(d) => {
+                        if (d) {
+                          setAnswers((prev) => ({
+                            ...prev,
+                            matchDate: format(d, "yyyy-MM-dd"),
+                            noMatch: false,
+                          }));
+                          setShowError(false);
+                        }
+                      }}
+                      disabled={(d) => d < today}
+                      initialFocus
+                      className="pointer-events-auto p-3"
+                    />
+                  </PopoverContent>
+                </Popover>
+                <button
+                  type="button"
+                  className="ob-chip flex-1"
+                  aria-pressed={answers.noMatch}
+                  onClick={() => {
+                    setAnswers((prev) => ({ ...prev, noMatch: !prev.noMatch, matchDate: "" }));
+                    setShowError(false);
+                  }}
+                >
+                  Brak meczu
+                </button>
+              </div>
+            </Group>
+            <Card>
+              <SwitchRow
+                label="Mecz co tydzień"
+                detail={
+                  matchDayName
+                    ? `Zawsze w ${matchDayName === "niedziela" || matchDayName === "środa" || matchDayName === "sobota" ? matchDayName.replace(/a$/, "ę") : matchDayName}`
+                    : "Wybierz datę meczu"
+                }
                 checked={!answers.noMatch && answers.matchDate !== "" && answers.weeklyMatches}
                 disabled={answers.noMatch || answers.matchDate === ""}
                 onChange={(v) => set("weeklyMatches", v)}
               />
-            </div>
-          </>
-        );
-      case "season":
-        return (
-          <>
-            <StepTitle title="Jaki masz teraz okres?" />
-            <div className="ob-gap">
-              <ChoiceList
+            </Card>
+            <Group
+              label="Okres"
+              note={
+                answers.seasonPhase === "return_injury"
+                  ? SEASON_PHASE_LABELS.return_injury
+                  : undefined
+              }
+            >
+              <Segmented
+                label="Okres"
                 options={SEASON_OPTIONS}
                 value={answers.seasonPhase}
-                onPick={(v) => {
-                  setAnswers((prev) => ({ ...prev, seasonPhaseOverride: false }));
-                  const ok =
-                    seasonCheck({ ...answers, seasonPhase: v, seasonPhaseOverride: false }, today)
-                      .status !== "invalid";
-                  if (ok) pick("seasonPhase", v);
-                  else set("seasonPhase", v);
-                }}
+                onPick={(v) =>
+                  setAnswers((prev) => ({ ...prev, seasonPhase: v, seasonPhaseOverride: false }))
+                }
               />
-            </div>
-            {answers.seasonPhase && seasonBlocks && (
-              <div className="ob-warn mt-3">
-                Ten okres nie pasuje do daty i meczów.
-                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
-                  {season.suggestion && (
+              {answers.seasonPhase && seasonBlocks && (
+                <div className="ob-warn mt-2">
+                  Ten okres nie pasuje do daty meczu.
+                  <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                    {season.suggestion && (
+                      <button
+                        type="button"
+                        className="ob-link"
+                        onClick={() => pick("seasonPhase", season.suggestion!)}
+                      >
+                        Ustaw: {SEASON_PHASE_LABELS[season.suggestion]}
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="ob-link"
-                      onClick={() => pick("seasonPhase", season.suggestion!)}
+                      onClick={() => set("seasonPhaseOverride", true)}
                     >
-                      Ustaw: {SEASON_PHASE_LABELS[season.suggestion]}
+                      Mam nietypowy sezon
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    className="ob-link"
-                    onClick={() => set("seasonPhaseOverride", true)}
-                  >
-                    Mam nietypowy sezon
-                  </button>
+                  </span>
                 </div>
-              </div>
-            )}
+              )}
+            </Group>
           </>
         );
       case "conditions":
         return (
           <>
-            <StepTitle title="Gdzie możesz trenować?" sub="Zaznacz wszystko, co masz." />
-            <div className="ob-gap ob-grid ob-grid--2 ob-stagger">
-              <Option
-                index={0}
-                variant="tile"
-                icon={<Dumbbell className="h-4 w-4" />}
-                title="Siłownia"
-                selected={answers.hasGym}
-                onClick={() => set("hasGym", !answers.hasGym)}
-              />
-              <Option
-                index={1}
-                variant="tile"
-                icon={<LandPlot className="h-4 w-4" />}
-                title="Boisko"
-                selected={answers.hasPitch}
-                onClick={() => set("hasPitch", !answers.hasPitch)}
-              />
-              <Option
-                index={2}
-                variant="tile"
-                icon={<Zap className="h-4 w-4" />}
-                title="Prosta do sprintu"
-                desc="z miejscem na hamowanie"
-                selected={answers.hasSprintSpace}
-                onClick={() => set("hasSprintSpace", !answers.hasSprintSpace)}
-              />
-              <Option
-                index={3}
-                variant="tile"
-                icon={<BrickWall className="h-4 w-4" />}
-                title="Ściana do podań"
-                desc="albo odbojnik"
-                selected={answers.hasWall}
-                onClick={() => set("hasWall", !answers.hasWall)}
-              />
-            </div>
-          </>
-        );
-      case "equipment":
-        return (
-          <>
-            <StepTitle
-              title={answers.hasGym ? "Co masz poza siłownią?" : "Jaki masz sprzęt?"}
-              sub="Możesz nic nie zaznaczać."
-            />
-            <div className="ob-gap ob-grid ob-grid--2 ob-stagger">
-              {OWN_EQUIPMENT_OPTIONS.map((item, i) => (
-                <Option
-                  key={item}
-                  index={i}
-                  variant="center"
-                  title={
-                    item === "Bramka lub mini-bramka"
-                      ? "Bramka"
-                      : item === "Skrzynia plyometryczna"
-                        ? "Skrzynia"
-                        : item
-                  }
-                  selected={answers.equipment.includes(item)}
-                  onClick={() =>
-                    set(
-                      "equipment",
-                      answers.equipment.includes(item)
-                        ? answers.equipment.filter((x) => x !== item)
-                        : [...answers.equipment, item],
-                    )
-                  }
+            <StepTitle title="Warunki" sub="Plan dobiera ćwiczenia do miejsca i sprzętu." />
+            <Group label="Gdzie trenujesz">
+              <Card>
+                <SwitchRow
+                  label="Siłownia"
+                  checked={answers.hasGym}
+                  onChange={(v) => set("hasGym", v)}
                 />
-              ))}
-            </div>
-          </>
-        );
-      case "doubles":
-        return (
-          <>
-            <StepTitle title="Dwa treningi jednego dnia?" />
-            <div className="ob-gap">
-              <ChoiceList
+                <SwitchRow
+                  label="Boisko"
+                  checked={answers.hasPitch}
+                  onChange={(v) => set("hasPitch", v)}
+                />
+                <SwitchRow
+                  label="Prosta do sprintu"
+                  detail="30 m z miejscem na hamowanie"
+                  checked={answers.hasSprintSpace}
+                  onChange={(v) => set("hasSprintSpace", v)}
+                />
+                <SwitchRow
+                  label="Ściana do podań"
+                  detail="albo odbojnik"
+                  checked={answers.hasWall}
+                  onChange={(v) => set("hasWall", v)}
+                />
+              </Card>
+            </Group>
+            <Group label={answers.hasGym ? "Sprzęt poza siłownią" : "Własny sprzęt"}>
+              <Chips
+                options={OWN_EQUIPMENT_OPTIONS.map((item) => ({
+                  id: item,
+                  title: EQUIPMENT_LABEL[item] ?? item,
+                }))}
+                value={answers.equipment as (typeof OWN_EQUIPMENT_OPTIONS)[number][]}
+                onPick={(item) => set("equipment", toggleList(answers.equipment, item))}
+              />
+            </Group>
+            <Group
+              label="Treningi jednego dnia"
+              note={DOUBLE_DETAIL[answers.doubleSessionsAllowed]}
+            >
+              <Segmented
+                label="Treningi jednego dnia"
                 options={doubleSessionOptions(answers.level).map((id) => ({
                   id,
-                  ...DOUBLE_OPTIONS[id],
+                  title: DOUBLE_OPTIONS[id],
                 }))}
                 value={answers.doubleSessionsAllowed}
                 onPick={(v) => pick("doubleSessionsAllowed", v)}
               />
-            </div>
+            </Group>
           </>
         );
       case "summary":
         return (
           <>
-            <StepTitle title="Co wynika z Twoich odpowiedzi" />
-            <dl className="ob-facts" aria-busy={facts === null}>
-              {facts === null
-                ? Array.from({ length: 5 }, (_, i) => (
-                    <div key={i} className="ob-fact" style={{ ["--i" as string]: i }}>
-                      <dt>
-                        <span className="ob-skeleton block w-16" />
-                      </dt>
-                      <dd className="flex-1">
-                        <span className="ob-skeleton block w-3/4" />
-                      </dd>
-                    </div>
-                  ))
-                : facts.map((fact, i) => (
-                    <div
-                      key={fact.id}
-                      className="ob-fact"
-                      style={{ ["--i" as string]: i }}
-                      data-fact={fact.id}
-                    >
-                      <dt>
-                        <span className="ob-fact__icon" aria-hidden="true">
-                          {FACT_ICONS[fact.id]}
-                        </span>
-                        {fact.label}
-                      </dt>
-                      <dd>{fact.value}</dd>
-                    </div>
-                  ))}
-            </dl>
+            <StepTitle title="Twój plan" sub="Tak wygląda start planu z Twoich odpowiedzi." />
+            <Group label="Pierwsze 7 dni">
+              <Card>
+                <div className="ob-week" aria-busy={facts === null}>
+                  {(firstWeek.length ? firstWeek : Array.from({ length: 7 }, () => null)).map(
+                    (day, i) => {
+                      const cell = day ? weekCell(day) : null;
+                      return (
+                        <div key={day?.date ?? i}>
+                          <small>
+                            {day
+                              ? ISO_DAY_LABELS[isoWeekday(day.date) - 1].short
+                              : ISO_DAY_LABELS[(isoWeekday(stripIsos[i]) - 1) % 7].short}
+                          </small>
+                          {cell ? (
+                            <b data-kind={cell.kind}>{cell.text.replace("-", "­")}</b>
+                          ) : (
+                            <b className="ob-skeleton" />
+                          )}
+                        </div>
+                      );
+                    },
+                  )}
+                </div>
+              </Card>
+            </Group>
+            <Group label="Co wynika z odpowiedzi">
+              <Card>
+                <dl aria-busy={facts === null}>
+                  {facts === null
+                    ? Array.from({ length: 5 }, (_, i) => (
+                        <div key={i} className="ob-fact">
+                          <dt>
+                            <span className="ob-skeleton block w-16" />
+                          </dt>
+                          <dd className="flex-1">
+                            <span className="ob-skeleton block w-3/4" />
+                          </dd>
+                        </div>
+                      ))
+                    : facts.map((fact) => (
+                        <div key={fact.id} className="ob-fact" data-fact={fact.id}>
+                          <dt>{fact.label}</dt>
+                          <dd>{fact.value}</dd>
+                        </div>
+                      ))}
+                </dl>
+              </Card>
+            </Group>
           </>
         );
     }
   })();
 
   const isLast = stepId === "summary";
-  const look = SECTION_LOOK[SECTION[stepId]] ?? SECTION_LOOK.Start;
-  const autoStep = AUTO_ADVANCE.includes(stepId);
 
   return (
-    <div className="app-shell onboarding-premium ob" data-tone={look.tone}>
-      <OnboardingArt key={look.art} kind={look.art} />
-      <div className="ob__head">
+    <div className="app-shell onboarding-premium ob">
+      <div className="ob__top">
         <div className="ob__bar">
           {index > 0 ? (
             <button
@@ -1277,14 +1111,15 @@ function Onboarding() {
               className="ob__back"
               aria-label="Wstecz"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-6 w-6" />
             </button>
           ) : (
-            <div className="ob__brand">BallWise</div>
+            <span />
           )}
-          <div className="ob__section">
-            {index + 1}/{steps.length}
+          <div className="ob__step">
+            {STEP_NAME[stepId]} · {index + 1} z {steps.length}
           </div>
+          <span />
         </div>
         <div
           className="ob__progress"
@@ -1294,12 +1129,13 @@ function Onboarding() {
           aria-valuemax={steps.length}
           aria-valuenow={index + 1}
         >
-          <span style={{ width: `${progress}%` }} />
+          {steps.map((id, i) => (
+            <span key={id} data-on={i <= index} />
+          ))}
         </div>
       </div>
       <main className="ob__body">
         <div key={stepId} className="ob-step" data-dir={dir} data-step={stepId}>
-          <div className="ob-kicker">{SECTION[stepId]}</div>
           {body}
         </div>
       </main>
@@ -1316,12 +1152,7 @@ function Onboarding() {
               : "Zapisz i wygeneruj plan"}
           </Button>
         ) : (
-          <Button
-            className="h-12 w-full"
-            size="lg"
-            variant={autoStep && !stepValid(stepId) ? "outline" : "default"}
-            onClick={goNext}
-          >
+          <Button className="h-12 w-full" size="lg" onClick={goNext}>
             Dalej
           </Button>
         )}

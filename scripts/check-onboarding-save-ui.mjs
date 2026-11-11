@@ -130,7 +130,7 @@ try {
     for (let i = 0; i < 24; i++) {
       const step = await page.locator(".ob-step").first().getAttribute("data-step");
       if (step === "summary") break;
-      if (step === "match") await page.locator(".ob-date").nth(3).click();
+      if (step === "calendar") await page.locator(".ob-date").nth(3).click();
       await page.getByRole("button", { name: "Dalej", exact: true }).click();
       await page.locator(`.ob-step:not([data-step="${step}"])`).waitFor();
     }
