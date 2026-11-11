@@ -3,6 +3,7 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LoadwiseState, SessionHistoryRecord } from "../types";
+import { generatePlan } from "../planEngine";
 import { buildProfile, initialState, type StoreUser } from "./model";
 import { resetPlanWriteGuard } from "./planWriteGuard";
 import { useHydration } from "./useHydration";
@@ -402,6 +403,46 @@ describe("store hydration", () => {
     await act(async () => save.resolve(saved));
     expect(snapshot.state.plan).toBe(saved);
   });
+  it("rebuilds a block that stops mid-week into a full week and keeps its confirmed match", async () => {
+    const rows = remoteRows("Athlete");
+    rows.profiles = { full_name: "Athlete", onboarding_completed: true };
+    const profile = buildProfile(
+      rows.profiles as Record<string, unknown>,
+      rows.athlete_profiles as Record<string, unknown>,
+      null,
+    )!;
+    // A 28-day block started on a Thursday ends on Wednesday 30 September.
+    const stored = generatePlan(profile, new Date(2026, 8, 3), 28);
+    expect(stored.at(-1)?.date).toBe("2026-09-30");
+    rows.training_plans = {
+      id: "plan-1",
+      cycle_id: "cycle-1",
+      plan_json: stored,
+      created_at: "2026-09-03T08:00:00Z",
+    };
+    rows.weekly_transitions = [
+      {
+        id: "week-5",
+        week_number: 4,
+        cycle_id: "cycle-1",
+        week_start: "2026-09-28",
+        week_end: "2026-10-04",
+        next_match_date: "2026-10-03",
+        next_match_dates: ["2026-10-03"],
+        no_match_next_week: false,
+      },
+    ];
+    mocks.requests.set("a", Promise.resolve(rows));
+    await render({ id: "a" });
+    await act(async () => {
+      await vi.waitFor(() => expect(mocks.persist).toHaveBeenCalled(), { timeout: 15000 });
+    });
+    const plan = snapshot.state.plan;
+    expect(plan[0].date).toBe("2026-09-03");
+    expect(plan.at(-1)?.date).toBe("2026-10-04");
+    expect(plan.find((day) => day.date === "2026-10-03")?.dayType).toBe("match");
+    expect(snapshot.state.transitions[4]?.nextMatchDates).toEqual(["2026-10-03"]);
+  }, 30000);
   it("goes back to the stored plan when the background save is rejected", async () => {
     const rows = remoteRows("Athlete");
     rows.profiles = { full_name: "Athlete", onboarding_completed: true };

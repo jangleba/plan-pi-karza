@@ -10,6 +10,7 @@ import type { Json } from "@/integrations/supabase/types";
 import { buildMinimumEffectiveWeek } from "../adaptiveWeek";
 import { clearDailyPlanCheckin } from "../dailyPlanCheckin";
 import { isoDate, localToday, parseIso } from "../labels";
+import { planWindowDays } from "../planWindow";
 import { normalizeMatchDates } from "../matchSchedule";
 import { PLAN_ENGINE_VERSION } from "../planVersion";
 import { normalizeCurrentPitchFeelings, normalizeDesiredPitchFeelings } from "../playerDirection";
@@ -241,13 +242,14 @@ export function createPlanPersistence(
   ): Promise<SessionDay[]> {
     const snapshot = getState?.() ?? state;
     const { persistMonthlyPlan } = await import("../persist");
-    const start =
-      snapshot?.plan[0]?.date && snapshot.plan.some((day) => day.date === todayIso)
-        ? parseIso(snapshot.plan[0].date)
-        : localToday();
+    const keepsBlock =
+      !!snapshot?.plan[0]?.date && snapshot.plan.some((day) => day.date === todayIso);
+    const start = keepsBlock ? parseIso(snapshot.plan[0].date) : localToday();
+    // Keep confirmed weeks and finish the last week on Sunday.
+    const days = planWindowDays(isoDate(start), keepsBlock ? snapshot.plan.at(-1)?.date : null);
     const canonical = stampPlanRevision(
       await applyConfirmedCalendar(
-        (await generatePlanAsync(profile, start, 28, 0, signal)).map((day) => ({
+        (await generatePlanAsync(profile, start, days, 0, signal)).map((day) => ({
           ...day,
           cycleId:
             snapshot?.plan[0]?.date === isoDate(start) ? snapshot.plan[0].cycleId : undefined,

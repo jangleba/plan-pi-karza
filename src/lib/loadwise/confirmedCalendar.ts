@@ -1,5 +1,6 @@
 import { generatePlanAsync } from "./generatePlanAsync";
 import { parseIso } from "./labels";
+import { calendarSunday } from "./planWindow";
 import { repairSegmentBoundaries } from "./segmentBoundary";
 import type { Profile, SessionDay, WeeklyTransition } from "./types";
 
@@ -16,13 +17,20 @@ export function transitionMatchesBlock(
     groups.at(-1)!.push(day);
   }
   const week = groups[weekNumber];
+  if (!week?.length || transition.weekStart !== week[0].date) return false;
+  const lastDay = week[week.length - 1].date;
+  // Confirmations always cover the week up to Sunday. A stored block that was
+  // cut short before that Sunday still belongs to the same confirmed week.
+  const weekEnd =
+    transition.weekEnd === lastDay ||
+    (transition.weekEnd === calendarSunday(week[0].date) && lastDay < transition.weekEnd)
+      ? transition.weekEnd
+      : null;
   return (
-    !!week?.length &&
-    transition.weekStart === week[0].date &&
-    transition.weekEnd === week[week.length - 1].date &&
+    weekEnd !== null &&
     (
       transition.nextMatchDates ?? (transition.nextMatchDate ? [transition.nextMatchDate] : [])
-    ).every((date) => date >= week[0].date && date <= week[week.length - 1].date)
+    ).every((date) => date >= week[0].date && date <= weekEnd)
   );
 }
 

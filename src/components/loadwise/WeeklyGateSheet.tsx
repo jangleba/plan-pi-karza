@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { CheckCircle2 } from "lucide-react";
 import { transitionMatchesBlock } from "@/lib/loadwise/confirmedCalendar";
+import { profileMatchDates, rememberedMatchWeekday } from "@/lib/loadwise/matchSchedule";
 
 function readableError(failure: unknown) {
   return failure instanceof Error && failure.message
@@ -51,6 +52,25 @@ export function WeeklyGateSheet({
     .map((day) => day.date)
     .join("|");
 
+  // A new week starts with the player's usual match day already picked.
+  const rememberedWeekday = rememberedMatchWeekday(
+    [
+      ...profileMatchDates(state.profile ?? {}),
+      ...state.plan.filter((day) => day.dayType === "match").map((day) => day.date),
+      ...Object.values(state.transitions).flatMap(
+        (item) => item.nextMatchDates ?? (item.nextMatchDate ? [item.nextMatchDate] : []),
+      ),
+    ],
+    nextWeekStart,
+    state.profile?.usualMatchDay,
+  );
+  const rememberedDate =
+    rememberedWeekday === null
+      ? ""
+      : (Array.from({ length: 7 }, (_, offset) => addIsoDays(nextWeekStart, offset)).find(
+          (iso) => iso <= nextWeekEnd && isoDayOfWeek(parseIso(iso)) === rememberedWeekday,
+        ) ?? "");
+
   const [matchDate, setMatchDate] = useState<string>("");
   const [secondMatchDate, setSecondMatchDate] = useState<string>("");
   const [noMatch, setNoMatch] = useState(false);
@@ -60,7 +80,7 @@ export function WeeklyGateSheet({
   useEffect(() => {
     if (open) {
       const defaults = plannedMatches ? plannedMatches.split("|") : [];
-      setMatchDate(existing?.nextMatchDate ?? defaults[0] ?? "");
+      setMatchDate(existing?.nextMatchDate ?? defaults[0] ?? rememberedDate);
       setSecondMatchDate(
         existing?.nextMatchDates?.find((date) => date !== existing.nextMatchDate) ??
           defaults[1] ??
@@ -70,7 +90,7 @@ export function WeeklyGateSheet({
       setSaving(false);
       setError(null);
     }
-  }, [open, existing, allowNoMatch, plannedMatches]);
+  }, [open, existing, allowNoMatch, plannedMatches, rememberedDate]);
 
   const weekDays = useMemo(() => {
     const days: { iso: string; short: string; label: string; day: number }[] = [];

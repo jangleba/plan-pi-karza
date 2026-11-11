@@ -373,8 +373,11 @@ function PlanScreen() {
       source.weekMeta?.planningStatus !== "complete" && source.weekMeta?.planningNotes?.length,
   )?.source.weekMeta;
   const planStartDate = visibleDays[0]?.date ?? null;
+  // Only days before the block start are "outside the plan"; the note must not
+  // describe a week that simply ends early.
   const hasHiddenBefore =
-    (current?.days ?? []).some((d) => d.outsideActivePlan) && planStartDate !== null;
+    planStartDate !== null &&
+    (current?.days ?? []).some((d) => d.outsideActivePlan && d.date < planStartDate);
 
   // Router restores entry scroll. Only a week change needs a second scroll operation.
   const previousWeek = useRef(activeWeek);

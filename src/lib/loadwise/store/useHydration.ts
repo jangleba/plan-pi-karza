@@ -19,7 +19,8 @@ import {
 } from "./hydrationMerge";
 import type { LoadwiseState } from "../types";
 import { migratePersistedExerciseData } from "../exerciseLibrary";
-import { localToday, parseIso } from "../labels";
+import { isoDate, localToday, parseIso } from "../labels";
+import { latestConfirmedWeekEnd, planEndsMidWeek, planWindowDays } from "../planWindow";
 import { normalizeMatchDates } from "../matchSchedule";
 import { PLAN_ENGINE_VERSION } from "../planVersion";
 import {
@@ -375,7 +376,9 @@ export function useHydration({
           } as AnyRow);
           if (activity) runningActivities[activity.sessionId] = activity;
         }
-        const transitions: Record<number, WeeklyTransition> = {};
+        // Every confirmation saved for the active block. A block that was cut short
+        // is rebuilt with them, then only the ones that match the shown weeks stay.
+        const cycleTransitions: Record<number, WeeklyTransition> = {};
         const activePlanRow = planRes.data as AnyRow | null;
         const activeDays = (
           (Array.isArray(activePlanRow?.plan_json) ? activePlanRow.plan_json : []) as SessionDay[]
@@ -387,7 +390,7 @@ export function useHydration({
         for (const row of (transRes.data as AnyRow[] | null) ?? []) {
           const wn = Number(row.week_number);
           if (!Number.isFinite(wn) || !activeCycle || row.cycle_id !== activeCycle) continue;
-          transitions[wn] = {
+          cycleTransitions[wn] = {
             id: row.id as string,
             weekNumber: wn,
             cycleId: String(activeCycle),
@@ -401,8 +404,14 @@ export function useHydration({
             noMatchNextWeek: Boolean(row.no_match_next_week),
             confirmedAt: (row.confirmed_at as string) ?? new Date().toISOString(),
           };
-          if (!transitionMatchesBlock(activeDays, transitions[wn], wn)) delete transitions[wn];
         }
+        const matchingTransitions = (days: SessionDay[]) =>
+          Object.fromEntries(
+            Object.entries(cycleTransitions).filter(([key, item]) =>
+              transitionMatchesBlock(days, item, Number(key)),
+            ),
+          ) as Record<number, WeeklyTransition>;
+        let transitions = matchingTransitions(activeDays);
 
         let plan: SessionDay[] = [];
         let migrationOriginalPlan: SessionDay[] | null = null;
@@ -477,9 +486,13 @@ export function useHydration({
             !!planRowCreatedAt &&
             planRowCreatedAt < profileRevision;
           const missingToday = !plan.some((day) => day.date === todayIso);
+          // A block that stops mid-week (older 28-day blocks, or one a rebuild cut
+          // short) is rebuilt so the current week shows Monday–Sunday.
+          const endsMidWeek = planEndsMidWeek(plan.map((day) => day.date));
           const invalidCanonical =
             plan.length === 0 ||
             missingToday ||
+            endsMidWeek ||
             persistedPlanNeedsRegeneration(plan, profile, PLAN_ENGINE_VERSION, todayIso);
           const shouldRebuildCanonical =
             invalidCanonical ||
@@ -499,23 +512,28 @@ export function useHydration({
               todayIso,
             ]);
           if (shouldRebuildCanonical) {
+            const keepsBlock = !!plan[0]?.date && !missingToday;
+            const blockStart = keepsBlock ? plan[0].date : isoDate(localToday());
             const canonical = stampPlanRevision(
               await applyConfirmedCalendar(
                 await generatePlanAsync(
                   profile,
-                  plan[0]?.date && plan.some((day) => day.date === todayIso)
-                    ? parseIso(plan[0].date)
-                    : localToday(),
-                  28,
+                  parseIso(blockStart),
+                  // Keep confirmed weeks and finish the last week on Sunday.
+                  planWindowDays(
+                    blockStart,
+                    keepsBlock ? plan.at(-1)?.date : null,
+                    keepsBlock ? latestConfirmedWeekEnd(cycleTransitions, todayIso) : null,
+                  ),
                   0,
                   controller.signal,
                 ).then((days) =>
-                  plan[0]?.cycleId && plan.some((day) => day.date === todayIso)
+                  plan[0]?.cycleId && keepsBlock
                     ? days.map((day) => ({ ...day, cycleId: plan[0].cycleId }))
                     : days,
                 ),
                 profile,
-                transitions,
+                keepsBlock ? cycleTransitions : {},
                 controller.signal,
               ),
               profileRevision,
@@ -681,6 +699,7 @@ export function useHydration({
           .flatMap((replacement) => replacement.equipmentIds);
 
         if (cancelled) return;
+        transitions = matchingTransitions(plan);
         const remoteState: LoadwiseState = {
           profile: profile
             ? {
