@@ -85,6 +85,7 @@ import { canonicalizeGeneratedExercise, isExerciseAllowedForProfile } from "./ex
 import { PLAN_ENGINE_VERSION } from "./planVersion";
 import { repairGymSpacing } from "./strengthScheduling";
 import { MAX_DEDICATED_SPRINT_SESSIONS_PER_WEEK } from "./sprintLimits";
+import { alignJumpRepetitions } from "./equipmentReplacement";
 import type { WeekPhase } from "./types";
 import {
   cooldown,
@@ -271,78 +272,79 @@ function buildByGoal(profile: Profile): Built {
         avoidToday:
           "Nie planuj dziś dodatkowo twardych sprintów ani plyometrii. Bez ciężkich nóg na 48 h przed meczem.",
         // Bez siłowni (lub dla młodszych) tylko ćwiczenia z masą ciała.
-        main: young || !profile.hasGym
-          ? [
-              {
-                exerciseId: "bodyweight_squat",
-                name: "Przysiad z masą ciała",
-                prescription: "4 × 10, technika",
-                rest: "60 s",
-                cue: "Kolana w linii stóp, pięty na ziemi.",
-                easier: "Przysiad do krzesła.",
-                harder: "Przysiad z lekkim obciążeniem (gdy technika pewna).",
-              },
-              {
-                exerciseId: "bodyweight_split_squat",
-                name: "Split squat",
-                prescription: "3 × 8 na nogę",
-                rest: "45 s",
-                cue: "Tułów pionowo, kolano nie ucieka do środka.",
-                easier: "Mniejszy zakres / przytrzymaj się podpory.",
-              },
-              {
-                exerciseId: "glute_bridge",
-                name: "Glute bridge",
-                prescription: "3 × 12",
-                rest: "45 s",
-                cue: "Biodra w górę, ściskaj pośladki w górnym punkcie.",
-                easier: "Mniejszy zakres ruchu.",
-              },
-              {
-                exerciseId: "push_up",
-                name: "Pompki",
-                prescription: "3 × 8–12",
-                rest: "45 s",
-                cue: "Ciało w linii prostej, łokcie niezbyt szeroko.",
-                easier: "Pompki z kolan.",
-              },
-            ]
-          : [
-              {
-                exerciseId: "goblet_squat",
-                name: "Goblet squat",
-                prescription: "4 × 6–8",
-                rest: "90 s",
-                cue: "Napnij tułów przed zejściem, pełny zakres.",
-                easier: "Zmniejsz ciężar / przysiad z masą ciała.",
-                harder: "Tempo 3-1-1 lub +5% ciężaru.",
-              },
-              {
-                exerciseId: "romanian_deadlift_db",
-                name: "RDL z hantlami",
-                prescription: "3 × 8",
-                rest: "90 s",
-                cue: "Biodra w tył, plecy proste, czuj tylne uda.",
-                easier: "Mniejszy zakres / lżejszy ciężar.",
-              },
-              {
-                exerciseId: "bodyweight_split_squat",
-                name: "Split squat",
-                prescription: "3 × 8 na nogę",
-                rest: "75 s",
-                cue: "Pion tułowia, stabilne kolano.",
-                easier: "Zmniejsz zakres ruchu.",
-              },
-              {
-                exerciseId: "push_up",
-                name: "Pompki",
-                prescription: "3 × 10–15",
-                rest: "60 s",
-                cue: "Ciało w linii, kontrolowane zejście.",
-                easier: "Pompki z kolan.",
-                harder: "Pompki z obciążeniem / z podwyższenia.",
-              },
-            ],
+        main:
+          young || !profile.hasGym
+            ? [
+                {
+                  exerciseId: "bodyweight_squat",
+                  name: "Przysiad z masą ciała",
+                  prescription: "4 × 10, technika",
+                  rest: "60 s",
+                  cue: "Kolana w linii stóp, pięty na ziemi.",
+                  easier: "Przysiad do krzesła.",
+                  harder: "Przysiad z lekkim obciążeniem (gdy technika pewna).",
+                },
+                {
+                  exerciseId: "bodyweight_split_squat",
+                  name: "Split squat",
+                  prescription: "3 × 8 na nogę",
+                  rest: "45 s",
+                  cue: "Tułów pionowo, kolano nie ucieka do środka.",
+                  easier: "Mniejszy zakres / przytrzymaj się podpory.",
+                },
+                {
+                  exerciseId: "glute_bridge",
+                  name: "Glute bridge",
+                  prescription: "3 × 12",
+                  rest: "45 s",
+                  cue: "Biodra w górę, ściskaj pośladki w górnym punkcie.",
+                  easier: "Mniejszy zakres ruchu.",
+                },
+                {
+                  exerciseId: "push_up",
+                  name: "Pompki",
+                  prescription: "3 × 8–12",
+                  rest: "45 s",
+                  cue: "Ciało w linii prostej, łokcie niezbyt szeroko.",
+                  easier: "Pompki z kolan.",
+                },
+              ]
+            : [
+                {
+                  exerciseId: "goblet_squat",
+                  name: "Goblet squat",
+                  prescription: "4 × 6–8",
+                  rest: "90 s",
+                  cue: "Napnij tułów przed zejściem, pełny zakres.",
+                  easier: "Zmniejsz ciężar / przysiad z masą ciała.",
+                  harder: "Tempo 3-1-1 lub +5% ciężaru.",
+                },
+                {
+                  exerciseId: "romanian_deadlift_db",
+                  name: "RDL z hantlami",
+                  prescription: "3 × 8",
+                  rest: "90 s",
+                  cue: "Biodra w tył, plecy proste, czuj tylne uda.",
+                  easier: "Mniejszy zakres / lżejszy ciężar.",
+                },
+                {
+                  exerciseId: "bodyweight_split_squat",
+                  name: "Split squat",
+                  prescription: "3 × 8 na nogę",
+                  rest: "75 s",
+                  cue: "Pion tułowia, stabilne kolano.",
+                  easier: "Zmniejsz zakres ruchu.",
+                },
+                {
+                  exerciseId: "push_up",
+                  name: "Pompki",
+                  prescription: "3 × 10–15",
+                  rest: "60 s",
+                  cue: "Ciało w linii, kontrolowane zejście.",
+                  easier: "Pompki z kolan.",
+                  harder: "Pompki z obciążeniem / z podwyższenia.",
+                },
+              ],
         accessory: [
           {
             exerciseId: "side_plank",
@@ -1248,7 +1250,10 @@ function buildPower(profile: Profile): Built {
   const beginner = profile.level === "beginner";
   const gentle = young || beginner;
   // Piłka lekarska tylko wtedy, gdy zawodnik ją ma; bez niej ćwiczenie byłoby zablokowane.
-  const medBall = isExerciseAllowedForProfile("med_ball_throw", buildAthleteTrainingProfile(profile)).ok;
+  const medBall = isExerciseAllowedForProfile(
+    "med_ball_throw",
+    buildAthleteTrainingProfile(profile),
+  ).ok;
   return {
     title: gentle ? "Sesja mocy i stabilizacji" : "Sesja mocy i siły",
     sessionType: "Moc / siła eksplozywna",
@@ -2301,7 +2306,11 @@ function primaryGoalTarget(
     // Sprint i zmiana kierunku są budowane przez silnik sprintu: limit produktu
     // to jedna dedykowana sesja sprintu tygodniowo, także przy tym celu.
     case "speed":
-      return { category: "speed", min: MAX_DEDICATED_SPRINT_SESSIONS_PER_WEEK, stimulus: "speed_exposure" };
+      return {
+        category: "speed",
+        min: MAX_DEDICATED_SPRINT_SESSIONS_PER_WEEK,
+        stimulus: "speed_exposure",
+      };
     case "agility":
       return { category: "athletic", min: MAX_DEDICATED_SPRINT_SESSIONS_PER_WEEK, stimulus: "cod" };
     default:
@@ -3552,7 +3561,9 @@ function applyRuleBasedWeekLayer(
 /** Ball blocks in both slots follow the athlete's declared pitch, wall and goal. */
 function fitDayBallWork(day: SessionDay, profile: Profile): SessionDay {
   const fitted = fitBallWorkToConditions(day, profile);
-  const second = day.secondSession ? fitBallWorkToConditions(day.secondSession, profile) : day.secondSession;
+  const second = day.secondSession
+    ? fitBallWorkToConditions(day.secondSession, profile)
+    : day.secondSession;
   return second === fitted.secondSession ? fitted : { ...fitted, secondSession: second };
 }
 
@@ -4458,6 +4469,16 @@ export function generatePlan(
       session.generatorVersion = PLAN_ENGINE_VERSION;
       session.loadTags = computeLoadTags(session);
     }
+  for (const day of constrainedPlan)
+    for (const session of [day, day.secondSession].filter(Boolean) as SessionDay[])
+      if (session.structuredSections)
+        session.structuredSections = session.structuredSections.map((section) => ({
+          ...section,
+          blocks: section.blocks.map((block) => ({
+            ...block,
+            exercises: block.exercises.map(alignJumpRepetitions),
+          })),
+        }));
   assertPlanExerciseContract(constrainedPlan);
   return constrainedPlan;
 }
@@ -4479,14 +4500,19 @@ function enforceOffseasonSessionCap(
   ranges.forEach((range, weekIndex) => {
     const week = plan.slice(range.start, range.end);
     const phase = phaseOf(weekOffset + weekIndex, plan.length <= 7 ? 4 : ranges.length);
-    const { cap } = weekLoadConfig(profile, phase, week.some((day) => day.dayType === "match"));
+    const { cap } = weekLoadConfig(
+      profile,
+      phase,
+      week.some((day) => day.dayType === "match"),
+    );
     const required = finalPolicyRequirementsFor(week, profile);
     const own = () =>
       week.flatMap((day) => [
         ...(day.dayType === "training" || day.dayType === "recovery" ? [day] : []),
         ...(day.secondSession ? [day.secondSession] : []),
       ]);
-    const all = () => week.flatMap((day) => [day, day.secondSession].filter(Boolean) as SessionDay[]);
+    const all = () =>
+      week.flatMap((day) => [day, day.secondSession].filter(Boolean) as SessionDay[]);
     const counts = (sessions: SessionDay[]) => ({
       gym: sessions.filter(isMainGymSession).length,
       speed: sessions.filter((session) => classifySession(session).countsAsSpeed).length,
@@ -4535,8 +4561,10 @@ function enforceOffseasonSessionCap(
         victim.day.slotLabel = null;
       } else {
         makeRestDay(victim.day, OFFSEASON_REST_REASON);
-        victim.day.goalOfSession = "Odpoczynek — poza sezonem limit sesji zależy od wieku i poziomu.";
-        victim.day.riskManaged = "Mniej sesji w tygodniu daje czas na adaptację i chroni przed przeciążeniem.";
+        victim.day.goalOfSession =
+          "Odpoczynek — poza sezonem limit sesji zależy od wieku i poziomu.";
+        victim.day.riskManaged =
+          "Mniej sesji w tygodniu daje czas na adaptację i chroni przed przeciążeniem.";
         victim.day.avoidToday = "Bez obowiązkowego treningu — jeśli chcesz, tylko lekki ruch.";
       }
     }

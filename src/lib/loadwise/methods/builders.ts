@@ -2,7 +2,11 @@ import { balanceStrengthSections, supportPriority } from "../strengthSessionBala
 import { isFieldMasCurrent, paceRangeFromMas } from "@/lib/running/engine";
 import type { Profile, SessionDay, TrainingExercise, TrainingSection, WeekPhase } from "../types";
 import { buildAthleteTrainingProfile } from "../athleteProfile";
-import { buildStrengthPowerStructured, flatToStructured } from "../strengthBlocks";
+import {
+  buildStrengthPowerStructured,
+  ensureUniqueExerciseIds,
+  flatToStructured,
+} from "../strengthBlocks";
 import {
   getExerciseDefinition,
   hydrateTrainingExerciseFromDefinition,
@@ -728,7 +732,7 @@ export function buildFieldMethod(
           "Po próbie zawodnik lub trener ocenia decyzję i wykonanie. Telefon nie potwierdza kierunku ani czasu reakcji.",
       },
     ];
-  return [
+  return ensureUniqueExerciseIds([
     ...edges.filter((s) => s.type !== "cooldown"),
     {
       id: `method:${id}:section`,
@@ -746,5 +750,5 @@ export function buildFieldMethod(
       ],
     },
     ...edges.filter((s) => s.type === "cooldown"),
-  ];
+  ]);
 }
