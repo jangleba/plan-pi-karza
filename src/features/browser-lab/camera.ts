@@ -106,6 +106,7 @@ export async function openLabCamera(signal: AbortSignal, highDetail = false): Pr
     )
       throw new Error(
         "Brak dostępu do kamery. Zezwól na kamerę w Safari. W podglądzie Lovable otwórz opublikowaną aplikację albo wybierz film.",
+        { cause: reason },
       );
     if (
       reason instanceof DOMException &&
@@ -113,6 +114,7 @@ export async function openLabCamera(signal: AbortSignal, highDetail = false): Pr
     )
       throw new Error(
         "Kamera jest niedostępna lub zajęta. Zamknij inne aplikacje używające kamery i spróbuj ponownie.",
+        { cause: reason },
       );
     throw reason;
   }

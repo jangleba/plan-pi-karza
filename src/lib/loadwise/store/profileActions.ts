@@ -298,6 +298,7 @@ export function createProfileActions(
         )
           throw new Error(
             "Nie udało się jeszcze potwierdzić zapisu planu. Odpowiedzi pozostają w formularzu. Spróbuj ponownie — najpierw sprawdzimy zapis, bez ponownego układania planu.",
+            { cause: error },
           );
         throw error;
       }

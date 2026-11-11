@@ -300,7 +300,7 @@ export function createSessionActions(
           } as unknown as Json,
         }),
     );
-    let stored: RunningActivity | null = null;
+    let stored: RunningActivity | null;
     if (write.error) {
       if (!isRetryableWriteError(write.error))
         assertNoSupabaseError("save_running_result", write.error);

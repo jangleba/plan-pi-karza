@@ -1127,7 +1127,7 @@ function weeklyStimuli(
 ): Stimulus[] {
   const clubCoversBall = clubCount >= 1 || matchCount >= 1;
   const deload = phase === "deload";
-  let out: Stimulus[] = [];
+  let out: Stimulus[];
 
   if (profile.painInjury) {
     if (deload) return ["prehab", "ball", "endurance_light"];
