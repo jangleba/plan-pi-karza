@@ -5,10 +5,13 @@ import { rememberedMatchWeekday } from "./matchSchedule";
 import {
   answersFromProfile,
   onboardingPlanFacts,
+  toggleFeeling,
   trainingFieldsFromAnswers,
   type OnboardingAnswers,
 } from "./onboardingFlow";
-import type { Profile } from "./types";
+import { classifySession } from "./sessionClassification";
+import { ONBOARDING_CURRENT_FEELINGS, ONBOARDING_DESIRED_FEELINGS } from "./playerDirection";
+import type { CurrentPitchFeeling, DesiredPitchFeeling, Profile, SessionDay } from "./types";
 
 /**
  * The onboarding asks only questions that shape the plan. Each answer goes
@@ -26,6 +29,8 @@ const answers = (patch: Partial<OnboardingAnswers> = {}): OnboardingAnswers => (
   competitionLevel: "iv_liga",
   goal: "speed",
   secondaryLimiter: "endurance",
+  currentFeelings: ["fading_late_in_match"],
+  desiredFeelings: ["ready_full_match"],
   clubDays: [2, 4],
   unavailableDays: [],
   matchDate: "2026-11-21",
@@ -104,6 +109,8 @@ const QUESTIONS: Array<[string, Partial<OnboardingAnswers>]> = [
   ["poziom rozgrywkowy", { competitionLevel: "pro" }],
   ["cel", { goal: "endurance" }],
   ["ograniczenie", { secondaryLimiter: "strength" }],
+  ["jak czujesz się teraz", { currentFeelings: ["slow_to_turn"] }],
+  ["jak chcesz się czuć", { desiredFeelings: ["agile_in_turns"] }],
   ["treningi w klubie", { clubDays: [1, 3, 5] }],
   ["dni bez treningu", { unavailableDays: [6, 7] }],
   ["data meczu", { matchDate: "2026-11-19" }],
@@ -257,4 +264,161 @@ describe("summary shows facts of the real plan", () => {
     expect(byId.off).toBe("Nd");
     for (const fact of facts) expect(fact.value).not.toMatch(/bo |ponieważ|dlatego|aby /i);
   });
+});
+
+/**
+ * „Jak czujesz się / jak chcesz się czuć na boisku”: each answer moves the plan
+ * towards its quality, inside the week limits (one sprint session, rest day,
+ * MD rules) and never with pain, a return or in transition.
+ */
+describe("pitch feelings set the plan accent", () => {
+  beforeAll(() => {
+    vi.spyOn(console, "debug").mockImplementation(() => undefined);
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+  });
+  afterAll(() => vi.restoreAllMocks());
+
+  const general = answers({
+    goal: "general",
+    secondaryLimiter: "ball",
+    currentFeelings: [],
+    desiredFeelings: [],
+  });
+  const slots = (plan: SessionDay[]) =>
+    plan
+      .flatMap((day) => [day, day.secondSession])
+      .filter((slot): slot is SessionDay => Boolean(slot) && slot!.dayType === "training");
+  const plan28 = (a: OnboardingAnswers, extra: Partial<Profile> = {}, age = 22) =>
+    generatePlan({ ...profileOf(a, age, NOV), ...extra }, NOV, 28);
+  const count = (plan: SessionDay[], test: (slot: SessionDay) => boolean) =>
+    slots(plan).filter(test).length;
+  const isCod = (slot: SessionDay) => /hamowanie|zmiana kierunku|reakcja/i.test(slot.title);
+  const isAcceleration = (slot: SessionDay) => /^sprint: akceleracja/i.test(slot.title);
+  const category = (slot: SessionDay) =>
+    slot.classification?.category ?? classifySession(slot).category;
+
+  it("agile in turns: the sprint session works on braking and change of direction", () => {
+    const a = { ...general, clubDays: [3] };
+    const base = plan28(a);
+    const agile = plan28({ ...a, desiredFeelings: ["agile_in_turns"] });
+    expect(count(agile, isCod)).toBeGreaterThan(count(base, isCod));
+    expect(count(plan28({ ...a, currentFeelings: ["slow_to_turn"] }), isCod)).toBeGreaterThan(
+      count(base, isCod),
+    );
+  }, 60_000);
+
+  it("fast / explosive: braking sessions become acceleration", () => {
+    const base = plan28(general);
+    for (const feeling of ["fast_and_light", "explosive_first_steps"] as DesiredPitchFeeling[])
+      expect(
+        count(plan28({ ...general, desiredFeelings: [feeling] }), isAcceleration),
+        feeling,
+      ).toBeGreaterThan(count(base, isAcceleration));
+  }, 60_000);
+
+  it("ready for the whole match: more endurance sessions", () => {
+    const isEndurance = (slot: SessionDay) => category(slot) === "endurance_conditioning";
+    const a = { ...general, clubDays: [3] };
+    expect(
+      count(plan28({ ...a, desiredFeelings: ["ready_full_match"] }), isEndurance),
+    ).toBeGreaterThan(count(plan28(a), isEndurance));
+  }, 60_000);
+
+  it("strong in duels: a second strength session without a gym", () => {
+    const a = answers({
+      ...general,
+      level: "advanced",
+      noMatch: true,
+      matchDate: "",
+      weeklyMatches: false,
+      seasonPhase: "offseason",
+      hasGym: false,
+      clubDays: [],
+    });
+    const isStrength = (slot: SessionDay) => category(slot) === "gym_strength";
+    const strong = plan28({ ...a, desiredFeelings: ["strong_in_duels"] });
+    expect(count(strong, isStrength)).toBeGreaterThan(count(plan28(a), isStrength));
+    for (const slot of slots(strong)) expect(slot.title).not.toMatch(/siłowni/i);
+  }, 60_000);
+
+  // Mobility takes a recovery or spare light day; a full in-season week has none to give.
+  it("loose in movement: mobility sessions where the week has room", () => {
+    const a = answers({
+      ...general,
+      noMatch: true,
+      matchDate: "",
+      weeklyMatches: false,
+      seasonPhase: "offseason",
+      clubDays: [],
+    });
+    const isMobility = (slot: SessionDay) => slot.type === "prehab_mobility";
+    expect(
+      count(plan28({ ...a, desiredFeelings: ["loose_in_movement"] }), isMobility),
+    ).toBeGreaterThan(count(plan28(a), isMobility));
+  }, 60_000);
+
+  it("never more than one dedicated sprint session a week, whatever the feeling", () => {
+    const feelings: Array<Partial<OnboardingAnswers>> = [
+      ...ONBOARDING_DESIRED_FEELINGS.map((id) => ({ desiredFeelings: [id] })),
+      ...ONBOARDING_CURRENT_FEELINGS.map((id) => ({
+        currentFeelings: [id] as CurrentPitchFeeling[],
+      })),
+    ];
+    for (const patch of feelings) {
+      const plan = plan28({ ...general, ...patch });
+      for (let week = 0; week < 4; week++) {
+        const sprint = slots(plan.slice(week * 7, week * 7 + 7)).filter(
+          (slot) => category(slot) === "speed_sprint",
+        );
+        expect(sprint.length, JSON.stringify(patch)).toBeLessThanOrEqual(1);
+      }
+    }
+  }, 240_000);
+
+  it("changes nothing with pain, a return goal or in transition", () => {
+    const sig = (a: OnboardingAnswers, extra: Partial<Profile>) =>
+      JSON.stringify(plan28(a, extra).map((d) => d.title));
+    for (const [a, extra] of [
+      [general, { painInjury: true }],
+      [{ ...general, goal: "return" as const }, {}],
+      [{ ...general, seasonPhase: "transition" as const, seasonPhaseOverride: true }, {}],
+    ] as Array<[OnboardingAnswers, Partial<Profile>]>)
+      expect(sig({ ...a, desiredFeelings: ["agile_in_turns"] }, extra)).toBe(sig(a, extra));
+  }, 120_000);
+
+  it("keeps at most two answers, the newest replacing the oldest", () => {
+    expect(toggleFeeling(["a", "b"], "c")).toEqual(["b", "c"]);
+    expect(toggleFeeling(["a", "b"], "a")).toEqual(["b"]);
+    const fields = trainingFieldsFromAnswers(
+      answers({
+        desiredFeelings: [
+          "strong_in_duels",
+          "calm_under_pressure" as DesiredPitchFeeling,
+          "fast_and_light",
+        ],
+      }),
+      null,
+      NOV,
+    );
+    expect(fields.desiredPitchFeelings).toEqual(["strong_in_duels", "fast_and_light"]);
+  });
+
+  it("the summary names the feeling and what the week has for it", () => {
+    const a = {
+      ...general,
+      clubDays: [3],
+      desiredFeelings: ["agile_in_turns"] as DesiredPitchFeeling[],
+    };
+    const profile = profileOf(a, 22, NOV);
+    const facts = onboardingPlanFacts(profile, generatePlan(profile, NOV, 14));
+    expect(facts.find((fact) => fact.id === "direction")?.value).toMatch(
+      /^Zwinny w zwrotach · (Hamowanie|Reakcja)/,
+    );
+    const endurance = profileOf({ ...general, desiredFeelings: ["ready_full_match"] }, 22, NOV);
+    expect(
+      onboardingPlanFacts(endurance, generatePlan(endurance, NOV, 14)).find(
+        (fact) => fact.id === "direction",
+      )?.value,
+    ).toMatch(/^Świeży cały mecz · wytrzymałość \d× w tygodniu$/);
+  }, 60_000);
 });

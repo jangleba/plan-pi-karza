@@ -1,10 +1,66 @@
 /* Onboarding: one short question per screen, no scrolling on 320–430 px phones. */
 .ob {
+  /* Section tone: a light colour for icons, selections and the line art. */
+  --ob-tint: oklch(0.56 0.11 252);
+  --ob-tint-soft: color-mix(in oklab, var(--ob-tint) 9%, var(--card));
+  --ob-tint-line: color-mix(in oklab, var(--ob-tint) 30%, transparent);
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   height: 100dvh;
+  overflow: hidden;
   background: var(--background);
   color: var(--foreground);
+}
+.ob[data-tone="teal"] {
+  --ob-tint: oklch(0.56 0.085 185);
+}
+.ob[data-tone="violet"] {
+  --ob-tint: oklch(0.56 0.12 295);
+}
+.ob[data-tone="amber"] {
+  --ob-tint: oklch(0.64 0.12 62);
+}
+.ob[data-tone="sky"] {
+  --ob-tint: oklch(0.6 0.1 228);
+}
+.ob[data-tone="green"] {
+  --ob-tint: oklch(0.56 0.1 152);
+}
+
+/* Thin line art behind the question: a light wash and hairline strokes. */
+.ob-art {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: -1;
+  height: 46%;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 90% at 100% 0%,
+    color-mix(in oklab, var(--ob-tint) 10%, transparent) 0%,
+    transparent 62%
+  );
+  transition: background 0.5s;
+}
+.ob-art svg {
+  position: absolute;
+  top: max(54px, calc(env(safe-area-inset-top) + 40px));
+  right: -36px;
+  width: 230px;
+  height: 230px;
+  color: var(--ob-tint);
+  opacity: 0.32;
+  animation: ob-art-in 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.ob-art svg * {
+  vector-effect: non-scaling-stroke;
+}
+@keyframes ob-art-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) rotate(-3deg);
+  }
 }
 .ob__head {
   flex-shrink: 0;
@@ -52,7 +108,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--primary);
+  background: linear-gradient(90deg, var(--primary), var(--ob-tint));
   transition: width 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .ob__body {
@@ -66,7 +122,7 @@
 .ob__foot {
   flex-shrink: 0;
   padding: 10px 20px calc(14px + env(safe-area-inset-bottom));
-  background: var(--background);
+  background: linear-gradient(to bottom, transparent, var(--background) 22%);
 }
 .ob__hint {
   min-height: 18px;
@@ -120,11 +176,26 @@
 }
 
 .ob-kicker {
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 3px 7px;
+  border-radius: 999px;
+  background: var(--ob-tint-soft);
+  font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
+  letter-spacing: 0.01em;
+  color: color-mix(in oklab, var(--ob-tint) 80%, var(--foreground));
+}
+.ob-kicker::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--ob-tint);
+}
+.ob-kicker + .ob-title {
+  margin-top: 10px;
 }
 .ob-title {
   margin-top: 4px;
@@ -186,10 +257,16 @@
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
+.ob-option {
+  border-width: 1px;
+  box-shadow: 0 1px 2px oklch(0.18 0.015 255 / 0.04);
+}
 .ob-option[aria-pressed="true"] {
-  border-color: var(--primary);
-  background: color-mix(in oklab, var(--primary) 7%, var(--card));
-  box-shadow: 0 6px 18px -12px color-mix(in oklab, var(--primary) 70%, transparent);
+  border-color: var(--ob-tint);
+  background: var(--ob-tint-soft);
+  box-shadow:
+    0 0 0 1px var(--ob-tint) inset,
+    0 8px 20px -14px color-mix(in oklab, var(--ob-tint) 80%, transparent);
 }
 .ob-option:disabled {
   opacity: 0.4;
@@ -213,15 +290,23 @@
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  background: var(--secondary);
-  color: var(--primary);
+  background: var(--ob-tint-soft);
+  color: var(--ob-tint);
   transition:
     background-color 0.2s,
     color 0.2s;
 }
 .ob-option[aria-pressed="true"] .ob-option__icon {
-  background: var(--primary);
-  color: var(--primary-foreground);
+  background: var(--ob-tint);
+  color: var(--card);
+}
+.ob-option__icon svg {
+  stroke-width: 1.75;
+}
+/* Free-form glyph (mini pitch, level bars) instead of an icon square. */
+.ob-option__glyph {
+  flex-shrink: 0;
+  color: var(--ob-tint);
 }
 .ob-option__text {
   min-width: 0;
@@ -250,8 +335,8 @@
   width: 20px;
   height: 20px;
   border-radius: 999px;
-  background: var(--primary);
-  color: var(--primary-foreground);
+  background: var(--ob-tint);
+  color: var(--card);
   transform: scale(0);
   transition: transform 0.28s cubic-bezier(0.3, 1.6, 0.5, 1);
 }
@@ -292,9 +377,9 @@
   transform: scale(0.94);
 }
 .ob-day[aria-pressed="true"] {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: var(--primary-foreground);
+  border-color: var(--ob-tint);
+  background: var(--ob-tint);
+  color: var(--card);
 }
 .ob-day--off[aria-pressed="true"] {
   border-color: var(--foreground);
@@ -340,9 +425,9 @@
   font-variant-numeric: tabular-nums;
 }
 .ob-date[aria-pressed="true"] {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: var(--primary-foreground);
+  border-color: var(--ob-tint);
+  background: var(--ob-tint);
+  color: var(--card);
 }
 .ob-date[aria-pressed="true"] small {
   color: inherit;
@@ -391,7 +476,7 @@
   transition: transform 0.25s cubic-bezier(0.3, 1.4, 0.5, 1);
 }
 [aria-checked="true"] > .ob-switch {
-  background: var(--primary);
+  background: var(--ob-tint);
 }
 [aria-checked="true"] > .ob-switch::after {
   transform: translateX(18px);
@@ -456,8 +541,9 @@
 }
 .ob-fact {
   display: flex;
-  gap: 12px;
-  padding: 11px 14px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
   animation: ob-rise 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   animation-delay: calc(var(--i, 0) * 80ms + 120ms);
 }
@@ -465,14 +551,28 @@
   border-top: 1px solid var(--border);
 }
 .ob-fact dt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-shrink: 0;
-  width: 104px;
-  font-size: 12.5px;
+  width: 112px;
+  font-size: 12px;
+  line-height: 1.25;
   color: var(--muted-foreground);
+}
+.ob-fact__icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: var(--ob-tint-soft);
+  color: var(--ob-tint);
 }
 .ob-fact dd {
   min-width: 0;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   line-height: 1.3;
 }
@@ -494,8 +594,8 @@
   width: 44px;
   height: 44px;
   border-radius: 14px;
-  background: var(--primary);
-  color: var(--primary-foreground);
+  background: var(--ob-tint);
+  color: var(--card);
   animation: ob-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) both;
 }
 @keyframes ob-pop {
@@ -506,6 +606,16 @@
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+/* iPhone SE and other short screens: the section label goes, the question stays. */
+@media (max-height: 700px) {
+  .ob-kicker {
+    display: none;
+  }
+  .ob-fact {
+    padding-block: 8px;
   }
 }
 
@@ -541,13 +651,40 @@
     margin-top: 14px;
   }
   .ob-fact {
-    padding-block: 8px;
+    padding-block: 6px;
+  }
+  .ob-fact__icon {
+    display: none;
+  }
+  .ob-fact dt {
+    width: 84px;
+  }
+  .ob-fact dd {
+    font-size: 13px;
   }
   .ob-facts {
     margin-top: 12px;
   }
   .ob-done {
     display: none;
+  }
+  .ob-art svg {
+    width: 180px;
+    height: 180px;
+  }
+  .ob-grid {
+    gap: 6px;
+  }
+  .ob-count {
+    margin-top: 4px;
+  }
+  .ob .ob-option.ob-option--compact {
+    min-height: 42px;
+    padding-block: 5px;
+  }
+  .ob-option--compact .ob-option__icon {
+    width: 26px;
+    height: 26px;
   }
   .ob-consent {
     padding-block: 9px;
@@ -556,6 +693,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .ob-step,
+  .ob-art svg,
   .ob-stagger > *,
   .ob-fact,
   .ob-done,
@@ -578,4 +716,38 @@
 }
 .ob-grid--3 .ob-option__title {
   font-size: 13.5px;
+}
+
+/* Compact tile: small icon beside the title (2-column grids with icons). */
+.ob-option.ob-option--compact {
+  gap: 10px;
+  min-height: 50px;
+  padding: 8px 10px;
+}
+.ob-option--compact .ob-option__icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+}
+.ob-option--compact .ob-option__title {
+  font-size: 14px;
+  line-height: 1.2;
+}
+.ob-option--compact .ob-check {
+  display: none;
+}
+
+/* Multi-choice counter ("1/2") next to a question. */
+.ob-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+.ob-count b {
+  color: var(--ob-tint);
 }

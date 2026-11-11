@@ -1,5 +1,7 @@
 import type {
   CompetitionLevel,
+  CurrentPitchFeeling,
+  DesiredPitchFeeling,
   DoubleSessions,
   Goal,
   Level,
@@ -11,13 +13,21 @@ import type {
 } from "./types";
 import { validateSeason } from "./seasonValidation";
 import { ISO_DAY_LABELS } from "./labels";
+import {
+  CURRENT_FEELING_SHORT,
+  DESIRED_FEELING_SHORT,
+  MAX_PITCH_FEELINGS,
+  ONBOARDING_CURRENT_FEELINGS,
+  ONBOARDING_DESIRED_FEELINGS,
+} from "./playerDirection";
+import { directionAccentFor } from "./planEngine";
+import { limitationSupportCategory } from "./planRules";
 
 /**
  * Answers collected by the onboarding screens that drive the training plan.
  * Every field here changes the generated plan for at least one athlete
- * (see onboardingAnswersDrivePlan.test.ts); questions that changed nothing
- * ("Etap w sezonie", "Jak czujesz się / chcesz się czuć na boisku") are no
- * longer asked.
+ * (see onboardingFlow.test.ts); "Etap w sezonie" changed nothing and is no
+ * longer asked. The pitch feelings set the plan accent (directionAccentFor).
  */
 export interface OnboardingAnswers {
   position: Position | null;
@@ -25,6 +35,10 @@ export interface OnboardingAnswers {
   competitionLevel: CompetitionLevel | null;
   goal: Goal | null;
   secondaryLimiter: SecondaryLimiter | null;
+  /** „Jak czujesz się teraz na boisku?” — 1–2 answers. */
+  currentFeelings: CurrentPitchFeeling[];
+  /** „Jak chcesz się czuć na boisku?” — 1–2 answers; the first one leads the accent. */
+  desiredFeelings: DesiredPitchFeeling[];
   clubDays: number[];
   unavailableDays: number[];
   /** yyyy-MM-dd of the next match, empty when none. */
@@ -113,6 +127,8 @@ type TrainingFields = Pick<
   | "hasGym"
   | "hasPitch"
   | "hasSprintSpace"
+  | "currentPitchFeelings"
+  | "desiredPitchFeelings"
 >;
 
 /**
@@ -169,7 +185,25 @@ export function trainingFieldsFromAnswers(
     hasGym: answers.hasGym,
     hasPitch: answers.hasPitch,
     hasSprintSpace: answers.hasSprintSpace,
+    currentPitchFeelings: onlyOffered(answers.currentFeelings, ONBOARDING_CURRENT_FEELINGS),
+    desiredPitchFeelings: onlyOffered(answers.desiredFeelings, ONBOARDING_DESIRED_FEELINGS),
   };
+}
+
+/** Answers from the onboarding list, without repeats, at most two, in the order picked. */
+function onlyOffered<T extends string>(
+  values: readonly T[] | undefined,
+  offered: readonly T[],
+): T[] {
+  return [...new Set(values ?? [])]
+    .filter((id) => offered.includes(id))
+    .slice(0, MAX_PITCH_FEELINGS);
+}
+
+/** Toggles a feeling: a third pick replaces the older of the two. */
+export function toggleFeeling<T extends string>(values: readonly T[], id: T): T[] {
+  if (values.includes(id)) return values.filter((value) => value !== id);
+  return [...values, id].slice(-MAX_PITCH_FEELINGS);
 }
 
 /** Initial answers: from a saved profile when editing, otherwise empty. */
@@ -180,6 +214,8 @@ export function answersFromProfile(profile?: Profile | null): OnboardingAnswers 
     competitionLevel: profile?.competitionLevel ?? null,
     goal: profile?.goal ?? null,
     secondaryLimiter: profile?.secondaryLimiter ?? null,
+    currentFeelings: onlyOffered(profile?.currentPitchFeelings, ONBOARDING_CURRENT_FEELINGS),
+    desiredFeelings: onlyOffered(profile?.desiredPitchFeelings, ONBOARDING_DESIRED_FEELINGS),
     clubDays: profile?.clubTrainingDays ?? [],
     unavailableDays: profile?.unavailableDays ?? [],
     matchDate: profile?.matchDate ?? "",
@@ -201,7 +237,7 @@ export function answersFromProfile(profile?: Profile | null): OnboardingAnswers 
 // ---------------------------------------------------------------------------
 
 export interface PlanFact {
-  id: "week" | "first" | "match" | "strength" | "focus" | "off";
+  id: "week" | "first" | "match" | "strength" | "focus" | "direction" | "off";
   label: string;
   value: string;
 }
@@ -311,6 +347,8 @@ export function onboardingPlanFacts(profile: Profile, plan: SessionDay[]): PlanF
         : ""
     }`,
   });
+  const direction = directionFact(profile, week);
+  if (direction) facts.push(direction);
   const off = profile.unavailableDays ?? [];
   if (off.length)
     facts.push({
@@ -319,4 +357,53 @@ export function onboardingPlanFacts(profile: Profile, plan: SessionDay[]): PlanF
       value: off.map((day) => ISO_DAY_LABELS.find((item) => item.value === day)?.short).join(", "),
     });
   return facts;
+}
+
+/**
+ * „Kierunek”: the feeling the athlete picked and what the first week has for it —
+ * the form of the sprint session, or how many sessions of the quality it has.
+ */
+function directionFact(profile: Profile, week: SessionDay[]): PlanFact | null {
+  const desired = profile.desiredPitchFeelings?.find((id) => DESIRED_FEELING_SHORT[id]);
+  const current = profile.currentPitchFeelings?.find((id) => CURRENT_FEELING_SHORT[id]);
+  const feeling = desired
+    ? DESIRED_FEELING_SHORT[desired]
+    : current
+      ? CURRENT_FEELING_SHORT[current]
+      : null;
+  if (!feeling) return null;
+  const accent = directionAccentFor(profile);
+  const slots = week
+    .flatMap((day) => [day, day.secondSession])
+    .filter((slot): slot is SessionDay => Boolean(slot) && slot!.dayType === "training");
+  if (!accent) return { id: "direction", label: "Kierunek", value: feeling };
+  if (accent === "mobility") {
+    const n = slots.filter((slot) => slot.type === "prehab_mobility").length;
+    return {
+      id: "direction",
+      label: "Kierunek",
+      value: `${feeling} · ${n ? `mobilność ${n}× w tygodniu` : "mobilność"}`,
+    };
+  }
+  const category = limitationSupportCategory(accent);
+  if (accent === "speed" || accent === "cod") {
+    // The sprint session's own name when it has the asked form (a speed or
+    // agility goal keeps its own form).
+    const form = accent === "cod" ? /hamowanie|zmiana kierunku|reakcja/i : /sprint|przyspiesz/i;
+    const sprint = slots.find(
+      (slot) => slot.classification?.category === category && form.test(slot.title),
+    );
+    return {
+      id: "direction",
+      label: "Kierunek",
+      value: sprint ? `${feeling} · ${sprint.title}` : feeling,
+    };
+  }
+  const n = slots.filter((slot) => slot.classification?.category === category).length;
+  const label = accent === "strength" ? "siła" : accent === "endurance" ? "wytrzymałość" : "piłka";
+  return {
+    id: "direction",
+    label: "Kierunek",
+    value: `${feeling} · ${label}${n ? ` ${n}× w tygodniu` : ""}`,
+  };
 }

@@ -8,7 +8,7 @@ import {
 } from "./recoveryContent";
 import { computeLoadTags } from "./sessionLoadTags";
 import { applyPlanTrainingMethods } from "./methods/planner";
-import type { Profile, SessionDay, ExerciseItem, DayType } from "./types";
+import type { Profile, SessionDay, ExerciseItem, DayType, SecondaryLimiter } from "./types";
 import { assertPlanExerciseContract } from "./planExerciseContract";
 import {
   localToday,
@@ -56,6 +56,7 @@ import {
 import { hasRealSpeedExposure } from "./speedLoad";
 import { validateFootballSpeedDate } from "./footballSpeedScheduling";
 import { isProfileMatchDate, profileMatchDates } from "./matchSchedule";
+import { directionQualities, type DirectionQuality } from "./playerDirection";
 import { getRequiredGymSessions } from "./weeklyRequirements";
 import {
   assertFinalPlanMeetsMinimums,
@@ -75,6 +76,8 @@ import {
   computeSessionLoad,
   countWeekRoles,
   validateGeneratedWeek,
+  limitationSupportCategory,
+  countLimitationSessions,
   blockWeekOf,
   weekThemeFor,
   loadMultiplierFor,
@@ -1779,7 +1782,10 @@ function buildStimulus(stimulus: Stimulus, profile: Profile): Built {
 
   switch (categoryOf(stimulus)) {
     case "strength_power":
-      return { ...built, title: "Siła / moc na siłowni", sessionType: "Siła / moc" };
+      // Without a gym the session is bodyweight/own equipment and keeps its own title.
+      return profile.hasGym
+        ? { ...built, title: "Siła / moc na siłowni", sessionType: "Siła / moc" }
+        : { ...built, sessionType: "Siła / moc" };
     case "speed":
       return { ...built, title: "Sprint i przyspieszenie", sessionType: "Szybkość" };
     case "conditioning":
@@ -3153,6 +3159,8 @@ function validateRecoveryPrehabPlacement(
     const blockWeek = blockWeekOf(weekOffset + wi);
     const standaloneAllowed = allowsStandaloneRecoveryPrehab(profile, blockWeek);
     let usedWeeklyRecovery = false;
+    // Direction "loose in movement": one mobility day per week stays.
+    let directionMobilityLeft = directionAccentFor(profile) === "mobility" ? 1 : 0;
 
     for (let i = range.start; i < range.end; i++) {
       const day = out[i];
@@ -3183,6 +3191,10 @@ function validateRecoveryPrehabPlacement(
       }
 
       if (isRecoveryPrehabStandalone(day)) {
+        if (directionMobilityLeft > 0) {
+          directionMobilityLeft--;
+          continue;
+        }
         if (!standaloneAllowed) {
           replaceMainRecoveryPrehab(
             day,
@@ -3268,6 +3280,108 @@ function isConvertibleRecoveryDay(day: SessionDay, profile: Profile): boolean {
   const dt = daysToMatch(new Date(day.date + "T00:00:00"), profile);
   if (dt === 1 || dt === 2) return false;
   return true;
+}
+
+/**
+ * „Jak chcesz się czuć / jak czujesz się teraz na boisku” → the week gets the
+ * quality these answers point to: one more full session of it (unless the
+ * week already has two), placed like a limiter session by the week repair —
+ * on a recovery or low-priority support day, never on MD-1, MD+1 or MD-2 and
+ * never instead of the goal minimum. Skipped with pain,
+ * a return or fatigue limit, in transition, return phase and deload weeks.
+ * Returns the stand-in limiter, or "mobility" for a mobility session.
+ */
+export function directionAccentFor(profile: Profile): SecondaryLimiter | "mobility" | null {
+  if (
+    profile.painInjury ||
+    profile.goal === "return" ||
+    profile.secondaryLimiter === "fatigue" ||
+    profile.secondaryLimiter === "return" ||
+    profile.seasonPhase === "return_injury" ||
+    profile.seasonPhase === "transition" ||
+    offseasonStageOf(profile) === "transition"
+  )
+    return null;
+  const asLimiter: Record<DirectionQuality, SecondaryLimiter | "mobility"> = {
+    strength: "strength",
+    speed: "speed",
+    agility: "cod",
+    endurance: "endurance",
+    ball: "ball",
+    mobility: "mobility",
+  };
+  for (const quality of directionQualities(profile)) {
+    const accent = asLimiter[quality];
+    if (accent === "mobility") return accent;
+    if (accent === profile.secondaryLimiter) continue; // the limiter already asks for it
+    if (limitationSupportCategory(accent)) return accent;
+  }
+  return null;
+}
+
+function isMobilitySession(day: SessionDay): boolean {
+  return [day, day.secondSession].some(
+    (slot) => slot?.dayType === "training" && slot.type === "prehab_mobility",
+  );
+}
+
+/** Sessions of the accent quality a week should have (sprint and COD share the one sprint session). */
+function accentWeekTarget(accent: SecondaryLimiter): number {
+  if (accent === "speed" || accent === "cod") return MAX_DEDICATED_SPRINT_SESSIONS_PER_WEEK;
+  return accent === "fatigue" || accent === "return" ? 0 : 2;
+}
+
+const DIRECTION_MOBILITY_REASON =
+  "Kierunek zawodnika: swoboda ruchu — mobilność zamiast lekkiego dnia.";
+
+/** Adds the direction accent to one week; true when a day was changed. */
+function applyDirectionAccentToWeek(
+  out: SessionDay[],
+  range: { start: number; end: number },
+  profile: Profile,
+  blockWeek: number,
+  isFullWeek: boolean,
+  applySprintFn?: (target: SessionDay, stimulus: Stimulus) => void,
+): boolean {
+  const accent = directionAccentFor(profile);
+  if (!accent || !isFullWeek || blockWeek === 4) return false;
+  const sessions = out.slice(range.start, range.end);
+  if (accent === "mobility") {
+    if (sessions.some(isMobilitySession)) return false;
+    // A recovery day, else a light ball day that is not the week's only needed ball session.
+    const ballSessions = countLimitationSessions(sessions, "ball");
+    const ballNeeded =
+      profile.secondaryLimiter === "ball" ||
+      !sessions.some((day) => day.dayType === "club" || day.dayType === "match");
+    const lightBall = (day: SessionDay) =>
+      day.dayType === "training" &&
+      day.intensity === "niska" &&
+      day.classification?.category === "other" &&
+      day.mdLabel !== "MD-1" &&
+      !day.executionProtected &&
+      !day.secondSession &&
+      (!ballNeeded || ballSessions > 1);
+    const recovery = sessions.findIndex((day) => isConvertibleRecoveryDay(day, profile));
+    const target = recovery !== -1 ? recovery : sessions.findIndex(lightBall);
+    if (target === -1) return false;
+    convertRecoveryToBuilt(
+      out,
+      range.start + target,
+      buildStimulus("prehab", profile),
+      { ...profile, goal: "mobility" },
+      DIRECTION_MOBILITY_REASON,
+    );
+    return true;
+  }
+  // Too little of the quality this week: one more session of it, placed like a limiter session.
+  if (countLimitationSessions(sessions, accent) >= accentWeekTarget(accent)) return false;
+  return repairWeekErrors(
+    out,
+    range,
+    { ...profile, secondaryLimiter: accent },
+    ["missing-limitation-support"],
+    applySprintFn,
+  );
 }
 
 /**
@@ -3541,6 +3655,18 @@ function applyRuleBasedWeekLayer(
       if (changed) rebuiltFlags[wi] = true;
       else break;
     }
+    // Kierunek zawodnika (odczucia na boisku) — po minimum celu i ograniczenia.
+    if (
+      applyDirectionAccentToWeek(
+        out,
+        info.range,
+        profile,
+        info.blockWeek,
+        info.isFullWeek,
+        applySprintFn,
+      )
+    )
+      rebuiltFlags[wi] = true;
   });
 
   // 2) Progresja 4-tygodniowego bloku (load: w1<w2<w3, w4<w3).
@@ -3715,6 +3841,7 @@ export function generatePlan(
   let contentCounters: ContentCounters = newContentCounters();
 
   /** Buduje sesję siłowni z wariacją i wpisuje ją do session/secondSession. */
+  const directionAccent = directionAccentFor(profile);
   const applyGymPlan = (target: SessionDay, readiness?: number): void => {
     const plan = buildStrengthPowerStructured(profile, {
       mdLabel: target.mdLabel,
@@ -3756,14 +3883,24 @@ export function generatePlan(
       .at(-1);
     const progressionWeek = (curWeekIndex % (days <= 7 ? 4 : totalWeeks)) + 1;
 
+    // Direction "agile in turns": the week's sprint session works on braking/COD;
+    // "fast": a COD session becomes acceleration. A speed or agility goal keeps its own form.
+    const form =
+      directionAccent === "cod" &&
+      profile.goal !== "speed" &&
+      (stimulus === "sprint" || stimulus === "speed_exposure")
+        ? "cod"
+        : directionAccent === "speed" && stimulus === "cod" && profile.goal !== "agility"
+          ? "sprint"
+          : stimulus;
     // Najpierw opanowane hamowanie/COD, dopiero w późniejszym tygodniu bodziec reaktywny.
-    if (stimulus === "cod") {
+    if (form === "cod") {
       return progressionWeek >= 3 && progressionWeek !== 4
         ? "reactive_agility_reacceleration"
         : "deceleration_cod";
     }
     // Ekspozycje zmieniają się według poprzedniego bodźca, nie przypadkowej parzystości dnia.
-    if (stimulus === "speed_exposure") {
+    if (form === "speed_exposure") {
       return previousFamily === "maximum_velocity" ? "curved_sprinting" : "maximum_velocity";
     }
     return "acceleration";

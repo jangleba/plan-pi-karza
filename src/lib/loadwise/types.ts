@@ -68,9 +68,11 @@ export type DoubleSessions = "no" | "light_only" | "yes_if_safe";
 
 export type UsualMatchDay = number | "no_fixed_day" | null; // 1=Mon ... 7=Sun
 
-/** Subiektywny punkt startu zawodnika (warstwa motywacyjna, nie wejście planu). */
+/** Jak zawodnik czuje się teraz na boisku — wskazuje akcent planu (playerDirection.ts). */
 export type CurrentPitchFeeling =
   | "lacking_confidence"
+  | "slow_to_turn"
+  | "feeling_stiff"
   | "stagnating"
   | "lacking_speed"
   | "lacking_duel_strength"
@@ -78,9 +80,12 @@ export type CurrentPitchFeeling =
   | "returning_after_break"
   | "training_without_direction";
 
-/** Docelowe odczucie na boisku (warstwa motywacyjna, nie wejście planu). */
+/** Jak zawodnik chce się czuć na boisku — wskazuje akcent planu (playerDirection.ts). */
 export type DesiredPitchFeeling =
   | "confident_in_decisions"
+  | "explosive_first_steps"
+  | "agile_in_turns"
+  | "loose_in_movement"
   | "fast_and_light"
   | "strong_in_duels"
   | "calm_under_pressure"
@@ -155,9 +160,9 @@ export interface Profile {
   hasSprintSpace: boolean; // miejsce do sprintu
   /** Dni całkowicie niedostępne (1=Pn ... 7=Nd) — Loadwise nic w nie nie zaplanuje. */
   unavailableDays?: number[];
-  /** „Twój kierunek” (stary onboarding, już nie pytamy): jak zawodnik czuł się na boisku. Nie wpływa na plan. */
+  /** „Jak czujesz się teraz na boisku” (maks. 2) — dodaje akcent planu. */
   currentPitchFeelings?: CurrentPitchFeeling[];
-  /** „Twój kierunek” (stary onboarding, już nie pytamy): jak chce się czuć. Nie wpływa na plan. */
+  /** „Jak chcesz się czuć na boisku” (maks. 2) — dodaje akcent planu (ma pierwszeństwo). */
   desiredPitchFeelings?: DesiredPitchFeeling[];
   // --- Pola opcjonalne przygotowane pod rozszerzenie onboardingu ---
   /** Doświadczenie na siłowni (jawnie z onboardingu, jeśli kiedyś dodane). */
