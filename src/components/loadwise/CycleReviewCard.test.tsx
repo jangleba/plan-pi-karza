@@ -35,7 +35,7 @@ describe("CycleReviewCard", () => {
     const text = host.textContent ?? "";
     expect(text).toContain("Treningi: 9 z 16 (56%)");
     expect(text).toContain("Wysiłek: średnio 6,5/10");
-    expect(text).toContain("Utrzymaj formę w sezonie");
+    expect(text).toContain("Utrzymanie formy w sezonie");
     const buttons = host.querySelectorAll("button");
     expect(buttons).toHaveLength(1);
     expect(host.querySelector("details")?.open).toBe(false);

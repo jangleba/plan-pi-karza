@@ -1,5 +1,12 @@
 import { historyCategoryOf } from "./store/model";
-import type { Readiness, SeasonPhase, SessionDay, SessionHistoryRecord } from "./types";
+import type { CycleRecommendationKind } from "./cyclePolicy";
+import type {
+  CycleStartRecord,
+  Readiness,
+  SeasonPhase,
+  SessionDay,
+  SessionHistoryRecord,
+} from "./types";
 
 /**
  * Podsumowanie zakończonego cyklu planu i rekomendacja na kolejny.
@@ -18,8 +25,7 @@ import type { Readiness, SeasonPhase, SessionDay, SessionHistoryRecord } from ".
 /** Kategorie własnych treningów, które liczymy jako „zaplanowane do zrobienia”. */
 const OWN_CATEGORIES = new Set(["gym", "speed", "endurance", "ball"]);
 
-export type CycleRecommendationKind =
-  "health" | "transition" | "deload" | "consistency" | "maintain" | "vary" | "progress";
+export type { CycleRecommendationKind } from "./cyclePolicy";
 
 export interface PlannedOwnSession {
   /** Id sesji w bazie, jeśli plan był zapisany. */
@@ -361,47 +367,43 @@ export function cycleReviewCopy(review: CycleReview): CycleReviewCopy {
   const next = PHASE_LABEL[review.phaseNext];
   const weeks = Math.max(1, Math.round((daysBetween(review.startDate, review.endDate) + 1) / 7));
   const weeklyTarget = Math.max(1, Math.ceil((review.planned / weeks) * CYCLE_RULES.goodAdherence));
+  // Opis tego, co silnik zrobił z nowym cyklem (cyclePolicy.ts) — bez uzasadnienia.
   const copy: Record<CycleRecommendationKind, [string, string]> = {
     health: [
       "Najpierw zdrowie",
-      "Zgłoś ból trenerowi lub fizjoterapeucie. Do tego czasu rób tylko to, co nie boli, bez sprintów i ciężkich serii.",
+      "Nowy plan: 2 lżejsze tygodnie na start, bez tygodni przeciążenia. Zgłoś ból trenerowi lub fizjoterapeucie.",
     ],
     transition: [
-      "Czas na roztrenowanie",
-      "Przez 2–3 tygodnie trenuj lżej: 2–3 krótkie sesje w tygodniu, bez maksymalnych prób.",
+      "Roztrenowanie",
+      "Nowy plan: lżejszy pierwszy tydzień i cykl bez tygodni przeciążenia.",
     ],
     deload: [
-      "Zacznij lżej",
-      "W pierwszym tygodniu zostawiaj 3 powtórzenia zapasu w każdej serii i odpuść dodatkowe sesje.",
+      "Lżejszy start",
+      "Nowy plan: pierwszy tydzień lżejszy, potem wprowadzenie i normalny blok.",
     ],
     consistency: [
       "Najpierw regularność",
-      `Nie dokładaj obciążenia. Celuj w ${trainingsLabel(weeklyTarget)} w tygodniu — jeśli brakuje czasu, zmień dni w profilu.`,
+      `Nowy plan nie zwiększa obciążenia. Celuj w ${trainingsLabel(weeklyTarget)} w tygodniu.`,
     ],
     maintain: [
-      review.phaseNext === "inseason" ? "Utrzymaj formę w sezonie" : "Utrzymaj poziom",
-      review.phaseNext === "inseason"
-        ? "Zrób wszystkie zaplanowane treningi z tym samym ciężarem. Dzień przed meczem tylko lekko."
-        : "Zostań przy tych samych ciężarach i dystansach. Dołóż dopiero, gdy zrobisz ponad 80% treningów.",
+      review.phaseNext === "inseason" ? "Utrzymanie formy w sezonie" : "Utrzymanie poziomu",
+      "Nowy plan utrzymuje obciążenie: bez tygodni przeciążenia.",
     ],
     vary: [
-      "Zmień bodziec",
-      "W siłowni zmień zakres powtórzeń (np. z 8 na 5) lub wariant ćwiczenia. Powtórz testy w Lab pod koniec cyklu.",
+      "Zmiana bodźca",
+      "Nowy plan zmienia kolejność tygodni: mocniejszy bodziec wcześniej, potem budowanie.",
     ],
     progress: review.youth
-      ? [
-          "Gotowy na mały krok",
-          "Dokładaj małymi krokami: najpierw +1–2 powtórzenia z dobrą techniką, potem ok. 2,5 kg. Nie dokładaj dni treningowych.",
-        ]
+      ? ["Mały krok wyżej", "Nowy plan: pełny blok z jednym tygodniem przeciążenia."]
       : [
-          "Gotowy na krok wyżej",
-          "Dokładaj ciężar (2,5–5%), gdy zrobisz wszystkie powtórzenia z zapasem. Liczba dni zostaje ta sama.",
+          "Krok wyżej",
+          "Nowy plan: pełny blok z tygodniami przeciążenia. Dokładaj ciężar, gdy zrobisz wszystkie powtórzenia z zapasem.",
         ],
   };
   const [recommendationTitle, recommendationText] = copy[review.recommendation];
   return {
     title: "Koniec cyklu",
-    facts: [...facts, `Teraz: ${next}`],
+    facts: [...facts, `Następny cykl: ${next}`],
     recommendationTitle,
     recommendationText,
     button: "Zaczynam nowy cykl",
@@ -418,3 +420,24 @@ export const CYCLE_REVIEW_SOURCES: readonly string[] = [
   "Lloyd i in. 2014; Faigenbaum i in. 2016 — progresja obciążenia u młodzieży.",
   "Silva i in. 2016 — roztrenowanie po sezonie w piłce nożnej.",
 ];
+
+/** Zapis do planu nowego cyklu: reguła startu dla silnika + podsumowanie do Postępu. */
+export function cycleStartRecord(
+  review: CycleReview,
+  reviewedCycleId: string | null,
+): CycleStartRecord {
+  return { kind: review.recommendation, youth: review.youth, reviewedCycleId, review };
+}
+
+/** Reguła startu zapisana w planie bieżącego cyklu. */
+export function cycleStartOf(plan: readonly SessionDay[]): CycleStartRecord | null {
+  return plan.find((day) => day.cycleStart)?.cycleStart ?? null;
+}
+
+/** Ten sam zapis na każdym dniu — przetrwa przebudowę i zapis planu. */
+export function stampCycleStart(
+  days: SessionDay[],
+  record: CycleStartRecord | null | undefined,
+): SessionDay[] {
+  return record ? days.map((day) => ({ ...day, cycleStart: record })) : days;
+}

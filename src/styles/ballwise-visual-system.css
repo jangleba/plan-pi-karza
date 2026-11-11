@@ -495,7 +495,7 @@ select {
   font-size: 15px;
   font-weight: 600;
 }
-.bw-cycle-review > ul {
+.bw-cycle-review__facts {
   margin: 10px 0 0;
   padding: 0;
   list-style: none;
@@ -520,17 +520,17 @@ select {
   font-size: 13px;
   line-height: 1.4;
 }
-.bw-cycle-review details {
+.bw-cycle-review__more {
   margin-top: 8px;
   color: var(--muted-foreground);
   font-size: 12px;
 }
-.bw-cycle-review details ul {
+.bw-cycle-review__more ul {
   margin: 6px 0 0;
   padding-left: 16px;
   line-height: 1.45;
 }
-.bw-cycle-review > button {
+.bw-cycle-review__cta {
   width: 100%;
   min-height: 44px;
   margin-top: 12px;
@@ -539,6 +539,36 @@ select {
   color: var(--primary-foreground);
   font-size: 14px;
   font-weight: 600;
+}
+.bw-cycle-review--progress {
+  margin-top: 0;
+}
+.bw-cycle-review__row {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: var(--bw-hairline) solid var(--border);
+}
+.bw-cycle-review__row > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 10px;
+  min-height: 32px;
+  cursor: pointer;
+  color: var(--foreground);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.bw-cycle-review__row > summary small {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 500;
+}
+.bw-cycle-review__empty {
+  margin: 8px 0 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
 }
 .bw-week-nav {
   position: sticky;

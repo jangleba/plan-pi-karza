@@ -1,22 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { addIsoDays } from "@/lib/isoDate";
-import { buildLabProgress } from "@/lib/progress/measurements";
-import type { ProgressPeriod } from "@/lib/progress/progress";
-import { loadBrowserResults } from "@/features/browser-lab/storage";
-import {
-  buildCycleReview,
-  plannedOwnSessions,
-  type CycleReview,
-  type PlannedOwnSession,
-  type StrengthSetEntry,
-  type TestChangeSummary,
-} from "./cycleReview";
-import { seasonPhaseForWeek } from "./offseasonPeriod";
-import type { Profile, Readiness, SessionDay, SessionHistoryRecord } from "./types";
+import { cycleStartOf } from "./cycleReview";
+import { CYCLE_REVIEW_MAX_AGE_DAYS, loadPastCycleReviews } from "./cycleReviewData";
+import type { CycleStartRecord, SessionDay } from "./types";
 
-/** Podsumowanie pokazujemy tylko dla cyklu, który skończył się niedawno. */
-export const CYCLE_REVIEW_MAX_AGE_DAYS = 21;
 const STORAGE_KEY = (userId: string) => `ballwise:cycle-review:v1:${userId}`;
 
 type Store = Pick<Storage, "getItem" | "setItem">;
@@ -27,6 +14,11 @@ function safeStore(): Store | null {
   } catch {
     return null;
   }
+}
+
+/** Klucz podsumowania: przegląd dotyczy jednego zakończonego cyklu. */
+export function cycleReviewKey(record: CycleStartRecord): string {
+  return record.reviewedCycleId ?? `${record.review.startDate}_${record.review.endDate}`;
 }
 
 export function dismissedCycles(userId: string, store: Store | null = safeStore()): string[] {
@@ -47,210 +39,80 @@ export function dismissCycle(userId: string, cycleId: string, store: Store | nul
   }
 }
 
-/** Zakończony cykl: ostatni dzień przed dziś i nie dawniej niż CYCLE_REVIEW_MAX_AGE_DAYS. */
-export function endedCycleWindow(
-  plan: readonly SessionDay[],
+/** Czy pokazać kartę na Start: świeże podsumowanie, jeszcze nie zamknięte. */
+export function shouldShowCycleCard(
+  record: CycleStartRecord | null,
   todayIso: string,
-): { startDate: string; endDate: string } | null {
-  const dates = plan
-    .map((day) => day.date)
-    .filter(Boolean)
-    .sort();
-  const startDate = dates[0];
-  const endDate = dates[dates.length - 1];
-  if (!startDate || !endDate) return null;
-  if (endDate >= todayIso) return null; // przebudowa w trakcie cyklu, a nie jego koniec
-  if (endDate < addIsoDays(todayIso, -CYCLE_REVIEW_MAX_AGE_DAYS)) return null;
-  return { startDate, endDate };
-}
-
-function localDate(timestamp: string): string {
-  const date = new Date(timestamp);
-  if (!Number.isFinite(date.getTime())) return "";
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
-/** Zmiany wyników testów Lab w cyklu (cm: więcej = lepiej, s: mniej = lepiej). */
-export function labChanges(userId: string, startDate: string, endDate: string): TestChangeSummary {
-  const result: TestChangeSummary = { improved: 0, declined: 0, flat: 0 };
-  let rows;
-  try {
-    rows = loadBrowserResults(userId);
-  } catch {
-    return result;
-  }
-  const days = Math.max(
-    1,
-    Math.round((Date.parse(endDate) - Date.parse(startDate)) / 86_400_000) + 1,
-  );
-  for (const item of buildLabProgress(rows, endDate, days as ProgressPeriod)) {
-    if (item.date < startDate || item.delta === null) continue;
-    if (item.overlaps === true || item.delta === 0) {
-      result.flat += 1;
-      continue;
-    }
-    const better = item.unit === "cm" ? item.delta > 0 : item.delta < 0;
-    if (better) result.improved += 1;
-    else result.declined += 1;
-  }
-  return result;
-}
-
-interface EndedCycleData {
-  cycleId: string;
-  startDate: string;
-  endDate: string;
-  planned: PlannedOwnSession[];
-  /** Ukończone zaplanowane sesje odczytane wprost z dziennika (zanim dojdzie pełna historia). */
-  logged: SessionHistoryRecord[];
-  strengthSets: StrengthSetEntry[];
-  tests: TestChangeSummary;
-}
-
-async function loadEndedCycle(
-  userId: string,
-  currentCycleId: string,
-  todayIso: string,
-  signal: AbortSignal,
-): Promise<EndedCycleData | null> {
-  const planRes = await supabase
-    .from("training_plans")
-    .select("cycle_id, plan_json")
-    .abortSignal(signal)
-    .eq("user_id", userId)
-    .eq("status", "archived")
-    .neq("cycle_id", currentCycleId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (planRes.error || !planRes.data) return null;
-  const cycleId = planRes.data.cycle_id ? String(planRes.data.cycle_id) : null;
-  const plan = Array.isArray(planRes.data.plan_json)
-    ? (planRes.data.plan_json as unknown as SessionDay[])
-    : [];
-  const window = endedCycleWindow(plan, todayIso);
-  if (!cycleId || !window || dismissedCycles(userId).includes(cycleId)) return null;
-  const planned = plannedOwnSessions(plan);
-  const sessionsByKey = new Map<string, PlannedOwnSession>();
-  for (const item of planned) if (item.key) sessionsByKey.set(item.key, item);
-
-  const [logRes, setRes] = await Promise.all([
-    sessionsByKey.size
-      ? supabase
-          .from("session_logs")
-          .select("session_id, rpe, duration_minutes")
-          .abortSignal(signal)
-          .eq("user_id", userId)
-          .eq("completed", true)
-          .in("session_id", [...sessionsByKey.keys()])
-      : Promise.resolve({ data: [], error: null }),
-    supabase
-      .from("exercise_set_logs")
-      .select("exercise_key, performed_at, weight_kg, reps")
-      .abortSignal(signal)
-      .eq("user_id", userId)
-      .gte("performed_at", `${window.startDate}T00:00:00`)
-      .lt("performed_at", `${addIsoDays(window.endDate, 1)}T12:00:00`)
-      .limit(2000),
-  ]);
-  const logged: SessionHistoryRecord[] = [];
-  for (const row of (logRes.data ?? []) as {
-    session_id: string | null;
-    rpe: number | null;
-    duration_minutes: number | null;
-  }[]) {
-    const item = row.session_id ? sessionsByKey.get(row.session_id) : undefined;
-    if (!item || !row.session_id) continue;
-    logged.push({
-      key: row.session_id,
-      date: item.date,
-      title: "",
-      category: item.category as SessionHistoryRecord["category"],
-      durationMin: row.duration_minutes ?? 0,
-      rpe: row.rpe,
-      notes: "",
-    });
-  }
-  const strengthSets: StrengthSetEntry[] = setRes.error
-    ? []
-    : (
-        (setRes.data ?? []) as {
-          exercise_key: string;
-          performed_at: string;
-          weight_kg: number | null;
-          reps: number | null;
-        }[]
-      ).map((row) => ({
-        exerciseKey: row.exercise_key,
-        date: localDate(row.performed_at),
-        weightKg: row.weight_kg,
-        reps: row.reps,
-      }));
-  return {
-    cycleId,
-    ...window,
-    planned,
-    logged,
-    strengthSets,
-    tests: labChanges(userId, window.startDate, window.endDate),
-  };
+  dismissed: readonly string[],
+): boolean {
+  if (!record) return false;
+  if (todayIso > addIsoDays(record.review.endDate, CYCLE_REVIEW_MAX_AGE_DAYS)) return false;
+  return !dismissed.includes(cycleReviewKey(record));
 }
 
 /**
- * Podsumowanie poprzedniego cyklu na ekranie Start — raz na cykl, do kliknięcia
- * „Zaczynam nowy cykl”. Bez nowego SQL: poprzedni cykl to zarchiwizowany plan.
+ * Karta „Koniec cyklu” na Start — raz na cykl, do kliknięcia przycisku.
+ * Podsumowanie jest zapisane w planie nowego cyklu (to samo, którego użył silnik).
  */
-export function useCycleReview({
-  userId,
-  currentCycleId,
-  todayIso,
-  profile,
-  history,
-  readiness,
-  enabled,
-}: {
-  userId: string | null | undefined;
-  currentCycleId: string | null | undefined;
-  todayIso: string;
-  profile: Profile | null;
-  history: SessionHistoryRecord[];
-  readiness: Record<string, Readiness>;
-  enabled: boolean;
-}): { review: CycleReview | null; dismiss: () => void } {
-  const [data, setData] = useState<EndedCycleData | null>(null);
+export function useCycleReviewCard(
+  userId: string | null | undefined,
+  plan: readonly SessionDay[],
+  todayIso: string,
+): { record: CycleStartRecord | null; dismiss: () => void } {
+  const record = useMemo(() => cycleStartOf(plan), [plan]);
+  const [dismissed, setDismissed] = useState<string[]>([]);
   useEffect(() => {
-    setData(null);
-    if (!enabled || !userId || !currentCycleId) return;
-    const controller = new AbortController();
-    loadEndedCycle(userId, currentCycleId, todayIso, controller.signal)
-      .then((result) => {
-        if (!controller.signal.aborted) setData(result);
-      })
-      .catch(() => undefined);
-    return () => controller.abort();
-  }, [enabled, userId, currentCycleId, todayIso]);
-
-  const review = useMemo(() => {
-    if (!data || !profile) return null;
-    const known = new Set(history.map((row) => row.key));
-    return buildCycleReview({
-      startDate: data.startDate,
-      endDate: data.endDate,
-      planned: data.planned,
-      history: [...history, ...data.logged.filter((row) => !known.has(row.key))],
-      readiness: Object.values(readiness),
-      strengthSets: data.strengthSets,
-      tests: data.tests,
-      age: profile.age,
-      phaseNext: seasonPhaseForWeek(profile, todayIso),
-    });
-  }, [data, profile, history, readiness, todayIso]);
-
+    setDismissed(userId ? dismissedCycles(userId) : []);
+  }, [userId]);
+  const visible = userId && shouldShowCycleCard(record, todayIso, dismissed) ? record : null;
   return {
-    review,
+    record: visible,
     dismiss: () => {
-      if (userId && data) dismissCycle(userId, data.cycleId);
-      setData(null);
+      if (!userId || !record) return;
+      const key = cycleReviewKey(record);
+      dismissCycle(userId, key);
+      setDismissed((current) => [...current, key]);
     },
   };
+}
+
+/** Wszystkie podsumowania cykli (najnowsze pierwsze) do zakładki Postęp. */
+export function useCycleReviewHistory(
+  userId: string | null | undefined,
+  plan: readonly SessionDay[],
+): { records: CycleStartRecord[]; loading: boolean } {
+  const current = useMemo(() => cycleStartOf(plan), [plan]);
+  const [past, setPast] = useState<CycleStartRecord[]>([]);
+  const [loading, setLoading] = useState(Boolean(userId));
+  useEffect(() => {
+    if (!userId) {
+      setPast([]);
+      setLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setLoading(true);
+    loadPastCycleReviews(userId, controller.signal)
+      .then((rows) => {
+        if (!controller.signal.aborted) setPast(rows);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [userId]);
+  const records = useMemo(() => {
+    const all = current ? [current, ...past] : past;
+    const seen = new Set<string>();
+    return all
+      .filter((record) => {
+        const key = cycleReviewKey(record);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => b.review.endDate.localeCompare(a.review.endDate));
+  }, [current, past]);
+  return { records, loading };
 }

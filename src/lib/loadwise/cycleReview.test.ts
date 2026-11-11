@@ -8,7 +8,8 @@ import {
   type CycleReviewInput,
   type PlannedOwnSession,
 } from "./cycleReview";
-import { dismissCycle, dismissedCycles, endedCycleWindow } from "./useCycleReview";
+import { endedCycleWindow } from "./cycleReviewData";
+import { dismissCycle, dismissedCycles } from "./useCycleReview";
 import type { Readiness, SessionDay, SessionHistoryRecord } from "./types";
 
 const START = "2026-10-12";
@@ -134,14 +135,14 @@ describe("cycle review — recommendation rules", () => {
     const review = buildCycleReview(input({ age: 16 }))!;
     expect(review.youth).toBe(true);
     const copy = cycleReviewCopy(review);
-    expect(copy.recommendationTitle).toBe("Gotowy na mały krok");
-    expect(copy.recommendationText).toMatch(/Nie dokładaj dni/);
+    expect(copy.recommendationTitle).toBe("Mały krok wyżej");
+    expect(copy.recommendationText).toMatch(/jednym tygodniem przeciążenia/);
   });
 
   it("in season with good adherence → maintain (not progress)", () => {
     const review = buildCycleReview(input({ phaseNext: "inseason" }))!;
     expect(review.recommendation).toBe("maintain");
-    expect(cycleReviewCopy(review).recommendationTitle).toBe("Utrzymaj formę w sezonie");
+    expect(cycleReviewCopy(review).recommendationTitle).toBe("Utrzymanie formy w sezonie");
   });
 
   it("50–79% done → maintain", () => {
@@ -241,7 +242,7 @@ describe("cycle review — copy", () => {
       "Treningi: 16 z 16 (100%)",
       "Wysiłek: średnio 6/10",
       "Samopoczucie: dobre",
-      "Teraz: przygotowania do sezonu",
+      "Następny cykl: przygotowania do sezonu",
     ]);
     expect(copy.button).toBe("Zaczynam nowy cykl");
   });
