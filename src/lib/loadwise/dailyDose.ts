@@ -1,5 +1,6 @@
 import type { ExerciseItem, SessionDay, TrainingExercise } from "./types";
 import { reducePrescription } from "./doseAdjustment";
+import { syncGroundContacts } from "./equipmentReplacement";
 
 /** Product preset, not a medical threshold or a validated fatigue assessment. */
 const DEFAULT_FACTOR = 0.75;
@@ -65,7 +66,8 @@ export function reduceDailySessionDose(session: SessionDay, factor = DEFAULT_FAC
         : reps !== item.reps || duration !== item.duration
           ? workValue(item.displayPrescription)
           : item.displayPrescription;
-    return { ...item, sets, reps, duration, displayPrescription: display };
+    // Ground contacts follow the repetitions, so a shorter dose never shows old jump counts.
+    return syncGroundContacts({ ...item, sets, reps, duration, displayPrescription: display });
   };
   const next: SessionDay = {
     ...session,

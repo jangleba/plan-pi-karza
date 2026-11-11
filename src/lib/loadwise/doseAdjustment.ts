@@ -18,7 +18,11 @@ export function reducePrescription(value: string | undefined, factor: number): s
         `${prefix}${scaled(Number(low), factor)}${high ? `–${scaled(Number(high), factor)}` : ""}`,
     );
   // A standalone count, duration, or distance is a quantity; percentages are intensity.
-  if (/^\s*\d+(?:\s*[–-]\s*\d+)?\s*(?:s|sek|min|m|km|powt\.?|razy)?\s*$/i.test(value))
+  if (
+    /^\s*\d+(?:\s*[–-]\s*\d+)?\s*(?:s|sek|min|m|km|powt\.?|razy|kontakt\S*)?(?:\s+na stron\S*)?\s*$/i.test(
+      value,
+    )
+  )
     return value.replace(/\d+/g, (n) => String(scaled(Number(n), factor)));
   return value;
 }

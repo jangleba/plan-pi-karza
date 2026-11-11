@@ -4779,6 +4779,11 @@ const GENERATED_FAMILY_FALLBACKS: Record<CanonicalExerciseFamily, string> = {
  * and a falling start to a side plank, so the athlete saw the wrong exercise.
  */
 const GENERATED_NAME_HINTS: ReadonlyArray<readonly [RegExp, string]> = [
+  // Hinge names must never fall through to the squat family fallback.
+  [/trap[\s-]?bar/i, "trap_bar_deadlift"],
+  // No approved kettlebell deadlift exists yet; a hinge keeps the pattern, not the implement.
+  [/martwy ciąg rumuński|rumuński martwy ciąg|\brdl\b|good morning|kettlebell.*(?:martwy|deadlift)/i, "romanian_deadlift_db"],
+  [/martwy ciąg|deadlift/i, "barbell_deadlift"],
   [/akcj\w* (?:pozycyjn|meczow)|akcje pewności/i, "football_technical_self_selected"],
   // A medicine ball is not football ball work.
   [/piłk\w* lekarsk|med[\s-]?ball/i, "med_ball_throw"],

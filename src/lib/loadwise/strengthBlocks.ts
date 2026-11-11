@@ -1,4 +1,5 @@
 import { balanceStrengthSections } from "./strengthSessionBalance";
+import { buildEquipmentReplacement } from "./equipmentReplacement";
 import { gymCooldown, mobilityCircuit, recoveryStretches } from "./recoveryContent";
 import type {
   Profile,
@@ -52,42 +53,9 @@ export function filterUnavailableEquipment(
         if (!result.exercise || result.blockRebuildRequired) return exercise;
         return result.exercise.id === exercise.exerciseId
           ? exercise
-          : hydrateTrainingExerciseFromDefinition({
-              ...exercise,
-              exerciseId: result.exercise.id,
-              name: result.exercise.displayNamePl,
-              visualId: result.exercise.id,
-              setup: undefined,
-              technique: undefined,
-              cue: undefined,
-              instructionSteps: undefined,
-              commonMistake: undefined,
-              purpose: undefined,
-              progression: undefined,
-              regression: undefined,
-              contraindications: undefined,
-              displayPrescription: undefined,
-              sets: "2",
-              ...(result.exercise.movementPattern === "isometric"
-                ? { reps: undefined, duration: "15 s" }
-                : {
-                    reps: ["power", "plyometric"].includes(result.exercise.category) ? "3" : "6–8",
-                    duration: undefined,
-                  }),
-              rpe: "RPE 5–6",
-              rir: "3–4",
-              loadTarget:
-                result.exercise.loadingType === "bodyweight"
-                  ? "Masa ciała, kontrola ruchu"
-                  : "Lekki ciężar na poznanie wariantu",
-              loadGuidance:
-                "Przy zmianie wariantu zacznij lekko. Nie przenoś ciężaru ze starego ćwiczenia.",
-              tempo: undefined,
-              groundContacts: undefined,
-              equipment: result.exercise.equipmentRequired.join(", "),
-              replacementForBlockedExercise: exercise.name,
-              wasAdjustedForAthleteProfile: true,
-            });
+          : hydrateTrainingExerciseFromDefinition(
+              buildEquipmentReplacement(exercise, result.exercise),
+            );
       }),
     })),
   }));
@@ -163,7 +131,7 @@ function uid(prefix: string): string {
   return `${prefix}-${__uid}`;
 }
 
-const LEGACY_EXERCISE_IDS: Record<string, string> = {
+export const LEGACY_EXERCISE_IDS: Record<string, string> = {
   "przysiad ze sztangą (high bar)": "heavy_back_squat",
   "przysiad przy pinach (iso) — cała stopa": "long_lever_hamstring_iso",
   "przysiad przy pinach (iso) — staw skokowy": "soleus_iso_hold",
@@ -179,7 +147,7 @@ const LEGACY_EXERCISE_IDS: Record<string, string> = {
   "trap bar martwy ciąg (tempo)": "trap_bar_deadlift",
   "trap bar martwy ciąg (lekko, technika)": "trap_bar_deadlift",
   "trap bar martwy ciąg (tempo, technika)": "trap_bar_deadlift",
-  "kettlebell deadlift (trap bar zastępczo)": "kettlebell_swing",
+  "kettlebell deadlift (trap bar zastępczo)": "romanian_deadlift_db",
   "martwy ciąg rumuński (rdl)": "romanian_deadlift_db",
   "rdl jednonóż (kettlebell)": "single_leg_romanian_deadlift",
   "good morning": "romanian_deadlift_db",
@@ -203,10 +171,10 @@ const LEGACY_EXERCISE_IDS: Record<string, string> = {
   "wiosłowanie hantlą lekko": "bodyweight_row",
   "australijskie podciąganie": "bodyweight_row",
   "band row": "bodyweight_row",
-  "farmer's carry": "kettlebell_swing",
-  "suitcase carry (jednostronnie)": "kettlebell_swing",
-  "front rack carry": "kettlebell_swing",
-  "spacer kelnera (overhead carry)": "kettlebell_swing",
+  "farmer's carry": "farmer_carry",
+  "suitcase carry (jednostronnie)": "suitcase_carry",
+  "front rack carry": "front_rack_carry",
+  "spacer kelnera (overhead carry)": "overhead_carry",
   "pallof press (anty-rotacja)": "pallof_press",
   "plank boczny": "side_plank",
   "anty-rotacja z gumą w półklęku": "pallof_press",
@@ -1179,6 +1147,11 @@ function contacts(base: number, d: Dosage): number {
   return Math.max(4, Math.round(base * d.contactScale));
 }
 
+/** A jump block: the jumps per set are the ground contacts per set (one contact per jump). */
+function jumpSet(contactsPerSet: number): Pick<TrainingExercise, "reps" | "groundContacts"> {
+  return { reps: String(contactsPerSet), groundContacts: contactsPerSet };
+}
+
 // ---------------------------------------------------------------------------
 // Twarde zasady doboru głównego wzorca przysiadu (Goblet squat).
 // ---------------------------------------------------------------------------
@@ -1496,8 +1469,7 @@ function powerPrimer(profile: Profile, ctx: StrengthBlockContext): GymSessionPla
               label: "A2",
               name: jump.name,
               sets: "3",
-              reps: "3",
-              groundContacts: contacts(Math.min(jump.contacts, 8), d),
+              ...jumpSet(contacts(Math.min(jump.contacts, 8), d)),
               restAfterPair: "90 s po parze",
               cue: jump.cue,
             }),
@@ -1900,8 +1872,7 @@ function canonicalGymSession(
               label: "A2",
               name: powerA.kind === "medball" ? "Skok pionowy (CMJ)" : powerA.name,
               sets: d.mainSets,
-              reps: "3",
-              groundContacts: contacts(powerA.contacts, d),
+              ...jumpSet(contacts(powerA.contacts, d)),
               restAfterPair: "2–4 min po parze",
               cue: powerA.cue,
               ageSafetyLevel: adult ? "all" : "youth_ok",
@@ -1938,8 +1909,7 @@ function canonicalGymSession(
               label: "B2",
               name: powerPair.name,
               sets: "3",
-              reps: powerPair.reps,
-              groundContacts: contacts(powerPair.contacts, d),
+              ...jumpSet(contacts(powerPair.contacts, d)),
               restAfterPair: "90 s po parze",
               cue: powerPair.cue,
               ageSafetyLevel: "youth_ok",
@@ -3107,10 +3077,8 @@ export function repairGymSession(
             ex({
               name: alt.name,
               sets: "3",
-              reps: "3",
-              groundContacts: contacts(
-                alt.contacts,
-                dosageFor({ age: 18, level: "advanced" } as Profile, ctx),
+              ...jumpSet(
+                contacts(alt.contacts, dosageFor({ age: 18, level: "advanced" } as Profile, ctx)),
               ),
               cue: alt.cue,
               ageSafetyLevel: "all",
@@ -3188,13 +3156,13 @@ export function repairGymSession(
       const target = refs.find((r) => r.ex.id === issue.exerciseId);
       if (!target) continue;
       if (target.pattern === "power") {
-        if (!target.ex.reps || !target.ex.reps.trim()) target.ex.reps = "3";
-        if (target.ex.groundContacts === undefined || target.ex.groundContacts <= 0) {
+        if (target.ex.groundContacts === undefined || target.ex.groundContacts <= 0)
           target.ex.groundContacts = contacts(
             8,
             dosageFor({ age: 18, level: "advanced" } as Profile, ctx),
           );
-        }
+        // Jumps per set and ground contacts per set are the same number.
+        target.ex.reps = String(target.ex.groundContacts);
       } else {
         if (!target.ex.sets || !target.ex.sets.trim()) target.ex.sets = "3";
         if (!target.ex.reps || !target.ex.reps.trim()) target.ex.reps = "5";
@@ -3277,6 +3245,28 @@ function collectMainPatterns(plan: GymSessionPlan): string[] {
 }
 
 /** Spłaszcza strukturalne sekcje do płaskich list (persist + fallback UI). */
+/**
+ * Exercise instance IDs must be unique inside one session: logs, the method
+ * validator and the runner address exercises by ID. Only a repeated ID gets a
+ * deterministic suffix, so IDs that were already unique (and any history
+ * recorded against them) stay exactly as they were.
+ */
+export function ensureUniqueExerciseIds(sections: TrainingSection[]): TrainingSection[] {
+  const seen = new Set<string>();
+  return sections.map((section) => ({
+    ...section,
+    blocks: section.blocks.map((block) => ({
+      ...block,
+      exercises: block.exercises.map((exercise) => {
+        let id = exercise.id;
+        for (let copy = 2; seen.has(id); copy += 1) id = `${exercise.id}~${copy}`;
+        seen.add(id);
+        return id === exercise.id ? exercise : { ...exercise, id };
+      }),
+    })),
+  }));
+}
+
 export function structuredToFlat(sections: TrainingSection[]): {
   warmup: ExerciseItem[];
   main: ExerciseItem[];
@@ -3375,46 +3365,48 @@ export function flatToStructured(sections: {
     { title: "Wyciszenie", type: "cooldown", items: normalized.cooldown },
   ];
 
-  return groups
-    .filter((g) => g.items.length > 0)
-    .map((g) =>
-      section({
-        title: g.title,
-        type: g.type,
-        blocks: [
-          block({
-            title: "",
-            blockType: "single",
-            intent:
-              g.type === "warmup" || g.type === "cooldown"
-                ? "mobility"
-                : g.items.some((item) => item.speedRole === "terminal")
-                  ? "braking"
-                  : "strength",
-            exercises: g.items.map((it) =>
-              hydrateTrainingExerciseFromDefinition(
-                ex({
-                  canonicalize: false,
-                  name: it.name,
-                  exerciseId: it.exerciseId,
-                  animationVariant: it.animationVariant,
-                  speedRole: it.speedRole,
-                  purpose: it.purpose,
-                  visualId: it.visualId,
-                  displayPrescription: it.displayPrescription,
-                  instructionSteps: it.instructionSteps,
-                  reps: it.prescription,
-                  restAfterExercise: it.rest,
-                  cue: it.cue,
-                  technique: it.technique,
-                  commonMistake: it.commonMistake,
-                  regression: it.easier,
-                  progression: it.harder,
-                }),
+  return ensureUniqueExerciseIds(
+    groups
+      .filter((g) => g.items.length > 0)
+      .map((g) =>
+        section({
+          title: g.title,
+          type: g.type,
+          blocks: [
+            block({
+              title: "",
+              blockType: "single",
+              intent:
+                g.type === "warmup" || g.type === "cooldown"
+                  ? "mobility"
+                  : g.items.some((item) => item.speedRole === "terminal")
+                    ? "braking"
+                    : "strength",
+              exercises: g.items.map((it) =>
+                hydrateTrainingExerciseFromDefinition(
+                  ex({
+                    canonicalize: false,
+                    name: it.name,
+                    exerciseId: it.exerciseId,
+                    animationVariant: it.animationVariant,
+                    speedRole: it.speedRole,
+                    purpose: it.purpose,
+                    visualId: it.visualId,
+                    displayPrescription: it.displayPrescription,
+                    instructionSteps: it.instructionSteps,
+                    reps: it.prescription,
+                    restAfterExercise: it.rest,
+                    cue: it.cue,
+                    technique: it.technique,
+                    commonMistake: it.commonMistake,
+                    regression: it.easier,
+                    progression: it.harder,
+                  }),
+                ),
               ),
-            ),
-          }),
-        ],
-      }),
-    );
+            }),
+          ],
+        }),
+      ),
+  );
 }

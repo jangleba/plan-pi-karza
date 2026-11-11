@@ -8,7 +8,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { assertNoSupabaseError } from "@/integrations/supabase/errors";
 import type { Json } from "@/integrations/supabase/types";
 import type { RefObject } from "react";
-import { selectEquipmentAwareReplacement } from "../exerciseLibrary";
+import {
+  hydrateTrainingExerciseFromDefinition,
+  selectEquipmentAwareReplacement,
+} from "../exerciseLibrary";
+import { buildEquipmentReplacement } from "../equipmentReplacement";
 import { parseIso } from "../labels";
 import { addIsoDays } from "@/lib/isoDate";
 import { weeklyConfirmationBounds } from "../weeklyNavigation";
@@ -64,6 +68,27 @@ export function createPlanActions(
     equipmentIds: string[],
   ) {
     if (!user || exercise.completed) return;
+    // A started or completed session keeps its recorded prescription.
+    const day = state.plan.find((item) => item.date === date);
+    const owner = [day, day?.secondSession].find((slot) =>
+      (slot?.structuredSections ?? []).some((section) =>
+        section.blocks.some((block) => block.exercises.some((item) => item.id === exercise.id)),
+      ),
+    );
+    const log = owner?.dbId ? state.completions[owner.dbId] : undefined;
+    if (
+      owner &&
+      (owner.executionProtected ||
+        log?.completed ||
+        log?.status === "started" ||
+        log?.status === "completed")
+    ) {
+      setState((s) => ({
+        ...s,
+        equipmentNotice: "Sesja jest rozpoczęta lub wykonana. Zamiennik nie zmienia jej zapisu.",
+      }));
+      return;
+    }
     if ((state.exerciseReplacements[date] ?? []).some((r) => r.exerciseId === exercise.id)) return;
     if (!state.profile) return;
     const replacementKey = `${date}:${exercise.id}`;
@@ -86,14 +111,9 @@ export function createPlanActions(
         }));
         return;
       }
-      const replacement: TrainingExercise = {
-        ...exercise,
-        exerciseId: result.exercise.id,
-        name: result.exercise.displayNamePl,
-        equipment: result.exercise.equipmentRequired.join(", "),
-        replacementForBlockedExercise: exercise.name,
-        wasAdjustedForAthleteProfile: true,
-      };
+      const replacement: TrainingExercise = hydrateTrainingExerciseFromDefinition(
+        buildEquipmentReplacement(exercise, result.exercise),
+      );
       const item: ExerciseReplacement = {
         id: crypto.randomUUID(),
         date,
@@ -382,9 +402,11 @@ export function createPlanActions(
         ...(profile.matchDates ?? []),
         ...(profile.matchDate ? [profile.matchDate] : []),
         ...current.filter((day) => day.dayType === "match").map((day) => day.date),
-        ...Object.entries(state.transitions).filter(([key, item]) => transitionMatchesBlock(state.plan, item, Number(key))).flatMap(
-          ([, item]) => item.nextMatchDates ?? (item.nextMatchDate ? [item.nextMatchDate] : []),
-        ),
+        ...Object.entries(state.transitions)
+          .filter(([key, item]) => transitionMatchesBlock(state.plan, item, Number(key)))
+          .flatMap(
+            ([, item]) => item.nextMatchDates ?? (item.nextMatchDate ? [item.nextMatchDate] : []),
+          ),
       ],
       64,
     ).filter((date) => date < bounds.startDate || date > bounds.endDate);
