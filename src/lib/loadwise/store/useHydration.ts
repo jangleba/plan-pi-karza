@@ -3,6 +3,7 @@ import { readAllPages } from "../pagination";
 import { generatePlanAsync } from "../generatePlanAsync";
 import { applyConfirmedCalendar, transitionMatchesBlock } from "../confirmedCalendar";
 import { reconcilePlanIdentity } from "../planIdentity";
+import { cycleStartOf, stampCycleStart } from "../cycleReview";
 import { supabase } from "@/integrations/supabase/client";
 import { assertNoSupabaseError } from "@/integrations/supabase/errors";
 import type { RunningActivity } from "@/lib/running/types";
@@ -404,6 +405,28 @@ export function useHydration({
           if (!transitionMatchesBlock(activeDays, transitions[wn], wn)) delete transitions[wn];
         }
 
+        const persistedReadiness: Record<string, Readiness> = {};
+        if (profile?.healthPersonalizationEnabled) {
+          for (const row of (readinessRes.data as AnyRow[] | null) ?? []) {
+            const date = row.date as string | null;
+            if (!date) continue;
+            persistedReadiness[date] = {
+              date,
+              sleep: Number(row.sleep ?? 7),
+              energy: Number(row.energy ?? 7),
+              fatigue: Number(row.fatigue ?? 4),
+              soreness: Number(row.soreness ?? row.fatigue ?? 4),
+              jointPain: Number(row.pain_level ?? 0),
+              painLocation: (row.pain_location as Readiness["painLocation"]) ?? null,
+              stress: Number(row.stress ?? 3),
+              motivation: Number(row.energy ?? 7),
+              overall: Number(row.overall ?? 7),
+              painOnset: (row.pain_onset as Readiness["painOnset"]) ?? null,
+              altersMovement: Boolean(row.alters_movement),
+              redFlags: Array.isArray(row.red_flags) ? (row.red_flags as string[]) : [],
+            };
+          }
+        }
         let plan: SessionDay[] = [];
         let migrationOriginalPlan: SessionDay[] | null = null;
         let migrationChanged = false;
@@ -499,22 +522,45 @@ export function useHydration({
               todayIso,
             ]);
           if (shouldRebuildCanonical) {
+            const sameCycle = Boolean(plan[0]?.date) && plan.some((day) => day.date === todayIso);
+            // Nowy cykl po zakończonym: podsumowanie poprzedniego steruje startem silnika.
+            // Przebudowa w trakcie cyklu używa reguły zapisanej w jego planie.
+            const cycleStart = sameCycle
+              ? cycleStartOf(plan)
+              : await import("../cycleReviewData")
+                  .then(({ reviewEndedCycle }) =>
+                    reviewEndedCycle({
+                      userId: user.id,
+                      todayIso,
+                      profile,
+                      plan,
+                      modifications: ((modRes.data as AnyRow[] | null) ?? [])
+                        .map(rowToModification)
+                        .filter((mod): mod is SessionModification => Boolean(mod)),
+                      completions,
+                      readiness: Object.values(persistedReadiness),
+                      signal: controller.signal,
+                    }),
+                  )
+                  .catch(() => null);
+            const cycleProfile = cycleStart ? { ...profile, cycleStart } : profile;
             const canonical = stampPlanRevision(
               await applyConfirmedCalendar(
                 await generatePlanAsync(
-                  profile,
-                  plan[0]?.date && plan.some((day) => day.date === todayIso)
-                    ? parseIso(plan[0].date)
-                    : localToday(),
+                  cycleProfile,
+                  sameCycle ? parseIso(plan[0].date) : localToday(),
                   28,
                   0,
                   controller.signal,
                 ).then((days) =>
-                  plan[0]?.cycleId && plan.some((day) => day.date === todayIso)
-                    ? days.map((day) => ({ ...day, cycleId: plan[0].cycleId }))
-                    : days,
+                  stampCycleStart(
+                    plan[0]?.cycleId && sameCycle
+                      ? days.map((day) => ({ ...day, cycleId: plan[0].cycleId }))
+                      : days,
+                    cycleStart,
+                  ),
                 ),
-                profile,
+                cycleProfile,
                 transitions,
                 controller.signal,
               ),
@@ -600,28 +646,6 @@ export function useHydration({
           if (cancelled) return;
         }
 
-        const persistedReadiness: Record<string, Readiness> = {};
-        if (profile?.healthPersonalizationEnabled) {
-          for (const row of (readinessRes.data as AnyRow[] | null) ?? []) {
-            const date = row.date as string | null;
-            if (!date) continue;
-            persistedReadiness[date] = {
-              date,
-              sleep: Number(row.sleep ?? 7),
-              energy: Number(row.energy ?? 7),
-              fatigue: Number(row.fatigue ?? 4),
-              soreness: Number(row.soreness ?? row.fatigue ?? 4),
-              jointPain: Number(row.pain_level ?? 0),
-              painLocation: (row.pain_location as Readiness["painLocation"]) ?? null,
-              stress: Number(row.stress ?? 3),
-              motivation: Number(row.energy ?? 7),
-              overall: Number(row.overall ?? 7),
-              painOnset: (row.pain_onset as Readiness["painOnset"]) ?? null,
-              altersMovement: Boolean(row.alters_movement),
-              redFlags: Array.isArray(row.red_flags) ? (row.red_flags as string[]) : [],
-            };
-          }
-        }
         const historyPromise = (async () => {
           const allLogs = await readAllPages(
             (from, to) =>

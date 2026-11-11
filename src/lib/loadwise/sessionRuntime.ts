@@ -1,4 +1,5 @@
 // Shared day adaptation and week presentation. Kept independent of full plan generation.
+import { cycleWeekPhase } from "./cyclePolicy";
 import type {
   Profile,
   SessionDay,
@@ -423,7 +424,12 @@ export function buildPlanWeeks(plan: SessionDay[], profile?: Profile | null): Pl
     const reasons: string[] = [];
     if (planDays.length < 7) reasons.push("plan startuje w trakcie tygodnia");
     const plannedLoad = plannedWeeklyLoadOf(sessions, profile);
-    const weekPhase = phaseOf(index, totalWeeks);
+    const weekPhase = cycleWeekPhase(
+      phaseOf(index, totalWeeks),
+      index,
+      totalWeeks,
+      plan.find((day) => day.cycleStart)?.cycleStart,
+    );
     return {
       weekId: `${startDate}_${endDate}`,
       weekNumber: index + 1,
@@ -629,7 +635,7 @@ export function applyReadiness(
   const painOverride = profile.painInjury || dailyPain;
 
   let factor = 1;
-  let adjustment: string | null = null;
+  let adjustment: string | null;
   let removeHard = false;
   let keepIntensity = false;
   let recoveryOnly = false;

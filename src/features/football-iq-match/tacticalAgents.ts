@@ -45,7 +45,7 @@ export function repositionWorld(
   for (const player of s.players) {
     if (player.id === owner || player.id === controlled || player.goalkeeper) continue;
     const p = s.world.positions[player.id];
-    let target = p;
+    let target: typeof p;
     if (
       follow &&
       player.team !== teamOf(s, follow.id) &&

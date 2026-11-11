@@ -1064,7 +1064,7 @@ export function enforceSessionCategory(
   ctx: EnforceContext,
 ): SessionContentCategory {
   const category = classifyContentCategory(session);
-  let built: BuiltContent | null = null;
+  let built: BuiltContent | null;
 
   switch (category) {
     case "sport_performance": {

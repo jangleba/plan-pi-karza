@@ -1337,7 +1337,7 @@ export function generateFootballSpeedSession(
   }
   const terminal = buildRow(TERMINAL_BY_FAMILY[input.family], order++, "terminal", input, mode);
   exercises.push(terminal);
-  exercises.push(buildRow(COOLDOWN, order++, "cooldown", input, mode));
+  exercises.push(buildRow(COOLDOWN, order, "cooldown", input, mode));
 
   const title = activation ? `${spec.title} — aktywacja` : spec.title;
   const shortTitle = activation ? `${spec.shortTitle} (aktywacja)` : spec.shortTitle;

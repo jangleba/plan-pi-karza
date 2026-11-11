@@ -15,6 +15,20 @@ export async function generatePlanAsync(
   weekOffset = 0,
   signal?: AbortSignal,
 ): Promise<SessionDay[]> {
+  const plan = await generateRaw(profile, start, days, weekOffset, signal);
+  // Reguła startu cyklu (podsumowanie poprzedniego) jedzie z każdym dniem planu.
+  return profile.cycleStart
+    ? plan.map((day) => ({ ...day, cycleStart: profile.cycleStart }))
+    : plan;
+}
+
+async function generateRaw(
+  profile: Profile,
+  start: Date,
+  days = 28,
+  weekOffset = 0,
+  signal?: AbortSignal,
+): Promise<SessionDay[]> {
   signal?.throwIfAborted();
   if (typeof Worker === "undefined" || days <= INLINE_GENERATION_MAX_DAYS) {
     const { generatePlan } = await import("./planEngine");

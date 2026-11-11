@@ -841,8 +841,7 @@ export function journeyPointChoice(
   const id = `free:${kind}:${p.x.toFixed(2)}:${p.y.toFixed(2)}`;
   const you = session.world.positions.you;
   const ball = session.world.positions[session.world.carrierId];
-  let quality: JourneyChoice["quality"] = "possible",
-    why = "Ten ruch jest możliwy, ale nie poprawił wyraźnie ustawienia.";
+  let quality: JourneyChoice["quality"], why: string;
   if (distance(you, p) < 1) {
     quality = "error";
     why = "Pozostałeś w tym samym miejscu, bez zmiany ustawienia.";
