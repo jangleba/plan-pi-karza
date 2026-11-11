@@ -13,6 +13,8 @@ export const CURRENT_PITCH_FEELINGS: CurrentPitchFeeling[] = [
   "training_without_direction",
   "slow_to_turn",
   "feeling_stiff",
+  "tense_under_pressure",
+  "afraid_of_mistakes",
 ];
 
 export const DESIRED_PITCH_FEELINGS: DesiredPitchFeeling[] = [
@@ -25,6 +27,7 @@ export const DESIRED_PITCH_FEELINGS: DesiredPitchFeeling[] = [
   "explosive_first_steps",
   "agile_in_turns",
   "loose_in_movement",
+  "brave_on_ball",
 ];
 
 export const CURRENT_PITCH_FEELING_LABELS: Record<CurrentPitchFeeling, string> = {
@@ -37,6 +40,8 @@ export const CURRENT_PITCH_FEELING_LABELS: Record<CurrentPitchFeeling, string> =
   training_without_direction: "Trenuję bez konkretnego kierunku",
   slow_to_turn: "Wolno hamuję i zmieniam kierunek",
   feeling_stiff: "Czuję się sztywny",
+  tense_under_pressure: "Spinam się pod presją",
+  afraid_of_mistakes: "Boję się popełnić błąd",
 };
 
 export const DESIRED_PITCH_FEELING_LABELS: Record<DesiredPitchFeeling, string> = {
@@ -49,46 +54,81 @@ export const DESIRED_PITCH_FEELING_LABELS: Record<DesiredPitchFeeling, string> =
   explosive_first_steps: "Wybuchowo na pierwszych metrach",
   agile_in_turns: "Zwinnie przy zmianie kierunku",
   loose_in_movement: "Swobodnie, bez sztywności",
+  brave_on_ball: "Odważnie z piłką",
 };
 
-/** Answers offered in onboarding (each points to one quality of the plan). */
-export const ONBOARDING_CURRENT_FEELINGS: CurrentPitchFeeling[] = [
+/** Onboarding answers about the body: each points to one physical quality of the plan. */
+export const ONBOARDING_CURRENT_BODY: CurrentPitchFeeling[] = [
   "lacking_speed",
   "lacking_duel_strength",
   "fading_late_in_match",
   "slow_to_turn",
   "feeling_stiff",
-  "lacking_confidence",
+  "returning_after_break",
 ];
 
-export const ONBOARDING_DESIRED_FEELINGS: DesiredPitchFeeling[] = [
+/** Onboarding answers about the head: confidence, pressure, motivation. */
+export const ONBOARDING_CURRENT_MIND: CurrentPitchFeeling[] = [
+  "lacking_confidence",
+  "tense_under_pressure",
+  "afraid_of_mistakes",
+  "stagnating",
+  "training_without_direction",
+];
+
+export const ONBOARDING_DESIRED_BODY: DesiredPitchFeeling[] = [
   "fast_and_light",
-  "strong_in_duels",
   "explosive_first_steps",
+  "strong_in_duels",
   "agile_in_turns",
   "ready_full_match",
   "loose_in_movement",
-  "confident_in_decisions",
 ];
 
-/** Short labels for the onboarding cards. */
-export const CURRENT_FEELING_SHORT: Partial<Record<CurrentPitchFeeling, string>> = {
+export const ONBOARDING_DESIRED_MIND: DesiredPitchFeeling[] = [
+  "confident_in_decisions",
+  "calm_under_pressure",
+  "brave_on_ball",
+  "prepared_for_higher_level",
+];
+
+/** All answers offered in onboarding. */
+export const ONBOARDING_CURRENT_FEELINGS: CurrentPitchFeeling[] = [
+  ...ONBOARDING_CURRENT_BODY,
+  ...ONBOARDING_CURRENT_MIND,
+];
+
+export const ONBOARDING_DESIRED_FEELINGS: DesiredPitchFeeling[] = [
+  ...ONBOARDING_DESIRED_BODY,
+  ...ONBOARDING_DESIRED_MIND,
+];
+
+/** Short labels for the onboarding chips. */
+export const CURRENT_FEELING_SHORT: Record<CurrentPitchFeeling, string> = {
   lacking_speed: "Brakuje mi szybkości",
   lacking_duel_strength: "Przegrywam pojedynki",
   fading_late_in_match: "Słabnę pod koniec meczu",
   slow_to_turn: "Wolno zmieniam kierunek",
   feeling_stiff: "Czuję się sztywny",
-  lacking_confidence: "Brakuje mi pewności z piłką",
+  returning_after_break: "Wracam po przerwie",
+  lacking_confidence: "Brakuje mi pewności",
+  tense_under_pressure: "Spinam się pod presją",
+  afraid_of_mistakes: "Boję się błędu",
+  stagnating: "Stoję w miejscu",
+  training_without_direction: "Trenuję bez kierunku",
 };
 
-export const DESIRED_FEELING_SHORT: Partial<Record<DesiredPitchFeeling, string>> = {
+export const DESIRED_FEELING_SHORT: Record<DesiredPitchFeeling, string> = {
   fast_and_light: "Szybki i lekki",
-  strong_in_duels: "Mocny w pojedynkach",
   explosive_first_steps: "Wybuchowy na starcie",
+  strong_in_duels: "Mocny w pojedynkach",
   agile_in_turns: "Zwinny w zwrotach",
   ready_full_match: "Świeży cały mecz",
   loose_in_movement: "Swobodny w ruchu",
-  confident_in_decisions: "Pewny przy piłce",
+  confident_in_decisions: "Pewny w decyzjach",
+  calm_under_pressure: "Spokojny pod presją",
+  brave_on_ball: "Odważny z piłką",
+  prepared_for_higher_level: "Gotowy na wyższy poziom",
 };
 
 /** Quality of the plan an answer asks for. */
@@ -110,6 +150,7 @@ export const DESIRED_FEELING_QUALITY: Record<DesiredPitchFeeling, DirectionQuali
   confident_in_decisions: "ball",
   calm_under_pressure: "ball",
   prepared_for_higher_level: null,
+  brave_on_ball: "ball",
 };
 
 export const CURRENT_FEELING_QUALITY: Record<CurrentPitchFeeling, DirectionQuality | null> = {
@@ -122,6 +163,8 @@ export const CURRENT_FEELING_QUALITY: Record<CurrentPitchFeeling, DirectionQuali
   stagnating: null,
   returning_after_break: null,
   training_without_direction: null,
+  tense_under_pressure: "ball",
+  afraid_of_mistakes: "ball",
 };
 
 export const DIRECTION_QUALITY_LABELS: Record<DirectionQuality, string> = {

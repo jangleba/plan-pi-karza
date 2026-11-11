@@ -126,11 +126,12 @@ try {
     await page.getByRole("checkbox").first().waitFor();
     await page.getByRole("checkbox").nth(0).check();
     await page.getByRole("checkbox").nth(1).check();
-    // One question per screen: go forward until the summary with the save button.
+    // Go forward until the last step, which carries the save button.
     for (let i = 0; i < 24; i++) {
+      if (await page.getByRole("button", { name: "Zapisz i wygeneruj plan", exact: true }).count())
+        break;
       const step = await page.locator(".ob-step").first().getAttribute("data-step");
-      if (step === "summary") break;
-      if (step === "match") await page.locator(".ob-date").nth(3).click();
+      if (step === "calendar") await page.locator(".ob-date").nth(3).click();
       await page.getByRole("button", { name: "Dalej", exact: true }).click();
       await page.locator(`.ob-step:not([data-step="${step}"])`).waitFor();
     }

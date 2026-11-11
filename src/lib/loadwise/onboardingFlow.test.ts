@@ -393,7 +393,7 @@ describe("pitch feelings set the plan accent", () => {
       answers({
         desiredFeelings: [
           "strong_in_duels",
-          "calm_under_pressure" as DesiredPitchFeeling,
+          "not_an_answer" as DesiredPitchFeeling,
           "fast_and_light",
         ],
       }),

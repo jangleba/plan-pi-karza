@@ -78,7 +78,9 @@ export type CurrentPitchFeeling =
   | "lacking_duel_strength"
   | "fading_late_in_match"
   | "returning_after_break"
-  | "training_without_direction";
+  | "training_without_direction"
+  | "tense_under_pressure"
+  | "afraid_of_mistakes";
 
 /** Jak zawodnik chce się czuć na boisku — wskazuje akcent planu (playerDirection.ts). */
 export type DesiredPitchFeeling =
@@ -90,7 +92,8 @@ export type DesiredPitchFeeling =
   | "strong_in_duels"
   | "calm_under_pressure"
   | "ready_full_match"
-  | "prepared_for_higher_level";
+  | "prepared_for_higher_level"
+  | "brave_on_ball";
 
 export interface Profile {
   /** Optional training choices; stored with strength experience, outside onboarding. */
