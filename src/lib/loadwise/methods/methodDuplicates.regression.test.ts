@@ -50,7 +50,9 @@ describe("metody wytrzymałości: unikalne ID ćwiczeń", () => {
         expect(message, session.title).not.toMatch(/ten sam zapis serii/);
         continue;
       }
-      const ids = next.structuredSections!.flatMap((s) => s.blocks.flatMap((b) => b.exercises.map((e) => e.id)));
+      const ids = next.structuredSections!.flatMap((s) =>
+        s.blocks.flatMap((b) => b.exercises.map((e) => e.id)),
+      );
       expect(new Set(ids).size, session.title).toBe(ids.length);
     }
   });
