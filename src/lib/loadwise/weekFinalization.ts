@@ -1047,7 +1047,9 @@ export function addMissingEnduranceSessions(
         !d.isUnavailable &&
         (d.dayType === "rest" || d.classification?.category === "rest" || /^odpoczynek$/i.test(d.title)) &&
         !isClubSession(d) &&
-        !isMatchSession(d),
+        !isMatchSession(d) &&
+        // MD-1 jest aktywacją przed meczem, nigdy miejscem na wydolność.
+        !isDayBeforeMatch(d),
     );
     if (restDay) {
       const light = isDayBeforeMatch(restDay) || lowReadinessReasons(restDay);
@@ -1312,7 +1314,9 @@ export function addMissingBallSessions(
         !day.isUnavailable &&
         day.dayType === "rest" &&
         !isMatchSession(day) &&
-        !isClubSession(day),
+        !isClubSession(day) &&
+        // Dzień przed meczem pozostaje aktywacją, nie dniem na pracę z piłką.
+        !isDayBeforeMatch(day),
     );
 
     if (restTarget) {

@@ -510,6 +510,8 @@ export type SessionSubcategory =
   | "mobility"
   | "rest"
   | "ball_technical"
+  // MD-1 primer: short activation, never a main strength or endurance session.
+  | "activation"
   | "unknown";
 
 export type SessionLoadLevel = "none" | "low" | "moderate" | "high";

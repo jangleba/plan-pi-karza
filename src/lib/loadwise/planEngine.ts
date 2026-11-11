@@ -86,6 +86,7 @@ import { PLAN_ENGINE_VERSION } from "./planVersion";
 import { repairGymSpacing } from "./strengthScheduling";
 import { MAX_DEDICATED_SPRINT_SESSIONS_PER_WEEK } from "./sprintLimits";
 import { alignJumpRepetitions } from "./equipmentReplacement";
+import { md1Content } from "./md1Activation";
 import type { WeekPhase } from "./types";
 import {
   cooldown,
@@ -489,40 +490,69 @@ function buildByGoal(profile: Profile): Built {
   }
 }
 
-function md1Session(): Built {
+/**
+ * The day before a match is always its activation (MD-1), unless the athlete
+ * marked that weekday unavailable. Earlier weekly passes already treat this
+ * primer as non-training, so restoring it never breaks their limits.
+ */
+function restoreMatchEveActivation(plan: SessionDay[], profile: Profile): void {
+  for (const day of plan) {
+    if (day.mdLabel !== "MD-1" || day.dayType !== "rest" || day.isUnavailable) continue;
+    if (day.executionProtected) continue;
+    const weekday = isoDayOfWeek(parseIso(day.date));
+    if ((profile.unavailableDays ?? []).includes(weekday)) continue;
+    if (
+      Array.isArray(profile.individualTrainingDays) &&
+      !profile.individualTrainingDays.includes(weekday)
+    )
+      continue;
+    const built = md1Session(profile);
+    Object.assign(day, {
+      dayType: "md-1",
+      type: undefined,
+      title: built.title,
+      sessionType: built.sessionType,
+      intensity: built.intensity,
+      durationMin: built.durationMin,
+      goalOfSession: built.goalOfSession,
+      riskManaged: built.riskManaged,
+      avoidToday: built.avoidToday,
+      sections: {
+        warmup: [],
+        main: built.main,
+        accessory: built.accessory,
+        footballTransfer: built.footballTransfer,
+        cooldown: [],
+      },
+      structuredSections: undefined,
+      exercises: undefined,
+      secondSession: null,
+      slotLabel: null,
+      classification: undefined,
+      reason:
+        "Dzień przed meczem (MD-1): aktywacja dobrana przez silnik, bez ciężkich nóg i sprintu.",
+    });
+    day.loadTags = computeLoadTags(day);
+  }
+}
+
+function md1Session(profile: Profile): Built {
+  // Chosen by the engine (goal, pitch/gym access, strength history); never by the athlete.
+  const content = md1Content(profile);
   return {
-    title: "Aktywacja przedmeczowa (MD-1)",
-    sessionType: "Aktywacja (primer)",
+    title: content.title,
+    sessionType: content.sessionType,
     intensity: "niska",
-    durationMin: 30,
-    goalOfSession: "Odświeżenie układu nerwowego, czucie piłki i pewność przed meczem.",
-    riskManaged: "Tylko submaksymalne zrywy i lekka praca — kończysz świeży, bez zmęczenia.",
-    avoidToday: "Bez ciężkich nóg, twardych sprintów i kondycyjnego.",
-    main: [
-      {
-        name: "Mobilność i aktywacja",
-        prescription: "8 min: biodra, kostki, pośladki",
-        cue: "Płynnie, pełen zakres.",
-      },
-      {
-        name: "Czucie piłki",
-        prescription: "8 min podań i przyjęć w spokojnym tempie",
-        cue: "Miękki kontakt, głowa do góry.",
-      },
-      {
-        name: "Krótkie zrywy submaksymalne",
-        prescription: "3–5 × 10–15 m na ok. 80%",
-        rest: "pełna przerwa",
-        cue: "Płynne, kontrolowane przyspieszenie — nie maksymalne.",
-      },
-      {
-        name: "Akcje pewności siebie",
-        prescription: "5 min ulubionych zagrań / wykończeń",
-        cue: "Pewnie i swobodnie, kończysz świeży.",
-      },
-    ],
-    accessory: [],
-    footballTransfer: [],
+    durationMin: content.durationMin,
+    goalOfSession: content.goalOfSession,
+    riskManaged: content.riskManaged,
+    avoidToday: content.avoidToday,
+    main: content.main,
+    accessory: content.accessory,
+    footballTransfer: content.footballTransfer,
+    // The activation carries its own mobility; the generic warm-up adds an easy run.
+    warmup: [],
+    cooldown: [],
   };
 }
 
@@ -3906,7 +3936,7 @@ export function generatePlan(
       };
       lastWasHard = true;
     } else if (type === "md-1") {
-      let built = md1Session();
+      let built = md1Session(profile);
       const pain = applyPainSafety(built, profile);
       built = pain.built;
       const youth = youthSafety(built, profile, pain.note);
@@ -4455,6 +4485,7 @@ export function generatePlan(
     alignSessionTitleWithContent(fitDayBallWork(day, rawProfile), rawProfile),
   );
   enforceOffseasonSessionCap(constrainedPlan, profile, startDate, weekOffset);
+  restoreMatchEveActivation(constrainedPlan, rawProfile);
   for (const range of metadataRanges) {
     const week = constrainedPlan.slice(range.start, range.end);
     const score = computeWeeklyLoadScore(week);

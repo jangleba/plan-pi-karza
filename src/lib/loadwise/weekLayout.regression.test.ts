@@ -127,7 +127,11 @@ const hasWork = (session: SessionDay | null | undefined): session is SessionDay 
   !!session && session.dayType !== "rest" && session.durationMin > 0;
 const external = (session: SessionDay) =>
   session.dayType === "match" || session.dayType === "club" || !!session.externalCommitment;
-const sessionsOf = (day: SessionDay) => [day, day.secondSession].filter(hasWork);
+// The day-before-match activation (MD-1) is a primer, not a training session:
+// it does not occupy the free day, the streak limit or the own-session cap.
+const isPrimer = (session: SessionDay) => session.dayType === "md-1";
+const sessionsOf = (day: SessionDay) =>
+  [day, day.secondSession].filter((s): s is SessionDay => hasWork(s) && !isPrimer(s));
 const busy = (day: SessionDay) => sessionsOf(day).length > 0;
 
 describe("układ tygodnia — seedowany audyt końcowego planu", () => {
