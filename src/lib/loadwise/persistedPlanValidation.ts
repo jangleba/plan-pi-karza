@@ -22,6 +22,7 @@ import {
   matchWeekPolicyViolation,
 } from "./finalPlanPolicy";
 import { hasAcknowledgedReducedTargets } from "./planPolicyStamp";
+import { weeklySprintIssues } from "./weeklySprintPolicy";
 
 export type PersistedPlanIssueCode =
   | "missing-plan"
@@ -34,6 +35,7 @@ export type PersistedPlanIssueCode =
   | "high-gym-before-speed"
   | "duplicate-dominant-stimulus"
   | "invalid-beginner-double"
+  | "invalid-double-heavy"
   | "double-sessions-disabled"
   | "sprint-space-unavailable"
   | "own-training-unavailable"
@@ -41,7 +43,9 @@ export type PersistedPlanIssueCode =
   | "match-week-load"
   | "missing-weekly-minimum"
   | "match-date-mismatch"
-  | "invalid-exercise-contract";
+  | "invalid-exercise-contract"
+  | "extra-sprint-session"
+  | "weekly-sprint-meters";
 
 export interface PersistedPlanIssue {
   code: PersistedPlanIssueCode;
@@ -143,7 +147,9 @@ export function validatePersistedPlan(
             ? "Profil nie dopuszcza drugiej sesji tego dnia."
             : secondViolation === "invalid-beginner-double"
               ? "Profil dopuszcza wyłącznie lekką drugą sesję."
-              : "Dwie sesje tego dnia mają ten sam główny bodziec.",
+              : secondViolation === "invalid-double-heavy"
+                ? "Dwie ciężkie jednostki jednego dnia wymagają 17 lat i potwierdzonego przygotowania."
+                : "Dwie sesje tego dnia mają ten sam główny bodziec.",
       });
     const ownSessions = [day, day.secondSession].filter(
       (session): session is SessionDay =>
@@ -240,6 +246,16 @@ export function validatePersistedPlan(
           ? "Siłownie występują dzień po dniu — wymagany co najmniej jeden dzień przerwy."
           : "Dzień zawiera dwie sesje siłowni.",
     });
+  }
+
+  for (const issue of weeklySprintIssues(plan)) {
+    if (
+      versionEffectiveFrom &&
+      (issue.date < versionEffectiveFrom ||
+        plan.find((day) => day.date === issue.date)?.executionProtected)
+    )
+      continue;
+    issues.push({ code: issue.code, date: issue.date, message: issue.message });
   }
 
   const planDates = plan.map((day) => day.date).sort();

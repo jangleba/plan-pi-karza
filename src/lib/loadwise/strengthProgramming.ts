@@ -38,7 +38,8 @@ export function selectStrengthMethod(
     a.movementCompetenceLevel === "high" &&
     a.exerciseSafetyProfile.allowHeavyCompounds &&
     !["adaptation", "deload"].includes(context.weekPhase ?? "adaptation") &&
-    !["MD-3", "MD-2", "MD-1", "MD", "MD+1", "MD+2"].includes(context.mdLabel ?? "") &&
+    // A match in three days alone does not downgrade the method (product rule).
+    !["MD-2", "MD-1", "MD", "MD+1", "MD+2"].includes(context.mdLabel ?? "") &&
     (context.readiness === undefined || context.readiness >= 7) &&
     (profile.clubTrainingDays ?? []).length < 4;
   if (contrast)

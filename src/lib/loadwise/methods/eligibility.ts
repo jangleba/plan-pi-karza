@@ -127,7 +127,11 @@ export function trainingMethodEligibility(
     Partial<
       Pick<
         SessionDay,
-        "blockPhaseLabel" | "blockWeekNumber" | "readinessAdjustedDate" | "readinessAdjustmentKey"
+        | "blockPhaseLabel"
+        | "blockWeekNumber"
+        | "readinessAdjustedDate"
+        | "readinessAdjustmentKey"
+        | "checkinTimeBudgetMin"
       >
     >,
   rawConditions: MethodSessionConditions = {},
@@ -174,6 +178,11 @@ export function trainingMethodEligibility(
         "Po dzisiejszej korekcie zachowaj dopasowaną dawkę; zmiana metody nie może odtworzyć pełnego treningu.",
       );
   }
+  // „Mam mniej czasu”: a method change must not rebuild the full session.
+  if (session?.checkinTimeBudgetMin)
+    reasons.push(
+      "Po dzisiejszej korekcie zachowaj dopasowaną dawkę; zmiana metody nie może odtworzyć pełnego treningu.",
+    );
   if (
     ["M09", "M10"].includes(id) &&
     (/deload|odciąż|konsolid|świeżość|kalibr|adapt|wprowad/i.test(session?.blockPhaseLabel ?? "") ||
@@ -239,7 +248,9 @@ export function trainingMethodEligibility(
     reasons.push(
       "Blisko meczu zachowaj prostą dawkę przygotowawczą zamiast dodatkowej wymagającej pracy nóg.",
     );
-  if (m.highCost && ["MD-3", "MD-2", "MD-1", "MD", "MD+1", "MD+2"].includes(session?.mdLabel ?? ""))
+  // MD-3 alone is not a reason to simplify: the remaining context (club volume,
+  // block phase, other sessions) decides. Closer to and right after a match stays simple.
+  if (m.highCost && ["MD-2", "MD-1", "MD", "MD+1", "MD+2"].includes(session?.mdLabel ?? ""))
     reasons.push("W tym miejscu względem meczu wybierz lżejszą metodę.");
   if (m.highCost && (profile.clubTrainingDays ?? []).length >= 4)
     reasons.push("Przy czterech treningach klubowych zachowujemy prostszą dawkę dodatkową.");

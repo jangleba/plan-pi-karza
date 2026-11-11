@@ -318,3 +318,12 @@ it("preserves the current primary movement when shortening a method-tagged upper
   const chosen=next.structuredSections!.find(s=>s.type==="main")!.blocks[0].exercises[0];
   expect(chosen.exerciseId).toBe("dumbbell_bench_press");expect(next.durationMin).toBeLessThanOrEqual(20);
 });
+
+describe("MD-3 bez automatycznego uproszczenia metody", () => {
+  it("mecz za 3 dni nie jest sam w sobie powodem blokady metody wysokiego kosztu", () => {
+    const reasons = (mdLabel: string) =>
+      trainingMethodEligibility("M07", methodProfile, { ...methodSession(), mdLabel }).reasons;
+    expect(reasons("MD-3")).not.toContain("W tym miejscu względem meczu wybierz lżejszą metodę.");
+    expect(reasons("MD-2")).toContain("W tym miejscu względem meczu wybierz lżejszą metodę.");
+  });
+});

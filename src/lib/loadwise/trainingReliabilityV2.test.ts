@@ -115,7 +115,7 @@ describe("training contracts after reliability repair", () => {
     expect(historyCategoryOf("strength_power", "club")).toBe("gym");
     expect(historyCategoryOf("club_training", "club")).toBe("club");
   });
-  it("applies safety after a swap without mutating the canonical prescription", () => {
+  it("keeps the athlete's swap and ignores stored readiness without mutating the prescription", () => {
     const base = strength(),
       swap = { ...base, dbId: "swap", title: "Ciężki zamiennik" };
     const result = resolveEffectivePlan(
@@ -136,8 +136,9 @@ describe("training contracts after reliability repair", () => {
       },
       { profile, readiness: { [base.date]: readiness(2) } },
     )[0];
-    expect(result.intensity).toBe("niska");
-    expect(result.title).toMatch(/Regeneracja/);
+    // No hidden readiness: the chosen swap is shown as planned.
+    expect(result.title).toBe("Ciężki zamiennik");
+    expect(result.intensity).toBe(swap.intensity);
     expect(base.durationMin).toBe(60);
     expect(swap.sections.main[0].prescription).toBe("4 × 8");
   });
@@ -178,7 +179,7 @@ describe("training contracts after reliability repair", () => {
     expect(reconciled[0].durationMin).toBe(60);
     expect(reconciled[0].dbId).toBe(base.dbId);
   });
-  it("keeps executed work visible while blocking new work for red flags", () => {
+  it("keeps executed work visible and does not turn stored answers into a hidden hold", () => {
     const base = strength();
     const logs = {
       "session-1": {
@@ -198,8 +199,9 @@ describe("training contracts after reliability repair", () => {
         readiness: { [base.date]: { ...readiness(9), redFlags: ["new_swelling"] } },
       },
     )[0];
-    expect(day.loadLabelOverride).toBe("Wstrzymaj trening");
+    expect(day.loadLabelOverride).not.toBe("Wstrzymaj trening");
     expect(day.dbId).toBe(base.dbId);
+    expect(day.title).toBe(base.title);
   });
   it("builds real compensation content after a short match", () => {
     const match = sessionFixture({ date: "2026-10-18", dayType: "match", title: "Mecz" });

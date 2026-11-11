@@ -593,6 +593,10 @@ export interface SessionDay {
   readinessAdjustedDate?: string | null;
   readinessAdjustmentKey?: string;
   readinessOriginalSession?: SessionDay | null;
+  /** „Mam mniej czasu”: planned own minutes chosen in today's check-in. */
+  checkinTimeBudgetMin?: number | null;
+  /** The day before today's check-in change; base for idempotent re-application. */
+  checkinBaseSession?: SessionDay | null;
   sessionId?: string;
   date: string; // yyyy-MM-dd
   dayOfWeek?: number;

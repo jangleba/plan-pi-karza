@@ -28,6 +28,7 @@
  * limitation/secondaryGoal NIGDY nie może usunąć ani zastąpić mainGoal.
  */
 
+import { qualifiesForDoubleHeavy } from "./doubleHeavyPolicy";
 import type {
   Profile,
   Goal,
@@ -89,6 +90,8 @@ export interface TrainingContext {
     highFatigue: boolean;
   };
   age: number;
+  /** Wspólna kwalifikacja do dwóch ciężkich jednostek dnia (17+ i przygotowanie). */
+  doubleHeavyQualified?: boolean;
 }
 
 const LOWER_LIMB_PAIN = new Set(["knee", "ankle", "hamstring", "groin", "hip"]);
@@ -140,6 +143,7 @@ export function buildTrainingContext(profile: Profile): TrainingContext {
       highFatigue: profile.secondaryLimiter === "fatigue",
     },
     age: profile.age,
+    doubleHeavyQualified: qualifiesForDoubleHeavy(profile),
   };
 }
 
@@ -454,9 +458,20 @@ function repeatsDominantStimulus(
 }
 
 function restrictedToLightSecondSession(context?: TrainingContext): boolean {
-  return (
-    context?.trainingLevel === "beginner" || (typeof context?.age === "number" && context.age <= 15)
-  );
+  return !contextQualifiesForDoubleHeavy(context);
+}
+
+/** Context built without the shared flag (older callers) falls back to the same rule. */
+function contextQualifiesForDoubleHeavy(context?: TrainingContext): boolean {
+  if (!context) return false;
+  if (typeof context.doubleHeavyQualified === "boolean") return context.doubleHeavyQualified;
+  return qualifiesForDoubleHeavy({
+    age: context.age,
+    level: context.trainingLevel,
+    painInjury: context.injuryStatus.hasPainOrInjury,
+    secondaryLimiter: context.fatigueStatus.highFatigue ? "fatigue" : context.limitation,
+    goal: context.injuryStatus.returnAfterBreak ? "return" : context.mainGoal,
+  });
 }
 
 function dayHasHardEndurance(day: SessionDay | undefined | null): boolean {
@@ -468,14 +483,7 @@ function dayHasHardClub(day: SessionDay | undefined | null): boolean {
 }
 
 function contextAllowsHeavyClubEndurance(context?: TrainingContext): boolean {
-  if (!context || context.age < 17) return false;
-  if (
-    !(["intermediate", "advanced", "elite"] as const).includes(
-      context.trainingLevel as "intermediate" | "advanced" | "elite",
-    )
-  )
-    return false;
-  return !context.injuryStatus.hasPainOrInjury && !context.fatigueStatus.highFatigue;
+  return contextQualifiesForDoubleHeavy(context);
 }
 
 /**
@@ -793,9 +801,7 @@ export function findWeekConflicts(week: SessionDay[], context: TrainingContext):
     }
     // Dwie mocne jednostki są blokowane dla beginnerów i młodszych graczy.
     // Intermediate/advanced/elite mogą mieć pełną parę komplementarną.
-    const restrictedTwoADay =
-      context.trainingLevel === "beginner" ||
-      (typeof context.age === "number" && context.age <= 15);
+    const restrictedTwoADay = !contextQualifiesForDoubleHeavy(context);
     if (
       restrictedTwoADay &&
       day.secondSession &&

@@ -1,4 +1,5 @@
 import { assertSafePlanChange } from "../planChangeValidation";
+import { repairSegmentBoundaries } from "../segmentBoundary";
 import { boundedRequest } from "@/lib/boundedRequest";
 import { generatePlanAsync } from "../generatePlanAsync";
 import { reconcilePlanIdentity, sessionPrescription } from "../planIdentity";
@@ -405,7 +406,10 @@ export function createPlanActions(
         extensionDays,
         Math.max(0, weekNumber - 1),
       );
-      current = [...current, ...extension];
+      current = repairSegmentBoundaries(
+        [...current, ...extension],
+        extension.map((day) => day.date),
+      );
     }
     let newPlan = current;
     const planStart = current[0] ? parseIso(current[0].date) : null;
@@ -436,7 +440,10 @@ export function createPlanActions(
         profile.onboardingRevision ?? null,
         ONBOARDING_SCHEMA_VERSION,
       );
-      newPlan = [...current.slice(0, startIdx), ...fresh, ...current.slice(startIdx + regenDays)];
+      newPlan = repairSegmentBoundaries(
+        [...current.slice(0, startIdx), ...fresh, ...current.slice(startIdx + regenDays)],
+        fresh.map((day) => day.date),
+      );
       newPlan = reconcilePlanIdentity(newPlan, current, state.completions, context.todayIso);
       newPlan = stampPlanRevision(
         newPlan,

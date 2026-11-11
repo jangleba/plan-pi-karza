@@ -133,7 +133,7 @@ describe("shared read-only plan projection", () => {
     expect(selectEffectivePlan(plan, changed)[0].title).toBe("Inna sesja");
     expect(selectEffectivePlan([...plan], modifications)).not.toBe(initial);
   });
-  it("applies a new safety check-in immediately instead of reusing the earlier safe day", () => {
+  it("recomputes for new inputs but never turns stored readiness into a hidden plan change", () => {
     const plan = [day("Technika")],
       modifications = {},
       readiness = {};
@@ -144,7 +144,8 @@ describe("shared read-only plan projection", () => {
     };
     const after = selectEffectivePlan(plan, modifications, { profile, readiness: next });
     expect(after).not.toBe(before);
-    expect(after[0].loadLabelOverride).toBe("Wstrzymaj trening");
+    expect(after[0].loadLabelOverride).not.toBe("Wstrzymaj trening");
+    expect(after[0].sections).toEqual(before[0].sections);
     expect(
       selectEffectivePlan(plan, modifications, { profile: { ...profile }, readiness: next }),
     ).not.toBe(after);

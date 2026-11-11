@@ -168,6 +168,7 @@ describe("reliability regressions", () => {
       "loadwise:details:v1:note:u:squat",
       "ballwise:warmup:u:s1",
       "ballwise:daily-plan-checkin:v2:u:2026-10-18",
+      "ballwise:daily-plan-checkin:v3:u:2026-10-19",
     ];
     keys.forEach((key) => storage.setItem(key, "private"));
     storage.setItem("ballwise.browser-lab.v1:other", "keep");
@@ -176,11 +177,12 @@ describe("reliability regressions", () => {
     expect(storage.getItem("ballwise.browser-lab.v1:other")).toBe("keep");
   });
   it("does not report a failed plan change merely because confirmation storage is blocked", () => {
-    const record = saveDailyPlanCheckin("u", "2026-10-18", "lighter", null, {
+    const record = saveDailyPlanCheckin("u", "2026-10-18", "less_time", 30, {
       setItem() {
         throw new Error("quota");
       },
     });
-    expect(record.primaryAction).toBe("lighter");
+    expect(record.action).toBe("less_time");
+    expect(record.minutes).toBe(30);
   });
 });

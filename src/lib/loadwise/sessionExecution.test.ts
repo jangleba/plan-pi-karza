@@ -47,7 +47,7 @@ it("uses consented recent answers and excludes old or future feedback", () => {
   expect(recentSessionFeedback(p, { x: completion }, "2026-11-09")).toBeNull();
   expect(recentSessionFeedback(p, { x: completion }, "2026-11-05")).toBeNull();
 });
-it("suspends further work after a recent high pain report and preserves the prescription", () => {
+it("does not derive a hidden hold from an old post-session note and preserves the prescription", () => {
   const p = { healthPersonalizationEnabled: true } as Profile;
   const day = sessionFixture({ date: "2026-11-07", dbId: "today" });
   const result = resolveExecutionDay(day, {
@@ -57,6 +57,7 @@ it("suspends further work after a recent high pain report and preserves the pres
       today: { ...completion, status: "started", completed: false, executionSnapshot: day },
     },
   });
-  expect(result.loadLabelOverride).toBe("Wstrzymaj trening");
+  expect(result.loadLabelOverride).not.toBe("Wstrzymaj trening");
   expect(result.title).toBe(day.title);
+  expect(result.sections).toEqual(day.sections);
 });

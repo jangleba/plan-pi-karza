@@ -84,6 +84,7 @@ import type { WeekMeta } from "./types";
 import { canonicalizeGeneratedExercise, isExerciseAllowedForProfile } from "./exerciseLibrary";
 import { PLAN_ENGINE_VERSION } from "./planVersion";
 import { repairGymSpacing } from "./strengthScheduling";
+import { MAX_DEDICATED_SPRINT_SESSIONS_PER_WEEK } from "./sprintLimits";
 import type { WeekPhase } from "./types";
 import {
   cooldown,
@@ -2294,10 +2295,12 @@ function primaryGoalTarget(
       };
     case "power":
       return { category: "strength_power", min: 2, stimulus: "power" };
+    // Sprint i zmiana kierunku są budowane przez silnik sprintu: limit produktu
+    // to jedna dedykowana sesja sprintu tygodniowo, także przy tym celu.
     case "speed":
-      return { category: "speed", min: 2, stimulus: "speed_exposure" };
+      return { category: "speed", min: MAX_DEDICATED_SPRINT_SESSIONS_PER_WEEK, stimulus: "speed_exposure" };
     case "agility":
-      return { category: "athletic", min: 2, stimulus: "cod" };
+      return { category: "athletic", min: MAX_DEDICATED_SPRINT_SESSIONS_PER_WEEK, stimulus: "cod" };
     default:
       return null;
   }
@@ -4424,7 +4427,9 @@ export function generatePlan(
     enforceFinalPlanPolicy(finalPlan.map(enforceSprintOnlyContent), rawProfile),
     rawProfile,
   );
-  const constrainedPlan = enforceFinalPlanPolicy(methodPlan, rawProfile).map((day) =>
+  const policyPlan = enforceFinalPlanPolicy(methodPlan, rawProfile);
+  rebuildFinalSpeedContext(policyPlan, profile, true);
+  const constrainedPlan = policyPlan.map((day) =>
     alignSessionTitleWithContent(fitDayBallWork(day, rawProfile), rawProfile),
   );
   enforceOffseasonSessionCap(constrainedPlan, profile, startDate, weekOffset);
@@ -4531,11 +4536,25 @@ function enforceOffseasonSessionCap(
  * Końcowe post-passy potrafią przenieść całą sesję na inny dzień. Po ich
  * zakończeniu odbudowujemy rotację w faktycznej kolejności kalendarza.
  */
-function rebuildFinalSpeedContext(plan: SessionDay[], profile: Profile): void {
+function rebuildFinalSpeedContext(
+  plan: SessionDay[],
+  profile: Profile,
+  onlyBrokenChain = false,
+): void {
   let recentPostSkipExerciseIds: string[] = [];
 
   const rebuild = (session: SessionDay): SessionDay => {
     if (!session.speedGeneratorVersion) return session;
+    // After the weekly sprint limit removed a session, only sessions whose
+    // recorded rotation no longer matches the real previous sprint are rebuilt.
+    if (
+      onlyBrokenChain &&
+      JSON.stringify(session.speedRecentPostSkipExerciseIds ?? []) ===
+        JSON.stringify(recentPostSkipExerciseIds)
+    ) {
+      recentPostSkipExerciseIds = postSkipExerciseIdsFromSession(session);
+      return session;
+    }
     const generated = generateFootballSpeedSession({
       profile,
       date: session.date,

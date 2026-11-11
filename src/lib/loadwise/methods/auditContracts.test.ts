@@ -5,6 +5,7 @@ import type { Profile, SessionDay } from "../types";
 import { createMethodSession } from "./planner";
 import { trainingMethodEligibility } from "./eligibility";
 import { resolveExecutionDay } from "../effectivePlan";
+import { buildTimeVariants } from "../dailyTimeBudget";
 
 const profile = {
   name: "Audyt",
@@ -107,20 +108,12 @@ describe("independent scientific-method execution contracts", () => {
     );
   });
   it("cannot restore the full dose by changing methods after today's reduction", () => {
-    const s = session(),
-      readiness = {
-        date: s.date,
-        overall: 6,
-        sleep: 7,
-        fatigue: 5,
-        soreness: 3,
-        jointPain: 0,
-        energy: 6,
-        stress: 3,
-        motivation: 7,
-      };
-    const adjusted = resolveExecutionDay(s, { profile, readiness: { [s.date]: readiness } });
-    expect(adjusted.readinessAdjustedDate).toBe(s.date);
+    // Today's reduction is the athlete's explicit „Mam mniej czasu” choice.
+    const s = session();
+    const variant = buildTimeVariants(s)[0];
+    expect(variant).toBeDefined();
+    const adjusted = resolveExecutionDay(variant.day, { profile });
+    expect(adjusted.checkinTimeBudgetMin).toBe(variant.minutes);
     expect(() => createMethodSession(adjusted, profile, "M03")).toThrow(/dzisiejszej korekcie/);
   });
   it("retains normal method choice after a healthy check-in", () => {

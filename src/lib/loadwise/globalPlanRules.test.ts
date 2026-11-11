@@ -147,12 +147,35 @@ describe("globalPlanRules — scoring i konflikty", () => {
     )!;
     const current = { ...gym, intensity: "wysoka" as const, secondSession: null };
     const candidate = { ...speed, intensity: "wysoka" as const, secondSession: null };
-    const context = buildTrainingContext(baseProfile({ level: "intermediate" }));
+    // Kwalifikacja double-heavy: 17+, poziom i zgoda na dwie sesje w profilu.
+    const context = buildTrainingContext(
+      baseProfile({ level: "intermediate", doubleSessionsAllowed: "yes_if_safe" }),
+    );
 
     expect(canPlaceSession(0, candidate, [current], context)).toEqual({
       allowed: true,
       reason: null,
     });
+    // Sam wiek nie wystarcza: bez zgody na dwie sesje para pozostaje zablokowana.
+    expect(
+      canPlaceSession(
+        0,
+        candidate,
+        [current],
+        buildTrainingContext(baseProfile({ level: "intermediate", doubleSessionsAllowed: "no" })),
+      ).allowed,
+    ).toBe(false);
+    // 16 lat nie kwalifikuje się nawet przy zgodzie na dwie sesje.
+    expect(
+      canPlaceSession(
+        0,
+        candidate,
+        [current],
+        buildTrainingContext(
+          baseProfile({ age: 16, level: "advanced", doubleSessionsAllowed: "yes_if_safe" }),
+        ),
+      ).allowed,
+    ).toBe(false);
   });
 
   it("beginner nie może połączyć dwóch mocnych sesji", () => {
@@ -192,7 +215,9 @@ describe("globalPlanRules — scoring i konflikty", () => {
         0,
         hardEndurance,
         [club],
-        buildTrainingContext(baseProfile({ age: 17, level: "intermediate" })),
+        buildTrainingContext(
+          baseProfile({ age: 17, level: "intermediate", doubleSessionsAllowed: "yes_if_safe" }),
+        ),
       ).allowed,
     ).toBe(true);
     expect(

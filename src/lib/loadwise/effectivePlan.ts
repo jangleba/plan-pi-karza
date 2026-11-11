@@ -1,6 +1,4 @@
-import { recentSessionFeedback } from "./postSessionFeedback";
-import { reduceSessionDose } from "./doseAdjustment";
-import { enforceMethodEligibility, clearMethodRecipe } from "./methods/planner";
+import { enforceMethodEligibility } from "./methods/planner";
 import type {
   Profile,
   Readiness,
@@ -8,7 +6,6 @@ import type {
   SessionDay,
   SessionModification,
 } from "./types";
-import { applyReadiness } from "./sessionRuntime";
 import { adaptMdPlusOneFromMatchMinutes } from "./adaptiveWeek";
 import { enforceSprintOnlyContent } from "./sprintContentPolicy";
 import { enforceStrengthEligibility } from "./strengthEligibility";
@@ -19,47 +16,15 @@ export interface EffectivePlanContext {
   completions?: Record<string, SessionCompletion>;
 }
 
-/** Safety is applied to the chosen work; execution is pinned independently of the base plan. */
+/**
+ * Execution is pinned independently of the base plan. Approved profile
+ * constraints (eligibility, methods) still apply. The plan is NOT adapted
+ * from stored readiness answers or post-session notes: the daily check-in
+ * is only „Trenuję / Mam mniej czasu / Dziś nie mogę” and BallWise does
+ * not derive hidden readiness from earlier answers.
+ */
 export function resolveExecutionDay(day: SessionDay, context: EffectivePlanContext): SessionDay {
-  const readiness =
-    context.profile?.healthPersonalizationEnabled !== false
-      ? context.readiness?.[day.date]
-      : undefined;
-  const readinessKey = readiness ? JSON.stringify(readiness) : undefined;
-  const feedback = recentSessionFeedback(
-    context.profile,
-    context.completions ?? {},
-    day.date,
-    day.dbId,
-  );
-  const own = !["club", "match", "rest"].includes(day.dayType);
-  const active = day.dbId ? context.completions?.[day.dbId] : undefined;
-  const feedbackDose =
-    !readiness &&
-    own &&
-    !active?.completed &&
-    active?.status !== "started" &&
-    feedback &&
-    feedback.legFatigue >= 8 &&
-    day.postSessionFeedbackKey !== feedback.key
-      ? {
-          ...clearMethodRecipe(reduceSessionDose(day.readinessOriginalSession ?? day, 0.8)),
-          readinessOriginalSession: day.readinessOriginalSession ?? day,
-          postSessionFeedbackKey: feedback.key,
-          safetyNote:
-            "Po ostatniej sesji zgłoszono duże zmęczenie nóg. Dziś mniejsza dawka; sprawdź aktualną gotowość.",
-        }
-      : day;
-  const adjusted =
-    context.profile && readiness && day.readinessAdjustmentKey !== readinessKey
-      ? {
-          ...applyReadiness(day.readinessOriginalSession ?? day, readiness, context.profile)
-            .session,
-          readinessAdjustedDate: readiness.date,
-          readinessAdjustmentKey: readinessKey,
-          readinessOriginalSession: day.readinessOriginalSession ?? day,
-        }
-      : feedbackDose;
+  const adjusted = day;
   const pin = (session: SessionDay): SessionDay => {
     const completion = session.dbId ? context.completions?.[session.dbId] : undefined;
     const snapshot = completion?.executionSnapshot;
@@ -96,15 +61,6 @@ export function resolveExecutionDay(day: SessionDay, context: EffectivePlanConte
     ...primary,
     secondSession: second ? pin(second) : null,
     slotLabel: second ? "Sesja 1" : null,
-    ...((readiness &&
-      (readiness.jointPain >= 7 || readiness.altersMovement || readiness.redFlags?.length)) ||
-    (!readiness && feedback && feedback.pain >= 7)
-      ? {
-          loadLabelOverride: "Wstrzymaj trening",
-          safetyNote:
-            "Wstrzymaj dalszy wysiłek i ustal postępowanie z lekarzem lub fizjoterapeutą.",
-        }
-      : {}),
   };
 }
 
@@ -171,10 +127,11 @@ export function resolveEffectivePlan(
     enforceSprintOnlyContent(resolveModifiedDay(day, modifications[day.date] ?? [])),
   );
   if (!context) return modified;
+  // Recorded match minutes are execution data; readiness answers are not used.
   const adapted = adaptMdPlusOneFromMatchMinutes(
     modified,
     context.completions ?? {},
-    context.readiness ?? {},
+    {},
     context.profile,
   ).plan;
   return adapted.map((day) => resolveExecutionDay(day, context));

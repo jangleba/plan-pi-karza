@@ -241,16 +241,19 @@ describe("daily check-in integration", () => {
     ]);
     expect(result.title).toBe(swapped.title);
     expect(result.sessionType).toBe(swapped.sessionType);
-    expect(result.sections.main[0].prescription).toBe("5 × 30 m");
+    // Stored readiness answers no longer reduce the chosen session.
+    expect(result.sections.main[0].prescription).toBe(swapped.sections.main[0].prescription);
   });
 
-  it("falls through to the readiness-adjusted canonical session without a swap", () => {
+  it("does not derive hidden readiness from stored answers (no automatic reduction)", () => {
+    const session = makeSession();
     const result = resolveEffectiveDay(
-      makeSession(),
+      session,
       readiness({ overall: 2, fatigue: 9, jointPain: 7 }),
       PROFILE,
     );
-    expect(result.secondSession).toBeNull();
-    expect(result.readinessAdjustedDate).toBe("2026-08-17");
+    expect(result.readinessAdjustedDate).toBeUndefined();
+    expect(result.sections.main).toEqual(session.sections.main);
+    expect(result.loadLabelOverride).not.toBe("Wstrzymaj trening");
   });
 });
