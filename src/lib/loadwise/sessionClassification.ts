@@ -149,6 +149,13 @@ function resolveCategory(session: SessionDay): CategoryResult {
     return { category: "rest", subcategory: "rest", sourceRule: "dayType=rest" };
   }
 
+  // Dzień przed meczem: aktywacja (primer), nie siła ani wydolność. Boiskowy
+  // primer z piłką zachowuje dotychczasową klasyfikację, bo wpływa na minimum piłki.
+  const md1Text = `${session.title ?? ""} ${(session.sections?.main ?? []).map((e) => e.name).join(" ")}`;
+  if (session.dayType === "md-1" && !/piłk/i.test(md1Text)) {
+    return { category: "other", subcategory: "activation", sourceRule: "dayType=md-1 primer" };
+  }
+
   const text = fullText(session);
   const header = headerText(session);
   const explicitHeader = `${session.title ?? ""} ${session.sessionType ?? ""}`.toLowerCase();
