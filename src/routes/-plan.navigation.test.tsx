@@ -109,3 +109,28 @@ it("advances a retained Plan screen on Monday even when last week's selection re
     replace: true,
   });
 });
+
+it("says the plan starts later only when days before the start are missing, not when a week ends early", async () => {
+  // A block that stops on Wednesday must not claim that earlier days are outside the plan.
+  mocks.state = {
+    ...mocks.state,
+    plan: Array.from({ length: 3 }, (_, i) =>
+      sessionFixture({ date: addIsoDays("2026-11-02", i), dbId: `day-${i}` }),
+    ),
+  };
+  await render();
+  expect(host.textContent).not.toContain("wcześniejsze dni");
+  await act(async () => root.unmount());
+  host.innerHTML = "";
+  root = createRoot(host);
+  mocks.today = "2026-11-05";
+  mocks.state = {
+    ...mocks.state,
+    plan: Array.from({ length: 11 }, (_, i) =>
+      sessionFixture({ date: addIsoDays("2026-11-05", i), dbId: `day-${i}` }),
+    ),
+  };
+  await render();
+  expect(host.textContent).toContain("Plan zaczyna się");
+  expect(host.textContent).toContain("wcześniejsze dni");
+});

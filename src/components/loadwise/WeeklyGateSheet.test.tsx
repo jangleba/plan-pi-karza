@@ -6,9 +6,12 @@ import { WeeklyGateSheet } from "./WeeklyGateSheet";
 
 const confirmWeeklyTransition = vi.fn();
 const toastError = vi.hoisted(() => vi.fn());
+const store = vi.hoisted(() => ({
+  state: { plan: [], transitions: {} } as Record<string, unknown>,
+}));
 vi.mock("@/lib/loadwise/store", () => ({
   useLoadwise: () => ({
-    state: { plan: [], transitions: {} },
+    state: store.state,
     confirmWeeklyTransition,
   }),
 }));
@@ -21,6 +24,7 @@ beforeEach(() => {
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
+  store.state = { plan: [], transitions: {} };
   confirmWeeklyTransition.mockReset();
   confirmWeeklyTransition.mockResolvedValue({ saved: Promise.resolve() });
   toastError.mockClear();
@@ -70,6 +74,53 @@ describe("wybór dnia meczu", () => {
     await act(async () => button("Zapisz").click());
     expect(confirmWeeklyTransition).toHaveBeenCalledWith(1, ["2026-11-11", "2026-11-14"], false);
     expect(onConfirmed).toHaveBeenCalled();
+  });
+
+  it("zapamiętuje dzień meczu z poprzedniego tygodnia i zaznacza go od razu", async () => {
+    // Ostatni potwierdzony mecz był w sobotę 7 listopada.
+    store.state = {
+      plan: [{ date: "2026-11-07", dayType: "match" }],
+      transitions: {},
+      profile: { matchDate: null, matchDates: [], usualMatchDay: null },
+    };
+    await act(async () =>
+      root.render(
+        <WeeklyGateSheet
+          open
+          onOpenChange={() => undefined}
+          weekNumber={1}
+          nextWeekStart="2026-11-09"
+          nextWeekEnd="2026-11-15"
+          onConfirmed={() => undefined}
+        />,
+      ),
+    );
+    const picked = days().filter((d) => d.getAttribute("aria-pressed") === "true");
+    expect(picked.map((d) => d.textContent)).toEqual(["So14"]);
+    await act(async () => button("Zapisz").click());
+    expect(confirmWeeklyTransition).toHaveBeenCalledWith(1, ["2026-11-14"], false);
+  });
+
+  it("bez historii meczów bierze zwykły dzień meczu z profilu", async () => {
+    store.state = {
+      plan: [],
+      transitions: {},
+      profile: { matchDate: null, matchDates: [], usualMatchDay: 7 },
+    };
+    await act(async () =>
+      root.render(
+        <WeeklyGateSheet
+          open
+          onOpenChange={() => undefined}
+          weekNumber={1}
+          nextWeekStart="2026-11-09"
+          nextWeekEnd="2026-11-15"
+          onConfirmed={() => undefined}
+        />,
+      ),
+    );
+    const picked = days().filter((d) => d.getAttribute("aria-pressed") === "true");
+    expect(picked.map((d) => d.textContent)).toEqual(["Nd15"]);
   });
 
   it("drugie dotknięcie odznacza dzień, a tydzień bez meczu blokuje wybór", async () => {
