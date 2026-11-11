@@ -722,8 +722,11 @@ function daysSinceMatch(date: Date, profile: Profile): number | null {
 function mdLabelFor(date: Date, profile: Profile): string | null {
   const fwd = daysToMatch(date, profile);
   if (fwd === 0) return "MD";
-  if (fwd !== null && fwd >= 1 && fwd <= 6) return `MD-${fwd}`;
   const back = daysSinceMatch(date, profile);
+  // Przy meczach co tydzień dzień po meczu jest też „MD-6” kolejnego meczu.
+  // Regeneracja po meczu ma pierwszeństwo, chyba że następny mecz jest jutro.
+  if (back === 1 && (fwd === null || fwd >= 2)) return "MD+1";
+  if (fwd !== null && fwd >= 1 && fwd <= 6) return `MD-${fwd}`;
   if (back !== null && back >= 1 && back <= 6) return `MD+${back}`;
   return null;
 }
@@ -3582,7 +3585,7 @@ export function generatePlan(
     );
     if (new Set(weekPhases).size > 1) {
       // Każdy tydzień układamy z własnym etapem (zatwierdzonym, bez ponownej walidacji).
-      return weekRanges(startDate, days).flatMap((range, index) =>
+      const stagedWeeks = weekRanges(startDate, days).flatMap((range, index) =>
         generatePlan(
           { ...validatedProfile, seasonPhase: weekPhases[index], seasonPhaseOverride: true },
           addDays(startDate, range.start),
@@ -3590,6 +3593,14 @@ export function generatePlan(
           weekOffset + index,
         ),
       );
+      // Granice tygodni widać dopiero po złożeniu: odstępy i dni wolne sprawdzamy jeszcze raz.
+      return enforceFinalPlanPolicy(stagedWeeks, rawProfile).map((day) => {
+        for (const session of [day, day.secondSession].filter(Boolean) as SessionDay[]) {
+          session.generatorVersion = PLAN_ENGINE_VERSION;
+          session.loadTags = computeLoadTags(session);
+        }
+        return day;
+      });
     }
   }
   const stagePhase = autoStages

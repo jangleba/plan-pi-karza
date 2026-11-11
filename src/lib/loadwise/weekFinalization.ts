@@ -874,7 +874,9 @@ export function repairBackToBackSpeedSessions(
         !isMatchSession(d) &&
         !hasSpeedSession(d) &&
         !adjacentDayHasSpeed(weekPlan, idx) &&
-        !isDayBeforeMatch(d),
+        !isDayBeforeMatch(d) &&
+        // Dzień po meczu to regeneracja — przeniesiony sprint/COD nie może tam trafić.
+        !isDayAfterMatch(d),
     );
 
     if (restTarget) {
@@ -1440,6 +1442,12 @@ function buildGymSessionDay(
     placementReason?: string;
   },
 ): SessionDay {
+  // Zasada dnia po meczu obowiązuje każdą ścieżkę naprawy: na MD+1 pełną
+  // siłownię robią tylko zaawansowani, pozostali wyłącznie górę ciała i tułów.
+  const upperBodyOnly =
+    opts.upperBodyOnly ||
+    (isDayAfterMatch(templateDay) && profile.level !== "advanced" && profile.level !== "elite");
+  opts = { ...opts, upperBodyOnly };
   // Bez dostępu do siłowni uzupełniamy siłę wariantem z masą ciała.
   const youth = isYouthOrBeginner(profile) || !profile.hasGym;
   const title = opts.upperBodyOnly
@@ -1449,7 +1457,12 @@ function buildGymSessionDay(
     : opts.light
       ? "Primer siłowy (utrzymanie)"
       : "Siła ogólna";
-  const sessionType = youth ? "Siła — masa ciała" : "Siła / moc";
+  // Typ sesji steruje klasyfikacją: „Siła / moc” oznaczałoby ciężkie nogi.
+  const sessionType = opts.upperBodyOnly
+    ? "Siła — góra ciała i tułów"
+    : youth
+      ? "Siła — masa ciała"
+      : "Siła / moc";
   const goalOfSession = opts.upperBodyOnly
     ? "Krótka praca góry ciała i tułowia bez dokładania obciążenia biegowego nogom."
     : youth

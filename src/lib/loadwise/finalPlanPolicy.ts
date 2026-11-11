@@ -16,7 +16,12 @@ import {
 } from "./strengthScheduling";
 import { calculateWeeklyMinimumRequirements } from "./weeklyRequirements";
 import { getDevelopmentStage } from "./athleteProfile";
-import { requirementGymExperience, seasonPhaseForWeek } from "./offseasonPeriod";
+import {
+  offseasonGroup,
+  offseasonWeekLoad,
+  requirementGymExperience,
+  seasonPhaseForWeek,
+} from "./offseasonPeriod";
 import { computeWeeklyLoadScore, countWeekRoles, MAIN_GOAL_RULES } from "./planRules";
 import { FINAL_PLAN_POLICY_VERSION } from "./planPolicyStamp";
 import { isDoubleHeavyDay, qualifiesForDoubleHeavy } from "./doubleHeavyPolicy";
@@ -324,6 +329,13 @@ export function enforceFinalPlanPolicy(input: SessionDay[], profile: Profile): S
         continue;
       if (speed.blocksAdjacentSpeedDay && next && assessDaySpeedLoad(next).realExposureCount > 0)
         continue;
+      // Ta sama zasada co w generatorze: nigdy dwa dni wydolności z rzędu.
+      const enduranceOn = (day: SessionDay | undefined) =>
+        Boolean(day) &&
+        [day!, day!.secondSession].some(
+          (session) => session && hasWork(session) && isEnduranceSession(session),
+        );
+      if (isEnduranceSession(candidate) && (enduranceOn(previous) || enduranceOn(next))) continue;
       const trial = plan.map((day, i) => (i === index ? candidate : day));
       if (weeklySprintIssues(trial).length > weeklySprintIssues(plan).length) continue;
       if (
@@ -604,6 +616,20 @@ export function enforceFinalPlanPolicy(input: SessionDay[], profile: Profile): S
       "Zmniejszono plan: pełny sprint nie jest domyślnie dokładany dzień po ciężkim treningu nóg. Cel i świeżość mają pierwszeństwo przed liczbą sesji.",
     );
   }
+  // Endurance on two consecutive days can reappear when a repair adds a short
+  // aerobic second slot and a later limit promotes it to the day's session.
+  const ownEndurance = (session: SessionDay | null | undefined) =>
+    hasWork(session) && !external(session!) && isEnduranceSession(session!);
+  for (let index = 1; index < plan.length; index++) {
+    if (plan[index - 1].date !== isoDate(addDays(parseIso(plan[index].date), -1))) continue;
+    if (![plan[index - 1], plan[index - 1].secondSession].some(ownEndurance)) continue;
+    if (![plan[index], plan[index].secondSession].some(ownEndurance)) continue;
+    removeMatching(
+      index,
+      ownEndurance,
+      "Nie planujemy wydolności dwa dni z rzędu — zostawiono jedną z tych sesji.",
+    );
+  }
   // The old early pass merely renamed the fourth hard day "moderate".
   // Apply the product budget to final prescriptions, never to external commitments.
   for (const key of new Set(plan.map((d) => monday(d.date)))) {
@@ -634,6 +660,89 @@ export function enforceFinalPlanPolicy(input: SessionDay[], profile: Profile): S
         (s) => hard(s),
         "Zmniejszono nadmiar ciężkich dni w końcowym tygodniu. Nie zmieniamy samej etykiety intensywności ani treningu klubowego i meczu.",
       );
+  }
+  // Weekly volume guard on the FINAL plan. Validators may add sessions after the
+  // block planner applied its cap, and club days are not counted there.
+  const dayPriority = (i: number) =>
+    Math.max(
+      ...[plan[i], plan[i].secondSession]
+        .filter((s): s is SessionDay => hasWork(s))
+        .map((s) => sessionPriority(s, i)),
+    );
+  const ownRemovable = (i: number) =>
+    !plan[i].executionProtected &&
+    !plan[i].secondSession?.executionProtected &&
+    !external(plan[i]) &&
+    !(plan[i].secondSession && external(plan[i].secondSession!));
+  const dropDay = (i: number, reason: string) => {
+    if (plan[i].secondSession) remove(i, true, reason);
+    remove(i, false, reason);
+  };
+  const youthCap = ["u14", "developing"].includes(offseasonGroup(profile))
+    ? offseasonWeekLoad(profile, "base").cap
+    : null;
+  for (const key of new Set(plan.map((d) => monday(d.date)))) {
+    const indices = plan.map((_, i) => i).filter((i) => monday(plan[i].date) === key);
+    // ≤15 lat i początkujący: ten sam limit własnych sesji co poza sezonem (4),
+    // także w sezonie. Klub i mecz zostają, zdejmujemy najmniej potrzebne.
+    if (youthCap !== null) {
+      const ownSessions = () =>
+        indices.flatMap((i) =>
+          [plan[i], plan[i].secondSession]
+            .filter((s): s is SessionDay => hasWork(s) && !external(s!))
+            .map((session) => ({ i, session, second: session === plan[i].secondSession })),
+        );
+      let guard = 0;
+      while (ownSessions().length > youthCap && guard++ < 14) {
+        const victim = ownSessions()
+          .filter(({ i, session }) => !session.executionProtected && !plan[i].executionProtected)
+          .sort(
+            (a, b) =>
+              sessionPriority(a.session, a.i) - sessionPriority(b.session, b.i) ||
+              Number(b.second) - Number(a.second) ||
+              b.i - a.i,
+          )[0];
+        if (!victim) break;
+        remove(
+          victim.i,
+          victim.second,
+          `Limit dla młodszych i początkujących: najwyżej ${youthCap} własne treningi w tygodniu, razem z klubem.`,
+        );
+      }
+    }
+    // Każdy pełny tydzień ma co najmniej jeden dzień bez żadnego treningu.
+    if (indices.length < 7) continue;
+    const busy = (i: number) => hasWork(plan[i]) || hasWork(plan[i].secondSession);
+    if (!indices.every(busy)) continue;
+    const victim = indices
+      .filter(ownRemovable)
+      .sort((a, b) => dayPriority(a) - dayPriority(b) || b - a)[0];
+    if (victim != null)
+      dropDay(
+        victim,
+        "Każdy tydzień ma co najmniej jeden dzień wolny — zdjęto najmniej potrzebną własną sesję.",
+      );
+  }
+  // Także na granicy tygodni: najwyżej 6 dni treningowych z rzędu.
+  for (let guard = 0; guard < plan.length; guard++) {
+    let streak: number[] = [];
+    let victim: number | undefined;
+    for (let i = 0; i < plan.length && victim == null; i++) {
+      const consecutive =
+        i > 0 && plan[i - 1].date === isoDate(addDays(parseIso(plan[i].date), -1));
+      if (!consecutive) streak = [];
+      streak = hasWork(plan[i]) || hasWork(plan[i].secondSession) ? [...streak, i] : [];
+      if (streak.length > 6)
+        victim = streak
+          .filter(ownRemovable)
+          .sort((a, b) => dayPriority(a) - dayPriority(b) || b - a)[0];
+      if (streak.length > 6 && victim == null) streak = [];
+    }
+    if (victim == null) break;
+    dropDay(
+      victim,
+      "Najwyżej 6 dni treningowych z rzędu — zdjęto najmniej potrzebną własną sesję.",
+    );
   }
   const weeks = new Map<string, SessionDay[]>();
   for (const day of plan) {
