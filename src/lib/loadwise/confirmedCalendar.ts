@@ -1,3 +1,4 @@
+import { cycleStartOf } from "./cycleReview";
 import { generatePlanAsync } from "./generatePlanAsync";
 import { parseIso } from "./labels";
 import { calendarSunday } from "./planWindow";
@@ -65,7 +66,13 @@ export async function applyConfirmedCalendar(
       : (transition.nextMatchDates ?? (transition.nextMatchDate ? [transition.nextMatchDate] : []));
     if (dates.some((date) => date < weekStart || date > weekEnd)) continue;
     const fresh = await generatePlanAsync(
-      { ...profile, usualMatchDay: "no_fixed_day", matchDate: dates[0] ?? null, matchDates: dates },
+      {
+        ...profile,
+        cycleStart: cycleStartOf(plan) ?? profile.cycleStart,
+        usualMatchDay: "no_fixed_day",
+        matchDate: dates[0] ?? null,
+        matchDates: dates,
+      },
       parseIso(plan[range.start].date),
       range.end - range.start,
       index,

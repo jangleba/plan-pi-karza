@@ -28,6 +28,7 @@ import {
 } from "@/features/football-iq-match/fieldTask";
 import { focusAim, loadMastery, type AimProgress } from "@/features/football-iq-match/masteryStore";
 import { UpcomingWeekPrompt } from "@/components/loadwise/UpcomingWeekPrompt";
+import { useCycleReviewCard } from "@/lib/loadwise/useCycleReview";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
 export const Route = createFileRoute("/_tabs/start")({
@@ -249,6 +250,7 @@ function StartScreen() {
     () => selectEffectivePlan(state.plan, state.modifications),
     [state.plan, state.modifications],
   );
+  const cycleReview = useCycleReviewCard(user?.id, state.plan, todayIso);
   const navigate = useNavigate();
   const router = useRouter();
   const [checkinOpen, setCheckinOpen] = useState(false);
@@ -457,6 +459,11 @@ function StartScreen() {
                 percent: Math.round(iqGoal.score * 100),
                 onOpen: () => void navigate({ to: "/football-iq" }),
               }
+            : undefined
+        }
+        cycleReview={
+          cycleReview.record
+            ? { review: cycleReview.record.review, onDismiss: cycleReview.dismiss }
             : undefined
         }
         onPrepareLab={() => {

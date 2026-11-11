@@ -1,3 +1,4 @@
+import { cycleStartLighterWeek, cycleWeekPhase } from "./cyclePolicy";
 import { alignSessionTitleWithContent } from "./sessionTitleAlignment";
 import {
   mobilityCircuit,
@@ -86,6 +87,7 @@ import { PLAN_ENGINE_VERSION } from "./planVersion";
 import { repairGymSpacing } from "./strengthScheduling";
 import { MAX_DEDICATED_SPRINT_SESSIONS_PER_WEEK } from "./sprintLimits";
 import { alignJumpRepetitions } from "./equipmentReplacement";
+import { md1Content } from "./md1Activation";
 import type { WeekPhase } from "./types";
 import {
   cooldown,
@@ -489,40 +491,69 @@ function buildByGoal(profile: Profile): Built {
   }
 }
 
-function md1Session(): Built {
+/**
+ * The day before a match is always its activation (MD-1), unless the athlete
+ * marked that weekday unavailable. Earlier weekly passes already treat this
+ * primer as non-training, so restoring it never breaks their limits.
+ */
+function restoreMatchEveActivation(plan: SessionDay[], profile: Profile): void {
+  for (const day of plan) {
+    if (day.mdLabel !== "MD-1" || day.dayType !== "rest" || day.isUnavailable) continue;
+    if (day.executionProtected) continue;
+    const weekday = isoDayOfWeek(parseIso(day.date));
+    if ((profile.unavailableDays ?? []).includes(weekday)) continue;
+    if (
+      Array.isArray(profile.individualTrainingDays) &&
+      !profile.individualTrainingDays.includes(weekday)
+    )
+      continue;
+    const built = md1Session(profile);
+    Object.assign(day, {
+      dayType: "md-1",
+      type: undefined,
+      title: built.title,
+      sessionType: built.sessionType,
+      intensity: built.intensity,
+      durationMin: built.durationMin,
+      goalOfSession: built.goalOfSession,
+      riskManaged: built.riskManaged,
+      avoidToday: built.avoidToday,
+      sections: {
+        warmup: [],
+        main: built.main,
+        accessory: built.accessory,
+        footballTransfer: built.footballTransfer,
+        cooldown: [],
+      },
+      structuredSections: undefined,
+      exercises: undefined,
+      secondSession: null,
+      slotLabel: null,
+      classification: undefined,
+      reason:
+        "Dzień przed meczem (MD-1): aktywacja dobrana przez silnik, bez ciężkich nóg i sprintu.",
+    });
+    day.loadTags = computeLoadTags(day);
+  }
+}
+
+function md1Session(profile: Profile): Built {
+  // Chosen by the engine (goal, pitch/gym access, strength history); never by the athlete.
+  const content = md1Content(profile);
   return {
-    title: "Aktywacja przedmeczowa (MD-1)",
-    sessionType: "Aktywacja (primer)",
+    title: content.title,
+    sessionType: content.sessionType,
     intensity: "niska",
-    durationMin: 30,
-    goalOfSession: "Odświeżenie układu nerwowego, czucie piłki i pewność przed meczem.",
-    riskManaged: "Tylko submaksymalne zrywy i lekka praca — kończysz świeży, bez zmęczenia.",
-    avoidToday: "Bez ciężkich nóg, twardych sprintów i kondycyjnego.",
-    main: [
-      {
-        name: "Mobilność i aktywacja",
-        prescription: "8 min: biodra, kostki, pośladki",
-        cue: "Płynnie, pełen zakres.",
-      },
-      {
-        name: "Czucie piłki",
-        prescription: "8 min podań i przyjęć w spokojnym tempie",
-        cue: "Miękki kontakt, głowa do góry.",
-      },
-      {
-        name: "Krótkie zrywy submaksymalne",
-        prescription: "3–5 × 10–15 m na ok. 80%",
-        rest: "pełna przerwa",
-        cue: "Płynne, kontrolowane przyspieszenie — nie maksymalne.",
-      },
-      {
-        name: "Akcje pewności siebie",
-        prescription: "5 min ulubionych zagrań / wykończeń",
-        cue: "Pewnie i swobodnie, kończysz świeży.",
-      },
-    ],
-    accessory: [],
-    footballTransfer: [],
+    durationMin: content.durationMin,
+    goalOfSession: content.goalOfSession,
+    riskManaged: content.riskManaged,
+    avoidToday: content.avoidToday,
+    main: content.main,
+    accessory: content.accessory,
+    footballTransfer: content.footballTransfer,
+    // The activation carries its own mobility; the generic warm-up adds an easy run.
+    warmup: [],
+    cooldown: [],
   };
 }
 
@@ -2660,6 +2691,8 @@ function trimOffseasonWeek(
   }
 }
 
+const CYCLE_START_REST_REASON =
+  "Lżejszy start cyklu po podsumowaniu poprzedniego — ten dzień jest wolny.";
 const OFFSEASON_REST_REASON =
   "Poza sezonem liczba treningów zależy od wieku i poziomu — ten dzień jest wolny, żeby organizm nadążył z adaptacją.";
 
@@ -2675,7 +2708,12 @@ function planBlock(
 
   ranges.forEach((range, weekIndex) => {
     const phaseTotal = days <= 7 ? 4 : totalWeeks;
-    const phase = phaseOf(weekOffset + weekIndex, phaseTotal);
+    const phase = cycleWeekPhase(
+      phaseOf(weekOffset + weekIndex, phaseTotal),
+      weekOffset + weekIndex,
+      phaseTotal,
+      profile.cycleStart,
+    );
 
     const items: { iso: string; date: Date; base: BaseDayType; toMatch: number | null }[] = [];
     let clubCount = 0;
@@ -2765,17 +2803,17 @@ function planBlock(
 // ---------------------------------------------------------------------------
 
 /** Etykieta fazy tygodnia w bloku (kalibracja → build → overload → deload). */
-function blockPhaseLabel(phase: GymWeekPhase): string {
+function blockPhaseLabel(phase: GymWeekPhase, weekNumber: number): string {
   switch (phase) {
     case "adaptation":
-      return "Tydz. 1 — kalibracja / wprowadzenie";
+      return `Tydz. ${weekNumber} — kalibracja / wprowadzenie`;
     case "development":
-      return "Tydz. 2 — budowanie";
+      return `Tydz. ${weekNumber} — budowanie`;
     case "peak":
-      return "Tydz. 3 — przeciążenie / intensyfikacja";
+      return `Tydz. ${weekNumber} — przeciążenie / intensyfikacja`;
     case "deload":
     default:
-      return "Tydz. 4 — deload / świeżość";
+      return `Tydz. ${weekNumber} — deload / świeżość`;
   }
 }
 
@@ -3637,7 +3675,12 @@ export function generatePlan(
   const gymTotalAtStart = new Map<number, number>();
   ranges.forEach((range, weekIndex) => {
     const phaseTotal = days <= 7 ? 4 : totalWeeks;
-    const phase = phaseOf(weekOffset + weekIndex, phaseTotal);
+    const phase = cycleWeekPhase(
+      phaseOf(weekOffset + weekIndex, phaseTotal),
+      weekOffset + weekIndex,
+      phaseTotal,
+      profile.cycleStart,
+    );
     let hasMatch = false;
     let gymTotal = 0;
     for (let k = range.start; k < range.end; k++) {
@@ -3906,7 +3949,7 @@ export function generatePlan(
       };
       lastWasHard = true;
     } else if (type === "md-1") {
-      let built = md1Session();
+      let built = md1Session(profile);
       const pain = applyPainSafety(built, profile);
       built = pain.built;
       const youth = youthSafety(built, profile, pain.note);
@@ -4159,7 +4202,7 @@ export function generatePlan(
     session.generatorVersion = PLAN_ENGINE_VERSION;
     // Kontekst bloku/mezocyklu + tagi obciążenia (1-based numer tygodnia w bloku).
     session.blockWeekNumber = (curWeekIndex % (days <= 7 ? 4 : totalWeeks)) + 1;
-    session.blockPhaseLabel = blockPhaseLabel(curPhase);
+    session.blockPhaseLabel = blockPhaseLabel(curPhase, session.blockWeekNumber);
     session.loadTags = computeLoadTags(session);
     if (session.secondSession) {
       session.secondSession.generatorVersion = PLAN_ENGINE_VERSION;
@@ -4454,7 +4497,8 @@ export function generatePlan(
   const constrainedPlan = policyPlan.map((day) =>
     alignSessionTitleWithContent(fitDayBallWork(day, rawProfile), rawProfile),
   );
-  enforceOffseasonSessionCap(constrainedPlan, profile, startDate, weekOffset);
+  enforceWeeklySessionCap(constrainedPlan, profile, startDate, weekOffset);
+  restoreMatchEveActivation(constrainedPlan, rawProfile);
   for (const range of metadataRanges) {
     const week = constrainedPlan.slice(range.start, range.end);
     const score = computeWeeklyLoadScore(week);
@@ -4489,22 +4533,27 @@ export function generatePlan(
  * tygodnia: drugie sesje, regeneracja, dodatkowa piłka, zwinność, nadmiarowa
  * wytrzymałość / szybkość / siła), nigdy poniżej minimum tygodnia.
  */
-function enforceOffseasonSessionCap(
+function enforceWeeklySessionCap(
   plan: SessionDay[],
   profile: Profile,
   startDate: Date,
   weekOffset: number,
 ): void {
-  if (!offseasonStageOf(profile) || profile.painInjury) return;
+  if (profile.painInjury) return;
+  const offseason = Boolean(offseasonStageOf(profile));
+  if (!offseason && !profile.cycleStart) return;
   const ranges = weekRanges(startDate, plan.length);
   ranges.forEach((range, weekIndex) => {
     const week = plan.slice(range.start, range.end);
-    const phase = phaseOf(weekOffset + weekIndex, plan.length <= 7 ? 4 : ranges.length);
-    const { cap } = weekLoadConfig(
-      profile,
-      phase,
-      week.some((day) => day.dayType === "match"),
+    const phaseTotal = plan.length <= 7 ? 4 : ranges.length;
+    const phase = cycleWeekPhase(
+      phaseOf(weekOffset + weekIndex, phaseTotal),
+      weekOffset + weekIndex,
+      phaseTotal,
+      profile.cycleStart,
     );
+    const lighter = cycleStartLighterWeek(weekOffset + weekIndex, phaseTotal, profile.cycleStart);
+    if (!offseason && !lighter) return;
     const required = finalPolicyRequirementsFor(week, profile);
     const own = () =>
       week.flatMap((day) => [
@@ -4542,6 +4591,15 @@ function enforceOffseasonSessionCap(
       if (classifySession(session).countsAsSpeed) return 5;
       return 6;
     };
+    let cap = offseason
+      ? weekLoadConfig(
+          profile,
+          phase,
+          week.some((day) => day.dayType === "match"),
+        ).cap
+      : Number.POSITIVE_INFINITY;
+    // Lżejszy start cyklu: jedna własna sesja mniej niż ułożył tydzień.
+    if (lighter) cap = Math.min(cap, own().length - 1);
     let guard = 0;
     while (own().length > cap && guard++ < 14) {
       const candidates = [...week]
@@ -4560,9 +4618,10 @@ function enforceOffseasonSessionCap(
         victim.day.secondSession = null;
         victim.day.slotLabel = null;
       } else {
-        makeRestDay(victim.day, OFFSEASON_REST_REASON);
-        victim.day.goalOfSession =
-          "Odpoczynek — poza sezonem limit sesji zależy od wieku i poziomu.";
+        makeRestDay(victim.day, lighter ? CYCLE_START_REST_REASON : OFFSEASON_REST_REASON);
+        victim.day.goalOfSession = lighter
+          ? "Odpoczynek — lżejszy start cyklu."
+          : "Odpoczynek — poza sezonem limit sesji zależy od wieku i poziomu.";
         victim.day.riskManaged =
           "Mniej sesji w tygodniu daje czas na adaptację i chroni przed przeciążeniem.";
         victim.day.avoidToday = "Bez obowiązkowego treningu — jeśli chcesz, tylko lekki ruch.";
