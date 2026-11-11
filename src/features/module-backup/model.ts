@@ -10,6 +10,12 @@ import {
 import type { JourneyAttempt } from "../football-iq-match/journeyTypes";
 import { fieldTaskKey, loadFieldTask } from "../football-iq-match/fieldTask";
 import { loadMastery, masteryKey } from "../football-iq-match/masteryStore";
+import {
+  fpHistoryKey,
+  loadFpHistory,
+  verifyFpAttempts,
+  type FpAttempt,
+} from "../football-iq-match/firstPerson/fpStore";
 import { loadBrowserResults } from "../browser-lab/storage";
 import {
   loadReactiveCustomSets,
@@ -53,6 +59,7 @@ export function moduleKeys(module: BackupModule, owner: string): Record<string, 
         draft: journeyDraftKey(owner),
         mastery: masteryKey(owner),
         fieldTask: fieldTaskKey(owner),
+        firstPerson: fpHistoryKey(owner),
       };
     case "lab":
       return { history: `ballwise.browser-lab.v1:${encodeURIComponent(owner)}` };
@@ -134,6 +141,24 @@ function readRecords(
         const task = loadFieldTask(owner, storage);
         return task ? pick(task, ["id", "text", "topicId", "createdAt", "done"]) : null;
       }),
+      // First-person 3v2 results (own versioned list; inputs allow replaying each one).
+      firstPerson: present("firstPerson", () =>
+        loadFpHistory(owner, storage).map((row) =>
+          pick(row, [
+            "id",
+            "version",
+            "engine",
+            "variant",
+            "principle",
+            "inputs",
+            "outcome",
+            "choice",
+            "execution",
+            "look",
+            "createdAt",
+          ]),
+        ),
+      ),
     };
   if (module === "lab")
     return { history: present("history", () => loadBrowserResults(owner, readonlyStore)) };
@@ -372,6 +397,16 @@ export function previewModuleRestore(
     );
     verifyJourneyAttempts(
       (incoming.records.history as JourneyAttempt[]).filter((row) => !known.has(row.id)),
+    );
+  }
+  if (snapshot.module === "iq" && Array.isArray(incoming.records.firstPerson)) {
+    const known = new Set(
+      (Array.isArray(local.firstPerson) ? local.firstPerson : []).map(
+        (row) => (row as { id: string }).id,
+      ),
+    );
+    verifyFpAttempts(
+      (incoming.records.firstPerson as FpAttempt[]).filter((row) => !known.has(row.id)),
     );
   }
   const state = readBackupState(owner, snapshot.module, storage);

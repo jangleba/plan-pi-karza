@@ -1,0 +1,316 @@
+/* First-person Football IQ: the picture fills the screen, the interface stays minimal. */
+.fp-root {
+  --fp-ink: #f4f7f8;
+  --fp-glass: rgba(14, 22, 28, 0.72);
+  --fp-line: rgba(255, 255, 255, 0.14);
+  --fp-accent: #4aa3ff;
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  overflow: hidden;
+  background: #1c2a33;
+  color: var(--fp-ink);
+  font-family: var(--bw-font-family, system-ui, sans-serif);
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+.fp-stage {
+  position: absolute;
+  inset: 0;
+}
+.fp-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.fp-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 8px
+    max(12px, env(safe-area-inset-left));
+  pointer-events: none;
+}
+.fp-top > * {
+  pointer-events: auto;
+}
+.fp-title {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+}
+.fp-title span {
+  font-weight: 600;
+  font-size: 15px;
+}
+.fp-title small {
+  font-size: 12px;
+  opacity: 0.8;
+}
+.fp-root.is-immersive .fp-title {
+  opacity: 0;
+}
+.fp-icon,
+.fp-icon-space {
+  width: 40px;
+  height: 40px;
+  flex: none;
+}
+.fp-icon,
+.fp-small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid var(--fp-line);
+  background: var(--fp-glass);
+  color: var(--fp-ink);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.fp-small {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.fp-small:disabled {
+  opacity: 0.4;
+}
+.fp-center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  opacity: 0.85;
+}
+.fp-card {
+  position: absolute;
+  left: max(12px, env(safe-area-inset-left));
+  right: max(12px, env(safe-area-inset-right));
+  margin: 0 auto;
+  max-width: 520px;
+  padding: 16px;
+  border-radius: var(--bw-card-radius, 20px);
+  border: 1px solid var(--fp-line);
+  background: var(--fp-glass);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.fp-bottom {
+  bottom: max(14px, env(safe-area-inset-bottom));
+}
+.fp-kicker {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.fp-rule {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.35;
+  font-weight: 500;
+}
+.fp-meta {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.35;
+  opacity: 0.75;
+}
+.fp-actions {
+  display: flex;
+  gap: 10px;
+}
+.fp-primary,
+.fp-secondary {
+  flex: 1;
+  min-height: 46px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.fp-primary {
+  background: #f4f7f8;
+  color: #11202b;
+  border: 0;
+}
+.fp-secondary {
+  background: transparent;
+  color: var(--fp-ink);
+  border: 1px solid var(--fp-line);
+}
+/* Small cross in the middle of the view: where the button acts. */
+.fp-reticle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  pointer-events: none;
+}
+.fp-reticle::before,
+.fp-reticle::after {
+  content: "";
+  position: absolute;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
+}
+.fp-reticle::before {
+  left: 8px;
+  top: 0;
+  width: 2px;
+  height: 18px;
+}
+.fp-reticle::after {
+  top: 8px;
+  left: 0;
+  height: 2px;
+  width: 18px;
+}
+.fp-chip {
+  position: absolute;
+  top: calc(max(10px, env(safe-area-inset-top)) + 48px);
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--fp-glass);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.fp-controls {
+  position: absolute;
+  right: max(14px, env(safe-area-inset-right));
+  left: max(14px, env(safe-area-inset-left));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  pointer-events: none;
+}
+.fp-controls > * {
+  pointer-events: auto;
+}
+.fp-thumb {
+  margin-left: auto;
+  width: 86px;
+  height: 86px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  touch-action: none;
+}
+.fp-thumb:active {
+  background: rgba(255, 255, 255, 0.32);
+}
+.fp-thumb.is-armed {
+  border-color: var(--fp-accent);
+}
+.fp-thumb:disabled {
+  opacity: 0.35;
+}
+.fp-replaybar {
+  position: absolute;
+  top: calc(max(10px, env(safe-area-inset-top)) + 48px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 4px 14px;
+  border-radius: 999px;
+  background: var(--fp-glass);
+  white-space: nowrap;
+}
+.fp-replaybar .fp-small {
+  min-height: 36px;
+  min-width: 36px;
+}
+.fp-debrief {
+  max-height: 62vh;
+  overflow: auto;
+  touch-action: pan-y;
+}
+.fp-result {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 600;
+}
+.fp-grades {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.fp-grades div {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 8px;
+  font-size: 13.5px;
+  line-height: 1.35;
+}
+.fp-grades dt {
+  opacity: 0.7;
+}
+.fp-grades dd {
+  margin: 0;
+}
+.fp-grades b {
+  display: inline-block;
+  margin-right: 6px;
+  font-weight: 600;
+}
+.fp-grades b[data-grade="good"] {
+  color: #7ed99c;
+}
+.fp-grades b[data-grade="ok"] {
+  color: #f2cf6b;
+}
+.fp-grades b[data-grade="poor"] {
+  color: #ff9a8a;
+}
+.fp-tip {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 14.5px;
+  line-height: 1.4;
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .fp-card {
+    left: auto;
+    right: max(12px, env(safe-area-inset-right));
+    width: min(420px, 55vw);
+    padding: 12px;
+  }
+  .fp-debrief {
+    max-height: 78vh;
+  }
+}
