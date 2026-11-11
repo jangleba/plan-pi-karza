@@ -35,7 +35,10 @@ Object.assign(profile, {
   currentPitchFeelings: ["fading_late_in_match"],
   desiredPitchFeelings: ["ready_full_match"],
 });
-let state = { ...initialState, profile },
+// ?fresh=1 starts like a new account (no saved answers).
+const fresh =
+  typeof location !== "undefined" && new URLSearchParams(location.search).get("fresh") === "1";
+let state = { ...initialState, profile: fresh ? null : profile },
   stage: ProfileSaveStage | null = null;
 let snapshot: { state: typeof state; stage: ProfileSaveStage | null } = { state, stage };
 const listeners = new Set<() => void>();
