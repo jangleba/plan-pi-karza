@@ -89,6 +89,11 @@ function hasWork(session: SessionDay | null | undefined): boolean {
   return !!session && session.dayType !== "rest" && session.durationMin > 0;
 }
 
+/** A training day for weekly rules. The day-before-match primer is an activation, not a session. */
+function countsAsTraining(session: SessionDay | null | undefined): boolean {
+  return hasWork(session) && session!.dayType !== "md-1";
+}
+
 function external(session: SessionDay): boolean {
   return session.dayType === "club" || session.dayType === "match" || !!session.externalCommitment;
 }
@@ -689,7 +694,7 @@ export function enforceFinalPlanPolicy(input: SessionDay[], profile: Profile): S
       const ownSessions = () =>
         indices.flatMap((i) =>
           [plan[i], plan[i].secondSession]
-            .filter((s): s is SessionDay => hasWork(s) && !external(s!))
+            .filter((s): s is SessionDay => countsAsTraining(s) && !external(s!))
             .map((session) => ({ i, session, second: session === plan[i].secondSession })),
         );
       let guard = 0;
@@ -712,7 +717,8 @@ export function enforceFinalPlanPolicy(input: SessionDay[], profile: Profile): S
     }
     // Każdy pełny tydzień ma co najmniej jeden dzień bez żadnego treningu.
     if (indices.length < 7) continue;
-    const busy = (i: number) => hasWork(plan[i]) || hasWork(plan[i].secondSession);
+    // Aktywacja przed meczem (MD-1) nie jest dniem treningowym: nie zajmuje dnia wolnego.
+    const busy = (i: number) => countsAsTraining(plan[i]) || countsAsTraining(plan[i].secondSession);
     if (!indices.every(busy)) continue;
     const victim = indices
       .filter(ownRemovable)
@@ -731,7 +737,7 @@ export function enforceFinalPlanPolicy(input: SessionDay[], profile: Profile): S
       const consecutive =
         i > 0 && plan[i - 1].date === isoDate(addDays(parseIso(plan[i].date), -1));
       if (!consecutive) streak = [];
-      streak = hasWork(plan[i]) || hasWork(plan[i].secondSession) ? [...streak, i] : [];
+      streak = countsAsTraining(plan[i]) || countsAsTraining(plan[i].secondSession) ? [...streak, i] : [];
       if (streak.length > 6)
         victim = streak
           .filter(ownRemovable)
