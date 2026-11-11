@@ -30,38 +30,56 @@ import {
   cleanUnavailableDays,
   doubleSessionOptions,
   isoWeekday,
-  onboardingPlanFacts,
   toggleFeeling,
   seasonCheck,
   suggestedSeasonPhase,
   trainingFieldsFromAnswers,
   type OnboardingAnswers,
-  type PlanFact,
 } from "@/lib/loadwise/onboardingFlow";
-import { generatePlanAsync } from "@/lib/loadwise/generatePlanAsync";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  Card,
   Chips,
   DayPicker,
+  Field,
   Group,
-  Row,
+  InfoRow,
+  Rows,
   Segmented,
   StepTitle,
+  SubLabel,
   SwitchRow,
 } from "@/components/onboarding/OnboardingControls";
 import {
   CURRENT_FEELING_SHORT,
   DESIRED_FEELING_SHORT,
   MAX_PITCH_FEELINGS,
-  ONBOARDING_CURRENT_FEELINGS,
-  ONBOARDING_DESIRED_FEELINGS,
+  ONBOARDING_CURRENT_BODY,
+  ONBOARDING_CURRENT_MIND,
+  ONBOARDING_DESIRED_BODY,
+  ONBOARDING_DESIRED_MIND,
 } from "@/lib/loadwise/playerDirection";
-import type { SessionDay } from "@/lib/loadwise/types";
-import { CalendarDays, ChevronLeft } from "lucide-react";
+import {
+  Activity,
+  Brain,
+  CalendarDays,
+  ChevronLeft,
+  Dumbbell,
+  Gauge,
+  Layers,
+  ListChecks,
+  MapPin,
+  Repeat,
+  Shirt,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  TrendingDown,
+  Trophy,
+  UserRound,
+} from "lucide-react";
 import { addDays, format } from "date-fns";
 import { pl } from "date-fns/locale";
 
@@ -73,14 +91,7 @@ export const Route = createFileRoute("/onboarding")({
 });
 
 type StepId =
-  | "consents"
-  | "athlete"
-  | "guardian"
-  | "direction"
-  | "goal"
-  | "calendar"
-  | "conditions"
-  | "summary";
+  "consents" | "athlete" | "guardian" | "direction" | "goal" | "calendar" | "conditions";
 
 const STEP_NAME: Record<StepId, string> = {
   consents: "Start",
@@ -90,7 +101,6 @@ const STEP_NAME: Record<StepId, string> = {
   goal: "Cel",
   calendar: "Kalendarz",
   conditions: "Warunki",
-  summary: "Plan",
 };
 
 const POSITION_OPTIONS: Array<{ id: Position; title: string }> = [
@@ -161,15 +171,13 @@ const LIMITER_OPTIONS: Array<{ id: SecondaryLimiter; title: string }> = [
   { id: "return", title: "Powrót" },
 ];
 
-const FEELING_NOW_OPTIONS = ONBOARDING_CURRENT_FEELINGS.map((id) => ({
-  id,
-  title: CURRENT_FEELING_SHORT[id] ?? id,
-}));
+const feelingOptions = <T extends string>(ids: readonly T[], labels: Record<T, string>) =>
+  ids.map((id) => ({ id, title: labels[id] }));
 
-const FEELING_WANT_OPTIONS = ONBOARDING_DESIRED_FEELINGS.map((id) => ({
-  id,
-  title: DESIRED_FEELING_SHORT[id] ?? id,
-}));
+const FEELING_NOW_BODY = feelingOptions(ONBOARDING_CURRENT_BODY, CURRENT_FEELING_SHORT);
+const FEELING_NOW_MIND = feelingOptions(ONBOARDING_CURRENT_MIND, CURRENT_FEELING_SHORT);
+const FEELING_WANT_BODY = feelingOptions(ONBOARDING_DESIRED_BODY, DESIRED_FEELING_SHORT);
+const FEELING_WANT_MIND = feelingOptions(ONBOARDING_DESIRED_MIND, DESIRED_FEELING_SHORT);
 
 const SEASON_OPTIONS: Array<{ id: SeasonPhase; title: string }> = [
   { id: "inseason", title: "Sezon" },
@@ -204,33 +212,10 @@ const STEP_ERROR: Partial<Record<StepId, string>> = {
   calendar: "Wybierz datę meczu albo „Brak meczu” i sprawdź okres.",
 };
 
-/** Short label of a plan day for the first-week preview. */
-function weekCell(day: SessionDay): { kind: string; text: string } {
-  if (day.dayType === "match") return { kind: "match", text: "Mecz" };
-  if (day.dayType === "club") return { kind: "club", text: "Klub" };
-  if (day.dayType === "rest" || day.durationMin === 0) return { kind: "rest", text: "Wolne" };
-  if (day.dayType === "md-1") return { kind: "light", text: "Akty-wacja" };
-  if (day.dayType === "recovery") return { kind: "light", text: "Regen." };
-  const category = day.classification?.category;
-  const text =
-    category === "gym_strength"
-      ? "Siła"
-      : category === "speed_sprint"
-        ? "Sprint"
-        : category === "endurance_conditioning"
-          ? "Bieg"
-          : category === "other"
-            ? "Piłka"
-            : category === "mobility" || category === "recovery_prehab"
-              ? "Mobil."
-              : "Trening";
-  return { kind: day.intensity === "niska" ? "light" : "training", text };
-}
-
 /**
  * After a failed save the athlete returns to this form with the answers kept in
  * the profile. The consents given and the place in the flow are kept here, so
- * a retry opens on the summary with the save button.
+ * a retry opens on the last step with the save button.
  */
 let pendingRetry: { userId: string; consents: Record<string, boolean> } | null = null;
 
@@ -324,7 +309,6 @@ function Onboarding() {
       "goal",
       "calendar",
       "conditions",
-      "summary",
     ],
     [accountOwnerType],
   );
@@ -445,32 +429,10 @@ function Onboarding() {
     };
   }
 
-  // Summary: generate the first days of the plan from the answers and list the facts.
-  const [facts, setFacts] = useState<PlanFact[] | null>(null);
-  const [firstWeek, setFirstWeek] = useState<SessionDay[]>([]);
-  useEffect(() => {
-    if (stepId !== "summary") return;
-    let alive = true;
-    setFacts(null);
-    const profile = buildProfile();
-    if (!profile) return;
-    generatePlanAsync(profile, today, 14)
-      .then((plan) => {
-        if (!alive) return;
-        setFacts(onboardingPlanFacts(profile, plan));
-        setFirstWeek(plan.slice(0, 7));
-      })
-      .catch(() => alive && setFacts([]));
-    return () => {
-      alive = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stepId]);
-
   async function handleSubmit() {
     if (submitBusy.current) return;
     const firstInvalid = steps.findIndex((id) => !stepValid(id));
-    if (firstInvalid >= 0 && steps[firstInvalid] !== "summary") {
+    if (firstInvalid >= 0) {
       toast.error(STEP_ERROR[steps[firstInvalid]] ?? "Uzupełnij wymagane pola.");
       goTo(firstInvalid);
       setShowError(true);
@@ -532,26 +494,34 @@ function Onboarding() {
       case "consents":
         return (
           <>
-            <StepTitle
-              title="Plan treningowy pod Twój tydzień"
-              sub="Kilka pytań o zawodnika, cel, kalendarz i warunki. Z odpowiedzi powstaje plan na najbliższe tygodnie."
-            />
-            <div className="ob-intro">
-              <div>
-                <strong>5</strong>
-                <span>sekcji pytań</span>
-              </div>
-              <div>
-                <strong>~2 min</strong>
-                <span>wypełnienia</span>
-              </div>
-              <div>
-                <strong>Pn–Nd</strong>
-                <span>pełne tygodnie planu</span>
-              </div>
+            <div className="ob-brand">
+              <span className="ob-brand__word">
+                BallWise<span aria-hidden="true">.</span>
+              </span>
+              <span className="ob-brand__tag">TWÓJ PLAN. TWOJA GRA.</span>
             </div>
-            <Group label="Zgody" aside="* wymagane">
-              <Card>
+            <StepTitle
+              title="Ustawienia planu"
+              sub="Kilka krótkich sekcji. Z odpowiedzi powstaje plan na pełne tygodnie, Pn–Nd."
+            />
+            <Group icon={ListChecks} label="Co ustawisz">
+              <Rows>
+                <InfoRow icon={UserRound} title="Zawodnik" detail="Wiek, pozycja, poziom, liga" />
+                <InfoRow
+                  icon={Brain}
+                  title="Ty na boisku"
+                  detail="Jak się czujesz teraz i jak chcesz się czuć"
+                />
+                <InfoRow icon={Target} title="Cel" detail="Co rozwijasz i co Cię ogranicza" />
+                <InfoRow
+                  icon={CalendarDays}
+                  title="Kalendarz i warunki"
+                  detail="Klub, mecz, okres, miejsce i sprzęt"
+                />
+              </Rows>
+            </Group>
+            <Group icon={ShieldCheck} label="Zgody" aside="* wymagane">
+              <Rows>
                 {CONSENTS.map((c) => {
                   const open = openConsent === c.type;
                   return (
@@ -565,7 +535,7 @@ function Onboarding() {
                       />
                       <span className="min-w-0 flex-1">
                         <span className="flex items-baseline gap-2">
-                          <span className="min-w-0 flex-1 font-medium">
+                          <span className="min-w-0 flex-1">
                             {c.type === "terms" ? (
                               <Link
                                 to="/terms"
@@ -591,7 +561,7 @@ function Onboarding() {
                           </span>
                           <button
                             type="button"
-                            className="shrink-0 text-xs font-semibold text-primary"
+                            className="ob-link shrink-0 text-xs"
                             aria-expanded={open}
                             onClick={(e) => {
                               e.preventDefault();
@@ -601,27 +571,27 @@ function Onboarding() {
                             {open ? "Zwiń" : "Treść"}
                           </button>
                         </span>
-                        <span
-                          className={`mt-0.5 text-xs leading-snug text-muted-foreground ${open ? "block" : "line-clamp-1"}`}
-                        >
-                          {c.text}
-                        </span>
+                        {open && (
+                          <span className="mt-1 block text-xs leading-snug text-muted-foreground">
+                            {c.text}
+                          </span>
+                        )}
                       </span>
                     </label>
                   );
                 })}
-              </Card>
-              <button
-                type="button"
-                className="ob-note mt-2 block w-full px-1 text-left"
-                aria-expanded={openConsent === "medical"}
-                onClick={() => setOpenConsent(openConsent === "medical" ? null : "medical")}
-              >
-                <span className={openConsent === "medical" ? "block" : "line-clamp-2"}>
-                  {MEDICAL_DISCLAIMER}
-                </span>
-              </button>
+              </Rows>
             </Group>
+            <button
+              type="button"
+              className="ob-note block w-full px-1 text-left"
+              aria-expanded={openConsent === "medical"}
+              onClick={() => setOpenConsent(openConsent === "medical" ? null : "medical")}
+            >
+              <span className={openConsent === "medical" ? "block" : "line-clamp-2"}>
+                {MEDICAL_DISCLAIMER}
+              </span>
+            </button>
           </>
         );
       case "athlete":
@@ -629,49 +599,57 @@ function Onboarding() {
           <>
             <StepTitle
               title="Zawodnik"
-              sub="Wiek ustala bezpieczne obciążenia i progi 13, 16, 18 lat."
+              sub="Wiek ustala bezpieczne obciążenia i progi 13, 16 i 18 lat."
+              sketch="play"
             />
-            <Card>
-              <Row label="Imię" htmlFor="name">
-                <input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Imię zawodnika"
-                  autoComplete="given-name"
-                />
-              </Row>
-              <Row
-                label="Data urodzenia"
-                htmlFor="birth-date"
-                detail={ageNum != null && ageNum >= 13 ? `${ageNum} lat` : undefined}
-              >
-                <input
-                  id="birth-date"
-                  type="date"
-                  min={birthDateForApproximateAge(80)}
-                  max={birthDateForApproximateAge(13)}
-                  value={birthDate}
-                  onChange={(e) => setBirthDate(e.target.value)}
-                />
-              </Row>
-              <Row label="Poziom rozgrywek" htmlFor="league">
-                <select
-                  id="league"
-                  value={answers.competitionLevel ?? ""}
-                  onChange={(e) => pick("competitionLevel", e.target.value as CompetitionLevel)}
+            <Group icon={UserRound} label="Dane">
+              <div className="ob-fields">
+                <div className="ob-field--wide">
+                  <Field label="Imię" htmlFor="name">
+                    <input
+                      id="name"
+                      className="ob-input"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Imię zawodnika"
+                      autoComplete="given-name"
+                    />
+                  </Field>
+                </div>
+                <Field
+                  label="Data urodzenia"
+                  htmlFor="birth-date"
+                  detail={ageNum != null && ageNum >= 13 ? `${ageNum} lat` : undefined}
                 >
-                  <option value="" disabled>
-                    Wybierz
-                  </option>
-                  {LEAGUE_OPTIONS.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.title}
+                  <input
+                    id="birth-date"
+                    type="date"
+                    className="ob-input"
+                    min={birthDateForApproximateAge(80)}
+                    max={birthDateForApproximateAge(13)}
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(e.target.value)}
+                  />
+                </Field>
+                <Field label="Liga" htmlFor="league">
+                  <select
+                    id="league"
+                    className="ob-input"
+                    value={answers.competitionLevel ?? ""}
+                    onChange={(e) => pick("competitionLevel", e.target.value as CompetitionLevel)}
+                  >
+                    <option value="" disabled>
+                      Wybierz
                     </option>
-                  ))}
-                </select>
-              </Row>
-            </Card>
+                    {LEAGUE_OPTIONS.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.title}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+            </Group>
             {birthDate !== "" && (ageNum == null || ageNum < 13) && (
               <p className="ob-warn">
                 Konto jest dostępne od 13 lat. Młodszy zawodnik może użyć tylko demo bez zapisu
@@ -690,7 +668,7 @@ function Onboarding() {
                 </button>
               </div>
             )}
-            <Group label="Pozycja">
+            <Group icon={Shirt} label="Pozycja">
               <Segmented
                 label="Pozycja"
                 options={POSITION_OPTIONS}
@@ -699,6 +677,7 @@ function Onboarding() {
               />
             </Group>
             <Group
+              icon={Gauge}
               label="Doświadczenie treningowe"
               note={
                 answers.level
@@ -719,17 +698,18 @@ function Onboarding() {
         return (
           <>
             <StepTitle title="Opiekun konta" sub={`E-mail konta: ${user.email ?? "brak"}`} />
-            <Card>
-              <Row label="Imię opiekuna" htmlFor="guardian-name">
+            <Group icon={ShieldCheck} label="Opiekun">
+              <Field label="Imię opiekuna" htmlFor="guardian-name">
                 <input
                   id="guardian-name"
+                  className="ob-input"
                   value={guardianName}
                   onChange={(e) => setGuardianName(e.target.value)}
                   placeholder="Imię"
                   autoComplete="given-name"
                 />
-              </Row>
-              <label className="ob-consent">
+              </Field>
+              <label className="ob-consent mt-2">
                 <Checkbox
                   checked={consent}
                   onCheckedChange={(v) => setConsent(v === true)}
@@ -740,7 +720,7 @@ function Onboarding() {
                   {isGuardianChild && <span className="text-destructive"> *</span>}
                 </span>
               </label>
-            </Card>
+            </Group>
             {!guardianEmailVerified && (
               <div className="ob-warn">
                 Najpierw potwierdź e-mail właściciela konta.
@@ -765,26 +745,50 @@ function Onboarding() {
           <>
             <StepTitle
               title="Ty na boisku"
-              sub="Pierwsza odpowiedź w drugim pytaniu ustawia akcent planu."
+              sub="Ciało i głowa. Wybierz do dwóch odpowiedzi w każdym pytaniu."
+              sketch="pitch"
             />
             <Group
+              icon={Activity}
               label="Jak czujesz się teraz"
               aside={`${answers.currentFeelings.length}/${MAX_PITCH_FEELINGS}`}
             >
+              <SubLabel>Ciało</SubLabel>
               <Chips
                 cols={2}
-                options={FEELING_NOW_OPTIONS}
+                label="Jak czujesz się teraz: ciało"
+                options={FEELING_NOW_BODY}
+                value={answers.currentFeelings}
+                onPick={(id) => pick("currentFeelings", toggleFeeling(answers.currentFeelings, id))}
+              />
+              <SubLabel>Głowa</SubLabel>
+              <Chips
+                cols={2}
+                label="Jak czujesz się teraz: głowa"
+                options={FEELING_NOW_MIND}
                 value={answers.currentFeelings}
                 onPick={(id) => pick("currentFeelings", toggleFeeling(answers.currentFeelings, id))}
               />
             </Group>
             <Group
+              icon={Sparkles}
               label="Jak chcesz się czuć"
               aside={`${answers.desiredFeelings.length}/${MAX_PITCH_FEELINGS}`}
+              note="Pierwsza odpowiedź ustawia akcent planu."
             >
+              <SubLabel>Ciało</SubLabel>
               <Chips
                 cols={2}
-                options={FEELING_WANT_OPTIONS}
+                label="Jak chcesz się czuć: ciało"
+                options={FEELING_WANT_BODY}
+                value={answers.desiredFeelings}
+                onPick={(id) => pick("desiredFeelings", toggleFeeling(answers.desiredFeelings, id))}
+              />
+              <SubLabel>Głowa</SubLabel>
+              <Chips
+                cols={2}
+                label="Jak chcesz się czuć: głowa"
+                options={FEELING_WANT_MIND}
                 value={answers.desiredFeelings}
                 onPick={(id) => pick("desiredFeelings", toggleFeeling(answers.desiredFeelings, id))}
               />
@@ -797,18 +801,25 @@ function Onboarding() {
             <StepTitle
               title="Cel"
               sub="Cel prowadzi plan. Ograniczenie dokłada jedną sesję w tygodniu."
+              sketch="strength"
             />
-            <Group label="Główny cel" note={answers.goal ? GOAL_DETAIL[answers.goal] : undefined}>
+            <Group
+              icon={Target}
+              label="Główny cel"
+              note={answers.goal ? GOAL_DETAIL[answers.goal] : "Na tym opiera się cały tydzień."}
+            >
               <Chips
                 cols={3}
+                label="Główny cel"
                 options={GOAL_OPTIONS}
                 value={answers.goal}
                 onPick={(id) => pick("goal", id)}
               />
             </Group>
-            <Group label="Co Cię najbardziej ogranicza">
+            <Group icon={TrendingDown} label="Co Cię najbardziej ogranicza">
               <Chips
                 cols={3}
+                label="Co Cię najbardziej ogranicza"
                 options={LIMITER_OPTIONS}
                 value={answers.secondaryLimiter}
                 onPick={(id) => pick("secondaryLimiter", id)}
@@ -819,8 +830,13 @@ function Onboarding() {
       case "calendar":
         return (
           <>
-            <StepTitle title="Kalendarz" sub="Pozostałe dni BallWise rozplanuje sam." />
-            <Group label="Treningi w klubie">
+            <StepTitle
+              title="Kalendarz"
+              sub="Pozostałe dni BallWise rozplanuje sam."
+              sketch="measure"
+            />
+            <Group icon={CalendarDays} label="Tydzień">
+              <SubLabel>Treningi w klubie</SubLabel>
               <DayPicker
                 label="Treningi w klubie"
                 value={answers.clubDays}
@@ -837,8 +853,7 @@ function Onboarding() {
                   })
                 }
               />
-            </Group>
-            <Group label="Dni bez treningu">
+              <SubLabel>Dni bez treningu</SubLabel>
               <DayPicker
                 label="Dni, w które nie możesz trenować"
                 tone="off"
@@ -855,7 +870,7 @@ function Onboarding() {
                 }
               />
             </Group>
-            <Group label="Najbliższy mecz">
+            <Group icon={Trophy} label="Najbliższy mecz">
               <div className="ob-dates" role="group" aria-label="Data meczu">
                 {stripDays.slice(0, 7).map((d, i) => {
                   const iso = stripIsos[i];
@@ -929,21 +944,22 @@ function Onboarding() {
                   Brak meczu
                 </button>
               </div>
+              <div className="mt-1">
+                <SwitchRow
+                  label="Mecz co tydzień"
+                  detail={
+                    matchDayName
+                      ? `Zawsze w ${matchDayName === "niedziela" || matchDayName === "środa" || matchDayName === "sobota" ? matchDayName.replace(/a$/, "ę") : matchDayName}`
+                      : "Wybierz datę meczu"
+                  }
+                  checked={!answers.noMatch && answers.matchDate !== "" && answers.weeklyMatches}
+                  disabled={answers.noMatch || answers.matchDate === ""}
+                  onChange={(v) => set("weeklyMatches", v)}
+                />
+              </div>
             </Group>
-            <Card>
-              <SwitchRow
-                label="Mecz co tydzień"
-                detail={
-                  matchDayName
-                    ? `Zawsze w ${matchDayName === "niedziela" || matchDayName === "środa" || matchDayName === "sobota" ? matchDayName.replace(/a$/, "ę") : matchDayName}`
-                    : "Wybierz datę meczu"
-                }
-                checked={!answers.noMatch && answers.matchDate !== "" && answers.weeklyMatches}
-                disabled={answers.noMatch || answers.matchDate === ""}
-                onChange={(v) => set("weeklyMatches", v)}
-              />
-            </Card>
             <Group
+              icon={Layers}
               label="Okres"
               note={
                 answers.seasonPhase === "return_injury"
@@ -988,9 +1004,13 @@ function Onboarding() {
       case "conditions":
         return (
           <>
-            <StepTitle title="Warunki" sub="Plan dobiera ćwiczenia do miejsca i sprzętu." />
-            <Group label="Gdzie trenujesz">
-              <Card>
+            <StepTitle
+              title="Warunki"
+              sub="Plan dobiera ćwiczenia do miejsca i sprzętu."
+              sketch="track"
+            />
+            <Group icon={MapPin} label="Gdzie trenujesz">
+              <Rows>
                 <SwitchRow
                   label="Siłownia"
                   checked={answers.hasGym}
@@ -1013,10 +1033,14 @@ function Onboarding() {
                   checked={answers.hasWall}
                   onChange={(v) => set("hasWall", v)}
                 />
-              </Card>
+              </Rows>
             </Group>
-            <Group label={answers.hasGym ? "Sprzęt poza siłownią" : "Własny sprzęt"}>
+            <Group
+              icon={Dumbbell}
+              label={answers.hasGym ? "Sprzęt poza siłownią" : "Własny sprzęt"}
+            >
               <Chips
+                label={answers.hasGym ? "Sprzęt poza siłownią" : "Własny sprzęt"}
                 options={OWN_EQUIPMENT_OPTIONS.map((item) => ({
                   id: item,
                   title: EQUIPMENT_LABEL[item] ?? item,
@@ -1026,6 +1050,7 @@ function Onboarding() {
               />
             </Group>
             <Group
+              icon={Repeat}
               label="Treningi jednego dnia"
               note={DOUBLE_DETAIL[answers.doubleSessionsAllowed]}
             >
@@ -1041,64 +1066,10 @@ function Onboarding() {
             </Group>
           </>
         );
-      case "summary":
-        return (
-          <>
-            <StepTitle title="Twój plan" sub="Tak wygląda start planu z Twoich odpowiedzi." />
-            <Group label="Pierwsze 7 dni">
-              <Card>
-                <div className="ob-week" aria-busy={facts === null}>
-                  {(firstWeek.length ? firstWeek : Array.from({ length: 7 }, () => null)).map(
-                    (day, i) => {
-                      const cell = day ? weekCell(day) : null;
-                      return (
-                        <div key={day?.date ?? i}>
-                          <small>
-                            {day
-                              ? ISO_DAY_LABELS[isoWeekday(day.date) - 1].short
-                              : ISO_DAY_LABELS[(isoWeekday(stripIsos[i]) - 1) % 7].short}
-                          </small>
-                          {cell ? (
-                            <b data-kind={cell.kind}>{cell.text.replace("-", "­")}</b>
-                          ) : (
-                            <b className="ob-skeleton" />
-                          )}
-                        </div>
-                      );
-                    },
-                  )}
-                </div>
-              </Card>
-            </Group>
-            <Group label="Co wynika z odpowiedzi">
-              <Card>
-                <dl aria-busy={facts === null}>
-                  {facts === null
-                    ? Array.from({ length: 5 }, (_, i) => (
-                        <div key={i} className="ob-fact">
-                          <dt>
-                            <span className="ob-skeleton block w-16" />
-                          </dt>
-                          <dd className="flex-1">
-                            <span className="ob-skeleton block w-3/4" />
-                          </dd>
-                        </div>
-                      ))
-                    : facts.map((fact) => (
-                        <div key={fact.id} className="ob-fact" data-fact={fact.id}>
-                          <dt>{fact.label}</dt>
-                          <dd>{fact.value}</dd>
-                        </div>
-                      ))}
-                </dl>
-              </Card>
-            </Group>
-          </>
-        );
     }
   })();
 
-  const isLast = stepId === "summary";
+  const isLast = index >= steps.length - 1;
 
   return (
     <div className="app-shell onboarding-premium ob">

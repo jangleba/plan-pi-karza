@@ -2,8 +2,8 @@
 
 /**
  * Onboarding flow at phone sizes: walks a new account through every step,
- * checks that no step needs vertical scrolling and that the summary lists the
- * plan facts, then saves. Screenshots: BALLWISE_ONBOARDING_SHOTS_DIR (optional).
+ * checks that no step needs vertical scrolling on modern phones, then saves on
+ * the last step and lands on the plan. Screenshots: BALLWISE_ONBOARDING_SHOTS_DIR (optional).
  */
 import fs from "node:fs/promises";
 
@@ -153,11 +153,14 @@ try {
         await page.getByLabel("Imię").fill("Jan");
         await page.getByRole("radio", { name: "Pomocnik" }).click();
         await page.getByRole("radio", { name: "Regularnie" }).click();
-        await page.getByLabel("Poziom rozgrywek").selectOption("iv_liga");
+        await page.getByLabel("Liga").selectOption("iv_liga");
       } else if (id === "direction") {
         await page.getByRole("button", { name: "Słabnę pod koniec meczu" }).click();
+        await page.getByRole("button", { name: "Spinam się pod presją" }).click();
         await page.getByRole("button", { name: "Zwinny w zwrotach" }).click();
-        await page.getByRole("button", { name: "Świeży cały mecz" }).click();
+        await page.getByRole("button", { name: "Spokojny pod presją" }).click();
+        const picked = await page.locator('.ob-chip[aria-pressed="true"]').count();
+        ensure(picked === 4, `${size.width}: direction keeps ${picked} answers, expected 4`);
       } else if (id === "goal") {
         await page
           .getByRole("group", { name: "Główny cel" })
@@ -182,10 +185,8 @@ try {
       } else if (id === "conditions") {
         await page.getByRole("switch", { name: "Ściana do podań" }).click();
         await page.getByRole("button", { name: "Guma oporowa" }).click();
-      } else if (id === "summary") {
-        await page.locator("[data-fact]").first().waitFor({ timeout: 15000 });
       }
-      await page.waitForTimeout(id === "summary" ? 900 : 450);
+      await page.waitForTimeout(450);
       const fit = await page.evaluate(() => {
         const el = document.querySelector(".ob__body");
         return {
@@ -197,7 +198,8 @@ try {
       report.push({ size: `${size.width}x${size.height}`, step: id, ...fit });
       if (fit.x > size.width) errors.push(`${size.width}: ${id} scrolls sideways`);
       // Full screens fit modern phones (844 pt and taller); a small phone may scroll.
-      if (size.height >= 800 && fit.scroll > fit.client + 1)
+      // "Ty na boisku" holds two questions with body and head answers and may scroll.
+      if (size.height >= 800 && id !== "direction" && fit.scroll > fit.client + 1)
         errors.push(
           `${size.width}x${size.height}: ${id} needs scrolling (${fit.scroll} > ${fit.client})`,
         );
@@ -205,24 +207,17 @@ try {
         await page.screenshot({
           path: path.join(shots, `${String(seen.length).padStart(2, "0")}-${id}-${size.width}.png`),
         });
-      if (id === "summary") break;
+      if (id === "conditions") break;
       await page.getByRole("button", { name: "Dalej", exact: true }).click();
     }
     ensure(
-      seen.at(-1) === "summary",
-      `${size.width}: did not reach the summary (${seen.join(" → ")})`,
+      seen.at(-1) === "conditions",
+      `${size.width}: did not reach the last step (${seen.join(" → ")})`,
     );
-    const facts = await page.locator("[data-fact]").allTextContents();
-    ensure(facts.length >= 4, "Summary lists too few facts");
-    ensure(
-      facts.some((fact) => fact.startsWith("Kierunek") && fact.includes("Zwinny w zwrotach")),
-      "Summary misses the direction fact",
-    );
-    if (size.width === 390) {
-      await page.getByRole("button", { name: "Zapisz i wygeneruj plan", exact: true }).click();
-      await page.getByTestId("plan-days").waitFor({ timeout: 20000 });
-    }
-    report.push({ size: `${size.width}x${size.height}`, steps: seen, facts });
+    // No summary screen: saving on the last step opens the plan.
+    await page.getByRole("button", { name: "Zapisz i wygeneruj plan", exact: true }).click();
+    await page.getByTestId("plan-days").waitFor({ timeout: 20000 });
+    report.push({ size: `${size.width}x${size.height}`, steps: seen });
     await page.close();
   }
   ensure(!errors.length, errors.join("; "));
