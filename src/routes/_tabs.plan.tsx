@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { toast } from "sonner";
 import { applyExerciseReplacements, useLoadwise } from "@/lib/loadwise/store";
 import {
@@ -40,14 +40,30 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import {
+  parseSessionSheetSearch,
+  prepareSessionSheet,
+  SessionSheet,
+  useSessionSheet,
+  type SessionSheetSearch,
+} from "@/components/loadwise/session/SessionSheet";
 import "@/styles/ballwise-plan.css";
 
+/** A plain tap opens the training panel; modified clicks keep the link's own page. */
+function opensPanel(event: MouseEvent<HTMLAnchorElement>) {
+  if (event.defaultPrevented || event.button !== 0) return false;
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false;
+  event.preventDefault();
+  return true;
+}
+
 export const Route = createFileRoute("/_tabs/plan")({
-  validateSearch: (search: Record<string, unknown>): { week?: string } => ({
+  validateSearch: (search: Record<string, unknown>): { week?: string } & SessionSheetSearch => ({
     week:
       typeof search.week === "string" && /^\d{4}-\d{2}-\d{2}$/.test(search.week)
         ? search.week
         : undefined,
+    ...parseSessionSheetSearch(search),
   }),
   component: PlanScreen,
 });
@@ -215,7 +231,9 @@ function PlanDetailButton({
 
 function PlanScreen() {
   const navigate = useNavigate();
-  const requestedWeek = Route.useSearch().week;
+  const search = Route.useSearch();
+  const requestedWeek = search.week;
+  const unit = useSessionSheet(search);
   const { state, todayIso, todaySession, updateProfile } = useLoadwise();
   const plan = useMemo(
     () =>
@@ -504,6 +522,12 @@ function PlanScreen() {
                   to="/sesja/$date"
                   params={{ date: day.date }}
                   search={{ slot: 1 }}
+                  preload={false}
+                  onPointerEnter={prepareSessionSheet}
+                  onTouchStart={prepareSessionSheet}
+                  onClick={(event) => {
+                    if (opensPanel(event)) unit.open({ date: day.date, slot: 1 });
+                  }}
                   className="bw-plan-day-link"
                   aria-label={`${formatDate(day.date)}: ${fullTitle}${day.durationMin > 0 ? `, ${day.durationMin} min` : ""}${isToday ? ", dziś" : ""}${done ? ", wykonano" : ""}`}
                 >
@@ -569,7 +593,15 @@ function PlanScreen() {
               </div>
               {hasTwo && day.secondSession && secondOpen && (
                 <div id={`second-session-${day.date}`} className="bw-plan-second-session">
-                  <Link to="/sesja/$date" params={{ date: day.date }} search={{ slot: 2 }}>
+                  <Link
+                    to="/sesja/$date"
+                    params={{ date: day.date }}
+                    search={{ slot: 2 }}
+                    preload={false}
+                    onClick={(event) => {
+                      if (opensPanel(event)) unit.open({ date: day.date, slot: 2 });
+                    }}
+                  >
                     <span>
                       <small>Druga sesja</small>
                       <strong>{professionalSessionTitle(day.secondSession.title)}</strong>
@@ -648,6 +680,12 @@ function PlanScreen() {
                             to="/sesja/$date"
                             params={{ date: day.date }}
                             search={{ slot: 1 }}
+                            preload={false}
+                            onClick={(event) => {
+                              if (!opensPanel(event)) return;
+                              setPlanPanelOpen(false);
+                              unit.open({ date: day.date, slot: 1 });
+                            }}
                             className={`flex min-w-0 flex-col items-center gap-2 py-1 text-center transition-opacity active:opacity-60 ${
                               isToday ? "text-foreground" : "text-muted-foreground"
                             }`}
@@ -770,6 +808,8 @@ function PlanScreen() {
           </Button>
         </DialogContent>
       </Dialog>
+
+      <SessionSheet target={unit.target} onClose={unit.close} onSelect={unit.select} />
 
       {gateWeek !== null && gateWeekData && (
         <WeeklyGateSheet

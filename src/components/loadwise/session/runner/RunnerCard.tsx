@@ -26,7 +26,6 @@ import {
 } from "@/lib/loadwise/sessionRunner/presentation";
 import { ExerciseRunnerScreen } from "../../ExerciseRunnerScreen";
 import { SprintTimingPanel } from "../SprintTimingPanel";
-import { HowToSection } from "./HowToSection";
 import { SetTable } from "./SetTable";
 import { BoutControls } from "./BoutControls";
 
@@ -75,10 +74,42 @@ function tableKindFor(kind: TaskKind, row: RunnerRow, sessionKind: SessionKind) 
   return null;
 }
 
+/** What to do, without entry fields: the plan view of one exercise. */
+export function RowPlan({
+  row,
+  linked,
+  sessionKind,
+}: {
+  row: RunnerRow;
+  linked: boolean;
+  sessionKind: SessionKind;
+}) {
+  const kind = taskKind(row.exercise, row.section, sessionKind);
+  const facts = rowFacts(row, kind, linked);
+  const cue = keyCue(row.exercise);
+  return (
+    <>
+      {facts.length > 0 && (
+        <dl className="bw-runner-facts">
+          {facts.map((fact) => (
+            <div key={fact.label}>
+              <dt>{fact.label}</dt>
+              <dd>{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {cue && <p className="bw-runner-cue">{cue}</p>}
+      {linked && <p className="bw-runner-muted">{pairedNext(row.block, row.exercise)}</p>}
+    </>
+  );
+}
+
 export function RunnerCard({
   row,
   step,
   linked = false,
+  bare = false,
   status,
   sessionKind,
   sessionId,
@@ -93,6 +124,8 @@ export function RunnerCard({
   row: RunnerRow;
   step: RunnerStep;
   linked?: boolean;
+  /** The exercise view already shows the section, name and dose above its tabs. */
+  bare?: boolean;
   status: RowStatus;
   sessionKind: SessionKind;
   sessionId?: string | null;
@@ -138,13 +171,17 @@ export function RunnerCard({
       data-status={status}
       data-kind={kind}
     >
-      {!linked && <div className="bw-runner-eyebrow">{sectionTitle(step)}</div>}
-      <h2>
-        {label && <span className="bw-runner-label">{label}</span>}
-        <span className="bw-runner-name">{canonicalExerciseName(exercise)}</span>
-        {status === "done" && <Check className="bw-runner-done-icon" aria-label="Wykonane" />}
-      </h2>
-      <p className="bw-runner-dose">{doseLine(exercise)}</p>
+      {!linked && !bare && <div className="bw-runner-eyebrow">{sectionTitle(step)}</div>}
+      {!bare && (
+        <>
+          <h2>
+            {label && <span className="bw-runner-label">{label}</span>}
+            <span className="bw-runner-name">{canonicalExerciseName(exercise)}</span>
+            {status === "done" && <Check className="bw-runner-done-icon" aria-label="Wykonane" />}
+          </h2>
+          <p className="bw-runner-dose">{doseLine(exercise)}</p>
+        </>
+      )}
       {facts.length > 0 && (
         <dl className="bw-runner-facts">
           {facts.map((fact) => (
@@ -229,20 +266,18 @@ export function RunnerCard({
           onComplete={onComplete}
         >
           {mainSprint && (
-            <details className="bw-runner-optional">
-              <summary>Zapisz czas odcinka (opcjonalnie)</summary>
+            <section className="bw-runner-optional" aria-label="Czas odcinka">
+              <h3>Czas odcinka (opcjonalnie)</h3>
               <SprintTimingPanel
                 exercise={exercise}
                 sessionId={sessionId}
                 logKey={logKey}
                 onRepeat={() => undefined}
               />
-            </details>
+            </section>
           )}
         </BoutControls>
       )}
-
-      <HowToSection key={row.key} exercise={exercise} />
     </article>
   );
 }

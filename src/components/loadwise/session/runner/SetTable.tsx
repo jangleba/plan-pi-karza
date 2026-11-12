@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check } from "lucide-react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Check, Minus, Plus } from "lucide-react";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import { useExerciseSetLogs, type SetLog } from "@/lib/loadwise/setLogs";
 import { verifyExerciseHistory, type ExerciseSessionLog } from "@/lib/loadwise/setLogHistory";
@@ -52,16 +52,29 @@ function fromLog(log: SetLog | undefined): Values {
   };
 }
 
-const same = (a: Values, b: Values) =>
-  (["weight", "reps", "rir", "value"] as const).every(
-    (key) => parseTrainingNumber(a[key]) === parseTrainingNumber(b[key]),
-  );
-
 const kg = (value: number) => value.toLocaleString("pl-PL", { maximumFractionDigits: 2 });
 
+/** "60 kg × 5", "× 8 / str.", "30 s" — one saved set in one line. */
+function savedLine(log: SetLog, kind: SetTableKind, unilateral: boolean): string {
+  const side = unilateral ? " / str." : "";
+  if (kind === "hold") return `${log.metricValue != null ? kg(log.metricValue) : "–"} s${side}`;
+  if (kind === "load" && log.weightKg != null)
+    return `${kg(log.weightKg)} kg × ${log.reps ?? "–"}${side}`;
+  return `${log.reps ?? "–"} powt.${side}`;
+}
+
+/** Adds a step to a typed number, never below zero; empty starts from zero. */
+function stepValue(raw: string, delta: number): string {
+  const current = parseTrainingNumber(raw) ?? 0;
+  const next = Math.max(0, Math.round((current + delta) * 100) / 100);
+  return String(next).replace(".", ",");
+}
+
 /**
- * "Seria | kg | Powt. | ✓" — only the fields this exercise records. A tick
- * saves that set (and starts the rest); a changed saved row can be corrected.
+ * Easy set entry: one set at a time with steppers prefilled from the previous
+ * set or last session, an optional "zapas" pick, and one save button that
+ * starts the rest. Saved sets stay above as rows; tapping one corrects it
+ * under the same set number. Only the fields this exercise records.
  */
 export function SetTable({
   exercise,
@@ -100,6 +113,9 @@ export function SetTable({
     parseDrafts,
   );
   const [saving, setSaving] = useState<number | null>(null);
+  /** A saved set opened for correction; otherwise the entry shows the next open set. */
+  const [editing, setEditing] = useState<number | null>(null);
+  const rirId = useId();
   const [error, setError] = useState<{ set: number; text: string } | null>(null);
   const lock = useRef(false);
   const total = Math.max(
@@ -163,6 +179,7 @@ export function SetTable({
         delete next[String(n)];
         return next;
       });
+      setEditing(null);
       onSetSaved(n, savedCount + (isNew ? 1 : 0), isNew);
     } catch {
       setError({ set: n, text: "Nie zapisano serii. Wpis został — spróbuj ponownie." });
@@ -174,6 +191,8 @@ export function SetTable({
 
   const recommendation = useLoadRecommendation(exercise, sessionId, date, logKey, kind, logs);
   const missingKg = (n: number) => kind === "load" && !valuesFor(n).weight.trim();
+  const active = editing ?? nextOpen;
+  const activeValues = active !== null ? valuesFor(active) : EMPTY;
 
   return (
     <div className="bw-set-table-wrap">
@@ -214,109 +233,126 @@ export function SetTable({
           )}
         </div>
       )}
-      {kind === "load" && !recommendation && nextOpen === 1 && missingKg(1) && (
-        <p className="bw-runner-muted">Wpisz ciężar; 0 kg = bez obciążenia.</p>
-      )}
-      <table className="bw-set-table" data-locked={!canRecord || undefined}>
-        <thead>
-          <tr>
-            <th scope="col">Seria</th>
-            {kind === "load" && <th scope="col">kg</th>}
-            {kind !== "hold" && <th scope="col">Powt.{unilateral ? " / str." : ""}</th>}
-            {kind === "hold" && <th scope="col">Czas (s){unilateral ? " / str." : ""}</th>}
-            {withRir && kind !== "hold" && <th scope="col">Zapas</th>}
-            <th scope="col">
-              <span className="sr-only">Wykonanie</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {numbers.map((n) => {
-            const values = valuesFor(n);
-            const saved = current[n];
-            const changed = saved ? !same(values, fromLog(saved)) : true;
-            const optional = n > sets.min && !saved;
-            return (
-              <tr
-                key={n}
-                data-saved={saved && !changed ? "" : undefined}
-                data-next={n === nextOpen || undefined}
-              >
-                <th scope="row">
-                  {n}
-                  {optional && <small> opc.</small>}
-                </th>
-                {kind === "load" && (
-                  <td>
-                    <SetInput
-                      label={`Seria ${n}: ciężar w kg`}
-                      value={values.weight}
-                      disabled={!canRecord || saving !== null}
-                      onChange={(v) => edit(n, "weight", v)}
-                    />
-                  </td>
-                )}
-                {kind !== "hold" && (
-                  <td>
-                    <SetInput
-                      label={`Seria ${n}: powtórzenia`}
-                      value={values.reps}
-                      disabled={!canRecord || saving !== null}
-                      onChange={(v) => edit(n, "reps", v)}
-                    />
-                  </td>
-                )}
-                {kind === "hold" && (
-                  <td>
-                    <SetInput
-                      label={`Seria ${n}: czas w sekundach`}
-                      value={values.value}
-                      disabled={!canRecord || saving !== null}
-                      onChange={(v) => edit(n, "value", v)}
-                    />
-                  </td>
-                )}
-                {withRir && kind !== "hold" && (
-                  <td>
-                    <SetInput
-                      label={`Seria ${n}: zapas powtórzeń`}
-                      value={values.rir}
-                      disabled={!canRecord || saving !== null}
-                      onChange={(v) => edit(n, "rir", v)}
-                    />
-                  </td>
-                )}
-                <td>
+      {numbers.some((n) => current[n]) && (
+        <ol className="bw-log-done" aria-label="Zapisane serie">
+          {numbers
+            .filter((n) => current[n])
+            .map((n) => {
+              const saved = current[n];
+              return (
+                <li key={n} data-editing={editing === n || undefined}>
                   <button
                     type="button"
-                    className="bw-set-check"
-                    disabled={
-                      !canRecord || saving !== null || loading || (Boolean(saved) && !changed)
-                    }
-                    aria-pressed={Boolean(saved) && !changed}
-                    aria-label={
-                      saved
-                        ? changed
-                          ? `Zapisz poprawkę serii ${n}`
-                          : `Seria ${n} zapisana`
-                        : `Zatwierdź serię ${n}`
-                    }
-                    onClick={() => void save(n)}
+                    disabled={!canRecord || saving !== null}
+                    aria-label={`Seria ${n} zapisana, popraw`}
+                    onClick={() => setEditing(editing === n ? null : n)}
                   >
-                    {saving === n ? (
-                      "…"
-                    ) : saved && changed ? (
-                      "Popraw"
-                    ) : (
-                      <Check aria-hidden="true" />
-                    )}
+                    <span className="bw-log-n">{n}</span>
+                    <span className="bw-log-result">{savedLine(saved, kind, unilateral)}</span>
+                    {saved.rir != null && <span className="bw-log-rir">zapas {saved.rir}</span>}
+                    <Check aria-hidden="true" />
                   </button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                </li>
+              );
+            })}
+        </ol>
+      )}
+      {active !== null && (
+        <div
+          className="bw-log-entry"
+          role="group"
+          aria-label={`Seria ${active}`}
+          data-locked={!canRecord || undefined}
+        >
+          <p className="bw-log-title">
+            {editing !== null ? `Popraw serię ${active}` : `Seria ${active}`}
+            <small>
+              {editing !== null ? "" : ` z ${sets.max}`}
+              {active > sets.min && !current[active] ? " · opcjonalna" : ""}
+            </small>
+          </p>
+          <div className="bw-log-fields">
+            {kind === "load" && (
+              <Stepper
+                label={`Seria ${active}: ciężar w kg`}
+                unit="kg"
+                step={2.5}
+                value={activeValues.weight}
+                disabled={!canRecord || saving !== null}
+                onChange={(v) => edit(active, "weight", v)}
+              />
+            )}
+            {kind !== "hold" && (
+              <Stepper
+                label={`Seria ${active}: powtórzenia`}
+                unit={unilateral ? "powt. / str." : "powt."}
+                step={1}
+                value={activeValues.reps}
+                disabled={!canRecord || saving !== null}
+                onChange={(v) => edit(active, "reps", v)}
+              />
+            )}
+            {kind === "hold" && (
+              <Stepper
+                label={`Seria ${active}: czas w sekundach`}
+                unit={unilateral ? "s / str." : "s"}
+                step={5}
+                value={activeValues.value}
+                disabled={!canRecord || saving !== null}
+                onChange={(v) => edit(active, "value", v)}
+              />
+            )}
+          </div>
+          {withRir && kind !== "hold" && (
+            <div className="bw-log-rir-pick">
+              <span id={`${rirId}-label`}>Zapas powtórzeń</span>
+              <div role="group" aria-labelledby={`${rirId}-label`}>
+                {["0", "1", "2", "3", "4", "5"].map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    aria-label={`Seria ${active}: zapas ${option}`}
+                    aria-pressed={parseTrainingNumber(activeValues.rir) === Number(option)}
+                    disabled={!canRecord || saving !== null}
+                    onClick={() =>
+                      edit(
+                        active,
+                        "rir",
+                        parseTrainingNumber(activeValues.rir) === Number(option) ? "" : option,
+                      )
+                    }
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {kind === "load" && !recommendation && active === 1 && missingKg(1) && (
+            <p className="bw-runner-muted">0 kg = bez obciążenia.</p>
+          )}
+          <button
+            type="button"
+            className="bw-runner-primary"
+            disabled={!canRecord || saving !== null || loading}
+            aria-label={
+              editing !== null ? `Zapisz poprawkę serii ${active}` : `Zatwierdź serię ${active}`
+            }
+            onClick={() => void save(active)}
+          >
+            {saving === active
+              ? "Zapisuję…"
+              : editing !== null
+                ? "Zapisz poprawkę"
+                : `Zapisz serię ${active}`}
+          </button>
+          {editing !== null && (
+            <button type="button" className="bw-log-cancel" onClick={() => setEditing(null)}>
+              Anuluj
+            </button>
+          )}
+        </div>
+      )}
       {error && (
         <p className="bw-runner-error" role="alert">
           Seria {error.set}: {error.text}
@@ -345,30 +381,56 @@ export function SetTable({
   );
 }
 
-function SetInput({
+function Stepper({
   label,
+  unit,
+  step,
   value,
   disabled,
   onChange,
 }: {
   label: string;
+  unit: string;
+  step: number;
   value: string;
   disabled: boolean;
   onChange: (value: string) => void;
 }) {
   return (
-    <input
-      type="text"
-      inputMode="decimal"
-      enterKeyHint="done"
-      autoComplete="off"
-      maxLength={8}
-      aria-label={label}
-      value={value}
-      disabled={disabled}
-      onChange={(event) => onChange(event.target.value)}
-      onFocus={(event) => event.currentTarget.select()}
-    />
+    <div className="bw-stepper">
+      <button
+        type="button"
+        aria-label={`${label}: mniej`}
+        disabled={disabled || (parseTrainingNumber(value) ?? 0) <= 0}
+        onClick={() => onChange(stepValue(value, -step))}
+      >
+        <Minus aria-hidden="true" />
+      </button>
+      <label>
+        <input
+          type="text"
+          inputMode="decimal"
+          enterKeyHint="done"
+          autoComplete="off"
+          maxLength={8}
+          placeholder="0"
+          aria-label={label}
+          value={value}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+          onFocus={(event) => event.currentTarget.select()}
+        />
+        <span aria-hidden="true">{unit}</span>
+      </label>
+      <button
+        type="button"
+        aria-label={`${label}: więcej`}
+        disabled={disabled}
+        onClick={() => onChange(stepValue(value, step))}
+      >
+        <Plus aria-hidden="true" />
+      </button>
+    </div>
   );
 }
 
@@ -429,14 +491,6 @@ function useLoadRecommendation(
             recentSessionRpe: feedback?.rpe,
           })
         : null,
-    [
-      ready,
-      kind,
-      recent,
-      exercise,
-      state.profile,
-      context,
-      feedback?.rpe,
-    ],
+    [ready, kind, recent, exercise, state.profile, context, feedback?.rpe],
   );
 }

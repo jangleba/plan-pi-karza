@@ -128,7 +128,7 @@ try {
   p.on("console", (m) => {
     if (m.type() === "error") errors.push(m.text());
   });
-  // Animation material is loaded only on demand ("Jak wykonać"), never with the session.
+  // Animation material is loaded only on demand (the "Technika" tab), never with the session.
   const animationRequests = [];
   p.on("request", (r) => {
     if (/\/technique\/animations\/(?!thumbs\/)/.test(new URL(r.url()).pathname))
@@ -181,14 +181,14 @@ try {
     throw Error("Start skipped the warm-up: " + eyebrow);
   reports.push({ case: "start-to-warmup", passed: true });
   await p.goto(base + "?kind=strength&phase=active");
-  await p.getByRole("button", { name: "Jak wykonać", exact: false }).first().click();
-  await p.locator(".bw-runner-card iframe").first().waitFor();
-  if (!animationRequests.length) throw Error("Opening „Jak wykonać” did not load the animation");
+  await p.getByRole("tab", { name: "Technika", exact: true }).click();
+  await p.locator(".bw-unit-panel iframe").first().waitFor();
+  if (!animationRequests.length) throw Error("Opening „Technika” did not load the animation");
   await p.waitForTimeout(1000);
   await p.screenshot({ path: work + "/how-to-open.png" });
-  await p.getByRole("button", { name: "Jak wykonać", exact: false }).first().click();
-  if (await p.locator(".bw-runner-card iframe").count())
-    throw Error("Collapsed „Jak wykonać” kept the player running");
+  await p.getByRole("tab", { name: "Trening", exact: true }).click();
+  if (await p.locator(".bw-unit-panel iframe").count())
+    throw Error("Leaving „Technika” kept the player running");
   reports.push({ case: "how-to-on-demand", passed: true });
   // A completion mark survives a reload and does not change the prescription.
   await p.goto(base + "?kind=football&phase=active");
@@ -273,19 +273,25 @@ try {
   for (let i = 0; i < 30 && !(await kg.count()); i += 1)
     await p.getByRole("button", { name: "Następne", exact: false }).click();
   await kg.fill("60");
-  await p.getByRole("textbox", { name: "Seria 1: powtórzenia", exact: true }).fill("5");
-  await p.getByRole("textbox", { name: "Seria 1: zapas powtórzeń", exact: true }).fill("3");
+  await p.getByRole("textbox", { name: "Seria 1: powtórzenia", exact: true }).fill("4");
+  // Steppers: one tap adds a repetition.
+  await p.getByRole("button", { name: "Seria 1: powtórzenia: więcej", exact: true }).click();
+  await p.getByRole("button", { name: "Seria 1: zapas 3", exact: true }).click();
   await p.getByRole("button", { name: "Zatwierdź serię 1", exact: true }).click();
   await p.locator(".bw-rest-card").waitFor();
-  await p.getByRole("button", { name: "Seria 1 zapisana", exact: true }).waitFor();
+  await p.getByRole("button", { name: "Seria 1 zapisana, popraw", exact: true }).waitFor();
   await p.waitForFunction(() =>
     JSON.parse(localStorage.getItem("session66:qa-rows") || "[]").some(
       (r) => r.weight_kg === 60 && r.reps === 5 && r.rir === 3,
     ),
   );
+  // The next set is prefilled from the saved one.
+  const kg2 = p.getByRole("textbox", { name: "Seria 2: ciężar w kg", exact: true });
+  if ((await kg2.inputValue()) !== "60") throw Error("Next set not prefilled");
   await p.reload();
-  if ((await kg.inputValue()) !== "60") throw Error("Gym result lost on reload");
+  if ((await kg2.inputValue()) !== "60") throw Error("Gym result lost on reload");
   // Correction keeps the same set number (no second log for set 1).
+  await p.getByRole("button", { name: "Seria 1 zapisana, popraw", exact: true }).click();
   await p.getByRole("textbox", { name: "Seria 1: powtórzenia", exact: true }).fill("6");
   await p.getByRole("button", { name: "Zapisz poprawkę serii 1", exact: true }).click();
   await p.waitForFunction(() =>
@@ -293,12 +299,13 @@ try {
       (r) => r.weight_kg === 60 && r.reps === 6,
     ),
   );
+  await p.getByRole("button", { name: "Seria 1 zapisana, popraw", exact: true }).click();
   await p.getByRole("textbox", { name: "Seria 1: powtórzenia", exact: true }).fill("5");
   await p.getByRole("button", { name: "Zapisz poprawkę serii 1", exact: true }).click();
-  await p.getByRole("button", { name: "Seria 1 zapisana", exact: true }).waitFor();
+  await p.getByRole("button", { name: "Zatwierdź serię 2", exact: true }).waitFor();
   await p.waitForTimeout(1000);
   await p.screenshot({ path: work + "/strength-set.png" });
-  await p.getByRole("button", { name: "Cały plan", exact: false }).click();
+  await p.getByRole("button", { name: "Lista ćwiczeń", exact: false }).click();
   await p.getByRole("button", { name: "Zakończ trening teraz", exact: true }).click();
   await p.getByRole("button", { name: "RPE 5", exact: true }).click();
   await p.getByRole("button", { name: "Zapisz trening", exact: true }).click();
@@ -326,6 +333,108 @@ try {
   )
     throw Error("Timer did not persist observed seconds");
   reports.push({ case: "timer-only-observed-seconds", passed: true });
+
+  // The training panel opened from the week: a large bottom sheet with the
+  // list, the exercise tabs, and progress plus rest kept across close/reopen.
+  const unit = p.locator(".bw-unit-sheet");
+  const openUnit = async () => {
+    await p.locator(".bw-qa-open-unit").click();
+    await unit.locator(".bw-runner").waitFor();
+    await p.waitForTimeout(400);
+  };
+  const unitMetrics = () =>
+    unit.evaluate((el) => {
+      const scroll = el.querySelector(".bw-sheet-scroll");
+      return {
+        height: el.getBoundingClientRect().height,
+        overflow: scroll.scrollWidth - scroll.clientWidth,
+        accordions: scroll.querySelectorAll("details, [aria-expanded]").length,
+        smallTargets: [...el.querySelectorAll(".bw-runner button")]
+          .map((b) => b.getBoundingClientRect())
+          .filter((box) => box.width > 0 && (box.width < 44 || box.height < 44)).length,
+      };
+    });
+  const shotDir = process.env.BALLWISE_UNIT_SHOTS || work;
+  await fs.mkdir(shotDir, { recursive: true });
+  for (const width of [430, 390, 320]) {
+    await p.setViewportSize({ width, height: 844 });
+    await p.goto(base + "?kind=strength&phase=preview&unit=1");
+    await openUnit();
+    const m = await unitMetrics();
+    if (m.height < 844 * 0.85) throw Error(`Panel too small at ${width}: ${m.height}`);
+    if (m.overflow > 1) throw Error(`Panel overflow at ${width}: ${m.overflow}`);
+    if (m.accordions) throw Error(`Accordions in the panel at ${width}: ${m.accordions}`);
+    if (m.smallTargets) throw Error(`Touch target < 44 px in the panel at ${width}`);
+    await p.screenshot({ path: path.join(shotDir, `01-lista-${width}.png`) });
+    await unit.locator(".bw-rplan-group").nth(1).locator(".bw-rplan-row button").nth(1).click();
+    await unit.getByRole("tab", { name: "Trening", exact: true }).waitFor();
+    if ((await unit.locator("input").count()) > 0) throw Error("Preview shows entry fields");
+    await p.screenshot({ path: path.join(shotDir, `02-cwiczenie-trening-${width}.png`) });
+    await unit.getByRole("tab", { name: "Technika", exact: true }).click();
+    await unit.locator(".bw-howto-panel").waitFor();
+    await p.waitForTimeout(width === 390 ? 1500 : 400);
+    await p.screenshot({ path: path.join(shotDir, `03-cwiczenie-technika-${width}.png`) });
+    reports.push({ case: `unit-preview-${width}`, ...m, passed: true });
+  }
+  for (const width of [390, 320]) {
+    await p.setViewportSize({ width, height: 844 });
+    await p.goto(base + "?kind=strength&phase=active&unit=1");
+    await p.evaluate(() => localStorage.clear());
+    await p.reload();
+    await openUnit();
+    const kgUnit = unit.getByRole("textbox", { name: "Seria 1: ciężar w kg", exact: true });
+    for (let i = 0; i < 30 && !(await kgUnit.count()); i += 1)
+      await unit.getByRole("button", { name: "Następne", exact: false }).first().click();
+    const name = await unit.locator(".bw-unit-exercise-head h2").innerText();
+    await kgUnit.fill("40");
+    await unit.getByRole("textbox", { name: "Seria 1: powtórzenia", exact: true }).fill("8");
+    await unit.getByRole("button", { name: "Seria 1: zapas 3", exact: true }).click();
+    await p.screenshot({ path: path.join(shotDir, `04a-zapis-serii-${width}.png`) });
+    await unit.getByRole("button", { name: "Zatwierdź serię 1", exact: true }).click();
+    await unit.locator(".bw-rest-card").waitFor();
+    await p.waitForTimeout(400);
+    await p.screenshot({ path: path.join(shotDir, `04-w-trakcie-seria-przerwa-${width}.png`) });
+    const clock = async () => {
+      const [mm, ss] = (await unit.locator(".bw-rest-clock").innerText()).split(":").map(Number);
+      return mm * 60 + ss;
+    };
+    const before = await clock();
+    // Close with the panel's own button, wait, reopen: same exercise, saved set, rest still counting.
+    await unit.locator(".bw-sheet-close").click();
+    await p.waitForFunction(() => !document.querySelector('.bw-unit-sheet[data-state="open"]'));
+    await p.waitForTimeout(2600);
+    await openUnit();
+    if ((await unit.locator(".bw-unit-exercise-head h2").innerText()) !== name)
+      throw Error("Reopened panel lost the open exercise");
+    await unit.getByRole("button", { name: "Seria 1 zapisana, popraw", exact: true }).waitFor();
+    const after = await clock();
+    if (!(after <= before - 2 && after > 0))
+      throw Error(`Rest did not keep counting while closed: ${before} -> ${after}`);
+    // The list keeps the marks and the rest dock.
+    await unit.getByRole("button", { name: "Lista ćwiczeń", exact: false }).click();
+    await unit.locator(".bw-rplan-now").waitFor();
+    await unit.locator(".bw-rest-card").waitFor();
+    await p.screenshot({ path: path.join(shotDir, `05-lista-w-trakcie-${width}.png`) });
+    // The phone's back gesture closes the panel instead of leaving the plan.
+    await p.evaluate(() => window.__auditRouter.history.back());
+    await p.waitForFunction(() => !document.querySelector('.bw-unit-sheet[data-state="open"]'));
+    if (!(await p.locator(".bw-qa-open-unit").isVisible())) throw Error("Back left the plan");
+    reports.push({ case: `unit-active-close-reopen-${width}`, before, after, passed: true });
+  }
+  // Every kind of session fits the panel without sideways scroll.
+  await p.setViewportSize({ width: 390, height: 844 });
+  for (const kind of ["sprint", "run", "intervals", "mobility", "football", "club", "match"])
+    for (const phase of ["preview", "active"]) {
+      await p.goto(base + `?kind=${kind}&phase=${phase}&unit=1`);
+      await p.locator(".bw-qa-open-unit").click();
+      await unit.locator(".bw-session-head h1").waitFor();
+      await p.waitForTimeout(400);
+      const m = await unitMetrics();
+      if (m.overflow > 1) throw Error(`Panel overflow for ${kind} ${phase}: ${m.overflow}`);
+      await p.screenshot({ path: path.join(shotDir, `06-${kind}-${phase}-390.png`) });
+      reports.push({ case: `unit-${kind}-${phase}`, ...m, passed: true });
+    }
+  if (process.env.BALLWISE_UNIT_SHOTS) reports.push({ case: "unit-shots", dir: shotDir });
   if (errors.length) throw Error(errors.join("; "));
 } catch (error) {
   await b

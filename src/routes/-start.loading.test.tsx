@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
-  createFileRoute: () => (options: unknown) => ({ options }),
+  createFileRoute: () => (options: unknown) => ({ options, useSearch: () => ({}) }),
   useNavigate: () => vi.fn(),
   useRouter: () => ({ preloadRoute: vi.fn(async () => {}) }),
 }));
