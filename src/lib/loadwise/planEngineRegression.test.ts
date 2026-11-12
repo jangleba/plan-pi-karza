@@ -179,7 +179,8 @@ describe("regression — club + safe second gym session", () => {
       goal: "strength",
       hasGym: true,
       clubTrainingDays: [1, 2, 4, 5],
-      individualTrainingDays: [3, 6],
+      // As the onboarding stores it: own work allowed on every day (club days too).
+      individualTrainingDays: [1, 2, 3, 4, 5, 6],
       usualMatchDay: 7,
       weeklyMatches: true,
       seasonPhase: "inseason",
@@ -227,7 +228,8 @@ describe("regression — gym survives post-processing", () => {
       goal: "endurance",
       hasGym: true,
       clubTrainingDays: [2, 4],
-      individualTrainingDays: [1, 3, 5, 6],
+      // As the onboarding stores it: own work allowed on every day (club days too).
+      individualTrainingDays: [1, 2, 3, 4, 5, 6],
       usualMatchDay: 7,
       weeklyMatches: true,
       seasonPhase: "inseason",

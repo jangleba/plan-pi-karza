@@ -89,6 +89,13 @@ const BASES: Base[] = [
     answers: answers({ level: "beginner", competitionLevel: "academy", goal: "general" }),
   },
   {
+    // A free week (no club, no match) has room, so the league level shows in the session count.
+    name: "senior bez klubu i meczu",
+    age: 22,
+    start: NOV,
+    answers: answers({ clubDays: [], matchDate: "", noMatch: true, weeklyMatches: false }),
+  },
+  {
     name: "przerwa letnia",
     age: 20,
     start: JUNE,
@@ -172,7 +179,8 @@ describe("every onboarding answer drives the plan", () => {
 
   it("an unusual season (override) is used as chosen", () => {
     const base = BASES[0];
-    const chosen = { ...base.answers, seasonPhase: "offseason" as const };
+    // One friendly, no weekly fixtures: the calendar says season, the athlete says break.
+    const chosen = { ...base.answers, seasonPhase: "offseason" as const, weeklyMatches: false };
     const ignored = signature(profileOf(chosen, base.age, base.start), base.start);
     const kept = signature(
       profileOf({ ...chosen, seasonPhaseOverride: true }, base.age, base.start),
@@ -278,11 +286,13 @@ describe("pitch feelings set the plan accent", () => {
   });
   afterAll(() => vi.restoreAllMocks());
 
+  // One known match, no fixed weekly day: weeks 2–4 have room, so the accent is visible.
   const general = answers({
     goal: "general",
     secondaryLimiter: "ball",
     currentFeelings: [],
     desiredFeelings: [],
+    weeklyMatches: false,
   });
   const slots = (plan: SessionDay[]) =>
     plan
@@ -381,7 +391,17 @@ describe("pitch feelings set the plan accent", () => {
     for (const [a, extra] of [
       [general, { painInjury: true }],
       [{ ...general, goal: "return" as const }, {}],
-      [{ ...general, seasonPhase: "transition" as const, seasonPhaseOverride: true }, {}],
+      // No match ahead: a week before a match is preparation, not transition.
+      [
+        {
+          ...general,
+          seasonPhase: "transition" as const,
+          seasonPhaseOverride: true,
+          matchDate: "",
+          noMatch: true,
+        },
+        {},
+      ],
     ] as Array<[OnboardingAnswers, Partial<Profile>]>)
       expect(sig({ ...a, desiredFeelings: ["agile_in_turns"] }, extra)).toBe(sig(a, extra));
   }, 120_000);
@@ -404,9 +424,13 @@ describe("pitch feelings set the plan accent", () => {
   });
 
   it("the summary names the feeling and what the week has for it", () => {
+    // A week with room: one club day and no match (with a match, the ball goal and
+    // the weekly minimum fill all three free days).
     const a = {
       ...general,
       clubDays: [3],
+      matchDate: "",
+      noMatch: true,
       desiredFeelings: ["agile_in_turns"] as DesiredPitchFeeling[],
     };
     const profile = profileOf(a, 22, NOV);

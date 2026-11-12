@@ -52,6 +52,8 @@ import { generateFootballSpeedSession } from "./footballSpeedSessionEngine";
 import { gymSpacingIssues, repairGymSpacing } from "./strengthScheduling";
 import { secondSessionPolicyViolation, finalPolicyRequirementsFor } from "./finalPlanPolicy";
 import { hasAcknowledgedReducedTargets } from "./planPolicyStamp";
+import { ownTrainingAllowed } from "./availability";
+import { isProtectedFocusSession } from "./trainingFocus";
 
 const LOWER_LIMB_PAIN = new Set(["knee", "ankle", "hamstring", "groin", "hip"]);
 
@@ -405,6 +407,16 @@ function buildCanonicalSpeedRepair(
 }
 
 /** Dodaje brakujący sprint przez kanoniczny silnik; RSA nie realizuje minimum sprintu. */
+/**
+ * A repair may add a second session only on a day the athlete keeps open for
+ * own training. With „jedna sesja dziennie” the final policy later moves the
+ * extra session to a free day or drops it.
+ */
+function secondSlotOk(profile: Profile | null | undefined, day: SessionDay): boolean {
+  if (!profile) return true;
+  return ownTrainingAllowed(profile, day.dayOfWeek ?? isoDayOfWeek(parseIso(day.date)));
+}
+
 export function addMissingCanonicalSpeedSessions(
   weekPlan: SessionDay[],
   weeklyRequirements: WeeklyRequirements,
@@ -470,6 +482,7 @@ export function addMissingCanonicalSpeedSessions(
     const secondSlotIndex = weekPlan.findIndex(
       (day, index) =>
         !day.isUnavailable &&
+        secondSlotOk(profile, day) &&
         !isClubSession(day) &&
         !isMatchSession(day) &&
         !day.secondSession &&
@@ -496,6 +509,7 @@ export function addMissingCanonicalSpeedSessions(
     const clubMicrodoseIndex = weekPlan.findIndex(
       (day, index) =>
         !day.isUnavailable &&
+        secondSlotOk(profile, day) &&
         isClubSession(day) &&
         !isMatchSession(day) &&
         realSessionCount(day) <= 2 &&
@@ -990,6 +1004,7 @@ export function addMissingEnduranceSessions(
       const highDayClub = weekPlan.find(
         (d) =>
           !d.isUnavailable &&
+          secondSlotOk(profile, d) &&
           isClubSession(d) &&
           !isMatchSession(d) &&
           !d.secondSession &&
@@ -1069,6 +1084,7 @@ export function addMissingEnduranceSessions(
       const host = weekPlan.find(
         (d) =>
           !d.isUnavailable &&
+          secondSlotOk(profile, d) &&
           !isClubSession(d) &&
           !isMatchSession(d) &&
           !d.secondSession &&
@@ -1101,6 +1117,7 @@ export function addMissingEnduranceSessions(
         ? weekPlan.find(
             (d) =>
               !d.isUnavailable &&
+              secondSlotOk(profile, d) &&
               !isClubSession(d) &&
               !isMatchSession(d) &&
               !d.secondSession &&
@@ -1127,6 +1144,7 @@ export function addMissingEnduranceSessions(
       const clubHost = weekPlan.find(
         (d) =>
           !d.isUnavailable &&
+          secondSlotOk(profile, d) &&
           isClubSession(d) &&
           !isMatchSession(d) &&
           !d.secondSession &&
@@ -1254,6 +1272,9 @@ function buildBallSessionDay(
 
 /** Test terenowy nie może dzielić dnia z ciężką pracą nóg. */
 function repairFieldMasGymPairings(weekPlan: SessionDay[], profile: Profile): void {
+  // With one session a day the pair never reaches the athlete: the final policy
+  // moves or drops the second session, so the gym session is kept whole.
+  if (profile.doubleSessionsAllowed === "no") return;
   for (let index = 0; index < weekPlan.length; index += 1) {
     const day = weekPlan[index];
     if (isFieldMasTestSession(day) && day.secondSession && isMainGymSession(day.secondSession)) {
@@ -1290,7 +1311,9 @@ function repairFieldMasGymPairings(weekPlan: SessionDay[], profile: Profile): vo
  * a nie bezpiecznej, niskointensywnej pracy z piłką.
  */
 export function addMissingBallSessions(
-  weekPlan: SessionDay[], weeklyRequirements: WeeklyRequirements,
+  weekPlan: SessionDay[],
+  weeklyRequirements: WeeklyRequirements,
+  profile?: Profile | null,
 ): AddMissingBallResult {
   const required = weeklyRequirements.requiredBallSessions;
   const unresolvedIssues: string[] = [];
@@ -1350,6 +1373,7 @@ export function addMissingBallSessions(
 
     const isSafeBallHost = (day: SessionDay, allowMd1: boolean): boolean =>
       !day.isUnavailable &&
+      secondSlotOk(profile, day) &&
       !isMatchSession(day) &&
       !day.secondSession &&
       realSessionCount(day) < 2 &&
@@ -1665,6 +1689,7 @@ export function addMissingGymSessions(
       const hostIdx = weekPlan.findIndex(
         (d, i) =>
           !d.isUnavailable &&
+          secondSlotOk(profile, d) &&
           !isMatchSession(d) &&
           !d.secondSession &&
           realSessionCount(d) < maxPerDay &&
@@ -1775,6 +1800,8 @@ export function addMissingGymSessions(
           ) {
             return false;
           }
+          // The athlete's goal or limiter is not traded for a support minimum.
+          if (isProtectedFocusSession(weekPlan, day, profile)) return false;
 
           const category =
             day.classification?.category;
@@ -2012,7 +2039,7 @@ export function validateAndRepairWeekPlan(
   validateNoEnduranceOnClubDays(weekPlan, profile);
   // Własna piłka jest dodawana na końcu, żeby wcześniejsze naprawy siły i
   // wydolności nie mogły jej skasować. Klub i mecz nie spełniają tego minimum.
-  addMissingBallSessions(weekPlan, requirements);
+  addMissingBallSessions(weekPlan, requirements, profile);
   repairFieldMasGymPairings(weekPlan, profile);
 
   repairGymSpacing(weekPlan, profile);

@@ -62,9 +62,14 @@ const pitchContent: Omit<Md1Content, "variant"> = {
   avoidToday: "Bez ciężkich nóg, twardych sprintów i kondycyjnego.",
   main: [
     {
-      name: "Mobilność i aktywacja",
-      prescription: "8 min: biodra, kostki, pośladki",
-      cue: "Płynnie, pełen zakres.",
+      name: "Rozciąganie zginacza biodra w półklęku",
+      prescription: "2 × 30 s / strona",
+      cue: "Płynnie, bez bólu.",
+    },
+    {
+      name: "Cofanie bioder w podparciu",
+      prescription: "2 × 8 / strona",
+      cue: "Spokojny kręgosłup, ruch z bioder.",
     },
     {
       name: "Czucie piłki",
@@ -103,22 +108,22 @@ const gymContent: Omit<Md1Content, "variant"> = {
       cue: "Pauza w górze, napięte pośladki.",
     },
     {
-      name: "Przysiad z masą ciała",
+      name: "Pompki",
       prescription: "2 × 6, RPE 4",
       rest: "60 s",
-      cue: "Tempo kontrolowane, bez ciężaru.",
+      cue: "Tempo kontrolowane, ciało w jednej linii.",
     },
     {
-      name: "Wiosłowanie gumą",
-      prescription: "2 × 10",
+      name: "Wiosłowanie z masą ciała",
+      prescription: "2 × 8, RPE 4",
       rest: "60 s",
       cue: "Łopatki w dół i do tyłu.",
     },
     {
-      name: "Deska z napięciem",
-      prescription: "2 × 20 s",
+      name: "Wspięcia na palce stojąc",
+      prescription: "2 × 10",
       rest: "45 s",
-      cue: "Prosta linia ciała.",
+      cue: "Pauza w górze, spokojnie w dół.",
     },
   ],
   accessory: [],

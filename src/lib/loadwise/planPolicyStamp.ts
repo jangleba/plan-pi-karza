@@ -1,7 +1,7 @@
 import type { SessionDay } from "./types";
 
 /** An explicit final-policy acknowledgement of attainable soft goals. */
-export const FINAL_PLAN_POLICY_VERSION = "constraints-first-v3-rest-day";
+export const FINAL_PLAN_POLICY_VERSION = "constraints-first-v4-choices";
 
 export function hasAcknowledgedReducedTargets(week: SessionDay[]): boolean {
   return (

@@ -1,4 +1,5 @@
 import type { Profile, SessionDay, WeekMeta } from "./types";
+import { ownTrainingAllowed } from "./availability";
 import { addDays, isoDate, isoDayOfWeek, parseIso } from "./labels";
 import {
   classifySession,
@@ -24,6 +25,12 @@ import {
 } from "./offseasonPeriod";
 import { computeWeeklyLoadScore, countWeekRoles, MAIN_GOAL_RULES } from "./planRules";
 import { FINAL_PLAN_POLICY_VERSION } from "./planPolicyStamp";
+import {
+  focusPriority,
+  sessionHasQuality,
+  unmetFocusNote,
+  unmetFocusTargets,
+} from "./trainingFocus";
 import { isDoubleHeavyDay, qualifiesForDoubleHeavy } from "./doubleHeavyPolicy";
 import {
   isDedicatedSprintSession,
@@ -224,7 +231,7 @@ export function enforceFinalPlanPolicy(input: SessionDay[], profile: Profile): S
   for (const day of input)
     if (day.weekMeta?.finalPolicyVersion === FINAL_PLAN_POLICY_VERSION)
       for (const text of day.weekMeta.planningNotes ?? [])
-        if (!text.startsWith("Nie zmieszczono wszystkich celów tygodnia:")) note(day.date, text);
+        if (!text.startsWith("Nie zmieszczono")) note(day.date, text);
   const remove = (index: number, second: boolean, reason: string): boolean => {
     const day = plan[index],
       target = second ? day.secondSession : day;
@@ -267,12 +274,17 @@ export function enforceFinalPlanPolicy(input: SessionDay[], profile: Profile): S
     session: SessionDay,
     sourceIndex: number,
     replaceLowerPriority = false,
+    allowSourceDay = false,
   ): boolean => {
     if (external(session) || session.executionProtected || !hasWork(session)) return false;
     const source = plan[sourceIndex];
     const options = plan
       .map((_, index) => index)
-      .filter((index) => index !== sourceIndex && monday(plan[index].date) === monday(source.date))
+      .filter(
+        (index) =>
+          (allowSourceDay || index !== sourceIndex) &&
+          monday(plan[index].date) === monday(source.date),
+      )
       .sort(
         (a, b) =>
           (replaceLowerPriority ? sessionPriority(plan[a], a) - sessionPriority(plan[b], b) : 0) ||
@@ -287,9 +299,7 @@ export function enforceFinalPlanPolicy(input: SessionDay[], profile: Profile): S
         external(destination) ||
         (!replaceLowerPriority && hasWork(destination)) ||
         destination.secondSession ||
-        (profile.unavailableDays ?? []).includes(weekday) ||
-        (Array.isArray(profile.individualTrainingDays) &&
-          !profile.individualTrainingDays.includes(weekday))
+        !ownTrainingAllowed(profile, weekday)
       )
         continue;
       if (["MD", "MD-1", "MD+1"].includes(destination.mdLabel ?? "")) continue;
@@ -392,15 +402,16 @@ export function enforceFinalPlanPolicy(input: SessionDay[], profile: Profile): S
         monday(day.date) === monday(session.date) &&
         hasWork(day) &&
         classifySession(day).category === category &&
-        !(profile.unavailableDays ?? []).includes(isoDayOfWeek(parseIso(day.date))) &&
-        (!Array.isArray(profile.individualTrainingDays) ||
-          profile.individualTrainingDays.includes(isoDayOfWeek(parseIso(day.date)))),
+        ownTrainingAllowed(profile, isoDayOfWeek(parseIso(day.date))),
     ).length;
     const needed = Math.max(0, target - countElsewhere);
     const mainGoal = MAIN_GOAL_RULES[profile.goal]?.mandatoryCategories.includes(category) ?? false;
+    // The athlete's own choice (goal, then limiter) is the last thing a limit removes.
+    const focus = focusPriority(session, profile);
     return (
       needed * 100 +
       (mainGoal ? 100 : 0) +
+      (focus === 3 ? 130 : focus === 2 ? 120 : focus === 1 ? 110 : 0) +
       (["gym_strength", "endurance_conditioning", "speed_sprint"].includes(category) ? 10 : 0)
     );
   };
@@ -423,10 +434,7 @@ export function enforceFinalPlanPolicy(input: SessionDay[], profile: Profile): S
       "Świeżość przed meczem: nie dokładamy pełnego sprintu na MD-2 ani biegu wydolnościowego lub pełnej siły na MD-1, żeby uzupełnić liczbę treningów.",
     );
     const weekday = isoDayOfWeek(parseIso(day.date));
-    const unavailable =
-      (profile.unavailableDays ?? []).includes(weekday) ||
-      (Array.isArray(profile.individualTrainingDays) &&
-        !profile.individualTrainingDays.includes(weekday));
+    const unavailable = !ownTrainingAllowed(profile, weekday);
     if (unavailable) {
       removeMatching(
         index,
@@ -535,7 +543,9 @@ export function enforceFinalPlanPolicy(input: SessionDay[], profile: Profile): S
     const fit = (session: SessionDay) => {
       const sub = classifySession(session).subcategory ?? "";
       const cod = /change_of_direction|deceleration|braking|agility|reactive/.test(sub);
-      return (codGoal ? cod : !cod) ? 2 : 1;
+      // A full sprint session is kept over a short speed exposure.
+      const full = assessSpeedLoad({ ...session, secondSession: null }).exposure === "full";
+      return ((codGoal ? cod : !cod) ? 2 : 1) * 2 + (full ? 1 : 0);
     };
     const options = inWeek
       .flatMap((index) => [false, true].map((second) => ({ index, second })))
@@ -601,6 +611,25 @@ export function enforceFinalPlanPolicy(input: SessionDay[], profile: Profile): S
     const counts = countWeekRoles(week, profile.goal);
     if (counts.mandatory >= rule.mandatoryCount) continue;
     relocateToRest(session, sourceIndex, true);
+  }
+  // The weekly sprint limit can free a day after a second session had nowhere
+  // to go. A displaced session that the week now misses (a weekly minimum or
+  // the athlete's choice) takes such a free day; nothing else is replaced.
+  for (const { session, sourceIndex } of [...displaced.values()]) {
+    const week = plan.filter((day) => monday(day.date) === monday(session.date));
+    // The week keeps its free day: only a second free day can take the session.
+    if (week.filter((day) => !hasWork(day) && !external(day)).length < 2) continue;
+    const missing = finalPolicyMissingTargets(week, profile);
+    const fills =
+      (isMainGymSession(session) && missing.includes("siła")) ||
+      (isEnduranceSession(session) && missing.includes("wydolność")) ||
+      (isBallTechnicalSession(session) && missing.includes("piłka")) ||
+      unmetFocusTargets(week, profile).some((target) =>
+        sessionHasQuality(session, target.quality),
+      );
+    // Its own day counts too: the session that pushed it out may be gone now.
+    if (fills && !assessSpeedLoad(session).countsAsSpeedExposure)
+      relocateToRest(session, sourceIndex, false, true);
   }
   // Conservative scheduling default for two genuinely high lower-body loads,
   // not a universal biological recovery interval. Club/match and execution logs stay fixed.
@@ -761,10 +790,9 @@ export function enforceFinalPlanPolicy(input: SessionDay[], profile: Profile): S
     const missing = week.length === 7 ? finalPolicyMissingTargets(week, profile) : [];
     const healthLimited = profile.painInjury || profile.seasonPhase === "return_injury";
     const weekNotes = [...(notes.get(key) ?? [])];
-    if (missing.length)
-      weekNotes.push(
-        `Nie zmieszczono wszystkich celów tygodnia: ${missing.join(", ")}. Ograniczenia mają pierwszeństwo.`,
-      );
+    // One concrete note: which choice or minimum is missing and what took its place.
+    const missingNote = week.length === 7 ? unmetFocusNote(week, profile, missing) : null;
+    if (missingNote) weekNotes.push(missingNote);
     if (healthLimited)
       weekNotes.push("Plan ograniczony ze względu na zgłoszony ból lub powrót po urazie.");
     const roles = countWeekRoles(week, profile.goal);
