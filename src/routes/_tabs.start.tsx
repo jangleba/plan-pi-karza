@@ -30,8 +30,17 @@ import { focusAim, loadMastery, type AimProgress } from "@/features/football-iq-
 import { UpcomingWeekPrompt } from "@/components/loadwise/UpcomingWeekPrompt";
 import { useCycleReviewCard } from "@/lib/loadwise/useCycleReview";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import {
+  parseSessionSheetSearch,
+  prepareSessionSheet,
+  SessionSheet,
+  useSessionSheet,
+  type SessionSheetSearch,
+} from "@/components/loadwise/session/SessionSheet";
 
 export const Route = createFileRoute("/_tabs/start")({
+  validateSearch: (search: Record<string, unknown>): SessionSheetSearch =>
+    parseSessionSheetSearch(search),
   component: StartScreen,
 });
 
@@ -217,6 +226,7 @@ function PlanLoadingState() {
 }
 
 function StartScreen() {
+  const unit = useSessionSheet(Route.useSearch());
   const { user } = useAuth();
   const [iqTask, setIqTask] = useState<FieldTask | null>(null);
   const [iqGoal, setIqGoal] = useState<AimProgress | null>(null);
@@ -475,15 +485,10 @@ function StartScreen() {
         onPrepareReaction={() => {
           void router.preloadRoute({ to: "/reakcja" }).catch(() => undefined);
         }}
-        onPrepare={(date, slot) => {
-          void router
-            .preloadRoute({ to: "/sesja/$date", params: { date }, search: { slot } })
-            .catch(() => undefined);
-        }}
-        onOpen={(date, slot) =>
-          void navigate({ to: "/sesja/$date", params: { date }, search: { slot } })
-        }
+        onPrepare={prepareSessionSheet}
+        onOpen={(date, slot) => unit.open({ date, slot })}
       />
+      <SessionSheet target={unit.target} onClose={unit.close} onSelect={unit.select} />
       <UpcomingWeekPrompt
         onConfirmed={(week) => void navigate({ to: "/plan", search: { week } })}
       />

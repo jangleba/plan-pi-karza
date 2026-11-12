@@ -509,3 +509,55 @@
 .bw-session-v2 .bw-training-tools[open] > * + * {
   margin-top: 12px;
 }
+/* One plain entry to the session options (no fold-out section). */
+.bw-unit-options {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 0 2px;
+  color: var(--muted-foreground);
+  font-size: 14px;
+  font-weight: 500;
+}
+.bw-unit-options svg {
+  width: 17px;
+  height: 17px;
+}
+.bw-unit-part {
+  display: grid;
+  gap: 8px;
+}
+.bw-unit-part-title {
+  margin: 4px 2px 0;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--muted-foreground);
+}
+.bw-unit-info {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+}
+.bw-unit-info li {
+  display: grid;
+  gap: 2px;
+  padding: 10px 14px;
+  font-size: 15px;
+}
+.bw-unit-info li + li {
+  border-top: 1px solid var(--border);
+}
+.bw-unit-info span {
+  font-size: 14px;
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+.bw-unit-options-sheet .bw-strength-session-tools,
+.bw-unit-options-sheet .grid {
+  margin-top: 12px;
+}

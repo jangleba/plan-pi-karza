@@ -1,5 +1,5 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { ChevronDown, Pause, Play } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Pause, Play } from "lucide-react";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import { resolveHowTo } from "@/lib/loadwise/sessionRunner/howTo";
 import type { AnimationSelection } from "@/lib/trainingCoach/animationCatalog";
@@ -7,40 +7,12 @@ import { boxTouchVariant, parseHoldSeconds } from "@/lib/trainingCoach/exerciseT
 import { APP_VERSION } from "@/lib/appVersion";
 
 /**
- * "Jak wykonać" under the current exercise. Nothing is resolved or fetched
- * until the athlete opens it; closing it unmounts the animation, which stops
- * playback. It never touches set entries, completion marks or the rest clock.
+ * The "Technika" tab: animation and a short instruction. It mounts only while
+ * the tab is shown, so nothing is fetched before the athlete asks for it, and
+ * switching back to "Trening" unmounts the player, which stops playback. It
+ * never touches set entries, completion marks or the rest clock.
  */
-export function HowToSection({
-  exercise,
-  defaultOpen = false,
-}: {
-  exercise: TrainingExercise;
-  defaultOpen?: boolean;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  const panelId = useId();
-  return (
-    <section className="bw-howto" data-open={open || undefined}>
-      <button
-        type="button"
-        className="bw-howto-toggle"
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <span>
-          <strong>Jak wykonać</strong>
-          <small>Animacja i krótkie instrukcje</small>
-        </span>
-        <ChevronDown aria-hidden="true" className={open ? "is-open" : undefined} />
-      </button>
-      {open && <HowToPanel id={panelId} exercise={exercise} />}
-    </section>
-  );
-}
-
-function HowToPanel({ id, exercise }: { id: string; exercise: TrainingExercise }) {
+export function HowToPanel({ id, exercise }: { id?: string; exercise: TrainingExercise }) {
   const howTo = useMemo(() => resolveHowTo(exercise), [exercise]);
   return (
     <div id={id} className="bw-howto-panel">

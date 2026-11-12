@@ -86,8 +86,15 @@ async function walkSession(session: SessionDay) {
   const titles: string[] = [];
   const restLines: string[] = [];
   for (let guard = 0; guard < 60; guard += 1) {
+    const tiles = [...host.querySelectorAll(".bw-runner-tile")];
+    if (tiles.length)
+      for (const tile of tiles)
+        titles.push(tile.querySelector("h2 .bw-runner-name")?.textContent ?? "");
+    else
+      titles.push(
+        host.querySelector(".bw-unit-exercise-head h2 .bw-runner-name")?.textContent ?? "",
+      );
     for (const card of host.querySelectorAll(".bw-runner-card")) {
-      titles.push(card.querySelector("h2 .bw-runner-name")?.textContent ?? "");
       for (const fact of card.querySelectorAll(".bw-runner-facts > div"))
         if (fact.querySelector("dt")?.textContent === "Odpoczynek")
           restLines.push(fact.querySelector("dd")?.textContent ?? "");

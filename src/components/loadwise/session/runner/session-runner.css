@@ -139,9 +139,6 @@
   color: var(--muted-foreground);
   transition: transform 0.15s ease;
 }
-.bw-rplan-row > button > svg.is-open {
-  transform: rotate(180deg);
-}
 .bw-rplan-mark {
   display: inline-flex;
   flex: none;
@@ -155,8 +152,21 @@
   font-size: 11px;
   font-weight: 700;
 }
-.bw-rplan[data-mode="preview"] .bw-rplan-mark[data-state="open"]:empty {
-  display: none;
+.bw-rplan-mark[data-state="open"]:empty {
+  width: 10px;
+  height: 10px;
+  margin: 0 8px;
+  background: transparent;
+  border: 1.5px solid var(--input);
+}
+.bw-rplan-now {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 12px;
+  font-weight: 650;
 }
 .bw-rplan-mark[data-state="done"] {
   background: var(--primary);
@@ -179,14 +189,11 @@
   overflow-wrap: anywhere;
 }
 .bw-rplan-text small {
-  font-size: 13px;
-  color: var(--muted-foreground);
+  font-size: 14px;
+  font-weight: 550;
+  color: color-mix(in oklch, var(--foreground) 72%, var(--muted-foreground));
+  font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
-}
-.bw-rplan-details {
-  display: grid;
-  gap: 10px;
-  padding: 0 14px 14px 52px;
 }
 .bw-runner-start {
   position: sticky;
@@ -390,7 +397,9 @@
 .bw-runner-next {
   display: grid;
   gap: 2px;
+  width: 100%;
   margin: 0;
+  text-align: left;
   padding: 10px 14px;
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -455,15 +464,17 @@
   z-index: 4;
 }
 .bw-runner-optional {
+  display: grid;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
   font-size: 14px;
 }
-.bw-runner-optional > summary {
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  color: var(--primary);
-  font-weight: 600;
-  cursor: pointer;
+.bw-runner-optional > h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--muted-foreground);
 }
 
 /* Bouts: sets, sprint repetitions, sides */
@@ -720,41 +731,6 @@
 }
 
 /* Jak wykonać */
-.bw-howto {
-  border-top: 1px solid var(--border);
-  margin-top: 2px;
-}
-.bw-howto-toggle {
-  display: flex;
-  width: 100%;
-  min-height: 52px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 0 4px;
-  text-align: left;
-}
-.bw-howto-toggle span {
-  display: grid;
-}
-.bw-howto-toggle strong {
-  font-size: 15px;
-  font-weight: 650;
-}
-.bw-howto-toggle small {
-  font-size: 13px;
-  color: var(--muted-foreground);
-}
-.bw-howto-toggle svg {
-  flex: none;
-  width: 20px;
-  height: 20px;
-  color: var(--muted-foreground);
-  transition: transform 0.15s ease;
-}
-.bw-howto-toggle svg.is-open {
-  transform: rotate(180deg);
-}
 .bw-howto-panel {
   display: grid;
   gap: 12px;
@@ -948,4 +924,142 @@
   font-size: 13px;
   color: var(--muted-foreground);
   overflow-wrap: anywhere;
+}
+
+/* One exercise: name and dose, then the "Trening" / "Technika" tabs. */
+.bw-unit-exercise {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.bw-unit-back {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 2px;
+  margin-left: -6px;
+  padding: 0 6px;
+  color: var(--primary);
+  font-size: 15px;
+  font-weight: 600;
+}
+.bw-unit-back svg {
+  width: 18px;
+  height: 18px;
+}
+.bw-unit-exercise-head {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.bw-unit-exercise-head .bw-runner-eyebrow {
+  margin: 0;
+}
+.bw-unit-exercise-head h2 {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+.bw-unit-exercise-head h2 > span {
+  min-width: 0;
+}
+.bw-unit-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--muted);
+}
+.bw-unit-tabs button {
+  min-height: 44px;
+  border-radius: 9px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+.bw-unit-tabs button[aria-selected="true"] {
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 1px 3px rgb(15 30 55 / 0.12);
+}
+.bw-unit-panel {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.bw-unit-panel > .bw-howto-panel {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+}
+.bw-unit-plan {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+}
+.bw-unit-plan-row {
+  display: grid;
+  gap: 10px;
+}
+.bw-unit-plan-row + .bw-unit-plan-row {
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.bw-unit-plan-row h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.bw-unit-plan-row h3 small {
+  flex-basis: 100%;
+  font-size: 15px;
+  font-weight: 600;
+  color: color-mix(in oklch, var(--foreground) 72%, var(--muted-foreground));
+}
+.bw-unit-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.bw-unit-pick button {
+  min-width: 52px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+.bw-unit-pick button[aria-pressed="true"] {
+  border-color: var(--primary);
+  background: color-mix(in oklch, var(--primary) 8%, var(--card));
+  color: var(--primary);
+}
+.bw-unit-pick-name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.bw-runner[data-view="list"] .bw-runner-rest-dock {
+  position: static;
 }

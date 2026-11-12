@@ -1,0 +1,28 @@
+/*
+ * The training panel: the shared bottom sheet at its large detent, holding
+ * the session view edge to edge on the session's own grey background.
+ */
+.bw-sheet.bw-unit-sheet .bw-sheet-scroll {
+  padding: 0 0 max(16px, env(safe-area-inset-bottom));
+  background: var(--background);
+}
+.bw-unit-sheet .bw-unit-view {
+  min-height: 100%;
+}
+.bw-unit-sheet .bw-session-head {
+  padding: 10px 16px 8px;
+}
+.bw-unit-sheet .bw-session-v2 > .bw-session-body {
+  margin-top: 0;
+  padding-bottom: 8px;
+}
+.bw-unit-sheet .bw-session-date {
+  margin: 0 0 2px;
+}
+.bw-unit-sheet .bw-session-head h1 {
+  font-size: 21px;
+}
+.bw-unit-sheet .bw-session-meta-line {
+  margin-top: 2px;
+  font-size: 14px;
+}

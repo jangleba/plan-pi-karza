@@ -16,9 +16,11 @@ export function SessionScreenShell({
   onBack,
   children,
 }: {
-  onBack: () => void;
+  /** Without it (inside the session panel) the panel's own close button leaves. */
+  onBack?: () => void;
   children: ReactNode;
 }) {
+  if (!onBack) return <div className="bw-unit-view space-y-3 px-5 pt-2 pb-8">{children}</div>;
   return (
     <div className="app-shell premium-flow min-h-screen pb-[140px]">
       <div className="px-5 pt-6">
@@ -101,15 +103,18 @@ export function SessionHeader({
   isToday: boolean;
   /** True while the screen only shows the plan (another day, or not started). */
   preview: boolean;
-  onBack: () => void;
+  /** Full page only; the session panel closes with its own button. */
+  onBack?: () => void;
 }) {
   const heading = sessionHeading(session);
   const status = statusBadgeLabel(session);
   return (
     <header className="bw-session-head">
-      <button type="button" onClick={onBack} className="bw-session-back">
-        <ChevronLeft aria-hidden="true" /> Wstecz
-      </button>
+      {onBack && (
+        <button type="button" onClick={onBack} className="bw-session-back">
+          <ChevronLeft aria-hidden="true" /> Wstecz
+        </button>
+      )}
       <p className="bw-session-date">
         <span data-today={isToday || undefined}>
           {isToday ? "Dziś" : formatDateFull(session.date)}

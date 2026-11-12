@@ -115,7 +115,9 @@ describe("serie łączone na ekranie sesji", () => {
       ),
     );
     const linked = host.querySelector(".bw-runner-linked")!;
-    expect(linked.querySelector(".bw-runner-eyebrow")?.textContent).toContain("Seria kontrastowa");
+    expect(host.querySelector(".bw-unit-exercise-head .bw-runner-eyebrow")?.textContent).toContain(
+      "Seria kontrastowa",
+    );
     const tiles = [...linked.querySelectorAll(".bw-runner-tile")];
     expect(tiles.map((t) => t.querySelector("h2")?.textContent)).toEqual([
       "A1Przysiad goblet",
@@ -138,7 +140,7 @@ describe("serie łączone na ekranie sesji", () => {
     )!;
     await act(async () => next.click());
     expect(host.querySelector(".bw-runner-linked")).toBeNull();
-    expect(host.querySelector(".bw-runner-card h2")?.textContent).toBe("Most biodrowy");
+    expect(host.querySelector(".bw-unit-exercise-head h2")?.textContent).toBe("Most biodrowy");
     expect(host.querySelector(".bw-runner-facts")?.textContent).toContain("Odpoczynek60 s");
     // Moving on is not a mark.
     expect(host.querySelector(".bw-runner-count strong")?.textContent).toBe("0");
