@@ -29,6 +29,7 @@ import {
 } from "./strengthBlocks";
 import { enforceSessionCategory, newContentCounters, type ContentCounters } from "./sessionContent";
 import { fitBallWorkToConditions } from "./individualFootballSessionEngine";
+import { prescribeRunningWeek } from "./runningWeek";
 import { effectiveSeasonPhase } from "./seasonValidation";
 import {
   requirementGymExperience,
@@ -5009,6 +5010,11 @@ export function generatePlan(
   );
   enforceWeeklySessionCap(constrainedPlan, profile, startDate, weekOffset);
   restoreMatchEveActivation(constrainedPlan, rawProfile);
+  // Biegi dostają recepturę dopiero teraz, gdy znany jest cały tydzień
+  // (klub, mecz, siła, sprint i pozostałe biegi).
+  prescribeRunningWeek(constrainedPlan, rawProfile).forEach((day, index) => {
+    constrainedPlan[index] = day;
+  });
   // Dwie własne sesje dnia w kolejności obciążenia: sprint przed siłą,
   // siła przed wydolnością, lekki bieg i prehab na końcu.
   constrainedPlan.forEach((day, index) => {

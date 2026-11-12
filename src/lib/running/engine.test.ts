@@ -39,9 +39,9 @@ describe("silnik biegowy", () => {
     });
   });
 
-  it("przed pierwszym testem planuje test, a pozostałe biegi pozostawia łatwe", () => {
+  it("test 5 min jest dobrowolny: powstaje tylko na wyraźną prośbę", () => {
     expect(buildRunningSessionPrescription({ date: "2026-09-05", sessionIndex: 0 }).method).toBe(
-      "field_mas_test",
+      "easy_aerobic",
     );
     expect(buildRunningSessionPrescription({ date: "2026-09-05", sessionIndex: 1 }).method).toBe(
       "easy_aerobic",
@@ -69,7 +69,7 @@ describe("silnik biegowy", () => {
     expect(light.main[0].prescription).toContain("/km");
   });
 
-  it("po ważnym teście tworzy indywidualne tempo, a po 28 dniach ponawia test", () => {
+  it("po ważnym teście tworzy indywidualne tempo, a po 28 dniach nie wymusza testu", () => {
     const current = buildRunningSessionPrescription({
       fieldMasKmh: 15,
       fieldMasTestedAt: "2026-08-20",
@@ -86,7 +86,7 @@ describe("silnik biegowy", () => {
         date: "2026-09-05",
         sessionIndex: 0,
       }).method,
-    ).toBe("field_mas_test");
+    ).not.toBe("field_mas_test");
   });
 
   it("wyciąga wynik MAS z dokładnego kroku testowego", () => {
@@ -152,6 +152,7 @@ describe("silnik biegowy", () => {
       source: "gps" as const,
       createdAt: "2026-09-01T10:05:00Z",
       updatedAt: "2026-09-01T10:05:00Z",
+      isFieldMasTest: true,
       intervalResults: [{ ...result(200), durationSec: 300, distanceM: 1_500 }],
     };
     const trainingActivity = {
@@ -162,6 +163,7 @@ describe("silnik biegowy", () => {
       startedAt: "2026-09-05T10:00:00Z",
       endedAt: "2026-09-05T10:12:00Z",
       durationSec: 720,
+      isFieldMasTest: false,
       intervalResults: [result(212), result(213), result(214), result(215)],
     };
 
@@ -173,5 +175,32 @@ describe("silnik biegowy", () => {
       runningProgressionLevel: 1,
       runningProgressionUpdatedAt: "2026-09-05",
     });
+  });
+
+  it("zwykłe 5 minut biegu nie aktualizuje MAS ani VO2max", () => {
+    const plainFive = {
+      id: "run-3",
+      sessionId: "easy-session",
+      date: "2026-09-10",
+      startedAt: "2026-09-10T10:00:00Z",
+      endedAt: "2026-09-10T10:05:00Z",
+      durationSec: 300,
+      distanceM: 1_400,
+      avgPaceSecPerKm: 214,
+      route: [],
+      splits: [],
+      source: "gps" as const,
+      createdAt: "2026-09-10T10:05:00Z",
+      updatedAt: "2026-09-10T10:05:00Z",
+      intervalResults: [] as RunningIntervalResult[],
+    };
+    expect(fieldMasFromActivity(plainFive)).toBeNull();
+    // Jeden pięciominutowy odcinek w zwykłej sesji też nie jest testem.
+    const oneStep = {
+      ...plainFive,
+      intervalResults: [{ ...result(214), durationSec: 300, distanceM: 1_400 }],
+    };
+    expect(deriveRunningEngineState([oneStep]).fieldMasKmh).toBeNull();
+    expect(deriveRunningEngineState([plainFive]).fieldMasKmh).toBeNull();
   });
 });

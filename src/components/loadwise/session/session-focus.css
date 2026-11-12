@@ -561,3 +561,30 @@
 .bw-unit-options-sheet .grid {
   margin-top: 12px;
 }
+.bw-run-test-option {
+  margin-top: 16px;
+  border-radius: 16px;
+  background: var(--muted);
+  padding: 14px 16px;
+  display: grid;
+  gap: 8px;
+}
+.bw-run-test-option h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.bw-run-test-option p {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+}
+.bw-run-test-option button {
+  min-height: 44px;
+  border-radius: 999px;
+  background: var(--card);
+  font-size: 14px;
+  font-weight: 600;
+}
