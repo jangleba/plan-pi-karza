@@ -60,7 +60,7 @@ describe("Fuel25 corrected application flows", () => {
     data.timings[match.key] = relativeFuelTiming(120, now)!;
     localStorage.setItem(fuelStorageKey("u"), JSON.stringify(data));
     await act(async () => root.render(<FuelWorkspace userId="u" contexts={[match]} />));
-    await click("Porcje i przygotowanie", host);
+    await click("Przepis", host);
     const dialog = document.querySelector('[role="dialog"]')!;
     expect(dialog.textContent).toContain("Zestaw przed wysiłkiem");
   });

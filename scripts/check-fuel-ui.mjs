@@ -260,6 +260,59 @@ try {
     .getByText("Zapisano wypity napój.", { exact: true })
     .waitFor({ state: "hidden", timeout: 7000 });
   await snap("napoje");
+  // "Co zjeść teraz?": slim top, one answer with a reason, quick fits, proven sets.
+  for (const width of [320, 390, 430]) {
+    await page.setViewportSize({ width, height: 844 });
+    await goto();
+    ensure(
+      (await page.locator(".fuel-now-reason").textContent())?.startsWith("Do meczu"),
+      "Reason missing",
+    );
+    const card = await page.locator(".fuel-now-card .fuel-primary").boundingBox();
+    const tabs = await page.locator(".bw-tab-bar").boundingBox();
+    ensure(card && tabs && card.y + card.height <= tabs.y, "Zjadłem below the fold at " + width);
+    await snap("teraz-" + width);
+    await goto("?mode=no-time");
+    await snap("brak-godziny-" + width);
+    await goto("?mode=history");
+    await page.locator(".fuel-now-proven").waitFor();
+    await snap("sprawdzone-" + width);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await goto();
+  await page.getByRole("button", { name: "Mam 5 minut", exact: true }).click();
+  ensure(
+    (await page.evaluate(() => window.__fuelQA.read().selection?.fit)) === "quick",
+    "Quick fit not remembered",
+  );
+  await snap("dopasowanie-5-minut");
+  await page.getByRole("button", { name: "W sklepie", exact: true }).click();
+  await page.getByRole("button", { name: /Sprawdź produkt z półki/ }).waitFor();
+  await snap("dopasowanie-sklep");
+  await page.getByRole("button", { name: "Mam swoje", exact: true }).click();
+  await page.locator("#fuel-food-text").fill("ryż, jajka");
+  await page.getByRole("button", { name: "Pokaż zestaw z tych produktów", exact: true }).click();
+  await page.locator(".fuel-now-missing").waitFor();
+  ensure(
+    (await page.evaluate(() => window.__fuelQA.read().selection?.pantry?.length)) === 2,
+    "Pantry not remembered",
+  );
+  await page.waitForTimeout(400);
+  await snap("dopasowanie-mam-swoje");
+  await goto("?mode=history");
+  const before = await page.evaluate(() => window.__fuelQA.read().entries.length);
+  await page.getByRole("button", { name: "Zmień", exact: true }).click();
+  await page.getByRole("button", { name: "30 min", exact: true }).click();
+  await page.waitForTimeout(400);
+  ensure(
+    (await page.locator(".fuel-now-reason").textContent())?.startsWith("Do meczu 30 min"),
+    "Proposal not updated after a new start time",
+  );
+  ensure(
+    (await page.evaluate(() => window.__fuelQA.read().entries.length)) === before,
+    "History lost after a new start time",
+  );
+  await snap("nowy-termin");
   ensure(
     (await page.getByText("Dlaczego ten posiłek?").count()) === 0,
     "Meal screen should show only what to eat, not why",
@@ -310,7 +363,7 @@ try {
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await goto();
   const storedBefore = await page.evaluate(() => JSON.stringify(window.__fuelQA.read().entries));
-  await page.getByRole("button", { name: "Porcje i przygotowanie", exact: true }).click();
+  await page.getByRole("button", { name: "Przepis", exact: true }).click();
   const sheet = page.locator('.bw-sheet[data-state="open"]');
   const grams = sheet.locator(".fuel-grams input").first();
   await grams.fill("173");
