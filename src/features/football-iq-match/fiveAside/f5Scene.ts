@@ -28,7 +28,7 @@ import {
 import { loadRunningModel, makeActor, PLAYER_HEIGHT, type RunningModel } from "../mixamo";
 import { RUN_STRIDE_UNITS, WALK_STRIDE_UNITS } from "../animation";
 import { angleDiff, dist, headingOf, lerpAngle, v, type V } from "../firstPerson/fpMath";
-import { AdaptiveResolution, EYE_HEIGHT, FixedStep } from "../firstPerson/fpScene";
+import { AdaptiveResolution, EYE_HEIGHT, FixedStep, precompileScene } from "../firstPerson/fpScene";
 import { buildWorld, toWorld, BALL_R } from "../firstPerson/fpWorld";
 import { LookController, pitchOf, yawOf, type LookStatus } from "../firstPerson/fpLook";
 import {
@@ -505,6 +505,11 @@ export async function createF5Scene(
     queued.push({ tick: 0, kind: "move", ...q });
   };
 
+  await precompileScene(renderer, scene, camera, signal);
+  if (signal?.aborted) {
+    dispose();
+    throw new DOMException("aborted", "AbortError");
+  }
   startLoop();
   onEvent({ type: "ready" });
 

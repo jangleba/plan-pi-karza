@@ -18,7 +18,9 @@ import {
   SRGBColorSpace,
   Vector3,
   WebGLRenderer,
+  type Camera,
   type Mesh,
+  type Object3D,
 } from "three";
 import { loadRunningModel, makeActor, PLAYER_HEIGHT, type RunningModel } from "../mixamo";
 import { RUN_STRIDE_UNITS, WALK_STRIDE_UNITS } from "../animation";
@@ -69,6 +71,26 @@ export class FixedStep {
 }
 
 /** Adaptive render resolution: lower when frames are slow, raise again when there is room. */
+/**
+ * Compiles every shader of the scene before the first frame. With the parallel-compile
+ * extension (Safari/WebKit, Chrome) the GPU driver works off the main thread, so the first
+ * seconds of play do not stutter while materials are seen for the first time. Never fatal:
+ * without the extension or on an error the shaders compile on first use, as before.
+ */
+export async function precompileScene(
+  renderer: { compileAsync?: (scene: Object3D, camera: Camera) => Promise<unknown> },
+  scene: Object3D,
+  camera: Camera,
+  signal?: AbortSignal,
+) {
+  if (typeof renderer.compileAsync !== "function" || signal?.aborted) return;
+  try {
+    await renderer.compileAsync(scene, camera);
+  } catch {
+    // The first render compiles what is missing.
+  }
+}
+
 export class AdaptiveResolution {
   ratio: number;
   private avg = 16.7;
@@ -437,6 +459,11 @@ export async function createFpScene(
     renderer.domElement.remove();
   }
 
+  await precompileScene(renderer, scene, camera, signal);
+  if (signal?.aborted) {
+    dispose();
+    throw new DOMException("aborted", "AbortError");
+  }
   startLoop();
   onEvent({ type: "ready" });
 
