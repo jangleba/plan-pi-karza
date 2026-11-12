@@ -273,19 +273,25 @@ try {
   for (let i = 0; i < 30 && !(await kg.count()); i += 1)
     await p.getByRole("button", { name: "Następne", exact: false }).click();
   await kg.fill("60");
-  await p.getByRole("textbox", { name: "Seria 1: powtórzenia", exact: true }).fill("5");
-  await p.getByRole("textbox", { name: "Seria 1: zapas powtórzeń", exact: true }).fill("3");
+  await p.getByRole("textbox", { name: "Seria 1: powtórzenia", exact: true }).fill("4");
+  // Steppers: one tap adds a repetition.
+  await p.getByRole("button", { name: "Seria 1: powtórzenia: więcej", exact: true }).click();
+  await p.getByRole("button", { name: "Seria 1: zapas 3", exact: true }).click();
   await p.getByRole("button", { name: "Zatwierdź serię 1", exact: true }).click();
   await p.locator(".bw-rest-card").waitFor();
-  await p.getByRole("button", { name: "Seria 1 zapisana", exact: true }).waitFor();
+  await p.getByRole("button", { name: "Seria 1 zapisana, popraw", exact: true }).waitFor();
   await p.waitForFunction(() =>
     JSON.parse(localStorage.getItem("session66:qa-rows") || "[]").some(
       (r) => r.weight_kg === 60 && r.reps === 5 && r.rir === 3,
     ),
   );
+  // The next set is prefilled from the saved one.
+  const kg2 = p.getByRole("textbox", { name: "Seria 2: ciężar w kg", exact: true });
+  if ((await kg2.inputValue()) !== "60") throw Error("Next set not prefilled");
   await p.reload();
-  if ((await kg.inputValue()) !== "60") throw Error("Gym result lost on reload");
+  if ((await kg2.inputValue()) !== "60") throw Error("Gym result lost on reload");
   // Correction keeps the same set number (no second log for set 1).
+  await p.getByRole("button", { name: "Seria 1 zapisana, popraw", exact: true }).click();
   await p.getByRole("textbox", { name: "Seria 1: powtórzenia", exact: true }).fill("6");
   await p.getByRole("button", { name: "Zapisz poprawkę serii 1", exact: true }).click();
   await p.waitForFunction(() =>
@@ -293,9 +299,10 @@ try {
       (r) => r.weight_kg === 60 && r.reps === 6,
     ),
   );
+  await p.getByRole("button", { name: "Seria 1 zapisana, popraw", exact: true }).click();
   await p.getByRole("textbox", { name: "Seria 1: powtórzenia", exact: true }).fill("5");
   await p.getByRole("button", { name: "Zapisz poprawkę serii 1", exact: true }).click();
-  await p.getByRole("button", { name: "Seria 1 zapisana", exact: true }).waitFor();
+  await p.getByRole("button", { name: "Zatwierdź serię 2", exact: true }).waitFor();
   await p.waitForTimeout(1000);
   await p.screenshot({ path: work + "/strength-set.png" });
   await p.getByRole("button", { name: "Lista ćwiczeń", exact: false }).click();
@@ -381,7 +388,8 @@ try {
     const name = await unit.locator(".bw-unit-exercise-head h2").innerText();
     await kgUnit.fill("40");
     await unit.getByRole("textbox", { name: "Seria 1: powtórzenia", exact: true }).fill("8");
-    await unit.getByRole("textbox", { name: "Seria 1: zapas powtórzeń", exact: true }).fill("3");
+    await unit.getByRole("button", { name: "Seria 1: zapas 3", exact: true }).click();
+    await p.screenshot({ path: path.join(shotDir, `04a-zapis-serii-${width}.png`) });
     await unit.getByRole("button", { name: "Zatwierdź serię 1", exact: true }).click();
     await unit.locator(".bw-rest-card").waitFor();
     await p.waitForTimeout(400);
@@ -398,7 +406,7 @@ try {
     await openUnit();
     if ((await unit.locator(".bw-unit-exercise-head h2").innerText()) !== name)
       throw Error("Reopened panel lost the open exercise");
-    await unit.getByRole("button", { name: "Seria 1 zapisana", exact: true }).waitFor();
+    await unit.getByRole("button", { name: "Seria 1 zapisana, popraw", exact: true }).waitFor();
     const after = await clock();
     if (!(after <= before - 2 && after > 0))
       throw Error(`Rest did not keep counting while closed: ${before} -> ${after}`);

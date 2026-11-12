@@ -86,27 +86,37 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin: 0 2px 6px;
-  font-size: 13px;
-  font-weight: 650;
-  letter-spacing: 0.01em;
+  margin: 0 16px 6px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--muted-foreground);
 }
 .bw-rplan-group h3 small {
-  font-size: 12px;
-  font-weight: 500;
+  display: none;
 }
 .bw-rplan-group ul {
   margin: 0;
   padding: 0;
   list-style: none;
-  border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 12px;
   background: var(--card);
   overflow: hidden;
 }
-.bw-rplan-group li + li {
-  border-top: 1px solid var(--border);
+.bw-rplan-group li,
+.bw-rplan-row > button {
+  position: relative;
+}
+.bw-rplan-group li + li::before,
+.bw-rplan-row + .bw-rplan-row > button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 16px;
+  height: 1px;
+  background: var(--border);
 }
 .bw-rplan-group li[data-linked] {
   padding-top: 8px;
@@ -120,24 +130,23 @@
 .bw-rplan-row > button {
   display: flex;
   width: 100%;
-  min-height: 56px;
+  min-height: 60px;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 10px 14px 10px 16px;
   text-align: left;
 }
-.bw-rplan-row + .bw-rplan-row > button {
-  border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+.bw-rplan-row > button:active {
+  background: var(--muted);
 }
 .bw-rplan-row[data-current] > button {
-  background: color-mix(in oklch, var(--primary) 7%, var(--card));
+  background: var(--card);
 }
 .bw-rplan-row > button > svg {
   flex: none;
-  width: 18px;
-  height: 18px;
-  color: var(--muted-foreground);
-  transition: transform 0.15s ease;
+  width: 16px;
+  height: 16px;
+  color: color-mix(in oklch, var(--muted-foreground) 55%, transparent);
 }
 .bw-rplan-mark {
   display: inline-flex;
@@ -153,20 +162,13 @@
   font-weight: 700;
 }
 .bw-rplan-mark[data-state="open"]:empty {
-  width: 10px;
-  height: 10px;
-  margin: 0 8px;
-  background: transparent;
-  border: 1.5px solid var(--input);
+  display: none;
 }
 .bw-rplan-now {
   flex: none;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: var(--primary);
-  color: var(--primary-foreground);
-  font-size: 12px;
-  font-weight: 650;
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 600;
 }
 .bw-rplan-mark[data-state="done"] {
   background: var(--primary);
@@ -183,15 +185,15 @@
   gap: 2px;
 }
 .bw-rplan-text strong {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 500;
   line-height: 1.3;
   overflow-wrap: anywhere;
 }
 .bw-rplan-text small {
   font-size: 14px;
-  font-weight: 550;
-  color: color-mix(in oklch, var(--foreground) 72%, var(--muted-foreground));
+  font-weight: 400;
+  color: var(--muted-foreground);
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
@@ -251,15 +253,14 @@
 }
 .bw-runner-card {
   display: grid;
-  gap: 10px;
+  gap: 14px;
   min-width: 0;
   padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 14px;
   background: var(--card);
 }
 .bw-runner-card[data-status="skipped"] {
-  border-style: dashed;
+  opacity: 0.75;
 }
 .bw-runner-eyebrow {
   font-size: 13px;
@@ -301,42 +302,44 @@
 .bw-runner-dose {
   margin: 0;
   font-size: 17px;
-  font-weight: 600;
+  font-weight: 500;
+  color: var(--muted-foreground);
   line-height: 1.4;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
 .bw-runner-facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: grid;
   margin: 0;
 }
 .bw-runner-facts > div {
-  display: grid;
+  display: flex;
   min-width: 0;
-  padding: 6px 10px;
-  border-radius: 10px;
-  background: var(--muted);
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.bw-runner-facts > div + div {
+  border-top: 1px solid var(--border);
 }
 .bw-runner-facts dt {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 15px;
   color: var(--muted-foreground);
 }
 .bw-runner-facts dd {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
+  text-align: right;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
 .bw-runner-cue {
   margin: 0;
-  padding-left: 10px;
-  border-left: 3px solid var(--primary);
   font-size: 15px;
   line-height: 1.45;
+  color: var(--muted-foreground);
   overflow-wrap: anywhere;
 }
 .bw-runner-state {
@@ -445,18 +448,17 @@
 }
 .bw-runner-nav .bw-runner-skip {
   padding: 0 14px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
   color: var(--muted-foreground);
+  font-weight: 500;
 }
 .bw-runner-finish-early {
   width: 100%;
   min-height: 48px;
-  margin-top: 12px;
-  border: 1px solid var(--border);
   border-radius: 12px;
-  color: var(--primary);
-  font-weight: 600;
+  background: var(--card);
+  color: var(--destructive);
+  font-size: 16px;
+  font-weight: 500;
 }
 .bw-runner-rest-dock {
   position: sticky;
@@ -631,87 +633,163 @@
   align-items: center;
 }
 
-/* Set table */
+/* Set entry: one set at a time, saved sets as rows above. */
 .bw-set-table-wrap {
   display: grid;
-  gap: 8px;
+  gap: 12px;
 }
-.bw-set-table {
+.bw-log-done {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: 12px;
+  background: var(--muted);
+  overflow: hidden;
+}
+.bw-log-done li + li {
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--border) 80%, transparent);
+}
+.bw-log-done button {
+  display: flex;
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0 6px;
-  table-layout: fixed;
+  min-height: 46px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
 }
-.bw-set-table th {
-  font-size: 12px;
+.bw-log-done li[data-editing] button {
+  background: color-mix(in oklch, var(--primary) 8%, var(--muted));
+}
+.bw-log-n {
+  width: 18px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--muted-foreground);
-  text-align: center;
 }
-.bw-set-table thead th:first-child,
-.bw-set-table tbody th {
-  width: 52px;
+.bw-log-result {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
 }
-.bw-set-table thead th:last-child {
-  width: 56px;
+.bw-log-rir {
+  font-size: 13px;
+  color: var(--muted-foreground);
 }
-.bw-set-table tbody th {
+.bw-log-done svg {
+  width: 18px;
+  height: 18px;
+  color: var(--primary);
+}
+.bw-log-entry {
+  display: grid;
+  gap: 14px;
+}
+.bw-log-title {
+  margin: 0;
   font-size: 15px;
-  color: var(--foreground);
+  font-weight: 650;
 }
-.bw-set-table tbody th small {
-  display: block;
-  font-size: 10px;
+.bw-log-title small {
+  font-size: 15px;
   font-weight: 500;
   color: var(--muted-foreground);
 }
-.bw-set-table td {
-  padding: 0 3px;
+.bw-log-fields {
+  display: grid;
+  gap: 10px;
 }
-.bw-set-table input {
-  width: 100%;
-  min-width: 0;
-  height: 44px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--background);
-  color: var(--foreground);
-  font-size: 17px;
-  font-weight: 600;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
+.bw-stepper {
+  display: grid;
+  grid-template-columns: 52px 1fr 52px;
+  align-items: center;
+  gap: 8px;
 }
-.bw-set-table tr[data-next] input {
-  border-color: color-mix(in oklch, var(--primary) 45%, var(--border));
-}
-.bw-set-table tr[data-saved] input {
-  background: color-mix(in oklch, var(--primary) 7%, var(--card));
-}
-.bw-set-check {
+.bw-stepper > button {
   display: inline-flex;
-  width: 48px;
-  height: 44px;
+  height: 52px;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--card);
-  color: var(--primary);
-  font-size: 12px;
-  font-weight: 650;
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--foreground);
 }
-.bw-set-check svg {
+.bw-stepper > button:disabled {
+  opacity: 0.35;
+}
+.bw-stepper > button svg {
   width: 20px;
   height: 20px;
 }
-.bw-set-check[aria-pressed="true"] {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: var(--primary-foreground);
-  opacity: 1;
+.bw-stepper label {
+  display: flex;
+  min-width: 0;
+  height: 52px;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  padding-top: 9px;
+  border-radius: 12px;
+  background: var(--muted);
 }
-.bw-set-check:disabled:not([aria-pressed="true"]) {
-  opacity: 0.45;
+.bw-stepper input {
+  width: 4.2ch;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+.bw-stepper label:focus-within {
+  box-shadow: 0 0 0 2px var(--primary);
+}
+.bw-stepper label span {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+.bw-log-rir-pick {
+  display: grid;
+  gap: 8px;
+}
+.bw-log-rir-pick > span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+.bw-log-rir-pick > div {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  padding: 3px;
+  border-radius: 11px;
+  background: var(--muted);
+}
+.bw-log-rir-pick button {
+  min-height: 44px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+.bw-log-rir-pick button[aria-pressed="true"] {
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 1px 3px rgb(15 30 55 / 0.14);
+}
+.bw-log-cancel {
+  min-height: 44px;
+  color: var(--primary);
+  font-size: 15px;
+  font-weight: 600;
 }
 .bw-load-hint {
   display: flex;
@@ -960,8 +1038,8 @@
   align-items: flex-start;
   gap: 8px;
   margin: 0;
-  font-size: 22px;
-  font-weight: 650;
+  font-size: 24px;
+  font-weight: 700;
   line-height: 1.25;
   letter-spacing: -0.015em;
   overflow-wrap: anywhere;
@@ -997,16 +1075,14 @@
 }
 .bw-unit-panel > .bw-howto-panel {
   padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 14px;
   background: var(--card);
 }
 .bw-unit-plan {
   display: grid;
   gap: 14px;
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
+  padding: 6px 16px 14px;
+  border-radius: 14px;
   background: var(--card);
 }
 .bw-unit-plan-row {

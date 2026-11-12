@@ -20,7 +20,9 @@
   margin: 0 0 2px;
 }
 .bw-unit-sheet .bw-session-head h1 {
-  font-size: 21px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 .bw-unit-sheet .bw-session-meta-line {
   margin-top: 2px;

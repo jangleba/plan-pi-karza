@@ -103,6 +103,36 @@ async function saveFirstSet() {
 }
 
 describe("ekran treningu", () => {
+  it("zapis serii: kolejna seria jest wypełniona, krokiem dodaje się powtórzenie, zapisaną można poprawić", async () => {
+    await render(true);
+    await click(byText("Następne"));
+    await click(byText("Następne"));
+    await saveFirstSet();
+    const reps2 = () =>
+      host.querySelector<HTMLInputElement>('input[aria-label="Seria 2: powtórzenia"]')!;
+    expect(reps2().value).toBe("10");
+    await click(
+      host.querySelector<HTMLButtonElement>('button[aria-label="Seria 2: powtórzenia: więcej"]')!,
+    );
+    expect(reps2().value).toBe("11");
+    await click(
+      host.querySelector<HTMLButtonElement>('button[aria-label="Seria 1 zapisana, popraw"]')!,
+    );
+    expect(host.querySelector('button[aria-label="Zapisz poprawkę serii 1"]')).not.toBeNull();
+    await click(byText("Anuluj"));
+    expect(host.querySelector('button[aria-label="Zatwierdź serię 2"]')).not.toBeNull();
+  });
+
+  it("start z podglądu ćwiczenia otwiera trening na tym ćwiczeniu", async () => {
+    const onStart = vi.fn();
+    await render(false, onStart);
+    await click(containing("Most biodrowy"));
+    await click(byText("Rozpocznij trening"));
+    expect(onStart).toHaveBeenCalledOnce();
+    await render(true);
+    expect(title()).toBe("Most biodrowy");
+  });
+
   it("podgląd: płaska lista z dawkami, bez pól wpisu, jedna główna akcja startu", async () => {
     const onStart = vi.fn();
     await render(false, onStart);
@@ -193,11 +223,11 @@ describe("ekran treningu", () => {
     expect(title()).toBe("Most biodrowy");
     await saveFirstSet();
     await click(tab("technika"));
-    expect(host.querySelector('input[aria-label="Seria 1: powtórzenia"]')).toBeNull();
+    expect(host.querySelector('input[aria-label="Seria 2: powtórzenia"]')).toBeNull();
     await click(tab("trening"));
     expect(title()).toBe("Most biodrowy");
     expect(count()).toContain("Wykonane 0 z 3");
-    expect(host.querySelector('button[aria-label="Seria 1 zapisana"]')).not.toBeNull();
+    expect(host.querySelector('button[aria-label="Seria 1 zapisana, popraw"]')).not.toBeNull();
     expect(host.querySelector(".bw-rest-card")).not.toBeNull();
   });
 
@@ -213,7 +243,7 @@ describe("ekran treningu", () => {
     expect(host.querySelector(".bw-runner")).toBeNull();
     await act(async () => root.render(runner(true)));
     expect(title()).toBe("Most biodrowy");
-    expect(host.querySelector('button[aria-label="Seria 1 zapisana"]')).not.toBeNull();
+    expect(host.querySelector('button[aria-label="Seria 1 zapisana, popraw"]')).not.toBeNull();
     // The rest keeps counting to its end time.
     expect(host.querySelector(".bw-rest-card")).not.toBeNull();
     expect(host.querySelector(".bw-rest-clock")?.textContent).toBe(restBefore);

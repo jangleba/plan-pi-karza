@@ -138,6 +138,8 @@ export function FocusedSessionRunner({
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [tab, setTab] = useState<ExerciseTab>("trening");
   const rootRef = useRef<HTMLDivElement>(null);
+  /** The exercise open in the preview when "Rozpocznij" was tapped; the session opens on it. */
+  const pendingStart = useRef<number | null>(null);
   const [failed, setFailed] = useState<RunnerRow | null>(null);
   const marking = useRef(false);
 
@@ -157,7 +159,8 @@ export function FocusedSessionRunner({
   const wasRecording = useRef(canRecord);
   useEffect(() => {
     if (canRecord && !wasRecording.current) {
-      selection.setValue(null);
+      selection.setValue(pendingStart.current);
+      pendingStart.current = null;
       view.setValue("exercise");
       setTab("trening");
     }
@@ -261,14 +264,13 @@ export function FocusedSessionRunner({
     });
   }
 
+  const startHere = () => {
+    pendingStart.current = previewIndex;
+    start?.onStart();
+  };
   const startAction = start && (
     <div className="bw-runner-start">
-      <button
-        type="button"
-        className="bw-runner-primary"
-        disabled={start.busy}
-        onClick={start.onStart}
-      >
+      <button type="button" className="bw-runner-primary" disabled={start.busy} onClick={startHere}>
         {start.busy ? "Rozpoczynanie…" : start.label}
       </button>
       {start.error && (
@@ -371,7 +373,6 @@ export function FocusedSessionRunner({
   const isLast = index === steps.length - 1;
   const method = step.kind === "linked" ? blockMethod(step.rows[0].block) : null;
   const guided = step.kind === "guided" ? guidedCooldowns.get(step.section.id) : undefined;
-  const following = steps[index + 1];
   const stepOpen = step.rows.some((row) => !closed(row));
   const listView = view.value === "list";
   // Continue where the athlete was (a half-done exercise), else the first open one.
@@ -554,19 +555,6 @@ export function FocusedSessionRunner({
                 Następne <ChevronRight aria-hidden="true" />
               </button>
             </nav>
-            {following && (
-              <button type="button" className="bw-runner-next" onClick={() => go(index + 1)}>
-                <span>Następnie</span>
-                <strong>
-                  {following.kind === "guided"
-                    ? `${sectionLabel(following.section)} · ${following.rows.length} ćw.`
-                    : canonicalExerciseName(following.rows[0].exercise)}
-                </strong>
-                {following.kind !== "guided" && (
-                  <small>{doseLine(following.rows[0].exercise)}</small>
-                )}
-              </button>
-            )}
             {(allClosed || isLast) && (
               <button type="button" className="bw-runner-primary" onClick={onFinish}>
                 {allClosed ? (
