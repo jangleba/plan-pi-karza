@@ -41,12 +41,14 @@ import {
 } from "lucide-react";
 
 import {
-  parseSessionSheetSearch,
   prepareSessionSheet,
   SessionSheet,
   useSessionSheet,
-  type SessionSheetSearch,
 } from "@/components/loadwise/session/SessionSheet";
+import {
+  parseSessionSheetSearch,
+  type SessionSheetSearch,
+} from "@/components/loadwise/session/sessionSheetSearch";
 import "@/styles/ballwise-plan.css";
 
 /** A plain tap opens the training panel; modified clicks keep the link's own page. */

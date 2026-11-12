@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
+  preloadRoute: vi.fn(() => Promise.resolve()),
   auth: { user: { id: "owner" } as { id: string } | null, loading: false },
   store: {
     hydrated: true,
@@ -15,6 +16,7 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
   createFileRoute: () => (options: unknown) => ({ options }),
   useNavigate: () => mocks.navigate,
+  useRouter: () => ({ preloadRoute: mocks.preloadRoute }),
 }));
 vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => mocks.auth }));
 vi.mock("@/lib/loadwise/store", () => ({ useLoadwise: () => mocks.store }));
@@ -29,6 +31,7 @@ let host: HTMLDivElement;
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   mocks.navigate.mockReset();
+  mocks.preloadRoute.mockClear();
   mocks.auth.user = { id: "owner" };
   mocks.auth.loading = false;
   mocks.store.state.plan = [{ date: "2026-10-25" }];
@@ -65,4 +68,15 @@ it("opens login when there is no signed-in user", async () => {
   mocks.auth.user = null;
   await render();
   expect(mocks.navigate).toHaveBeenCalledWith({ to: "/auth", replace: true });
+  expect(mocks.preloadRoute).not.toHaveBeenCalled();
+});
+it("fetches the Start screen code while a signed-in account is still loading", async () => {
+  mocks.store.hydrated = false;
+  try {
+    await render();
+    expect(mocks.preloadRoute).toHaveBeenCalledWith({ to: "/start" });
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  } finally {
+    mocks.store.hydrated = true;
+  }
 });

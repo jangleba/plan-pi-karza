@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
@@ -13,7 +13,15 @@ function Index() {
   const { user, loading } = useAuth();
   const { hydrated, hydrationError, state } = useLoadwise();
   const navigate = useNavigate();
+  const router = useRouter();
   const usablePlan = !!state.profile?.onboardingComplete && state.plan.length > 0;
+
+  // While the account data loads behind the launch screen, fetch the Start screen code in
+  // parallel, so the first screen does not wait for another round of downloads afterwards.
+  const signedIn = !!user;
+  useEffect(() => {
+    if (signedIn) void router.preloadRoute({ to: "/start" }).catch(() => undefined);
+  }, [signedIn, router]);
 
   useEffect(() => {
     if (loading) return;
