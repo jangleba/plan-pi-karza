@@ -22,6 +22,10 @@ import {
   Vector3,
   BoxGeometry,
   CircleGeometry,
+  Color,
+  IcosahedronGeometry,
+  InstancedMesh,
+  Matrix4,
   RingGeometry,
 } from "three";
 import { PITCH } from "./fpMath";
@@ -190,7 +194,11 @@ function boardTexture() {
   return texture;
 }
 
-export function buildWorld(PITCH: PitchDims = FULL_PITCH) {
+/** `day`: bright daytime sky with a tree line, floodlight masts and small stands (5v5).
+ * Without it the evening look of the 3v2 lesson stays exactly as it was. */
+export type WorldOptions = { day?: boolean };
+
+export function buildWorld(PITCH: PitchDims = FULL_PITCH, options: WorldOptions = {}) {
   const group = new Group();
   const geometries = new Set<BufferGeometry>();
   const materials = new Set<Material>();
@@ -204,8 +212,14 @@ export function buildWorld(PITCH: PitchDims = FULL_PITCH) {
   const pos = skyGeo.getAttribute("position");
   for (let i = 0; i < pos.count; i++) {
     const t = Math.max(0, pos.getY(i) / 400);
-    // Linear colour values: deep blue-grey overhead, lighter haze at the horizon.
-    colors.push(0.06 - 0.045 * t, 0.085 - 0.06 * t, 0.11 - 0.07 * t);
+    if (options.day) {
+      // Linear colour values: pale haze at the horizon, clear blue overhead.
+      const k = Math.min(1, t * 2.2);
+      colors.push(0.62 - 0.5 * k, 0.74 - 0.47 * k, 0.86 - 0.18 * k);
+    } else {
+      // Linear colour values: deep blue-grey overhead, lighter haze at the horizon.
+      colors.push(0.06 - 0.045 * t, 0.085 - 0.06 * t, 0.11 - 0.07 * t);
+    }
   }
   skyGeo.setAttribute("color", new Float32BufferAttribute(colors, 3));
   const sky = new Mesh(
@@ -227,7 +241,7 @@ export function buildWorld(PITCH: PitchDims = FULL_PITCH) {
   // Darker surround so the edge of the world is never visible.
   const surround = new Mesh(
     keep(new RingGeometry(Math.hypot(PITCH.halfWidth, PITCH.halfLength) + MARGIN + 2, 380, 32)),
-    mat(new MeshBasicMaterial({ color: "#1e3320" })),
+    mat(new MeshBasicMaterial({ color: options.day ? "#4c6b3a" : "#1e3320" })),
   );
   surround.rotation.x = -Math.PI / 2;
   surround.position.y = -0.02;
@@ -293,6 +307,8 @@ export function buildWorld(PITCH: PitchDims = FULL_PITCH) {
     group.add(e);
   }
 
+  if (options.day) addScenery(group, PITCH, keep, mat);
+
   const ballTex = ballTexture();
   textures.add(ballTex);
   const ball = new Mesh(
@@ -352,4 +368,94 @@ export function buildWorld(PITCH: PitchDims = FULL_PITCH) {
   };
 }
 export type FpWorld = ReturnType<typeof buildWorld>;
+
+/** Tree line, floodlight masts and two small stands around a small pitch. Trees are one
+ * instanced mesh per part, so the whole scenery costs a handful of draw calls. */
+function addScenery(
+  group: Group,
+  PITCH: PitchDims,
+  keep: <G extends BufferGeometry>(g: G) => G,
+  mat: <M extends Material>(m: M) => M,
+) {
+  // Deterministic pseudo-random numbers: the same scenery every time.
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  const crownGeo = keep(new IcosahedronGeometry(1, 1));
+  const trunkGeo = keep(new CylinderGeometry(0.18, 0.25, 1, 6));
+  const crownMat = mat(
+    new MeshStandardMaterial({ color: "#ffffff", roughness: 1, flatShading: true }),
+  );
+  const trunkMat = mat(new MeshStandardMaterial({ color: "#4a3a2c", roughness: 1 }));
+  const rx = PITCH.halfWidth + 30,
+    ry = PITCH.halfLength + 34;
+  const spots: { x: number; y: number }[] = [];
+  for (let a = 0; a < Math.PI * 2; a += 0.045) {
+    const r = 1 + rnd() * 0.35;
+    spots.push({ x: Math.sin(a) * rx * r * 1.25, y: Math.cos(a) * ry * r * 1.15 });
+    if (rnd() > 0.45) spots.push({ x: Math.sin(a) * rx * r * 1.55, y: Math.cos(a) * ry * r * 1.4 });
+  }
+  const crowns = new InstancedMesh(crownGeo, crownMat, spots.length);
+  const trunks = new InstancedMesh(trunkGeo, trunkMat, spots.length);
+  const m = new Matrix4(),
+    at = new Vector3(),
+    tint = new Color();
+  const greens = ["#3d6a33", "#4a7a3a", "#36602f", "#557f3f"];
+  spots.forEach((s, i) => {
+    // Broad leafy crowns, 8–13 m tall trees.
+    const h = 4 + rnd() * 3,
+      w = 3.2 + rnd() * 2;
+    toWorld(s.x, s.y, 3.2 + h * 0.8, at);
+    m.makeScale(w, h, w).setPosition(at);
+    crowns.setMatrixAt(i, m);
+    crowns.setColorAt(i, tint.set(greens[Math.floor(rnd() * greens.length)]!));
+    toWorld(s.x, s.y, 2, at);
+    m.makeScale(1, 4, 1).setPosition(at);
+    trunks.setMatrixAt(i, m);
+  });
+  group.add(crowns, trunks);
+
+  // Floodlight masts in the four corners, 16 m tall, lamps tilted towards the pitch.
+  const mastGeo = keep(new CylinderGeometry(0.16, 0.24, 16, 8));
+  const lampGeo = keep(new BoxGeometry(2.4, 1.2, 0.3));
+  const mastMat = mat(
+    new MeshStandardMaterial({ color: "#9aa3a6", roughness: 0.6, metalness: 0.4 }),
+  );
+  const lampMat = mat(new MeshStandardMaterial({ color: "#d8dde0", roughness: 0.5 }));
+  for (const sx of [-1, 1])
+    for (const sy of [-1, 1]) {
+      const x = sx * (PITCH.halfWidth + 7),
+        y = sy * (PITCH.halfLength - 2);
+      const mast = new Mesh(mastGeo, mastMat);
+      toWorld(x, y, 8, mast.position);
+      const lamp = new Mesh(lampGeo, lampMat);
+      toWorld(x, y, 16.4, lamp.position);
+      lamp.rotation.y = Math.atan2(-x, y);
+      lamp.rotation.x = -0.35;
+      group.add(mast, lamp);
+    }
+
+  // Two small covered stands along the long sides: steps, back wall and a light roof.
+  const stepGeo = keep(new BoxGeometry(1, 1, 1));
+  const standMat = mat(new MeshStandardMaterial({ color: "#7d8a8f", roughness: 0.9 }));
+  const seatMat = mat(new MeshStandardMaterial({ color: "#3d6e8c", roughness: 0.8 }));
+  const roofMat = mat(new MeshStandardMaterial({ color: "#c9d0d3", roughness: 0.7 }));
+  const length = PITCH.halfLength * 1.1;
+  for (const side of [-1, 1]) {
+    const base = PITCH.halfWidth + 5;
+    for (let row = 0; row < 4; row++) {
+      const step = new Mesh(stepGeo, row % 2 ? seatMat : standMat);
+      step.scale.set(1.0, 0.45 * (row + 1), length);
+      toWorld(side * (base + row * 1.0), 0, 0.225 * (row + 1), step.position);
+      group.add(step);
+    }
+    const wall = new Mesh(stepGeo, standMat);
+    wall.scale.set(0.3, 4.4, length);
+    toWorld(side * (base + 4), 0, 2.2, wall.position);
+    const roof = new Mesh(stepGeo, roofMat);
+    roof.scale.set(5.2, 0.15, length + 1);
+    toWorld(side * (base + 1.6), 0, 4.4, roof.position);
+    roof.rotation.z = side * 0.08;
+    group.add(wall, roof);
+  }
+}
 const FULL_PITCH: PitchDims = PITCH;

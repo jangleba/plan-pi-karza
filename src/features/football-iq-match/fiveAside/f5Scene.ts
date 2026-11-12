@@ -46,6 +46,13 @@ import { quantMove } from "./f5Bot";
 import { startYaw } from "./f5Debrief";
 
 const PLAYER_METRES = 1.8;
+/** Eye this far behind you (m) and the drag view this far down (rad): the ball at your feet
+ * shows at the bottom of the picture, as in the reference picture. */
+const EYE_BEHIND = 1.4;
+const LOOK_PITCH = -0.24;
+// Kits after the reference picture: light blue with navy shorts, maroon.
+const HOME_KIT = { shirt: "#7cc0ea", shorts: "#1d2f52" };
+const AWAY_KIT = { shirt: "#7c2334", shorts: "#4a1420" };
 const AIM_CONE = 0.14; // ≈ 8°: how close to a partner the view must point to aim at him
 
 /** What the screen needs to show the right buttons; sent only when it changes. */
@@ -81,13 +88,14 @@ export async function createF5Scene(
   host.prepend(renderer.domElement);
 
   const scene = new Scene();
-  scene.background = new Color("#1c2a33");
-  scene.fog = new Fog("#24333b", 45, 160);
-  scene.add(new HemisphereLight("#dfe8f2", "#3a4a30", 1.5));
-  const sun = new DirectionalLight("#fff3df", 2.4);
-  sun.position.set(30, 60, 15);
+  // Sunny afternoon (after the reference picture): bright sky, warm low sun, light haze.
+  scene.background = new Color("#a9c6df");
+  scene.fog = new Fog("#b7cadb", 70, 240);
+  scene.add(new HemisphereLight("#e8f1fb", "#4d6a3a", 1.7));
+  const sun = new DirectionalLight("#fff1d6", 2.8);
+  sun.position.set(-40, 55, 25);
   scene.add(sun);
-  const world = buildWorld({ ...F5_PITCH, small: true });
+  const world = buildWorld({ ...F5_PITCH, small: true }, { day: true });
   scene.add(world.group);
 
   // Far planes beyond the sky dome (radius 400) so it is never clipped.
@@ -110,6 +118,7 @@ export async function createF5Scene(
 
   const look = new LookController({
     target: host,
+    initialPitch: LOOK_PITCH,
     onStatus: (status) => onEvent({ type: "look", status }),
   });
 
@@ -146,6 +155,7 @@ export async function createF5Scene(
         goalkeeper: i % 5 === 0,
       },
       i * 0.37,
+      team === "home" ? HOME_KIT : AWAY_KIT,
     );
     const holder = new Group();
     holder.scale.setScalar(PLAYER_METRES / PLAYER_HEIGHT);
@@ -178,6 +188,22 @@ export async function createF5Scene(
   const queued: F5Input[] = [];
 
   const tmp = new Vector3();
+  // The eye sits a little behind you, so the ball at your feet is in the picture. It
+  // follows the body heading smoothly (never the look), so looking around never moves it.
+  const camAt = v(0, 0);
+  let camHeading: number | null = null,
+    camTime = 0;
+  function placeEye(x: number, y: number, heading: number, time: number) {
+    const dt = Math.min(0.1, Math.max(0, time - camTime));
+    camTime = time;
+    camHeading =
+      camHeading === null
+        ? heading
+        : camHeading + angleDiff(camHeading, heading) * (1 - Math.exp(-dt / 0.25));
+    camAt.x = x - Math.sin(camHeading) * EYE_BEHIND;
+    camAt.y = y - Math.cos(camHeading) * EYE_BEHIND;
+    toWorld(camAt.x, camAt.y, EYE_HEIGHT, eye.position);
+  }
 
   function resize() {
     const w = Math.max(1, host.clientWidth),
@@ -258,7 +284,9 @@ export async function createF5Scene(
       const d = dist(ty, p);
       if (d > 35 || d < 1.5) continue;
       const errYaw = Math.abs(angleDiff(heading, headingOf({ x: p.x - ty.x, y: p.y - ty.y })));
-      const errPitch = Math.abs(pitch - Math.atan2(1.0 - EYE_HEIGHT, d));
+      const errPitch = Math.abs(
+        pitch - Math.atan2(1.0 - EYE_HEIGHT, Math.max(0.5, dist(camAt, p))),
+      );
       const err = Math.hypot(errYaw, errPitch * 0.6);
       if (err < bestErr) {
         bestErr = err;
@@ -275,9 +303,12 @@ export async function createF5Scene(
     const yaw = yawOf(look.quaternion),
       pitch = pitchOf(look.quaternion);
     const ty = sim.players[sim.ty]!.pos;
+    // Where the view meets the grass, measured from the camera (it sits behind you).
     const ground = pitch < -0.04 ? Math.min(30, EYE_HEIGHT / Math.tan(-pitch)) : 18;
-    const d = Math.max(3, ground);
-    return v(ty.x + Math.sin(-yaw) * d, ty.y + Math.cos(-yaw) * d);
+    const aim = v(camAt.x + Math.sin(-yaw) * ground, camAt.y + Math.cos(-yaw) * ground);
+    const d = Math.max(3, dist(ty, aim));
+    const h = headingOf({ x: aim.x - ty.x, y: aim.y - ty.y });
+    return v(ty.x + Math.sin(h) * d, ty.y + Math.cos(h) * d);
   }
 
   function updateHud() {
@@ -363,7 +394,12 @@ export async function createF5Scene(
         const p = a.agents[sim.ty]!,
           q = b.agents[sim.ty]!;
         const t = sim.phase === "done" ? 1 : blend;
-        toWorld(p.x + (q.x - p.x) * t, p.y + (q.y - p.y) * t, EYE_HEIGHT, eye.position);
+        placeEye(
+          p.x + (q.x - p.x) * t,
+          p.y + (q.y - p.y) * t,
+          lerpAngle(p.heading, q.heading, t),
+          time,
+        );
         eye.quaternion.copy(look.quaternion);
       } else placeOverhead(b);
       const aim = sim.ball.owner === sim.ty ? aimPoint() : null;
@@ -479,6 +515,7 @@ export async function createF5Scene(
       hud = null;
       stickRef = null;
       lastMove = { dir: 0, speed: 0 };
+      camHeading = null;
       // Start looking at your keeper: the first ball comes from him.
       look.recenter(startYaw(sim));
     },

@@ -52,6 +52,52 @@ const newId = () => `f5-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 const positionKey = (owner?: string) => `ballwise:iq:f5:position:v1:${owner ?? "guest"}`;
 const HOLD_FULL_MS = 900;
 
+/** Line icons for the action buttons (drawn here, no external assets). */
+const icon = (children: React.ReactNode) => (
+  <svg viewBox="0 0 40 28" width="36" height="25" aria-hidden="true" className="f5-ico">
+    {children}
+  </svg>
+);
+const BALL = (x: number, y: number, r = 5.5) => (
+  <g>
+    <circle cx={x} cy={y} r={r} />
+    <path d={`M${x} ${y - 2.2}l2.1 1.5-.8 2.5h-2.6l-.8-2.5z`} />
+  </g>
+);
+const ICONS = {
+  pass: icon(
+    <>
+      {BALL(10, 17)}
+      <path d="M16 15c6-4 12-6 20-6m0 0-4-3m4 3-4 3" />
+    </>,
+  ),
+  shot: icon(
+    <>
+      <path d="M5 4h30M7 4v16M33 4v16M7 8h26" />
+      {BALL(20, 19)}
+    </>,
+  ),
+  lob: icon(
+    <>
+      <path d="M5 22C9 8 20 4 26 7" />
+      {BALL(31, 9)}
+    </>,
+  ),
+  press: icon(<path d="M6 7l8 7-8 7M17 7l8 7-8 7M30 5v18" />),
+  tackle: icon(
+    <>
+      {BALL(26, 16)}
+      <path d="M4 20l12-6m0 0-5-1m5 1-2 4" />
+    </>,
+  ),
+};
+const PHONE_ICON = (
+  <svg viewBox="0 0 44 24" width="40" height="22" aria-hidden="true" className="f5-ico">
+    <rect x="11" y="5" width="22" height="14" rx="3" />
+    <path d="M7 6a10 10 0 0 0 0 12m-2-2 2 2 2-2M37 18a10 10 0 0 0 0-12m2 2-2-2-2 2" />
+  </svg>
+);
+
 function safeHistory(owner?: string): F5Attempt[] {
   try {
     return loadF5History(owner);
@@ -440,6 +486,7 @@ export function FiveAsideIQ({
         }
       }}
     >
+      {ICONS[slot]}
       <span>{label}</span>
     </button>
   );
@@ -453,23 +500,27 @@ export function FiveAsideIQ({
     >
       <div ref={hostRef} className="fp-stage" />
 
-      <header className="fp-top">
-        <button
-          type="button"
-          className="fp-icon"
-          aria-label="Wróć"
-          onClick={stage === "play" ? leavePlay : onBack}
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div className="fp-title">
-          <span>Football IQ</span>
-          <small>5 na 5 · przyjęcie i utrzymanie pod presją</small>
+      <header className="fp-top f5-top">
+        <div className="f5-pill f5-crumb">
+          <button
+            type="button"
+            className="f5-back"
+            aria-label="Wróć"
+            onClick={stage === "play" ? leavePlay : onBack}
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <b>IQ</b>
+          <span className="f5-sep" aria-hidden="true" />
+          <span>{POSITION_LABEL[position]}</span>
+        </div>
+        <div className="f5-mid">
+          {immersive && <span className="f5-pill f5-format">5 × 5</span>}
         </div>
         {stage === "play" ? (
           <button
             type="button"
-            className="fp-icon"
+            className="fp-icon f5-round"
             aria-label="Pauza"
             onClick={() => {
               sceneRef.current?.setPaused(true);
@@ -481,7 +532,7 @@ export function FiveAsideIQ({
         ) : onOpenClassic ? (
           <button
             type="button"
-            className="fp-icon"
+            className="fp-icon f5-round"
             aria-label="Sytuacje na tablicy"
             onClick={onOpenClassic}
           >
@@ -506,7 +557,7 @@ export function FiveAsideIQ({
 
       {stage === "intro" && (
         <div className="fp-card fp-bottom">
-          <p className="fp-kicker">5 na 5 · twoja pozycja</p>
+          <p className="fp-kicker">5 na 5 · przyjęcie i utrzymanie pod presją</p>
           <div className="f5-positions" role="group" aria-label="Pozycja">
             {POSITIONS.map((p) => (
               <button
@@ -572,14 +623,28 @@ export function FiveAsideIQ({
       {stage === "play" && (
         <>
           <div className="fp-reticle" aria-hidden="true" />
-          {(lookStatus === "unavailable" || lookStatus === "denied") && (
-            <p className="fp-chip">
-              {lookStatus === "denied"
-                ? "Brak zgody na ruch telefonu."
-                : "Brak danych z czujnika ruchu."}{" "}
-              Przeciągaj palcem.
-            </p>
-          )}
+          <div className="f5-pill f5-hint">
+            {lookStatus === "unavailable" || lookStatus === "denied" ? (
+              <span>
+                {lookStatus === "denied" ? "Brak zgody na ruch telefonu" : "Brak czujnika ruchu"} ·
+                przeciągaj palcem
+              </span>
+            ) : (
+              <>
+                {PHONE_ICON}
+                <span>Rozglądaj się telefonem</span>
+              </>
+            )}
+            <span className="f5-sep" aria-hidden="true" />
+            <button
+              type="button"
+              className="f5-recenter"
+              aria-label="Wyśrodkuj widok w stronę bramki rywala"
+              onClick={() => sceneRef.current?.recenterForward()}
+            >
+              <Crosshair size={20} />
+            </button>
+          </div>
           <div
             ref={stickRef}
             className="f5-stick"
@@ -591,16 +656,6 @@ export function FiveAsideIQ({
             onPointerCancel={onStickUp}
           >
             <div ref={knobRef} className="f5-knob" />
-          </div>
-          <div className="f5-side">
-            <button
-              type="button"
-              className="fp-small"
-              aria-label="Wyśrodkuj widok w stronę bramki rywala"
-              onClick={() => sceneRef.current?.recenterForward()}
-            >
-              <Crosshair size={18} />
-            </button>
           </div>
           {hud === "defend" ? (
             <div className="f5-actions">
@@ -614,6 +669,7 @@ export function FiveAsideIQ({
                   defend("press");
                 }}
               >
+                {ICONS.press}
                 <span>Doskok</span>
               </button>
               <button
@@ -626,6 +682,7 @@ export function FiveAsideIQ({
                   defend("tackle");
                 }}
               >
+                {ICONS.tackle}
                 <span>Odbiór</span>
               </button>
             </div>
