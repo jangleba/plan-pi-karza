@@ -176,6 +176,11 @@ export interface Profile {
   movementCompetence?: "low" | "medium" | "high";
   /** Poziom nadzoru trenerskiego na treningach siłowych. */
   supervisionLevel?: "none" | "some" | "full";
+  /**
+   * Dni klubowe (1 = pon … 7 = nd), na których klub prowadzi blok siłowy.
+   * Liczą się do celu „Siła”; plan nie dubluje tego dnia własną siłownią.
+   */
+  clubStrengthDays?: number[];
   /** Lokalizacje bólu / kontuzji zgłoszone w onboardingu. */
   painLocations?: PainLocation[];
   /** Historia urazów (np. dwugłowy, kostka). */

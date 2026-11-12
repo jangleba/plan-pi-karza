@@ -5,6 +5,8 @@ import { useLoadwise } from "@/lib/loadwise/store";
 import { hasStrengthExperience, type StrengthExperience } from "@/lib/loadwise/strengthExperience";
 import "./training-coach.css";
 
+const WEEKDAY_LABELS = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
+
 export function StrengthExperienceSetup({ compact = false }: { compact?: boolean } = {}) {
   const { state, saveStrengthExperience } = useLoadwise();
   const profile = state.profile;
@@ -14,11 +16,14 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
     strengthTrainingMonths: profile?.strengthTrainingMonths,
     movementCompetence: profile?.movementCompetence ?? "low",
     supervisionLevel: profile?.supervisionLevel ?? "none",
+    clubStrengthDays: profile?.clubStrengthDays ?? [],
   }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   if (!profile) return null;
   const known = hasStrengthExperience(profile);
+  const clubDays = [...(profile.clubTrainingDays ?? [])].sort((a, b) => a - b);
+  const clubStrength = draft.clubStrengthDays ?? [];
   async function save() {
     setSaving(true);
     setError(null);
@@ -44,6 +49,7 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
             strengthTrainingMonths: profile.strengthTrainingMonths,
             movementCompetence: profile.movementCompetence ?? "low",
             supervisionLevel: profile.supervisionLevel ?? "none",
+            clubStrengthDays: profile.clubStrengthDays ?? [],
           });
           setError(null);
           setEditing(true);
@@ -171,6 +177,36 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
                 <option value="full">Trener prowadzi i nadzoruje sesję</option>
               </select>
             </label>
+            {clubDays.length > 0 && (
+              <div
+                className="bw-strength-tenure"
+                role="group"
+                aria-label="Dni z blokiem siłowym w klubie"
+              >
+                <span className="bw-strength-tenure-title">W które dni klub robi blok siłowy?</span>
+                {clubDays.map((day) => (
+                  <button
+                    type="button"
+                    key={day}
+                    disabled={saving}
+                    aria-pressed={clubStrength.includes(day)}
+                    onClick={() =>
+                      setDraft((d) => {
+                        const current = d.clubStrengthDays ?? [];
+                        return {
+                          ...d,
+                          clubStrengthDays: current.includes(day)
+                            ? current.filter((value) => value !== day)
+                            : [...current, day].sort((a, b) => a - b),
+                        };
+                      })
+                    }
+                  >
+                    {WEEKDAY_LABELS[day - 1]}
+                  </button>
+                ))}
+              </div>
+            )}
             {error && <p role="alert">{error}</p>}
             <button
               type="button"

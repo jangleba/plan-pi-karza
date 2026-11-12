@@ -8,6 +8,7 @@ export type StrengthExperience = Pick<
   | "movementCompetence"
   | "supervisionLevel"
   | "trainingMethodPreferences"
+  | "clubStrengthDays"
 >;
 
 /** Explicit declarations only. Football level and age never fill in missing gym history. */
@@ -27,6 +28,12 @@ export function normalizeStrengthExperience(value: StrengthExperience): Strength
   if (["none", "some", "full"].includes(value.supervisionLevel ?? ""))
     result.supervisionLevel = value.supervisionLevel;
   if (result.gymExperienceLevel === "none") result.strengthTrainingMonths = 0;
+  if (Array.isArray(value.clubStrengthDays)) {
+    const days = [...new Set(value.clubStrengthDays)]
+      .filter((day) => Number.isInteger(day) && day >= 1 && day <= 7)
+      .sort((a, b) => a - b);
+    if (days.length) result.clubStrengthDays = days;
+  }
   if (value.trainingMethodPreferences) {
     const preferences = normalizeMethodPreferences(value.trainingMethodPreferences);
     result.trainingMethodPreferences = preferences;

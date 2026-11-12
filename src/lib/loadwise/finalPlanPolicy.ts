@@ -1,4 +1,5 @@
 import type { Profile, SessionDay, WeekMeta } from "./types";
+import { isPreparedYouthLifter } from "./youthReadiness";
 import { ownTrainingAllowed } from "./availability";
 import { addDays, isoDate, isoDayOfWeek, parseIso } from "./labels";
 import {
@@ -27,6 +28,7 @@ import { computeWeeklyLoadScore, countWeekRoles, MAIN_GOAL_RULES } from "./planR
 import { FINAL_PLAN_POLICY_VERSION } from "./planPolicyStamp";
 import {
   focusPriority,
+  isClubStrengthDay,
   sessionHasQuality,
   unmetFocusNote,
   unmetFocusTargets,
@@ -78,7 +80,12 @@ export function finalPolicyMissingTargets(week: SessionDay[], profile: Profile):
   const requirements = finalPolicyRequirementsFor(week, profile);
   const sessions = week.flatMap((day) => [day, day.secondSession].filter(Boolean) as SessionDay[]);
   return [
-    sessions.filter(isMainGymSession).length < requirements.requiredGymSessions ? "siła" : null,
+    // Zgłoszony blok siłowy w klubie liczy się do minimum siły (bez dublowania).
+    sessions.filter(isMainGymSession).length +
+      week.filter((day) => isClubStrengthDay(day, profile)).length <
+    requirements.requiredGymSessions
+      ? "siła"
+      : null,
     sessions.filter(isEnduranceSession).length < requirements.requiredEnduranceSessions
       ? "wydolność"
       : null,
@@ -141,7 +148,7 @@ export function secondSessionPolicyViolation(
   if (profile.doubleSessionsAllowed === "no") return "double-sessions-disabled";
   if (
     (profile.level === "beginner" ||
-      profile.age < 16 ||
+      (profile.age < 16 && !isPreparedYouthLifter(profile)) ||
       profile.doubleSessionsAllowed === "light_only" ||
       isConservativeReturnContext(profile)) &&
     second.intensity !== "niska"

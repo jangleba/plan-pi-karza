@@ -53,7 +53,8 @@ import { gymSpacingIssues, repairGymSpacing } from "./strengthScheduling";
 import { secondSessionPolicyViolation, finalPolicyRequirementsFor } from "./finalPlanPolicy";
 import { hasAcknowledgedReducedTargets } from "./planPolicyStamp";
 import { ownTrainingAllowed } from "./availability";
-import { isProtectedFocusSession } from "./trainingFocus";
+import { isClubStrengthDay, isProtectedFocusSession } from "./trainingFocus";
+import { isPreparedYouthLifter } from "./youthReadiness";
 
 const LOWER_LIMB_PAIN = new Set(["knee", "ankle", "hamstring", "groin", "hip"]);
 
@@ -140,9 +141,13 @@ export function countEnduranceSessions(weekPlan: SessionDay[]): number {
   );
 }
 
-function countGymSessions(weekPlan: SessionDay[]): number {
+/** Sesje siłowni w tygodniu; zgłoszony blok siłowy w klubie też się liczy (bez dublowania). */
+function countGymSessions(weekPlan: SessionDay[], profile?: Profile): number {
   return weekPlan.reduce(
-    (n, d) => n + eachSession(d).filter((s) => isMainGymSession(s)).length,
+    (n, d) =>
+      n +
+      eachSession(d).filter((s) => isMainGymSession(s)).length +
+      (profile && isClubStrengthDay(d, profile) ? 1 : 0),
     0,
   );
 }
@@ -169,6 +174,8 @@ export function countBallSessions(weekPlan: SessionDay[]): number {
 // ---------------------------------------------------------------------------
 
 function isYouthOrBeginner(profile: Profile): boolean {
+  // Przygotowany 13–15-latek (staż, technika, nadzór) nie jest „początkującym”.
+  if (isPreparedYouthLifter(profile)) return false;
   return isYouthOrBeginnerSched({
     developmentStage: getDevelopmentStage(profile.age),
     gymExperienceLevel: profile.gymExperienceLevel ?? null,
@@ -180,7 +187,7 @@ function requiresLightSecondSession(profile: Profile): boolean {
   const stage = getDevelopmentStage(profile.age);
   return (
     stage === "child_foundation" ||
-    stage === "early_youth" ||
+    (stage === "early_youth" && !isPreparedYouthLifter(profile)) ||
     profile.level === "beginner"
   );
 }
@@ -1595,7 +1602,7 @@ export function addMissingGymSessions(
       weekPlan,
       added: 0,
       converted: 0,
-      count: countGymSessions(weekPlan),
+      count: countGymSessions(weekPlan, profile),
       requiredGymSessions: 0,
       unresolvedIssues,
     };
@@ -1620,7 +1627,7 @@ export function addMissingGymSessions(
     );
   };
 
-  while (countGymSessions(weekPlan) < required && guard < 8) {
+  while (countGymSessions(weekPlan, profile) < required && guard < 8) {
     guard += 1;
 
     // Krok 1: wolny dzień (rest) bez klubu/meczu, nie sąsiadujący z gym.
@@ -1657,7 +1664,7 @@ export function addMissingGymSessions(
     }
 
     // Krok 2: zamiana nadmiarowego recovery/prehab na gym (jeśli jest ≥2 recovery i brak gym).
-    if (countGymSessions(weekPlan) <required) {
+    if (countGymSessions(weekPlan, profile) <required) {
       const recoveryDays = weekPlan
         .map((d, i) => ({ d, i }))
         .filter(
@@ -1861,7 +1868,7 @@ export function addMissingGymSessions(
     break;
   }
 
-  const count = countGymSessions(weekPlan);
+  const count = countGymSessions(weekPlan, profile);
   if (count < required) {
     unresolvedIssues.push(
       `Tydzień ma ${count}/${required} siłowni — brak bezpiecznego dnia na dodanie brakującej sesji gym.`,
@@ -1890,7 +1897,7 @@ export function assertFinalPlanMeetsMinimums(
   const unresolvedIssues: string[] = [];
   const unmetTargets: string[] = [];
 
-  const gymSessionsCount = countGymSessions(weekPlan);
+  const gymSessionsCount = countGymSessions(weekPlan, profile);
   const enduranceSessionsCount = countEnduranceSessions(weekPlan);
   const speedSessionsCount = countSpeedSessions(weekPlan);
   const ballSessionsCount = countBallSessions(weekPlan);

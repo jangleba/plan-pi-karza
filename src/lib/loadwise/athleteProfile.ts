@@ -60,6 +60,8 @@ export type ExerciseType =
 export interface ExerciseSafetyProfile {
   /** Czy wolno używać sztangi / dużych obciążeń osiowych. */
   allowBarbell: boolean;
+  /** Czy wolno używać maszyn siłowych (umiarkowane obciążenie po prowadnicy). */
+  allowMachines?: boolean;
   allowHeavyCompounds: boolean;
   allowMaxEffort: boolean;
   allowOlympicLifts: boolean;
@@ -227,11 +229,26 @@ export function getExerciseSafetyProfile(
 ): ExerciseSafetyProfile {
   const notes: string[] = [];
 
+  // Przygotowany młodszy zawodnik (13–15): zadeklarowany staż ≥6 mies., poziom
+  // na siłowni co najmniej średni, technika nie niska i nadzór dorosłego.
+  // Wiek nie przesądza o dojrzałości, więc taki zawodnik dostaje umiarkowane
+  // obciążenie zewnętrzne (hantle, maszyny), ale nadal bez ciężkich bojów,
+  // prób maksymalnych i zaawansowanej plyometrii.
+  const preparedYouth =
+    a.age != null &&
+    a.age >= 13 &&
+    a.developmentStage === "early_youth" &&
+    (a.gymExperienceLevel === "intermediate" || a.gymExperienceLevel === "advanced") &&
+    (a.strengthTrainingAge ?? 0) >= 6 &&
+    a.movementCompetenceLevel !== "low" &&
+    a.supervisionLevel !== "none";
+
   const isYouth =
-    a.age == null ||
-    a.age <= 14 ||
-    a.developmentStage === "child_foundation" ||
-    a.developmentStage === "early_youth";
+    !preparedYouth &&
+    (a.age == null ||
+      a.age <= 14 ||
+      a.developmentStage === "child_foundation" ||
+      a.developmentStage === "early_youth");
 
   const lowExp =
     a.gymExperienceLevel === "none" ||
@@ -245,6 +262,8 @@ export function getExerciseSafetyProfile(
   const restrict = isYouth || lowExp;
 
   if (isYouth) notes.push("Zawodnik młodzieżowy — priorytet techniki i rozwoju.");
+  if (preparedYouth)
+    notes.push("Młodszy zawodnik ze stażem — umiarkowane obciążenie, bez ciężkich bojów.");
   if (lowExp) notes.push("Niskie doświadczenie siłowe / brak nadzoru — bez ciężkich bojów.");
 
   const advancedOk =
@@ -254,7 +273,8 @@ export function getExerciseSafetyProfile(
 
   // Plyo
   let maxPlyoLevel: number;
-  if (!restrict) {
+  if (preparedYouth) maxPlyoLevel = 2;
+  else if (!restrict) {
     if (a.gymExperienceLevel === "advanced") maxPlyoLevel = 4;
     else if (a.gymExperienceLevel === "intermediate") maxPlyoLevel = 3;
     else maxPlyoLevel = 2;
@@ -271,19 +291,25 @@ export function getExerciseSafetyProfile(
     ? a.developmentStage === "child_foundation"
       ? 0 // tylko masa ciała / minimalne obciążenie
       : 60
-    : advancedOk
-      ? null
-      : 80;
+    : preparedYouth
+      ? 70
+      : advancedOk
+        ? null
+        : 80;
 
   return {
     allowBarbell: a.gymAccess && advancedOk,
+    // Maszyny prowadzą tor ruchu: dostępne od umiarkowanego obciążenia, gdy
+    // zawodnik nie jest ograniczony (także przygotowany młodszy zawodnik).
+    allowMachines: a.gymAccess && !restrict,
     allowHeavyCompounds: advancedOk,
     allowMaxEffort: advancedOk && a.readiness >= 7,
     allowOlympicLifts: false, // nigdy automatycznie w tym silniku
     allowAdvancedPlyometrics: !restrict && a.gymExperienceLevel === "advanced",
     allowDepthJumps: advancedOk && a.gymExperienceLevel === "advanced" && a.readiness >= 7,
-    allowHighVolumeSprint: !restrict,
-    allowAggressiveIntervals: !restrict && a.developmentStage !== "child_foundation",
+    allowHighVolumeSprint: !restrict && !preparedYouth,
+    allowAggressiveIntervals:
+      !restrict && !preparedYouth && a.developmentStage !== "child_foundation",
     maxPlyoLevel,
     maxRelativeLoadPct,
     notes,
@@ -304,7 +330,7 @@ export function getBlockedExerciseTypes(a: AthleteTrainingProfile): ExerciseType
   if (!sp.allowBarbell) {
     blocked.add("barbell_deadlift");
     blocked.add("barbell_any");
-    blocked.add("machine_strength");
+    if (!sp.allowMachines) blocked.add("machine_strength");
   }
   if (!sp.allowMaxEffort) blocked.add("max_effort");
   if (!sp.allowOlympicLifts) blocked.add("olympic_lift");
