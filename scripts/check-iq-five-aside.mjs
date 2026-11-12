@@ -102,7 +102,10 @@ try {
       : {}),
     args: ["--no-sandbox", "--enable-unsafe-swiftshader", "--use-angle=swiftshader"],
   });
-  const page = await browser.newPage({ viewport: { width: 390, height: 780 }, deviceScaleFactor: 2 });
+  const page = await browser.newPage({
+    viewport: { width: 390, height: 780 },
+    deviceScaleFactor: 2,
+  });
   page.on("pageerror", (e) => {
     errors.push(e.message);
     console.error("UI ERROR", e.message);
@@ -117,14 +120,21 @@ try {
   // 1. Intro: choose the position.
   await page.waitForSelector('[data-stage="intro"]', { timeout: 60000 });
   await page.getByRole("button", { name: "Lewy skrzydłowy" }).click();
-  ensure((await page.getByRole("button", { name: "Lewy skrzydłowy" }).getAttribute("aria-pressed")) === "true", "Position must be selectable");
+  ensure(
+    (await page.getByRole("button", { name: "Lewy skrzydłowy" }).getAttribute("aria-pressed")) ===
+      "true",
+    "Position must be selectable",
+  );
   await page.screenshot({ path: path.join(shots, "01-intro-390.png") });
 
   // 2. Ready: without motion data the screen explains dragging.
   await page.getByRole("button", { name: "Graj" }).click();
   await page.waitForSelector('[data-stage="ready"]');
   await wait(2200);
-  ensure(/Przeciągaj palcem/.test(await page.locator(".fp-card").innerText()), "Without motion data the screen must explain dragging");
+  ensure(
+    /Przeciągaj palcem/.test(await page.locator(".fp-card").innerText()),
+    "Without motion data the screen must explain dragging",
+  );
   report.lookWithoutSensor = (await state()).look;
 
   // 3. Play: the keeper's first ball comes to you.
@@ -140,6 +150,17 @@ try {
   report.receivedAfterMs = Date.now() - t0;
   await page.evaluate(() => window.__f5Scene.setPaused(true));
   await page.screenshot({ path: path.join(shots, "03-with-ball-390.png") });
+  // View from behind: the button switches it, the game state stays as it was.
+  const tickBefore = await page.evaluate(() => window.__f5Scene.debugState().tick);
+  await page.getByRole("button", { name: "Widok zza pleców" }).click();
+  await wait(400);
+  await page.screenshot({ path: path.join(shots, "03b-from-behind-390.png") });
+  ensure(
+    (await page.evaluate(() => window.__f5Scene.debugState().tick)) === tickBefore,
+    "Changing the view must not move the paused game",
+  );
+  await page.getByRole("button", { name: "Widok z oczu" }).click();
+  report.viewToggle = true;
   await page.evaluate(() => window.__f5Scene.setPaused(false));
 
   // 4. Joystick: run, then look around with the finger: the run direction must not change.
@@ -156,16 +177,27 @@ try {
   // Second pointer: drag the picture to look around while the stick is held.
   await page.evaluate(() => {
     const host = document.querySelector(".fp-stage");
-    const opts = (x, id) => ({ pointerId: id, clientX: x, clientY: 300, bubbles: true, pointerType: "touch", isPrimary: false });
+    const opts = (x, id) => ({
+      pointerId: id,
+      clientX: x,
+      clientY: 300,
+      bubbles: true,
+      pointerType: "touch",
+      isPrimary: false,
+    });
     host.dispatchEvent(new PointerEvent("pointerdown", opts(200, 7)));
-    for (let x = 200; x >= 40; x -= 20) host.dispatchEvent(new PointerEvent("pointermove", opts(x, 7)));
+    for (let x = 200; x >= 40; x -= 20)
+      host.dispatchEvent(new PointerEvent("pointermove", opts(x, 7)));
     host.dispatchEvent(new PointerEvent("pointerup", opts(40, 7)));
   });
   await wait(400);
   const looked = await state();
   report.lookTurn = Math.abs(looked.viewYaw - running.viewYaw);
   ensure(report.lookTurn > 0.5, "Dragging must turn the view");
-  ensure(Math.abs(looked.move.dir - running.move.dir) < 1e-9, "Looking around must not change the run direction");
+  ensure(
+    Math.abs(looked.move.dir - running.move.dir) < 1e-9,
+    "Looking around must not change the run direction",
+  );
   await page.mouse.up();
   await wait(300);
   ensure((await state()).move.speed === 0, "Lifting the thumb must stop the run input");
@@ -189,7 +221,10 @@ try {
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
     await wait(450);
-    ensure(await pass.evaluate((el) => el.classList.contains("is-charging")), "Holding must charge the power");
+    ensure(
+      await pass.evaluate((el) => el.classList.contains("is-charging")),
+      "Holding must charge the power",
+    );
     await page.mouse.up();
     report.passSent = true;
   }
@@ -227,7 +262,10 @@ try {
   // 8. The fragment ends by itself; replay from above; debrief; saved once.
   const t1 = Date.now();
   while ((await stage()) === "play" && Date.now() - t1 < 90000) await wait(300);
-  ensure((await stage()) === "replay" || (await stage()) === "debrief", "The fragment must end with a replay");
+  ensure(
+    (await stage()) === "replay" || (await stage()) === "debrief",
+    "The fragment must end with a replay",
+  );
   await wait(1500);
   await page.screenshot({ path: path.join(shots, "05-replay-390.png") });
   if ((await stage()) === "replay") await page.getByRole("button", { name: "Dalej" }).click();
@@ -235,16 +273,30 @@ try {
   await wait(300);
   await page.screenshot({ path: path.join(shots, "06-debrief-390.png") });
   const debrief = await page.locator(".fp-debrief").innerText();
-  ensure(/Przyjęcie/.test(debrief) && /Decyzja/.test(debrief) && /Rezultat/.test(debrief), "Debrief must grade touch, decision and result apart");
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("ballwise:iq:f5:v1:f5-browser-qa") || "[]"));
+  ensure(
+    /Przyjęcie/.test(debrief) && /Decyzja/.test(debrief) && /Rezultat/.test(debrief),
+    "Debrief must grade touch, decision and result apart",
+  );
+  const saved = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("ballwise:iq:f5:v1:f5-browser-qa") || "[]"),
+  );
   ensure(saved.length === 1, `One attempt must be saved (got ${saved.length})`);
-  report.saved = { outcome: saved[0].outcome, inputs: saved[0].inputs.length, variant: saved[0].variant };
+  report.saved = {
+    outcome: saved[0].outcome,
+    inputs: saved[0].inputs.length,
+    variant: saved[0].variant,
+  };
   report.debrief = debrief.replace(/\s+/g, " ").slice(0, 400);
   // Replaying the recorded inputs in the page gives the same result (deterministic).
   await page.getByRole("button", { name: "Zagraj ponownie" }).click();
   await page.waitForSelector('[data-stage="ready"]');
-  ensure((await page.locator(".fp-root").getAttribute("data-f5-variant")) === saved[0].variant, "Play again must keep the variant");
-  const again = await page.evaluate(() => JSON.parse(localStorage.getItem("ballwise:iq:f5:v1:f5-browser-qa") || "[]"));
+  ensure(
+    (await page.locator(".fp-root").getAttribute("data-f5-variant")) === saved[0].variant,
+    "Play again must keep the variant",
+  );
+  const again = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("ballwise:iq:f5:v1:f5-browser-qa") || "[]"),
+  );
   ensure(again.length === 1, "Opening the replay or playing again must not save twice");
   report.errors = errors;
   ensure(errors.length === 0, "No page errors");

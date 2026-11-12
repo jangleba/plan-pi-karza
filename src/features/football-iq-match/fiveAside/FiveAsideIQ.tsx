@@ -6,10 +6,16 @@
  * Everything runs locally; no AI requests during play. Nothing on screen shows the right
  * move while you play. */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Crosshair, LayoutGrid, Pause, Play, RotateCcw } from "lucide-react";
+import { ArrowLeft, Crosshair, Eye, LayoutGrid, Pause, Play, RotateCcw, User } from "lucide-react";
 import { vibrate } from "@/lib/haptics";
 import { backupIqNow, cloudBackupEnabled } from "../iqCloud";
-import { createF5Scene, type F5Scene, type F5SceneEvent, type HudState } from "./f5Scene";
+import {
+  createF5Scene,
+  type F5Scene,
+  type F5SceneEvent,
+  type F5View,
+  type HudState,
+} from "./f5Scene";
 import { F5_ENGINE_VERSION, type F5Input, type KickType, type SimState } from "./f5Sim";
 import {
   makeVariant,
@@ -50,6 +56,7 @@ const CHOICE_LABEL: Record<Grade, string> = {
 };
 const newId = () => `f5-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 const positionKey = (owner?: string) => `ballwise:iq:f5:position:v1:${owner ?? "guest"}`;
+const VIEW_KEY = "ballwise:iq:f5:view:v1";
 const HOLD_FULL_MS = 900;
 
 /** Line icons for the action buttons (drawn here, no external assets). */
@@ -113,6 +120,13 @@ function savedPosition(owner?: string): Position {
     return "left";
   }
 }
+function savedView(): F5View {
+  try {
+    return localStorage.getItem(VIEW_KEY) === "behind" ? "behind" : "eye";
+  } catch {
+    return "eye";
+  }
+}
 async function lockLandscape() {
   // Only where the system supports it (Android, some browsers in full screen). iOS ignores it.
   try {
@@ -156,6 +170,7 @@ export function FiveAsideIQ({
   const variant = useMemo(() => makeVariant(seed, position), [seed, position]);
   const [hud, setHud] = useState<HudState["mode"]>("wait");
   const [lookStatus, setLookStatus] = useState<LookStatus>("drag");
+  const [view, setView] = useState<F5View>(savedView);
   const [paused, setPaused] = useState(false);
   const [charging, setCharging] = useState<KickType | null>(null);
   const [debrief, setDebrief] = useState<F5Debrief | null>(null);
@@ -211,6 +226,7 @@ export function FiveAsideIQ({
       .then((created) => {
         scene = created;
         sceneRef.current = created;
+        created.setView(savedView());
         // Browser QA only (scripts/check-iq-five-aside.mjs): drive the scene directly.
         const qa = window as unknown as { __BALLWISE_FP_QA__?: boolean; __f5Scene?: F5Scene };
         if (qa.__BALLWISE_FP_QA__) qa.__f5Scene = created;
@@ -298,6 +314,20 @@ export function FiveAsideIQ({
   useEffect(() => {
     if (stage === "intro") sceneRef.current?.preview(variant);
   }, [stage, variant]);
+
+  // First person or from behind: changes only the camera, never the game or the result.
+  const toggleView = () => {
+    setView((current) => {
+      const next: F5View = current === "eye" ? "behind" : "eye";
+      sceneRef.current?.setView(next);
+      try {
+        localStorage.setItem(VIEW_KEY, next);
+      } catch {
+        /* private mode: the choice holds for this visit */
+      }
+      return next;
+    });
+  };
 
   const choosePosition = (next: Position) => {
     if (next === position) return;
@@ -437,6 +467,7 @@ export function FiveAsideIQ({
         e.preventDefault();
         defend("tackle");
       } else if (k === "c") sceneRef.current?.recenterForward();
+      else if (k === "v") toggleView();
     };
     const up = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
@@ -643,6 +674,15 @@ export function FiveAsideIQ({
               onClick={() => sceneRef.current?.recenterForward()}
             >
               <Crosshair size={20} />
+            </button>
+            <button
+              type="button"
+              className="f5-recenter"
+              aria-label={view === "eye" ? "Widok zza pleców" : "Widok z oczu"}
+              aria-pressed={view === "behind"}
+              onClick={toggleView}
+            >
+              {view === "eye" ? <User size={20} /> : <Eye size={20} />}
             </button>
           </div>
           <div
