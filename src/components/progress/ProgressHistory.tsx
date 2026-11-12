@@ -11,6 +11,7 @@ import {
 } from "@/lib/progress/dashboard";
 import type { RunningActivity } from "@/lib/running/types";
 import { RunActivitySummary } from "@/components/running/RunActivitySummary";
+import { historyRoute, loadRunHistory } from "@/lib/running/routeHistory";
 import { Link } from "@tanstack/react-router";
 import type { ProgressSessionTarget } from "@/lib/progress/navigation";
 
@@ -39,6 +40,15 @@ function monthLabel(key: string): string {
   return `${PL_MONTHS[Number(month) - 1]} ${year}`;
 }
 
+/** Trasa i międzyczasy z tego telefonu (na koncie jest tylko wynik). */
+function withLocalRoute(
+  run: RunningActivity | undefined,
+  local: ReturnType<typeof loadRunHistory>[number] | undefined,
+): RunningActivity | undefined {
+  if (!run || !local || run.route?.length) return run;
+  return { ...run, route: historyRoute(local), splits: local.splits };
+}
+
 /** Historia ukończonych treningów, również z archiwalnych planów. */
 export function ProgressHistory({
   events,
@@ -61,6 +71,10 @@ export function ProgressHistory({
   const [month, setMonth] = useState<string>("all");
   const [visible, setVisible] = useState(20);
   const [missingRpe, setMissingRpe] = useState(initialMissingRpe);
+  const localRuns = useMemo(
+    () => new Map(ownerId ? loadRunHistory(ownerId).map((entry) => [entry.sessionId, entry]) : []),
+    [ownerId],
+  );
   const months = useMemo(
     () =>
       Array.from(new Set(events.map((event) => monthKey(event.date))))
@@ -153,7 +167,10 @@ export function ProgressHistory({
             </h3>
             <div className="soft-card divide-y divide-border">
               {week.events.map((event) => {
-                const run = runningActivities[event.sessionKey];
+                const run = withLocalRoute(
+                  runningActivities[event.sessionKey],
+                  localRuns.get(event.sessionKey),
+                );
                 const target = targets[event.sessionKey];
                 return (
                   <article
