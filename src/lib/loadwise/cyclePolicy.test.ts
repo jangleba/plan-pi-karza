@@ -109,7 +109,10 @@ function record(kind: CycleRecommendationKind): CycleStartRecord {
 }
 
 function weekLabels(plan: SessionDay[]): string[] {
-  return [0, 7, 14, 21].map((i) => plan[i]?.blockPhaseLabel ?? "");
+  // The fixed Sunday match makes Monday MD+1 (no block label), so read the week's first label.
+  return [0, 7, 14, 21].map(
+    (i) => plan.slice(i, i + 7).find((day) => day.blockPhaseLabel)?.blockPhaseLabel ?? "",
+  );
 }
 
 describe("silnik planu używa reguły startu cyklu", () => {

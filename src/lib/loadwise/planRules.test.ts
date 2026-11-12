@@ -76,10 +76,15 @@ describe("rule-based week layer — progresja bloku", () => {
     expect(progressionWeeks.every((week) => typeof week === "number" && week >= 1 && week <= 4)).toBe(true);
   });
 
-  it("tygodnie 1–4 nie mają identycznego rozkładu", () => {
+  // Rozkład rotuje A/B co tydzień (tydzień 3 może powtórzyć układ tygodnia 1),
+  // a tydzień 4 to deload. Wcześniej ten test przechodził tylko dlatego, że
+  // generator kładł sesję na niedzielę, której zawodnik nie wybrał (końcowa
+  // polityka zamieniała ją na „Odpoczynek”), co było błędem dostępności.
+  it("kolejne tygodnie nie są kopią poprzedniego, a deload różni się od reszty", () => {
     const weeks = fullWeeks(generatePlan(baseProfile({}), START, 28));
     const sigs = weeks.map((w) => w.map((d) => `${d.sessionType}:${d.durationMin}`).join("|"));
-    expect(new Set(sigs).size).toBe(4);
+    for (let i = 1; i < sigs.length; i++) expect(sigs[i]).not.toBe(sigs[i - 1]);
+    expect(sigs.slice(0, 3)).not.toContain(sigs[3]);
   });
 });
 

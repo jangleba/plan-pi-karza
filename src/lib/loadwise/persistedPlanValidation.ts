@@ -1,4 +1,5 @@
 import type { Profile, SessionDay } from "./types";
+import { ownTrainingAllowed } from "./availability";
 import { addDays, isoDate, isoDayOfWeek, parseIso } from "./labels";
 import { assessDaySpeedLoad } from "./speedLoad";
 import { validatePlanExerciseContract } from "./planExerciseContract";
@@ -168,12 +169,7 @@ export function validatePersistedPlan(
         date: day.date,
         message: "Pełny bodziec narusza domyślne ograniczenie obciążenia przed meczem.",
       });
-    if (
-      ownSessions.length &&
-      ((profile.unavailableDays ?? []).includes(weekday) ||
-        (Array.isArray(profile.individualTrainingDays) &&
-          !profile.individualTrainingDays.includes(weekday)))
-    )
+    if (ownSessions.length && !ownTrainingAllowed(profile, weekday))
       issues.push({
         code: "own-training-unavailable",
         date: day.date,

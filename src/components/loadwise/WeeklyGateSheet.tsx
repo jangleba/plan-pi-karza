@@ -63,6 +63,7 @@ export function WeeklyGateSheet({
     ],
     nextWeekStart,
     state.profile?.usualMatchDay,
+    state.profile?.weeklyMatches,
   );
   const rememberedDate =
     rememberedWeekday === null

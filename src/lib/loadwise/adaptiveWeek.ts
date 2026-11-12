@@ -1,4 +1,5 @@
 import { addIsoDays } from "@/lib/isoDate";
+import { ownTrainingAllowed } from "./availability";
 import type { PlanChangeEvent, Profile, Readiness, SessionCompletion, SessionDay } from "./types";
 import { resolveMdPlusOne, type AutomationSessionCategory } from "./automationPolicy";
 import { normalizeSessionCategory } from "./sessionClassification";
@@ -53,8 +54,7 @@ export function adaptMdPlusOneFromMatchMinutes(
       day.externalCommitment || slotProtected(day) || slotProtected(day.secondSession)) return day;
     if (profile) {
       const weekday = isoDayOfWeek(parseIso(day.date));
-      if ((profile.unavailableDays ?? []).includes(weekday) ||
-        (Array.isArray(profile.individualTrainingDays) && !profile.individualTrainingDays.includes(weekday)) ||
+      if (!ownTrainingAllowed(profile, weekday) ||
         profile.painInjury || profile.seasonPhase === "return_injury" ||
         isConservativeReturnContext(profile)) return day;
     }

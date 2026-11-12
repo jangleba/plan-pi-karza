@@ -152,7 +152,11 @@ describe("weekFinalization — twarda zasada endurance", () => {
   });
 
   it("3) endurance nigdy nie trafia w dzień klubowy", () => {
-    const p = profile({ doubleSessionsAllowed: "yes_if_safe" });
+    // Own work allowed every day (as the onboarding saves it); an empty list means no own day.
+    const p = profile({
+      doubleSessionsAllowed: "yes_if_safe",
+      individualTrainingDays: [1, 2, 3, 4, 5, 6, 7],
+    });
     const week = [
       clubDay(DATES[0]),
       clubDay(DATES[1]),

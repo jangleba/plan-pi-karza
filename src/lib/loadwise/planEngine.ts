@@ -1,4 +1,5 @@
 import { cycleStartLighterWeek, cycleWeekPhase } from "./cyclePolicy";
+import { ownTrainingAllowed } from "./availability";
 import { alignSessionTitleWithContent } from "./sessionTitleAlignment";
 import {
   mobilityCircuit,
@@ -55,8 +56,14 @@ import {
 } from "./footballSpeedSessionEngine";
 import { hasRealSpeedExposure } from "./speedLoad";
 import { validateFootballSpeedDate } from "./footballSpeedScheduling";
-import { isProfileMatchDate, profileMatchDates } from "./matchSchedule";
-import { directionQualities, type DirectionQuality } from "./playerDirection";
+import { isProfileMatchDate, profileMatchDates, scheduledMatchDates } from "./matchSchedule";
+import {
+  directionAccentFor,
+  focusTargets,
+  isProtectedFocusSession,
+  type FocusQuality,
+} from "./trainingFocus";
+export { directionAccentFor } from "./trainingFocus";
 import { getRequiredGymSessions } from "./weeklyRequirements";
 import {
   assertFinalPlanMeetsMinimums,
@@ -76,7 +83,6 @@ import {
   computeSessionLoad,
   countWeekRoles,
   validateGeneratedWeek,
-  limitationSupportCategory,
   countLimitationSessions,
   blockWeekOf,
   weekThemeFor,
@@ -504,12 +510,7 @@ function restoreMatchEveActivation(plan: SessionDay[], profile: Profile): void {
     if (day.mdLabel !== "MD-1" || day.dayType !== "rest" || day.isUnavailable) continue;
     if (day.executionProtected) continue;
     const weekday = isoDayOfWeek(parseIso(day.date));
-    if ((profile.unavailableDays ?? []).includes(weekday)) continue;
-    if (
-      Array.isArray(profile.individualTrainingDays) &&
-      !profile.individualTrainingDays.includes(weekday)
-    )
-      continue;
+    if (!ownTrainingAllowed(profile, weekday)) continue;
     const built = md1Session(profile);
     Object.assign(day, {
       dayType: "md-1",
@@ -616,9 +617,14 @@ function secondMobilityPrehab(): Built {
     avoidToday: "Bez intensywnych zrywów i ciężkich obciążeń.",
     main: [
       {
-        name: "Mobilność bioder i kostek",
-        prescription: "8 min, kontrolowany zakres",
+        name: "Cofanie bioder w podparciu",
+        prescription: "2 × 8 / strona",
         cue: "Powoli, kontroluj końcowy zakres ruchu.",
+      },
+      {
+        name: "Rozciąganie zginacza biodra w półklęku",
+        prescription: "2 × 30 s / strona",
+        cue: "Miednica lekko podwinięta, bez wyginania lędźwi.",
       },
       {
         name: "Copenhagen (przywodziciele) — lekko",
@@ -1508,8 +1514,10 @@ function buildBall(profile: Profile): Built {
     sessionType: "Piłka / technika",
     intensity: "umiarkowana",
     durationMin: 45,
+    // Bez słów „szybkość/przyspieszenie” w opisie: klasyfikator kategorii
+    // przebudowałby wtedy tę sesję piłkarską w kolejny sprint.
     goalOfSession: speedy
-      ? "Technika i decyzje z akcentem szybkościowym: pierwszy kontakt, akcja po przyspieszeniu."
+      ? "Technika i decyzje w meczowym rytmie: pierwszy kontakt i natychmiastowa akcja po nim."
       : "Doskonalenie pierwszego kontaktu, skanowania, słabszej nogi i decyzji.",
     riskManaged: "Praca techniczna o umiarkowanej objętości — bez fatygujących obwodów.",
     avoidToday: "Bez bezsensownej objętości i twardego kondycyjnego.",
@@ -1879,8 +1887,11 @@ function weekLoadConfig(
   if (isYoung(profile.age) || profile.level === "beginner") {
     maxDoubles = Math.min(maxDoubles, 1);
   }
-  // Zgoda na podwójny dzień wynika z poziomu i bezpieczeństwa, nie ze starego
-  // przełącznika profilu. Beginner może dostać najwyżej jedną lekką sesję 2.
+  // Zgoda na podwójny dzień wynika z poziomu i bezpieczeństwa. Beginner może
+  // dostać najwyżej jedną lekką sesję 2. „Jedna sesja dziennie” zawodnika jest
+  // respektowana już przy układaniu: bodziec nie trafia na drugą sesję, którą
+  // końcowa polityka i tak by usunęła (razem z celem, który w niej był).
+  if (profile.doubleSessionsAllowed === "no") maxDoubles = 0;
 
   return { cap: Math.max(1, cap), maxDoubles };
 }
@@ -2113,7 +2124,7 @@ function baseDayType(date: Date, profile: Profile): BaseDayType {
   // ten sam dzień omyłkowo zaznaczono jako niedostępny. UI pokaże klub, a
   // check-in może ograniczyć lub wstrzymać obciążenie.
   if (profile.clubTrainingDays.includes(isoDayOfWeek(date))) return "club";
-  if ((profile.unavailableDays ?? []).includes(isoDayOfWeek(date))) return "unavailable";
+  if (!ownTrainingAllowed(profile, isoDayOfWeek(date))) return "unavailable";
   if (daysToMatch(date, profile) === 1) return "md-1";
   if (daysSinceMatch(date, profile) === 1) return "md+1";
   return "available";
@@ -2182,7 +2193,8 @@ function goalCoreQuota(profile: Profile, matchCount: number, phase: WeekPhase): 
       // 2 jednostki COD/hamowanie + sprint + siła-moc + lekka wytrzymałość + piłka.
       return ["cod", "sprint", strengthMain, "endurance_light", "ball"];
     case "general":
-      return [strengthMain, "sprint", condMain, "ball", "cod"];
+      // „Gra z piłką”: własna piłka w rdzeniu tygodnia, obok siły, sprintu i biegu.
+      return [strengthMain, "ball", "sprint", condMain, "cod"];
     case "matchready":
     default:
       return ["sprint", "ball", strengthMain, "endurance_light", "cod"];
@@ -2317,9 +2329,14 @@ function hardWeeklyQuota(
   ) {
     quota.push("prehab");
   }
-  return offseasonStage && offseasonStage !== "transition"
-    ? applyOffseasonStage(profile, offseasonStage, quota, matchCount, phase)
-    : quota;
+  if (offseasonStage && offseasonStage !== "transition")
+    return applyOffseasonStage(profile, offseasonStage, quota, matchCount, phase);
+  // Przedsezon wybrany świadomie (także z meczami kontrolnymi co tydzień):
+  // dochodzi wytrzymałość specyficzna. Reguły dnia meczu i tak nie postawią jej
+  // na MD-2/MD-1, a limit tygodnia zdejmie najmniej potrzebny bodziec.
+  if (profile.seasonPhase === "preseason")
+    return applyOffseasonStage(profile, "preseason", quota, 0, phase);
+  return quota;
 }
 
 /**
@@ -2377,10 +2394,12 @@ function canPrimaryStimulus(
 
 function canSecondStimulus(
   stimulus: Stimulus,
-  it: { base: BaseDayType; toMatch: number | null },
+  it: { base: BaseDayType; toMatch: number | null; ownOk?: boolean },
   primary?: Stimulus,
 ): boolean {
   if (it.base === "match" || it.base === "md-1" || it.base === "md+1") return false;
+  // Druga sesja na dniu klubu tylko, gdy zawodnik ma tego dnia czas na własny trening.
+  if (it.ownOk === false) return false;
   if (it.toMatch !== null && it.toMatch <= 2) return false;
   const category = categoryOf(stimulus);
   if (it.base === "club") return stimulus === "prehab" || category === "strength_power";
@@ -2503,6 +2522,7 @@ function enforceMinimumGymSession(
   matchCount: number,
   items: { iso: string; date: Date; base: BaseDayType; toMatch: number | null }[],
   result: Record<string, PlanCell>,
+  maxDoubles = Number.POSITIVE_INFINITY,
 ): void {
   if (!profile.hasGym) return;
   if (!isHealthyPerformanceProfile(profile)) return;
@@ -2552,7 +2572,12 @@ function enforceMinimumGymSession(
         const cell = result[it.iso];
         if (!cell || cell.type !== "training" || !cell.stimulus) return false;
         const c = categoryOf(cell.stimulus);
-        return c !== "strength_power" && c !== "speed" && canPrimaryStimulus(gymStimulus, it);
+        return (
+          c !== "strength_power" &&
+          c !== "speed" &&
+          !isProtectedFocusCell(profile, items, result, cell.stimulus) &&
+          canPrimaryStimulus(gymStimulus, it)
+        );
       });
     if (replaceable) {
       result[replaceable.iso].stimulus = gymStimulus;
@@ -2560,6 +2585,8 @@ function enforceMinimumGymSession(
     }
 
     // 3. Jako druga jednostka dnia, jeśli istnieje bezpieczny slot.
+    const doubles = items.filter((it) => result[it.iso]?.secondStimulus).length;
+    if (doubles >= maxDoubles) break;
     const second = [...items]
       .sort((a, b) => slotScore(gymStimulus, b, true) - slotScore(gymStimulus, a, true))
       .find((it) => {
@@ -2575,6 +2602,145 @@ function enforceMinimumGymSession(
     // Brak bezpiecznego slotu → tydzień jest realnie skongestionowany,
     // gym pomijamy zgodnie z zasadami bezpieczeństwa.
     break;
+  }
+}
+
+/** Czy bodziec komórki realizuje jakość wybraną przez zawodnika (cel / ograniczenie). */
+function cellHasQuality(stimulus: Stimulus, quality: FocusQuality): boolean {
+  switch (quality) {
+    case "ball":
+      return stimulus === "ball";
+    case "speed":
+      return stimulus === "sprint" || stimulus === "speed_exposure" || stimulus === "cod";
+    case "strength":
+      return categoryOf(stimulus) === "strength_power";
+    case "endurance":
+      return categoryOf(stimulus) === "conditioning";
+    case "mobility":
+      return stimulus === "prehab";
+  }
+}
+
+type PlanItem = {
+  iso: string;
+  date: Date;
+  base: BaseDayType;
+  toMatch: number | null;
+  /** Zawodnik ma tego dnia czas na własny trening (ważne dla drugiej sesji przy klubie). */
+  ownOk?: boolean;
+};
+
+function cellQualityCount(
+  items: Pick<PlanItem, "iso">[],
+  result: Record<string, PlanCell>,
+  quality: FocusQuality,
+): number {
+  return items.reduce(
+    (n, it) =>
+      n +
+      [result[it.iso]?.stimulus, result[it.iso]?.secondStimulus].filter(
+        (s): s is Stimulus => !!s && cellHasQuality(s, quality),
+      ).length,
+    0,
+  );
+}
+
+/** Bodziec jest jedynym (lub ostatnim wymaganym) nośnikiem wyboru zawodnika. */
+function isProtectedFocusCell(
+  profile: Profile,
+  items: Pick<PlanItem, "iso">[],
+  result: Record<string, PlanCell>,
+  stimulus: Stimulus,
+): boolean {
+  return focusTargets(profile).some(
+    (target) =>
+      cellHasQuality(stimulus, target.quality) &&
+      cellQualityCount(items, result, target.quality) <= target.min,
+  );
+}
+
+function focusStimulus(profile: Profile, quality: FocusQuality, matchCount: number): Stimulus {
+  switch (quality) {
+    case "ball":
+      return "ball";
+    case "speed":
+      return profile.goal === "agility" || profile.secondaryLimiter === "cod" ? "cod" : "sprint";
+    case "strength":
+      return profile.hasGym ? (profile.goal === "power" ? "power" : "strength") : "strength_base";
+    case "endurance":
+      return matchCount > 0 ? "endurance_light" : "endurance_aerobic";
+    case "mobility":
+      return "prehab";
+  }
+}
+
+/**
+ * Cel i ograniczenie zawodnika muszą być w treści tygodnia, nie tylko w nazwie.
+ * Brakujący bodziec dostaje wolny dzień regeneracji albo zastępuje bodziec
+ * uzupełniający, którego jest w tygodniu więcej niż potrzeba. Reguły dnia meczu
+ * (canPrimaryStimulus) i inne wybory zawodnika zostają nienaruszone.
+ */
+function enforceFocusTargets(
+  profile: Profile,
+  matchCount: number,
+  items: PlanItem[],
+  result: Record<string, PlanCell>,
+): void {
+  for (const target of focusTargets(profile)) {
+    const stimulus = focusStimulus(profile, target.quality, matchCount);
+    let guard = 0;
+    while (cellQualityCount(items, result, target.quality) < target.min && guard++ < 4) {
+      const ranked = [...items].sort((a, b) => slotScore(stimulus, b) - slotScore(stimulus, a));
+      const idle = ranked.find(
+        (it) =>
+          result[it.iso]?.type === "recovery" &&
+          !result[it.iso].stimulus &&
+          it.base === "available" &&
+          canPrimaryStimulus(stimulus, it),
+      );
+      if (idle) {
+        result[idle.iso] = { type: "training", stimulus };
+        continue;
+      }
+      const categoryCount = (category: PerfCategory) =>
+        items.filter((it) => {
+          const s = result[it.iso]?.stimulus;
+          return s && categoryOf(s) === category;
+        }).length;
+      // Najpierw atletyka/prehab, potem nadmiarowa wydolność i siła; szybkość
+      // tylko gdy jest jej więcej niż jedna jednostka.
+      const order: PerfCategory[] = ["athletic", "conditioning", "strength_power", "ball", "speed"];
+      const candidates = (onlySurplus: boolean) =>
+        ranked
+          .filter((it) => {
+            const cell = result[it.iso];
+            if (!cell || cell.type !== "training" || !cell.stimulus) return false;
+            if (cellHasQuality(cell.stimulus, target.quality)) return false;
+            if (isProtectedFocusCell(profile, items, result, cell.stimulus)) return false;
+            // Zwroty (COD) są jednostką szybkości: ostatniej w tygodniu nie oddajemy.
+            if (
+              cellHasQuality(cell.stimulus, "speed") &&
+              cellQualityCount(items, result, "speed") <= 1
+            )
+              return false;
+            const category = categoryOf(cell.stimulus);
+            if (onlySurplus && category !== "athletic" && categoryCount(category) < 2) return false;
+            // Szybkości (jedyna jednostka tygodnia) nie oddajemy nigdy.
+            if (!onlySurplus && category === "speed") return false;
+            return canPrimaryStimulus(stimulus, it);
+          })
+          .sort(
+            (a, b) =>
+              order.indexOf(categoryOf(result[a.iso].stimulus!)) -
+              order.indexOf(categoryOf(result[b.iso].stimulus!)),
+          )[0];
+      // Cel główny ma pierwszeństwo przed pojedynczym bodźcem uzupełniającym
+      // (wydolność, potem siła); ograniczenie bierze tylko nadmiar.
+      const replaceable =
+        candidates(true) ?? (target.source === "goal" ? candidates(false) : undefined);
+      if (!replaceable) break;
+      result[replaceable.iso].stimulus = stimulus;
+    }
   }
 }
 
@@ -2658,6 +2824,7 @@ function repairWeekCells(
  * pilnują reguły tygodnia.
  */
 function trimOffseasonWeek(
+  profile: Profile,
   avail: { iso: string }[],
   result: Record<string, PlanCell>,
   cap: number,
@@ -2683,9 +2850,11 @@ function trimOffseasonWeek(
   let guard = 0;
   while (slots().length > cap && guard++ < 14) {
     // Od końca tygodnia, drugie sesje dnia przed pierwszymi.
+    // Sesje, które jako ostatnie realizują cel lub ograniczenie zawodnika, zostają.
     const all = slots()
       .reverse()
-      .sort((a, b) => Number(b.second) - Number(a.second));
+      .sort((a, b) => Number(b.second) - Number(a.second))
+      .filter((slot) => !isProtectedFocusCell(profile, avail, result, slot.stimulus));
     const inCategory = (category: PerfCategory) =>
       all.filter((slot) => categoryOf(slot.stimulus) === category);
     const victim =
@@ -2721,7 +2890,7 @@ function planBlock(
       profile.cycleStart,
     );
 
-    const items: { iso: string; date: Date; base: BaseDayType; toMatch: number | null }[] = [];
+    const items: PlanItem[] = [];
     let clubCount = 0;
     let matchCount = 0;
 
@@ -2730,7 +2899,13 @@ function planBlock(
       const base = baseDayType(date, profile);
       if (base === "club") clubCount++;
       if (base === "match") matchCount++;
-      items.push({ iso: isoDate(date), date, base, toMatch: daysToMatch(date, profile) });
+      items.push({
+        iso: isoDate(date),
+        date,
+        base,
+        toMatch: daysToMatch(date, profile),
+        ownOk: ownTrainingAllowed(profile, isoDayOfWeek(date)),
+      });
     }
 
     // Dni stałe: mecz / MD-1 / klub / MD+1 (regeneracja).
@@ -2787,12 +2962,13 @@ function planBlock(
 
     repairWeekCells(profile, items, result, maxDoubles);
     enforcePrimaryGoalTarget(profile, items, result);
-    enforceMinimumGymSession(profile, matchCount, items, result);
+    enforceFocusTargets(profile, matchCount, items, result);
+    enforceMinimumGymSession(profile, matchCount, items, result, maxDoubles);
 
     // Bez meczów limit sesji wynika z wieku i poziomu: pozostałe dni są wolne,
     // a nie „aktywną regeneracją”, którą walidatory zamieniłyby w kolejne treningi.
     if (offseasonStageOf(profile) && !profile.painInjury) {
-      trimOffseasonWeek(avail, result, cap);
+      trimOffseasonWeek(profile, avail, result, cap);
       for (const it of avail) {
         if (result[it.iso]?.type === "recovery" && !result[it.iso].stimulus) {
           result[it.iso] = { type: "rest", restReason: OFFSEASON_REST_REASON };
@@ -2840,8 +3016,20 @@ function enforceConsecutiveLowerBodySafety(out: SessionDay[], profile: Profile):
   const highFreqAllowed = profile.level === "advanced" || profile.level === "elite";
   for (let i = 1; i < out.length; i++) {
     const prev = out[i - 1];
+    // Dzień liczy się w całości — także druga sesja („+1”).
+    const prevHeavySecond = prev.secondSession && isLowerBodyHigh(prev.secondSession);
+    if (
+      out[i].secondSession &&
+      isLowerBodyHigh(out[i].secondSession!) &&
+      (isLowerBodyHigh(prev) || prevHeavySecond) &&
+      !highFreqAllowed &&
+      !out[i].secondSession!.executionProtected
+    ) {
+      out[i].secondSession = null;
+      out[i].slotLabel = null;
+    }
     const cur = out[i];
-    if (!isLowerBodyHigh(prev) || !isLowerBodyHigh(cur)) continue;
+    if ((!isLowerBodyHigh(prev) && !prevHeavySecond) || !isLowerBodyHigh(cur)) continue;
     // Mecz/klub to stałe punkty kalendarza — ich nie ruszamy.
     if (cur.dayType === "match" || cur.dayType === "club") continue;
     if (prev.dayType === "match" || prev.dayType === "club") {
@@ -3050,6 +3238,8 @@ function tryRelocateEndurance(out: SessionDay[], i: number): boolean {
     const target = out[j];
     if (target.dayType !== "training") continue;
     if (dayHasEnduranceLoad(target)) continue;
+    // Dzień po meczu i dwa dni przed nim nie przyjmują przeniesionego biegu.
+    if (["MD+1", "MD-1", "MD-2"].includes(target.mdLabel ?? "")) continue;
     // Po przeniesieniu dzień j staje się wydolnościowy — sąsiedzi muszą być wolni.
     const before = j > 0 ? out[j - 1] : null;
     const after = j < out.length - 1 ? out[j + 1] : null;
@@ -3269,6 +3459,12 @@ function convertRecoveryToBuilt(
     cooldown: built.cooldown ?? cooldown(),
   };
   day.reason = reason;
+  // Nowa treść nie jest już sesją z generatora sprintu: bez tych pól końcowa
+  // odbudowa sprintu nie przywróci starej sesji na miejsce nowej.
+  day.speedGeneratorVersion = undefined;
+  day.speedFamily = undefined;
+  day.speedProgressionWeek = undefined;
+  day.speedRecentPostSkipExerciseIds = undefined;
   day.loadTags = computeLoadTags(day);
   out[idx] = normalizeSessionCategory(decorateSession(day, 1));
 }
@@ -3280,43 +3476,6 @@ function isConvertibleRecoveryDay(day: SessionDay, profile: Profile): boolean {
   const dt = daysToMatch(new Date(day.date + "T00:00:00"), profile);
   if (dt === 1 || dt === 2) return false;
   return true;
-}
-
-/**
- * „Jak chcesz się czuć / jak czujesz się teraz na boisku” → the week gets the
- * quality these answers point to: one more full session of it (unless the
- * week already has two), placed like a limiter session by the week repair —
- * on a recovery or low-priority support day, never on MD-1, MD+1 or MD-2 and
- * never instead of the goal minimum. Skipped with pain,
- * a return or fatigue limit, in transition, return phase and deload weeks.
- * Returns the stand-in limiter, or "mobility" for a mobility session.
- */
-export function directionAccentFor(profile: Profile): SecondaryLimiter | "mobility" | null {
-  if (
-    profile.painInjury ||
-    profile.goal === "return" ||
-    profile.secondaryLimiter === "fatigue" ||
-    profile.secondaryLimiter === "return" ||
-    profile.seasonPhase === "return_injury" ||
-    profile.seasonPhase === "transition" ||
-    offseasonStageOf(profile) === "transition"
-  )
-    return null;
-  const asLimiter: Record<DirectionQuality, SecondaryLimiter | "mobility"> = {
-    strength: "strength",
-    speed: "speed",
-    agility: "cod",
-    endurance: "endurance",
-    ball: "ball",
-    mobility: "mobility",
-  };
-  for (const quality of directionQualities(profile)) {
-    const accent = asLimiter[quality];
-    if (accent === "mobility") return accent;
-    if (accent === profile.secondaryLimiter) continue; // the limiter already asks for it
-    if (limitationSupportCategory(accent)) return accent;
-  }
-  return null;
 }
 
 function isMobilitySession(day: SessionDay): boolean {
@@ -3420,7 +3579,24 @@ function repairWeekErrors(
       const cat = d.classification?.category;
       if (cat && MAIN_GOAL_RULES[profile.goal].mandatoryCategories.includes(cat)) continue;
       if (cat === "endurance_conditioning") continue; // nie kasuj wydolności
-      const rank = priority.indexOf(cat ?? "other");
+      // Wybór zawodnika (cel, ograniczenie) nie ustępuje minimum wspierającemu.
+      if (isProtectedFocusSession(out.slice(range.start, range.end), d, profile)) continue;
+      // Jedynej sesji szybkości w tygodniu nie zamieniamy (minimum tygodnia).
+      if (
+        cat === "speed_sprint" &&
+        out
+          .slice(range.start, range.end)
+          .filter((day) => day.classification?.category === "speed_sprint").length <= 1
+      )
+        continue;
+      // Druga jednostka szybkości typu zwroty liczy się jak cod_agility: ją
+      // oddajemy przed główną sesją sprintu (tydzień i tak ma jeden sprint).
+      const codLike =
+        cat === "speed_sprint" &&
+        /change_of_direction|deceleration|agility|reactive/.test(
+          d.classification?.subcategory ?? "",
+        );
+      const rank = priority.indexOf(codLike ? "cod_agility" : (cat ?? "other"));
       const effRank = rank === -1 ? 0 : priority.length - rank;
       if (effRank > bestRank) {
         bestRank = effRank;
@@ -3491,6 +3667,7 @@ function repairWeekErrors(
       const mandatoryCount = countWeekRoles(week, profile.goal).mandatory;
       if (mandatoryCount <= MAIN_GOAL_RULES[profile.goal].mandatoryCount) return -1;
       const mandCats = MAIN_GOAL_RULES[profile.goal].mandatoryCategories;
+      let fallback = -1;
       for (let i = range.start; i < range.end; i++) {
         const d = out[i];
         if (d.dayType !== "training") continue;
@@ -3499,9 +3676,23 @@ function repairWeekErrors(
         if (dt === 1 || dt === 2) continue;
         const cat = d.classification?.category;
         if (cat === "endurance_conditioning") continue; // nie kasuj wydolności
-        if (cat && mandCats.includes(cat)) return i;
+        if (isProtectedFocusSession(week, d, profile)) continue;
+        if (!cat || !mandCats.includes(cat)) continue;
+        if (cat === "speed_sprint") {
+          // Zwroty jako druga jednostka szybkości odchodzą pierwsze; główny sprint
+          // tylko wtedy, gdy w tygodniu jest inna sesja szybkości.
+          const speedDays = week.filter((day) => day.classification?.category === "speed_sprint");
+          if (speedDays.length <= 1) continue;
+          const codLike = /change_of_direction|deceleration|agility|reactive/.test(
+            d.classification?.subcategory ?? "",
+          );
+          if (codLike) return i;
+          fallback = fallback === -1 ? i : fallback;
+          continue;
+        }
+        return i;
       }
-      return -1;
+      return fallback;
     };
     const idx = pickTarget() !== -1 ? pickTarget() : findSurplusMandatory();
     if (idx === -1) return false;
@@ -3732,12 +3923,19 @@ function fitDayBallWork(day: SessionDay, profile: Profile): SessionDay {
 }
 
 export function generatePlan(
-  rawProfile: Profile,
+  inputProfile: Profile,
   start?: Date,
   days = 28,
   weekOffset = 0,
 ): SessionDay[] {
   const startDate = start ?? localToday();
+  // Mecze pochodzą wyłącznie z zapisanego terminarza i świadomie wybranego
+  // stałego dnia (mecze co tydzień). Bez nich plan nie zakłada żadnego meczu.
+  const scheduled = scheduledMatchDates(inputProfile, isoDate(startDate), days);
+  const rawProfile: Profile =
+    scheduled.length === profileMatchDates(inputProfile).length
+      ? inputProfile
+      : { ...inputProfile, matchDates: scheduled };
   // Silnik korzysta z ZWALIDOWANEGO okresu sezonu: jeśli zapisany okres jest
   // sprzeczny z kalendarzem i nie włączono trybu niestandardowego, używamy
   // sugestii kalendarzowej, by load i dobór sesji były wiarygodne.

@@ -1,4 +1,5 @@
 import { hasProtectedExecution } from "./dailyPlanCheckin";
+import { ownTrainingAllowed } from "./availability";
 import { addIsoDays } from "@/lib/isoDate";
 import { automationCategory } from "./adaptiveWeek";
 import type { Profile, SessionDay, SessionCompletion } from "./types";
@@ -76,13 +77,7 @@ export function decideRemovedSession(input: {
     )
       return false;
     const weekday = new Date(`${day.date}T12:00:00Z`).getUTCDay() || 7;
-    if (
-      executed(day) ||
-      input.profile.unavailableDays?.includes(weekday) ||
-      (Array.isArray(input.profile.individualTrainingDays) &&
-        !input.profile.individualTrainingDays.includes(weekday))
-    )
-      return false;
+    if (executed(day) || !ownTrainingAllowed(input.profile, weekday)) return false;
     if (!demanding) return true;
     // A conservative scheduling rule, not a numerical estimate of recovery or injury risk.
     return !input.effectivePlan.some(
