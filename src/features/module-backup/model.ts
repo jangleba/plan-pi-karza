@@ -16,6 +16,12 @@ import {
   verifyFpAttempts,
   type FpAttempt,
 } from "../football-iq-match/firstPerson/fpStore";
+import {
+  f5HistoryKey,
+  loadF5History,
+  verifyF5Attempts,
+  type F5Attempt,
+} from "../football-iq-match/fiveAside/f5Store";
 import { loadBrowserResults } from "../browser-lab/storage";
 import {
   loadReactiveCustomSets,
@@ -60,6 +66,7 @@ export function moduleKeys(module: BackupModule, owner: string): Record<string, 
         mastery: masteryKey(owner),
         fieldTask: fieldTaskKey(owner),
         firstPerson: fpHistoryKey(owner),
+        fiveAside: f5HistoryKey(owner),
       };
     case "lab":
       return { history: `ballwise.browser-lab.v1:${encodeURIComponent(owner)}` };
@@ -154,6 +161,25 @@ function readRecords(
             "outcome",
             "choice",
             "execution",
+            "look",
+            "createdAt",
+          ]),
+        ),
+      ),
+      // 5v5 results (own versioned list; inputs allow replaying and checking each one).
+      fiveAside: present("fiveAside", () =>
+        loadF5History(owner, storage).map((row) =>
+          pick(row, [
+            "id",
+            "version",
+            "engine",
+            "variant",
+            "position",
+            "inputs",
+            "outcome",
+            "choice",
+            "execution",
+            "problem",
             "look",
             "createdAt",
           ]),
@@ -407,6 +433,16 @@ export function previewModuleRestore(
     );
     verifyFpAttempts(
       (incoming.records.firstPerson as FpAttempt[]).filter((row) => !known.has(row.id)),
+    );
+  }
+  if (snapshot.module === "iq" && Array.isArray(incoming.records.fiveAside)) {
+    const known = new Set(
+      (Array.isArray(local.fiveAside) ? local.fiveAside : []).map(
+        (row) => (row as { id: string }).id,
+      ),
+    );
+    verifyF5Attempts(
+      (incoming.records.fiveAside as F5Attempt[]).filter((row) => !known.has(row.id)),
     );
   }
   const state = readBackupState(owner, snapshot.module, storage);

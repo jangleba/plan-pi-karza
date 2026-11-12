@@ -1,5 +1,6 @@
-/** Static world for the first-person view, in real metres (105 × 68 m pitch, 7.32 × 2.44 m
- * goals, 0.11 m ball radius) so the eye-height camera sees correct sizes and perspective.
+/** Static world for the first-person view, in real metres so the eye-height camera sees
+ * correct sizes and perspective: a full 105 × 68 m pitch with 7.32 × 2.44 m goals (3v2) or a
+ * small-sided pitch (5v5) passed as `dims`; the ball has a 0.11 m radius.
  * Built once; every geometry, material and texture is tracked and released in dispose(). */
 import {
   BackSide,
@@ -25,6 +26,18 @@ import {
 } from "three";
 import { PITCH } from "./fpMath";
 
+/** Pitch measurements in metres. `small`: small-sided markings (no 16.5 m box, no arcs). */
+export type PitchDims = {
+  halfWidth: number;
+  halfLength: number;
+  goalHalfWidth: number;
+  goalHeight: number;
+  boxDepth: number;
+  boxHalfWidth: number;
+  centreRadius?: number;
+  small?: boolean;
+};
+
 /** Pitch metres (x across, y towards the attacked goal) → three.js world (Y up, attack = −Z). */
 export const toWorld = (x: number, y: number, h = 0, out = new Vector3()) => out.set(x, h, -y);
 export const BALL_R = 0.11;
@@ -46,9 +59,9 @@ function noise(seed: number) {
   };
 }
 
-function pitchTexture() {
-  const W = (PITCH.halfWidth * 2 + MARGIN * 2) * PX,
-    H = (PITCH.halfLength * 2 + MARGIN * 2) * PX;
+function pitchTexture(PITCH: PitchDims) {
+  const W = Math.round((PITCH.halfWidth * 2 + MARGIN * 2) * PX),
+    H = Math.round((PITCH.halfLength * 2 + MARGIN * 2) * PX);
   const canvas = makeCanvas(W, H);
   const g = canvas.getContext("2d")!;
   const px = (x: number) => (x + PITCH.halfWidth + MARGIN) * PX;
@@ -56,16 +69,17 @@ function pitchTexture() {
   const py = (y: number) => (PITCH.halfLength + MARGIN - y) * PX;
   g.fillStyle = "#3d6f31";
   g.fillRect(0, 0, W, H);
-  // Mowing stripes across the pitch, 5.25 m wide.
-  const stripe = 5.25;
-  for (let i = 0; i < 24; i++) {
+  // Mowing stripes across the pitch (5.25 m on a full pitch, 4 m on a small one).
+  const stripe = PITCH.small ? 4 : 5.25;
+  const stripes = Math.ceil((PITCH.halfLength * 2 + MARGIN * 2) / stripe) + 1;
+  for (let i = -2; i < stripes; i++) {
     const y0 = -PITCH.halfLength + i * stripe;
     g.fillStyle = i % 2 ? "rgba(255,255,255,0.035)" : "rgba(0,0,0,0.05)";
     g.fillRect(0, py(y0 + stripe), W, stripe * PX);
   }
   // Fine grain so the grass does not look flat close to the camera.
   const random = noise(7);
-  for (let i = 0; i < 60000; i++) {
+  for (let i = 0; i < (PITCH.small ? Math.round((W * H) / 30) : 60000); i++) {
     const x = random() * W,
       y = random() * H;
     g.fillStyle = random() > 0.5 ? "rgba(20,45,18,0.05)" : "rgba(170,200,130,0.035)";
@@ -82,9 +96,9 @@ function pitchTexture() {
   g.lineTo(px(PITCH.halfWidth), py(0));
   g.stroke();
   g.beginPath();
-  g.arc(px(0), py(0), 9.15 * PX, 0, Math.PI * 2);
+  g.arc(px(0), py(0), (PITCH.centreRadius ?? 9.15) * PX, 0, Math.PI * 2);
   g.stroke();
-  for (const end of [1, -1]) {
+  for (const end of PITCH.small ? [] : [1, -1]) {
     const line = end * PITCH.halfLength;
     rect(-20.16, end > 0 ? line - 16.5 : line, 20.16, end > 0 ? line : line + 16.5);
     rect(-9.16, end > 0 ? line - 5.5 : line, 9.16, end > 0 ? line : line + 5.5);
@@ -100,6 +114,17 @@ function pitchTexture() {
     else g.arc(px(0), py(spot), 9.15 * PX, Math.PI + a, 2 * Math.PI - a);
     g.stroke();
   }
+  // Small-sided pitch: one goal area at each end.
+  if (PITCH.small)
+    for (const end of [1, -1]) {
+      const line = end * PITCH.halfLength;
+      rect(
+        -PITCH.boxHalfWidth,
+        end > 0 ? line - PITCH.boxDepth : line,
+        PITCH.boxHalfWidth,
+        end > 0 ? line : line + PITCH.boxDepth,
+      );
+    }
   g.fillStyle = "rgba(246,248,242,0.92)";
   g.beginPath();
   g.arc(px(0), py(0), 0.15 * PX, 0, Math.PI * 2);
@@ -165,7 +190,7 @@ function boardTexture() {
   return texture;
 }
 
-export function buildWorld() {
+export function buildWorld(PITCH: PitchDims = FULL_PITCH) {
   const group = new Group();
   const geometries = new Set<BufferGeometry>();
   const materials = new Set<Material>();
@@ -189,7 +214,7 @@ export function buildWorld() {
   );
   group.add(sky);
 
-  const fieldTex = pitchTexture();
+  const fieldTex = pitchTexture(PITCH);
   textures.add(fieldTex);
   const fieldW = PITCH.halfWidth * 2 + MARGIN * 2,
     fieldH = PITCH.halfLength * 2 + MARGIN * 2;
@@ -201,7 +226,7 @@ export function buildWorld() {
   group.add(field);
   // Darker surround so the edge of the world is never visible.
   const surround = new Mesh(
-    keep(new RingGeometry(70, 380, 32)),
+    keep(new RingGeometry(Math.hypot(PITCH.halfWidth, PITCH.halfLength) + MARGIN + 2, 380, 32)),
     mat(new MeshBasicMaterial({ color: "#1e3320" })),
   );
   surround.rotation.x = -Math.PI / 2;
@@ -226,7 +251,7 @@ export function buildWorld() {
     toWorld(0, line, PITCH.goalHeight, bar.position);
     goal.add(bar);
     const pts: number[] = [];
-    const depth = 2.0 * end;
+    const depth = (PITCH.small ? 1.1 : 2.0) * end;
     const push = (a: Vector3, b: Vector3) => pts.push(a.x, a.y, a.z, b.x, b.y, b.z);
     const w = PITCH.goalHalfWidth;
     for (let x = -w; x <= w + 0.01; x += 0.5) {
@@ -255,15 +280,16 @@ export function buildWorld() {
   const boardTex = boardTexture();
   textures.add(boardTex);
   const boardMat = mat(new MeshBasicMaterial({ map: boardTex }));
-  const sideBoard = keep(new BoxGeometry(100, 0.9, 0.15));
-  const endBoard = keep(new BoxGeometry(60, 0.9, 0.15));
+  const gap = PITCH.small ? 2.5 : 4;
+  const sideBoard = keep(new BoxGeometry(PITCH.halfLength * 2 - 5, 0.9, 0.15));
+  const endBoard = keep(new BoxGeometry(PITCH.halfWidth * 2 - 8, 0.9, 0.15));
   for (const side of [-1, 1]) {
     const b = new Mesh(sideBoard, boardMat);
     b.rotation.y = Math.PI / 2;
-    toWorld(side * (PITCH.halfWidth + 4), 0, 0.45, b.position);
+    toWorld(side * (PITCH.halfWidth + gap), 0, 0.45, b.position);
     group.add(b);
     const e = new Mesh(endBoard, boardMat);
-    toWorld(0, side * (PITCH.halfLength + 4), 0.45, e.position);
+    toWorld(0, side * (PITCH.halfLength + gap), 0.45, e.position);
     group.add(e);
   }
 
@@ -326,3 +352,4 @@ export function buildWorld() {
   };
 }
 export type FpWorld = ReturnType<typeof buildWorld>;
+const FULL_PITCH: PitchDims = PITCH;

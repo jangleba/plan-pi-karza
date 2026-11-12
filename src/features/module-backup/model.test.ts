@@ -17,6 +17,7 @@ import { emptyFuelData, fuelStorageKey } from "@/lib/fuel/experience";
 import { masteryKey } from "../football-iq-match/mastery";
 import { fieldTaskKey } from "../football-iq-match/fieldTask";
 import { fpHistoryKey } from "../football-iq-match/firstPerson/fpStore";
+import { f5HistoryKey } from "../football-iq-match/fiveAside/f5Store";
 import {
   applyModuleRestore,
   createModuleSnapshot,
@@ -176,6 +177,7 @@ describe("explicit per-device module snapshots", () => {
       mastery: masteryKey("a"),
       fieldTask: fieldTaskKey("a"),
       firstPerson: fpHistoryKey("a"),
+      fiveAside: f5HistoryKey("a"),
     });
     const store = memory();
     store.setItem(journeyHistoryKey("b"), "broken other account");
