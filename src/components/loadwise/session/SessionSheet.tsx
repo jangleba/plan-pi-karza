@@ -13,25 +13,8 @@ export function prepareSessionSheet() {
   void loadView().catch(() => undefined);
 }
 
-/** Search keys that keep the open training panel in the URL (back closes it). */
-export interface SessionSheetSearch {
-  sesja?: string;
-  slot?: 1 | 2;
-  mod?: string;
-}
-
-export function parseSessionSheetSearch(search: Record<string, unknown>): SessionSheetSearch {
-  const sesja =
-    typeof search.sesja === "string" && /^\d{4}-\d{2}-\d{2}$/.test(search.sesja)
-      ? search.sesja
-      : undefined;
-  if (!sesja) return {};
-  return {
-    sesja,
-    slot: Number(search.slot) === 2 ? 2 : 1,
-    mod: typeof search.mod === "string" && search.mod ? search.mod : undefined,
-  };
-}
+import type { SessionSheetSearch } from "./sessionSheetSearch";
+export { parseSessionSheetSearch, type SessionSheetSearch } from "./sessionSheetSearch";
 
 type Search = Record<string, unknown>;
 const withTarget = (prev: Search, target: SessionTarget | null): Search => ({

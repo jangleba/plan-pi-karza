@@ -76,25 +76,46 @@ export function useCycleReviewCard(
   };
 }
 
+/**
+ * Earlier cycle summaries change only when a cycle ends (the newest one also comes from the
+ * live plan), so one read per user is kept in memory: opening Postęp again shows them at once,
+ * without a loading line or another database query. A stale copy is shown while it refreshes.
+ */
+const PAST_REVIEWS_FRESH_MS = 5 * 60_000;
+const pastReviewsCache = new Map<string, { at: number; rows: CycleStartRecord[] }>();
+
+/** Forgets the remembered summaries (tests). */
+export function clearPastCycleReviewsCache() {
+  pastReviewsCache.clear();
+}
+
 /** Wszystkie podsumowania cykli (najnowsze pierwsze) do zakładki Postęp. */
 export function useCycleReviewHistory(
   userId: string | null | undefined,
   plan: readonly SessionDay[],
 ): { records: CycleStartRecord[]; loading: boolean } {
   const current = useMemo(() => cycleStartOf(plan), [plan]);
-  const [past, setPast] = useState<CycleStartRecord[]>([]);
-  const [loading, setLoading] = useState(Boolean(userId));
+  const cached = userId ? pastReviewsCache.get(userId) : undefined;
+  const [past, setPast] = useState<CycleStartRecord[]>(cached?.rows ?? []);
+  const [loading, setLoading] = useState(Boolean(userId) && !cached);
   useEffect(() => {
     if (!userId) {
       setPast([]);
       setLoading(false);
       return;
     }
+    const remembered = pastReviewsCache.get(userId);
+    if (remembered) {
+      setPast(remembered.rows);
+      setLoading(false);
+      if (Date.now() - remembered.at < PAST_REVIEWS_FRESH_MS) return;
+    } else setLoading(true);
     const controller = new AbortController();
-    setLoading(true);
     loadPastCycleReviews(userId, controller.signal)
       .then((rows) => {
-        if (!controller.signal.aborted) setPast(rows);
+        if (controller.signal.aborted) return;
+        pastReviewsCache.set(userId, { at: Date.now(), rows });
+        setPast(rows);
       })
       .catch(() => undefined)
       .finally(() => {

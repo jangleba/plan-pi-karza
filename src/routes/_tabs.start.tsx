@@ -31,12 +31,14 @@ import { UpcomingWeekPrompt } from "@/components/loadwise/UpcomingWeekPrompt";
 import { useCycleReviewCard } from "@/lib/loadwise/useCycleReview";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import {
-  parseSessionSheetSearch,
   prepareSessionSheet,
   SessionSheet,
   useSessionSheet,
-  type SessionSheetSearch,
 } from "@/components/loadwise/session/SessionSheet";
+import {
+  parseSessionSheetSearch,
+  type SessionSheetSearch,
+} from "@/components/loadwise/session/sessionSheetSearch";
 
 export const Route = createFileRoute("/_tabs/start")({
   validateSearch: (search: Record<string, unknown>): SessionSheetSearch =>

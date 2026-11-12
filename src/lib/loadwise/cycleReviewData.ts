@@ -178,7 +178,7 @@ export async function reviewEndedCycle(input: {
   return cycleStartRecord(review, cycleId);
 }
 
-/** Wcześniejsze podsumowania cykli z zarchiwizowanych planów (tylko pierwszy dzień planu). */
+/** Wcześniejsze podsumowania cykli z zarchiwizowanych planów (tylko pierwszy dzień planu). Błąd odczytu: wyjątek. */
 export async function loadPastCycleReviews(
   userId: string,
   signal?: AbortSignal,
@@ -191,7 +191,8 @@ export async function loadPastCycleReviews(
     .limit(200);
   if (signal) query = query.abortSignal(signal);
   const result = await query;
-  if (result.error) return [];
+  // A failed read is reported, so the caller keeps what it already shows instead of "no summaries".
+  if (result.error) throw new Error(result.error.message);
   const seen = new Set<string>();
   const out: CycleStartRecord[] = [];
   for (const row of (result.data ?? []) as unknown as { start: CycleStartRecord | null }[]) {
