@@ -134,9 +134,11 @@
   stroke-linejoin: round;
 }
 @media (max-width: 520px) and (orientation: portrait) {
-  /* Portrait phone: the hint sits above the thumbs so nothing overlaps. */
+  /* Portrait phone: the hint sits under the top bar, clear of the thumbs and of your
+     player in the view from behind. */
   .f5-hint {
-    bottom: calc(max(22px, env(safe-area-inset-bottom)) + 300px);
+    top: calc(max(12px, env(safe-area-inset-top)) + 64px);
+    bottom: auto;
     max-width: calc(100vw - 32px);
     white-space: normal;
     font-size: 13px;

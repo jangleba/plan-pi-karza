@@ -50,6 +50,10 @@ const PLAYER_METRES = 1.8;
  * shows at the bottom of the picture, as in the reference picture. */
 const EYE_BEHIND = 1.4;
 const LOOK_PITCH = -0.24;
+/** View from behind (third person): camera this far behind you and this high (m). */
+const BEHIND_DISTANCE = 5;
+const BEHIND_HEIGHT = 2.9;
+export type F5View = "eye" | "behind";
 // Kits after the reference picture: light blue with navy shorts, maroon.
 const HOME_KIT = { shirt: "#7cc0ea", shorts: "#1d2f52" };
 const AWAY_KIT = { shirt: "#7c2334", shorts: "#4a1420" };
@@ -190,7 +194,11 @@ export async function createF5Scene(
   const tmp = new Vector3();
   // The eye sits a little behind you, so the ball at your feet is in the picture. It
   // follows the body heading smoothly (never the look), so looking around never moves it.
+  // From behind (third person) the camera circles you with the look, higher and further
+  // back, and your own player is drawn.
   const camAt = v(0, 0);
+  let view: F5View = "eye";
+  let camHeight = EYE_HEIGHT;
   let camHeading: number | null = null,
     camTime = 0;
   function placeEye(x: number, y: number, heading: number, time: number) {
@@ -200,9 +208,13 @@ export async function createF5Scene(
       camHeading === null
         ? heading
         : camHeading + angleDiff(camHeading, heading) * (1 - Math.exp(-dt / 0.25));
-    camAt.x = x - Math.sin(camHeading) * EYE_BEHIND;
-    camAt.y = y - Math.cos(camHeading) * EYE_BEHIND;
-    toWorld(camAt.x, camAt.y, EYE_HEIGHT, eye.position);
+    const behind = view === "behind";
+    const around = behind ? -yawOf(look.quaternion) : camHeading;
+    const back = behind ? BEHIND_DISTANCE : EYE_BEHIND;
+    camHeight = behind ? BEHIND_HEIGHT : EYE_HEIGHT;
+    camAt.x = x - Math.sin(around) * back;
+    camAt.y = y - Math.cos(around) * back;
+    toWorld(camAt.x, camAt.y, camHeight, eye.position);
   }
 
   function resize() {
@@ -284,9 +296,7 @@ export async function createF5Scene(
       const d = dist(ty, p);
       if (d > 35 || d < 1.5) continue;
       const errYaw = Math.abs(angleDiff(heading, headingOf({ x: p.x - ty.x, y: p.y - ty.y })));
-      const errPitch = Math.abs(
-        pitch - Math.atan2(1.0 - EYE_HEIGHT, Math.max(0.5, dist(camAt, p))),
-      );
+      const errPitch = Math.abs(pitch - Math.atan2(1.0 - camHeight, Math.max(0.5, dist(camAt, p))));
       const err = Math.hypot(errYaw, errPitch * 0.6);
       if (err < bestErr) {
         bestErr = err;
@@ -304,7 +314,7 @@ export async function createF5Scene(
       pitch = pitchOf(look.quaternion);
     const ty = sim.players[sim.ty]!.pos;
     // Where the view meets the grass, measured from the camera (it sits behind you).
-    const ground = pitch < -0.04 ? Math.min(30, EYE_HEIGHT / Math.tan(-pitch)) : 18;
+    const ground = pitch < -0.04 ? Math.min(30, camHeight / Math.tan(-pitch)) : 18;
     const aim = v(camAt.x + Math.sin(-yaw) * ground, camAt.y + Math.cos(-yaw) * ground);
     const d = Math.max(3, dist(ty, aim));
     const h = headingOf({ x: aim.x - ty.x, y: aim.y - ty.y });
@@ -389,7 +399,13 @@ export async function createF5Scene(
       const n = sim.frames.length;
       const a = sim.frames[Math.max(0, n - 2)]!,
         b = sim.frames[n - 1]!;
-      poseActors(a, b, sim.phase === "done" ? 1 : blend, time, camera === eye ? sim.ty : null);
+      poseActors(
+        a,
+        b,
+        sim.phase === "done" ? 1 : blend,
+        time,
+        camera === eye && view === "eye" ? sim.ty : null,
+      );
       if (camera === eye) {
         const p = a.agents[sim.ty]!,
           q = b.agents[sim.ty]!;
@@ -564,6 +580,10 @@ export async function createF5Scene(
       return true;
     },
     /** The current phone direction becomes the direction towards the rivals' goal. */
+    /** First person (eye) or from behind (third person); can change during play. */
+    setView(next: F5View) {
+      view = next;
+    },
     recenterForward() {
       look.recenter(0);
       stickRef = null;
