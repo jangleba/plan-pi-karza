@@ -1,5 +1,6 @@
-/** Static world for the first-person view, in real metres (105 × 68 m pitch, 7.32 × 2.44 m
- * goals, 0.11 m ball radius) so the eye-height camera sees correct sizes and perspective.
+/** Static world for the first-person view, in real metres so the eye-height camera sees
+ * correct sizes and perspective: a full 105 × 68 m pitch with 7.32 × 2.44 m goals (3v2) or a
+ * small-sided pitch (5v5) passed as `dims`; the ball has a 0.11 m radius.
  * Built once; every geometry, material and texture is tracked and released in dispose(). */
 import {
   BackSide,
@@ -21,9 +22,25 @@ import {
   Vector3,
   BoxGeometry,
   CircleGeometry,
+  Color,
+  IcosahedronGeometry,
+  InstancedMesh,
+  Matrix4,
   RingGeometry,
 } from "three";
 import { PITCH } from "./fpMath";
+
+/** Pitch measurements in metres. `small`: small-sided markings (no 16.5 m box, no arcs). */
+export type PitchDims = {
+  halfWidth: number;
+  halfLength: number;
+  goalHalfWidth: number;
+  goalHeight: number;
+  boxDepth: number;
+  boxHalfWidth: number;
+  centreRadius?: number;
+  small?: boolean;
+};
 
 /** Pitch metres (x across, y towards the attacked goal) → three.js world (Y up, attack = −Z). */
 export const toWorld = (x: number, y: number, h = 0, out = new Vector3()) => out.set(x, h, -y);
@@ -46,9 +63,9 @@ function noise(seed: number) {
   };
 }
 
-function pitchTexture() {
-  const W = (PITCH.halfWidth * 2 + MARGIN * 2) * PX,
-    H = (PITCH.halfLength * 2 + MARGIN * 2) * PX;
+function pitchTexture(PITCH: PitchDims) {
+  const W = Math.round((PITCH.halfWidth * 2 + MARGIN * 2) * PX),
+    H = Math.round((PITCH.halfLength * 2 + MARGIN * 2) * PX);
   const canvas = makeCanvas(W, H);
   const g = canvas.getContext("2d")!;
   const px = (x: number) => (x + PITCH.halfWidth + MARGIN) * PX;
@@ -56,16 +73,17 @@ function pitchTexture() {
   const py = (y: number) => (PITCH.halfLength + MARGIN - y) * PX;
   g.fillStyle = "#3d6f31";
   g.fillRect(0, 0, W, H);
-  // Mowing stripes across the pitch, 5.25 m wide.
-  const stripe = 5.25;
-  for (let i = 0; i < 24; i++) {
+  // Mowing stripes across the pitch (5.25 m on a full pitch, 4 m on a small one).
+  const stripe = PITCH.small ? 4 : 5.25;
+  const stripes = Math.ceil((PITCH.halfLength * 2 + MARGIN * 2) / stripe) + 1;
+  for (let i = -2; i < stripes; i++) {
     const y0 = -PITCH.halfLength + i * stripe;
     g.fillStyle = i % 2 ? "rgba(255,255,255,0.035)" : "rgba(0,0,0,0.05)";
     g.fillRect(0, py(y0 + stripe), W, stripe * PX);
   }
   // Fine grain so the grass does not look flat close to the camera.
   const random = noise(7);
-  for (let i = 0; i < 60000; i++) {
+  for (let i = 0; i < (PITCH.small ? Math.round((W * H) / 30) : 60000); i++) {
     const x = random() * W,
       y = random() * H;
     g.fillStyle = random() > 0.5 ? "rgba(20,45,18,0.05)" : "rgba(170,200,130,0.035)";
@@ -82,9 +100,9 @@ function pitchTexture() {
   g.lineTo(px(PITCH.halfWidth), py(0));
   g.stroke();
   g.beginPath();
-  g.arc(px(0), py(0), 9.15 * PX, 0, Math.PI * 2);
+  g.arc(px(0), py(0), (PITCH.centreRadius ?? 9.15) * PX, 0, Math.PI * 2);
   g.stroke();
-  for (const end of [1, -1]) {
+  for (const end of PITCH.small ? [] : [1, -1]) {
     const line = end * PITCH.halfLength;
     rect(-20.16, end > 0 ? line - 16.5 : line, 20.16, end > 0 ? line : line + 16.5);
     rect(-9.16, end > 0 ? line - 5.5 : line, 9.16, end > 0 ? line : line + 5.5);
@@ -100,6 +118,17 @@ function pitchTexture() {
     else g.arc(px(0), py(spot), 9.15 * PX, Math.PI + a, 2 * Math.PI - a);
     g.stroke();
   }
+  // Small-sided pitch: one goal area at each end.
+  if (PITCH.small)
+    for (const end of [1, -1]) {
+      const line = end * PITCH.halfLength;
+      rect(
+        -PITCH.boxHalfWidth,
+        end > 0 ? line - PITCH.boxDepth : line,
+        PITCH.boxHalfWidth,
+        end > 0 ? line : line + PITCH.boxDepth,
+      );
+    }
   g.fillStyle = "rgba(246,248,242,0.92)";
   g.beginPath();
   g.arc(px(0), py(0), 0.15 * PX, 0, Math.PI * 2);
@@ -165,7 +194,11 @@ function boardTexture() {
   return texture;
 }
 
-export function buildWorld() {
+/** `day`: bright daytime sky with a tree line, floodlight masts and small stands (5v5).
+ * Without it the evening look of the 3v2 lesson stays exactly as it was. */
+export type WorldOptions = { day?: boolean };
+
+export function buildWorld(PITCH: PitchDims = FULL_PITCH, options: WorldOptions = {}) {
   const group = new Group();
   const geometries = new Set<BufferGeometry>();
   const materials = new Set<Material>();
@@ -179,8 +212,14 @@ export function buildWorld() {
   const pos = skyGeo.getAttribute("position");
   for (let i = 0; i < pos.count; i++) {
     const t = Math.max(0, pos.getY(i) / 400);
-    // Linear colour values: deep blue-grey overhead, lighter haze at the horizon.
-    colors.push(0.06 - 0.045 * t, 0.085 - 0.06 * t, 0.11 - 0.07 * t);
+    if (options.day) {
+      // Linear colour values: pale haze at the horizon, clear blue overhead.
+      const k = Math.min(1, t * 2.2);
+      colors.push(0.62 - 0.5 * k, 0.74 - 0.47 * k, 0.86 - 0.18 * k);
+    } else {
+      // Linear colour values: deep blue-grey overhead, lighter haze at the horizon.
+      colors.push(0.06 - 0.045 * t, 0.085 - 0.06 * t, 0.11 - 0.07 * t);
+    }
   }
   skyGeo.setAttribute("color", new Float32BufferAttribute(colors, 3));
   const sky = new Mesh(
@@ -189,7 +228,7 @@ export function buildWorld() {
   );
   group.add(sky);
 
-  const fieldTex = pitchTexture();
+  const fieldTex = pitchTexture(PITCH);
   textures.add(fieldTex);
   const fieldW = PITCH.halfWidth * 2 + MARGIN * 2,
     fieldH = PITCH.halfLength * 2 + MARGIN * 2;
@@ -201,8 +240,8 @@ export function buildWorld() {
   group.add(field);
   // Darker surround so the edge of the world is never visible.
   const surround = new Mesh(
-    keep(new RingGeometry(70, 380, 32)),
-    mat(new MeshBasicMaterial({ color: "#1e3320" })),
+    keep(new RingGeometry(Math.hypot(PITCH.halfWidth, PITCH.halfLength) + MARGIN + 2, 380, 32)),
+    mat(new MeshBasicMaterial({ color: options.day ? "#4c6b3a" : "#1e3320" })),
   );
   surround.rotation.x = -Math.PI / 2;
   surround.position.y = -0.02;
@@ -226,7 +265,7 @@ export function buildWorld() {
     toWorld(0, line, PITCH.goalHeight, bar.position);
     goal.add(bar);
     const pts: number[] = [];
-    const depth = 2.0 * end;
+    const depth = (PITCH.small ? 1.1 : 2.0) * end;
     const push = (a: Vector3, b: Vector3) => pts.push(a.x, a.y, a.z, b.x, b.y, b.z);
     const w = PITCH.goalHalfWidth;
     for (let x = -w; x <= w + 0.01; x += 0.5) {
@@ -255,17 +294,20 @@ export function buildWorld() {
   const boardTex = boardTexture();
   textures.add(boardTex);
   const boardMat = mat(new MeshBasicMaterial({ map: boardTex }));
-  const sideBoard = keep(new BoxGeometry(100, 0.9, 0.15));
-  const endBoard = keep(new BoxGeometry(60, 0.9, 0.15));
+  const gap = PITCH.small ? 2.5 : 4;
+  const sideBoard = keep(new BoxGeometry(PITCH.halfLength * 2 - 5, 0.9, 0.15));
+  const endBoard = keep(new BoxGeometry(PITCH.halfWidth * 2 - 8, 0.9, 0.15));
   for (const side of [-1, 1]) {
     const b = new Mesh(sideBoard, boardMat);
     b.rotation.y = Math.PI / 2;
-    toWorld(side * (PITCH.halfWidth + 4), 0, 0.45, b.position);
+    toWorld(side * (PITCH.halfWidth + gap), 0, 0.45, b.position);
     group.add(b);
     const e = new Mesh(endBoard, boardMat);
-    toWorld(0, side * (PITCH.halfLength + 4), 0.45, e.position);
+    toWorld(0, side * (PITCH.halfLength + gap), 0.45, e.position);
     group.add(e);
   }
+
+  if (options.day) addScenery(group, PITCH, keep, mat);
 
   const ballTex = ballTexture();
   textures.add(ballTex);
@@ -326,3 +368,94 @@ export function buildWorld() {
   };
 }
 export type FpWorld = ReturnType<typeof buildWorld>;
+
+/** Tree line, floodlight masts and two small stands around a small pitch. Trees are one
+ * instanced mesh per part, so the whole scenery costs a handful of draw calls. */
+function addScenery(
+  group: Group,
+  PITCH: PitchDims,
+  keep: <G extends BufferGeometry>(g: G) => G,
+  mat: <M extends Material>(m: M) => M,
+) {
+  // Deterministic pseudo-random numbers: the same scenery every time.
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  const crownGeo = keep(new IcosahedronGeometry(1, 1));
+  const trunkGeo = keep(new CylinderGeometry(0.18, 0.25, 1, 6));
+  const crownMat = mat(
+    new MeshStandardMaterial({ color: "#ffffff", roughness: 1, flatShading: true }),
+  );
+  const trunkMat = mat(new MeshStandardMaterial({ color: "#4a3a2c", roughness: 1 }));
+  const rx = PITCH.halfWidth + 30,
+    ry = PITCH.halfLength + 34;
+  const spots: { x: number; y: number }[] = [];
+  for (let a = 0; a < Math.PI * 2; a += 0.045) {
+    const r = 1 + rnd() * 0.35;
+    spots.push({ x: Math.sin(a) * rx * r * 1.25, y: Math.cos(a) * ry * r * 1.15 });
+    if (rnd() > 0.45) spots.push({ x: Math.sin(a) * rx * r * 1.55, y: Math.cos(a) * ry * r * 1.4 });
+  }
+  const crowns = new InstancedMesh(crownGeo, crownMat, spots.length);
+  const trunks = new InstancedMesh(trunkGeo, trunkMat, spots.length);
+  const m = new Matrix4(),
+    at = new Vector3(),
+    tint = new Color();
+  const greens = ["#3d6a33", "#4a7a3a", "#36602f", "#557f3f"];
+  spots.forEach((s, i) => {
+    // Broad leafy crowns, 8–13 m tall trees.
+    const h = 4 + rnd() * 3,
+      w = 3.2 + rnd() * 2;
+    toWorld(s.x, s.y, 3.2 + h * 0.8, at);
+    m.makeScale(w, h, w).setPosition(at);
+    crowns.setMatrixAt(i, m);
+    crowns.setColorAt(i, tint.set(greens[Math.floor(rnd() * greens.length)]!));
+    toWorld(s.x, s.y, 2, at);
+    m.makeScale(1, 4, 1).setPosition(at);
+    trunks.setMatrixAt(i, m);
+  });
+  group.add(crowns, trunks);
+
+  // Floodlight masts in the four corners, 16 m tall, lamps tilted towards the pitch.
+  const mastGeo = keep(new CylinderGeometry(0.16, 0.24, 16, 8));
+  const lampGeo = keep(new BoxGeometry(2.4, 1.2, 0.3));
+  const mastMat = mat(
+    new MeshStandardMaterial({ color: "#9aa3a6", roughness: 0.6, metalness: 0.4 }),
+  );
+  const lampMat = mat(new MeshStandardMaterial({ color: "#d8dde0", roughness: 0.5 }));
+  for (const sx of [-1, 1])
+    for (const sy of [-1, 1]) {
+      const x = sx * (PITCH.halfWidth + 7),
+        y = sy * (PITCH.halfLength - 2);
+      const mast = new Mesh(mastGeo, mastMat);
+      toWorld(x, y, 8, mast.position);
+      const lamp = new Mesh(lampGeo, lampMat);
+      toWorld(x, y, 16.4, lamp.position);
+      lamp.rotation.y = Math.atan2(-x, y);
+      lamp.rotation.x = -0.35;
+      group.add(mast, lamp);
+    }
+
+  // Two small covered stands along the long sides: steps, back wall and a light roof.
+  const stepGeo = keep(new BoxGeometry(1, 1, 1));
+  const standMat = mat(new MeshStandardMaterial({ color: "#7d8a8f", roughness: 0.9 }));
+  const seatMat = mat(new MeshStandardMaterial({ color: "#3d6e8c", roughness: 0.8 }));
+  const roofMat = mat(new MeshStandardMaterial({ color: "#c9d0d3", roughness: 0.7 }));
+  const length = PITCH.halfLength * 1.1;
+  for (const side of [-1, 1]) {
+    const base = PITCH.halfWidth + 5;
+    for (let row = 0; row < 4; row++) {
+      const step = new Mesh(stepGeo, row % 2 ? seatMat : standMat);
+      step.scale.set(1.0, 0.45 * (row + 1), length);
+      toWorld(side * (base + row * 1.0), 0, 0.225 * (row + 1), step.position);
+      group.add(step);
+    }
+    const wall = new Mesh(stepGeo, standMat);
+    wall.scale.set(0.3, 4.4, length);
+    toWorld(side * (base + 4), 0, 2.2, wall.position);
+    const roof = new Mesh(stepGeo, roofMat);
+    roof.scale.set(5.2, 0.15, length + 1);
+    toWorld(side * (base + 1.6), 0, 4.4, roof.position);
+    roof.rotation.z = side * 0.08;
+    group.add(wall, roof);
+  }
+}
+const FULL_PITCH: PitchDims = PITCH;

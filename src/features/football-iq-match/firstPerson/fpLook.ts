@@ -63,6 +63,8 @@ export type LookOptions = {
   /** Milliseconds without a usable sample before falling back to dragging. */
   sensorTimeout?: number;
   now?: () => number;
+  /** Starting up/down angle of the drag view in radians (default slightly down). */
+  initialPitch?: number;
 };
 
 /** Holds the camera orientation. Call update(dt) once per rendered frame. */
@@ -84,6 +86,7 @@ export class LookController {
 
   constructor(options: LookOptions) {
     this.options = options;
+    if (options.initialPitch !== undefined) this.dragPitch = options.initialPitch;
     options.target.addEventListener("pointerdown", this.onDown);
     options.target.addEventListener("pointermove", this.onMove);
     options.target.addEventListener("pointerup", this.onUp);

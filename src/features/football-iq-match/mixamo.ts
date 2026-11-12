@@ -436,6 +436,8 @@ export function makeActor(
   asset: RunningModel,
   player: MatchPlayer,
   idlePhaseOffset = 0,
+  /** Optional kit colours (5v5); without it every older view keeps its kits. */
+  palette?: { shirt: string; shorts: string },
 ) {
   // Object3D.clone alone would share the bones between teammates.
   const model = clone(asset.model) as Group;
@@ -451,13 +453,17 @@ export function makeActor(
       positions = object.geometry.getAttribute("position");
     const colors = new Float32Array(positions.count * 3);
     const kit = new Color(
-      player.goalkeeper
+      palette && !player.goalkeeper
+        ? palette.shirt
+        : player.goalkeeper
         ? "#f1bd48"
         : player.team === "home"
           ? "#3e9eea"
           : "#ec795d",
     );
-    const shorts = new Color(player.team === "home" ? "#163b61" : "#743e47");
+    const shorts = new Color(
+      palette ? palette.shorts : player.team === "home" ? "#163b61" : "#743e47",
+    );
     const skin = new Color(
       ["#deb796", "#bd8663", "#efceb0", "#99664e"][player.number % 4],
     );
