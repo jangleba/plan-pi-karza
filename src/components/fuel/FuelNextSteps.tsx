@@ -6,7 +6,6 @@ import {
   GlassWater,
   History,
   PackageCheck,
-  RotateCcw,
   ShoppingBag,
   Utensils,
 } from "lucide-react";
@@ -23,7 +22,6 @@ export function FuelNextSteps({
   laterTitle,
   tomorrowMatch,
   savedToday,
-  canRepeat,
   native,
   remindersOn,
   reminderBusy,
@@ -32,7 +30,6 @@ export function FuelNextSteps({
   onPack,
   onTomorrow,
   onHistory,
-  onRepeat,
   onReminders,
   onToggleReminders,
   onDrink,
@@ -46,7 +43,6 @@ export function FuelNextSteps({
   laterTitle?: string | null;
   tomorrowMatch?: boolean;
   savedToday?: boolean;
-  canRepeat?: boolean;
   native?: boolean;
   remindersOn?: boolean;
   reminderBusy?: boolean;
@@ -55,7 +51,6 @@ export function FuelNextSteps({
   onPack(): void;
   onTomorrow?(): void;
   onHistory(): void;
-  onRepeat?(): void;
   onReminders?(): void;
   onToggleReminders?(): void;
   onDrink(ml: number, kind: "water" | "sports"): void;
@@ -88,7 +83,7 @@ export function FuelNextSteps({
       {onStore && <Row icon={<ShoppingBag size={18} />} label="W sklepie" onClick={onStore} />}
       <Row
         icon={<Utensils size={18} />}
-        label={guide.last ? "Już jadłem" : "Mam swoje jedzenie"}
+        label={guide.last ? "Już jadłem" : "Zjadłem coś innego"}
         onClick={onOwn}
         className="fuel-recent-meal"
         value={guide.last ? guide.eaten : undefined}
@@ -159,9 +154,6 @@ export function FuelNextSteps({
             onClick={onReminders}
           />
         ))}
-      {canRepeat && onRepeat && (
-        <Row icon={<RotateCcw size={18} />} label="Powtórz zestaw" onClick={onRepeat} />
-      )}
       <Row
         icon={<History size={18} className={savedToday ? "bw-tone--success" : undefined} />}
         label="Historia"

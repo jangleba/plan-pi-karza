@@ -102,6 +102,12 @@ export function practicalRecipes(input: {
     (e) =>
       e.status === "eaten" && e.eatenAt !== null && localDate(e.eatenAt) === localDate(input.now),
   );
+  // Remembered preference: a set the athlete marked as comfortable comes back sooner.
+  const comfortable = new Set(
+    input.data.entries
+      .filter((e) => e.status === "eaten" && e.feedback === "comfortable")
+      .map((e) => e.recipeId),
+  );
   return candidates
     .map((recipe, index) => {
       const n = mealNutrition(recipe.lines);
@@ -118,6 +124,7 @@ export function practicalRecipes(input: {
           repeated * 4 +
           sessionRecipeScore(input.context, input.timing, recipe.lines) -
           (heavyRecipeIds.includes(recipe.id) ? 5 : 0) +
+          (comfortable.has(recipe.id) && !heavyRecipeIds.includes(recipe.id) ? 2 : 0) +
           (input.timing.phase === "after" && hasProtein ? 4 : 0) +
           (minutes !== null && minutes <= 90 && n && n.fat <= 10 && n.fiber <= 5 ? 2 : 0) +
           (input.context.load === "high" && minutes !== null && minutes > 90 && n && n.carbs >= 50

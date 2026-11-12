@@ -77,6 +77,10 @@ export interface FuelSelection {
   manualKind: SessionKind;
   manualDurationMin: number | null;
   manualLoad: FuelLoadBand;
+  /** Quick fit chosen on the main screen today ("Mam 5 minut", "W sklepie", "Mam swoje"). */
+  fit?: "quick" | "store" | "own" | null;
+  /** Catalogue food IDs the athlete has at hand ("Mam swoje"). */
+  pantry?: string[];
 }
 export const SESSION_LABELS: Record<SessionKind, string> = {
   match: "Mecz",
@@ -224,7 +228,14 @@ function isSelection(value: unknown, today: string): value is FuelSelection {
         Number.isFinite(value.manualDurationMin) &&
         value.manualDurationMin >= 10 &&
         value.manualDurationMin <= 300)) &&
-    ["low", "moderate", "high"].includes(String(value.manualLoad))
+    ["low", "moderate", "high"].includes(String(value.manualLoad)) &&
+    (value.fit === undefined ||
+      value.fit === null ||
+      ["quick", "store", "own"].includes(String(value.fit))) &&
+    (value.pantry === undefined ||
+      (Array.isArray(value.pantry) &&
+        value.pantry.length <= 40 &&
+        value.pantry.every((id) => typeof id === "string" && id.length <= 40)))
   );
 }
 function isTiming(value: unknown): value is FuelTiming {
