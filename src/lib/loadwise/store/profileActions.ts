@@ -425,6 +425,7 @@ export function createProfileActions(
             strengthTrainingMonths: clean.strengthTrainingMonths,
             movementCompetence: clean.movementCompetence,
             supervisionLevel: clean.supervisionLevel,
+            clubStrengthDays: clean.clubStrengthDays,
             trainingMethodPreferences:
               clean.trainingMethodPreferences ?? current.profile.trainingMethodPreferences,
             serverProfileUpdatedAt: profileUpdatedAt,

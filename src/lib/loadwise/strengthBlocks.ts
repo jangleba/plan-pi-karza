@@ -1,4 +1,5 @@
 import { balanceStrengthSections } from "./strengthSessionBalance";
+import { isPreparedYouthLifter } from "./youthReadiness";
 import { buildEquipmentReplacement } from "./equipmentReplacement";
 import { gymCooldown, mobilityCircuit, recoveryStretches } from "./recoveryContent";
 import type {
@@ -1073,8 +1074,11 @@ interface Dosage {
 
 function dosageFor(profile: Profile, ctx: StrengthBlockContext): Dosage {
   const athlete = buildAthleteTrainingProfile(profile);
+  // Wiek sam nie decyduje: przygotowany 13–14-latek (staż, technika, nadzór)
+  // dostaje strukturalną dawkę z elementami hipertrofii zamiast samej techniki.
+  const preparedYoung = isYoung(profile.age) && isPreparedYouthLifter(profile);
   const gentle =
-    isYoung(profile.age) ||
+    (isYoung(profile.age) && !preparedYoung) ||
     ["none", "beginner"].includes(athlete.gymExperienceLevel) ||
     (athlete.strengthTrainingAge ?? 0) < 6 ||
     athlete.movementCompetenceLevel === "low";
@@ -1122,7 +1126,19 @@ function dosageFor(profile: Profile, ctx: StrengthBlockContext): Dosage {
       };
       break;
   }
-  if (gentle) {
+  if (preparedYoung && !gentle) {
+    // 13–14 z potwierdzonym stażem: siła strukturalna i hipertrofia, umiarkowany
+    // ciężar, zawsze 3 RIR; progresja fazą bloku (powtórzenia → ciężar).
+    d = {
+      ...d,
+      mainSets: ctx.weekPhase === "deload" ? "2" : "3",
+      mainReps: ctx.weekPhase === "peak" ? "6–8" : "8–10",
+      rpe: "RPE 6–7 (3 RIR, bez upadku)",
+      accSets: ctx.weekPhase === "deload" ? "2" : "3",
+      accReps: "10–15",
+      contactScale: d.contactScale * 0.7,
+    };
+  } else if (gentle) {
     d = {
       ...d,
       mainReps: ctx.weekPhase === "peak" ? "5–6" : "8–10",
@@ -1257,6 +1273,53 @@ function primaryStrengthDose(profile: Profile, ctx: StrengthBlockContext): Prima
           rest: "2–3 min",
           loadTarget: "Ciężar na 6–8 powt. · 2–3 RIR",
           cue: devCue,
+        };
+    }
+  }
+
+  if (!heavyEligible && isYoung(profile.age) && isPreparedYouthLifter(profile)) {
+    // 13–14 z potwierdzonym stażem, techniką i nadzorem (15–16 mają własną
+    // ścieżkę developingLoadingAllowed): umiarkowany ciężar
+    // (hantle, maszyna, goblet), powtórzenia 6–10, zawsze 3 RIR.
+    const youthCue =
+      "Dokładaj ciężar dopiero, gdy wszystkie serie są czyste technicznie. Bez serii do upadku, zawsze 3 RIR.";
+    switch (ctx.weekPhase) {
+      case "deload":
+        return {
+          sets: "2",
+          reps: "8",
+          rpe: "RPE 5–6",
+          rest: "90 s",
+          loadTarget: "Lekko · 4 RIR",
+          cue: youthCue,
+        };
+      case "adaptation":
+        return {
+          sets: "3",
+          reps: "10",
+          rpe: "RPE 6 (4 RIR)",
+          rest: "1,5–2 min",
+          loadTarget: "Umiarkowany ciężar na 10 powt. · 4 RIR",
+          cue: youthCue,
+        };
+      case "peak":
+        return {
+          sets: "3",
+          reps: "6–8",
+          rpe: "RPE 7 (3 RIR)",
+          rest: "2 min",
+          loadTarget: "Ciężar na 6–8 powt. · 3 RIR",
+          cue: youthCue,
+        };
+      case "development":
+      default:
+        return {
+          sets: "3",
+          reps: "8–10",
+          rpe: "RPE 6–7 (3 RIR)",
+          rest: "2 min",
+          loadTarget: "Ciężar na 8–10 powt. · 3 RIR",
+          cue: youthCue,
         };
     }
   }

@@ -150,7 +150,7 @@ export function sessionHasQuality(session: SessionDay, quality: FocusQuality): b
     case "speed":
       return classifySession(session).countsAsSpeed;
     case "strength":
-      return classifySession(session).category === "gym_strength";
+      return isDevelopmentStrengthSession(session);
     case "endurance":
       return isEnduranceSession(session);
     case "mobility":
@@ -158,11 +158,65 @@ export function sessionHasQuality(session: SessionDay, quality: FocusQuality): b
   }
 }
 
-/** Own sessions of a quality in the days given, both slots of every day (also the „+1”). */
-export function countFocusSessions(days: SessionDay[], quality: FocusQuality): number {
-  return days
+/** Gym sessions that only support (core, stability, landing, light work) — not strength development. */
+const SUPPORT_STRENGTH_SUBCATEGORIES = new Set([
+  "core_strength",
+  "stability_coordination",
+  "landing_mechanics",
+  "light_full_body",
+]);
+
+/**
+ * A session that develops strength: resistance training at a real dose.
+ * Warm-up, core, the pre-match activation and the light upper-body session
+ * after a match do not replace it.
+ */
+export function isDevelopmentStrengthSession(session: SessionDay): boolean {
+  if (session.dayType === "md-1" || session.durationMin < 25) return false;
+  const classification = classifySession(session);
+  if (classification.category !== "gym_strength") return false;
+  if (SUPPORT_STRENGTH_SUBCATEGORIES.has(classification.subcategory)) return false;
+  if (session.intensity === "niska") return false;
+  return !/^lekk/i.test(session.title);
+}
+
+const weekdayOf = (day: SessionDay) =>
+  day.dayOfWeek ?? (new Date(`${day.date}T12:00:00Z`).getUTCDay() || 7);
+
+/** Club days on which the club runs a strength block (declared by the athlete). */
+export function clubStrengthDaysOf(
+  profile: Pick<Profile, "clubStrengthDays" | "clubTrainingDays"> | null | undefined,
+): number[] {
+  const club = profile?.clubTrainingDays ?? [];
+  return (profile?.clubStrengthDays ?? []).filter((day) => club.includes(day));
+}
+
+/** A club session in the plan that includes the club's strength block. */
+export function isClubStrengthDay(
+  day: SessionDay,
+  profile: Pick<Profile, "clubStrengthDays" | "clubTrainingDays"> | null | undefined,
+): boolean {
+  return day.dayType === "club" && clubStrengthDaysOf(profile).includes(weekdayOf(day));
+}
+
+/**
+ * Sessions of a quality in the days given, both slots of every day (also the
+ * „+1”). For strength the club's own strength block counts too, so the plan
+ * does not duplicate it.
+ */
+export function countFocusSessions(
+  days: SessionDay[],
+  quality: FocusQuality,
+  profile?: Pick<Profile, "clubStrengthDays" | "clubTrainingDays"> | null,
+): number {
+  const own = days
     .flatMap((day) => [day, day.secondSession])
     .filter((session) => isOwnWork(session) && sessionHasQuality(session, quality)).length;
+  const club =
+    quality === "strength" && profile
+      ? days.filter((day) => isClubStrengthDay(day, profile)).length
+      : 0;
+  return own + club;
 }
 
 /** The session is the last one (or one of the last needed) that realises a choice. */
@@ -175,14 +229,14 @@ export function isProtectedFocusSession(
   return focusTargets(profile).some(
     (target) =>
       sessionHasQuality(session, target.quality) &&
-      countFocusSessions(week, target.quality) <= target.min,
+      countFocusSessions(week, target.quality, profile) <= target.min,
   );
 }
 
 /** Targets the week does not reach. */
 export function unmetFocusTargets(week: SessionDay[], profile: Profile): FocusTarget[] {
   return focusTargets(profile).filter(
-    (target) => countFocusSessions(week, target.quality) < target.min,
+    (target) => countFocusSessions(week, target.quality, profile) < target.min,
   );
 }
 

@@ -1055,6 +1055,12 @@ export interface EnforceContext {
   counters: ContentCounters;
   light?: boolean;
   readiness?: number;
+  /**
+   * Kategoria znana z bodźca planu (np. bieg dołożony po klubie). Bez niej
+   * kategoria wynika z tekstu sesji, a cel „wspiera regenerację” zmieniłby bieg
+   * w prehab.
+   */
+  category?: SessionContentCategory;
 }
 
 /** Nadpisuje treść sesji zgodnie z jej kategorią (poza gym/klub/mecz/rest). */
@@ -1063,7 +1069,7 @@ export function enforceSessionCategory(
   profile: Profile,
   ctx: EnforceContext,
 ): SessionContentCategory {
-  const category = classifyContentCategory(session);
+  const category = ctx.category ?? classifyContentCategory(session);
   let built: BuiltContent | null;
 
   switch (category) {

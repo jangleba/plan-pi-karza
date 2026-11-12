@@ -38,6 +38,7 @@ export function trainingProfileRevision(profile: Profile): string {
     "strengthTrainingMonths",
     "movementCompetence",
     "supervisionLevel",
+    "clubStrengthDays",
     "trainingMethodPreferences",
     "currentPitchFeelings",
     "desiredPitchFeelings",
@@ -50,6 +51,7 @@ export function trainingProfileRevision(profile: Profile): string {
     "equipment",
     "painLocations",
     "unavailableEquipmentIds",
+    "clubStrengthDays",
     "currentPitchFeelings",
     "desiredPitchFeelings",
   ]);

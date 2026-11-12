@@ -55,9 +55,11 @@ import {
   type FootballSpeedFamily,
 } from "./footballSpeedSessionEngine";
 import { hasRealSpeedExposure } from "./speedLoad";
+import { orderDaySessionsByLoad } from "./sessionLoadKind";
 import { validateFootballSpeedDate } from "./footballSpeedScheduling";
 import { isProfileMatchDate, profileMatchDates, scheduledMatchDates } from "./matchSchedule";
 import {
+  clubStrengthDaysOf,
   directionAccentFor,
   focusTargets,
   isProtectedFocusSession,
@@ -2392,9 +2394,12 @@ function canPrimaryStimulus(
   return true;
 }
 
+/** Spokojny bieg: można go dołożyć do treningu klubowego jako drugą sesję dnia. */
+const EASY_RUN_STIMULI: Stimulus[] = ["endurance_light", "endurance_aerobic", "endurance_deload"];
+
 function canSecondStimulus(
   stimulus: Stimulus,
-  it: { base: BaseDayType; toMatch: number | null; ownOk?: boolean },
+  it: { base: BaseDayType; toMatch: number | null; ownOk?: boolean; clubStrength?: boolean },
   primary?: Stimulus,
 ): boolean {
   if (it.base === "match" || it.base === "md-1" || it.base === "md+1") return false;
@@ -2402,7 +2407,15 @@ function canSecondStimulus(
   if (it.ownOk === false) return false;
   if (it.toMatch !== null && it.toMatch <= 2) return false;
   const category = categoryOf(stimulus);
-  if (it.base === "club") return stimulus === "prehab" || category === "strength_power";
+  // Dzień klubowy to nie dzień zajęty: klub + siłownia albo klub + spokojny bieg
+  // (razem najwyżej dwie sesje). Sprint i mocne interwały zostają poza klubem,
+  // a siłownia nie dubluje bloku siłowego, który robi klub.
+  if (it.base === "club")
+    return (
+      stimulus === "prehab" ||
+      (category === "strength_power" && !it.clubStrength) ||
+      EASY_RUN_STIMULI.includes(stimulus)
+    );
   if (it.base !== "available") return false;
   if (!primary) return false;
   const primaryCategory = categoryOf(primary);
@@ -2419,6 +2432,75 @@ function canSecondStimulus(
     return false;
   }
   return true;
+}
+
+/**
+ * Zgłoszone bloki siłowe w klubie zastępują własne sesje siłowe z limitu
+ * (od końca listy), żeby siła nie była dublowana. Gdy siła jest celem albo
+ * ogranicznikiem, zostaje co najmniej jedna własna sesja siłowa — klubowy blok
+ * rzadko wystarcza na rozwój siły.
+ */
+function creditClubStrength(profile: Profile, quota: Stimulus[], clubStrength: number): Stimulus[] {
+  if (clubStrength === 0) return quota;
+  const keepOwn =
+    profile.goal === "strength" ||
+    profile.goal === "power" ||
+    profile.secondaryLimiter === "strength"
+      ? 1
+      : 0;
+  const strengthIdx = quota
+    .map((s, i) => (categoryOf(s) === "strength_power" ? i : -1))
+    .filter((i) => i >= 0);
+  const drop = new Set(strengthIdx.slice(keepOwn).slice(-clubStrength));
+  return quota.filter((_, i) => !drop.has(i));
+}
+
+/** Czy dzień obok ma już bodziec tej kategorii (w dowolnym slocie). */
+function categoryNextTo(
+  items: PlanItem[],
+  result: Record<string, PlanCell>,
+  it: PlanItem,
+  category: PerfCategory,
+): boolean {
+  const index = items.indexOf(it);
+  return [items[index - 1], items[index + 1]].some((near) => {
+    const cell = near ? result[near.iso] : undefined;
+    return [cell?.stimulus, cell?.secondStimulus].some((s) => !!s && categoryOf(s) === category);
+  });
+}
+
+/**
+ * Druga sesja po klubie: bieg nie trafia obok innego dnia biegowego, a siła
+ * obok innej siły — inaczej późniejsze reguły odstępów i tak by ją zdjęły.
+ */
+function clubSecondSpaced(
+  stimulus: Stimulus,
+  items: PlanItem[],
+  result: Record<string, PlanCell>,
+  it: PlanItem,
+): boolean {
+  if (it.base !== "club") return true;
+  const category = categoryOf(stimulus);
+  if (category === "conditioning") return !categoryNextTo(items, result, it, "conditioning");
+  if (category === "strength_power") return !strengthNextTo(items, result, it);
+  return true;
+}
+
+/** Czy dzień obok ma już siłę (własną albo blok siłowy w klubie). */
+function strengthNextTo(
+  items: PlanItem[],
+  result: Record<string, PlanCell>,
+  it: PlanItem,
+): boolean {
+  const index = items.indexOf(it);
+  return [items[index - 1], items[index + 1]].some((near) => {
+    if (!near) return false;
+    const cell = result[near.iso];
+    return (
+      near.clubStrength === true ||
+      [cell?.stimulus, cell?.secondStimulus].some((s) => !!s && categoryOf(s) === "strength_power")
+    );
+  });
 }
 
 function slotScore(
@@ -2520,7 +2602,7 @@ function enforcePrimaryGoalTarget(
 function enforceMinimumGymSession(
   profile: Profile,
   matchCount: number,
-  items: { iso: string; date: Date; base: BaseDayType; toMatch: number | null }[],
+  items: PlanItem[],
   result: Record<string, PlanCell>,
   maxDoubles = Number.POSITIVE_INFINITY,
 ): void {
@@ -2530,7 +2612,13 @@ function enforceMinimumGymSession(
 
   const gymStimulus: Stimulus = "strength";
   const cells = () => items.map((it) => result[it.iso]).filter(Boolean) as PlanCell[];
-  const gymCount = () => countCellCategories(cells()).strength_power;
+  // Blok siłowy w klubie to też siłownia w tym tygodniu — nie dublujemy go.
+  const clubStrength = items.filter(
+    (it) =>
+      result[it.iso]?.type === "club" &&
+      clubStrengthDaysOf(profile).includes(isoDayOfWeek(it.date)),
+  ).length;
+  const gymCount = () => countCellCategories(cells()).strength_power + clubStrength;
 
   // Centralne źródło prawdy: ile sesji siłowni musi mieć ten tydzień.
   const required = getRequiredGymSessions(
@@ -2587,12 +2675,22 @@ function enforceMinimumGymSession(
     // 3. Jako druga jednostka dnia, jeśli istnieje bezpieczny slot.
     const doubles = items.filter((it) => result[it.iso]?.secondStimulus).length;
     if (doubles >= maxDoubles) break;
+    // Siła nie ląduje obok innej siły (także bloku siłowego klubu), jeśli jest inny dzień.
+    const spaced = (it: PlanItem) => (strengthNextTo(items, result, it) ? 1000 : 0);
     const second = [...items]
-      .sort((a, b) => slotScore(gymStimulus, b, true) - slotScore(gymStimulus, a, true))
+      .sort(
+        (a, b) =>
+          slotScore(gymStimulus, b, true) -
+          spaced(b) -
+          (slotScore(gymStimulus, a, true) - spaced(a)),
+      )
       .find((it) => {
         const cell = result[it.iso];
         if (!cell || cell.secondStimulus) return false;
-        return canSecondStimulus(gymStimulus, it, cell.stimulus);
+        return (
+          canSecondStimulus(gymStimulus, it, cell.stimulus) &&
+          clubSecondSpaced(gymStimulus, items, result, it)
+        );
       });
     if (second) {
       result[second.iso].secondStimulus = gymStimulus;
@@ -2628,20 +2726,35 @@ type PlanItem = {
   toMatch: number | null;
   /** Zawodnik ma tego dnia czas na własny trening (ważne dla drugiej sesji przy klubie). */
   ownOk?: boolean;
+  /** Klub robi tego dnia blok siłowy (zgłoszone przez zawodnika). */
+  clubStrength?: boolean;
 };
 
 function cellQualityCount(
   items: Pick<PlanItem, "iso">[],
   result: Record<string, PlanCell>,
   quality: FocusQuality,
+  profile?: Profile,
 ): number {
-  return items.reduce(
-    (n, it) =>
-      n +
-      [result[it.iso]?.stimulus, result[it.iso]?.secondStimulus].filter(
-        (s): s is Stimulus => !!s && cellHasQuality(s, quality),
-      ).length,
-    0,
+  // Blok siłowy w klubie liczy się do celu „Siła” — plan go nie dubluje.
+  const clubStrength =
+    quality === "strength" && profile
+      ? items.filter(
+          (it) =>
+            result[it.iso]?.type === "club" &&
+            clubStrengthDaysOf(profile).includes(isoDayOfWeek(parseIso(it.iso))),
+        ).length
+      : 0;
+  return (
+    clubStrength +
+    items.reduce(
+      (n, it) =>
+        n +
+        [result[it.iso]?.stimulus, result[it.iso]?.secondStimulus].filter(
+          (s): s is Stimulus => !!s && cellHasQuality(s, quality),
+        ).length,
+      0,
+    )
   );
 }
 
@@ -2655,7 +2768,7 @@ function isProtectedFocusCell(
   return focusTargets(profile).some(
     (target) =>
       cellHasQuality(stimulus, target.quality) &&
-      cellQualityCount(items, result, target.quality) <= target.min,
+      cellQualityCount(items, result, target.quality, profile) <= target.min,
   );
 }
 
@@ -2685,11 +2798,12 @@ function enforceFocusTargets(
   matchCount: number,
   items: PlanItem[],
   result: Record<string, PlanCell>,
+  maxDoubles = 0,
 ): void {
   for (const target of focusTargets(profile)) {
     const stimulus = focusStimulus(profile, target.quality, matchCount);
     let guard = 0;
-    while (cellQualityCount(items, result, target.quality) < target.min && guard++ < 4) {
+    while (cellQualityCount(items, result, target.quality, profile) < target.min && guard++ < 4) {
       const ranked = [...items].sort((a, b) => slotScore(stimulus, b) - slotScore(stimulus, a));
       const idle = ranked.find(
         (it) =>
@@ -2700,6 +2814,23 @@ function enforceFocusTargets(
       );
       if (idle) {
         result[idle.iso] = { type: "training", stimulus };
+        continue;
+      }
+      // Dzień klubowy nie jest zajęty: brakującą siłę albo spokojny bieg można
+      // dołożyć jako drugą sesję po klubie, w limicie podwójnych dni.
+      const doubles = items.filter((it) => !!result[it.iso]?.secondStimulus).length;
+      const clubSlot =
+        doubles < maxDoubles
+          ? ranked.find(
+              (it) =>
+                result[it.iso]?.type === "club" &&
+                !result[it.iso].secondStimulus &&
+                canSecondStimulus(stimulus, it) &&
+                clubSecondSpaced(stimulus, items, result, it),
+            )
+          : undefined;
+      if (clubSlot) {
+        result[clubSlot.iso] = { ...result[clubSlot.iso], secondStimulus: stimulus };
         continue;
       }
       const categoryCount = (category: PerfCategory) =>
@@ -2905,6 +3036,7 @@ function planBlock(
         base,
         toMatch: daysToMatch(date, profile),
         ownOk: ownTrainingAllowed(profile, isoDayOfWeek(date)),
+        clubStrength: base === "club" && clubStrengthDaysOf(profile).includes(isoDayOfWeek(date)),
       });
     }
 
@@ -2919,7 +3051,11 @@ function planBlock(
 
     const avail = items.filter((it) => it.base === "available");
     const { cap, maxDoubles } = weekLoadConfig(profile, phase, matchCount > 0);
-    const quota = hardWeeklyQuota(profile, clubCount, matchCount, phase).slice(0, cap);
+    const quota = creditClubStrength(
+      profile,
+      hardWeeklyQuota(profile, clubCount, matchCount, phase),
+      items.filter((it) => it.clubStrength).length,
+    ).slice(0, cap);
     let doublesUsed = 0;
 
     for (const it of avail) {
@@ -2934,8 +3070,12 @@ function planBlock(
       );
       if (alreadyPlaced && stimulus !== "strength_base") continue;
 
+      // Siła nie ląduje dzień po dniu z inną siłą (także z blokiem siłowym klubu),
+      // jeśli tydzień ma inne miejsce.
+      const spacing = (it: PlanItem) =>
+        categoryOf(stimulus) === "strength_power" && strengthNextTo(items, result, it) ? 1000 : 0;
       const primary = [...avail]
-        .sort((a, b) => slotScore(stimulus, b) - slotScore(stimulus, a))
+        .sort((a, b) => slotScore(stimulus, b) - spacing(b) - (slotScore(stimulus, a) - spacing(a)))
         .find((it) => {
           const cell = result[it.iso];
           return cell?.type === "recovery" && canPrimaryStimulus(stimulus, it);
@@ -2947,12 +3087,42 @@ function planBlock(
       }
 
       if (doublesUsed >= maxDoubles) continue;
+      // Sprint musi być pierwszą jednostką dnia. Gdy wolne dni zajęła siła,
+      // sprint wchodzi przed nią (sprint, potem siłownia tego samego dnia).
+      if (categoryOf(stimulus) === "speed") {
+        const host = avail.find((it) => {
+          const cell = result[it.iso];
+          return (
+            cell?.type === "training" &&
+            !!cell.stimulus &&
+            !cell.secondStimulus &&
+            categoryOf(cell.stimulus) === "strength_power" &&
+            canPrimaryStimulus(stimulus, it) &&
+            canSecondStimulus(cell.stimulus, it, stimulus)
+          );
+        });
+        if (host) {
+          result[host.iso] = {
+            type: "training",
+            stimulus,
+            secondStimulus: result[host.iso].stimulus,
+          };
+          doublesUsed++;
+          continue;
+        }
+      }
       const second = [...items]
-        .sort((a, b) => slotScore(stimulus, b, true) - slotScore(stimulus, a, true))
+        .sort(
+          (a, b) =>
+            slotScore(stimulus, b, true) - spacing(b) - (slotScore(stimulus, a, true) - spacing(a)),
+        )
         .find((it) => {
           const cell = result[it.iso];
           if (!cell || cell.secondStimulus) return false;
-          return canSecondStimulus(stimulus, it, cell.stimulus);
+          return (
+            canSecondStimulus(stimulus, it, cell.stimulus) &&
+            clubSecondSpaced(stimulus, items, result, it)
+          );
         });
       if (second) {
         result[second.iso].secondStimulus = stimulus;
@@ -2962,7 +3132,7 @@ function planBlock(
 
     repairWeekCells(profile, items, result, maxDoubles);
     enforcePrimaryGoalTarget(profile, items, result);
-    enforceFocusTargets(profile, matchCount, items, result);
+    enforceFocusTargets(profile, matchCount, items, result, maxDoubles);
     enforceMinimumGymSession(profile, matchCount, items, result, maxDoubles);
 
     // Bez meczów limit sesji wynika z wieku i poziomu: pozostałe dni są wolne,
@@ -3967,7 +4137,8 @@ export function generatePlan(
         ),
       );
       // Granice tygodni widać dopiero po złożeniu: odstępy i dni wolne sprawdzamy jeszcze raz.
-      return enforceFinalPlanPolicy(stagedWeeks, rawProfile).map((day) => {
+      return enforceFinalPlanPolicy(stagedWeeks, rawProfile).map((planned) => {
+        const day = orderDaySessionsByLoad(planned);
         for (const session of [day, day.secondSession].filter(Boolean) as SessionDay[]) {
           session.generatorVersion = PLAN_ENGINE_VERSION;
           session.loadTags = computeLoadTags(session);
@@ -4500,6 +4671,10 @@ export function generatePlan(
             weekIndex: curWeekIndex,
             counters: contentCounters,
             light: false,
+            // Bieg dołożony po klubie zostaje biegiem (nie prehabem).
+            ...(session.dayType === "club" && categoryOf(cell.secondStimulus) === "conditioning"
+              ? { category: "running_conditioning" as const }
+              : {}),
           });
         }
       } else if (!isHealthyPerformanceProfile(profile)) {
@@ -4834,6 +5009,11 @@ export function generatePlan(
   );
   enforceWeeklySessionCap(constrainedPlan, profile, startDate, weekOffset);
   restoreMatchEveActivation(constrainedPlan, rawProfile);
+  // Dwie własne sesje dnia w kolejności obciążenia: sprint przed siłą,
+  // siła przed wydolnością, lekki bieg i prehab na końcu.
+  constrainedPlan.forEach((day, index) => {
+    constrainedPlan[index] = orderDaySessionsByLoad(day);
+  });
   for (const range of metadataRanges) {
     const week = constrainedPlan.slice(range.start, range.end);
     const score = computeWeeklyLoadScore(week);
