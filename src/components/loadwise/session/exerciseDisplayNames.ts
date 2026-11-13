@@ -27,8 +27,14 @@ const SHORT_NAMES: Readonly<Record<string, readonly [string, string]>> = {
   "Uginanie nóg leżąc": ["Uginanie nóg", "Leżąc"],
   "Wspięcia na palce stojąc": ["Wspięcia na palce", "Stojąc"],
   "Wspięcia na palce siedząc": ["Wspięcia na palce", "Siedząc"],
-  "Izometryczne wspięcie na mięsień płaszczkowaty": ["Wspięcie na palce", "Izometryczne · płaszczkowaty"],
-  "Most hamstring izometryczny z długą dźwignią": ["Most na piętach", "Izometryczny · długa dźwignia"],
+  "Izometryczne wspięcie na mięsień płaszczkowaty": [
+    "Wspięcie na palce",
+    "Izometryczne · płaszczkowaty",
+  ],
+  "Most hamstring izometryczny z długą dźwignią": [
+    "Most na piętach",
+    "Izometryczny · długa dźwignia",
+  ],
   "Zarzut siłowy z pozycji zwisu": ["Zarzut siłowy", "Z pozycji zwisu"],
   "Lądowanie po zejściu z podestu": ["Lądowanie", "Po zejściu z podestu"],
   "Skok z zamachem": ["Skok pionowy", "Z zamachem rąk"],
@@ -60,7 +66,10 @@ const SHORT_NAMES: Readonly<Record<string, readonly [string, string]>> = {
   "Uginanie nóg na ślizgach obunóż": ["Uginanie nóg", "Ślizgi · obunóż"],
   "Uginanie nogi na ślizgu jednonóż": ["Uginanie nogi", "Ślizg · jednonóż"],
   "Uginanie nóg na piłce szwajcarskiej obunóż": ["Uginanie nóg", "Piłka szwajcarska · obunóż"],
-  "Uginanie nogi na piłce szwajcarskiej jednonóż": ["Uginanie nogi", "Piłka szwajcarska · jednonóż"],
+  "Uginanie nogi na piłce szwajcarskiej jednonóż": [
+    "Uginanie nogi",
+    "Piłka szwajcarska · jednonóż",
+  ],
   "Uginanie nóg leżąc z gumą": ["Uginanie nóg", "Leżąc · guma"],
 };
 

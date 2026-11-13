@@ -181,12 +181,12 @@ try {
     throw Error("Start skipped the warm-up: " + eyebrow);
   reports.push({ case: "start-to-warmup", passed: true });
   await p.goto(base + "?kind=strength&phase=active");
-  await p.getByRole("tab", { name: "Technika", exact: true }).click();
+  await p.getByRole("button", { name: "Jak wykonać?", exact: true }).click();
   await p.locator(".bw-unit-panel iframe").first().waitFor();
   if (!animationRequests.length) throw Error("Opening „Technika” did not load the animation");
   await p.waitForTimeout(1000);
   await p.screenshot({ path: work + "/how-to-open.png" });
-  await p.getByRole("tab", { name: "Trening", exact: true }).click();
+  await p.getByRole("button", { name: "Zamknij instrukcję", exact: true }).click();
   if (await p.locator(".bw-unit-panel iframe").count())
     throw Error("Leaving „Technika” kept the player running");
   reports.push({ case: "how-to-on-demand", passed: true });
@@ -202,15 +202,20 @@ try {
       .first()
       .click();
   else await confirm.click();
-  const counted = () =>
-    p.waitForFunction(() =>
-      /Wykonane\s*1\s*z/.test(document.querySelector(".bw-runner-count")?.textContent ?? ""),
+  // The exercise view names the progress on its segment bar, the list in its count row.
+  const isCounted = () =>
+    /Wykonane\s*1\s*z/.test(
+      document.querySelector(".bw-runner-segments")?.getAttribute("aria-label") ??
+        document.querySelector(".bw-runner-count")?.textContent ??
+        "",
     );
+  const counted = () => p.waitForFunction(isCounted);
   // A multi-set task needs every set; keep confirming until the exercise is marked.
   for (let i = 0; i < 8; i += 1) {
-    const marked = await p.evaluate(() =>
-      /Wykonane\s*1\s*z/.test(document.querySelector(".bw-runner-count")?.textContent ?? ""),
-    );
+    const marked = await p.evaluate(isCounted);
+    // A rest between bouts takes the screen; the athlete starts the next one.
+    const resume = p.locator(".bw-runner-dock .bw-runner-primary");
+    if (!marked && (await resume.count())) await resume.click();
     if (marked) break;
     const more = p
       .locator(".bw-runner-card button")
@@ -278,7 +283,9 @@ try {
   await p.getByRole("button", { name: "Seria 1: powtórzenia: więcej", exact: true }).click();
   await p.getByRole("button", { name: "Seria 1: zapas 3", exact: true }).click();
   await p.getByRole("button", { name: "Zatwierdź serię 1", exact: true }).click();
-  await p.locator(".bw-rest-card").waitFor();
+  await p.locator(".bw-rest-screen").waitFor();
+  await p.getByText("60 kg × 5", { exact: true }).waitFor();
+  await p.getByRole("button", { name: "Rozpocznij kolejną serię", exact: true }).click();
   await p.getByRole("button", { name: "Seria 1 zapisana, popraw", exact: true }).waitFor();
   await p.waitForFunction(() =>
     JSON.parse(localStorage.getItem("session66:qa-rows") || "[]").some(
@@ -289,6 +296,7 @@ try {
   const kg2 = p.getByRole("textbox", { name: "Seria 2: ciężar w kg", exact: true });
   if ((await kg2.inputValue()) !== "60") throw Error("Next set not prefilled");
   await p.reload();
+  if (await p.locator(".bw-rest-screen").count()) throw Error("Closed rest came back after reload");
   if ((await kg2.inputValue()) !== "60") throw Error("Gym result lost on reload");
   // Correction keeps the same set number (no second log for set 1).
   await p.getByRole("button", { name: "Seria 1 zapisana, popraw", exact: true }).click();
@@ -305,7 +313,7 @@ try {
   await p.getByRole("button", { name: "Zatwierdź serię 2", exact: true }).waitFor();
   await p.waitForTimeout(1000);
   await p.screenshot({ path: work + "/strength-set.png" });
-  await p.getByRole("button", { name: "Lista ćwiczeń", exact: false }).click();
+  await p.getByRole("button", { name: "Pozostałe ćwiczenia", exact: true }).click();
   await p.getByRole("button", { name: "Zakończ trening teraz", exact: true }).click();
   await p.getByRole("button", { name: "RPE 5", exact: true }).click();
   await p.getByRole("button", { name: "Zapisz trening", exact: true }).click();
@@ -367,10 +375,10 @@ try {
     if (m.smallTargets) throw Error(`Touch target < 44 px in the panel at ${width}`);
     await p.screenshot({ path: path.join(shotDir, `01-lista-${width}.png`) });
     await unit.locator(".bw-rplan-group").nth(1).locator(".bw-rplan-row button").nth(1).click();
-    await unit.getByRole("tab", { name: "Trening", exact: true }).waitFor();
+    await unit.getByRole("button", { name: "Jak wykonać?", exact: true }).waitFor();
     if ((await unit.locator("input").count()) > 0) throw Error("Preview shows entry fields");
     await p.screenshot({ path: path.join(shotDir, `02-cwiczenie-trening-${width}.png`) });
-    await unit.getByRole("tab", { name: "Technika", exact: true }).click();
+    await unit.getByRole("button", { name: "Jak wykonać?", exact: true }).click();
     await unit.locator(".bw-howto-panel").waitFor();
     await p.waitForTimeout(width === 390 ? 1500 : 400);
     await p.screenshot({ path: path.join(shotDir, `03-cwiczenie-technika-${width}.png`) });
@@ -385,17 +393,17 @@ try {
     const kgUnit = unit.getByRole("textbox", { name: "Seria 1: ciężar w kg", exact: true });
     for (let i = 0; i < 30 && !(await kgUnit.count()); i += 1)
       await unit.getByRole("button", { name: "Następne", exact: false }).first().click();
-    const name = await unit.locator(".bw-unit-exercise-head h2").innerText();
+    const name = await unit.locator(".bw-set-name").innerText();
     await kgUnit.fill("40");
     await unit.getByRole("textbox", { name: "Seria 1: powtórzenia", exact: true }).fill("8");
     await unit.getByRole("button", { name: "Seria 1: zapas 3", exact: true }).click();
     await p.screenshot({ path: path.join(shotDir, `04a-zapis-serii-${width}.png`) });
     await unit.getByRole("button", { name: "Zatwierdź serię 1", exact: true }).click();
-    await unit.locator(".bw-rest-card").waitFor();
+    await unit.locator(".bw-rest-screen").waitFor();
     await p.waitForTimeout(400);
     await p.screenshot({ path: path.join(shotDir, `04-w-trakcie-seria-przerwa-${width}.png`) });
     const clock = async () => {
-      const [mm, ss] = (await unit.locator(".bw-rest-clock").innerText()).split(":").map(Number);
+      const [mm, ss] = (await unit.locator(".bw-rest-big").innerText()).split(":").map(Number);
       return mm * 60 + ss;
     };
     const before = await clock();
@@ -404,16 +412,17 @@ try {
     await p.waitForFunction(() => !document.querySelector('.bw-unit-sheet[data-state="open"]'));
     await p.waitForTimeout(2600);
     await openUnit();
-    if ((await unit.locator(".bw-unit-exercise-head h2").innerText()) !== name)
-      throw Error("Reopened panel lost the open exercise");
-    await unit.getByRole("button", { name: "Seria 1 zapisana, popraw", exact: true }).waitFor();
     const after = await clock();
     if (!(after <= before - 2 && after > 0))
       throw Error(`Rest did not keep counting while closed: ${before} -> ${after}`);
+    await unit.getByRole("button", { name: "Rozpocznij kolejną serię", exact: true }).click();
+    if ((await unit.locator(".bw-set-name").innerText()) !== name)
+      throw Error("Reopened panel lost the open exercise");
+    await unit.getByRole("button", { name: "Seria 1 zapisana, popraw", exact: true }).waitFor();
+    await p.screenshot({ path: path.join(shotDir, `04b-seria-2-${width}.png`) });
     // The list keeps the marks and the rest dock.
-    await unit.getByRole("button", { name: "Lista ćwiczeń", exact: false }).click();
+    await unit.getByRole("button", { name: "Pozostałe ćwiczenia", exact: true }).click();
     await unit.locator(".bw-rplan-now").waitFor();
-    await unit.locator(".bw-rest-card").waitFor();
     await p.screenshot({ path: path.join(shotDir, `05-lista-w-trakcie-${width}.png`) });
     // The phone's back gesture closes the panel instead of leaving the plan.
     await p.evaluate(() => window.__auditRouter.history.back());

@@ -131,7 +131,7 @@ describe("serie łączone na ekranie sesji", () => {
     expect(linked.textContent).not.toMatch(/mięśnie|ponieważ|dlaczego/i);
     // Power work is described by a quality criterion, strength work by RIR once.
     // The RIR target appears once; the table only has an entry column for it.
-    expect(tiles[0].querySelector(".bw-runner-facts")?.textContent).toContain("Zapas2–3 powt.");
+    expect(tiles[0].querySelector(".bw-set-facts")?.textContent).toContain("Zapas 2–3 powt.");
     expect(tiles[0].textContent?.match(/RIR/g)).toBeNull();
     expect(tiles[0].querySelector(".bw-runner-dose")?.textContent).toBe("3 × 5");
     expect(tiles[1].textContent).not.toMatch(/Zapas|RIR/);
@@ -140,9 +140,13 @@ describe("serie łączone na ekranie sesji", () => {
     )!;
     await act(async () => next.click());
     expect(host.querySelector(".bw-runner-linked")).toBeNull();
-    expect(host.querySelector(".bw-unit-exercise-head h2")?.textContent).toBe("Most biodrowy");
-    expect(host.querySelector(".bw-runner-facts")?.textContent).toContain("Odpoczynek60 s");
+    expect(host.querySelector(".bw-runner-card .bw-runner-name")?.textContent).toBe(
+      "Most biodrowy",
+    );
+    expect(host.querySelector(".bw-set-facts")?.textContent).toContain("Przerwa 60 s");
     // Moving on is not a mark.
-    expect(host.querySelector(".bw-runner-count strong")?.textContent).toBe("0");
+    expect(host.querySelector(".bw-runner-segments")?.getAttribute("aria-label")).toBe(
+      "Wykonane 0 z 3",
+    );
   });
 });

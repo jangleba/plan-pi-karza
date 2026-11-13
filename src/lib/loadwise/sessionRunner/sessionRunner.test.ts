@@ -167,6 +167,22 @@ describe("odliczanie względem czasu zakończenia", () => {
     expect(remainingSeconds(extendCountdown(resumed, 30, 510_000), 510_000)).toBe(60);
   });
 
+  it("skrócenie przerwy nie schodzi poniżej zera, a zapisany stan pozostaje poprawny", () => {
+    const rest = startCountdown(20, "Następnie: seria 2 z 3", 1000, 1000, {
+      detail: "60 kg × 8",
+      stepKey: "m1",
+    });
+    const shorter = extendCountdown(rest, -15, 1000);
+    expect(remainingSeconds(shorter, 1000)).toBe(5);
+    const gone = extendCountdown(shorter, -15, 1000);
+    expect(remainingSeconds(gone, 1000)).toBe(0);
+    expect(parseCountdown(JSON.parse(JSON.stringify(gone)))).toMatchObject({
+      detail: "60 kg × 8",
+      stepKey: "m1",
+    });
+    expect(parseCountdown({ ...rest, detail: 5 })).toBeUndefined();
+  });
+
   it("format i walidacja zapisanego stanu", () => {
     expect(formatClock(75)).toBe("1:15");
     expect(parseCountdown(startCountdown(30, "x", 5))).toBeDefined();

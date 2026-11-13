@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, Minus, Plus } from "lucide-react";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import { useExerciseSetLogs, type SetLog } from "@/lib/loadwise/setLogs";
@@ -19,6 +19,7 @@ import {
   saveStrengthProgressionDecision,
 } from "@/lib/loadwise/strengthProgression";
 import type { Range } from "@/lib/loadwise/sessionRunner/presentation";
+import { Docked } from "./Dock";
 
 export type SetTableKind = "load" | "bodyweight" | "hold";
 type Values = { weight: string; reps: string; rir: string; value: string };
@@ -89,6 +90,10 @@ export function SetTable({
   onSetSaved,
   finishing = false,
   onFinish,
+  title,
+  facts = null,
+  restNote = false,
+  docked = false,
 }: {
   exercise: TrainingExercise;
   sessionId?: string | null;
@@ -99,10 +104,23 @@ export function SetTable({
   withRir: boolean;
   unilateral: boolean;
   canRecord: boolean;
-  onSetSaved: (setNumber: number, savedCount: number, isNew: boolean) => void;
+  onSetSaved: (
+    setNumber: number,
+    savedCount: number,
+    isNew: boolean,
+    next?: { label: string; detail?: string },
+  ) => void;
   finishing?: boolean;
   /** Marks the exercise after the minimum of a range, or retries a failed final mark. */
   onFinish?: () => void;
+  /** The exercise name shown at the top of the card. */
+  title: ReactNode;
+  /** Short plan facts (tempo, rest) under the name. */
+  facts?: ReactNode;
+  /** Shows "Po zapisie rozpocznie się przerwa" above the save button. */
+  restNote?: boolean;
+  /** The save button sticks to the bottom of the screen (single exercise). */
+  docked?: boolean;
 }) {
   const { user } = useAuth();
   const logs = useExerciseSetLogs(sessionId, logKey);
@@ -146,13 +164,14 @@ export function SetTable({
     if (error?.set === n) setError(null);
   }
 
-  async function save(n: number) {
-    if (!canRecord || lock.current) return;
+  /** Saves one set; true once it is stored. */
+  async function save(n: number): Promise<boolean> {
+    if (!canRecord || lock.current) return false;
     const values = valuesFor(n);
     const validation = validateTrainingFields(values, metricKind, kind === "bodyweight");
     if (validation) {
       setError({ set: n, text: validation });
-      return;
+      return false;
     }
     const isNew = !current[n];
     lock.current = true;
@@ -172,7 +191,7 @@ export function SetTable({
       const ok = await saveSet(log);
       if (!ok) {
         setError({ set: n, text: "Nie zapisano serii. Wpis został — spróbuj ponownie." });
-        return;
+        return false;
       }
       drafts.setValue((all) => {
         const next = { ...all };
@@ -180,9 +199,11 @@ export function SetTable({
         return next;
       });
       setEditing(null);
-      onSetSaved(n, savedCount + (isNew ? 1 : 0), isNew);
+      if (!isNew) onSetSaved(n, savedCount, false);
+      return true;
     } catch {
       setError({ set: n, text: "Nie zapisano serii. Wpis został — spróbuj ponownie." });
+      return false;
     } finally {
       lock.current = false;
       setSaving(null);
@@ -193,195 +214,287 @@ export function SetTable({
   const missingKg = (n: number) => kind === "load" && !valuesFor(n).weight.trim();
   const active = editing ?? nextOpen;
   const activeValues = active !== null ? valuesFor(active) : EMPTY;
+  const busy = !canRecord || saving !== null;
+  // "Poprzednio": this session's previous set, else the same set last time.
+  const earlier =
+    active === null || editing !== null
+      ? null
+      : current[active - 1]
+        ? { log: current[active - 1], rir: true }
+        : previous[active]
+          ? { log: previous[active], rir: false }
+          : null;
+  const lastPlanned = active !== null && active >= sets.max;
+
+  async function saveActive() {
+    if (active === null) return;
+    const n = active;
+    const wasNew = !current[n];
+    const following = numbers.find((m) => m > n && !current[m]) ?? null;
+    const values = valuesFor(n);
+    const ok = await save(n);
+    if (!ok || !wasNew) return;
+    const savedTotal = savedCount + 1;
+    onSetSaved(
+      n,
+      savedTotal,
+      true,
+      following !== null && following <= sets.max
+        ? {
+            label: `Następnie: seria ${following} z ${sets.max}`,
+            detail: nextDetail(values, kind, unilateral),
+          }
+        : undefined,
+    );
+  }
 
   return (
     <div className="bw-set-table-wrap">
-      {kind === "load" && recommendation && (
-        <div className="bw-load-hint">
-          <span>
-            {recommendation.weightKg != null
-              ? `${recommendation.title}: ${kg(recommendation.weightKg)} kg`
-              : recommendation.title}
-          </span>
-          {recommendation.weightKg != null && canRecord && nextOpen !== null && (
-            <button
-              type="button"
-              onClick={() => {
-                drafts.setValue((all) => {
-                  const next = { ...all };
-                  for (const n of numbers)
-                    if (!current[n])
-                      next[String(n)] = {
-                        ...valuesFor(n),
-                        weight: String(recommendation.weightKg),
-                      };
-                  return next;
-                });
-                if (user && sessionId && recommendation.currentWeightKg != null)
-                  saveStrengthProgressionDecision(user.id, {
-                    sessionId,
-                    exerciseKey: logKey,
-                    decision: "accepted",
-                    currentWeightKg: recommendation.currentWeightKg,
-                    proposedWeightKg: recommendation.weightKg!,
-                    decidedAt: new Date().toISOString(),
-                  });
-              }}
-            >
-              Ustaw
-            </button>
-          )}
-        </div>
-      )}
-      {numbers.some((n) => current[n]) && (
-        <ol className="bw-log-done" aria-label="Zapisane serie">
-          {numbers
-            .filter((n) => current[n])
-            .map((n) => {
+      <div className="bw-set-card" data-locked={!canRecord || undefined}>
+        <header className="bw-set-head">
+          <div className="bw-set-heading">
+            <h2 className="bw-set-name">{title}</h2>
+            <p className="bw-set-sub">
+              {active === null
+                ? "Wszystkie serie zapisane"
+                : editing !== null
+                  ? `Popraw serię ${active}`
+                  : `Seria ${active} z ${sets.max}`}
+              {active !== null && editing === null && active > sets.min && !current[active]
+                ? " · opcjonalna"
+                : ""}
+            </p>
+          </div>
+          <ol className="bw-set-dots" aria-label="Serie">
+            {numbers.map((n) => {
               const saved = current[n];
+              const state = saved ? "done" : n === active ? "current" : "open";
               return (
-                <li key={n} data-editing={editing === n || undefined}>
-                  <button
-                    type="button"
-                    disabled={!canRecord || saving !== null}
-                    aria-label={`Seria ${n} zapisana, popraw`}
-                    onClick={() => setEditing(editing === n ? null : n)}
-                  >
-                    <span className="bw-log-n">{n}</span>
-                    <span className="bw-log-result">{savedLine(saved, kind, unilateral)}</span>
-                    {saved.rir != null && <span className="bw-log-rir">zapas {saved.rir}</span>}
-                    <Check aria-hidden="true" />
-                  </button>
+                <li key={n} data-state={state} data-editing={editing === n || undefined}>
+                  {saved ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      aria-label={`Seria ${n} zapisana, popraw`}
+                      title={savedLine(saved, kind, unilateral)}
+                      onClick={() => setEditing(editing === n ? null : n)}
+                    >
+                      {editing === n ? n : <Check aria-hidden="true" />}
+                    </button>
+                  ) : (
+                    <span aria-label={n === active ? `Seria ${n}, teraz` : `Seria ${n}`}>{n}</span>
+                  )}
                 </li>
               );
             })}
-        </ol>
-      )}
-      {active !== null && (
-        <div
-          className="bw-log-entry"
-          role="group"
-          aria-label={`Seria ${active}`}
-          data-locked={!canRecord || undefined}
-        >
-          <p className="bw-log-title">
-            {editing !== null ? `Popraw serię ${active}` : `Seria ${active}`}
-            <small>
-              {editing !== null ? "" : ` z ${sets.max}`}
-              {active > sets.min && !current[active] ? " · opcjonalna" : ""}
-            </small>
-          </p>
-          <div className="bw-log-fields">
-            {kind === "load" && (
-              <Stepper
-                label={`Seria ${active}: ciężar w kg`}
-                unit="kg"
-                step={2.5}
-                value={activeValues.weight}
-                disabled={!canRecord || saving !== null}
-                onChange={(v) => edit(active, "weight", v)}
-              />
-            )}
-            {kind !== "hold" && (
-              <Stepper
-                label={`Seria ${active}: powtórzenia`}
-                unit={unilateral ? "powt. / str." : "powt."}
-                step={1}
-                value={activeValues.reps}
-                disabled={!canRecord || saving !== null}
-                onChange={(v) => edit(active, "reps", v)}
-              />
-            )}
-            {kind === "hold" && (
-              <Stepper
-                label={`Seria ${active}: czas w sekundach`}
-                unit={unilateral ? "s / str." : "s"}
-                step={5}
-                value={activeValues.value}
-                disabled={!canRecord || saving !== null}
-                onChange={(v) => edit(active, "value", v)}
-              />
+          </ol>
+        </header>
+        {facts}
+        {kind === "load" && recommendation && (
+          <div className="bw-load-hint">
+            <span>
+              {recommendation.weightKg != null
+                ? `${recommendation.title}: ${kg(recommendation.weightKg)} kg`
+                : recommendation.title}
+            </span>
+            {recommendation.weightKg != null && canRecord && nextOpen !== null && (
+              <button
+                type="button"
+                onClick={() => {
+                  drafts.setValue((all) => {
+                    const next = { ...all };
+                    for (const n of numbers)
+                      if (!current[n])
+                        next[String(n)] = {
+                          ...valuesFor(n),
+                          weight: String(recommendation.weightKg),
+                        };
+                    return next;
+                  });
+                  if (user && sessionId && recommendation.currentWeightKg != null)
+                    saveStrengthProgressionDecision(user.id, {
+                      sessionId,
+                      exerciseKey: logKey,
+                      decision: "accepted",
+                      currentWeightKg: recommendation.currentWeightKg,
+                      proposedWeightKg: recommendation.weightKg!,
+                      decidedAt: new Date().toISOString(),
+                    });
+                }}
+              >
+                Ustaw
+              </button>
             )}
           </div>
-          {withRir && kind !== "hold" && (
-            <div className="bw-log-rir-pick">
-              <span id={`${rirId}-label`}>Zapas powtórzeń</span>
-              <div role="group" aria-labelledby={`${rirId}-label`}>
-                {["0", "1", "2", "3", "4", "5"].map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    aria-label={`Seria ${active}: zapas ${option}`}
-                    aria-pressed={parseTrainingNumber(activeValues.rir) === Number(option)}
-                    disabled={!canRecord || saving !== null}
-                    onClick={() =>
-                      edit(
-                        active,
-                        "rir",
-                        parseTrainingNumber(activeValues.rir) === Number(option) ? "" : option,
-                      )
-                    }
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          {kind === "load" && !recommendation && active === 1 && missingKg(1) && (
-            <p className="bw-runner-muted">0 kg = bez obciążenia.</p>
-          )}
-          <button
-            type="button"
-            className="bw-runner-primary"
-            disabled={!canRecord || saving !== null || loading}
-            aria-label={
-              editing !== null ? `Zapisz poprawkę serii ${active}` : `Zatwierdź serię ${active}`
-            }
-            onClick={() => void save(active)}
+        )}
+        {active !== null && (
+          <div
+            className="bw-log-entry"
+            role="group"
+            aria-label={`Seria ${active}`}
+            data-locked={!canRecord || undefined}
           >
-            {saving === active
-              ? "Zapisuję…"
-              : editing !== null
-                ? "Zapisz poprawkę"
-                : `Zapisz serię ${active}`}
-          </button>
-          {editing !== null && (
-            <button type="button" className="bw-log-cancel" onClick={() => setEditing(null)}>
-              Anuluj
-            </button>
-          )}
-        </div>
-      )}
+            <div className="bw-set-fields" data-count={kind === "load" ? 2 : 1}>
+              {kind === "load" && (
+                <Stepper
+                  title="Ciężar"
+                  label={`Seria ${active}: ciężar w kg`}
+                  unit="kg"
+                  step={2.5}
+                  value={activeValues.weight}
+                  disabled={busy}
+                  onChange={(v) => edit(active, "weight", v)}
+                />
+              )}
+              {kind !== "hold" && (
+                <Stepper
+                  title={unilateral ? "Powtórzenia / str." : "Powtórzenia"}
+                  label={`Seria ${active}: powtórzenia`}
+                  unit=""
+                  step={1}
+                  value={activeValues.reps}
+                  disabled={busy}
+                  onChange={(v) => edit(active, "reps", v)}
+                />
+              )}
+              {kind === "hold" && (
+                <Stepper
+                  title={unilateral ? "Czas / str." : "Czas"}
+                  label={`Seria ${active}: czas w sekundach`}
+                  unit="s"
+                  step={5}
+                  value={activeValues.value}
+                  disabled={busy}
+                  onChange={(v) => edit(active, "value", v)}
+                />
+              )}
+            </div>
+            {withRir && kind !== "hold" && (
+              <div className="bw-log-rir-pick">
+                <span id={`${rirId}-label`}>Zapas powtórzeń</span>
+                <div role="group" aria-labelledby={`${rirId}-label`}>
+                  {["0", "1", "2", "3", "4", "5"].map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      aria-label={`Seria ${active}: zapas ${option}`}
+                      aria-pressed={parseTrainingNumber(activeValues.rir) === Number(option)}
+                      disabled={busy}
+                      onClick={() =>
+                        edit(
+                          active,
+                          "rir",
+                          parseTrainingNumber(activeValues.rir) === Number(option) ? "" : option,
+                        )
+                      }
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {kind === "load" && !recommendation && active === 1 && missingKg(1) && (
+              <p className="bw-runner-muted">0 kg = bez obciążenia.</p>
+            )}
+          </div>
+        )}
+        {earlier && active !== null && (
+          <div className="bw-set-previous">
+            <span>Poprzednio: {savedLine(earlier.log, kind, unilateral)}</span>
+            {canRecord && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() =>
+                  drafts.setValue((all) => ({
+                    ...all,
+                    [String(active)]: {
+                      ...fromLog(earlier.log),
+                      rir: earlier.rir ? fromLog(earlier.log).rir : "",
+                    },
+                  }))
+                }
+              >
+                Użyj poprzednich
+              </button>
+            )}
+          </div>
+        )}
+      </div>
       {error && (
         <p className="bw-runner-error" role="alert">
           Seria {error.set}: {error.text}
         </p>
-      )}
-      {onFinish && canRecord && savedCount >= Math.max(1, sets.min) && (
-        <button
-          type="button"
-          className="bw-runner-secondary"
-          disabled={finishing}
-          onClick={onFinish}
-        >
-          {finishing
-            ? "Zapisuję…"
-            : savedCount >= sets.max
-              ? "Oznacz jako wykonane"
-              : `Zakończ po ${savedCount} ${savedCount === 1 ? "serii" : "seriach"}`}
-        </button>
       )}
       {!drafts.available && (
         <p className="bw-runner-muted" role="status">
           Szkic wpisów działa tylko do zamknięcia ekranu.
         </p>
       )}
+      <Docked enabled={docked}>
+        <div className="bw-set-dock" data-docked={docked || undefined}>
+          {active !== null && editing === null && restNote && !lastPlanned && (
+            <p className="bw-set-dock-note">Po zapisie rozpocznie się przerwa</p>
+          )}
+          {active !== null && (
+            <button
+              type="button"
+              className="bw-runner-primary"
+              disabled={busy || loading}
+              aria-label={
+                editing !== null ? `Zapisz poprawkę serii ${active}` : `Zatwierdź serię ${active}`
+              }
+              onClick={() => void saveActive()}
+            >
+              {saving === active
+                ? "Zapisuję…"
+                : editing !== null
+                  ? "Zapisz poprawkę"
+                  : "Zapisz serię"}
+            </button>
+          )}
+          {editing !== null && (
+            <button type="button" className="bw-log-cancel" onClick={() => setEditing(null)}>
+              Anuluj
+            </button>
+          )}
+          {onFinish && canRecord && editing === null && savedCount >= Math.max(1, sets.min) && (
+            <button
+              type="button"
+              className={active === null ? "bw-runner-primary" : "bw-set-dock-link"}
+              disabled={finishing}
+              onClick={onFinish}
+            >
+              {finishing
+                ? "Zapisuję…"
+                : savedCount >= sets.max
+                  ? "Oznacz jako wykonane"
+                  : `Zakończ po ${savedCount} ${savedCount === 1 ? "serii" : "seriach"}`}
+            </button>
+          )}
+        </div>
+      </Docked>
     </div>
   );
 }
 
+/** The next set's planned entry in one line: "60 kg × 8", "8 powt.", "30 s". */
+function nextDetail(values: Values, kind: SetTableKind, unilateral: boolean): string | undefined {
+  const side = unilateral ? " / str." : "";
+  const num = parseTrainingNumber;
+  if (kind === "hold")
+    return num(values.value) != null ? `${kg(num(values.value)!)} s${side}` : undefined;
+  const reps = num(values.reps);
+  if (reps == null) return undefined;
+  const weight = num(values.weight);
+  return kind === "load" && weight != null && weight > 0
+    ? `${kg(weight)} kg × ${reps}${side}`
+    : `${reps} powt.${side}`;
+}
+
 function Stepper({
+  title,
   label,
   unit,
   step,
@@ -389,6 +502,7 @@ function Stepper({
   disabled,
   onChange,
 }: {
+  title: string;
   label: string;
   unit: string;
   step: number;
@@ -398,38 +512,45 @@ function Stepper({
 }) {
   return (
     <div className="bw-stepper">
-      <button
-        type="button"
-        aria-label={`${label}: mniej`}
-        disabled={disabled || (parseTrainingNumber(value) ?? 0) <= 0}
-        onClick={() => onChange(stepValue(value, -step))}
-      >
-        <Minus aria-hidden="true" />
-      </button>
-      <label>
-        <input
-          type="text"
-          inputMode="decimal"
-          enterKeyHint="done"
-          autoComplete="off"
-          maxLength={8}
-          placeholder="0"
-          aria-label={label}
-          value={value}
-          disabled={disabled}
-          onChange={(event) => onChange(event.target.value)}
-          onFocus={(event) => event.currentTarget.select()}
-        />
-        <span aria-hidden="true">{unit}</span>
-      </label>
-      <button
-        type="button"
-        aria-label={`${label}: więcej`}
-        disabled={disabled}
-        onClick={() => onChange(stepValue(value, step))}
-      >
-        <Plus aria-hidden="true" />
-      </button>
+      <span className="bw-stepper-title" aria-hidden="true">
+        {title}
+      </span>
+      <div className="bw-stepper-box">
+        <label>
+          <input
+            type="text"
+            inputMode="decimal"
+            enterKeyHint="done"
+            autoComplete="off"
+            maxLength={8}
+            placeholder="0"
+            aria-label={label}
+            value={value}
+            disabled={disabled}
+            onChange={(event) => onChange(event.target.value)}
+            onFocus={(event) => event.currentTarget.select()}
+          />
+          {unit && <span aria-hidden="true">{unit}</span>}
+        </label>
+        <div className="bw-stepper-buttons">
+          <button
+            type="button"
+            aria-label={`${label}: mniej`}
+            disabled={disabled || (parseTrainingNumber(value) ?? 0) <= 0}
+            onClick={() => onChange(stepValue(value, -step))}
+          >
+            <Minus aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            aria-label={`${label}: więcej`}
+            disabled={disabled}
+            onClick={() => onChange(stepValue(value, step))}
+          >
+            <Plus aria-hidden="true" />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
