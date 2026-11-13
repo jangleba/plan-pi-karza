@@ -277,15 +277,15 @@ describe("session route gates", () => {
     ];
     await render();
     expect(host.querySelector('.bw-runner[data-mode="preview"]')).not.toBeNull();
-    // Preview is a plan list: no animation is loaded until the row and its "Technika" tab are opened.
+    // Preview is a plan list: no animation is loaded until the row and its "Jak wykonać?" are opened.
     expect(document.querySelector("iframe")).toBeNull();
     const row = [...host.querySelectorAll<HTMLButtonElement>(".bw-rplan-row button")].find((b) =>
       b.textContent?.includes("Ankling"),
     )!;
     await act(async () => row.click());
     expect(document.querySelector("iframe")).toBeNull();
-    const howTo = [...host.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(
-      (b) => b.textContent === "Technika",
+    const howTo = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+      (b) => b.textContent === "Jak wykonać?",
     )!;
     await act(async () => howTo.click());
     expect(document.querySelector("iframe")?.getAttribute("src")).toContain("id=ankling&embed=1");

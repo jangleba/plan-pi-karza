@@ -84,7 +84,7 @@ describe("Fuel25 corrected application flows", () => {
     await act(async () => root.render(<FuelWorkspace userId="u" contexts={[]} />));
     vi.mocked(Date.now).mockReturnValue(now + 10_000);
     await click("1 h", host);
-    expect(host.querySelector(".fuel-v4-time-value strong")?.textContent).toBe("1 h");
+    expect(host.querySelector(".fuel-timeline-caption")?.textContent).toBe("Do treningu 1 h");
   });
   it("respects ordinary meal mode after a completed session", async () => {
     const c = {
@@ -99,7 +99,8 @@ describe("Fuel25 corrected application flows", () => {
     await click("Zwykły posiłek");
     const data = readFuelData(localStorage, "u", now);
     expect(data.timings[c.key].phase).toBe("ordinary");
-    expect(host.querySelector(".fuel-v4-time-value strong")?.textContent).toBe("Zwykły posiłek");
+    expect(host.querySelector(".fuel-v4-time-value strong")?.textContent).toBe("Dziś bez treningu");
+    expect(host.querySelector(".fuel-timeline")).toBeNull();
     expect(resolveFuelTiming(c, data.timings[c.key]).phase).toBe("ordinary");
   });
   it("opens the requested ingredient replacement directly", async () => {
@@ -178,7 +179,7 @@ describe("Fuel25 corrected application flows", () => {
     expect(readFuelData(localStorage, "u", now).drinks?.[0].ml).toBe(250);
     await click("Zjadłem", host);
     const original = readFuelData(localStorage, "u", now).entries[0];
-    await click("HistoriaZapisano dziś", host);
+    await click("Historia", host);
     await click("Było ciężko");
     const row = readFuelData(localStorage, "u", now).entries[0];
     expect(row.feedback).toBe("heavy");

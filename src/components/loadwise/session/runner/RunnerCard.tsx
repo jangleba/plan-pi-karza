@@ -15,6 +15,7 @@ import {
   isUnilateral,
   keyCue,
   pairedNext,
+  restSecondsAfter,
   setRange,
   singleRest,
   sprintDistance,
@@ -132,7 +133,8 @@ export function RunnerCard({
   date: string;
   scope: string;
   isLastStep: boolean;
-  onSetDone: () => void;
+  /** A set or bout is saved; `next` names the following set when it is known. */
+  onSetDone: (next?: { label: string; detail?: string }) => void;
   onComplete: () => Promise<boolean>;
   onUndo: () => void;
   onUnskip: () => void;
@@ -148,6 +150,8 @@ export function RunnerCard({
   const blocked = exercise.executionBlockedReason;
   const [finishing, setFinishing] = useState(false);
   const lock = useRef(false);
+  const restAfterSave = (restSecondsAfter(block, exercise, linked, false) ?? 0) > 0;
+  const showsTable = table !== null && table !== "legacy" && status === "open" && !blocked;
   const mainSprint =
     kind === "sprint" &&
     section.type === "main" &&
@@ -171,8 +175,10 @@ export function RunnerCard({
       data-status={status}
       data-kind={kind}
     >
-      {!linked && !bare && <div className="bw-runner-eyebrow">{sectionTitle(step)}</div>}
-      {!bare && (
+      {!linked && !bare && !showsTable && (
+        <div className="bw-runner-eyebrow">{sectionTitle(step)}</div>
+      )}
+      {!bare && !showsTable && (
         <>
           <h2>
             {label && <span className="bw-runner-label">{label}</span>}
@@ -182,7 +188,7 @@ export function RunnerCard({
           <p className="bw-runner-dose">{doseLine(exercise)}</p>
         </>
       )}
-      {facts.length > 0 && (
+      {!showsTable && facts.length > 0 && (
         <dl className="bw-runner-facts">
           {facts.map((fact) => (
             <div key={fact.label}>
@@ -192,8 +198,8 @@ export function RunnerCard({
           ))}
         </dl>
       )}
-      {cue && <p className="bw-runner-cue">{cue}</p>}
-      {linked && <p className="bw-runner-muted">{pairedNext(block, exercise)}</p>}
+      {!showsTable && cue && <p className="bw-runner-cue">{cue}</p>}
+      {!showsTable && linked && <p className="bw-runner-muted">{pairedNext(block, exercise)}</p>}
       {blocked && (
         <p role="status" className="bw-runner-error">
           {blocked}
@@ -243,13 +249,42 @@ export function RunnerCard({
             withRir={Boolean(effortLine(exercise, kind)?.startsWith("Zapas"))}
             unilateral={isUnilateral(exercise)}
             canRecord
-            onSetSaved={(_, savedCount, isNew) => {
+            onSetSaved={(_, savedCount, isNew, next) => {
               if (!isNew) return;
               if (savedCount >= sets.max) void finish();
-              else onSetDone();
+              else onSetDone(next);
             }}
             finishing={finishing}
             onFinish={() => void finish()}
+            restNote={restAfterSave}
+            docked={!linked}
+            title={
+              <>
+                {label && <span className="bw-runner-label">{label}</span>}
+                <span className="bw-runner-name">{canonicalExerciseName(exercise)}</span>
+              </>
+            }
+            facts={
+              <>
+                {(facts.length > 0 || doseLine(exercise)) && (
+                  <p className="bw-set-facts">
+                    {doseLine(exercise) && (
+                      <span>
+                        Plan <strong className="bw-runner-dose">{doseLine(exercise)}</strong>
+                      </span>
+                    )}
+                    {facts.map((fact) => (
+                      <span key={fact.label}>
+                        {fact.label === "Odpoczynek" ? "Przerwa" : fact.label}{" "}
+                        <strong>{fact.value}</strong>
+                      </span>
+                    ))}
+                  </p>
+                )}
+                {cue && <p className="bw-set-cue">{cue}</p>}
+                {linked && <p className="bw-runner-muted">{pairedNext(block, exercise)}</p>}
+              </>
+            }
           />
         </>
       ) : (
@@ -262,7 +297,7 @@ export function RunnerCard({
           workSeconds={workSeconds(exercise)}
           canRecord
           isLastStep={isLastStep}
-          onSetFinished={onSetDone}
+          onSetFinished={() => onSetDone()}
           onComplete={onComplete}
         >
           {mainSprint && (

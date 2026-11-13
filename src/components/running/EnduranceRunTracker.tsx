@@ -1,15 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  FileUp,
-  LocateFixed,
-  Pause,
-  Play,
-  Save,
-  SkipForward,
-  Square,
-  Trash2,
-  Volume2,
-} from "lucide-react";
+import { FileUp, LocateFixed, Pause, Play, Save, SkipForward, Trash2, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { activityDraftFromGpx } from "@/lib/running/gpx";
 import {
@@ -28,7 +18,16 @@ import {
 } from "@/lib/running/intervals";
 import { classifyPace, vibrationForPace, type PaceGuidance } from "@/lib/running/paceGuidance";
 import { vibrate } from "@/lib/haptics";
-import { isTimedProtocol, stageLabel, repLabel, targetLabel } from "@/lib/running/guideTimeline";
+import { isTimedProtocol, stageLabel } from "@/lib/running/guideTimeline";
+import {
+  durationLabel,
+  goalOf,
+  guidePhases,
+  nextName,
+  padClock,
+  stepTitle,
+  untilLabel,
+} from "./runGuideText";
 import {
   currentKilometer,
   distanceAt,
@@ -913,6 +912,13 @@ function RunTracker({
     intervalProtocol && guideStarted && !guideComplete
       ? intervalProtocol.steps[intervalStepIndex]
       : null;
+  const nextIntervalStep = currentIntervalStep
+    ? (intervalProtocol?.steps[intervalStepIndex + 1] ?? null)
+    : null;
+  const guideWorkCount =
+    intervalProtocol?.steps.filter(
+      (step) => step.kind === "work" && (step.phase ?? "main") === "main",
+    ).length ?? 0;
   const currentStepElapsed = Math.max(0, elapsedSec - intervalStepStartedElapsedRef.current);
   const currentStepDistance = Math.max(0, distanceM - intervalStepStartedDistanceRef.current);
   const currentStepProgress = currentIntervalStep
@@ -1058,7 +1064,7 @@ function RunTracker({
       {shownActivity && !isTracking && <RunActivitySummary activity={shownActivity} showSplits />}
 
       {isTracking && (
-        <div className="rounded-2xl bg-foreground p-5 text-background">
+        <div className="bw-run-live" data-started="">
           {phase === "paused" ? (
             <>
               <div className="text-xs font-medium uppercase tracking-[0.18em] opacity-70">
@@ -1087,73 +1093,93 @@ function RunTracker({
             </>
           ) : currentIntervalStep ? (
             <>
-              <div className="flex items-center justify-between gap-3">
-                <div
-                  className={`text-xs font-semibold uppercase tracking-[0.18em] ${
-                    currentIntervalStep.kind === "work" ? "text-primary" : "opacity-70"
-                  }`}
-                >
+              <div className="bw-run-clock-head">
+                <span className="bw-run-clock-stage" data-live={phase === "recording" || undefined}>
                   {stageLabel(currentIntervalStep)}
-                  {repLabel(currentIntervalStep) ? ` · ${repLabel(currentIntervalStep)}` : ""}
-                </div>
+                </span>
                 <Volume2 className="h-4 w-4 opacity-60" aria-label="Komendy głosowe włączone" />
               </div>
-              <div className="mt-2 text-5xl font-semibold tabular-nums">
-                {intervalRemainingLabel(
-                  currentIntervalStep,
-                  currentStepElapsed,
-                  currentStepDistance,
+              {guidePhases(intervalProtocol!, guideWorkCount).length > 1 && (
+                <ol className="bw-run-phases" aria-label="Części biegu">
+                  {guidePhases(intervalProtocol!, guideWorkCount).map((item) => (
+                    <li
+                      key={item.id}
+                      aria-current={
+                        item.id === (currentIntervalStep.phase ?? "main") ? "step" : undefined
+                      }
+                      data-current={item.id === (currentIntervalStep.phase ?? "main") || undefined}
+                    >
+                      {item.label}
+                    </li>
+                  ))}
+                </ol>
+              )}
+              <div className="bw-run-now">
+                <p className="bw-run-now-title">{stepTitle(currentIntervalStep)}</p>
+                <div className="bw-run-readout" role="timer" aria-live="off">
+                  {padClock(
+                    intervalRemainingLabel(
+                      currentIntervalStep,
+                      currentStepElapsed,
+                      currentStepDistance,
+                    ),
+                  )}
+                </div>
+                <p className="bw-run-now-until">{untilLabel(currentIntervalStep)}</p>
+                <div
+                  className="bw-run-step-bar"
+                  role="progressbar"
+                  aria-label={`Postęp: ${currentIntervalStep.label}`}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(currentStepProgress * 100)}
+                >
+                  <span style={{ width: `${Math.max(2, currentStepProgress * 100)}%` }} />
+                </div>
+                {currentIntervalStep.target.paceTarget ? (
+                  <div className="bw-run-goal">
+                    <span>Cel</span>
+                    <strong className="bw-run-clock-target">
+                      {currentIntervalStep.target.paceTarget.label}
+                    </strong>
+                    <span>Teraz</span>
+                    <strong className="bw-run-clock-target">{formatPace(currentStepPace)}</strong>
+                    <small>
+                      {paceGuidance === "speed_up"
+                        ? "Przyspiesz spokojnie"
+                        : paceGuidance === "slow_down"
+                          ? "Zwolnij i wróć do zakresu"
+                          : paceGuidance === "on_target"
+                            ? "Tempo w zakresie"
+                            : "Ustalam tempo z GPS…"}
+                    </small>
+                  </div>
+                ) : (
+                  goalOf(currentIntervalStep) && (
+                    <div className="bw-run-goal">
+                      <span>Cel</span>
+                      <strong className="bw-run-clock-target">
+                        {goalOf(currentIntervalStep)!.value}
+                      </strong>
+                      {goalOf(currentIntervalStep)!.note && (
+                        <small>{goalOf(currentIntervalStep)!.note}</small>
+                      )}
+                    </div>
+                  )
                 )}
               </div>
-              <div
-                className="mt-3 h-1.5 overflow-hidden rounded-full bg-background/15"
-                role="progressbar"
-                aria-label={`Postęp: ${currentIntervalStep.label}`}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={Math.round(currentStepProgress * 100)}
-              >
-                <div
-                  className="h-full rounded-full bg-primary transition-[width] duration-300"
-                  style={{ width: `${Math.max(2, currentStepProgress * 100)}%` }}
-                />
-              </div>
-              {!currentIntervalStep.target.paceTarget && targetLabel(currentIntervalStep) && (
-                <p className="mt-3 text-sm font-semibold text-primary">
-                  {targetLabel(currentIntervalStep)}
-                </p>
-              )}
-              <p className="mt-2 text-sm font-medium">{currentIntervalStep.instruction}</p>
-              {currentIntervalStep.target.paceTarget && (
-                <div className="mt-3 grid grid-cols-2 gap-2 rounded-2xl bg-background/10 p-3 text-xs">
-                  <div>
-                    <div className="opacity-60">Cel</div>
-                    <div className="mt-0.5 font-semibold">
-                      {currentIntervalStep.target.paceTarget.label}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="opacity-60">Teraz</div>
-                    <div className="mt-0.5 font-semibold">{formatPace(currentStepPace)}</div>
-                  </div>
-                  <div className="col-span-2 font-medium">
-                    {paceGuidance === "speed_up"
-                      ? "Przyspiesz spokojnie"
-                      : paceGuidance === "slow_down"
-                        ? "Zwolnij i wróć do zakresu"
-                        : paceGuidance === "on_target"
-                          ? "Tempo w zakresie"
-                          : "Ustalam tempo z GPS…"}
-                  </div>
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => completeCurrentInterval(true)}
-                className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold opacity-75"
-              >
-                <SkipForward className="h-3.5 w-3.5" /> Zakończ ten krok teraz
-              </button>
+              <p className="bw-run-next">
+                <span>Następnie</span>
+                <strong>
+                  {nextIntervalStep
+                    ? `${nextName(nextIntervalStep)}${
+                        nextIntervalStep.target.mode === "time" && nextIntervalStep.target.value
+                          ? ` · ${durationLabel(nextIntervalStep.target.value)}`
+                          : ` · ${nextIntervalStep.target.label}`
+                      }`
+                    : "Koniec biegu"}
+                </strong>
+              </p>
             </>
           ) : intervalProtocol && guideComplete ? (
             <>
@@ -1197,35 +1223,40 @@ function RunTracker({
               </div>
             </>
           )}
-          <div className="mt-3 text-xs opacity-70">
+          <p className="bw-run-live-stats">
             {formatRunDuration(elapsedSec)} · {formatDistance(distanceM)} · {formatPace(livePace)}
             {routePointCount < 2 ? " · szukam sygnału GPS" : ""}
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-2">
+          </p>
+          <div className="bw-run-dock">
             {phase === "recording" ? (
               <button
                 type="button"
                 onClick={pauseRecording}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-background/15 px-4 py-3 text-sm font-semibold"
+                className="bw-session-primary bw-run-clock-main"
               >
-                <Pause className="h-4 w-4" /> Pauza
+                <Pause className="h-5 w-5" /> Pauza
               </button>
             ) : (
               <button
                 type="button"
                 onClick={resumeRecording}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-background/15 px-4 py-3 text-sm font-semibold"
+                className="bw-session-primary bw-run-clock-main"
               >
-                <Play className="h-4 w-4" /> Wznów
+                <Play className="h-5 w-5" /> Wznów
               </button>
             )}
-            <button
-              type="button"
-              onClick={finishRecording}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"
-            >
-              <Square className="h-4 w-4" /> Zakończ
-            </button>
+            <div className="bw-run-dock-links">
+              {currentIntervalStep ? (
+                <button type="button" onClick={() => completeCurrentInterval(true)}>
+                  <SkipForward className="h-4 w-4" aria-hidden="true" /> Zakończ ten krok
+                </button>
+              ) : (
+                <span />
+              )}
+              <button type="button" onClick={finishRecording}>
+                Zakończ bieg
+              </button>
+            </div>
           </div>
         </div>
       )}

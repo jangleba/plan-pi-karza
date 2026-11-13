@@ -153,7 +153,7 @@ it("prowadzi recepturę przy zablokowanym ekranie i liczy odcinki z trasy telefo
   await act(async () => setVisibility("visible"));
   expect(mock.cancel).toHaveBeenCalled();
   expect(host.textContent).toContain(cues[0].title);
-  expect(host.textContent).toMatch(/Odcinek 1\//);
+  expect(host.textContent).toMatch(/Odcinek 1 z /);
   // Zaległa zmiana kroku nie odtwarza starego sygnału.
   expect(mock.signal).not.toHaveBeenCalled();
 
@@ -168,7 +168,7 @@ it("prowadzi recepturę przy zablokowanym ekranie i liczy odcinki z trasy telefo
   mock.finish.mockResolvedValue(
     state({ phase: "review", durationSec: later, distanceM: later * SPEED, route }),
   );
-  await act(async () => button("Zakończ").click());
+  await act(async () => button("Zakończ bieg").click());
   await act(async () => button("Zapisz bieg").click());
   const draft = mock.save.mock.calls[0][0];
   expect(draft.route.length).toBeGreaterThan(100);

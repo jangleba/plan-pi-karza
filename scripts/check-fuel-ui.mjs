@@ -159,6 +159,8 @@ try {
     args: ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"],
   });
   const page = await browser.newPage({
+    // BALLWISE_SHOT_SCALE=2 gives sharp screenshots for people; checks run at 1.
+    deviceScaleFactor: Number(process.env.BALLWISE_SHOT_SCALE) || 1,
     viewport: { width: 390, height: 844 },
     reducedMotion: "reduce",
   });
@@ -228,7 +230,7 @@ try {
   await page.getByRole("button", { name: "Zmień", exact: true }).click();
   await page.getByRole("button", { name: "Zwykły posiłek", exact: true }).click();
   ensure(
-    (await page.locator(".fuel-v4-time-value strong").textContent()) === "Zwykły posiłek",
+    (await page.locator(".fuel-v4-time-value strong").textContent()) === "Dziś bez treningu",
     "Ordinary meal mode failed",
   );
   await goto();
@@ -260,13 +262,27 @@ try {
     .getByText("Zapisano wypity napój.", { exact: true })
     .waitFor({ state: "hidden", timeout: 7000 });
   await snap("napoje");
-  // "Co zjeść teraz?": slim top, one answer with a reason, quick fits, proven sets.
+  // One-tap water: +250 ml is saved and confirmed on the card.
+  await goto();
+  await page.getByRole("button", { name: "+ 250 ml", exact: true }).click();
+  await page.getByText("Dodano 250 ml", { exact: true }).waitFor();
+  ensure(
+    (await page.evaluate(() => window.__fuelQA.read().drinks[0].ml)) === 250,
+    "Quick water not saved",
+  );
+  // "Teraz najlepiej": context card, Przed/W trakcie/Po, one answer, quick fits, proven sets.
   for (const width of [320, 390, 430]) {
     await page.setViewportSize({ width, height: 844 });
     await goto();
     ensure(
-      (await page.locator(".fuel-now-reason").textContent())?.startsWith("Do meczu"),
-      "Reason missing",
+      (await page.locator(".fuel-timeline-caption").textContent())?.startsWith("Do meczu"),
+      "Time to start missing",
+    );
+    ensure(
+      (await page.locator('.fuel-timeline li[aria-current="step"]').textContent())?.includes(
+        "Przed",
+      ),
+      "Current moment missing",
     );
     const card = await page.locator(".fuel-now-card .fuel-primary").boundingBox();
     const tabs = await page.locator(".bw-tab-bar").boundingBox();
@@ -281,12 +297,28 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await goto();
   await page.getByRole("button", { name: "Mam 5 minut", exact: true }).click();
+  await page.getByRole("dialog").waitFor();
+  ensure(
+    !(await page.evaluate(() => window.__fuelQA.read().selection?.fit)),
+    "Opening the fit sheet changed the meal before a choice",
+  );
+  await page.waitForTimeout(400);
+  await snap("dopasowanie-5-minut-wybor");
+  const option = await page.getByRole("radio").nth(1).locator("strong").textContent();
+  await page.getByRole("radio").nth(1).click();
+  await page.getByRole("button", { name: "Wybierz zestaw", exact: true }).click();
+  await page.getByRole("dialog").waitFor({ state: "hidden" });
   ensure(
     (await page.evaluate(() => window.__fuelQA.read().selection?.fit)) === "quick",
     "Quick fit not remembered",
   );
+  ensure(
+    (await page.locator(".fuel-now-card h3").textContent()) === option,
+    "Chosen set not shown on the card",
+  );
   await snap("dopasowanie-5-minut");
   await page.getByRole("button", { name: "W sklepie", exact: true }).click();
+  await page.getByRole("button", { name: "Wybierz zestaw", exact: true }).click();
   await page.getByRole("button", { name: /Sprawdź produkt z półki/ }).waitFor();
   await snap("dopasowanie-sklep");
   await page.getByRole("button", { name: "Mam swoje", exact: true }).click();
@@ -305,7 +337,7 @@ try {
   await page.getByRole("button", { name: "30 min", exact: true }).click();
   await page.waitForTimeout(400);
   ensure(
-    (await page.locator(".fuel-now-reason").textContent())?.startsWith("Do meczu 30 min"),
+    (await page.locator(".fuel-timeline-caption").textContent())?.startsWith("Do meczu 30 min"),
     "Proposal not updated after a new start time",
   );
   ensure(

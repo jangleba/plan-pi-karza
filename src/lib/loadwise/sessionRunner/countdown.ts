@@ -12,6 +12,10 @@ export interface Countdown {
   label: string;
   /** Changes with every new start, so the same rest can be restarted. */
   id: number;
+  /** Second line under the label, e.g. the next set's load ("60 kg × 8"). */
+  detail?: string;
+  /** Step that started the rest between its own sets; absent for a rest before another exercise. */
+  stepKey?: string;
 }
 
 export function startCountdown(
@@ -19,9 +23,13 @@ export function startCountdown(
   label: string,
   now = Date.now(),
   id = now,
+  extra: { detail?: string; stepKey?: string } = {},
 ): Countdown {
   const total = Math.max(1, Math.min(7200, Math.round(seconds)));
-  return { endsAt: now + total * 1000, pausedLeft: null, total, label, id };
+  const countdown: Countdown = { endsAt: now + total * 1000, pausedLeft: null, total, label, id };
+  if (extra.detail) countdown.detail = extra.detail.slice(0, 120);
+  if (extra.stepKey) countdown.stepKey = extra.stepKey.slice(0, 200);
+  return countdown;
 }
 
 export function remainingSeconds(countdown: Countdown, now = Date.now()): number {
@@ -44,10 +52,12 @@ export function extendCountdown(
   seconds: number,
   now = Date.now(),
 ): Countdown {
-  const left = Math.min(7200, remainingSeconds(countdown, now) + seconds);
+  // Shortening never goes below zero and keeps a valid total, so the stored rest stays readable.
+  const left = Math.max(0, Math.min(7200, remainingSeconds(countdown, now) + seconds));
+  const total = Math.max(1, Math.min(7200, countdown.total + seconds), left);
   return countdown.endsAt === null
-    ? { ...countdown, pausedLeft: left, total: countdown.total + seconds }
-    : { ...countdown, endsAt: now + left * 1000, total: countdown.total + seconds };
+    ? { ...countdown, pausedLeft: left, total }
+    : { ...countdown, endsAt: now + left * 1000, total };
 }
 
 export function formatClock(seconds: number): string {
@@ -68,7 +78,9 @@ export function parseCountdown(value: unknown): Countdown | undefined {
     c.total > 7200 ||
     typeof c.label !== "string" ||
     c.label.length > 120 ||
-    !Number.isFinite(c.id)
+    !Number.isFinite(c.id) ||
+    (c.detail !== undefined && (typeof c.detail !== "string" || c.detail.length > 120)) ||
+    (c.stepKey !== undefined && (typeof c.stepKey !== "string" || c.stepKey.length > 200))
   )
     return undefined;
   return c;

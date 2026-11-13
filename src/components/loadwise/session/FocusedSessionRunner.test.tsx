@@ -66,11 +66,20 @@ const sections: TrainingSection[] = [
 const buttons = () => [...host.querySelectorAll<HTMLButtonElement>("button")];
 const byText = (text: string) => buttons().find((b) => b.textContent?.trim() === text);
 const containing = (text: string) => buttons().find((b) => b.textContent?.includes(text));
-const count = () => host.querySelector(".bw-runner-count")?.textContent ?? "";
+/** Progress: the exercise view names it on the segment bar, the list in its count row. */
+const count = () =>
+  host.querySelector(".bw-runner-segments")?.getAttribute("aria-label") ??
+  host.querySelector(".bw-runner-count")?.textContent ??
+  "";
+/** The open exercise: above the plan view in preview, on the card during training. */
 const title = () =>
-  host.querySelector(".bw-unit-exercise-head h2 .bw-runner-name")?.textContent ?? undefined;
-const tab = (name: string) =>
-  host.querySelector<HTMLButtonElement>(`[role="tab"][id$="-${name}"]`)!;
+  host.querySelector(".bw-unit-exercise-head h2 .bw-runner-name, .bw-runner-card .bw-runner-name")
+    ?.textContent ?? undefined;
+const howTo = () => byText("Jak wykonać?");
+const closeHowTo = () =>
+  host.querySelector<HTMLButtonElement>('button[aria-label="Zamknij instrukcję"]')!;
+/** The rest takes the screen after a set; the athlete starts the next one. */
+const nextSet = () => click(byText("Rozpocznij kolejną serię"));
 const click = async (button: HTMLButtonElement | undefined) => act(async () => button!.click());
 
 function runner(canRecord: boolean, onStart = vi.fn()) {
@@ -108,6 +117,10 @@ describe("ekran treningu", () => {
     await click(byText("Następne"));
     await click(byText("Następne"));
     await saveFirstSet();
+    expect(host.querySelector(".bw-rest-screen")?.textContent).toContain("Następnie: seria 2 z 2");
+    expect(host.querySelector(".bw-rest-screen")?.textContent).toContain("10 powt.");
+    await nextSet();
+    expect(host.querySelector(".bw-rest-screen")).toBeNull();
     const reps2 = () =>
       host.querySelector<HTMLInputElement>('input[aria-label="Seria 2: powtórzenia"]')!;
     expect(reps2().value).toBe("10");
@@ -146,18 +159,18 @@ describe("ekran treningu", () => {
     expect(onStart).toHaveBeenCalledOnce();
   });
 
-  it("podgląd: wybranie ćwiczenia pokazuje zakładki Trening i Technika; animacja tylko w Technice", async () => {
+  it("podgląd: wybranie ćwiczenia pokazuje plan i „Jak wykonać?”; animacja tylko po otwarciu", async () => {
     await render(false);
     await click(containing("Most biodrowy"));
     expect(title()).toBe("Most biodrowy");
-    expect(tab("trening").getAttribute("aria-selected")).toBe("true");
     expect(host.querySelector(".bw-runner-facts")?.textContent).toContain("Odpoczynek60 s");
     expect(host.querySelector("input")).toBeNull();
     expect(host.querySelector("iframe")).toBeNull();
-    await click(tab("technika"));
-    expect(tab("technika").getAttribute("aria-selected")).toBe("true");
+    expect(host.querySelector(".bw-howto-panel")).toBeNull();
+    await click(howTo());
     expect(host.querySelector(".bw-howto-panel")).not.toBeNull();
-    await click(tab("trening"));
+    await click(closeHowTo());
+    expect(host.querySelector(".bw-howto-panel")).toBeNull();
     expect(host.querySelector("iframe")).toBeNull();
     await click(containing("Lista ćwiczeń"));
     expect(host.querySelectorAll(".bw-rplan-row")).toHaveLength(3);
@@ -185,7 +198,7 @@ describe("ekran treningu", () => {
   it("lista w trakcie: status, „Teraz” i powrót do ćwiczenia jednym dotknięciem", async () => {
     await render(true);
     await click(byText("Pomiń"));
-    await click(containing("Lista ćwiczeń"));
+    await click(byText("Pozostałe ćwiczenia"));
     expect(title()).toBeUndefined();
     const marks = [...host.querySelectorAll(".bw-rplan-mark")].map((m) =>
       m.getAttribute("data-state"),
@@ -196,7 +209,7 @@ describe("ekran treningu", () => {
     );
     await click(containing("Kontynuuj: Wypad z rotacją"));
     expect(title()).toBe("Wypad z rotacją");
-    await click(containing("Lista ćwiczeń"));
+    await click(byText("Pozostałe ćwiczenia"));
     await click(containing("Most biodrowy"));
     expect(title()).toBe("Most biodrowy");
   });
@@ -216,19 +229,37 @@ describe("ekran treningu", () => {
     expect(count()).toContain("Wykonane 1 z 3");
   });
 
-  it("przełączanie zakładek zachowuje zapisane serie i odliczanie przerwy", async () => {
+  it("„Jak wykonać?” w przerwie zachowuje zapisane serie i odliczanie przerwy", async () => {
     await render(true);
     await click(byText("Następne"));
     await click(byText("Następne"));
     expect(title()).toBe("Most biodrowy");
     await saveFirstSet();
-    await click(tab("technika"));
+    expect(host.querySelector(".bw-rest-screen")).not.toBeNull();
+    await click(howTo());
+    expect(host.querySelector(".bw-howto-panel")).not.toBeNull();
     expect(host.querySelector('input[aria-label="Seria 2: powtórzenia"]')).toBeNull();
-    await click(tab("trening"));
-    expect(title()).toBe("Most biodrowy");
+    await click(closeHowTo());
+    expect(host.querySelector(".bw-rest-screen")).not.toBeNull();
     expect(count()).toContain("Wykonane 0 z 3");
+    await nextSet();
+    expect(title()).toBe("Most biodrowy");
     expect(host.querySelector('button[aria-label="Seria 1 zapisana, popraw"]')).not.toBeNull();
-    expect(host.querySelector(".bw-rest-card")).not.toBeNull();
+  });
+
+  it("przerwa: −15 s i +15 s zmieniają czas, „Zakończ ćwiczenie” oznacza je i przechodzi dalej", async () => {
+    await render(true);
+    await click(byText("Następne"));
+    await click(byText("Następne"));
+    await saveFirstSet();
+    const clock = () => host.querySelector(".bw-rest-big")?.textContent;
+    expect(clock()).toBe("01:00");
+    await click(byText("−15 s"));
+    expect(clock()).toBe("00:45");
+    await click(byText("+15 s"));
+    expect(clock()).toBe("01:00");
+    await click(byText("Zakończ ćwiczenie"));
+    expect(count()).toContain("Wykonane 1 z 3");
   });
 
   it("zamknięcie i ponowne otwarcie panelu wraca do tego samego ćwiczenia z serią i przerwą", async () => {
@@ -236,22 +267,22 @@ describe("ekran treningu", () => {
     await click(byText("Następne"));
     await click(byText("Następne"));
     await saveFirstSet();
-    const restBefore = host.querySelector(".bw-rest-clock")?.textContent;
+    const restBefore = host.querySelector(".bw-rest-big")?.textContent;
     expect(restBefore).toBeTruthy();
     // Closing the panel unmounts the runner.
     await act(async () => root.render(<div />));
     expect(host.querySelector(".bw-runner")).toBeNull();
     await act(async () => root.render(runner(true)));
+    // The rest keeps counting to its end time.
+    expect(host.querySelector(".bw-rest-screen")).not.toBeNull();
+    expect(host.querySelector(".bw-rest-big")?.textContent).toBe(restBefore);
+    await nextSet();
     expect(title()).toBe("Most biodrowy");
     expect(host.querySelector('button[aria-label="Seria 1 zapisana, popraw"]')).not.toBeNull();
-    // The rest keeps counting to its end time.
-    expect(host.querySelector(".bw-rest-card")).not.toBeNull();
-    expect(host.querySelector(".bw-rest-clock")?.textContent).toBe(restBefore);
     // The list view is remembered as well.
-    await click(containing("Lista ćwiczeń"));
+    await click(byText("Pozostałe ćwiczenia"));
     await act(async () => root.render(<div />));
     await act(async () => root.render(runner(true)));
     expect(title()).toBeUndefined();
-    expect(host.querySelector(".bw-rest-card")).not.toBeNull();
   });
 });

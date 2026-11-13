@@ -92,7 +92,9 @@ async function walkSession(session: SessionDay) {
         titles.push(tile.querySelector("h2 .bw-runner-name")?.textContent ?? "");
     else
       titles.push(
-        host.querySelector(".bw-unit-exercise-head h2 .bw-runner-name")?.textContent ?? "",
+        host.querySelector(
+          ".bw-unit-exercise-head h2 .bw-runner-name, .bw-runner-card .bw-runner-name",
+        )?.textContent ?? "",
       );
     for (const card of host.querySelectorAll(".bw-runner-card")) {
       for (const fact of card.querySelectorAll(".bw-runner-facts > div"))
