@@ -1,0 +1,35 @@
+/* Mapa trasy i międzyczasy biegu. */
+.bw-run-map {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  background: var(--muted);
+  isolation: isolate;
+}
+.bw-run-map-canvas {
+  width: 100%;
+  height: 100%;
+}
+.bw-run-map .leaflet-control-attribution {
+  font-size: 9px;
+}
+.bw-run-splits {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.bw-run-splits-head,
+.bw-run-splits li {
+  display: grid;
+  grid-template-columns: 3rem 1fr 1fr;
+  gap: 8px;
+  padding: 6px 2px;
+}
+.bw-run-splits-head {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.bw-run-splits li + li {
+  border-top: 1px solid var(--border);
+}
