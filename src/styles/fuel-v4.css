@@ -843,3 +843,390 @@
 .fuel-v4 .fuel-v4-hero-actions svg {
   flex: 0 0 auto;
 }
+
+/* Mock-up layout (2026-11-13): context card, Przed/W trakcie/Po, "Teraz najlepiej",
+   "Dopasuj do chwili" tiles, water, the meal after, and the fit sheet. */
+.fuel-v4 .fuel-header-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0 4px;
+  color: var(--fuel-muted);
+  font-size: 17px;
+  font-weight: 400;
+}
+.fuel-v4 .fuel-now-context {
+  padding: 10px 6px 10px 16px;
+  border: 0;
+  border-radius: 16px;
+  box-shadow: var(--bw-shadow-card);
+}
+.fuel-now-context .fuel-v4-time-value {
+  align-items: center;
+  gap: 14px;
+}
+.fuel-now-context .fuel-v4-time-value > svg {
+  flex: 0 0 auto;
+  color: var(--fuel-muted);
+}
+.fuel-now-context .fuel-v4-time-value > div {
+  display: grid;
+  min-width: 0;
+}
+.fuel-now-context .fuel-v4-time-value strong {
+  display: block;
+  font-size: 17px;
+  font-weight: 600;
+}
+.fuel-now-context .fuel-v4-time-value span {
+  display: block;
+  font-size: 15px;
+  color: var(--fuel-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fuel-now-context .fuel-text-button {
+  color: var(--fuel-muted);
+}
+.fuel-timeline {
+  padding: 2px 8px 0;
+}
+.fuel-timeline ol {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.fuel-timeline ol::before {
+  content: "";
+  position: absolute;
+  top: 41px;
+  right: 16.66%;
+  left: 16.66%;
+  height: 2px;
+  background: var(--fuel-border);
+}
+.fuel-timeline li {
+  position: relative;
+  display: grid;
+  grid-template-rows: 30px 22px auto;
+  justify-items: center;
+  align-items: end;
+  row-gap: 4px;
+}
+.fuel-timeline-now {
+  grid-row: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bw-success, #5f8f5a) 16%, var(--card));
+  color: var(--fuel-text);
+  font-size: 14px;
+}
+.fuel-timeline-now::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--bw-success, #5f8f5a);
+}
+.fuel-timeline li > i {
+  grid-row: 2;
+  width: 20px;
+  height: 20px;
+  border: 2px solid color-mix(in srgb, var(--fuel-muted) 45%, var(--card));
+  border-radius: 50%;
+  background: var(--background);
+}
+.fuel-timeline li[data-state="now"] > i {
+  width: 22px;
+  height: 22px;
+  border: 2.5px solid var(--fuel-text);
+}
+.fuel-timeline li[data-state="past"] > i {
+  border-color: var(--fuel-accent);
+  background: var(--fuel-accent);
+}
+.fuel-timeline-label {
+  grid-row: 3;
+  font-size: 16px;
+  color: var(--fuel-muted);
+}
+.fuel-timeline li[data-state="now"] .fuel-timeline-label {
+  color: var(--fuel-text);
+  font-weight: 500;
+}
+.fuel-timeline-caption {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--fuel-muted);
+}
+.fuel-v4 .fuel-now-card {
+  padding: 18px 18px 16px;
+  border: 0;
+  border-radius: 18px;
+}
+.fuel-now-title {
+  align-items: center;
+  margin: -6px 0 0;
+}
+.fuel-now-question {
+  font-size: 15px;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--bw-success, #5f8f5a) 85%, var(--fuel-text));
+}
+.fuel-v4 .fuel-now-card h3 {
+  max-width: none;
+  padding-top: 0;
+  font-size: 25px;
+  font-weight: 600;
+}
+.fuel-now-card .fuel-now-portion {
+  display: block;
+  margin: 8px 0 0;
+  border: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--fuel-muted);
+}
+.fuel-now-card .fuel-now-portion .fuel-v4-ingredient-change {
+  display: inline;
+  min-height: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.fuel-now-card .fuel-now-meta {
+  justify-content: flex-start;
+  gap: 10px;
+  margin: 10px 0 16px;
+  padding: 0;
+  border: 0;
+  font-size: 16px;
+}
+.fuel-v4 .fuel-now-card .fuel-v4-hero-actions {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
+}
+.fuel-v4 .fuel-now-card .fuel-v4-hero-actions .fuel-primary {
+  min-height: 46px;
+  border-radius: 12px;
+  font-size: 17px;
+  font-weight: 500;
+}
+.fuel-v4 .fuel-now-action {
+  min-height: 46px;
+  color: var(--fuel-text);
+  font-size: 17px;
+}
+.fuel-section-title {
+  margin: 6px 4px 8px;
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.fuel-v4 .fuel-now-fits {
+  gap: 10px;
+}
+.fuel-v4 .fuel-now-fit {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 6px;
+  min-height: 78px;
+  padding: 10px 4px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: var(--bw-shadow-card);
+  font-size: 15px;
+  font-weight: 400;
+  white-space: normal;
+  text-align: center;
+}
+.fuel-v4 .fuel-now-fit svg {
+  color: var(--fuel-muted);
+}
+.fuel-v4 .fuel-now-fit[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 1.5px var(--fuel-accent);
+}
+.fuel-water {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px 14px 16px;
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--bw-shadow-card);
+}
+.fuel-water-icon {
+  align-self: start;
+  color: var(--fuel-muted);
+}
+.fuel-water-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+}
+.fuel-water-head strong {
+  font-size: 17px;
+  font-weight: 500;
+}
+.fuel-water-head span {
+  font-size: 15px;
+  color: var(--fuel-muted);
+}
+.fuel-water-added {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--fuel-muted);
+}
+.fuel-water-added svg {
+  color: var(--bw-success, #5f8f5a);
+}
+.fuel-water-add {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: 0 1px 4px rgb(15 30 55 / 0.14);
+  font-size: 16px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.fuel-after-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px;
+  padding: 10px 14px 10px 20px;
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--bw-shadow-card);
+  text-align: left;
+}
+.fuel-after-row i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--fuel-muted) 60%, var(--card));
+}
+.fuel-after-row span {
+  display: grid;
+}
+.fuel-after-row strong {
+  font-size: 17px;
+  font-weight: 500;
+}
+.fuel-after-row small {
+  font-size: 15px;
+  color: var(--fuel-muted);
+}
+.fuel-after-row svg {
+  color: var(--fuel-muted);
+}
+.fuel-fit-body {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+.fuel-now-portion-item {
+  white-space: nowrap;
+}
+.fuel-fit-options {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+.fuel-fit-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 14px 10px 18px;
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--fuel-border, var(--border));
+  text-align: left;
+}
+.fuel-fit-option[aria-checked="true"] {
+  background: color-mix(in srgb, var(--primary) 7%, var(--card));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 18%, var(--border));
+}
+.fuel-fit-option > span {
+  display: grid;
+  min-width: 0;
+}
+.fuel-fit-option strong {
+  font-size: 17px;
+  font-weight: 500;
+}
+.fuel-fit-option small {
+  font-size: 14px;
+  color: var(--muted-foreground);
+}
+.fuel-fit-option i {
+  display: grid;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 1.5px solid color-mix(in srgb, var(--muted-foreground) 50%, var(--card));
+  border-radius: 50%;
+  color: #fff;
+}
+.fuel-fit-option[aria-checked="true"] i {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+.fuel-fit-when {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 4px 0 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--muted);
+  font-size: 15px;
+  color: var(--muted-foreground);
+}
+.fuel-sheet .fuel-fit-confirm {
+  min-height: 52px;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 500;
+}
+.fuel-fit-back {
+  min-height: 44px;
+  font-size: 16px;
+  color: var(--foreground);
+}
+@media (max-width: 359px) {
+  .fuel-v4 .fuel-now-fit {
+    font-size: 13px;
+  }
+  .fuel-v4 .fuel-now-fit svg {
+    display: block;
+  }
+  .fuel-v4 .fuel-now-card .fuel-v4-hero-actions {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+}

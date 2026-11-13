@@ -1,20 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  CalendarDays,
   Check,
   ChevronRight,
   Clock3,
   Heart,
-  RefreshCw,
   RotateCcw,
   ScanBarcode,
-  ShoppingBag,
+  ShoppingCart,
   SlidersHorizontal,
-  Timer,
   Utensils,
 } from "lucide-react";
 import { toast } from "sonner";
 import { FuelMealSheet, type FuelMealDraft } from "./FuelMealSheet";
 import { FuelNextSteps } from "./FuelNextSteps";
+import { FuelFitSheet, type FuelFitOption } from "./FuelFitSheet";
 import { FuelPanels, downloadFuelFile, type FuelPanelName } from "./FuelPanels";
 import { StoreCheckSheet } from "./StoreCheckSheet";
 import { FOOD_BY_ID, findRecipe, parsePantry, type FuelRecipe } from "@/lib/fuel/catalog";
@@ -68,7 +68,6 @@ import {
 import type { SessionKind } from "@/lib/fuel/types";
 import {
   FUEL_FITS,
-  fuelChoiceReason,
   fuelDuration,
   provenFuelSets,
   retimeFuelEntries,
@@ -126,6 +125,8 @@ export function FuelWorkspace({
   });
   const [reminderBusy, setReminderBusy] = useState(false);
   const [storeOpen, setStoreOpen] = useState(false);
+  /** A quick fit waiting for the athlete's choice in its sheet. */
+  const [fitSheet, setFitSheet] = useState<"quick" | "store" | null>(null);
   const [storeName, setStoreName] = useState("");
   const [barcode, setBarcode] = useState("");
   const [product, setProduct] = useState<StoreProduct | null>(null);
@@ -176,6 +177,24 @@ export function FuelWorkspace({
         store: fit === "store",
       }),
     [context, timing, now, data, pantry, fit],
+  );
+  // The sets a quick fit would show; the same list the card uses once the fit is applied.
+  const fitOptions = useMemo<FuelFitOption[]>(
+    () =>
+      fitSheet
+        ? practicalRecipes({
+            context,
+            timing,
+            now,
+            data,
+            pantry: [],
+            quick: fitSheet === "quick",
+            store: fitSheet === "store",
+          })
+            .slice(0, 3)
+            .map((recipe, index) => ({ recipe, index }))
+        : [],
+    [fitSheet, context, timing, now, data],
   );
   const selectedEntry = data.entries.find(
     (e) => e.contextKey === context.key && e.status === "selected",
@@ -376,8 +395,11 @@ export function FuelWorkspace({
       window.removeEventListener("ballwise:fuel-reminder-error", fail);
     };
   }, []);
+  /** The set picked in a fit sheet; applied once the new fit has rebuilt the list. */
+  const pendingFitIndex = useRef<number | null>(null);
   useEffect(() => {
-    setRecipeIndex(0);
+    setRecipeIndex(pendingFitIndex.current ?? 0);
+    pendingFitIndex.current = null;
   }, [context.key, timing.phase, fit, pantry, data.preferences]);
   const updatePreferences = (patch: Partial<FuelPreferences>) =>
     setData((d) => ({ ...d, preferences: { ...d.preferences, ...patch } }));
@@ -445,7 +467,9 @@ export function FuelWorkspace({
       setPanel("pantry");
       return;
     }
-    applyFit(fit === next ? null : next);
+    // An active fit switches off with one tap; a new one asks first in its sheet.
+    if (fit === next) applyFit(null);
+    else setFitSheet(next);
   }
   function repeatSet(set: ProvenFuelSet) {
     setEditingId(null);
@@ -782,6 +806,69 @@ export function FuelWorkspace({
               ? "Czas startu minął"
               : fuelDuration(minutes);
 
+  const match = context.kind === "match";
+  const startClock =
+    timing.startsAt !== null
+      ? new Date(timing.startsAt).toLocaleTimeString("pl-PL", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : null;
+  const startDay =
+    timing.startsAt === null
+      ? "Dziś"
+      : localDate(timing.startsAt) === date
+        ? "Dziś"
+        : localDate(timing.startsAt) === localDate(tomorrowDate.getTime())
+          ? "Jutro"
+          : null;
+  const contextTitle =
+    timing.phase === "ordinary"
+      ? "Dziś bez treningu"
+      : timing.phase === "training"
+        ? match
+          ? "Mecz trwa"
+          : "Trening trwa"
+        : timing.phase === "after"
+          ? match
+            ? "Po meczu"
+            : "Po treningu"
+          : startClock && startDay
+            ? `${startDay} ${match ? "gramy" : "trening"} o ${startClock}`
+            : timingTitle;
+  const contextLine =
+    timing.phase === "ordinary"
+      ? "Zwykły posiłek"
+      : `${context.fromPlan ? context.title : SESSION_LABELS[context.kind]}${
+          context.durationMin ? ` · ${context.durationMin} min` : ""
+        }`;
+  const phases = [
+    { id: "before", label: "Przed" },
+    { id: "training", label: "W trakcie" },
+    { id: "after", label: "Po" },
+  ] as const;
+  const phaseIndex = phases.findIndex((item) => item.id === timing.phase);
+  const untilLabel =
+    timing.phase === "before" && minutes !== null && minutes > 0
+      ? `${match ? "Do meczu" : "Do treningu"} ${fuelDuration(minutes)}`
+      : null;
+  const phaseName =
+    timing.phase === "after"
+      ? match
+        ? "Po meczu"
+        : "Po treningu"
+      : timing.phase === "training"
+        ? "W przerwie"
+        : timing.phase === "ordinary"
+          ? "Zwykły posiłek"
+          : match
+            ? "Przed meczem"
+            : "Przed treningiem";
+  const fitWhen =
+    timing.phase === "before" && minutes !== null && minutes > 0
+      ? `${phaseName} · ${fuelDuration(minutes)} do startu`
+      : phaseName;
+
   return (
     <div className="fuel-workspace fuel-v4">
       <PageHeader
@@ -790,11 +877,12 @@ export function FuelWorkspace({
         className="fuel-v4-header fuel-now-header bw-page-header--inset"
         actions={
           <button
-            className="fuel-icon-button"
-            aria-label="Ustawienia Fuel"
-            onClick={() => setPanel("preferences")}
+            className="fuel-header-link"
+            aria-label={latest ? "Historia, zapisano dziś" : "Historia"}
+            onClick={() => setPanel("history")}
           >
-            <SlidersHorizontal size={20} />
+            {latest && <Check size={15} aria-hidden="true" className="bw-tone--success" />}
+            Historia
           </button>
         }
       />
@@ -869,22 +957,16 @@ export function FuelWorkspace({
           ) : (
             <div className="fuel-row">
               <div className="fuel-v4-time-value">
-                <Clock3
-                  size={16}
+                <CalendarDays
+                  size={22}
                   aria-hidden="true"
                   className={
                     timing.phase === "before" && minutes === 0 ? "bw-tone--warning" : undefined
                   }
                 />
                 <div>
-                  <span>
-                    {timing.phase === "ordinary"
-                      ? "Dziś"
-                      : `${context.fromPlan ? context.title : SESSION_LABELS[context.kind]} · ${
-                          timing.phase === "before" ? "start za" : "teraz"
-                        }`}
-                  </span>
-                  <strong className="tabular-nums">{timingTitle}</strong>
+                  <strong className="tabular-nums">{contextTitle}</strong>
+                  <span>{contextLine}</span>
                 </div>
               </div>
               <button className="fuel-text-button" onClick={() => setPanel("time")}>
@@ -901,36 +983,30 @@ export function FuelWorkspace({
             </div>
           )}
         </section>
-        <div className="fuel-now-fits" role="group" aria-label="Szybkie dopasowanie">
-          {FUEL_FITS.map((option) => (
-            <button
-              key={option.id}
-              className="fuel-now-fit"
-              aria-pressed={fit === option.id}
-              onClick={() => chooseFit(option.id)}
-            >
-              {option.id === "quick" ? (
-                <Timer size={15} aria-hidden="true" />
-              ) : option.id === "store" ? (
-                <ShoppingBag size={15} aria-hidden="true" />
-              ) : (
-                <Utensils size={15} aria-hidden="true" />
-              )}
-              {option.label}
-            </button>
-          ))}
-        </div>
+        {phaseIndex >= 0 && !(timing.phase === "before" && minutes === null) && (
+          <section className="fuel-timeline" aria-label="Pora jedzenia">
+            <ol>
+              {phases.map((item, i) => (
+                <li
+                  key={item.id}
+                  data-state={i === phaseIndex ? "now" : i < phaseIndex ? "past" : "next"}
+                  aria-current={i === phaseIndex ? "step" : undefined}
+                >
+                  {i === phaseIndex && <span className="fuel-timeline-now">Teraz</span>}
+                  <i aria-hidden="true" />
+                  <span className="fuel-timeline-label">{item.label}</span>
+                </li>
+              ))}
+            </ol>
+            {untilLabel && <p className="fuel-timeline-caption">{untilLabel}</p>}
+          </section>
+        )}
         {hero ? (
           <article className="fuel-v4-hero fuel-now-card" key={`${hero.id}:${timing.phase}`}>
-            <h2 className="fuel-now-question">
-              {timing.phase === "after"
-                ? "Co zjeść po treningu?"
-                : timing.phase === "training"
-                  ? "Co w przerwie?"
-                  : "Co zjeść teraz?"}
-            </h2>
             <div className="fuel-row fuel-now-title">
-              <h3>{hero.title}</h3>
+              <h2 className="fuel-now-question">
+                {timing.phase === "training" ? "W przerwie najlepiej" : "Teraz najlepiej"}
+              </h2>
               <button
                 className="fuel-v4-heart"
                 aria-label={
@@ -947,29 +1023,25 @@ export function FuelWorkspace({
                 />
               </button>
             </div>
-            <p className="fuel-now-reason">
-              {fuelChoiceReason({
-                context,
-                timing,
-                now,
-                recipe: hero,
-                nextSession: !!nextSession,
-              })}
-            </p>
-            <ul className="fuel-v4-ingredients" aria-label="Orientacyjna porcja">
-              {hero.lines.map((line) => (
-                <li key={line.foodId}>
-                  <button
-                    className="fuel-v4-ingredient-change"
-                    aria-label={`Zmień ${FOOD_BY_ID[line.foodId].label}`}
-                    onClick={() => openRecipe(hero, line.foodId)}
-                  >
-                    <span className="fuel-v4-ingredient-name">{FOOD_BY_ID[line.foodId].label}</span>
-                    <small>{householdPortion(line)}</small>
-                  </button>
-                </li>
+            <h3>{hero.title}</h3>
+            <p className="fuel-v4-ingredients fuel-now-portion" aria-label="Orientacyjna porcja">
+              {hero.lines.map((line, i) => (
+                <Fragment key={line.foodId}>
+                  {i > 0 && " "}
+                  <span className="fuel-now-portion-item">
+                    <button
+                      className="fuel-v4-ingredient-change"
+                      aria-label={`Zmień ${FOOD_BY_ID[line.foodId].label}`}
+                      title={householdPortion(line)}
+                      onClick={() => openRecipe(hero, line.foodId)}
+                    >
+                      {compactPortion(line, i > 0)}
+                    </button>
+                    {i < hero.lines.length - 1 && <span aria-hidden="true"> ·</span>}
+                  </span>
+                </Fragment>
               ))}
-            </ul>
+            </p>
             {pantry.length > 0 && (
               <p className="fuel-v4-meta fuel-now-missing">
                 Brakuje:{" "}
@@ -979,22 +1051,23 @@ export function FuelWorkspace({
                   .join(", ") || "nic, masz wszystko"}
               </p>
             )}
-            <div className="fuel-now-meta">
+            <p className="fuel-now-meta">
+              <Clock3 size={18} aria-hidden="true" />
               <span>Porcja orientacyjna · {hero.prepMin} min</span>
-              <button className="fuel-now-link" onClick={() => openRecipe(hero)}>
-                Przepis <ChevronRight size={13} aria-hidden="true" />
-              </button>
-            </div>
+            </p>
             <div className="fuel-v4-hero-actions">
               <button
                 className="fuel-primary"
                 disabled={!loaded}
                 onClick={() => quickSave(hero, "eaten")}
               >
-                <Check size={17} /> Zjadłem
+                Zjadłem
               </button>
-              <button className="fuel-secondary" onClick={() => setPanel("swap")}>
-                <RefreshCw size={16} /> Zamień
+              <button className="fuel-now-action" onClick={() => setPanel("swap")}>
+                Zamień
+              </button>
+              <button className="fuel-now-action" onClick={() => openRecipe(hero)}>
+                Przepis
               </button>
             </div>
             {fit === "store" && (
@@ -1030,29 +1103,55 @@ export function FuelWorkspace({
             </button>
           </div>
         )}
-        {proven.length > 0 && (
-          <section className="fuel-v4-list fuel-now-proven" aria-label="Sprawdzone zestawy">
-            <h2 className="fuel-now-list-title">Sprawdzone</h2>
-            {proven.map((set) => (
+        <section className="fuel-fit-section" aria-labelledby="fuel-fit-title">
+          <h2 id="fuel-fit-title" className="fuel-section-title">
+            Dopasuj do chwili
+          </h2>
+          <div className="fuel-now-fits" role="group" aria-label="Szybkie dopasowanie">
+            {FUEL_FITS.map((option) => (
               <button
-                key={set.entry.id}
-                className="fuel-v4-row"
-                onClick={() => repeatSet(set)}
-                aria-label={`Powtórz ${set.entry.title}`}
+                key={option.id}
+                className="fuel-now-fit"
+                aria-pressed={fit === option.id}
+                onClick={() => chooseFit(option.id)}
               >
-                <span aria-hidden="true" className="fuel-v4-row-icon">
-                  <RotateCcw size={17} />
-                </span>
-                <span className="fuel-v4-row-label">{set.entry.title}</span>
-                <span className="fuel-v4-row-value">
-                  {set.times > 1 ? `${set.times}×` : "Powtórz"}
-                </span>
-                <ChevronRight size={16} className="fuel-v4-row-chevron" aria-hidden="true" />
+                {option.id === "quick" ? (
+                  <Clock3 size={24} aria-hidden="true" />
+                ) : option.id === "store" ? (
+                  <ShoppingCart size={24} aria-hidden="true" />
+                ) : (
+                  <SlidersHorizontal size={24} aria-hidden="true" />
+                )}
+                {option.label}
               </button>
             ))}
-          </section>
-        )}
+          </div>
+        </section>
         <FuelNextSteps
+          middle={
+            proven.length > 0 && (
+              <section className="fuel-v4-list fuel-now-proven" aria-label="Sprawdzone zestawy">
+                <h2 className="fuel-now-list-title">Sprawdzone</h2>
+                {proven.map((set) => (
+                  <button
+                    key={set.entry.id}
+                    className="fuel-v4-row"
+                    onClick={() => repeatSet(set)}
+                    aria-label={`Powtórz ${set.entry.title}`}
+                  >
+                    <span aria-hidden="true" className="fuel-v4-row-icon">
+                      <RotateCcw size={17} />
+                    </span>
+                    <span className="fuel-v4-row-label">{set.entry.title}</span>
+                    <span className="fuel-v4-row-value">
+                      {set.times > 1 ? `${set.times}×` : "Powtórz"}
+                    </span>
+                    <ChevronRight size={16} className="fuel-v4-row-chevron" aria-hidden="true" />
+                  </button>
+                ))}
+              </section>
+            )
+          }
           context={context}
           timing={timing}
           now={now}
@@ -1060,7 +1159,6 @@ export function FuelWorkspace({
           nextSession={nextSession}
           laterTitle={selectedEntry?.title ?? null}
           tomorrowMatch={tomorrowMatch || !!tomorrowContext}
-          savedToday={!!latest}
           native={native}
           remindersOn={reminders.enabled}
           reminderBusy={reminderBusy || !loaded}
@@ -1068,7 +1166,15 @@ export function FuelWorkspace({
             setText("");
             setPanel("own");
           }}
-          onHistory={() => setPanel("history")}
+          onSettings={() => setPanel("preferences")}
+          afterLabel={
+            timing.phase === "before" || timing.phase === "training"
+              ? match
+                ? "Po meczu"
+                : "Po treningu"
+              : null
+          }
+          onAfter={() => setTiming({ ...timing, phase: "after", endedAt: Date.now() })}
           onPack={() => {
             setPackingTomorrow(false);
             setPanel("pack");
@@ -1178,6 +1284,36 @@ export function FuelWorkspace({
           setPanel(null);
         }}
       />
+      <FuelFitSheet
+        open={fitSheet !== null}
+        title={fitSheet === "store" ? "W sklepie" : "Mam 5 minut"}
+        subtitle={`${fitSheet === "store" ? "Do kupienia" : "Proste opcje"} ${
+          timing.phase === "after"
+            ? match
+              ? "po meczu"
+              : "po treningu"
+            : timing.phase === "training"
+              ? "na przerwę"
+              : timing.phase === "ordinary"
+                ? "na zwykły posiłek"
+                : match
+                  ? "przed meczem"
+                  : "przed treningiem"
+        }`}
+        when={fitWhen}
+        options={fitOptions}
+        onChoose={(option) => {
+          pendingFitIndex.current = option.index;
+          if (fitSheet) applyFit(fitSheet);
+          setRecipeIndex(option.index);
+          setFitSheet(null);
+        }}
+        onOther={() => {
+          setFitSheet(null);
+          chooseFit("own");
+        }}
+        onClose={() => setFitSheet(null)}
+      />
       <FuelMealSheet
         draft={draft}
         context={context}
@@ -1236,4 +1372,15 @@ export function FuelWorkspace({
       />
     </div>
   );
+}
+
+/** "Ryż 80 g", "kurczak 120 g", "makaron 200 g po ugotowaniu" — one ingredient in the portion line. */
+function compactPortion(line: MealLine, lower: boolean): string {
+  const food = FOOD_BY_ID[line.foodId];
+  const label = lower
+    ? food.label.charAt(0).toLocaleLowerCase("pl-PL") + food.label.slice(1)
+    : food.label;
+  const state =
+    food.unitLabel === "miseczki" ? " po ugotowaniu" : food.state === "suche" ? " na sucho" : "";
+  return `${label} ${Math.round(line.grams)} g${state}`;
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Pause, Play, X } from "lucide-react";
+import { CircleCheck, Pause, Play, X } from "lucide-react";
 import {
   extendCountdown,
   formatClock,
@@ -87,6 +87,80 @@ export function RestCountdown({
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Full rest screen between sets: what was saved, the large clock with its
+ * bar, what comes next, and ±15 s. Tapping the clock pauses it. Reaching zero
+ * signals once and waits; the next set starts only on the athlete's tap.
+ */
+export function RestScreen({
+  countdown,
+  saved,
+  onChange,
+}: {
+  countdown: Countdown;
+  /** "Seria zapisana" / "Odcinek zaliczony"; null for a rest before another exercise. */
+  saved: string | null;
+  onChange: (next: Countdown | null) => void;
+}) {
+  useSecondTick(countdown.endsAt !== null);
+  const left = remainingSeconds(countdown);
+  useFinishSignal(countdown, left);
+  const done = left === 0;
+  const paused = countdown.endsAt === null && !done;
+  const elapsed = countdown.total > 0 ? 1 - left / countdown.total : 1;
+  return (
+    <section className="bw-rest-screen" aria-label="Przerwa" data-done={done || undefined}>
+      <div className="bw-rest-panel">
+        {saved && (
+          <p className="bw-rest-saved">
+            <CircleCheck aria-hidden="true" /> {saved}
+          </p>
+        )}
+        <p className="bw-rest-title">
+          {done ? "Przerwa zakończona" : paused ? "Przerwa wstrzymana" : "Przerwa"}
+        </p>
+        <button
+          type="button"
+          className="bw-rest-big"
+          role="timer"
+          aria-live="off"
+          disabled={done}
+          aria-label={`Pozostało ${formatClock(left)}. ${paused ? "Wznów przerwę" : "Wstrzymaj przerwę"}`}
+          onClick={() => onChange(paused ? resumeCountdown(countdown) : pauseCountdown(countdown))}
+        >
+          {formatClock(left).padStart(5, "0")}
+        </button>
+        <div className="bw-rest-bar" aria-hidden="true">
+          <span style={{ width: `${Math.max(0, Math.min(1, elapsed)) * 100}%` }} />
+        </div>
+        {countdown.label && (
+          <p className="bw-rest-following">
+            {countdown.label}
+            {countdown.detail && <span>{countdown.detail}</span>}
+          </p>
+        )}
+      </div>
+      <div className="bw-rest-adjust" role="group" aria-label="Długość przerwy">
+        <button
+          type="button"
+          disabled={done}
+          aria-label="Skróć przerwę o 15 sekund"
+          onClick={() => onChange(extendCountdown(countdown, -15))}
+        >
+          −15 s
+        </button>
+        <button
+          type="button"
+          aria-label="Wydłuż przerwę o 15 sekund"
+          onClick={() => onChange(extendCountdown(countdown, 15))}
+        >
+          +15 s
+        </button>
+      </div>
+    </section>
   );
 }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import type { TrainingSection } from "@/lib/loadwise/types";
 import { useAuth } from "@/lib/loadwise/auth";
@@ -28,7 +28,8 @@ import {
   startCountdown,
   type Countdown,
 } from "@/lib/loadwise/sessionRunner/countdown";
-import { RestCountdown } from "./runner/Countdowns";
+import { RestCountdown, RestScreen } from "./runner/Countdowns";
+import { DockSlot } from "./runner/Dock";
 import { RowPlan, RunnerCard, type RowStatus } from "./runner/RunnerCard";
 import { HowToPanel } from "./runner/HowToSection";
 import { SessionPlanList } from "./runner/SessionPlanList";
@@ -181,8 +182,13 @@ export function FocusedSessionRunner({
     scrollToTop(rootRef.current);
   }
 
-  function startRest(seconds: number | null, label: string) {
-    if (seconds && seconds > 0) rest.setValue(startCountdown(seconds, label));
+  function startRest(
+    seconds: number | null,
+    label: string,
+    extra: { detail?: string; stepKey?: string } = {},
+  ) {
+    if (seconds && seconds > 0)
+      rest.setValue(startCountdown(seconds, label, Date.now(), Date.now(), extra));
   }
 
   async function mark(row: RunnerRow, value: boolean): Promise<boolean> {
@@ -207,25 +213,57 @@ export function FocusedSessionRunner({
     const partner =
       current.kind === "linked" ? current.rows.find((r) => r !== row && !closed(r)) : null;
     if (partner)
-      return `Dalej: ${linkedLabel(partner.block, partner.exercise) ?? ""} ${canonicalExerciseName(partner.exercise)}`.replace(
+      return `Następnie: ${linkedLabel(partner.block, partner.exercise) ?? ""} ${canonicalExerciseName(partner.exercise)}`.replace(
         /\s+/g,
         " ",
       );
     return taskKind(row.exercise, row.section, kind) === "sprint"
-      ? "Dalej: kolejny odcinek"
-      : "Dalej: kolejna seria";
+      ? "Następnie: kolejny odcinek"
+      : "Następnie: kolejna seria";
   }
 
   /** After a set or bout: rest per plan, never an automatic mark. */
-  function afterSet(current: RunnerStep, row: RunnerRow) {
+  function afterSet(
+    current: RunnerStep,
+    row: RunnerRow,
+    next?: { label: string; detail?: string },
+  ) {
     const partnerOpen =
       current.kind === "linked" &&
       current.rows.indexOf(row) < current.rows.length - 1 &&
       current.rows.some((r) => r !== row && !closed(r));
+    const own = current.kind === "single" && next;
     startRest(
       restSecondsAfter(row.block, row.exercise, current.kind === "linked", partnerOpen),
-      nextLabel(current, row),
+      own ? next.label : nextLabel(current, row),
+      { detail: own ? next.detail : undefined, stepKey: current.key },
     );
+  }
+
+  /** "Zakończ ćwiczenie" during a rest: mark it, keep the running rest for what follows. */
+  async function finishExercise(current: RunnerStep) {
+    const row = current.rows[0];
+    const ok = await mark(row, true);
+    if (!ok) return;
+    const stepIndex = steps.indexOf(current);
+    const following = steps[stepIndex + 1];
+    if (!following) {
+      rest.setValue(null);
+      onFinish();
+      return;
+    }
+    rest.setValue((value) =>
+      value
+        ? {
+            endsAt: value.endsAt,
+            pausedLeft: value.pausedLeft,
+            total: value.total,
+            id: value.id,
+            label: `Następnie: ${canonicalExerciseName(following.rows[0].exercise)}`,
+          }
+        : value,
+    );
+    go(stepIndex + 1);
   }
 
   /** Final confirmation of a row: mark it, rest before what follows, move on when the step is closed. */
@@ -238,7 +276,7 @@ export function FocusedSessionRunner({
     if (!othersOpen && following) {
       startRest(
         restSecondsAfter(row.block, row.exercise, current.kind === "linked", false),
-        `Dalej: ${canonicalExerciseName(following.rows[0].exercise)}`,
+        `Następnie: ${canonicalExerciseName(following.rows[0].exercise)}`,
       );
       go(stepIndex + 1);
     }
@@ -295,6 +333,7 @@ export function FocusedSessionRunner({
       >
         {opened && openIndex !== null ? (
           <ExerciseView
+            active={false}
             step={opened}
             index={openIndex}
             total={steps.length}
@@ -377,6 +416,33 @@ export function FocusedSessionRunner({
   const listView = view.value === "list";
   // Continue where the athlete was (a half-done exercise), else the first open one.
   const resumeIndex = stepOpen ? index : Math.min(autoIndex, Math.max(0, steps.length - 1));
+
+  const exerciseTop = (
+    <div className="bw-runner-top" data-view="exercise">
+      <p className="bw-runner-position">
+        Ćwiczenie {index + 1} z {steps.length}
+      </p>
+      <ol
+        className="bw-runner-segments"
+        aria-label={`Wykonane ${progress.done} z ${progress.total}${progress.skipped > 0 ? `, pominięte ${progress.skipped}` : ""}`}
+      >
+        {steps.map((item, i) => (
+          <li
+            key={item.key}
+            data-state={
+              item.rows.every((row) => status(row) === "done")
+                ? "done"
+                : item.rows.every(closed)
+                  ? "skipped"
+                  : i === index
+                    ? "current"
+                    : "open"
+            }
+          />
+        ))}
+      </ol>
+    </div>
+  );
 
   const progressBar = (
     <div className="bw-runner-top">
@@ -483,18 +549,44 @@ export function FocusedSessionRunner({
       row={row}
       step={step}
       linked={linked}
-      bare={!linked}
+      bare={false}
       status={status(row)}
       sessionKind={kind}
       sessionId={sessionId}
       date={date}
       scope={scope}
       isLastStep={linked ? isLast && step.rows.every((r) => r === row || closed(r)) : isLast}
-      onSetDone={() => afterSet(step, row)}
+      onSetDone={(next) => afterSet(step, row, next)}
       onComplete={() => completeRow(step, row)}
       onUndo={() => void mark(row, false)}
       onUnskip={() => unskip(row)}
     />
+  );
+
+  // The rest takes the screen on the exercise it belongs to (or the next one); elsewhere it stays docked.
+  const ownRest = Boolean(rest.value && rest.value.stepKey === step.key && stepOpen);
+  const restScreen = rest.value && !guided && (ownRest || !rest.value.stepKey) ? rest.value : null;
+  const sprintStep = taskKind(step.rows[0].exercise, step.rows[0].section, kind) === "sprint";
+  const restDockButtons = restScreen && (
+    <>
+      <p className="bw-set-dock-note">Przerwa nie rozpoczyna serii automatycznie</p>
+      <button type="button" className="bw-runner-primary" onClick={() => rest.setValue(null)}>
+        {!ownRest
+          ? "Rozpocznij ćwiczenie"
+          : sprintStep
+            ? "Rozpocznij kolejny odcinek"
+            : "Rozpocznij kolejną serię"}
+      </button>
+      {ownRest && step.kind === "single" && (
+        <button
+          type="button"
+          className="bw-set-dock-link"
+          onClick={() => void finishExercise(step)}
+        >
+          Zakończ ćwiczenie
+        </button>
+      )}
+    </>
   );
 
   return (
@@ -505,9 +597,11 @@ export function FocusedSessionRunner({
       data-view="exercise"
       data-session-runner={kind}
     >
-      {progressBar}
+      {tab === "trening" || guided ? exerciseTop : null}
       <ExerciseView
         key={`${fingerprint}:${step.key}`}
+        active
+        dock={restDockButtons || null}
         step={step}
         index={index}
         total={steps.length}
@@ -517,7 +611,13 @@ export function FocusedSessionRunner({
         status={step.kind === "single" ? status(step.rows[0]) : undefined}
         guidedLabel={guided ? sectionLabel(step.section) : null}
         training={
-          guided ? (
+          restScreen ? (
+            <RestScreen
+              countdown={restScreen}
+              saved={ownRest ? (sprintStep ? "Odcinek zaliczony" : "Seria zapisana") : null}
+              onChange={(next) => rest.setValue(next)}
+            />
+          ) : guided ? (
             <article className="bw-runner-card">
               <CooldownCoach
                 protocol={guided}
@@ -540,7 +640,10 @@ export function FocusedSessionRunner({
         nav={
           <>
             {syncNotice}
-            <nav className="bw-runner-nav" aria-label="Ćwiczenia">
+            <button type="button" className="bw-runner-others" onClick={showList}>
+              Pozostałe ćwiczenia
+            </button>
+            <nav className="bw-runner-nav" data-quiet="" aria-label="Ćwiczenia">
               <button type="button" disabled={index === 0} onClick={() => go(index - 1)}>
                 <ChevronLeft aria-hidden="true" /> Poprzednie
               </button>
@@ -572,17 +675,20 @@ export function FocusedSessionRunner({
           </>
         }
       />
-      {restDock}
+      {!restScreen && restDock}
     </div>
   );
 }
 
 /**
- * One exercise (or an A1/A2 pair): section, name and dose, then the
- * "Trening" and "Technika" tabs. The technique tab mounts the animation only
- * while it is shown; switching tabs never touches entries, marks or the rest.
+ * One exercise (or an A1/A2 pair). During training the card itself carries
+ * the name; the plan preview shows it above. "Jak wykonać?" opens the
+ * animation and short instruction in place (mounted only while shown), and
+ * going back never touches entries, marks or the rest. The bottom action area
+ * holds the main button of the open card.
  */
 function ExerciseView({
+  active,
   step,
   index,
   total,
@@ -593,27 +699,73 @@ function ExerciseView({
   guidedLabel,
   training,
   nav,
+  dock = null,
 }: {
+  /** Started session: the card shows the name, the top row shows the position. */
+  active: boolean;
   step: RunnerStep;
   index: number;
   total: number;
   tab: ExerciseTab;
   onTab: (tab: ExerciseTab) => void;
-  /** Back to the list (preview); the active view has it in the progress row. */
+  /** Back to the list (preview); the active view has "Pozostałe ćwiczenia". */
   onList: (() => void) | null;
   status?: RowStatus;
   /** A guided cool-down runs as one timed sequence with its own instructions. */
   guidedLabel: string | null;
   training: ReactNode;
   nav: ReactNode;
+  /** Buttons for the bottom action area besides those the card sends there. */
+  dock?: ReactNode;
 }) {
-  const tabsId = useId();
   const [techniqueRow, setTechniqueRow] = useState(0);
+  const [slot, setSlot] = useState<HTMLDivElement | null>(null);
   const linked = step.kind === "linked";
   const method = linked ? blockMethod(step.rows[0].block) : null;
   const first = step.rows[0];
   const shownTab: ExerciseTab = guidedLabel ? "trening" : tab;
   const techniqueFor = step.rows[Math.min(techniqueRow, step.rows.length - 1)];
+
+  if (shownTab === "technika")
+    return (
+      <section className="bw-unit-exercise" aria-label="Jak wykonać">
+        <div className="bw-runner-count">
+          <button
+            type="button"
+            className="bw-unit-back"
+            aria-label="Zamknij instrukcję"
+            onClick={() => onTab("trening")}
+          >
+            <ChevronLeft aria-hidden="true" /> Wróć
+          </button>
+        </div>
+        <header className="bw-unit-exercise-head">
+          <p className="bw-runner-eyebrow">Jak wykonać?</p>
+          <h2>
+            <span className="bw-runner-name">{canonicalExerciseName(techniqueFor.exercise)}</span>
+          </h2>
+        </header>
+        {step.rows.length > 1 && (
+          <div className="bw-unit-pick" role="group" aria-label="Technika ćwiczenia">
+            {step.rows.map((row, i) => (
+              <button
+                key={row.key}
+                type="button"
+                aria-pressed={row === techniqueFor}
+                onClick={() => setTechniqueRow(i)}
+              >
+                {linkedLabel(row.block, row.exercise) ?? canonicalExerciseName(row.exercise)}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="bw-unit-panel">
+          <HowToPanel key={techniqueFor.key} exercise={techniqueFor.exercise} />
+        </div>
+      </section>
+    );
+
+  const showHead = !active || guidedLabel !== null || linked;
   return (
     <section className="bw-unit-exercise" aria-label="Ćwiczenie">
       {onList && (
@@ -626,72 +778,40 @@ function ExerciseView({
           </span>
         </div>
       )}
-      <header className="bw-unit-exercise-head">
-        <p className="bw-runner-eyebrow">
-          {sectionLabel(step.section)}
-          {method && ` · ${method.name}`}
-        </p>
-        <h2>
-          <span className="bw-runner-name">
-            {guidedLabel
-              ? `${guidedLabel} · ${step.rows.length} ćw.`
-              : linked
-                ? step.rows.map((row) => canonicalExerciseName(row.exercise)).join(" + ")
-                : canonicalExerciseName(first.exercise)}
-          </span>
-          {status === "done" && <Check className="bw-runner-done-icon" aria-label="Wykonane" />}
-        </h2>
-        {!linked && !guidedLabel && <p className="bw-runner-dose">{doseLine(first.exercise)}</p>}
-      </header>
+      {showHead && (
+        <header className="bw-unit-exercise-head">
+          <p className="bw-runner-eyebrow">
+            {sectionLabel(step.section)}
+            {method && ` · ${method.name}`}
+          </p>
+          <h2>
+            <span className="bw-runner-name">
+              {guidedLabel
+                ? `${guidedLabel} · ${step.rows.length} ćw.`
+                : linked
+                  ? step.rows.map((row) => canonicalExerciseName(row.exercise)).join(" + ")
+                  : canonicalExerciseName(first.exercise)}
+            </span>
+            {status === "done" && <Check className="bw-runner-done-icon" aria-label="Wykonane" />}
+          </h2>
+          {!linked && !guidedLabel && <p className="bw-runner-dose">{doseLine(first.exercise)}</p>}
+        </header>
+      )}
+      <DockSlot.Provider value={active ? slot : null}>
+        <div className="bw-unit-panel">{training}</div>
+      </DockSlot.Provider>
       {!guidedLabel && (
-        <div className="bw-unit-tabs" role="tablist" aria-label="Widok ćwiczenia">
-          {(["trening", "technika"] as const).map((value) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              id={`${tabsId}-${value}`}
-              aria-selected={shownTab === value}
-              aria-controls={`${tabsId}-${value}-panel`}
-              onClick={() => onTab(value)}
-            >
-              {value === "trening" ? "Trening" : "Technika"}
-            </button>
-          ))}
+        <button type="button" className="bw-unit-howto" onClick={() => onTab("technika")}>
+          <span>Jak wykonać?</span>
+          <ChevronRight aria-hidden="true" />
+        </button>
+      )}
+      {nav}
+      {active && (
+        <div className="bw-runner-dock" ref={setSlot}>
+          {dock}
         </div>
       )}
-      <div
-        role={guidedLabel ? undefined : "tabpanel"}
-        id={`${tabsId}-${shownTab}-panel`}
-        aria-labelledby={guidedLabel ? undefined : `${tabsId}-${shownTab}`}
-        className="bw-unit-panel"
-      >
-        {shownTab === "trening" ? (
-          training
-        ) : (
-          <>
-            {step.rows.length > 1 && (
-              <div className="bw-unit-pick" role="group" aria-label="Technika ćwiczenia">
-                {step.rows.map((row, i) => (
-                  <button
-                    key={row.key}
-                    type="button"
-                    aria-pressed={row === techniqueFor}
-                    onClick={() => setTechniqueRow(i)}
-                  >
-                    {linkedLabel(row.block, row.exercise) ?? canonicalExerciseName(row.exercise)}
-                  </button>
-                ))}
-              </div>
-            )}
-            {step.rows.length > 1 && (
-              <p className="bw-unit-pick-name">{canonicalExerciseName(techniqueFor.exercise)}</p>
-            )}
-            <HowToPanel key={techniqueFor.key} exercise={techniqueFor.exercise} />
-          </>
-        )}
-      </div>
-      {nav}
     </section>
   );
 }

@@ -84,7 +84,7 @@ it("restores finished browser GPS directly to the save review after remount", as
     vi.advanceTimersByTime(20_000);
     watch(position(52.001));
   });
-  await act(async () => button("Zakończ").click());
+  await act(async () => button("Zakończ bieg").click());
   expect(loadRunCheckpoint(ownerId, sessionId)?.phase).toBe("review");
   await remount();
   expect(button("Zapisz bieg")).toBeTruthy();
