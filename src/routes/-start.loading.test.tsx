@@ -60,9 +60,9 @@ it("shows the loading state until the account is read", async () => {
   expect(host.textContent).not.toContain("Plan wkrótce");
 });
 
-it("shows „Plan wkrótce” after reading the account", async () => {
+it("offers the planner after reading the account", async () => {
   mocks.store.hydrated = true;
   mocks.store.hydrationError = null;
   await render();
-  expect(host.textContent).toContain("Plan wkrótce");
+  expect(host.textContent).toContain("Przygotuj swój plan");
 });

@@ -1,4 +1,5 @@
 import { trainingProfileRevision } from "../planIdentity";
+import { exercisePrescriptionKey } from "../setLogHistory";
 import type { RunningActivity,RunningActivityDraft } from "@/lib/running/types";
 import type { Dispatch,SetStateAction } from "react";
 import { ageOnDate } from "../agePolicy";
@@ -22,6 +23,7 @@ TrainingExercise,
 } from "../types";
 
 export const initialState: LoadwiseState = {
+  activePlanId: null,
   profile: null,
   plan: [],
   planGeneratedFor: null,
@@ -73,7 +75,13 @@ export function applyExerciseReplacements(
   replacements: ExerciseReplacement[],
 ): SessionDay {
   return replacements.reduce(
-    (current, item) => replaceExerciseInSession(current, item.exerciseId, item.replacement),
+    (current, item) => {
+      if(current.generatorVersion?.startsWith("ballwise-v2")) {
+        const original=current.structuredSections?.flatMap(s=>s.blocks.flatMap(b=>b.exercises)).find(e=>e.id===item.exerciseId);
+        if(!original || original.exerciseId!==item.original.exerciseId || exercisePrescriptionKey(original)!==exercisePrescriptionKey(item.original)) return current;
+      }
+      return replaceExerciseInSession(current, item.exerciseId, item.replacement);
+    },
     session,
   );
 }
@@ -456,6 +464,7 @@ export function rowToRunningActivity(row: AnyRow): RunningActivity | null {
 }
 
 export interface LoadwiseContextValue {
+  activatePlanV2?: (result: import("../engineV2/model").EngineResult) => Promise<void>;
   profileSaveStage?: import("../profileSave").ProfileSaveStage | null;
   state: LoadwiseState;
   hydrated: boolean;

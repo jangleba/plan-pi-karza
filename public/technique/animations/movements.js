@@ -251,15 +251,17 @@
   }
   function split(c, p) {
     const reverse = c.variant === "reverse_lunge",
-      r = reverse
-        ? p < 0.2
-          ? 0
-          : p < 0.5
-            ? smooth((p - 0.2) / 0.3)
-            : p < 0.8
-              ? 1 - smooth((p - 0.5) / 0.3)
-              : 0
-        : rep(p),
+      r = c.isometric
+        ? 0.72
+        : reverse
+          ? p < 0.2
+            ? 0
+            : p < 0.5
+              ? smooth((p - 0.2) / 0.3)
+              : p < 0.8
+                ? 1 - smooth((p - 0.5) / 0.3)
+                : 0
+          : rep(p),
       rearElevated = c.variant === "bulgarian_split_squat",
       hip = [163, 154 + 40 * r],
       s = pose(p, hip, foot(205), rearElevated ? foot(95, 222, -35) : foot(110), r * 13);
@@ -288,6 +290,10 @@
             : p < 0.8
               ? "Wstań z przedniej nogi bez przechylania tułowia"
               : "Dostaw tylną nogę pod kontrolą";
+      return s;
+    }
+    if (c.isometric) {
+      s.phase = "Utrzymuj wykrok bez ruchu · oddychaj swobodnie";
       return s;
     }
     return phase(s, p, [

@@ -288,6 +288,10 @@
     "title": "Przeskoki przez płotki"
   },
   {
+    "id": "incline_push_up",
+    "title": "Pompka z dłońmi na podwyższeniu"
+  },
+  {
     "id": "kettlebell_swing",
     "title": "Wymach kettlebell"
   },
@@ -362,6 +366,10 @@
   {
     "id": "overcoming_pin_squat",
     "title": "Nacisk izometryczny przeciw stałym pinom"
+  },
+  {
+    "id": "overcoming_pin_squat_primer",
+    "title": "Krótki nacisk na piny z trenerem"
   },
   {
     "id": "overhead_carry",
@@ -472,6 +480,10 @@
     "title": "Izometryczne wspięcie na mięsień płaszczkowaty"
   },
   {
+    "id": "split_squat_iso_hold",
+    "title": "Utrzymanie przysiadu wykrocznego"
+  },
+  {
     "id": "split_squat_jump",
     "title": "Wyskoki z pozycji wykrocznej"
   },
@@ -514,9 +526,5 @@
   {
     "id": "trap_bar_jump",
     "title": "Wyskoki z trap barem"
-  },
-  {
-    "id": "incline_push_up",
-    "title": "Pompka z dłońmi na podwyższeniu"
   }
 ]

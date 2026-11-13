@@ -122,6 +122,12 @@ describe("prezentacja dawki", () => {
       restSecondsAfter(block, ex({ restAfterExercise: "Bez przerw" }), false, false),
     ).toBeNull();
   });
+  it("po ostatniej próbie ISO stosuje przerwę protokołu zamiast zwykłej przerwy między seriami",()=>{
+    const block=sectionFixture("prep",[]).blocks[0];
+    const exercise=ex({restAfterExercise:"60 s",engineDose:{sets:3,seconds:3,restSeconds:60,postRestSeconds:300,intent:"explosive"}});
+    expect(restSecondsAfter(block,exercise,false,false)).toBe(60);
+    expect(restSecondsAfter(block,exercise,false,false,true)).toBe(300);
+  });
 
   it("jednostronność rozpoznawana z dawki", () => {
     expect(isUnilateral(ex({ reps: "8 / stronę" }))).toBe(true);

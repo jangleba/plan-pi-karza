@@ -2,6 +2,9 @@ import { useCallback, useId, useRef, useState, type ReactNode } from "react";
 import { Check, Minus, Plus } from "lucide-react";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import { useExerciseSetLogs, type SetLog } from "@/lib/loadwise/setLogs";
+import { useLoadwise } from "@/lib/loadwise/store";
+import { verifyExerciseHistory } from "@/lib/loadwise/setLogHistory";
+import { recommendStrengthLoad } from "@/lib/loadwise/engineV2/progression";
 import {
   parseTrainingNumber,
   trainingStorageKey,
@@ -116,6 +119,8 @@ export function SetTable({
   const { user } = useAuth();
   const logs = useExerciseSetLogs(sessionId, logKey);
   const { current, previous, loading, saveSet } = logs;
+  const store=useLoadwise();
+  const recommendation=kind==="load"?recommendStrengthLoad(exercise,verifyExerciseHistory(logs.recentSessions??[],logKey,store.state?.completions??{})):null;
   const drafts = useTrainingLocalState<Drafts>(
     trainingStorageKey("set-table", user?.id, sessionId ?? date, logKey),
     {},
@@ -280,6 +285,7 @@ export function SetTable({
           </ol>
         </header>
         {facts}
+        {recommendation ? <p className="text-sm text-neutral-600" title={recommendation.reason}>Propozycja: {recommendation.weightKg} kg · porównano dwa ukończone treningi. Dobierz dostępny skok ciężaru i zachowaj RIR.</p> : null}
         {active !== null && (
           <div
             className="bw-log-entry"

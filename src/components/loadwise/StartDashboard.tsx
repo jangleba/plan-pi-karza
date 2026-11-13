@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { Brain, CalendarDays, Move, ScanLine, Target } from "lucide-react";
 import { PageHeader } from "./PageHeader";
-import { PlanComingSoon } from "./PlanComingSoon";
 
 export function StartDashboard({
   name,
@@ -13,8 +12,10 @@ export function StartDashboard({
   onPrepareReaction,
   iqTask,
   iqGoal,
+  todayTitle,
 }: {
   name: string;
+  todayTitle?: string;
   avatar: ReactNode;
   onPlan: () => void;
   onLab: () => void;
@@ -40,7 +41,10 @@ export function StartDashboard({
           <CalendarDays size={15} /> Plan
         </button>
       </div>
-      <PlanComingSoon compact />
+      <button type="button" className="bw-plan-soon bw-plan-soon--compact" onClick={onPlan}>
+        <CalendarDays size={18} aria-hidden="true" />
+        <span><strong>{todayTitle ?? "Przygotuj swój plan"}</strong><small>{todayTitle ? "Zobacz treningi na dzisiaj" : "Siła, szybkość i wydolność dopasowane do tygodnia"}</small></span>
+      </button>
       {iqTask && (
         <section className="bw-home-iq-task" aria-label="Zadanie na boisko z Football IQ">
           <Target size={18} aria-hidden="true" />

@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_tabs/start")({
 
 function StartScreen() {
   const { user } = useAuth();
-  const { state, hydrated } = useLoadwise();
+  const { state, hydrated, todaySession } = useLoadwise();
   const navigate = useNavigate();
   const router = useRouter();
   const [iqTask, setIqTask] = useState<FieldTask | null>(null);
@@ -35,6 +35,7 @@ function StartScreen() {
   return (
     <StartDashboard
       name={firstName}
+      todayTitle={todaySession?.title}
       avatar={<ProfileAvatar />}
       onPlan={() => void navigate({ to: "/plan" })}
       onLab={() => void navigate({ to: "/lab" })}

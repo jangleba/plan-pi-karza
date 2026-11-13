@@ -61,6 +61,7 @@ export function rowFacts(row: RunnerRow, kind: TaskKind, linked: boolean): Fact[
   if (isUnilateral(exercise)) facts.push({ label: "Strony", value: "Lewa i prawa" });
   if (exercise.tempo?.trim()) facts.push({ label: "Tempo", value: exercise.tempo.trim() });
   if (rest) facts.push({ label: "Odpoczynek", value: rest.replace(/^Przerwa\s*/, "") });
+  if(exercise.engineDose?.postRestSeconds) facts.push({label:"Po bloku",value:`${exercise.engineDose.postRestSeconds/60} min odpoczynku`});
   return facts;
 }
 

@@ -14,6 +14,11 @@ export function normalizeMethodPreferences(raw: unknown): TrainingMethodPreferen
   if (!raw || typeof raw !== "object") return {};
   const r = raw as Record<string, unknown>,
     out: TrainingMethodPreferences = {};
+  if (r.coachedIsometricPrimer === true) out.coachedIsometricPrimer = true;
+  if (r.activationLocation === "field" || r.activationLocation === "gym")
+    out.activationLocation = r.activationLocation;
+  if (["general", "hip", "ankle", "thoracic"].includes(String(r.mobilityFocus)))
+    out.mobilityFocus = r.mobilityFocus as TrainingMethodPreferences["mobilityFocus"];
   if (["auto", "linear", "undulating"].includes(String(r.periodization)))
     out.periodization = r.periodization as TrainingMethodPreferences["periodization"];
   for (const key of ["strength", "conditioning", "sprint"] as const) {

@@ -182,7 +182,9 @@ export function restSecondsAfter(
   exercise: TrainingExercise,
   paired: boolean,
   partnerStillOpen: boolean,
+  completedBlock = false,
 ): number | null {
+  if(completedBlock && exercise.engineDose?.postRestSeconds) return exercise.engineDose.postRestSeconds;
   const value = paired
     ? partnerStillOpen
       ? exercise.restAfterExercise

@@ -50,7 +50,14 @@ export function plannedExerciseSets(
 
 type ComparableExercise = Pick<
   TrainingExercise,
-  "sets" | "displayPrescription" | "reps" | "rir" | "tempo"
+  | "sets"
+  | "displayPrescription"
+  | "reps"
+  | "rir"
+  | "tempo"
+  | "duration"
+  | "engineDose"
+  | "methodExecution"
 >;
 
 /** Do not compare results from a different dose or tempo as two stable exposures. */
@@ -62,11 +69,31 @@ export function exercisePrescriptionKey(exercise: ComparableExercise): string {
       .replace(/[–—]/g, "-")
       .replace(/\s+/g, "")
       .replace(/,/g, ".");
+  const canonical = (value: unknown): unknown =>
+    Array.isArray(value)
+      ? value.map(canonical)
+      : value && typeof value === "object"
+        ? Object.fromEntries(
+            Object.entries(value)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([k, v]) => [k, canonical(v)]),
+          )
+        : value;
   return JSON.stringify([
     plannedExerciseSets(exercise),
     normalize(exercise.reps),
     normalize(exercise.rir),
     normalize(exercise.tempo),
+    normalize(exercise.duration),
+    canonical(exercise.engineDose ?? null),
+    exercise.methodExecution
+      ? [
+          exercise.methodExecution.mode,
+          exercise.methodExecution.workSeconds,
+          exercise.methodExecution.rounds,
+          exercise.methodExecution.distanceM,
+        ]
+      : null,
   ]);
 }
 

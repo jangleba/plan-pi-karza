@@ -11,6 +11,7 @@
 // ============================================================================
 
 import type { PainLocation } from "./types";
+import { functionalReplacementCompatible } from "./engineV2/taxonomy";
 import { SKIP_GUIDES, SKIP_LANDING } from "./skipGuides";
 import { INDIVIDUAL_FOOTBALL_DRILLS } from "./individualFootballDrills";
 import type { ExerciseInstructionStep, ExerciseItem, SessionDay, TrainingExercise } from "./types";
@@ -4169,8 +4170,8 @@ const SPRINT_GUIDANCE: Record<string, SprintGuidance> = {
   flying_sprint: {
     objective: "Osiągnąć wysoką prędkość w kontrolowanym odcinku bez zmęczenia kondycyjnego.",
     instructionsPl: [
-      "Rozpocznij 15 m przed strefą pomiarową i płynnie zwiększaj prędkość bez gwałtownego szarpnięcia.",
-      "W strefie 20 m biegnij wysoko i swobodnie: biodra wysoko, stopa pod środkiem masy, barki i twarz rozluźnione.",
+      "Wyznacz długość najazdu i odcinka lotnego zgodnie z dawką tej sesji oraz co najmniej 20 m wolnego miejsca do wyhamowania. Na najazdzie płynnie zwiększaj prędkość bez gwałtownego szarpnięcia.",
+      "W wyznaczonym odcinku lotnym biegnij wysoko i swobodnie: biodra wysoko, stopa pod środkiem masy, barki i twarz rozluźnione.",
       "Po strefie utrzymaj kierunek i wyhamuj stopniowo przez co najmniej 20 m. Następne powtórzenie zacznij po pełnym odpoczynku.",
     ],
     coachingCues: ["Narastaj płynnie", "Wysoko i luźno", "Krótki kontakt pod biodrem"],
@@ -4600,7 +4601,65 @@ const FOOTBALL_SPEED_CATALOG_IDS = new Set<string>([
   "max_velocity_high_volume",
 ]);
 
+// Distinct IDs keep dynamic and holding prescriptions/instructions unambiguous.
+const splitSquatBase = LIBRARY.find(exercise => exercise.id === "bodyweight_split_squat")!;
+LIBRARY.push({
+  ...splitSquatBase,
+  id: "split_squat_iso_hold",
+  name: "Split squat isometric hold",
+  displayNamePl: "Utrzymanie przysiadu wykrocznego",
+  aliases: ["Izometria czworogłowych w wykroku", "Split squat ISO hold"],
+  category: "prehab",
+  movementPattern: "isometric",
+  primaryAdaptation: "stability",
+  family: "tendon_isometric",
+  stimulus: "quadriceps holding capacity",
+  minAge: 13,
+  kneeLoadLevel: "moderate",
+  injuryCautions: ["Utrzymuj tylko pozycję, którą kontrolujesz bez bólu; nie pracuj do utraty ustawienia."],
+  progressionIds: [], regressionIds: [], safeAlternativeIds: [], replacementIds: [],
+  objective: "Utrzymanie kontrolowanej pozycji wykrocznej pod własnym ciężarem; osobne zadanie izometryczne, nie zamiennik dynamicznego przysiadu.",
+  instructionsPl: [
+    "Ustaw stabilny wykrok przy pewnym podparciu dla równowagi. Zejdź do komfortowej, powtarzalnej głębokości i pozostaw przednią stopę całą na podłożu.",
+    "Utrzymuj tę pozycję przez wskazany czas, oddychając swobodnie. Kolano prowadź zgodnie z kierunkiem stopy; nie sprężynuj i nie dokładaj ciężaru.",
+    "Wstań spokojnie, zmień stronę i wykonaj taki sam czas. Przerwij próbę przy bólu lub utracie pozycji zamiast wydłużać serię.",
+  ],
+  coachingCues: ["Ta sama głębokość na obu stronach", "Spokojny oddech", "Stabilna przednia stopa"],
+  commonErrors: ["Ruch zamiast utrzymania", "Zapadanie kolana", "Wstrzymywanie oddechu"],
+  approved: true, draft: false,
+});
+const pinSquatBase = LIBRARY.find(exercise => exercise.id === "overcoming_pin_squat")!;
+LIBRARY.push({
+  ...pinSquatBase,
+  id: "overcoming_pin_squat_primer",
+  name: "Coached brief isometric pin squat",
+  displayNamePl: "Krótki nacisk na piny z trenerem",
+  aliases: ["Coached isometric squat primer"],
+  allowedSessionCategories: ["strength_gym", "mobility_prehab"],
+  recommendedDevelopmentStage: "adult",
+  primaryAdaptation: "rfd",
+  stimulus: "coached brief force intent",
+  spinalLoadLevel: "high", kneeLoadLevel: "high",
+  progressionIds: [], regressionIds: [], safeAlternativeIds: [], replacementIds: [],
+  objective: "Opcjonalny, wcześniej przećwiczony blok z trenerem przed dalszym treningiem. Nie gwarantuje poprawy skoku ani ciężkiego boju.",
+  instructionsPl: [
+    "Po pełnej rozgrzewce trener sprawdza stojak, nieruchome piny i pozycję. Ustawia kąt zgięcia kolana 90° oraz prowadzi stopniowe próby wprowadzające. Nie używaj przypadkowej przeszkody ani nie próbuj tego pierwszy raz samodzielnie.",
+    "Przygotuj napięcie tułowia bez uderzania w opór. Na sygnał naciskaj w nieruchomy opór z możliwie szybką intencją przez 3 sekundy, bez zmiany pozycji. Oddychaj zgodnie ze wskazówką trenera.",
+    "Wykonaj łącznie 3 próby, odpoczywając 60 sekund pomiędzy nimi. Po całym bloku odpocznij pełne 5 minut przed zaplanowanymi skokami lub bojami; trener ocenia gotowość do dalszej części.",
+    "Zakończ blok przy bólu, pogorszeniu kontroli lub niepewnym mocowaniu. Nie dodawaj prób ani nie skracaj odpoczynku. Wyników RFD nie wylicza się z samego czasomierza.",
+  ],
+  coachingCues: ["Pewny opór sprawdzony przez trenera", "3 sekundy bez ruchu", "5 minut po całym bloku"],
+  commonErrors: ["Szarpnięcie bez przygotowania", "Niepewne piny", "Skracanie końcowego odpoczynku"],
+  approved: true, draft: false,
+});
+
 const LIBRARY_INDEX = new Map<string, ExerciseDefinition>(LIBRARY.map((e) => [e.id, e]));
+
+// Old edges such as leg curl → RDL or Nordic → bridge describe a shared region,
+// not an equivalent training task. They cannot silently fulfil the original role.
+for(const source of LIBRARY) for(const field of ["regressionIds","safeAlternativeIds","replacementIds"] as const) {
+  if(source[field]) source[field]=source[field].filter(targetId=>functionalReplacementCompatible(source.id,targetId));
+}
 
 export function getAllExerciseDefinitions(): ExerciseDefinition[] {
   return LIBRARY;
@@ -4644,6 +4703,7 @@ function isCanonicalReplacementCompatible(
   source: ExerciseDefinition,
   target: ExerciseDefinition,
 ): boolean {
+  if(!functionalReplacementCompatible(source.id,target.id)) return false;
   const stimulusMatches =
     replacementStimulus(source) === replacementStimulus(target) ||
     source.family === target.family ||
