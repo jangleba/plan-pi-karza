@@ -12,7 +12,7 @@
 
 import type { PainLocation } from "./types";
 import { SKIP_GUIDES, SKIP_LANDING } from "./skipGuides";
-import { INDIVIDUAL_FOOTBALL_DRILLS } from "./individualFootballSessionEngine";
+import { INDIVIDUAL_FOOTBALL_DRILLS } from "./individualFootballDrills";
 import type { ExerciseInstructionStep, ExerciseItem, SessionDay, TrainingExercise } from "./types";
 import type {
   AthleteTrainingProfile,

@@ -1,7 +1,6 @@
-/** QA-only: a fixed two-week plan built from the kept session builders (no week engine). */
+/** QA-only: a fixed two-week plan written by hand (no engine). */
 import { sessionFixture } from "@/components/loadwise/session/testFixtures";
-import { buildStrengthPowerStructured, structuredToFlat } from "@/lib/loadwise/strengthBlocks";
-import { enforceStrengthEligibility } from "@/lib/loadwise/strengthEligibility";
+import { flatToStructured } from "@/lib/loadwise/sessionStructure";
 import type { Profile, SessionDay } from "@/lib/loadwise/types";
 
 const DAY_NAMES = ["Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota"];
@@ -16,36 +15,42 @@ function dayName(date: string): string {
   return DAY_NAMES[new Date(`${date}T12:00:00Z`).getUTCDay()];
 }
 
-/** A real strength session from the strength builder, checked by the profile gate. */
-export function qaStrengthSession(profile: Profile, date: string, dbId: string): SessionDay {
-  const plan = buildStrengthPowerStructured(profile, {
-    mdLabel: "MD-5",
-    weekPhase: "development",
-    weekIndex: 1,
-    gymSessionIndexInWeek: 0,
-    gymSessionsThisWeekTotal: 2,
-    readiness: 8,
-    powerFocus: profile.goal === "power",
-    history: { usedRolesThisWeek: [], usedMainThisWeek: [], usedMainLastWeek: [] },
+/** A fixed, hand-written strength session (exercise library only, no builder). */
+export function qaStrengthSession(_profile: Profile, date: string, dbId: string): SessionDay {
+  const sections = {
+    warmup: [{ name: "Mostek biodrowy", exerciseId: "glute_bridge", prescription: "2 × 10" }],
+    main: [
+      {
+        name: "Przysiad z kettlebell",
+        exerciseId: "goblet_squat",
+        prescription: "3 × 8",
+        rest: "90 s",
+      },
+      {
+        name: "Przysiad bułgarski",
+        exerciseId: "bulgarian_split_squat",
+        prescription: "3 × 6 / nogę",
+        rest: "90 s",
+      },
+      { name: "Pompki", exerciseId: "push_up", prescription: "3 × 10", rest: "60 s" },
+    ],
+    accessory: [{ name: "Dead bug", exerciseId: "dead_bug", prescription: "2 × 8 / stronę" }],
+    footballTransfer: [],
+    cooldown: [],
+  };
+  return sessionFixture({
+    dbId,
+    date,
+    dayName: dayName(date),
+    type: "strength_power",
+    title: "Siła: dół ciała",
+    durationMin: 45,
+    sessionType: "Siła",
+    intensity: "umiarkowana",
+    mdLabel: null,
+    sections,
+    structuredSections: flatToStructured(sections),
   });
-  if (!plan) throw new Error("QA fixture: the strength builder returned no session");
-  return enforceStrengthEligibility(
-    sessionFixture({
-      dbId,
-      date,
-      dayName: dayName(date),
-      type: "strength_power",
-      title: plan.title,
-      durationMin: plan.durationMin,
-      sessionType: plan.sessionType,
-      intensity: plan.intensity,
-      mdLabel: "MD-5",
-      blockPhaseLabel: "Tydz. 2 — budowanie",
-      structuredSections: plan.sections,
-      sections: structuredToFlat(plan.sections),
-    }),
-    profile,
-  );
 }
 
 function restDay(date: string, dbId: string): SessionDay {

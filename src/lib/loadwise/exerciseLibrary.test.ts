@@ -1,33 +1,32 @@
-import { describe, it, expect } from "vitest";
-import type { Profile, SessionDay } from "./types";
+import { describe,it,expect } from "vitest";
+import type { Profile,SessionDay } from "./types";
 import { buildAthleteTrainingProfile } from "./athleteProfile";
 import {
-  getAllExerciseDefinitions,
-  getExerciseDefinition,
-  isExerciseAllowedForProfile,
-  getExerciseRegression,
-  replaceExerciseWithSafeAlternative,
-  validateExerciseLibraryCompleteness,
-  validateWorkoutExercises,
-  normalizeExerciseName,
-  resolveExerciseId,
-  resolveExerciseByName,
-  validateExerciseDefinition,
-  getAllEquipmentDefinitions,
-  resolveEquipmentId,
-  selectEquipmentAwareReplacement,
-  getApprovedExerciseDefinitions,
-  isApprovedCanonicalExercise,
-  canonicalizeGeneratedExercise,
-  hydrateExerciseItemFromDefinition,
-  hydrateTrainingExerciseFromDefinition,
-  migratePersistedExerciseData,
-  validateCanonicalReplacementChains,
-  type ExerciseDefinition,
-  getFootballSpeedCatalog,
-  getFoundationalSprintFlow,
+getAllExerciseDefinitions,
+getExerciseDefinition,
+isExerciseAllowedForProfile,
+getExerciseRegression,
+replaceExerciseWithSafeAlternative,
+validateExerciseLibraryCompleteness,
+validateWorkoutExercises,
+normalizeExerciseName,
+resolveExerciseId,
+resolveExerciseByName,
+validateExerciseDefinition,
+getAllEquipmentDefinitions,
+resolveEquipmentId,
+selectEquipmentAwareReplacement,
+getApprovedExerciseDefinitions,
+isApprovedCanonicalExercise,
+canonicalizeGeneratedExercise,
+hydrateExerciseItemFromDefinition,
+hydrateTrainingExerciseFromDefinition,
+migratePersistedExerciseData,
+validateCanonicalReplacementChains,
+type ExerciseDefinition,
+getFootballSpeedCatalog,
+getFoundationalSprintFlow,
 } from "./exerciseLibrary";
-import { buildStrengthPowerStructured, type StrengthBlockContext } from "./strengthBlocks";
 
 function makeProfile(over: Partial<Profile>): Profile {
   return {
@@ -418,42 +417,6 @@ describe("library contract 2.0", () => {
     expect(hydrated.instructionSteps?.length).toBeGreaterThanOrEqual(3);
   });
 
-  it("resolves every generated strength exercise to an approved canonical record", () => {
-    const profile = makeProfile({
-      age: 25,
-      level: "advanced",
-      gymExperienceLevel: "advanced",
-      movementCompetence: "high",
-      supervisionLevel: "full",
-    });
-    const ctx: StrengthBlockContext = {
-      mdLabel: null,
-      powerFocus: true,
-      weekPhase: "development",
-      weekIndex: 2,
-      gymSessionIndexInWeek: 0,
-      gymSessionsThisWeekTotal: 2,
-      readiness: 8,
-      history: { usedRolesThisWeek: [], usedMainThisWeek: [], usedMainLastWeek: [] },
-    };
-    const plan = buildStrengthPowerStructured(profile, ctx)!;
-    const exercises = plan.sections.flatMap((section) =>
-      section.blocks.flatMap((block) => block.exercises),
-    );
-    expect(
-      exercises.every(
-        (exercise) =>
-          exercise.exerciseId &&
-          isApprovedCanonicalExercise(getExerciseDefinition(exercise.exerciseId)),
-      ),
-    ).toBe(true);
-    expect(
-      exercises.every(
-        (exercise) => exercise.name === getExerciseDefinition(exercise.exerciseId!)?.displayNamePl,
-      ),
-    ).toBe(true);
-  });
-
   it("keeps replacement chains approved and within the same stimulus family", () => {
     for (const source of getAllExerciseDefinitions()) {
       let current = source;
@@ -494,24 +457,6 @@ describe("library contract 2.0", () => {
         expect(isApprovedCanonicalExercise(current)).toBe(true);
       }
     }
-  });
-
-  it("generates the same canonical exercise sequence repeatedly", () => {
-    const profile = makeProfile({ age: 17, level: "intermediate" });
-    const ctx: StrengthBlockContext = {
-      mdLabel: null,
-      powerFocus: false,
-      weekPhase: "adaptation",
-      weekIndex: 1,
-      gymSessionIndexInWeek: 1,
-      gymSessionsThisWeekTotal: 2,
-      history: { usedRolesThisWeek: [], usedMainThisWeek: [], usedMainLastWeek: [] },
-    };
-    const sequence = () =>
-      buildStrengthPowerStructured(profile, ctx)!.sections.flatMap((section) =>
-        section.blocks.flatMap((block) => block.exercises.map((exercise) => exercise.exerciseId)),
-      );
-    expect(sequence()).toEqual(sequence());
   });
 
   it("resolves exactly the approved Phase 3A catalog", () => {

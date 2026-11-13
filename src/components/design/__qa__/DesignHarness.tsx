@@ -1,5 +1,3 @@
-import { MethodFixture } from "./MethodFixture";
-import { StrengthEngineFixture } from "./StrengthEngineFixture";
 import { RouteMotion } from "@/components/loadwise/RouteMotion";
 /** Actual screens on authored data, isolated from authentication, billing and backend writes. */
 import type { FunctionComponent } from "react";
@@ -114,8 +112,6 @@ function Strength() {
 }
 entries.sprint = Sprint;
 entries.strength = Strength;
-entries["strength-engine"] = StrengthEngineFixture;
-entries.methods = MethodFixture;
 const View = entries[screen] || entries.plan;
 const root = createRootRoute({
   component: () => (

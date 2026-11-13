@@ -1,5 +1,10 @@
 import { METHOD_RESEARCH_SOURCES, METHOD_RESEARCH_SUMMARY } from "./research";
-import type { MethodDomain, TrainingMethodDefinition, TrainingMethodId } from "./types";
+import type {
+  MethodDomain,
+  MethodExecution,
+  TrainingMethodDefinition,
+  TrainingMethodId,
+} from "./types";
 
 type Rules = Omit<
   TrainingMethodDefinition,
@@ -227,4 +232,25 @@ export const getTrainingMethod = (id: string | null | undefined) =>
   INDEX.get(id as TrainingMethodId);
 export function isTrainingMethodId(value: unknown): value is TrainingMethodId {
   return typeof value === "string" && INDEX.has(value as TrainingMethodId);
+}
+
+/** Default execution settings of one catalogued method, with optional overrides. */
+export function executionFor(
+  id: TrainingMethodId,
+  patch: Partial<MethodExecution> = {},
+): MethodExecution {
+  const def = getTrainingMethod(id)!;
+  return {
+    methodId: id,
+    mode: def.clock,
+    rounds: 1,
+    repetitions: 1,
+    restSeconds: 0,
+    roundRestSeconds: 0,
+    intensityLabel: "Zachowaj jakość i zapas.",
+    stopRule: def.stopRule,
+    focus: def.coachingFocus,
+    assessment: "athlete_or_coach",
+    ...patch,
+  };
 }

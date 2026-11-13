@@ -6,7 +6,7 @@ import { EnduranceRunTracker } from "./EnduranceRunTracker";
 import { sessionFixture } from "../loadwise/session/testFixtures";
 import type { NativeRunState } from "@/lib/running/nativeRecorder";
 import { applyRunningRecipe } from "@/lib/running/recipeSession";
-import { EMPTY_DAY_LOAD, selectRunningRecipe } from "@/lib/running/prescription";
+import { INTERVAL_RECIPE } from "@/lib/running/testRecipes";
 import { loadRunHistory } from "@/lib/running/routeHistory";
 
 const mock = vi.hoisted(() => ({
@@ -54,22 +54,7 @@ const T0 = Date.UTC(2026, 10, 12, 10, 0, 0);
 const SPEED = 3; // m/s
 let root: Root, host: HTMLDivElement;
 
-const recipe = selectRunningRecipe({
-  date: "2026-11-12",
-  age: 20,
-  level: "intermediate",
-  goal: "endurance",
-  limiter: null,
-  progressionLevel: 0,
-  phase: "preseason",
-  availableMin: 60,
-  mdLabel: null,
-  sameDay: EMPTY_DAY_LOAD,
-  previousDay: EMPTY_DAY_LOAD,
-  nextDay: EMPTY_DAY_LOAD,
-  week: { hardRuns: 0, methods: [], lastMethod: null, matches: 0, clubSessions: 0 },
-  doubleHeavyAllowed: false,
-}).recipe;
+const recipe = INTERVAL_RECIPE;
 const session = applyRunningRecipe(sessionFixture({ dbId: sessionId }), recipe);
 const warmup = recipe.warmup.seconds;
 

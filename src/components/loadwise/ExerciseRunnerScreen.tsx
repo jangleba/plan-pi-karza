@@ -1,25 +1,16 @@
-import { recentSessionFeedback } from "@/lib/loadwise/postSessionFeedback";
 import { MovementBlueprint } from "./MovementBlueprint";
 import { MethodExecutionCoach } from "./session/MethodExecutionCoach";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronLeft } from "lucide-react";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import { exerciseKey, plannedSets, useExerciseSetLogs, type SetLog } from "@/lib/loadwise/setLogs";
-import { verifyExerciseHistory, type ExerciseSessionLog } from "@/lib/loadwise/setLogHistory";
 import {
   fieldsForMetric,
   metricKindForExercise,
   metricUnit,
   type MetricField,
 } from "@/lib/loadwise/exerciseMetrics";
-import {
-  recommendNextLoad,
-  saveStrengthProgressionDecision,
-} from "@/lib/loadwise/strengthProgression";
-import { useLoadwise } from "@/lib/loadwise/store";
 import { useAuth } from "@/lib/loadwise/auth";
-import { effectiveSessions } from "@/lib/loadwise/effectivePlan";
-import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
 import {
   parseTrainingFields,
   parseTrainingNumber,
@@ -37,10 +28,6 @@ import { exerciseDisplayName } from "./session/exerciseDisplayNames";
 type FieldValues = Record<MetricField["id"], string>;
 
 const EMPTY: FieldValues = { weight: "", reps: "", rir: "", value: "" };
-
-function formatKg(value: number): string {
-  return value.toLocaleString("pl-PL", { maximumFractionDigits: 2 });
-}
 
 function toValues(log: SetLog | undefined): FieldValues {
   if (!log) return EMPTY;
@@ -131,8 +118,6 @@ export function ExerciseRunnerScreen({
   const [setNumber, setSetNumber] = useState(1);
   const [saving, setSaving] = useState(false);
   const [baselineError, setBaselineError] = useState<string | null>(null);
-  const [progressionChoice, setProgressionChoice] = useState<"accepted" | "repeat" | null>(null);
-  const { state, todayIso } = useLoadwise();
   const { user } = useAuth();
   const selectedContext = useRef<string | null>(null);
   const activeContext = useRef<string>("");
@@ -144,14 +129,6 @@ export function ExerciseRunnerScreen({
   const key = exerciseKey(exercise);
   const logs = useExerciseSetLogs(sessionId, key);
   const { current, previous, loading, saveSet } = logs;
-  const recentHistory = "recentSessions" in logs ? logs.recentSessions : undefined;
-  const recentSessions = useMemo(
-    () =>
-      Array.isArray(recentHistory)
-        ? verifyExerciseHistory(recentHistory as ExerciseSessionLog[], key, state.completions)
-        : [],
-    [recentHistory, key, state.completions],
-  );
   const context = trainingStorageKey("screen", user?.id, sessionId ?? date ?? "unattached", key);
   activeContext.current = context;
   const draft = useTrainingLocalState(
@@ -188,54 +165,6 @@ export function ExerciseRunnerScreen({
     (log) => log?.weightKg != null && log.weightKg >= 0,
   );
   const needsStartingLoad = metricKind === "load" && !hasSavedLoad && !repetitionsOnly;
-  const sessionContext = useMemo(
-    () =>
-      effectiveSessions(
-        selectEffectivePlan(state.plan, state.modifications, {
-          profile: state.profile,
-          readiness: state.readiness,
-          completions: state.completions,
-        }),
-      ).find((item) => item.dbId === sessionId || item.sessionId === sessionId) ?? null,
-    [state.plan, state.modifications, state.profile, state.readiness, state.completions, sessionId],
-  );
-  const feedback = recentSessionFeedback(
-    state.profile,
-    state.completions,
-    sessionContext?.date ?? date ?? todayIso,
-    sessionId ?? undefined,
-  );
-  const recommendation = useMemo(
-    () =>
-      metricKind === "load" &&
-      !repetitionsOnly &&
-      !["M15", "M39"].includes(exercise.methodExecution?.methodId ?? "") &&
-      exercise.exerciseId !== "band_resisted_squat"
-        ? recommendNextLoad(recentSessions, exercise.reps, exercise.rir, {
-            age: state.profile?.age,
-            level: state.profile?.level,
-            goal: state.profile?.goal,
-            gymExperienceLevel: state.profile?.gymExperienceLevel,
-            strengthTrainingMonths: state.profile?.strengthTrainingMonths,
-            movementCompetence: state.profile?.movementCompetence,
-            supervisionLevel: state.profile?.supervisionLevel,
-            blockPhaseLabel: sessionContext?.blockPhaseLabel,
-            mdLabel: sessionContext?.mdLabel,
-            exercise,
-            recentSessionRpe: feedback?.rpe,
-          })
-        : null,
-    [
-      metricKind,
-      recentSessions,
-      exercise,
-      state.profile,
-      sessionContext,
-      repetitionsOnly,
-      feedback?.rpe,
-    ],
-  );
-
   useEffect(() => {
     if (!open) {
       selectedContext.current = null;
@@ -251,14 +180,12 @@ export function ExerciseRunnerScreen({
   useEffect(() => {
     if (!open) {
       setView("sets");
-      setProgressionChoice(null);
       setBaselineError(null);
       setRestToken(0);
     }
   }, [open, context]);
   useEffect(() => {
     setBaselineError(null);
-    setProgressionChoice(null);
     setRestToken(0);
   }, [context]);
 
@@ -428,66 +355,13 @@ export function ExerciseRunnerScreen({
           </div>
         )}
         <div className="bw-exercise-options">
-          {(recommendation || needsStartingLoad) && (
+          {needsStartingLoad && (
             <div className="bw-load-proposal">
-              <strong>
-                {recommendation?.weightKg != null
-                  ? `${recommendation.title}: ${formatKg(recommendation.weightKg)} kg`
-                  : "Dobierz ciężar do zapasu"}
-              </strong>
+              <strong>Dobierz ciężar do zapasu</strong>
               <p className="bw-session-muted">
-                {recommendation?.reason ??
-                  "Wpisz ciężar zgodny z dzisiejszą dawką i zapasem powtórzeń. 0 kg oznacza brak dodatkowego obciążenia."}
+                Wpisz ciężar zgodny z dzisiejszą dawką i zapasem powtórzeń. 0 kg oznacza brak
+                dodatkowego obciążenia.
               </p>
-              {recommendation?.weightKg != null && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setValues((v) => ({ ...v, weight: String(recommendation.weightKg) }));
-                    setProgressionChoice("accepted");
-                    if (user && sessionId && recommendation.currentWeightKg != null)
-                      saveStrengthProgressionDecision(user.id, {
-                        sessionId,
-                        exerciseKey: key,
-                        decision: "accepted",
-                        currentWeightKg: recommendation.currentWeightKg,
-                        proposedWeightKg: recommendation.weightKg!,
-                        decidedAt: new Date().toISOString(),
-                      });
-                  }}
-                >
-                  {recommendation.mode === "repeat"
-                    ? "Użyj ostatniego ciężaru"
-                    : `Ustaw ${formatKg(recommendation.weightKg)} kg`}
-                </button>
-              )}
-              {recommendation?.mode === "increase" && recommendation.currentWeightKg != null && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setValues((v) => ({ ...v, weight: String(recommendation.currentWeightKg) }));
-                    setProgressionChoice("repeat");
-                    if (user && sessionId)
-                      saveStrengthProgressionDecision(user.id, {
-                        sessionId,
-                        exerciseKey: key,
-                        decision: "repeat",
-                        currentWeightKg: recommendation.currentWeightKg!,
-                        proposedWeightKg: recommendation.weightKg!,
-                        decidedAt: new Date().toISOString(),
-                      });
-                  }}
-                >
-                  Zostaję przy {formatKg(recommendation.currentWeightKg)} kg
-                </button>
-              )}
-              {progressionChoice && (
-                <p className="bw-session-muted" role="status">
-                  {progressionChoice === "accepted"
-                    ? "Ciężar ustawiony."
-                    : "Ciężar pozostaje bez zmiany."}
-                </p>
-              )}
             </div>
           )}
           <ExercisePersonalNote exercise={exercise} />
@@ -599,94 +473,7 @@ export function ExerciseRunnerScreen({
             )}
           </div>
 
-          {recommendation && (
-            <div className="mt-3 rounded-xl border border-primary/15 bg-primary/[0.04] px-3 py-3">
-              <div className="text-[13px] font-semibold text-foreground">
-                {recommendation.weightKg === null
-                  ? recommendation.title
-                  : `${recommendation.title}: ${formatKg(recommendation.weightKg)} kg`}
-              </div>
-              <div className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-                {recommendation.reason}
-              </div>
-
-              {recommendation.mode === "increase" &&
-              recommendation.weightKg !== null &&
-              recommendation.currentWeightKg !== null ? (
-                <div className="mt-3 grid gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setValues((currentValues) => ({
-                        ...currentValues,
-                        weight: String(recommendation.weightKg),
-                      }));
-                      setProgressionChoice("accepted");
-                      if (user && sessionId) {
-                        saveStrengthProgressionDecision(user.id, {
-                          sessionId,
-                          exerciseKey: key,
-                          decision: "accepted",
-                          currentWeightKg: recommendation.currentWeightKg!,
-                          proposedWeightKg: recommendation.weightKg!,
-                          decidedAt: new Date().toISOString(),
-                        });
-                      }
-                    }}
-                    className="rounded-lg bg-primary px-3 py-2 text-[12px] font-semibold text-primary-foreground"
-                  >
-                    Akceptuję {formatKg(recommendation.weightKg)} kg
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setValues((currentValues) => ({
-                        ...currentValues,
-                        weight: String(recommendation.currentWeightKg),
-                      }));
-                      setProgressionChoice("repeat");
-                      if (user && sessionId) {
-                        saveStrengthProgressionDecision(user.id, {
-                          sessionId,
-                          exerciseKey: key,
-                          decision: "repeat",
-                          currentWeightKg: recommendation.currentWeightKg!,
-                          proposedWeightKg: recommendation.weightKg!,
-                          decidedAt: new Date().toISOString(),
-                        });
-                      }
-                    }}
-                    className="rounded-lg border border-border bg-background px-3 py-2 text-[12px] font-semibold text-foreground"
-                  >
-                    Jeszcze jedna sesja tym ciężarem
-                  </button>
-                </div>
-              ) : recommendation.weightKg !== null ? (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setValues((currentValues) => ({
-                      ...currentValues,
-                      weight: String(recommendation.weightKg),
-                    }))
-                  }
-                  className="mt-2 text-[12px] font-semibold text-primary"
-                >
-                  Ustaw {formatKg(recommendation.weightKg)} kg
-                </button>
-              ) : null}
-
-              {progressionChoice && (
-                <div className="mt-2 text-[11px] font-medium text-primary">
-                  {progressionChoice === "accepted"
-                    ? "Propozycja ustawiona."
-                    : "Zostajemy przy obecnym ciężarze i ocenimy kolejną sesję."}
-                </div>
-              )}
-            </div>
-          )}
-
-          {needsStartingLoad && !recommendation && (
+          {needsStartingLoad && (
             <div className="mt-3 rounded-xl border border-primary/15 bg-primary/[0.04] px-3 py-3">
               <div className="text-[13px] font-semibold text-foreground">Ustal ciężar startowy</div>
               <div className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">

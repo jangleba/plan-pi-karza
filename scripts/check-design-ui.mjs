@@ -1,10 +1,8 @@
 #!/usr/bin/env node
-import { checkMethodsUI } from "./check-methods-ui.mjs";
 import { checkNavigationUI } from "./check-navigation-ui.mjs";
 import { checkLegacyStrengthUI } from "./check-legacy-strength-ui.mjs";
 /** Real app screens, inert account adapters and authored data; presentation/interaction verification. */
 import fs from "node:fs/promises";
-import { checkStrengthUI } from "./check-strength-ui.mjs";
 import path from "node:path";
 import os from "node:os";
 import http from "node:http";
@@ -182,8 +180,6 @@ try {
     await checkLegacyStrengthUI({ browser, base, work, ensure, views });
   } else if (process.argv.includes("--navigation-only")) {
     await checkNavigationUI({ browser, base, work, ensure, views });
-  } else if (process.argv.includes("--strength-only")) {
-    await checkStrengthUI({ browser, base, work, ensure, views });
   } else {
     if (!process.argv.includes("--motion-only")) {
       for (const [width, height] of [
@@ -335,11 +331,9 @@ try {
       }
     }
     if (!process.argv.includes("--motion-only")) {
-      await checkStrengthUI({ browser, base, work, ensure, views });
       await checkNavigationUI({ browser, base, work, ensure, views });
       await checkLegacyStrengthUI({ browser, base, work, ensure, views });
     }
-    await checkMethodsUI({ browser, base, work, ensure, views });
     // Real animated panels: two detents, a drag gesture, retained exit content and focus return.
     const motionContext = await browser.newContext({
       viewport: { width: 390, height: 844 },

@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useId, useRef, useState, type ReactNode } from "react";
 import { Check, Minus, Plus } from "lucide-react";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import { useExerciseSetLogs, type SetLog } from "@/lib/loadwise/setLogs";
-import { verifyExerciseHistory, type ExerciseSessionLog } from "@/lib/loadwise/setLogHistory";
 import {
   parseTrainingNumber,
   trainingStorageKey,
@@ -10,14 +9,6 @@ import {
 } from "@/lib/loadwise/trainingDetails";
 import { useTrainingLocalState } from "@/lib/loadwise/useTrainingLocalState";
 import { useAuth } from "@/lib/loadwise/auth";
-import { useLoadwise } from "@/lib/loadwise/store";
-import { effectiveSessions } from "@/lib/loadwise/effectivePlan";
-import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
-import { recentSessionFeedback } from "@/lib/loadwise/postSessionFeedback";
-import {
-  recommendNextLoad,
-  saveStrengthProgressionDecision,
-} from "@/lib/loadwise/strengthProgression";
 import type { Range } from "@/lib/loadwise/sessionRunner/presentation";
 import { Docked } from "./Dock";
 
@@ -210,7 +201,6 @@ export function SetTable({
     }
   }
 
-  const recommendation = useLoadRecommendation(exercise, sessionId, date, logKey, kind, logs);
   const missingKg = (n: number) => kind === "load" && !valuesFor(n).weight.trim();
   const active = editing ?? nextOpen;
   const activeValues = active !== null ? valuesFor(active) : EMPTY;
@@ -290,43 +280,6 @@ export function SetTable({
           </ol>
         </header>
         {facts}
-        {kind === "load" && recommendation && (
-          <div className="bw-load-hint">
-            <span>
-              {recommendation.weightKg != null
-                ? `${recommendation.title}: ${kg(recommendation.weightKg)} kg`
-                : recommendation.title}
-            </span>
-            {recommendation.weightKg != null && canRecord && nextOpen !== null && (
-              <button
-                type="button"
-                onClick={() => {
-                  drafts.setValue((all) => {
-                    const next = { ...all };
-                    for (const n of numbers)
-                      if (!current[n])
-                        next[String(n)] = {
-                          ...valuesFor(n),
-                          weight: String(recommendation.weightKg),
-                        };
-                    return next;
-                  });
-                  if (user && sessionId && recommendation.currentWeightKg != null)
-                    saveStrengthProgressionDecision(user.id, {
-                      sessionId,
-                      exerciseKey: logKey,
-                      decision: "accepted",
-                      currentWeightKg: recommendation.currentWeightKg,
-                      proposedWeightKg: recommendation.weightKg!,
-                      decidedAt: new Date().toISOString(),
-                    });
-                }}
-              >
-                Ustaw
-              </button>
-            )}
-          </div>
-        )}
         {active !== null && (
           <div
             className="bw-log-entry"
@@ -394,7 +347,7 @@ export function SetTable({
                 </div>
               </div>
             )}
-            {kind === "load" && !recommendation && active === 1 && missingKg(1) && (
+            {kind === "load" && active === 1 && missingKg(1) && (
               <p className="bw-runner-muted">0 kg = bez obciążenia.</p>
             )}
           </div>
@@ -552,66 +505,5 @@ function Stepper({
         </div>
       </div>
     </div>
-  );
-}
-
-/** The existing load progression, shown as one line above the table. */
-function useLoadRecommendation(
-  exercise: TrainingExercise,
-  sessionId: string | null | undefined,
-  date: string,
-  logKey: string,
-  kind: SetTableKind,
-  logs: ReturnType<typeof useExerciseSetLogs>,
-) {
-  const { state, todayIso } = useLoadwise();
-  const recentHistory = "recentSessions" in logs ? logs.recentSessions : undefined;
-  const recent = useMemo(
-    () =>
-      Array.isArray(recentHistory)
-        ? verifyExerciseHistory(recentHistory as ExerciseSessionLog[], logKey, state.completions)
-        : [],
-    [recentHistory, logKey, state.completions],
-  );
-  const context = useMemo(
-    () =>
-      effectiveSessions(
-        selectEffectivePlan(state.plan, state.modifications, {
-          profile: state.profile,
-          readiness: state.readiness,
-          completions: state.completions,
-        }),
-      ).find((item) => item.dbId === sessionId || item.sessionId === sessionId) ?? null,
-    [state.plan, state.modifications, state.profile, state.readiness, state.completions, sessionId],
-  );
-  const feedback = recentSessionFeedback(
-    state.profile,
-    state.completions,
-    context?.date ?? date ?? todayIso,
-    sessionId ?? undefined,
-  );
-  const [ready, setReady] = useState(false);
-  useEffect(() => setReady(!logs.loading), [logs.loading]);
-  return useMemo(
-    () =>
-      ready &&
-      kind === "load" &&
-      !["M15", "M39"].includes(exercise.methodExecution?.methodId ?? "") &&
-      exercise.exerciseId !== "band_resisted_squat"
-        ? recommendNextLoad(recent, exercise.reps, exercise.rir, {
-            age: state.profile?.age,
-            level: state.profile?.level,
-            goal: state.profile?.goal,
-            gymExperienceLevel: state.profile?.gymExperienceLevel,
-            strengthTrainingMonths: state.profile?.strengthTrainingMonths,
-            movementCompetence: state.profile?.movementCompetence,
-            supervisionLevel: state.profile?.supervisionLevel,
-            blockPhaseLabel: context?.blockPhaseLabel,
-            mdLabel: context?.mdLabel,
-            exercise,
-            recentSessionRpe: feedback?.rpe,
-          })
-        : null,
-    [ready, kind, recent, exercise, state.profile, context, feedback?.rpe],
   );
 }

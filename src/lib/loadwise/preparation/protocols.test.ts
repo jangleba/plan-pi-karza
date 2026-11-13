@@ -10,21 +10,9 @@ import {
   cooldownFromExercises,
 } from "./protocols";
 import { runningCooldown } from "../recoveryContent";
-import { buildStrengthPowerStructured, flatToStructured } from "../strengthBlocks";
+import { flatToStructured } from "../sessionStructure";
 import { sessionFixture } from "@/components/loadwise/session/testFixtures";
-import type { Profile, TrainingExercise } from "../types";
-
-const sessionFixtureProfile = {
-  name: "Test",
-  position: "midfielder",
-  goal: "strength",
-  clubTrainingDays: [2, 4],
-  individualTrainingDays: [1, 3],
-  usualMatchDay: 6,
-  equipment: [],
-  painInjury: false,
-  seasonPhase: "inseason",
-};
+import type { TrainingExercise } from "../types";
 
 describe("dobór rozgrzewki i regeneracji", () => {
   it("nie generuje ruchu dla zerowej sesji ostrożnościowej ani dnia wstrzymanego", () => {
@@ -122,32 +110,6 @@ describe("dobór rozgrzewki i regeneracji", () => {
       ["calf", 2, 30, true],
       ["hip", 2, 30, true],
       ["hamstring", 2, 30, true],
-    ]);
-    const gymPlan = buildStrengthPowerStructured(
-      {
-        ...sessionFixtureProfile,
-        age: 22,
-        level: "intermediate",
-        hasGym: true,
-      } as unknown as Profile,
-      {
-        mdLabel: null,
-        powerFocus: false,
-        weekPhase: "development",
-        weekIndex: 1,
-        gymSessionIndexInWeek: 0,
-        gymSessionsThisWeekTotal: 2,
-        readiness: 8,
-        history: { usedRolesThisWeek: [], usedMainThisWeek: [], usedMainLastWeek: [] },
-      },
-    )!;
-    const gym = gymPlan.sections
-      .filter((section) => section.type === "cooldown")
-      .flatMap((section) => section.blocks.flatMap((b) => b.exercises));
-    expect(cooldownFromExercises(gym)?.exercises.map((e) => [e.id, e.sets, e.seconds])).toEqual([
-      ["hip", 2, 30],
-      ["hamstring", 2, 30],
-      ["calf", 2, 30],
     ]);
   });
   it("nie prowadzi minutnikiem wyciszenia z ćwiczeniem bez odpowiednika", () => {

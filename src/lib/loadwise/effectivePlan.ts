@@ -1,4 +1,3 @@
-import { enforceMethodEligibility } from "./methods/planner";
 import type {
   Profile,
   Readiness,
@@ -6,8 +5,6 @@ import type {
   SessionDay,
   SessionModification,
 } from "./types";
-import { enforceSprintOnlyContent } from "./sprintContentPolicy";
-import { enforceStrengthEligibility } from "./strengthEligibility";
 
 export interface EffectivePlanContext {
   profile?: Profile | null;
@@ -16,8 +13,7 @@ export interface EffectivePlanContext {
 }
 
 /**
- * Execution is pinned independently of the base plan. Approved profile
- * constraints (eligibility, methods) still apply. The plan is NOT adapted
+ * Execution is pinned independently of the base plan. The plan is NOT adapted
  * from stored readiness answers or post-session notes: the daily check-in
  * is only „Trenuję / Mam mniej czasu / Dziś nie mogę” and BallWise does
  * not derive hidden readiness from earlier answers.
@@ -40,12 +36,7 @@ export function resolveExecutionDay(day: SessionDay, context: EffectivePlanConte
           }
         : session;
     }
-    if (!context.profile) return session;
-    const repaired = enforceStrengthEligibility(
-      enforceMethodEligibility({ ...session, secondSession: null }, context.profile),
-      context.profile,
-    );
-    return { ...repaired, secondSession: session.secondSession };
+    return session;
   };
   // An already executed second slot remains visible even if today's safety adaptation
   // removes future work. The safety warning still applies to any further exercise.
@@ -122,9 +113,7 @@ export function resolveEffectivePlan(
   modifications: Record<string, SessionModification[]> = {},
   context?: EffectivePlanContext,
 ): SessionDay[] {
-  const modified = plan.map((day) =>
-    enforceSprintOnlyContent(resolveModifiedDay(day, modifications[day.date] ?? [])),
-  );
+  const modified = plan.map((day) => resolveModifiedDay(day, modifications[day.date] ?? []));
   if (!context) return modified;
   return modified.map((day) => resolveExecutionDay(day, context));
 }

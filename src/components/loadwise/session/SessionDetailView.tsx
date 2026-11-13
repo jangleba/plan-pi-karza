@@ -2,11 +2,9 @@ import { FocusedSessionRunner } from "@/components/loadwise/session/FocusedSessi
 import { RunClock } from "@/components/running/RunClock";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import "@/components/loadwise/session/session-focus.css";
-import { TrainingMethodPanel } from "@/components/loadwise/session/TrainingMethodPanel";
 import { MethodExecutionCoach } from "@/components/loadwise/session/MethodExecutionCoach";
-import { hasCurrentMethodRecipe } from "@/lib/loadwise/methods/planner";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppLaunchScreen } from "@/components/loadwise/AppLaunchScreen";
 import { applyExerciseReplacements, useLoadwise } from "@/lib/loadwise/store";
@@ -14,16 +12,13 @@ import { useAuth } from "@/lib/loadwise/auth";
 import { useDelayedFlag } from "@/lib/loadwise/uiHooks";
 import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
 import { activeSessionForRoute, isActiveSessionWithinGrace } from "@/lib/loadwise/activeSession";
-import { repairRuntimeSpeedDay } from "@/lib/loadwise/runtimeSpeedRepair";
 import { formatDateFull, professionalSessionTitle } from "@/lib/loadwise/labels";
-import { ModifySheet } from "@/components/loadwise/ModifySheet";
 import { Button } from "@/components/ui/button";
 import type { SessionDay, TrainingSection } from "@/lib/loadwise/types";
-import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
-import { ArrowRight, Plus, Repeat, SlidersHorizontal, Undo2 } from "lucide-react";
+import { flatToStructured } from "@/lib/loadwise/sessionStructure";
+import { ArrowRight, SlidersHorizontal, Undo2 } from "lucide-react";
 import { EnduranceRunTracker } from "@/components/running/EnduranceRunTracker";
 import { RunPlanPreview } from "@/components/running/RunPlanPreview";
-import { OptionalFieldTest } from "@/components/running/OptionalFieldTest";
 import { isRecipePhaseItem } from "@/lib/running/recipeSession";
 import "@/components/loadwise/session/runner/session-runner.css";
 import { isTrackableEnduranceRun, normalizeRunningPreparation } from "@/lib/running/session";
@@ -35,8 +30,6 @@ import {
   shortDecisionNote,
 } from "@/lib/loadwise/sessionPresentation";
 import { isSprintRunnerSession } from "@/lib/loadwise/sprintPresentation";
-import { enforceStrengthEligibility } from "@/lib/loadwise/strengthEligibility";
-import { enforceSprintOnlyContent } from "@/lib/loadwise/sprintContentPolicy";
 import { StrengthExperienceSetup } from "@/components/loadwise/session/StrengthExperienceSetup";
 import { RecoveryCoach, WarmupCoach } from "@/components/loadwise/preparation/PreparationGuide";
 import {
@@ -97,7 +90,6 @@ export function SessionDetailView({
     saveRunningActivity,
     deleteRunningActivity,
   } = useLoadwise();
-  const [modifyOpen, setModifyOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
   const [runMode, setRunMode] = useState<"gps" | "timer">("gps");
@@ -136,26 +128,8 @@ export function SessionDetailView({
   const showSkeleton = useDelayedFlag(stillLoading);
 
   const effectiveDay = resolvedPlan.find((item) => item.date === date) ?? day;
-  const primary = useMemo(
-    () =>
-      effectiveDay && state.profile && hydrated
-        ? repairRuntimeSpeedDay(effectiveDay, state.profile, {
-            today: todayIso,
-            completions: state.completions,
-            modifications: state.modifications,
-            plan: state.plan,
-          })
-        : null,
-    [
-      effectiveDay,
-      state.profile,
-      hydrated,
-      todayIso,
-      state.completions,
-      state.modifications,
-      state.plan,
-    ],
-  );
+  // Sesja pokazywana tak, jak jest zapisana — bez przeliczania treści.
+  const primary = effectiveDay && state.profile && hydrated ? effectiveDay : null;
 
   if (authLoading || !user) {
     return <AppLaunchScreen />;
@@ -234,11 +208,7 @@ export function SessionDetailView({
   const completed = session.dbId && state.completions[session.dbId]?.status === "completed";
   const executionStarted = session.dbId && state.completions[session.dbId]?.status === "started";
   const displayedSession =
-    completed || executionStarted
-      ? replacedSession
-      : normalizeRunningPreparation(
-          enforceSprintOnlyContent(enforceStrengthEligibility(replacedSession, state.profile)),
-        );
+    completed || executionStarted ? replacedSession : normalizeRunningPreparation(replacedSession);
 
   // Strukturalne sekcje: wygenerowane bloki, inaczej fallback z płaskich danych.
   const structured: TrainingSection[] =
@@ -256,7 +226,7 @@ export function SessionDetailView({
             })
           : [];
   const sprintRunner =
-    isSprintRunnerSession(session) && structured.length > 0 && !hasCurrentMethodRecipe(session);
+    isSprintRunnerSession(session) && structured.length > 0 && !session.trainingMethods?.recipeKey;
   const strengthRunner = isStrengthSession(session) && structured.length > 0;
   const enduranceSession =
     isTrackableEnduranceRun(session) &&
@@ -651,67 +621,22 @@ export function SessionDetailView({
             </div>
           ))}
 
-        <button type="button" className="bw-unit-options" onClick={() => setOptionsOpen(true)}>
-          <SlidersHorizontal aria-hidden="true" /> Opcje sesji
-        </button>
-        <Drawer open={optionsOpen} onOpenChange={setOptionsOpen} initialDetent="large">
-          <DrawerContent aria-describedby={undefined} className="bw-unit-options-sheet">
-            <DrawerTitle>Opcje sesji</DrawerTitle>
-            <div className={strengthRunner ? "bw-strength-session-tools" : undefined}>
-              {strengthRunner && !completed && <StrengthExperienceSetup compact />}
-              <TrainingMethodPanel
-                key={`methods:${session.dbId ?? `${date}:${slot}`}`}
-                session={displayedSession}
-                wholeDay={primary}
-                slot={session.dbId && session.dbId === primary.secondSession?.dbId ? 2 : 1}
-                locked={
-                  !!completed ||
-                  !!session.executionProtected ||
-                  hasStarted ||
-                  !!(
-                    selectedAdd &&
-                    session.dbId !== primary.dbId &&
-                    session.dbId !== primary.secondSession?.dbId
-                  )
-                }
-              />
-              {enduranceSession && !completed && !hasStarted && (
-                <OptionalFieldTest
-                  session={displayedSession}
-                  wholeDay={primary}
-                  slot={session.dbId && session.dbId === primary.secondSession?.dbId ? 2 : 1}
-                  locked={!!session.executionProtected}
-                />
-              )}
-            </div>
-            {/* Dodaj / zamień sesję */}
-            {!isClub && session.dayType !== "match" && (
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setOptionsOpen(false);
-                    setModifyOpen(true);
-                  }}
-                >
-                  <Plus className="mr-1 h-4 w-4" /> Dodaj trening
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setOptionsOpen(false);
-                    setModifyOpen(true);
-                  }}
-                >
-                  <Repeat className="mr-1 h-4 w-4" /> Zamień sesję
-                </Button>
-              </div>
-            )}
-          </DrawerContent>
-        </Drawer>
+        {strengthRunner && !completed && (
+          <>
+            <button type="button" className="bw-unit-options" onClick={() => setOptionsOpen(true)}>
+              <SlidersHorizontal aria-hidden="true" /> Opcje sesji
+            </button>
+            <Drawer open={optionsOpen} onOpenChange={setOptionsOpen} initialDetent="large">
+              <DrawerContent aria-describedby={undefined} className="bw-unit-options-sheet">
+                <DrawerTitle>Opcje sesji</DrawerTitle>
+                <div className="bw-strength-session-tools">
+                  <StrengthExperienceSetup compact />
+                </div>
+              </DrawerContent>
+            </Drawer>
+          </>
+        )}
       </div>
-
-      <ModifySheet open={modifyOpen} onOpenChange={setModifyOpen} date={date} />
     </div>
   );
 }
