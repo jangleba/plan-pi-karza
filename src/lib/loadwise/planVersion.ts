@@ -1,1 +1,1 @@
-export const PLAN_ENGINE_VERSION = "loadwise-plan-policy-v70-club-doubles-youth-readiness";
+export const PLAN_ENGINE_VERSION = "loadwise-plan-policy-v71-running-recipes";

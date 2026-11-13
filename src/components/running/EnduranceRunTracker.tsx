@@ -28,6 +28,29 @@ import {
 } from "@/lib/running/intervals";
 import { classifyPace, vibrationForPace, type PaceGuidance } from "@/lib/running/paceGuidance";
 import { vibrate } from "@/lib/haptics";
+import { isTimedProtocol, stageLabel, repLabel, targetLabel } from "@/lib/running/guideTimeline";
+import {
+  currentKilometer,
+  distanceAt,
+  pushSample,
+  samplesFromRoute,
+  stablePace,
+  type DistanceSample,
+} from "@/lib/running/liveMetrics";
+import { withMeasuredDistance } from "@/lib/running/intervals";
+import { loadSignalOptions, signalStep, unlockSignals } from "@/lib/running/runSignals";
+import {
+  cancelLockScreenCues,
+  ensureLockScreenPermission,
+  planLockScreenCues,
+  scheduleLockScreenCues,
+} from "@/lib/running/lockScreenCues";
+import {
+  historyEntryFromDraft,
+  removeRunFromHistory,
+  saveRunToHistory,
+} from "@/lib/running/routeHistory";
+import { professionalSessionTitle } from "@/lib/loadwise/labels";
 import type {
   RoutePoint,
   RunningActivity,
@@ -41,6 +64,7 @@ import {
   nativeRecorder,
   nativeRunningAvailable,
   nativeRunDraft,
+  nativeRoute,
   type NativeRunState,
 } from "@/lib/running/nativeRecorder";
 import {
@@ -66,18 +90,26 @@ function positionErrorMessage(error: GeolocationPositionError): string {
   return "GPS nie odpowiedział na czas. Spróbuj ponownie na otwartej przestrzeni.";
 }
 
+/** Zmiana kroku w trybie GPS: te same sygnały co licznik, komenda głosowa zawsze. */
 function announceStep(step: RunningIntervalStep | null) {
   if (typeof window === "undefined") return;
-  vibrate(step ? [120, 70, 120] : [150, 80, 150, 80, 220]);
-  if (!("speechSynthesis" in window)) return;
-  window.speechSynthesis.cancel();
-  const text = step
-    ? `${step.label} ${step.repeatIndex} z ${step.repeatTotal}. ${step.target.label}.`
-    : "Część główna zakończona. Wykonaj schłodzenie i zakończ zapis.";
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "pl-PL";
-  utterance.rate = 1.05;
-  window.speechSynthesis.speak(utterance);
+  signalStep(step, { ...loadSignalOptions(), voice: true });
+}
+
+/** Dystans kroków z dokładnej osi trasy (granice z czasu biegu). */
+function remeasureIntervals(
+  results: RunningIntervalResult[],
+  samples: DistanceSample[],
+): RunningIntervalResult[] {
+  return results.map((result) =>
+    result.startElapsedSec == null
+      ? result
+      : withMeasuredDistance(
+          result,
+          distanceAt(samples, result.startElapsedSec + result.durationSec) -
+            distanceAt(samples, result.startElapsedSec),
+        ),
+  );
 }
 
 function RunTracker({
@@ -104,6 +136,9 @@ function RunTracker({
   onRecordingChange?: (busy: boolean) => void;
 }) {
   const intervalProtocol = useMemo(() => deriveRunningIntervalProtocol(session), [session]);
+  /** Receptura czasowa: kroki wynikają z czasu biegu, więc prowadzenie działa też w tle. */
+  const timedGuide = isTimedProtocol(intervalProtocol);
+  const samplesRef = useRef<DistanceSample[]>([]);
   const isFieldMasTest = session.classification?.subcategory === "field_mas_test";
   const [safetyAcknowledged, setSafetyAcknowledged] = useState(false);
   const nativeMode = !!ownerId && nativeRunningAvailable();
@@ -174,6 +209,11 @@ function RunTracker({
       setElapsedSec(Math.round(value.durationSec ?? 0));
       setDistanceM(value.distanceM ?? 0);
       setRoutePointCount(value.pointCount ?? 0);
+      if (value.phase === "recording")
+        samplesRef.current = pushSample(samplesRef.current, {
+          elapsedSec: value.durationSec ?? 0,
+          distanceM: value.distanceM ?? 0,
+        });
       if (value.guideState) {
         const guide = value.guideState;
         guideStartedRef.current = guide.started;
@@ -377,6 +417,10 @@ function RunTracker({
     routeRef.current.push(clean);
     if (previous && previous.segment === clean.segment)
       distanceMRef.current += haversineDistanceM(previous, clean);
+    samplesRef.current = pushSample(samplesRef.current, {
+      elapsedSec: clean.elapsedSec,
+      distanceM: distanceMRef.current,
+    });
     setRoutePointCount(routeRef.current.length);
     setDistanceM(distanceMRef.current);
   };
@@ -407,31 +451,40 @@ function RunTracker({
     return () => window.clearInterval(timer);
   }, [phase]);
 
+  /**
+   * Zamyka bieżący krok. `at` to dokładna granica kroku czasowego (sekunda biegu);
+   * bez niej krok kończy się teraz (pominięcie albo krok na dystans).
+   */
   const completeCurrentInterval = useCallback(
-    (completed = true) => {
+    (completed = true, at?: number, signal = true) => {
       if (!intervalProtocol || !guideStartedRef.current || guideCompleteRef.current) return;
       const step = intervalProtocol.steps[intervalStepIndexRef.current];
       if (!step) return;
+      const end = at ?? currentElapsed();
+      const endDistance = at == null ? distanceMRef.current : distanceAt(samplesRef.current, at);
       const result = buildIntervalResult({
         step,
-        durationSec: currentElapsed() - intervalStepStartedElapsedRef.current,
-        distanceM: distanceMRef.current - intervalStepStartedDistanceRef.current,
+        durationSec: end - intervalStepStartedElapsedRef.current,
+        distanceM: endDistance - intervalStepStartedDistanceRef.current,
         completed,
+        recipeId: intervalProtocol.recipeId,
+        startElapsedSec: intervalStepStartedElapsedRef.current,
       });
       intervalResultsRef.current = [...intervalResultsRef.current, result];
       const nextIndex = intervalStepIndexRef.current + 1;
       if (nextIndex >= intervalProtocol.steps.length) {
         guideCompleteRef.current = true;
         setGuideComplete(true);
-        announceStep(null);
+        void cancelLockScreenCues();
+        if (signal) announceStep(null);
         persistNativeGuide();
         return;
       }
       intervalStepIndexRef.current = nextIndex;
-      intervalStepStartedElapsedRef.current = currentElapsed();
-      intervalStepStartedDistanceRef.current = distanceMRef.current;
+      intervalStepStartedElapsedRef.current = end;
+      intervalStepStartedDistanceRef.current = Math.max(0, endDistance);
       setIntervalStepIndex(nextIndex);
-      announceStep(intervalProtocol.steps[nextIndex]);
+      if (signal) announceStep(intervalProtocol.steps[nextIndex]);
       persistNativeGuide();
     },
     // The native writer reads refs for the current identity.
@@ -439,8 +492,44 @@ function RunTracker({
     [currentElapsed, intervalProtocol, nativeMode, ownerId, sessionId],
   );
 
+  /**
+   * Receptura czasowa: przechodzi przez wszystkie granice, które minęły (także
+   * przy zablokowanym ekranie). Sygnał tylko dla bieżącej zmiany, bez serii
+   * zaległych komunikatów po powrocie do aplikacji.
+   */
+  const advanceTimedGuide = useCallback(() => {
+    if (!intervalProtocol || !guideStartedRef.current) return;
+    const now = currentElapsed();
+    let lastEnd: number | null = null;
+    while (!guideCompleteRef.current) {
+      const step = intervalProtocol.steps[intervalStepIndexRef.current];
+      if (!step) break;
+      const end = intervalStepStartedElapsedRef.current + (step.target.value ?? 0);
+      if (now < end) break;
+      completeCurrentInterval(true, end, false);
+      lastEnd = end;
+    }
+    if (lastEnd != null && now - lastEnd < 2.5)
+      announceStep(
+        guideCompleteRef.current ? null : intervalProtocol.steps[intervalStepIndexRef.current],
+      );
+  }, [completeCurrentInterval, currentElapsed, intervalProtocol]);
+
+  /** Pozycja na osi receptury — do planu powiadomień przy zablokowanym ekranie. */
+  const guideTimelineSec = useCallback(() => {
+    if (!intervalProtocol) return 0;
+    const before = intervalProtocol.steps
+      .slice(0, intervalStepIndexRef.current)
+      .reduce((sum, step) => sum + (step.target.value ?? 0), 0);
+    return before + Math.max(0, currentElapsed() - intervalStepStartedElapsedRef.current);
+  }, [currentElapsed, intervalProtocol]);
+
   useEffect(() => {
     if (phase !== "recording" || !intervalProtocol || !guideStarted || guideComplete) return;
+    if (timedGuide) {
+      advanceTimedGuide();
+      return;
+    }
     const step = intervalProtocol.steps[intervalStepIndex];
     if (!step?.target.autoAdvance) return;
     const progress = intervalStepProgress(
@@ -450,6 +539,7 @@ function RunTracker({
     );
     if (progress >= 1) completeCurrentInterval(true);
   }, [
+    advanceTimedGuide,
     completeCurrentInterval,
     distanceM,
     elapsedSec,
@@ -458,6 +548,7 @@ function RunTracker({
     intervalProtocol,
     intervalStepIndex,
     phase,
+    timedGuide,
   ]);
 
   useEffect(() => {
@@ -485,9 +576,14 @@ function RunTracker({
       return;
     }
     startingRef.current = true;
+    unlockSignals();
+    if (timedGuide) void ensureLockScreenPermission();
+    samplesRef.current = [];
     try {
       if (nativeMode) {
         applyNativeState(await nativeRecorder.start({ ...nativeIdentity, date }));
+        samplesRef.current = [{ elapsedSec: 0, distanceM: 0 }];
+        if (timedGuide) startIntervalGuide();
         return;
       }
       const first = await new Promise<GeolocationPosition>((resolve, reject) =>
@@ -528,8 +624,10 @@ function RunTracker({
       setGuideComplete(false);
       phaseRef.current = "recording";
       setPhase("recording");
+      samplesRef.current = [{ elapsedSec: 0, distanceM: 0 }];
       startWatch();
       void requestWakeLock();
+      if (timedGuide) startIntervalGuide();
     } catch (error) {
       if (nativeMode) {
         setGpsError(
@@ -550,6 +648,7 @@ function RunTracker({
   }
 
   function pauseRecording() {
+    void cancelLockScreenCues();
     if (nativeMode) {
       void nativeRecorder
         .pause(nativeIdentity)
@@ -584,7 +683,21 @@ function RunTracker({
 
   useEffect(() => {
     const onHidden = () => {
-      if (nativeMode && document.hidden && guideStartedRef.current && !guideCompleteRef.current) {
+      const guiding = guideStartedRef.current && !guideCompleteRef.current;
+      if (nativeMode && timedGuide && guiding) {
+        // Kroki wynikają z czasu: po powrocie licznik nadrobi granice z zapisu GPS.
+        if (document.hidden && phaseRef.current === "recording") {
+          const now = Date.now();
+          void scheduleLockScreenCues(
+            planLockScreenCues(intervalProtocol!, guideTimelineSec(), now),
+          );
+        } else if (!document.hidden) {
+          void cancelLockScreenCues();
+          advanceTimedGuide();
+        }
+        return;
+      }
+      if (nativeMode && document.hidden && guiding) {
         // GPS continues natively; the suspended web UI must not invent interval transitions.
         guideStartedRef.current = false;
         setGuideStarted(false);
@@ -608,7 +721,7 @@ function RunTracker({
     return () => document.removeEventListener("visibilitychange", onHidden);
     // Native guide writer reads current identity and refs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentElapsed, nativeMode, ownerId, sessionId]);
+  }, [currentElapsed, nativeMode, ownerId, sessionId, timedGuide, guideTimelineSec]);
 
   function startIntervalGuide() {
     const step = intervalProtocol?.steps[intervalStepIndexRef.current];
@@ -622,6 +735,7 @@ function RunTracker({
   }
 
   async function finishRecording() {
+    void cancelLockScreenCues();
     if (nativeMode) {
       if (finishingRef.current) return;
       finishingRef.current = true;
@@ -641,10 +755,15 @@ function RunTracker({
               durationSec: (value.durationSec ?? 0) - intervalStepStartedElapsedRef.current,
               distanceM: (value.distanceM ?? 0) - intervalStepStartedDistanceRef.current,
               completed: false,
+              recipeId: intervalProtocol.recipeId,
+              startElapsedSec: intervalStepStartedElapsedRef.current,
             });
             if (partial.durationSec >= 1 || partial.distanceM >= 2) results = [...results, partial];
           }
         }
+        // Granice minięte przy zablokowanym ekranie: dystans kroku z pełnej trasy telefonu.
+        const route = nativeRoute(value);
+        if (route.length > 1) results = remeasureIntervals(results, samplesFromRoute(route));
         let intervalError = false;
         if (results.length !== (value.intervalResults ?? []).length) {
           try {
@@ -680,6 +799,8 @@ function RunTracker({
           durationSec: durationSec - intervalStepStartedElapsedRef.current,
           distanceM: distanceMRef.current - intervalStepStartedDistanceRef.current,
           completed: false,
+          recipeId: intervalProtocol.recipeId,
+          startElapsedSec: intervalStepStartedElapsedRef.current,
         });
         if (partial.durationSec >= 1 || partial.distanceM >= 2) {
           intervalResults = [...intervalResults, partial];
@@ -745,6 +866,11 @@ function RunTracker({
     setSaving(true);
     try {
       await onSave(pending);
+      if (ownerId && pending.route.length > 1)
+        saveRunToHistory(
+          ownerId,
+          historyEntryFromDraft(pending, professionalSessionTitle(session.title)),
+        );
       phaseRef.current = "idle";
       try {
         if (nativeMode && pending.source === "gps") await nativeRecorder.clear(nativeIdentity);
@@ -774,7 +900,8 @@ function RunTracker({
     if (!activity || !window.confirm("Usunąć zapis wyniku biegu?")) return;
     try {
       await onDelete(activity.id);
-      toast.success("Trasa biegu została usunięta.");
+      if (ownerId) removeRunFromHistory(ownerId, activity.sessionId);
+      toast.success("Wynik biegu został usunięty.");
     } catch {
       toast.error("Nie udało się usunąć trasy.");
     }
@@ -791,6 +918,8 @@ function RunTracker({
   const currentStepProgress = currentIntervalStep
     ? intervalStepProgress(currentIntervalStep, currentStepElapsed, currentStepDistance)
     : 0;
+  const livePace = isTracking ? stablePace(samplesRef.current, elapsedSec) : null;
+  const liveKilometer = isTracking ? currentKilometer(samplesRef.current, elapsedSec) : null;
   const currentStepPace =
     currentIntervalStep?.kind === "work" && currentStepElapsed >= 20 && currentStepDistance >= 80
       ? currentStepElapsed / (currentStepDistance / 1_000)
@@ -837,9 +966,8 @@ function RunTracker({
         <details className="bw-session-extra">
           <summary>GPS i prywatność</summary>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            GPS włącza się dopiero po Twoim kliknięciu. Trasa służy tylko do obliczenia wyniku w
-            pamięci telefonu. Do bazy trafiają wyłącznie wyniki biegu i odcinków, bez współrzędnych
-            trasy.
+            GPS włącza się dopiero po Twoim kliknięciu. Mapa trasy i międzyczasy zostają w tym
+            telefonie. Na konto trafiają tylko wyniki biegu i odcinków, bez współrzędnych trasy.
           </p>
         </details>
       </div>
@@ -910,8 +1038,9 @@ function RunTracker({
             </p>
             {nativeMode && (
               <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                GPS może działać przy blokadzie telefonu. Komendy i prowadzenie interwałów wymagają
-                widocznego ekranu; po jego ukryciu bieżący odcinek trzeba uruchomić ponownie.
+                {timedGuide
+                  ? "Przy zablokowanym ekranie GPS mierzy dalej, a zmianę odcinka i przerwy sygnalizuje powiadomienie z dźwiękiem."
+                  : "GPS działa przy blokadzie telefonu. Odcinki na dystans prowadzi widoczny ekran; po jego ukryciu uruchom bieżący odcinek ponownie."}
               </p>
             )}
             {intervalProtocol.steps.some((step) => step.target.paceTarget) && (
@@ -964,8 +1093,8 @@ function RunTracker({
                     currentIntervalStep.kind === "work" ? "text-primary" : "opacity-70"
                   }`}
                 >
-                  {currentIntervalStep.label} {currentIntervalStep.repeatIndex}/
-                  {currentIntervalStep.repeatTotal}
+                  {stageLabel(currentIntervalStep)}
+                  {repLabel(currentIntervalStep) ? ` · ${repLabel(currentIntervalStep)}` : ""}
                 </div>
                 <Volume2 className="h-4 w-4 opacity-60" aria-label="Komendy głosowe włączone" />
               </div>
@@ -989,7 +1118,12 @@ function RunTracker({
                   style={{ width: `${Math.max(2, currentStepProgress * 100)}%` }}
                 />
               </div>
-              <p className="mt-3 text-sm font-medium">{currentIntervalStep.instruction}</p>
+              {!currentIntervalStep.target.paceTarget && targetLabel(currentIntervalStep) && (
+                <p className="mt-3 text-sm font-semibold text-primary">
+                  {targetLabel(currentIntervalStep)}
+                </p>
+              )}
+              <p className="mt-2 text-sm font-medium">{currentIntervalStep.instruction}</p>
               {currentIntervalStep.target.paceTarget && (
                 <div className="mt-3 grid grid-cols-2 gap-2 rounded-2xl bg-background/10 p-3 text-xs">
                   <div>
@@ -1024,24 +1158,48 @@ function RunTracker({
           ) : intervalProtocol && guideComplete ? (
             <>
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-                Część główna ukończona
+                {timedGuide ? "Koniec" : "Część główna ukończona"}
               </div>
-              <div className="mt-2 text-2xl font-semibold">Teraz spokojne schłodzenie</div>
-              <p className="mt-1 text-sm opacity-70">Po schłodzeniu zakończ zapis GPS.</p>
+              <div className="mt-2 text-2xl font-semibold">
+                {timedGuide ? "Bieg ukończony" : "Teraz spokojne schłodzenie"}
+              </div>
+              <p className="mt-1 text-sm opacity-70">
+                {timedGuide ? "Zakończ zapis GPS." : "Po schłodzeniu zakończ zapis GPS."}
+              </p>
             </>
           ) : (
             <>
               <div className="text-xs font-medium uppercase tracking-[0.18em] opacity-70">
                 Rejestracja GPS
               </div>
-              <div className="mt-2 text-4xl font-semibold tabular-nums">
+              <div className="mt-2 text-5xl font-semibold tabular-nums">
                 {formatRunDuration(elapsedSec)}
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <div className="text-xl font-semibold tabular-nums">
+                    {formatDistance(distanceM)}
+                  </div>
+                  <div className="text-[11px] opacity-60">Dystans</div>
+                </div>
+                <div>
+                  <div className="text-xl font-semibold tabular-nums">{formatPace(livePace)}</div>
+                  <div className="text-[11px] opacity-60">Tempo</div>
+                </div>
+                <div>
+                  <div className="text-xl font-semibold tabular-nums">
+                    {liveKilometer ? formatRunDuration(liveKilometer.durationSec) : "—"}
+                  </div>
+                  <div className="text-[11px] opacity-60">
+                    {liveKilometer ? `${liveKilometer.kilometer}. km` : "Kilometr"}
+                  </div>
+                </div>
               </div>
             </>
           )}
           <div className="mt-3 text-xs opacity-70">
-            {formatRunDuration(elapsedSec)} · {formatDistance(distanceM)} · {routePointCount}{" "}
-            punktów
+            {formatRunDuration(elapsedSec)} · {formatDistance(distanceM)} · {formatPace(livePace)}
+            {routePointCount < 2 ? " · szukam sygnału GPS" : ""}
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2">
             {phase === "recording" ? (
@@ -1166,7 +1324,7 @@ function RunTracker({
       {canRecord && !isTracking && !activity && !pending && (
         <p className="text-[11px] leading-relaxed text-muted-foreground">
           {nativeMode
-            ? "Pomiar GPS działa także po zablokowaniu ekranu. Telefon zapisuje szkic wyniku bez współrzędnych. Po wymuszonym zamknięciu aplikacji pomiar zostanie przerwany."
+            ? "Pomiar GPS działa także po zablokowaniu ekranu. Trasa zostaje w telefonie. Po wymuszonym zamknięciu aplikacji pomiar zostanie przerwany."
             : "W przeglądarce pomiar wymaga widocznego ekranu. Blokada telefonu lub przejście do innej aplikacji wstrzymuje GPS. Możesz też zaimportować GPX."}
         </p>
       )}

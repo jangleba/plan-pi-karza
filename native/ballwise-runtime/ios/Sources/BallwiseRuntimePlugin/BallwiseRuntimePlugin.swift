@@ -68,9 +68,10 @@ public final class BallwiseRuntimePlugin: CAPPlugin, CAPBridgedPlugin, CLLocatio
                     self.run = saved
                 }
             } catch { self.storageFailure = "Nie można odczytać szkicu biegu. Nie nadpisano go." }
+            // Prowadzenie receptury wynika z czasu biegu, więc blokada ekranu go nie zatrzymuje.
+            // Przed zejściem w tło utrwalamy tylko szkic (czas, dystans, trasę).
             self.inactiveObserver = NotificationCenter.default.addObserver(forName: UIApplication.willResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
-                guard let self, var guide = self.run?["guideState"] as? [String: Any] else { return }
-                guide["started"] = false; self.run?["guideState"] = guide
+                guard let self, self.run != nil else { return }
                 self.checkpoint(); self.publish()
             }
             self.heartbeat = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
@@ -95,11 +96,15 @@ public final class BallwiseRuntimePlugin: CAPPlugin, CAPBridgedPlugin, CLLocatio
         mach_timebase_info(&info)
         return Double(mach_continuous_time()) * Double(info.numer) / Double(max(1, info.denom)) / 1_000_000_000
     }
+    /// Najwięcej punktów trasy w szkicu (ok. 8 h przy punkcie co ~1 s).
+    private let maxRoutePoints = 30_000
     private func snapshot() -> [String: Any] {
         guard var value = run else { return ["present": false] }
         value["present"] = true
         value["durationSec"] = elapsed()
         value.removeValue(forKey: "activeSince")
+        // Trasa zostaje w telefonie; do JS trafia tylko w podsumowaniu, nie co sekundę.
+        if value["phase"] as? String != "review" { value.removeValue(forKey: "route") }
         if let storageFailure { value["storageError"] = storageFailure }
         return value
     }
@@ -233,6 +238,7 @@ public final class BallwiseRuntimePlugin: CAPPlugin, CAPBridgedPlugin, CLLocatio
         run = ["schema": 1, "ownerId": owner, "sessionId": session, "date": date,
                "startedAt": ISO8601DateFormatter().string(from: Date()), "phase": "recording",
                "durationSec": 0.0, "distanceM": 0.0, "pointCount": 0, "intervalResults": [],
+               "route": [], "segment": 0,
                "activeSince": Date().timeIntervalSince1970, "recovered": false]
         guard checkpoint() else { run = nil; call.reject(storageFailure ?? "Nie zapisano szkicu."); return }
         lastPoint = nil
@@ -266,8 +272,24 @@ public final class BallwiseRuntimePlugin: CAPPlugin, CAPBridgedPlugin, CLLocatio
             lastPoint = point
             run?["pointCount"] = (run?["pointCount"] as? Int ?? 0) + 1
             run?["accuracyM"] = point.horizontalAccuracy
+            var route = run?["route"] as? [[Double]] ?? []
+            if route.count < maxRoutePoints {
+                let lag = max(0, Date().timeIntervalSince(point.timestamp))
+                let segment = Double(run?["segment"] as? Int ?? 0)
+                route.append([
+                    (point.coordinate.latitude * 1e7).rounded() / 1e7,
+                    (point.coordinate.longitude * 1e7).rounded() / 1e7,
+                    point.timestamp.timeIntervalSince1970,
+                    (max(0, elapsed() - lag) * 10).rounded() / 10,
+                    (point.horizontalAccuracy * 10).rounded() / 10,
+                    segment,
+                ])
+                run?["route"] = route
+            }
         }
-        checkpoint(); publish()
+        // Zapis pliku co kilka sekund: trasa rośnie, a utrata najwyżej kilku sekund jest akceptowalna.
+        if Date().timeIntervalSince1970 - lastCheckpoint >= 5 { checkpoint() }
+        publish()
     }
     public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         if (error as? CLError)?.code == .denied { pauseInternal() }
@@ -290,6 +312,7 @@ public final class BallwiseRuntimePlugin: CAPPlugin, CAPBridgedPlugin, CLLocatio
             guard self.location.authorizationStatus == .authorizedAlways || self.location.authorizationStatus == .authorizedWhenInUse else { call.reject("Zezwól na lokalizację w Ustawieniach."); return }
             guard self.location.accuracyAuthorization == .fullAccuracy else { call.reject("Włącz Dokładną lokalizację dla BallWise w Ustawieniach."); return }
             self.run?["phase"] = "recording"; self.run?["activeSince"] = Date().timeIntervalSince1970
+            self.run?["segment"] = (self.run?["segment"] as? Int ?? 0) + 1
             self.monotonicStart = self.monotonicNow()
             guard self.checkpoint() else { self.pauseInternal(); call.reject(self.storageFailure ?? "Nie zapisano szkicu."); return }
             self.lastPoint = nil; self.location.startUpdatingLocation(); self.publish(); call.resolve(self.snapshot())

@@ -1,4 +1,6 @@
 import type { ExerciseItem, SessionDay, TrainingExercise } from "./types";
+import { scaleRunningRecipe } from "@/lib/running/prescription";
+import { applyRunningRecipe, sessionRunningRecipe } from "@/lib/running/recipeSession";
 
 const scaled = (value: number, factor: number) => Math.max(1, Math.round(value * factor));
 
@@ -29,6 +31,13 @@ export function reducePrescription(value: string | undefined, factor: number): s
 
 export function reduceSessionDose(session: SessionDay, factor: number): SessionDay {
   if (factor >= 1) return session;
+  // Bieg z recepturą: mniej odcinków/minut w tej samej intensywności; opis i
+  // licznik powstają z nowej receptury, więc nie mogą się rozjechać.
+  const recipe = sessionRunningRecipe(session);
+  if (recipe) {
+    const reduced = applyRunningRecipe(session, scaleRunningRecipe(recipe, factor));
+    return { ...reduced, title: session.title, loadTags: session.loadTags };
+  }
   const flat = (item: ExerciseItem): ExerciseItem => ({
     ...item,
     prescription: reducePrescription(item.prescription, factor) ?? item.prescription,

@@ -17,7 +17,12 @@
 // ============================================================================
 
 import { qualifiesForDoubleHeavy } from "./doubleHeavyPolicy";
-import { gymCooldown, mobilityCircuit, runningCooldown, runningPreparation } from "./recoveryContent";
+import {
+  gymCooldown,
+  mobilityCircuit,
+  runningCooldown,
+  runningPreparation,
+} from "./recoveryContent";
 import type { Profile, SessionDay, ExerciseItem, DayType } from "./types";
 import { isoDayOfWeek, dayName as dayNameOf, parseIso } from "./labels";
 import {
@@ -37,16 +42,11 @@ import {
   type UserSchedulingSettings,
 } from "./dailyScheduling";
 import { buildAthleteTrainingProfile, getDevelopmentStage } from "./athleteProfile";
-import {
-  type WeeklyRequirements,
-  type WeekRequirementContext,
-} from "./weeklyRequirements";
-import {
-  buildTrainingContext,
-  validateWeek,
-} from "./globalPlanRules";
+import { type WeeklyRequirements, type WeekRequirementContext } from "./weeklyRequirements";
+import { buildTrainingContext, validateWeek } from "./globalPlanRules";
 import { canonicalizeGeneratedExercise, isExerciseAllowedForProfile } from "./exerciseLibrary";
 import { buildRunningConditioning } from "./sessionContent";
+import type { RunningRecipe } from "@/lib/running/recipe";
 import { generateFootballSpeedSession } from "./footballSpeedSessionEngine";
 
 import { gymSpacingIssues, repairGymSpacing } from "./strengthScheduling";
@@ -124,9 +124,7 @@ function eachSession(day: SessionDay): SessionDay[] {
   if (day.secondSession) out.push(day.secondSession);
   return out;
 }
-function isSpeedSession(
-  session: SessionDay | null | undefined,
-): boolean {
+function isSpeedSession(session: SessionDay | null | undefined): boolean {
   return hasRealSpeedExposure(session);
 }
 function realSessionCount(day: SessionDay): number {
@@ -224,21 +222,30 @@ interface EnduranceBuild {
   intensity?: "niska" | "umiarkowana" | "wysoka";
   loadLevel?: "low" | "moderate" | "high";
   durationMin: number;
+  /** Receptura biegu: steruje opisem, licznikiem i zapisem. */
+  runningRecipe?: RunningRecipe;
+  sections?: SessionDay["sections"];
 }
 
 function normalEnduranceBuild(profile: Profile, date: string, index: number): EnduranceBuild {
   const built = buildRunningConditioning(profile, {
     date,
     seed: index,
-    scheduleFieldMasTest: index === 0,
   });
   return {
     title: built.title,
     sessionType: built.sessionType,
     goalOfSession: built.goalOfSession,
     intensity: built.intensity,
-    loadLevel: built.intensity === "wysoka" ? "high" : built.intensity === "umiarkowana" ? "moderate" : "low",
+    loadLevel:
+      built.intensity === "wysoka"
+        ? "high"
+        : built.intensity === "umiarkowana"
+          ? "moderate"
+          : "low",
     durationMin: built.durationMin ?? 30,
+    runningRecipe: built.runningRecipe,
+    sections: built.sections,
     main: built.sections.main.map((exercise) =>
       canonicalizeGeneratedExercise(
         {
@@ -258,7 +265,11 @@ function lightEnduranceBuild(profile: Profile): EnduranceBuild {
       sessionType: "Wytrzymałość — low-impact",
       goalOfSession: "Wydolność bez obciążeń udarowych — ochrona kończyn dolnych.",
       main: [
-        { name: "Rower / basen — łatwy tlenowy", prescription: "20–30 min, niska intensywność", cue: "Bez bólu, spokojny oddech." },
+        {
+          name: "Rower / basen — łatwy tlenowy",
+          prescription: "20–30 min, niska intensywność",
+          cue: "Bez bólu, spokojny oddech.",
+        },
       ],
       durationMin: 25,
     };
@@ -269,7 +280,11 @@ function lightEnduranceBuild(profile: Profile): EnduranceBuild {
       sessionType: "Wytrzymałość — short aerobic block",
       goalOfSession: "Łagodna baza tlenowa dopasowana do młodego/początkującego zawodnika.",
       main: [
-        { name: "Łatwy bieg / marszobieg", prescription: "15–20 min, easy aerobic", cue: "Tempo konwersacyjne, zero zrywów." },
+        {
+          name: "Łatwy bieg / marszobieg",
+          prescription: "15–20 min, easy aerobic",
+          cue: "Tempo konwersacyjne, zero zrywów.",
+        },
       ],
       durationMin: 20,
     };
@@ -279,7 +294,11 @@ function lightEnduranceBuild(profile: Profile): EnduranceBuild {
     sessionType: "Wytrzymałość — easy aerobic",
     goalOfSession: "Lekka praca tlenowa zmniejszająca sztywność, bez dokładania zmęczenia.",
     main: [
-      { name: "Łatwy bieg tlenowy / rower", prescription: "15–25 min bardzo lekko", cue: "Bardzo lekko, tylko rozruszanie." },
+      {
+        name: "Łatwy bieg tlenowy / rower",
+        prescription: "15–25 min bardzo lekko",
+        cue: "Bardzo lekko, tylko rozruszanie.",
+      },
     ],
     durationMin: 25,
   };
@@ -294,7 +313,9 @@ function buildEnduranceSessionDay(
   templateDay: SessionDay,
   opts: { light: boolean; index: number; slotLabel?: string | null; placementReason?: string },
 ): SessionDay {
-  const build = opts.light ? lightEnduranceBuild(profile) : normalEnduranceBuild(profile, templateDay.date, opts.index);
+  const build = opts.light
+    ? lightEnduranceBuild(profile)
+    : normalEnduranceBuild(profile, templateDay.date, opts.index);
   const iso = templateDay.date;
   const name = templateDay.dayName || dayNameOf(parseIso(iso));
   const placementReason = opts.placementReason ?? PLACEMENT_REASON;
@@ -319,15 +340,18 @@ function buildEnduranceSessionDay(
     avoidToday: "Bez twardych interwałów dzień przed meczem i bez łączenia z ciężkimi nogami.",
     mdLabel: templateDay.mdLabel ?? null,
     slotLabel: opts.slotLabel ?? null,
-    sections: {
-      // The run itself starts and ends easy, so preparation is mobility and
-      // drills, and the cool-down is a walk with named stretches.
-      warmup: runningPreparation(),
-      main: build.main,
-      accessory: [],
-      footballTransfer: [],
-      cooldown: runningCooldown(),
-    },
+    sections: build.sections
+      ? { ...build.sections, main: build.main }
+      : {
+          // The run itself starts and ends easy, so preparation is mobility and
+          // drills, and the cool-down is a walk with named stretches.
+          warmup: runningPreparation(),
+          main: build.main,
+          accessory: [],
+          footballTransfer: [],
+          cooldown: runningCooldown(),
+        },
+    ...(build.runningRecipe ? { runningRecipe: build.runningRecipe } : {}),
     secondSession: null,
   };
 
@@ -550,7 +574,10 @@ export function addMissingCanonicalSpeedSessions(
   return { weekPlan, added, converted, count, requiredSpeedSessions: required, unresolvedIssues };
 }
 
-export function validateNoEnduranceOnClubDays(weekPlan: SessionDay[], profile?: Profile): { removed: number } {
+export function validateNoEnduranceOnClubDays(
+  weekPlan: SessionDay[],
+  profile?: Profile,
+): { removed: number } {
   let removed = 0;
   for (const day of weekPlan) {
     if (!isClubSession(day)) continue;
@@ -726,21 +753,13 @@ export function repairSpeedAcrossWeekBoundaries(
   let removed = 0;
   const unresolvedIssues: string[] = [];
 
-  for (
-    let mondayIndex = 1;
-    mondayIndex < plan.length;
-    mondayIndex += 1
-  ) {
+  for (let mondayIndex = 1; mondayIndex < plan.length; mondayIndex += 1) {
     const previousDay = plan[mondayIndex - 1];
     const monday = plan[mondayIndex];
 
-    const previousDayOfWeek =
-      previousDay.dayOfWeek ??
-      isoDayOfWeek(parseIso(previousDay.date));
+    const previousDayOfWeek = previousDay.dayOfWeek ?? isoDayOfWeek(parseIso(previousDay.date));
 
-    const mondayDayOfWeek =
-      monday.dayOfWeek ??
-      isoDayOfWeek(parseIso(monday.date));
+    const mondayDayOfWeek = monday.dayOfWeek ?? isoDayOfWeek(parseIso(monday.date));
 
     if (
       previousDayOfWeek !== 7 ||
@@ -755,36 +774,23 @@ export function repairSpeedAcrossWeekBoundaries(
 
     while (weekEnd < plan.length) {
       const day = plan[weekEnd];
-      const dayOfWeek =
-        day.dayOfWeek ??
-        isoDayOfWeek(parseIso(day.date));
+      const dayOfWeek = day.dayOfWeek ?? isoDayOfWeek(parseIso(day.date));
 
       if (dayOfWeek === 1) break;
       weekEnd += 1;
     }
 
-    const boundaryWindow = [
-      previousDay,
-      ...plan.slice(mondayIndex, weekEnd),
-    ];
+    const boundaryWindow = [previousDay, ...plan.slice(mondayIndex, weekEnd)];
 
-    const result =
-      repairBackToBackSpeedSessions(boundaryWindow, profile);
+    const result = repairBackToBackSpeedSessions(boundaryWindow, profile);
 
-    for (
-      let offset = 0;
-      offset < boundaryWindow.length;
-      offset += 1
-    ) {
-      plan[mondayIndex - 1 + offset] =
-        boundaryWindow[offset];
+    for (let offset = 0; offset < boundaryWindow.length; offset += 1) {
+      plan[mondayIndex - 1 + offset] = boundaryWindow[offset];
     }
 
     moved += result.moved;
     removed += result.removed;
-    unresolvedIssues.push(
-      ...result.unresolvedIssues,
-    );
+    unresolvedIssues.push(...result.unresolvedIssues);
   }
 
   return {
@@ -815,10 +821,7 @@ export function repairBackToBackSpeedSessions(
   let moved = 0;
   let removed = 0;
 
-  const clearSpeedSession = (
-    day: SessionDay,
-    reason: string,
-  ): SessionDay =>
+  const clearSpeedSession = (day: SessionDay, reason: string): SessionDay =>
     // Druga sesja nie może wisieć na dniu odpoczynku: awansuje na sesję dnia.
     day.secondSession
       ? {
@@ -830,31 +833,31 @@ export function repairBackToBackSpeedSessions(
           slotLabel: null,
           secondSession: null,
         }
-      : ({
-    ...day,
-    dayType: "rest" as DayType,
-    type: "rest",
-    title: "Odpoczynek",
-    goalLabel: "Regeneracja",
-    intensity: "niska",
-    durationMin: 0,
-    sessionType: "Odpoczynek",
-    goalOfSession: "Regeneracja między bodźcami szybkościowymi.",
-    slotLabel: null,
-    secondSession: null,
-    exercises: [],
-    sections: { warmup: [], main: [], accessory: [], footballTransfer: [], cooldown: [] },
-    // Dzień odpoczynku nie może ukrywać pełnej rozpiski sprintu w blokach.
-    structuredSections: undefined,
-    trainingMethods: undefined,
-    classification: undefined,
-    speedGeneratorVersion: undefined,
-    speedFamily: undefined,
-    speedProgressionWeek: undefined,
-    speedRecentPostSkipExerciseIds: undefined,
-    reason,
-    whyToday: reason,
-  });
+      : {
+          ...day,
+          dayType: "rest" as DayType,
+          type: "rest",
+          title: "Odpoczynek",
+          goalLabel: "Regeneracja",
+          intensity: "niska",
+          durationMin: 0,
+          sessionType: "Odpoczynek",
+          goalOfSession: "Regeneracja między bodźcami szybkościowymi.",
+          slotLabel: null,
+          secondSession: null,
+          exercises: [],
+          sections: { warmup: [], main: [], accessory: [], footballTransfer: [], cooldown: [] },
+          // Dzień odpoczynku nie może ukrywać pełnej rozpiski sprintu w blokach.
+          structuredSections: undefined,
+          trainingMethods: undefined,
+          classification: undefined,
+          speedGeneratorVersion: undefined,
+          speedFamily: undefined,
+          speedProgressionWeek: undefined,
+          speedRecentPostSkipExerciseIds: undefined,
+          reason,
+          whyToday: reason,
+        };
 
   let guard = 0;
   while (guard < 14) {
@@ -870,9 +873,7 @@ export function repairBackToBackSpeedSessions(
     // zaplanowane RSA mogło zniknąć tylko dlatego, że dzień wcześniej stał
     // opcjonalny primer lub krótki COD.
     const repairIndex =
-      laterLoad.exposure === "full" && earlierLoad.exposure !== "full"
-        ? earlierIndex
-        : laterIndex;
+      laterLoad.exposure === "full" && earlierLoad.exposure !== "full" ? earlierIndex : laterIndex;
     const laterDay = weekPlan[repairIndex];
 
     // Preferuj wyjęcie szybkości będącej drugą sesją; inaczej cały główny dzień.
@@ -948,7 +949,11 @@ export function repairBackToBackSpeedSessions(
       moved += 1;
     } else {
       // Brak miejsca — zamień późniejszy dzień na rest (usuń szybkość).
-      if (isSpeedSession(laterDay) && laterDay === weekPlan[repairIndex] && !laterDay.secondSession) {
+      if (
+        isSpeedSession(laterDay) &&
+        laterDay === weekPlan[repairIndex] &&
+        !laterDay.secondSession
+      ) {
         weekPlan[repairIndex] = clearSpeedSession(
           { ...laterDay, secondSession: null },
           "Usunięto szybkość dzień po dniu — brak dnia z min. 1 dniem przerwy.",
@@ -963,7 +968,6 @@ export function repairBackToBackSpeedSessions(
 
   return { weekPlan, moved, removed, unresolvedIssues };
 }
-
 
 /**
  * Gwarantuje wymaganą liczbę endurance_conditioning w tygodniu.
@@ -1037,11 +1041,7 @@ export function addMissingEnduranceSessions(
 
     // Krok 1: zamiana nadmiarowej regeneracji/prehab (≥2 recovery/prehab, 0 endurance).
     const recoveryDays = weekPlan.filter(
-      (d) =>
-        !d.isUnavailable &&
-        isRecoverySession(d) &&
-        !isClubSession(d) &&
-        !isMatchSession(d),
+      (d) => !d.isUnavailable && isRecoverySession(d) && !isClubSession(d) && !isMatchSession(d),
     );
     const enduranceNow = countEnduranceSessions(weekPlan);
     if (enduranceNow === 0 && recoveryDays.length >= 2) {
@@ -1067,7 +1067,9 @@ export function addMissingEnduranceSessions(
     const restDay = weekPlan.find(
       (d) =>
         !d.isUnavailable &&
-        (d.dayType === "rest" || d.classification?.category === "rest" || /^odpoczynek$/i.test(d.title)) &&
+        (d.dayType === "rest" ||
+          d.classification?.category === "rest" ||
+          /^odpoczynek$/i.test(d.title)) &&
         !isClubSession(d) &&
         !isMatchSession(d) &&
         // MD-1 jest aktywacją przed meczem, nigdy miejscem na wydolność.
@@ -1078,8 +1080,7 @@ export function addMissingEnduranceSessions(
       const rebuilt = buildEnduranceSessionDay(profile, restDay, {
         light,
         index: idx,
-        placementReason:
-          "Wybrano wolny dzień bez klubu i meczu — najlepsze miejsce na wydolność.",
+        placementReason: "Wybrano wolny dzień bez klubu i meczu — najlepsze miejsce na wydolność.",
       });
       weekPlan[weekPlan.indexOf(restDay)] = rebuilt;
       added += 1;
@@ -1109,10 +1110,9 @@ export function addMissingEnduranceSessions(
           light,
           index: idx,
           slotLabel: light ? "Sesja 2 (lekka)" : "Sesja 2",
-          placementReason:
-            light
-              ? "Dodano wydolność jako drugą lekką sesję dnia — zgodnie z profilem zawodnika."
-              : "Dodano pełną wydolność jako drugą, komplementarną sesję dnia.",
+          placementReason: light
+            ? "Dodano wydolność jako drugą lekką sesję dnia — zgodnie z profilem zawodnika."
+            : "Dodano pełną wydolność jako drugą, komplementarną sesję dnia.",
         });
         host.secondSession = second;
         host.slotLabel = host.slotLabel ?? "Sesja 1";
@@ -1331,28 +1331,29 @@ export function addMissingBallSessions(
   while (countBallSessions(weekPlan) < required && guard < 4) {
     guard += 1;
 
-    const restTarget = weekPlan.find(
-      (day) =>
-        !day.isUnavailable &&
-        day.dayType === "rest" &&
-        !isMatchSession(day) &&
-        !isClubSession(day) &&
-        !isDayBeforeMatch(day) &&
-        !isDayAfterMatch(day),
-    ) ?? weekPlan.find(
-      (day) =>
-        !day.isUnavailable &&
-        day.dayType === "rest" &&
-        !isMatchSession(day) &&
-        !isClubSession(day) &&
-        // Dzień przed meczem pozostaje aktywacją, nie dniem na pracę z piłką.
-        !isDayBeforeMatch(day),
-    );
+    const restTarget =
+      weekPlan.find(
+        (day) =>
+          !day.isUnavailable &&
+          day.dayType === "rest" &&
+          !isMatchSession(day) &&
+          !isClubSession(day) &&
+          !isDayBeforeMatch(day) &&
+          !isDayAfterMatch(day),
+      ) ??
+      weekPlan.find(
+        (day) =>
+          !day.isUnavailable &&
+          day.dayType === "rest" &&
+          !isMatchSession(day) &&
+          !isClubSession(day) &&
+          // Dzień przed meczem pozostaje aktywacją, nie dniem na pracę z piłką.
+          !isDayBeforeMatch(day),
+      );
 
     if (restTarget) {
       const rebuilt = buildBallSessionDay(restTarget, {
-        placementReason:
-          "Wybrano wolny dzień na minimum 30 minut własnej pracy z piłką.",
+        placementReason: "Wybrano wolny dzień na minimum 30 minut własnej pracy z piłką.",
       });
       weekPlan[weekPlan.indexOf(restTarget)] = rebuilt;
       added += 1;
@@ -1371,8 +1372,7 @@ export function addMissingBallSessions(
     );
     if (recoveryTarget) {
       weekPlan[weekPlan.indexOf(recoveryTarget)] = buildBallSessionDay(recoveryTarget, {
-        placementReason:
-          "Zamieniono lekki dzień na niskointensywną własną technikę z piłką.",
+        placementReason: "Zamieniono lekki dzień na niskointensywną własną technikę z piłką.",
       });
       converted += 1;
       continue;
@@ -1445,19 +1445,49 @@ function upperBodyAndTrunkMain(profile: Profile): ExerciseItem[] {
   const athlete = buildAthleteTrainingProfile(profile);
   const options: Array<Array<ExerciseItem>> = [
     [
-      { exerciseId: "bodyweight_row", name: "Wiosłowanie z masą ciała", prescription: "2 × 8", rest: "60 s", cue: "Zostaw duży zapas." },
-      { exerciseId: "face_pull_band", name: "Face pull z gumą", prescription: "2 × 12", rest: "45 s", cue: "Łopatki w dół, bez bujania." },
+      {
+        exerciseId: "bodyweight_row",
+        name: "Wiosłowanie z masą ciała",
+        prescription: "2 × 8",
+        rest: "60 s",
+        cue: "Zostaw duży zapas.",
+      },
+      {
+        exerciseId: "face_pull_band",
+        name: "Face pull z gumą",
+        prescription: "2 × 12",
+        rest: "45 s",
+        cue: "Łopatki w dół, bez bujania.",
+      },
     ],
     [
-      { exerciseId: "push_up", name: "Pompka", prescription: "2 × 8", rest: "60 s", cue: "Spokojnie, bez serii do upadku." },
-      { exerciseId: "incline_push_up", name: "Pompka z dłońmi na podwyższeniu", prescription: "2 × 8", rest: "60 s", cue: "Ciało w jednej linii." },
+      {
+        exerciseId: "push_up",
+        name: "Pompka",
+        prescription: "2 × 8",
+        rest: "60 s",
+        cue: "Spokojnie, bez serii do upadku.",
+      },
+      {
+        exerciseId: "incline_push_up",
+        name: "Pompka z dłońmi na podwyższeniu",
+        prescription: "2 × 8",
+        rest: "60 s",
+        cue: "Ciało w jednej linii.",
+      },
     ],
   ];
   const picked = options
     .map((group) => group.find((item) => isExerciseAllowedForProfile(item.exerciseId, athlete).ok))
     .filter((item): item is ExerciseItem => Boolean(item));
   if (picked.length < 2)
-    picked.push({ exerciseId: "dead_bug", name: "Martwy robak", prescription: "2 × 8 na stronę", rest: "45 s", cue: "Lędźwie przy podłożu." });
+    picked.push({
+      exerciseId: "dead_bug",
+      name: "Martwy robak",
+      prescription: "2 × 8 na stronę",
+      rest: "45 s",
+      cue: "Lędźwie przy podłożu.",
+    });
   return picked.map((item) =>
     canonicalizeGeneratedExercise(item, item.exerciseId === "dead_bug" ? "trunk" : "strength"),
   );
@@ -1488,10 +1518,10 @@ function buildGymSessionDay(
   const title = opts.upperBodyOnly
     ? "Lekki tułów i góra ciała"
     : youth
-    ? "Siła bazowa (masa ciała)"
-    : opts.light
-      ? "Primer siłowy (utrzymanie)"
-      : "Siła ogólna";
+      ? "Siła bazowa (masa ciała)"
+      : opts.light
+        ? "Primer siłowy (utrzymanie)"
+        : "Siła ogólna";
   // Typ sesji steruje klasyfikacją: „Siła / moc” oznaczałoby ciężkie nogi.
   const sessionType = opts.upperBodyOnly
     ? "Siła — góra ciała i tułów"
@@ -1501,15 +1531,15 @@ function buildGymSessionDay(
   const goalOfSession = opts.upperBodyOnly
     ? "Krótka praca góry ciała i tułowia bez dokładania obciążenia biegowego nogom."
     : youth
-    ? "Nauka wzorców ruchowych i siła bazowa z masą ciała."
-    : opts.light
-      ? "Utrzymanie siły i aktywacja nerwowo-mięśniowa bez dużego zmęczenia."
-      : "Rozwój siły dolnych partii i stabilizacji.";
+      ? "Nauka wzorców ruchowych i siła bazowa z masą ciała."
+      : opts.light
+        ? "Utrzymanie siły i aktywacja nerwowo-mięśniowa bez dużego zmęczenia."
+        : "Rozwój siły dolnych partii i stabilizacji.";
   const intensity =
     opts.light || youth || opts.upperBodyOnly ? ("umiarkowana" as const) : ("wysoka" as const);
   const durationMin = opts.light ? 30 : youth ? 40 : 50;
-  const placementReason = opts.placementReason ??
-    "Dodano brakującą sesję siłowni, aby spełnić minimum tego tygodnia.";
+  const placementReason =
+    opts.placementReason ?? "Dodano brakującą sesję siłowni, aby spełnić minimum tego tygodnia.";
 
   const raw: SessionDay = {
     date: templateDay.date,
@@ -1520,9 +1550,7 @@ function buildGymSessionDay(
     intensity,
     durationMin,
     reason: placementReason,
-    safetyNote: opts.light
-      ? "Lekki wariant siłowy — primer / utrzymanie."
-      : null,
+    safetyNote: opts.light ? "Lekki wariant siłowy — primer / utrzymanie." : null,
     whyToday: placementReason,
     sessionType,
     goalOfSession,
@@ -1533,7 +1561,11 @@ function buildGymSessionDay(
     sections: {
       warmup: [
         canonicalizeGeneratedExercise(
-          { exerciseId: "easy_cycle_recovery", name: "Lekki rower regeneracyjny", prescription: "3 min, swobodnie" },
+          {
+            exerciseId: "easy_cycle_recovery",
+            name: "Lekki rower regeneracyjny",
+            prescription: "3 min, swobodnie",
+          },
           "recovery",
         ),
         ...mobilityCircuit(1).slice(2),
@@ -1541,29 +1573,56 @@ function buildGymSessionDay(
       main: opts.upperBodyOnly
         ? upperBodyAndTrunkMain(profile)
         : youth
-        ? [
-            canonicalizeGeneratedExercise(
-              { exerciseId: "bodyweight_squat", name: "Przysiad z masą ciała", prescription: "3 × 10", cue: "Kolana w linii stóp." },
-              "strength",
-            ),
-            canonicalizeGeneratedExercise(
-              { exerciseId: "plank", name: "Plank", prescription: "3 × 30 s", cue: "Napięty brzuch, biodra w linii." },
-              "trunk",
-            ),
-          ]
-        : [
-            canonicalizeGeneratedExercise(
-              { exerciseId: "goblet_squat", name: "Przysiad goblet", prescription: "3 × 8", rest: "90 s", cue: "Pełen zakres." },
-              "strength",
-            ),
-            canonicalizeGeneratedExercise(
-              { exerciseId: "romanian_deadlift_db", name: "RDL / Hip hinge", prescription: "3 × 8", rest: "75 s", cue: "Biodra w tył, proste plecy." },
-              "strength",
-            ),
-          ],
+          ? [
+              canonicalizeGeneratedExercise(
+                {
+                  exerciseId: "bodyweight_squat",
+                  name: "Przysiad z masą ciała",
+                  prescription: "3 × 10",
+                  cue: "Kolana w linii stóp.",
+                },
+                "strength",
+              ),
+              canonicalizeGeneratedExercise(
+                {
+                  exerciseId: "plank",
+                  name: "Plank",
+                  prescription: "3 × 30 s",
+                  cue: "Napięty brzuch, biodra w linii.",
+                },
+                "trunk",
+              ),
+            ]
+          : [
+              canonicalizeGeneratedExercise(
+                {
+                  exerciseId: "goblet_squat",
+                  name: "Przysiad goblet",
+                  prescription: "3 × 8",
+                  rest: "90 s",
+                  cue: "Pełen zakres.",
+                },
+                "strength",
+              ),
+              canonicalizeGeneratedExercise(
+                {
+                  exerciseId: "romanian_deadlift_db",
+                  name: "RDL / Hip hinge",
+                  prescription: "3 × 8",
+                  rest: "75 s",
+                  cue: "Biodra w tył, proste plecy.",
+                },
+                "strength",
+              ),
+            ],
       accessory: [
         canonicalizeGeneratedExercise(
-          { exerciseId: "side_plank", name: "Stabilizacja core", prescription: "2 × 30 s plank boczny", cue: "Linia ciała prosta." },
+          {
+            exerciseId: "side_plank",
+            name: "Stabilizacja core",
+            prescription: "2 × 30 s plank boczny",
+            cue: "Linia ciała prosta.",
+          },
           "trunk",
         ),
       ],
@@ -1642,20 +1701,17 @@ export function addMissingGymSessions(
     const preferredRestIdx = weekPlan.findIndex(
       (d, i) => restCandidate(d, i) && !isDayAfterMatch(d),
     );
-    const restIdx =
-      preferredRestIdx >= 0 ? preferredRestIdx : weekPlan.findIndex(restCandidate);
+    const restIdx = preferredRestIdx >= 0 ? preferredRestIdx : weekPlan.findIndex(restCandidate);
     if (restIdx >= 0) {
       // MD+1 (tylko gdy nie ma innego miejsca): zaawansowani robią normalną
       // siłownię, pozostali (np. 16-latek) tylko górę ciała i tułów.
       const afterMatch = isDayAfterMatch(weekPlan[restIdx]);
       const advanced = profile.level === "advanced" || profile.level === "elite";
-      const light =
-        isDayBeforeMatch(weekPlan[restIdx]) || isYouthOrBeginner(profile);
+      const light = isDayBeforeMatch(weekPlan[restIdx]) || isYouthOrBeginner(profile);
       const rebuilt = buildGymSessionDay(profile, weekPlan[restIdx], {
         light,
         upperBodyOnly: afterMatch && !advanced,
-        placementReason:
-          `Wybrano wolny dzień na brakującą siłownię — wymagane minimum: ${required}.`,
+        placementReason: `Wybrano wolny dzień na brakującą siłownię — wymagane minimum: ${required}.`,
       });
       rebuilt.secondSession = weekPlan[restIdx].secondSession ?? null;
       weekPlan[restIdx] = rebuilt;
@@ -1664,7 +1720,7 @@ export function addMissingGymSessions(
     }
 
     // Krok 2: zamiana nadmiarowego recovery/prehab na gym (jeśli jest ≥2 recovery i brak gym).
-    if (countGymSessions(weekPlan, profile) <required) {
+    if (countGymSessions(weekPlan, profile) < required) {
       const recoveryDays = weekPlan
         .map((d, i) => ({ d, i }))
         .filter(
@@ -1707,16 +1763,14 @@ export function addMissingGymSessions(
       if (hostIdx >= 0) {
         const host = weekPlan[hostIdx];
         const fieldMasHost = eachSession(host).some((session) => isFieldMasTestSession(session));
-        const light =
-          fieldMasHost || isClubSession(host) || requiresLightSecondSession(profile);
+        const light = fieldMasHost || isClubSession(host) || requiresLightSecondSession(profile);
         const second = buildGymSessionDay(profile, host, {
           light,
           upperBodyOnly: fieldMasHost,
           slotLabel: light ? "Sesja 2 (siłownia lekka)" : "Sesja 2 (siłownia)",
-          placementReason:
-            fieldMasHost
-              ? "Dzień testu 5-minutowego: wyłącznie lekka góra ciała i tułów, bez obciążania nóg."
-              : light
+          placementReason: fieldMasHost
+            ? "Dzień testu 5-minutowego: wyłącznie lekka góra ciała i tułów, bez obciążania nóg."
+            : light
               ? "Dodano siłownię jako drugą lekką sesję dnia — zgodnie z profilem zawodnika."
               : "Dodano pełną siłownię jako drugą, komplementarną sesję dnia.",
         });
@@ -1726,47 +1780,32 @@ export function addMissingGymSessions(
         continue;
       }
     }
-// Krok 4: pełny grafik bez wolnego slotu.
+    // Krok 4: pełny grafik bez wolnego slotu.
     // Zastąp nadmiarową sesję, ale zachowaj minimum
     // wydolności, szybkości i ekspozycji z piłką.
-    const enduranceCount =
-      countEnduranceSessions(weekPlan);
-    const speedCount =
-      countSpeedSessions(weekPlan);
+    const enduranceCount = countEnduranceSessions(weekPlan);
+    const speedCount = countSpeedSessions(weekPlan);
 
     const ballCount = weekPlan.reduce(
       (total, day) =>
         total +
         eachSession(day).filter(
-          (session) =>
-            session.classification?.subcategory ===
-            "ball_technical",
+          (session) => session.classification?.subcategory === "ball_technical",
         ).length,
       0,
     );
 
-    const replacementPriority = (
-      session: SessionDay,
-    ): number => {
-      const category =
-        session.classification?.category;
-      const subcategory =
-        session.classification?.subcategory;
+    const replacementPriority = (session: SessionDay): number => {
+      const category = session.classification?.category;
+      const subcategory = session.classification?.subcategory;
 
-      if (
-        category === "recovery_prehab" ||
-        category === "mobility"
-      ) {
+      if (category === "recovery_prehab" || category === "mobility") {
         return 0;
       }
 
       if (
         category === "speed_sprint" &&
-        [
-          "change_of_direction",
-          "deceleration",
-          "agility_speed",
-        ].includes(subcategory ?? "")
+        ["change_of_direction", "deceleration", "agility_speed"].includes(subcategory ?? "")
       ) {
         return 1;
       }
@@ -1788,77 +1827,45 @@ export function addMissingGymSessions(
         .filter(({ day, index }) => {
           if (day.isUnavailable) return false;
           if (day.dayType !== "training") return false;
-          if (
-            isClubSession(day) ||
-            isMatchSession(day)
-          ) {
+          if (isClubSession(day) || isMatchSession(day)) {
             return false;
           }
-          if (
-            isDayBeforeMatch(day) ||
-            isDayAfterMatch(day)
-          ) {
+          if (isDayBeforeMatch(day) || isDayAfterMatch(day)) {
             return false;
           }
-          if (
-            adjacentHasGym(index) ||
-            isMainGymSession(day) ||
-            day.secondSession
-          ) {
+          if (adjacentHasGym(index) || isMainGymSession(day) || day.secondSession) {
             return false;
           }
           // The athlete's goal or limiter is not traded for a support minimum.
           if (isProtectedFocusSession(weekPlan, day, profile)) return false;
 
-          const category =
-            day.classification?.category;
-          const subcategory =
-            day.classification?.subcategory;
+          const category = day.classification?.category;
+          const subcategory = day.classification?.subcategory;
 
           if (category === "endurance_conditioning") {
             return (
-              enduranceCount >
-              Math.max(
-                1,
-                weeklyRequirements
-                  .absoluteMinimumEnduranceSessions,
-              )
+              enduranceCount > Math.max(1, weeklyRequirements.absoluteMinimumEnduranceSessions)
             );
           }
 
           if (category === "speed_sprint") {
-            return (
-              speedCount >
-              weeklyRequirements.requiredSpeedSessions
-            );
+            return speedCount > weeklyRequirements.requiredSpeedSessions;
           }
 
           if (subcategory === "ball_technical") {
             return ballCount > weeklyRequirements.requiredBallSessions;
           }
 
-          return (
-            category === "recovery_prehab" ||
-            category === "mobility" ||
-            category === "other"
-          );
+          return category === "recovery_prehab" || category === "mobility" || category === "other";
         })
-        .sort(
-          (a, b) =>
-            replacementPriority(a.day) -
-            replacementPriority(b.day),
-        )[0]?.index ?? -1;
+        .sort((a, b) => replacementPriority(a.day) - replacementPriority(b.day))[0]?.index ?? -1;
 
     if (replaceableIdx >= 0) {
-      const rebuilt = buildGymSessionDay(
-        profile,
-        weekPlan[replaceableIdx],
-        {
-          light: isYouthOrBeginner(profile),
-          placementReason:
-            "Zastąpiono nadmiarową sesję brakującą siłownią bez naruszania minimum szybkości, wydolności i piłki.",
-        },
-      );
+      const rebuilt = buildGymSessionDay(profile, weekPlan[replaceableIdx], {
+        light: isYouthOrBeginner(profile),
+        placementReason:
+          "Zastąpiono nadmiarową sesję brakującą siłownią bez naruszania minimum szybkości, wydolności i piłki.",
+      });
 
       weekPlan[replaceableIdx] = rebuilt;
       converted += 1;
@@ -1911,21 +1918,22 @@ export function assertFinalPlanMeetsMinimums(
   const requiredSpeedSessions = weeklyRequirements.requiredSpeedSessions;
   const requiredBallSessions = weeklyRequirements.requiredBallSessions;
 
-  const noEnduranceOnClubDays = profileAllowsHeavyClubEndurance(profile) || !weekPlan.some(
-    (d) =>
-      isClubSession(d) &&
-      eachSession(d).some(
-        (s) =>
-          isEnduranceSession(s) &&
-          s.intensity === "wysoka" &&
-          eachSession(d).some(
-            (club) => isClubSession(club) && club.intensity === "wysoka",
-          ),
-      ),
-  );
+  const noEnduranceOnClubDays =
+    profileAllowsHeavyClubEndurance(profile) ||
+    !weekPlan.some(
+      (d) =>
+        isClubSession(d) &&
+        eachSession(d).some(
+          (s) =>
+            isEnduranceSession(s) &&
+            s.intensity === "wysoka" &&
+            eachSession(d).some((club) => isClubSession(club) && club.intensity === "wysoka"),
+        ),
+    );
   const noMoreThanMaxSessionsPerDay = !weekPlan.some((d) => realSessionCount(d) > 2);
   const secondSessionViolations = profile
-    ? weekPlan.filter(day => secondSessionPolicyViolation(day, profile)) : [];
+    ? weekPlan.filter((day) => secondSessionPolicyViolation(day, profile))
+    : [];
   const gymIssues = gymSpacingIssues(weekPlan);
   const noDuplicateGymSameDay = !gymIssues.some((issue) => issue.code === "duplicate-gym-same-day");
   const noBackToBackGymDays = !gymIssues.some((issue) => issue.code === "adjacent-gym-days");
@@ -1955,10 +1963,12 @@ export function assertFinalPlanMeetsMinimums(
   if (!noDuplicateGymSameDay) unresolvedIssues.push("Dwie siłownie tego samego dnia.");
   if (!noBackToBackGymDays) unresolvedIssues.push("Siłownia dzień po dniu (brak dnia przerwy).");
   if (!noDuplicateSpeedSameDay) unresolvedIssues.push("Dwie szybkości tego samego dnia.");
-  if (!noBackToBackSpeedDays) unresolvedIssues.push("Szybkość dzień po dniu (brak min. 1 dnia przerwy).");
+  if (!noBackToBackSpeedDays)
+    unresolvedIssues.push("Szybkość dzień po dniu (brak min. 1 dnia przerwy).");
 
   // Twardy gate: 0 endurance = plan NIGDY nie może być valid.
-  const enduranceOk = acknowledgesReduced || enduranceSessionsCount >= absoluteMinimumEnduranceSessions;
+  const enduranceOk =
+    acknowledgesReduced || enduranceSessionsCount >= absoluteMinimumEnduranceSessions;
   const ok = unresolvedIssues.length === 0 && enduranceOk;
 
   return {
@@ -1981,8 +1991,10 @@ export function assertFinalPlanMeetsMinimums(
     noBackToBackSpeedDays,
     speedSessionsHaveMinimumOneDayGap,
     unresolvedIssues,
-    planningStatus: unmetTargets.length && acknowledgesReduced ? "reduced" :
-      weekPlan[0]?.weekMeta?.planningStatus ?? "complete",
+    planningStatus:
+      unmetTargets.length && acknowledgesReduced
+        ? "reduced"
+        : (weekPlan[0]?.weekMeta?.planningStatus ?? "complete"),
     unmetTargets,
   };
 }
@@ -2036,13 +2048,7 @@ export function validateAndRepairWeekPlan(
   repairBackToBackSpeedSessions(weekPlan, profile);
   // Endurance dodajemy jako ostatnie: późniejsza naprawa innej kategorii nie może
   // po cichu skasować właśnie spełnionego minimum.
-  addMissingEnduranceSessions(
-    weekPlan,
-    ctx,
-    { maxSessionsPerDay: 2 },
-    requirements,
-    profile,
-  );
+  addMissingEnduranceSessions(weekPlan, ctx, { maxSessionsPerDay: 2 }, requirements, profile);
   validateNoEnduranceOnClubDays(weekPlan, profile);
   // Własna piłka jest dodawana na końcu, żeby wcześniejsze naprawy siły i
   // wydolności nie mogły jej skasować. Klub i mecz nie spełniają tego minimum.
@@ -2052,14 +2058,12 @@ export function validateAndRepairWeekPlan(
   repairGymSpacing(weekPlan, profile);
   const report = assertFinalPlanMeetsMinimums(weekPlan, requirements, profile);
 
-  const inheritedWeekMeta =
-    weekPlan.find((day) => day.weekMeta)?.weekMeta;
+  const inheritedWeekMeta = weekPlan.find((day) => day.weekMeta)?.weekMeta;
 
   if (inheritedWeekMeta) {
     const repairedWeekMeta: NonNullable<SessionDay["weekMeta"]> = {
       ...inheritedWeekMeta,
-      validationStatus:
-        report.finalStatus === "valid" ? "rebuilt" : "invalid",
+      validationStatus: report.finalStatus === "valid" ? "rebuilt" : "invalid",
     };
 
     for (const day of weekPlan) {
@@ -2109,10 +2113,7 @@ export interface FinalizePlanResult {
  * Finalizuje cały plan: dla każdego PEŁNEGO tygodnia gwarantuje minima
  * (w szczególności ≥1 endurance_conditioning). Zwraca naprawiony plan i raporty.
  */
-export function finalizeWeekPlan(
-  plan: SessionDay[],
-  profile: Profile,
-): FinalizePlanResult {
+export function finalizeWeekPlan(plan: SessionDay[], profile: Profile): FinalizePlanResult {
   const firstPassWeeks = chunkIntoWeeks(plan);
 
   // Najpierw napraw każdy pełny tydzień osobno.
@@ -2138,10 +2139,7 @@ export function finalizeWeekPlan(
   for (const week of finalWeeks) {
     if (!isFullCalendarWeek(week)) continue;
 
-    const { report } = validateAndRepairWeekPlan(
-      week,
-      profile,
-    );
+    const { report } = validateAndRepairWeekPlan(week, profile);
 
     reports.push(report);
   }

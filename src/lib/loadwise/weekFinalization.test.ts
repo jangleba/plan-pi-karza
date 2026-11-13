@@ -191,14 +191,14 @@ describe("weekFinalization — twarda zasada endurance", () => {
     expect(end).toBeTruthy();
     expect(end!.intensity).not.toBe("niska");
   });
-  it("nie podwyższa wymagań testu maksymalnego przy niepotwierdzonej kompetencji", () => {
+  it("nie wstawia testu maksymalnego — test jest dobrowolny i nie blokuje treningu", () => {
     const week = [gymDay(DATES[0]), restDay(DATES[1]), recoveryDay(DATES[2]),
       gymDay(DATES[3]), speedDay(DATES[4]), restDay(DATES[5]), restDay(DATES[6])];
     validateAndRepairWeekPlan(week, profile());
     const endurance = week.flatMap(day => [day, day.secondSession].filter(Boolean) as SessionDay[])
       .filter(isEnduranceSession);
     expect(endurance.length).toBeGreaterThan(0);
-    expect(endurance.every(session => session.intensity === "niska")).toBe(true);
+    expect(endurance.every(session => session.runningRecipe?.paceSource === "effort")).toBe(true);
     expect(endurance.flatMap(session => session.sections.main).some(exercise => exercise.exerciseId === "field_mas_5_min_test")).toBe(false);
   });
 

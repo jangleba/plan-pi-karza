@@ -10,12 +10,11 @@ import type { ExerciseItem, Profile, SessionDay } from "./types";
 import { recoverySessionContent, runningCooldown } from "./recoveryContent";
 import { buildIndividualFootballSession } from "./individualFootballSessionEngine";
 import { buildAthleteTrainingProfile } from "./athleteProfile";
-import { getExerciseDefinition, isExerciseAllowedForProfile } from "./exerciseLibrary";
-import { buildRunningSessionPrescription } from "@/lib/running/engine";
-import {
-  buildWarmupProtocol,
-  protocolExerciseItems,
-} from "./preparation/protocols";
+import { isExerciseAllowedForProfile } from "./exerciseLibrary";
+import { EMPTY_DAY_LOAD, selectRunningRecipe } from "@/lib/running/prescription";
+import type { RunningRecipe } from "@/lib/running/recipe";
+import { applyRunningRecipe } from "@/lib/running/recipeSession";
+import { offseasonStageForWeek } from "./offseasonPeriod";
 
 // ---------- Taksonomia kategorii ----------
 
@@ -472,43 +471,43 @@ function fieldPlyo(seed: number, young: boolean, light: boolean, profile: Profil
       (item) => !item.exerciseId || isExerciseAllowedForProfile(item.exerciseId, athlete).ok,
     );
   const landing = () => [
-      mk(
-        {
-          name: "Lądowanie snap-down",
-          exerciseId: "snap_down",
-          prescription: "3 × 4 lądowania",
-          rest: "60 s",
-          cue: "Szybko w dół do pozycji atletycznej, ciche lądowanie, kolano nad stopą.",
-        },
-        {
-          isPlyometric: true,
-          isSprintSpecific: true,
-          primaryQuality: "kontrola lądowania",
-          allowedSessionTypes: ["sport_performance"],
-          tissueLoadTags: ["kolano"],
-        },
-      ),
-    ];
+    mk(
+      {
+        name: "Lądowanie snap-down",
+        exerciseId: "snap_down",
+        prescription: "3 × 4 lądowania",
+        rest: "60 s",
+        cue: "Szybko w dół do pozycji atletycznej, ciche lądowanie, kolano nad stopą.",
+      },
+      {
+        isPlyometric: true,
+        isSprintSpecific: true,
+        primaryQuality: "kontrola lądowania",
+        allowedSessionTypes: ["sport_performance"],
+        tissueLoadTags: ["kolano"],
+      },
+    ),
+  ];
   // Pogo w bibliotece wymaga min. 14 lat; początkujący i najmłodsi uczą się lądowania.
   if (level === "beginner" || age < 14) return landing();
   const lowPogo = [
-      mk(
-        {
-          name: "Niskie pogo",
-          exerciseId: "bilateral_pogo",
-          prescription: "3 × 6 kontaktów",
-          rest: "60 s",
-          cue: "Sztywna kostka, krótki, cichy kontakt z podłożem.",
-        },
-        {
-          isPlyometric: true,
-          isSprintSpecific: true,
-          primaryQuality: "stiffness",
-          allowedSessionTypes: ["sport_performance"],
-          tissueLoadTags: ["łydka", "ścięgno Achillesa"],
-        },
-      ),
-    ];
+    mk(
+      {
+        name: "Niskie pogo",
+        exerciseId: "bilateral_pogo",
+        prescription: "3 × 6 kontaktów",
+        rest: "60 s",
+        cue: "Sztywna kostka, krótki, cichy kontakt z podłożem.",
+      },
+      {
+        isPlyometric: true,
+        isSprintSpecific: true,
+        primaryQuality: "stiffness",
+        allowedSessionTypes: ["sport_performance"],
+        tissueLoadTags: ["łydka", "ścięgno Achillesa"],
+      },
+    ),
+  ];
   const easiest = () => (allowed(lowPogo) ? lowPogo : landing());
   if (young || light) return easiest();
   const variants: CatExercise[][] = [
@@ -593,10 +592,7 @@ export function buildSportPerformance(
   const startMechanics: CatExercise[] = [
     mk(
       {
-        name:
-          theme === "cod_decel"
-            ? "Start z upadku i z pozycji wykrocznej"
-            : "Start z upadku",
+        name: theme === "cod_decel" ? "Start z upadku i z pozycji wykrocznej" : "Start z upadku",
         prescription:
           theme === "cod_decel" ? "4 × 10 m (różne pozycje startowe)" : "4 × 10 m z padania",
         rest: "60 s",
@@ -839,59 +835,45 @@ export function buildRunningConditioning(
     intensity?: string;
     light?: boolean;
     date?: string;
-    scheduleFieldMasTest?: boolean;
   },
-): BuiltContent {
-  const masEligible = isExerciseAllowedForProfile(
-    getExerciseDefinition("field_mas_5_min_test"),
-    buildAthleteTrainingProfile(profile),
-  ).ok;
-  const prescription = buildRunningSessionPrescription({
-    fieldMasKmh: profile.fieldMasKmh,
-    fieldMasTestedAt: profile.fieldMasTestedAt,
-    date: opts.date ?? "1970-01-01",
-    sessionIndex: opts.seed,
-    progressionLevel: profile.runningProgressionLevel,
-    scheduleFieldMasTest: masEligible ? opts.scheduleFieldMasTest : false,
-    forceLight: opts.light || !masEligible,
+): BuiltContent & { runningRecipe: RunningRecipe } {
+  // Jedna receptura z silnika biegowego. Pełny kontekst tygodnia (klub, mecz,
+  // siła, sprint) dokłada ostatni krok planu — tu tylko dzień bez kolizji.
+  const date = opts.date ?? "1970-01-01";
+  const stage = offseasonStageForWeek(profile, date);
+  const { recipe } = selectRunningRecipe({
+    date,
+    age: profile.age,
+    level: profile.level,
+    goal: profile.goal,
+    limiter: profile.secondaryLimiter ?? null,
+    fieldMasKmh: profile.fieldMasKmh ?? null,
+    fieldMasTestedAt: profile.fieldMasTestedAt ?? null,
+    progressionLevel: profile.runningProgressionLevel ?? 0,
+    phase: stage ?? "in_season",
+    availableMin: (profile.age ?? 14) <= 12 ? 30 : 60,
+    sameDay: EMPTY_DAY_LOAD,
+    previousDay: EMPTY_DAY_LOAD,
+    nextDay: EMPTY_DAY_LOAD,
+    week: { hardRuns: 0, methods: [], lastMethod: null, matches: 0, clubSessions: 0 },
+    doubleHeavyAllowed: false,
+    forceEasy: Boolean(opts.light || profile.painInjury),
   });
-
-  const warmupProtocol = buildWarmupProtocol(
-    prescription.method === "easy_aerobic" ? "easy" : "intervals",
+  const session = applyRunningRecipe(
+    { title: "", sessionType: "", goalOfSession: "" } as SessionDay,
+    recipe,
   );
-  const warmup = protocolExerciseItems(warmupProtocol).map((item) =>
-    mk(item, {
-      isRunningBased: true,
-      primaryQuality: "rozgrzewka",
-      allowedSessionTypes: ["running_conditioning"],
-    }),
-  );
-
-  const main = prescription.main.map((exercise) =>
-    mk(exercise, {
-      isRunningBased: true,
-      primaryQuality: prescription.method,
-      allowedSessionTypes: ["running_conditioning"],
-    }),
-  );
-
   return {
-    title: prescription.title,
-    sessionType: prescription.sessionType,
-    durationMin: prescription.durationMin,
-    intensity: prescription.intensity,
-    goalOfSession: prescription.goal,
-    riskManaged: masEligible
-      ? "Metoda, tempo i dawka pochodzą z jednego silnika biegowego. Praca bez piłki; progresja zmienia jedną główną zmienną naraz."
-      : "Spokojny wariant: wymagania testu maksymalnego nie są jeszcze potwierdzone w profilu. Nie wykonuj testu na własną rękę przy bólu lub innych niepokojących objawach.",
+    title: session.title,
+    sessionType: session.sessionType,
+    durationMin: session.durationMin,
+    intensity: session.intensity,
+    goalOfSession: session.goalOfSession,
+    riskManaged:
+      "Metoda, dawka i intensywność pochodzą z jednej receptury biegu. Bez wyniku testu prowadzi czas i odczuwany wysiłek.",
     avoidToday: "Bez piłki i bez bloków siłowych w tej sesji. To trening biegowy/kondycyjny.",
-    sections: {
-      warmup: warmup.map(toItem),
-      main: main.map(toItem),
-      accessory: [],
-      footballTransfer: [],
-      cooldown: sprintCooldown().map(toItem),
-    },
+    sections: session.sections,
+    runningRecipe: recipe,
   };
 }
 
@@ -1085,7 +1067,12 @@ export function enforceSessionCategory(
     }
     case "football": {
       const seed = ctx.counters.football + ctx.weekIndex;
-      built = buildFootball(profile, { seed, light: ctx.light, durationMin: session.durationMin, weekIndex: ctx.weekIndex });
+      built = buildFootball(profile, {
+        seed,
+        light: ctx.light,
+        durationMin: session.durationMin,
+        weekIndex: ctx.weekIndex,
+      });
       ctx.counters.football++;
       break;
     }
@@ -1096,7 +1083,6 @@ export function enforceSessionCategory(
         seed,
         light: ctx.light,
         date: session.date,
-        scheduleFieldMasTest: runningIndexInWeek === 0,
       });
       ctx.counters.running++;
       break;
@@ -1121,6 +1107,10 @@ export function enforceSessionCategory(
     session.sections = built.sections;
     // sesje strukturalne należą tylko do siłowni — wyczyść ewentualne stare.
     session.structuredSections = undefined;
+    session.runningRecipe =
+      "runningRecipe" in built
+        ? (built as { runningRecipe: RunningRecipe }).runningRecipe
+        : undefined;
   }
 
   // Walidacja końcowa (sieć bezpieczeństwa). Treść z puli jest poprawna,

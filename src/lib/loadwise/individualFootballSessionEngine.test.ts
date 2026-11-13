@@ -3,6 +3,7 @@ import { buildIndividualFootballSession, INDIVIDUAL_FOOTBALL_DRILLS } from "./in
 import { buildFootball, buildRunningConditioning, enforceSessionCategory, newContentCounters, validateGeneratedSession } from "./sessionContent";
 import { canonicalizeGeneratedExercise, getExerciseDefinition, migratePersistedExerciseData } from "./exerciseLibrary";
 import { generatePlan } from "./planEngine";
+import { buildFieldMasTestSession, fieldMasTestAvailable } from "./runningWeek";
 import { classifySession } from "./sessionClassification";
 import { flatToStructured } from "./strengthBlocks";
 import { fieldsForMetric, metricKindForExercise } from "./exerciseMetrics";
@@ -46,12 +47,22 @@ describe("individual football: solo conditions and real runtime", () => {
       expect(fieldsForMetric(metricKindForExercise(exercise))).toEqual([{ id: "value", label: "Czas", suffix: "s", step: 1 }]);
     }
   });
-  it("retains the MAS eligibility requirement and gives an easy run when competence is unknown", () => {
-    const unknown = buildRunningConditioning(profile(), { seed: 0, scheduleFieldMasTest: true, date: "2026-11-02" });
-    expect(unknown.title).toBe("Spokojny bieg tlenowy");
-    expect(unknown.intensity).toBe("niska");
-    const eligible = buildRunningConditioning(profile({ movementCompetence: "medium" }), { seed: 0, scheduleFieldMasTest: true, date: "2026-11-02" });
-    expect(eligible.title).toBe("Test biegowy 5 min");
+  it("never schedules the MAS test by itself; the athlete can choose it only when eligible", () => {
+    const unknown = buildRunningConditioning(profile(), { seed: 0, date: "2026-11-02" });
+    expect(unknown.runningRecipe.method).not.toBe("field_mas_test");
+    const eligible = profile({ movementCompetence: "medium" });
+    expect(buildRunningConditioning(eligible, { seed: 0, date: "2026-11-02" }).runningRecipe.method).not.toBe("field_mas_test");
+    expect(fieldMasTestAvailable(profile()).ok).toBe(false);
+    expect(fieldMasTestAvailable(eligible).ok).toBe(true);
+    {
+      const plan = generatePlan(eligible, new Date("2026-11-02T00:00:00"), 7);
+      const run = plan.flatMap((d) => [d, ...(d.secondSession ? [d.secondSession] : [])]).find((s) => s.runningRecipe);
+      if (run) {
+        const test = buildFieldMasTestSession(run, eligible);
+        expect(test.title).toBe("Test biegowy 5 min");
+        expect(test.sections.main[0].exerciseId).toBe("field_mas_5_min_test");
+      }
+    }
   });
 
   it("does not restore an ineligible MAS test through weekly minimum repairs", () => {

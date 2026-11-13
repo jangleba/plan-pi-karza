@@ -23,6 +23,8 @@ import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
 import { ArrowRight, Plus, Repeat, SlidersHorizontal, Undo2 } from "lucide-react";
 import { EnduranceRunTracker } from "@/components/running/EnduranceRunTracker";
 import { RunPlanPreview } from "@/components/running/RunPlanPreview";
+import { OptionalFieldTest } from "@/components/running/OptionalFieldTest";
+import { isRecipePhaseItem } from "@/lib/running/recipeSession";
 import "@/components/loadwise/session/runner/session-runner.css";
 import { isTrackableEnduranceRun, normalizeRunningPreparation } from "@/lib/running/session";
 import { isBallTechnicalSession, isStrengthSession } from "@/lib/loadwise/sessionClassification";
@@ -260,9 +262,22 @@ export function SessionDetailView({
     isTrackableEnduranceRun(session) &&
     !["M30", "M31"].includes(session.trainingMethods?.primary ?? "");
   const trackableEndurance = enduranceSession && Boolean(session.dbId);
+  // Z recepturą trucht rozgrzewki i schłodzenia prowadzi licznik biegu, więc
+  // tutaj zostają tylko ćwiczenia (mobilność, skipy, rozciąganie).
+  const recipeJog = (exercise: { name: string }) =>
+    Boolean(session.runningRecipe) && isRecipePhaseItem(exercise);
   const enduranceWarmup = structured
     .filter((s) => s.type === "warmup" || s.type === "prep")
-    .flatMap((s) => s.blocks.flatMap((b) => b.exercises));
+    .flatMap((s) => s.blocks.flatMap((b) => b.exercises))
+    .filter((exercise) => !recipeJog(exercise));
+  const enduranceCooldown = structured
+    .filter((s) => s.type === "cooldown")
+    .map((s) => ({
+      ...s,
+      blocks: s.blocks
+        .map((b) => ({ ...b, exercises: b.exercises.filter((e) => !recipeJog(e)) }))
+        .filter((b) => b.exercises.length > 0),
+    }));
   const ballTechnicalSession = isBallTechnicalSession(session);
   const recoveryRunner =
     !isClub && !sprintRunner && !strengthRunner && canGuideRecoverySession(session);
@@ -452,7 +467,7 @@ export function SessionDetailView({
                   key={`${session.dbId ?? date}:warmup`}
                   exercises={enduranceWarmup}
                   kind={
-                    /spokojny|easy aerobic|baza tlenowa/i.test(
+                    /spokojny|ciągły|easy aerobic|baza tlenowa/i.test(
                       `${session.title} ${session.sessionType}`,
                     )
                       ? "easy"
@@ -462,7 +477,7 @@ export function SessionDetailView({
                 />
               )}
               <FocusedSessionRunner
-                sections={structured.filter((s) => s.type === "cooldown")}
+                sections={enduranceCooldown}
                 sessionId={session.dbId}
                 date={date}
                 canRecord={canExecute && !completion?.completed}
@@ -660,6 +675,14 @@ export function SessionDetailView({
                   )
                 }
               />
+              {enduranceSession && !completed && !hasStarted && (
+                <OptionalFieldTest
+                  session={displayedSession}
+                  wholeDay={primary}
+                  slot={session.dbId && session.dbId === primary.secondSession?.dbId ? 2 : 1}
+                  locked={!!session.executionProtected}
+                />
+              )}
             </div>
             {/* Dodaj / zamień sesję */}
             {!isClub && session.dayType !== "match" && (
