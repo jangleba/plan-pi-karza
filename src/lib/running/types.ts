@@ -80,6 +80,8 @@ export interface RunningIntervalResult {
   completed: boolean;
   phase?: RunningStepPhase;
   recipeId?: string;
+  /** Sekunda aktywnego biegu, w której krok się zaczął (do przeliczenia dystansu z trasy). */
+  startElapsedSec?: number;
 }
 
 export interface RunningActivity {

@@ -254,6 +254,7 @@ export function buildIntervalResult(input: {
   distanceM: number;
   completed: boolean;
   recipeId?: string;
+  startElapsedSec?: number;
 }): RunningIntervalResult {
   const durationSec = Math.max(0, Math.round(input.durationSec * 10) / 10);
   const distanceM = Math.max(0, Math.round(input.distanceM * 10) / 10);
@@ -279,6 +280,29 @@ export function buildIntervalResult(input: {
     completed: input.completed,
     ...(input.step.phase ? { phase: input.step.phase } : {}),
     ...(input.recipeId ? { recipeId: input.recipeId } : {}),
+    ...(input.startElapsedSec != null && Number.isFinite(input.startElapsedSec)
+      ? { startElapsedSec: Math.round(input.startElapsedSec * 10) / 10 }
+      : {}),
+  };
+}
+
+/** Ten sam wynik kroku z dystansem zmierzonym dokładniej (np. z pełnej trasy po biegu). */
+export function withMeasuredDistance(
+  result: RunningIntervalResult,
+  distanceM: number,
+): RunningIntervalResult {
+  const distance = Math.max(0, Math.round(distanceM * 10) / 10);
+  const shortRep =
+    result.targetMode === "time" &&
+    (result.targetValue ?? 0) > 0 &&
+    (result.targetValue ?? 0) < MIN_PACE_EVIDENCE_SEC;
+  return {
+    ...result,
+    distanceM: distance,
+    paceSecPerKm:
+      !shortRep && distance >= 50 && result.durationSec > 0
+        ? result.durationSec / (distance / 1_000)
+        : null,
   };
 }
 
@@ -337,6 +361,9 @@ export function sanitizeIntervalResults(input: unknown): RunningIntervalResult[]
           ? { phase: row.phase }
           : {}),
         ...(typeof row.recipeId === "string" ? { recipeId: row.recipeId.slice(0, 80) } : {}),
+        ...(finite(row.startElapsedSec) && row.startElapsedSec >= 0
+          ? { startElapsedSec: Math.min(86_400, row.startElapsedSec) }
+          : {}),
       },
     ];
   });

@@ -1,5 +1,6 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
-import type { RunningActivityDraft, RunningIntervalResult } from "./types";
+import { buildKilometerSplits, sanitizeRoute } from "./metrics";
+import type { RoutePoint, RunningActivityDraft, RunningIntervalResult } from "./types";
 
 export interface NativeRunState {
   present: boolean;
@@ -15,6 +16,11 @@ export interface NativeRunState {
   recovered?: boolean;
   storageError?: string;
   intervalResults?: RunningIntervalResult[];
+  /**
+   * Trasa z telefonu: [lat, lng, czas uniksowy s, sekunda biegu, dokładność m, segment].
+   * Natywny rejestrator oddaje ją tylko w podsumowaniu (phase "review").
+   */
+  route?: number[][];
   corruptCheckpoints?: Array<{ fileName: string; raw: string }>;
   guideState?: {
     started: boolean;
@@ -61,7 +67,28 @@ export function nativeRunningAvailable() {
   );
 }
 
-/** Native persists aggregates, never latitude/longitude or an inferred route. */
+/** Trasa zapisana przez natywny rejestrator (pozostaje w telefonie). */
+export function nativeRoute(state: NativeRunState): RoutePoint[] {
+  if (!Array.isArray(state.route)) return [];
+  const points = state.route.flatMap((row): RoutePoint[] => {
+    if (!Array.isArray(row) || row.length < 6) return [];
+    const [lat, lng, at, elapsedSec, accuracyM, segment] = row.map(Number);
+    if (![lat, lng, at, elapsedSec, accuracyM, segment].every(Number.isFinite)) return [];
+    return [
+      {
+        lat,
+        lng,
+        recordedAt: new Date(at * 1000).toISOString(),
+        elapsedSec,
+        accuracyM,
+        segment: Math.max(0, Math.round(segment)),
+      },
+    ];
+  });
+  return sanitizeRoute(points);
+}
+
+/** Wynik do zapisu: na konto trafiają agregaty; trasa i międzyczasy zostają w telefonie. */
 export function nativeRunDraft(state: NativeRunState): RunningActivityDraft {
   if (
     !state.present ||
@@ -74,6 +101,7 @@ export function nativeRunDraft(state: NativeRunState): RunningActivityDraft {
     throw new Error("Nieprawidłowy szkic biegu.");
   const durationSec = Math.max(1, Math.round(state.durationSec!));
   const distanceM = Math.max(0, state.distanceM!);
+  const route = nativeRoute(state);
   return {
     sessionId: state.sessionId,
     date: state.date,
@@ -82,8 +110,8 @@ export function nativeRunDraft(state: NativeRunState): RunningActivityDraft {
     durationSec,
     distanceM,
     avgPaceSecPerKm: distanceM >= 50 ? (durationSec / distanceM) * 1000 : null,
-    route: [],
-    splits: [],
+    route,
+    splits: buildKilometerSplits(route),
     intervalResults: state.intervalResults ?? [],
     source: "gps",
   };

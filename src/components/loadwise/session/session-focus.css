@@ -588,3 +588,98 @@
   font-size: 14px;
   font-weight: 600;
 }
+
+/* Licznik biegu: jeden duży czas, etap i cel. */
+.bw-run-clock {
+  --bw-run-accent: var(--primary);
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 18px 18px 22px;
+}
+.bw-run-clock[data-tone="rest"] {
+  --bw-run-accent: var(--muted-foreground);
+}
+.bw-run-clock-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.bw-run-clock-stage {
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bw-run-accent);
+}
+.bw-run-clock-sound {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  color: var(--muted-foreground);
+}
+.bw-run-clock-rep {
+  font-size: 15px;
+  font-weight: 550;
+}
+.bw-run-clock .bw-run-readout {
+  font-size: clamp(64px, 24vw, 104px);
+  line-height: 1;
+  margin: 10px 0 6px;
+}
+.bw-run-clock-target {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--bw-run-accent);
+}
+.bw-run-clock-next,
+.bw-run-clock-total {
+  font-size: 13px;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+.bw-run-clock-progress {
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--muted);
+  overflow: hidden;
+  margin-top: 12px;
+}
+.bw-run-clock-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--bw-run-accent);
+  transition: width 0.2s linear;
+}
+.bw-run-clock-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 16px;
+}
+.bw-run-clock-main {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 150px;
+}
+.bw-run-clock-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--foreground);
+}
+.bw-run-clock-icon:disabled,
+.bw-run-clock-main:disabled {
+  opacity: 0.45;
+}
