@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// "Co zjeść teraz?": reason, quick fits, proven sets and a moved start time.
+// "Teraz najlepiej": time to start, quick fits chosen in a sheet, proven sets and a moved start time.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -49,13 +49,18 @@ afterEach(async () => {
 });
 
 describe("Fuel: co zjeść teraz", () => {
-  it("asks only for the missing start time of a planned match, then answers with a reason", async () => {
+  it("asks only for the missing start time of a planned match, then answers what to eat now", async () => {
     await render();
     expect(host.textContent).toContain("Za ile zaczynasz mecz?");
     expect(host.textContent).not.toContain("Dziś bez treningu");
     await click("2 h");
-    expect(host.querySelector(".fuel-now-question")?.textContent).toBe("Co zjeść teraz?");
-    expect(host.querySelector(".fuel-now-reason")?.textContent).toMatch(/^Do meczu 2 h: /);
+    expect(host.querySelector(".fuel-now-question")?.textContent).toBe("Teraz najlepiej");
+    expect(host.querySelector(".fuel-timeline-caption")?.textContent).toBe("Do meczu 2 h");
+    expect(host.querySelector('.fuel-timeline [aria-current="step"]')?.textContent).toContain(
+      "Przed",
+    );
+    // Only what to eat: no reason line under the meal.
+    expect(host.querySelector(".fuel-now-reason")).toBeNull();
     expect(host.querySelector(".fuel-now-meta")?.textContent).toContain("Porcja orientacyjna");
   });
 
@@ -65,7 +70,19 @@ describe("Fuel: co zjeść teraz", () => {
     localStorage.setItem(fuelStorageKey("u"), JSON.stringify(data));
     await render();
     await click("Mam 5 minut");
+    // The sheet offers sets first; nothing changes before the choice.
+    expect(saved().selection?.fit ?? null).toBeNull();
+    const options = [...document.querySelectorAll('[role="radio"]')].map(
+      (o) => o.querySelector("strong")?.textContent,
+    );
+    expect(options.at(-1)).toBe("Mam coś innego");
+    expect(options.length).toBeGreaterThan(2);
+    await act(async () =>
+      document.querySelectorAll<HTMLButtonElement>('[role="radio"]')[1].click(),
+    );
+    await click("Wybierz zestaw");
     expect(saved().selection?.fit).toBe("quick");
+    expect(host.querySelector(".fuel-now-card h3")?.textContent).toBe(options[1]);
     await act(async () => root.unmount());
     root = createRoot(host);
     await render();
@@ -84,6 +101,7 @@ describe("Fuel: co zjeść teraz", () => {
     await render();
     expect(host.textContent).not.toContain("Sprawdź produkt z półki");
     await click("W sklepie");
+    await click("Wybierz zestaw");
     expect(host.textContent).toContain("Sprawdź produkt z półki");
   });
 
@@ -102,10 +120,10 @@ describe("Fuel: co zjeść teraz", () => {
     ];
     localStorage.setItem(fuelStorageKey("u"), JSON.stringify(data));
     await render();
-    expect(host.querySelector(".fuel-now-reason")?.textContent).toMatch(/^Do meczu 4 h: /);
+    expect(host.querySelector(".fuel-timeline-caption")?.textContent).toBe("Do meczu 4 h");
     await click("Zmień");
     await click("30 min");
-    expect(host.querySelector(".fuel-now-reason")?.textContent).toMatch(/^Do meczu 30 min: /);
+    expect(host.querySelector(".fuel-timeline-caption")?.textContent).toBe("Do meczu 30 min");
     const stored = saved();
     expect(stored.entries).toHaveLength(1);
     expect(stored.entries[0]).toMatchObject({ id: "meal", minutesBefore: 60 });
