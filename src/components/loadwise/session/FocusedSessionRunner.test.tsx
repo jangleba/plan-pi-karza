@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrainingSection } from "@/lib/loadwise/types";
 import { FocusedSessionRunner } from "./FocusedSessionRunner";
 import { sectionFixture } from "./testFixtures";
+import { getExerciseDefinition } from "@/lib/loadwise/exerciseLibrary";
 
 const logs = vi.hoisted(() => ({ save: vi.fn(), current: {} as Record<number, unknown> }));
 vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: "user-1" } }) }));
@@ -112,6 +113,62 @@ async function saveFirstSet() {
 }
 
 describe("ekran treningu", () => {
+  it.each(["split_squat_iso_hold", "long_lever_hamstring_iso"])(
+    "zapisuje faktyczny czas %s bez pola na kilogramy i RIR",
+    async (exerciseId) => {
+      const definition = getExerciseDefinition(exerciseId)!;
+      const holds = [
+        sectionFixture("accessory", [
+          {
+            id: "programmed-hold",
+            exerciseId,
+            name: definition.displayNamePl,
+            sets: "2",
+            duration: "15 s",
+            displayPrescription: "2 × 15 s",
+            restAfterExercise: "60 s",
+            engineDose: { sets: 2, seconds: 15, restSeconds: 60, intent: "hold" },
+          },
+        ]),
+      ];
+      await act(async () =>
+        root.render(
+          <FocusedSessionRunner
+            sections={holds}
+            date="2026-11-10"
+            sessionId="iso-session"
+            kind="strength"
+            canRecord
+            onFinish={() => undefined}
+          />,
+        ),
+      );
+      const seconds = host.querySelector<HTMLInputElement>(
+        'input[aria-label="Seria 1: czas w sekundach"]',
+      );
+      expect(seconds).not.toBeNull();
+      expect(host.querySelector('input[aria-label="Seria 1: ciężar w kg"]')).toBeNull();
+      expect(host.querySelector('button[aria-label="Seria 1: zapas 2"]')).toBeNull();
+      expect(host.textContent).not.toContain("Propozycja:");
+      await act(async () => {
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+        setter.call(seconds, "13");
+        seconds!.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      await click(host.querySelector<HTMLButtonElement>('button[aria-label="Zatwierdź serię 1"]')!);
+      expect(logs.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          setNumber: 1,
+          metricKind: "hold",
+          metricValue: 13,
+          weightKg: null,
+          reps: null,
+          rir: null,
+        }),
+      );
+      expect(host.querySelector(".bw-rest-big")?.textContent).toBe("01:00");
+    },
+  );
   it("po trzecim wysiłku ISO odlicza pełne 300 s, zachowując 60 s między próbami", async () => {
     let now = new Date("2026-11-10T12:00:00Z").getTime();
     const clock = vi.spyOn(Date, "now").mockImplementation(() => now);

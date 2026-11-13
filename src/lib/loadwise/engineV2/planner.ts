@@ -1,5 +1,5 @@
 import { scheduledMatchDates } from "../matchSchedule";
-import { trainingProfileRevision } from "../planIdentity";
+import { trainingProfileRevision, trainingSetupRevision } from "../planIdentity";
 import { hydrateTrainingExerciseFromDefinition, getExerciseDefinition } from "../exerciseLibrary";
 import { structuredToFlat } from "../sessionStructure";
 import type { Profile, SessionDay, TrainingSection } from "../types";
@@ -14,6 +14,7 @@ import { validateEngineSession } from "./validation";
 import { buildActivation, buildRecovery, buildMobility, buildSkills } from "./support";
 import { buildEnduranceForDate, hasCurrentVerifiedMas } from "./endurance";
 import { resolveGoalPolicy, routedProfile } from "./goalPolicy";
+import { hasReadinessStop } from "./planStatus";
 import { preparationProfile, hasVerifiedAdvancedStrength } from "./preparation";
 import { recipeTotalSeconds } from "@/lib/running/recipe";
 
@@ -38,6 +39,7 @@ function day(date: string, p: Profile, matches: Set<string>): SessionDay {
   return {
     generatorVersion: ENGINE_VERSION,
     canonicalRevision: trainingProfileRevision(p),
+    trainingSetupRevision: trainingSetupRevision(p),
     date,
     dayOfWeek: weekday(date),
     dayName: names[weekday(date) % 7],
@@ -231,6 +233,7 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
     isClubSession: false,
     generatorVersion: ENGINE_VERSION,
     canonicalRevision: revision,
+    trainingSetupRevision: trainingSetupRevision(p),
     engineV2: recipe,
     runningRecipe:
       recipe.runningRecipe ??
@@ -440,7 +443,7 @@ function placeSupport(
     own(d).some((s) => s.engineV2!.roles.some((r) => recipe.roles.includes(r)))
   )
     return null;
-  if (options.readiness?.[d.date]?.jointPain) return null;
+  if (hasReadinessStop(options.readiness?.[d.date])) return null;
   if (d.secondSession) return null;
   const occupied = d.dayType === "club" || own(d).length > 0;
   if (occupied && p.doubleSessionsAllowed === "no") return null;
@@ -504,9 +507,22 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
     const base = Array.from({ length: 7 }, (_, i) => {
       const date = plusDays(options.startDate, week * 7 + i),
         locked = options.lockedDays?.find((d) => d.date === date);
-      return locked
-        ? structuredClone({ ...locked, executionProtected: true })
-        : day(date, p, matches);
+      if (!locked) return day(date, p, matches);
+      const kept = structuredClone({ ...locked, executionProtected: true });
+      // A placeholder around an executed second slot is new calendar metadata,
+      // not an executed prescription; do not carry a stale setup into the rebuild.
+      const newRestShell = kept.dayType === "rest" && !kept.dbId && !kept.engineV2;
+      const pendingExternal =
+        locked.executionProtected === false &&
+        locked.secondSession?.executionProtected === true &&
+        ["club", "match"].includes(kept.dayType) &&
+        !kept.engineV2;
+      if (newRestShell || pendingExternal) {
+        kept.canonicalRevision = trainingProfileRevision(p);
+        kept.trainingSetupRevision = trainingSetupRevision(p);
+        kept.generatorVersion = ENGINE_VERSION;
+      }
+      return kept;
     });
     const policy = resolveGoalPolicy(p);
     const tasks = [
@@ -702,9 +718,8 @@ export function validateTrainingPlan(
         ["activation", "recovery", "mobility", "skills"].includes(role),
       );
       if (
-        !supportOnly &&
-        options.readiness?.[d.date] &&
-        (options.readiness[d.date].overall <= 4 || options.readiness[d.date].jointPain > 0)
+        hasReadinessStop(options.readiness?.[d.date]) ||
+        (!supportOnly && options.readiness?.[d.date] && options.readiness[d.date].overall <= 4)
       )
         fail("READINESS_CONFLICT", d.date, "Bieżący check-in wymaga ponownego ułożenia treningu.");
       if (

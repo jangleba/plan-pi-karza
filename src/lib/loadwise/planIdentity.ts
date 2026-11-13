@@ -88,6 +88,17 @@ export function trainingProfileRevision(profile: Profile): string {
   return `training-inputs:v1:${bytesToHex(sha256(JSON.stringify(stable(values))))}`;
 }
 
+/** Results inform the next explicit preview; they do not invalidate saved training setup. */
+export function trainingSetupRevision(profile: Profile): string {
+  return trainingProfileRevision({
+    ...profile,
+    fieldMasKmh: null,
+    fieldMasTestedAt: null,
+    fieldMasSourceSessionId: null,
+    runningProgressionLevel: 0,
+  });
+}
+
 export function sessionPrescription(session: SessionDay): string {
   const values: unknown[] = [
     session.dayType,

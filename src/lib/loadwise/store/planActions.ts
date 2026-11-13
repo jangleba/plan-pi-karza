@@ -46,6 +46,7 @@ export function createPlanActions(
       ),
     );
     const log = owner?.dbId ? state.completions[owner.dbId] : undefined;
+    const versioned = !!owner?.engineV2 || !!owner?.generatorVersion?.startsWith("ballwise-v2");
     if (
       owner &&
       (owner.executionProtected ||
@@ -65,25 +66,29 @@ export function createPlanActions(
     if (replacementInFlightRef.current.has(replacementKey)) return;
     replacementInFlightRef.current.add(replacementKey);
     try {
-      const { buildAthleteTrainingProfile } = await import("../athleteProfile");
       const unavailableEquipmentIds = Array.from(
         new Set([...(state.profile.unavailableEquipmentIds ?? []), ...equipmentIds]),
       );
-      const athlete = buildAthleteTrainingProfile(state.profile, {
-        unavailableEquipmentIds,
-      });
-      const result = selectEquipmentAwareReplacement(exercise.exerciseId ?? exercise.name, athlete);
-      if (!result.exercise || result.blockRebuildRequired) {
-        setState((s) => ({
-          ...s,
-          equipmentNotice:
-            "Nie znaleziono bezpiecznego zamiennika. Plan i historia pozostały bez zmian.",
-        }));
-        return;
+      let replacement = exercise;
+      if (!versioned) {
+        const { buildAthleteTrainingProfile } = await import("../athleteProfile");
+        const athlete = buildAthleteTrainingProfile(state.profile, { unavailableEquipmentIds });
+        const result = selectEquipmentAwareReplacement(
+          exercise.exerciseId ?? exercise.name,
+          athlete,
+        );
+        if (!result.exercise || result.blockRebuildRequired) {
+          setState((s) => ({
+            ...s,
+            equipmentNotice:
+              "Nie znaleziono bezpiecznego zamiennika. Plan i historia pozostały bez zmian.",
+          }));
+          return;
+        }
+        replacement = hydrateTrainingExerciseFromDefinition(
+          buildEquipmentReplacement(exercise, result.exercise),
+        );
       }
-      const replacement: TrainingExercise = hydrateTrainingExerciseFromDefinition(
-        buildEquipmentReplacement(exercise, result.exercise),
-      );
       const item: ExerciseReplacement = {
         id: crypto.randomUUID(),
         date,
@@ -113,7 +118,9 @@ export function createPlanActions(
         : unavailableEquipmentIds;
       setState((s) => ({
         ...s,
-        equipmentNotice: null,
+        equipmentNotice: versioned
+          ? "Sprzęt zapisany. Zaktualizuj plan, aby dobrać ćwiczenia i dawki."
+          : null,
         profile: s.profile
           ? {
               ...s.profile,
@@ -141,6 +148,8 @@ export function createPlanActions(
     const current = state.exerciseReplacements[date] ?? [];
     const removed = current.find((replacement) => replacement.id === replacementId);
     if (!removed) return;
+    const day = state.plan.find((item) => item.date === date);
+    const versioned = !!day?.engineV2 || !!day?.generatorVersion?.startsWith("ballwise-v2");
     const remainingEquipment = new Set(
       Object.values(state.exerciseReplacements)
         .flat()
@@ -161,7 +170,9 @@ export function createPlanActions(
       : unavailableEquipmentIds;
     setState((s) => ({
       ...s,
-      equipmentNotice: null,
+      equipmentNotice: versioned
+        ? "Sprzęt zaktualizowany. Zaktualizuj plan, aby dobrać ćwiczenia i dawki."
+        : null,
       profile: s.profile
         ? {
             ...s.profile,

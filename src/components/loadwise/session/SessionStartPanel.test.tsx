@@ -41,7 +41,7 @@ describe("explicit workout start", () => {
     expect(mock.start).not.toHaveBeenCalled();
   });
   it("keeps the start recoverable after a failed durable save", async () => {
-    mock.start.mockRejectedValue(new Error("disk full"));
+    mock.start.mockRejectedValue({ code: "ENOSPC" });
     await act(async () => root.render(<SessionStartPanel session={sessionFixture()} canStart />));
     await act(async () => {
       container.querySelector("button")!.click();
@@ -51,6 +51,26 @@ describe("explicit workout start", () => {
     );
     expect(container.querySelector("button")!.disabled).toBe(false);
   });
+  it("shows the actionable new-start guard reason instead of a connection error", async () => {
+    const message = "Profil zmienił się. Przygotuj aktualny plan przed rozpoczęciem nowej sesji.";
+    mock.start.mockRejectedValue(new Error(message));
+    await act(async () => root.render(<SessionStartPanel session={sessionFixture()} canStart />));
+    await act(async () => container.querySelector("button")!.click());
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(message);
+    expect(container.textContent).not.toContain("Sprawdź połączenie");
+    expect(container.querySelector("button")!.disabled).toBe(false);
+  });
+  it.each([new Error(""), new Error("x".repeat(301))])(
+    "keeps an empty or oversized error behind the recoverable fallback",
+    async (cause) => {
+      mock.start.mockRejectedValue(cause);
+      await act(async () => root.render(<SessionStartPanel session={sessionFixture()} canStart />));
+      await act(async () => container.querySelector("button")!.click());
+      expect(container.querySelector('[role="alert"]')?.textContent).toMatch(
+        /Nie udało się rozpocząć/,
+      );
+    },
+  );
   it("does not replace an already-started or completed session with another start", async () => {
     mock.completions = { "session-1": { status: "started", completed: false } };
     await act(async () => root.render(<SessionStartPanel session={sessionFixture()} canStart />));

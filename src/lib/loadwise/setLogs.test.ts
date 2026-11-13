@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { plannedSets, previousSessionLogs } from "./setLogs";
+import {
+  plannedSets,
+  previousSessionLogs,
+  previousExerciseSessions,
+  type SetLogRow,
+} from "./setLogs";
 
 describe("historia serii", () => {
   it("opens all sets from the structured generator, whose sets are strings", () => {
@@ -52,5 +57,29 @@ describe("historia serii", () => {
     const result = previousSessionLogs(rows, "current");
     expect(Object.keys(result)).toEqual(["1", "2"]);
     expect(result[1].weightKg).toBe(80);
+  });
+  it("uses the newest offline correction for both prefill and progression history", () => {
+    const base: SetLogRow = {
+      session_id: "last",
+      exercise_key: "squat",
+      set_number: 1,
+      weight_kg: 80,
+      reps: 4,
+      rir: 2,
+      performed_at: "2026-11-02T10:00:00Z",
+    };
+    const rows: SetLogRow[] = [
+      { ...base, session_id: "current", weight_kg: 90, performed_at: "2026-11-09T10:00:00Z" },
+      { ...base, weight_kg: 85, performed_at: "2026-11-02T10:05:00Z" },
+      { ...base, set_number: 2, weight_kg: 82, performed_at: "2026-11-02T10:02:00Z" },
+      base,
+      { ...base, session_id: "older", weight_kg: 70, performed_at: "2026-10-26T10:00:00Z" },
+    ];
+    for (const input of [rows, [...rows].reverse()]) {
+      const previous = previousSessionLogs(input, "current");
+      expect(previous[1].weightKg).toBe(85);
+      expect(previous[2].weightKg).toBe(82);
+      expect(Object.values(previous)).toEqual(previousExerciseSessions(input, "current")[0].sets);
+    }
   });
 });

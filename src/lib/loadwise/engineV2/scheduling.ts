@@ -2,6 +2,7 @@ import type { Profile, SessionDay } from "../types";
 import type { EngineOptions, EngineSession } from "./model";
 import { dayDistance, plusDays, weekday } from "./model";
 import { hasStrengthExperience } from "../strengthExperience";
+import { hasReadinessStop } from "./planStatus";
 
 export interface SchedulingBlock {
   code: string;
@@ -177,7 +178,7 @@ export function assessPlacement(input: PlacementConstraintInput): PlacementAsses
   )
     return block("MATCH_BUFFER", "Mecz lub dzień bezpośrednio przed albo po meczu.");
   const readiness = options.readiness?.[date];
-  if (readiness && (readiness.overall <= 4 || readiness.jointPain > 0))
+  if (readiness && (readiness.overall <= 4 || hasReadinessStop(readiness)))
     return block("READINESS_CONFLICT", "Bieżący check-in wymaga zmiany treningu.");
 
   if (recipe.highLower) {

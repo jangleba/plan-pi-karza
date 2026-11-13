@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { StartDashboard } from "./StartDashboard";
@@ -9,6 +9,12 @@ const noop = () => {};
 function render(
   iqTask?: { text: string; onDone: () => void },
   iqGoal?: { label: string; percent: number; onOpen: () => void },
+  plan: Partial<
+    Pick<
+      ComponentProps<typeof StartDashboard>,
+      "todayTitle" | "planStatus" | "todayComplete" | "onToday" | "onPlan"
+    >
+  > = {},
 ) {
   return act(async () =>
     root.render(
@@ -20,6 +26,7 @@ function render(
         onReaction={noop}
         iqTask={iqTask}
         iqGoal={iqGoal}
+        {...plan}
       />,
     ),
   );
@@ -66,7 +73,67 @@ it("shows the weakest Football IQ aim with its progress and a way to practise it
 
 it("offers the new training planner without fabricating a saved session", async () => {
   await render();
-  const card = host.querySelector('.bw-plan-soon');
+  const card = host.querySelector(".bw-plan-soon");
   expect(card?.textContent).toContain("Przygotuj swój plan");
   expect(card?.tagName).toBe("BUTTON");
+});
+
+it.each([
+  ["expired", "Cykl zakończony", "Przygotuj kolejny plan na 4 tygodnie"],
+  ["stale", "Plan wymaga aktualizacji", "Dostosuj go do aktualnego profilu"],
+] as const)("routes the %s plan back to planning", async (planStatus, title, subtitle) => {
+  const onPlan = vi.fn(),
+    onToday = vi.fn();
+  await render(undefined, undefined, { planStatus, todayTitle: "Stary trening", onPlan, onToday });
+  const card = host.querySelector<HTMLButtonElement>(".bw-plan-soon")!;
+  expect(card.textContent).toContain(title);
+  expect(card.textContent).toContain(subtitle);
+  expect(card.textContent).not.toContain("Stary trening");
+  await act(async () => card.click());
+  expect(onPlan).toHaveBeenCalledOnce();
+  expect(onToday).not.toHaveBeenCalled();
+});
+
+it("opens the actionable session while retaining a separate Plan link", async () => {
+  const onPlan = vi.fn(),
+    onToday = vi.fn();
+  await render(undefined, undefined, {
+    planStatus: "active",
+    todayTitle: "Druga sesja · spokojny bieg",
+    onPlan,
+    onToday,
+  });
+  const card = host.querySelector<HTMLButtonElement>(".bw-plan-soon")!;
+  expect(card.textContent).toContain("Druga sesja · spokojny bieg");
+  expect(card.textContent).toContain("Otwórz dzisiejszą sesję");
+  await act(async () => card.click());
+  expect(onToday).toHaveBeenCalledOnce();
+  expect(onPlan).not.toHaveBeenCalled();
+  await act(async () =>
+    host.querySelector<HTMLButtonElement>(".bw-home-section-line button")!.click(),
+  );
+  expect(onPlan).toHaveBeenCalledOnce();
+});
+
+it("offers the remaining plan after all today's sessions are complete", async () => {
+  const onPlan = vi.fn(),
+    onToday = vi.fn();
+  await render(undefined, undefined, {
+    planStatus: "active",
+    todayTitle: "Ukończona sesja",
+    todayComplete: true,
+    onPlan,
+    onToday,
+  });
+  const card = host.querySelector<HTMLButtonElement>(".bw-plan-soon")!;
+  expect(card.textContent).toContain("Dzisiejsze sesje zakończone");
+  expect(card.textContent).toContain("Zobacz kolejne dni planu");
+  await act(async () => card.click());
+  expect(onPlan).toHaveBeenCalledOnce();
+  expect(onToday).not.toHaveBeenCalled();
+});
+
+it("shows a rest day for an active plan without a session", async () => {
+  await render(undefined, undefined, { planStatus: "active" });
+  expect(host.querySelector(".bw-plan-soon")?.textContent).toContain("Dzisiaj wolne");
 });

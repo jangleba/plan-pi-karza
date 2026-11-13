@@ -24,6 +24,7 @@ import {
 import { boutAt, boutTargets, canFinishEarly, isComplete, parseBoutProgress } from "./boutProgress";
 import { sessionHeading, slotLabels } from "./heading";
 import { resolveHowTo } from "./howTo";
+import { getExerciseDefinition } from "../exerciseLibrary";
 
 const ex = (over: Partial<TrainingExercise>): TrainingExercise => ({
   id: "x",
@@ -90,6 +91,54 @@ describe("kroki sesji", () => {
 });
 
 describe("prezentacja dawki", () => {
+  it.each(["split_squat_iso_hold", "long_lever_hamstring_iso"])(
+    "zapisuje zaprogramowane utrzymanie %s jako czas mimo kategorii prehab",
+    (exerciseId) => {
+      const definition = getExerciseDefinition(exerciseId)!;
+      expect(definition.category).toBe("prehab");
+      const exercise = ex({
+        exerciseId,
+        name: definition.displayNamePl,
+        sets: "2",
+        engineDose: { sets: 2, seconds: 15, restSeconds: 60, intent: "hold" },
+      });
+      expect(taskKind(exercise, sectionFixture("accessory", []), "strength")).toBe("hold");
+      expect(workSeconds(exercise)).toBe(15);
+      expect(effortLine(exercise, "hold")).toBeNull();
+    },
+  );
+  it("dynamiczny prehab zachowuje mobilność, a nadzorowany primer ma stały protokół czasowy", () => {
+    const dynamic = ex({
+      exerciseId: "ankle_mobility_flow",
+      name: "Mobilność stawu skokowego",
+      sets: "1",
+      engineDose: { sets: 1, seconds: 45, restSeconds: 0, intent: "controlled" },
+    });
+    expect(taskKind(dynamic, sectionFixture("warmup", []), "strength")).toBe("mobility");
+    expect(
+      taskKind(
+        { ...dynamic, engineDose: { sets: 1, seconds: 45, restSeconds: 0, intent: "hold" } },
+        sectionFixture("warmup", []),
+        "strength",
+      ),
+    ).toBe("mobility");
+    const primer = ex({
+      exerciseId: "overcoming_pin_squat_primer",
+      name: "Krótki nacisk na piny z trenerem",
+      sets: "3",
+      duration: "3 s",
+      engineDose: {
+        sets: 3,
+        seconds: 3,
+        restSeconds: 60,
+        postRestSeconds: 300,
+        intent: "explosive",
+      },
+    });
+    expect(taskKind(primer, sectionFixture("prep", []), "strength")).toBe("general");
+    expect(workSeconds(primer)).toBe(3);
+    expect(effortLine(primer, "general")).toBeNull();
+  });
   it("RIR pojawia się raz, poza linią dawki", () => {
     const squat = ex({ exerciseId: "goblet_squat", sets: "3", reps: "5", rir: "3–4 RIR" });
     expect(doseLine(squat)).not.toMatch(/RIR/);
@@ -122,11 +171,20 @@ describe("prezentacja dawki", () => {
       restSecondsAfter(block, ex({ restAfterExercise: "Bez przerw" }), false, false),
     ).toBeNull();
   });
-  it("po ostatniej próbie ISO stosuje przerwę protokołu zamiast zwykłej przerwy między seriami",()=>{
-    const block=sectionFixture("prep",[]).blocks[0];
-    const exercise=ex({restAfterExercise:"60 s",engineDose:{sets:3,seconds:3,restSeconds:60,postRestSeconds:300,intent:"explosive"}});
-    expect(restSecondsAfter(block,exercise,false,false)).toBe(60);
-    expect(restSecondsAfter(block,exercise,false,false,true)).toBe(300);
+  it("po ostatniej próbie ISO stosuje przerwę protokołu zamiast zwykłej przerwy między seriami", () => {
+    const block = sectionFixture("prep", []).blocks[0];
+    const exercise = ex({
+      restAfterExercise: "60 s",
+      engineDose: {
+        sets: 3,
+        seconds: 3,
+        restSeconds: 60,
+        postRestSeconds: 300,
+        intent: "explosive",
+      },
+    });
+    expect(restSecondsAfter(block, exercise, false, false)).toBe(60);
+    expect(restSecondsAfter(block, exercise, false, false, true)).toBe(300);
   });
 
   it("jednostronność rozpoznawana z dawki", () => {

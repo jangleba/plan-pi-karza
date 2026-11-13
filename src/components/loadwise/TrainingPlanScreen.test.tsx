@@ -118,3 +118,42 @@ it("does not carry an unsaved budget choice into another saved plan", async () =
     host.querySelector<HTMLSelectElement>('select[aria-label="Czas na jednostkę"]')!.value,
   ).toBe("60");
 });
+
+it("recognizes an expired cycle and prepares today's next window only on request", async () => {
+  const state = mock.store.state as LoadwiseState;
+  const old = generateTrainingPlan(state.profile!, { startDate: "2026-10-05", weeks: 4 }).plan;
+  mock.store.state = { ...state, activePlanId: "old-cycle", plan: old };
+  await act(async () => root.render(<PlanScreen />));
+  expect(host.textContent).toContain("Cykl zakończony");
+  expect(host.textContent).not.toContain("Twój plan · 4 tygodnie");
+  expect(mock.activate).not.toHaveBeenCalled();
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((b) => b.textContent === "Przygotuj kolejny plan")!
+      .click(),
+  );
+  expect(host.textContent).toContain("Nowy plan rozpoczyna się 2026-11-02");
+  expect(host.textContent).toContain("2026-11-29");
+  expect((mock.store.state as LoadwiseState).plan).toBe(old);
+  expect(mock.activate).not.toHaveBeenCalled();
+});
+
+it("offers an explicit profile update and lets the player return to the saved snapshot", async () => {
+  const state = mock.store.state as LoadwiseState;
+  const saved = generateTrainingPlan(state.profile!, { startDate: "2026-11-02", weeks: 1 }).plan;
+  mock.store.state = { ...state, plan: saved, profile: { ...state.profile!, goal: "speed" } };
+  await act(async () => root.render(<PlanScreen />));
+  expect(host.textContent).toContain("Profil zmienił się");
+  await act(async () =>
+    [...host.querySelectorAll("button")].find((b) => b.textContent === "Zaktualizuj plan")!.click(),
+  );
+  expect(host.textContent).toContain("Twój plan · 4 tygodnie");
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((b) => b.textContent === "Wróć do zapisanego planu")!
+      .click(),
+  );
+  expect(host.textContent).not.toContain("Twój plan · 4 tygodnie");
+  expect((mock.store.state as LoadwiseState).plan).toBe(saved);
+  expect(mock.activate).not.toHaveBeenCalled();
+});

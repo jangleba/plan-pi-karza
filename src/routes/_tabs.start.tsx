@@ -10,6 +10,8 @@ import {
   type FieldTask,
 } from "@/features/football-iq-match/fieldTask";
 import { focusAim, loadMastery, type AimProgress } from "@/features/football-iq-match/masteryStore";
+import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
+import { getPlanStatus, todayTrainingState } from "@/lib/loadwise/engineV2/planStatus";
 
 export const Route = createFileRoute("/_tabs/start")({
   component: StartScreen,
@@ -17,7 +19,7 @@ export const Route = createFileRoute("/_tabs/start")({
 
 function StartScreen() {
   const { user } = useAuth();
-  const { state, hydrated, todaySession } = useLoadwise();
+  const { state, hydrated, todayIso } = useLoadwise();
   const navigate = useNavigate();
   const router = useRouter();
   const [iqTask, setIqTask] = useState<FieldTask | null>(null);
@@ -31,11 +33,30 @@ function StartScreen() {
   if (!hydrated) return <StartLoadingState />;
 
   const firstName = state.profile?.name?.trim().split(/\s+/)[0] || "Zawodniku";
+  const effectivePlan = selectEffectivePlan(state.plan, state.modifications, {
+    completions: state.completions,
+  });
+  const status = getPlanStatus({
+    plan: effectivePlan,
+    profile: state.profile,
+    todayIso,
+    completions: state.completions,
+  });
+  const today = todayTrainingState(effectivePlan, state.completions, todayIso);
 
   return (
     <StartDashboard
       name={firstName}
-      todayTitle={todaySession?.title}
+      todayTitle={today.session?.title}
+      planStatus={status.kind}
+      todayComplete={today.complete}
+      onToday={() =>
+        void navigate({
+          to: "/sesja/$date",
+          params: { date: todayIso },
+          search: { slot: today.slot },
+        })
+      }
       avatar={<ProfileAvatar />}
       onPlan={() => void navigate({ to: "/plan" })}
       onLab={() => void navigate({ to: "/lab" })}

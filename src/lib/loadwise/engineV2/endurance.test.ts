@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildEnduranceForDate, hasCurrentVerifiedMas } from "./endurance";
 import { recipeTotalSeconds } from "@/lib/running/recipe";
+import { recipeSections, recipeToProtocol } from "@/lib/running/recipeSession";
 import type { Profile } from "../types";
 
 const athlete: Profile = {
@@ -112,5 +113,18 @@ describe("date-aware endurance recipes", () => {
       buildEnduranceForDate({ ...athlete, runningProgressionLevel: 2 }, "2026-11-02", "adaptation")
         ?.exercises[0].dose.seconds,
     ).toBe(240);
+  });
+  it("renders the actual V2 one-minute HIIT dose consistently with its counter", () => {
+    const result = buildEnduranceForDate(athlete, "2026-11-16", "peak")!;
+    const recipe = result.runningRecipe!;
+    expect(recipe.method).toBe("short_hiit");
+    const main = recipeSections(recipe).main[0];
+    expect(main.technique).toContain("Odcinek pracy: 1 min");
+    expect(main.technique).toContain("Między odcinkami: 1 min truchtu");
+    expect(main.technique).not.toContain("15 s");
+    const steps = recipeToProtocol(recipe).steps.filter((step) => step.phase === "main");
+    expect(steps.every((step) => step.target.value === 60)).toBe(true);
+    expect(steps.filter((step) => step.kind === "work")).toHaveLength(6);
+    expect(steps.filter((step) => step.kind === "recovery")).toHaveLength(5);
   });
 });

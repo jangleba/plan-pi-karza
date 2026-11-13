@@ -1,5 +1,6 @@
 import type { FuelLoadBand, FuelMoment } from "./assistant";
 import type { SessionDay, SessionCompletion } from "../loadwise/types";
+import { classifySession } from "../loadwise/sessionClassification";
 import { sessionKindFrom } from "./planAdapter";
 import type { SessionKind } from "./types";
 import type { StoreProduct } from "./storeCheck";
@@ -140,6 +141,7 @@ export function planFuelContexts(
         .flatMap((session, index) => {
           const kind = sessionKindFrom(session);
           if (kind === "none" || !session.durationMin) return [];
+          const engineLoad = session.engineV2 ? classifySession(session).loadLevel : null;
           return [
             {
               key: `${date}:${session.dbId ?? session.sessionId ?? "main"}:${index + 1}`,
@@ -147,11 +149,13 @@ export function planFuelContexts(
               kind,
               title: session.title || SESSION_LABELS[kind],
               durationMin: session.durationMin,
-              load: (kind === "match" || session.intensity === "wysoka"
-                ? "high"
-                : kind === "recovery" || session.intensity === "niska"
-                  ? "low"
-                  : "moderate") as FuelLoadBand,
+              load: (engineLoad && engineLoad !== "none"
+                ? engineLoad
+                : kind === "match" || session.intensity === "wysoka"
+                  ? "high"
+                  : kind === "recovery" || session.intensity === "niska"
+                    ? "low"
+                    : "moderate") as FuelLoadBand,
               fromPlan: true,
               completed: Boolean(session.dbId && completions[session.dbId]?.completed),
               scheduledStartTime: session.scheduledStartTime,

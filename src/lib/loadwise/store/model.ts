@@ -1,5 +1,4 @@
 import { trainingProfileRevision } from "../planIdentity";
-import { exercisePrescriptionKey } from "../setLogHistory";
 import type { RunningActivity,RunningActivityDraft } from "@/lib/running/types";
 import type { Dispatch,SetStateAction } from "react";
 import { ageOnDate } from "../agePolicy";
@@ -74,14 +73,10 @@ export function applyExerciseReplacements(
   session: SessionDay,
   replacements: ExerciseReplacement[],
 ): SessionDay {
+  // V2 equipment requests require a new plan, including new numeric decisions.
+  if (session.engineV2 || session.generatorVersion?.startsWith("ballwise-v2")) return session;
   return replacements.reduce(
-    (current, item) => {
-      if(current.generatorVersion?.startsWith("ballwise-v2")) {
-        const original=current.structuredSections?.flatMap(s=>s.blocks.flatMap(b=>b.exercises)).find(e=>e.id===item.exerciseId);
-        if(!original || original.exerciseId!==item.original.exerciseId || exercisePrescriptionKey(original)!==exercisePrescriptionKey(item.original)) return current;
-      }
-      return replaceExerciseInSession(current, item.exerciseId, item.replacement);
-    },
+    (current, item) => replaceExerciseInSession(current, item.exerciseId, item.replacement),
     session,
   );
 }

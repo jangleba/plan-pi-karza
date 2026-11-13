@@ -5,6 +5,7 @@ import { plannedSets } from "../setLogs";
 import { parseRestDuration } from "../restTimer";
 import { skipRound } from "../skipRounds";
 import { linkedNextStep } from "../blockMethod";
+import { FUNCTIONAL_CATALOGUE } from "../engineV2/taxonomy";
 
 /** What the athlete records or does on the current card. */
 export type TaskKind =
@@ -48,6 +49,23 @@ export function taskKind(
 ): TaskKind {
   const definition = definitionOf(exercise);
   const text = doseText(exercise);
+  const sets = plannedSets(exercise);
+  const seconds = exercise.engineDose?.seconds;
+  const numericDuration = typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0;
+  const isometric =
+    definition?.movementPattern === "isometric" ||
+    (definition && FUNCTIONAL_CATALOGUE[definition.id]?.contraction === "isometric");
+  // A coached overcoming effort is a fixed timed protocol, never a holding/RIR table.
+  if (isometric && numericDuration && exercise.engineDose?.intent === "explosive") return "general";
+  // The prescribed contraction has priority over broad "prehab"/mobility categories.
+  if (
+    isometric &&
+    ((numericDuration && exercise.engineDose?.intent === "hold") ||
+      (!exercise.engineDose &&
+        sets > 0 &&
+        (numericDuration || isTimedText(`${exercise.duration ?? ""} ${exercise.reps ?? ""}`))))
+  )
+    return "hold";
   if (definition?.family === "football_ball_work" || definition?.requiresBall) return "ball";
   if (/\bz piłk|piłką|piłki\b/i.test(exercise.name)) return "ball";
   const mobility =
@@ -74,7 +92,6 @@ export function taskKind(
   )
     return "general";
   if (isPowerTask(exercise)) return "power";
-  const sets = plannedSets(exercise);
   const holdText = `${exercise.reps ?? ""} ${exercise.duration ?? ""}`;
   if (
     /izometr|utrzyma|deska|plank|wall sit/i.test(`${exercise.name} ${holdText}`) ||
@@ -184,7 +201,8 @@ export function restSecondsAfter(
   partnerStillOpen: boolean,
   completedBlock = false,
 ): number | null {
-  if(completedBlock && exercise.engineDose?.postRestSeconds) return exercise.engineDose.postRestSeconds;
+  if (completedBlock && exercise.engineDose?.postRestSeconds)
+    return exercise.engineDose.postRestSeconds;
   const value = paired
     ? partnerStillOpen
       ? exercise.restAfterExercise
@@ -246,6 +264,8 @@ export function keyCue(exercise: TrainingExercise): string | null {
 
 /** Work length of one bout in seconds when the plan states exactly one duration ("3 min", "6 × 45 s"). */
 export function workSeconds(exercise: TrainingExercise): number | null {
+  const seconds = exercise.engineDose?.seconds;
+  if (typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0) return seconds;
   const sources = [exercise.duration, exercise.reps, exercise.displayPrescription]
     .map((value) => value?.trim() ?? "")
     .filter(Boolean);

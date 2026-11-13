@@ -6,6 +6,7 @@ import type { LoadwiseState, SessionHistoryRecord } from "../types";
 import { buildProfile, initialState, type StoreUser } from "./model";
 import { resetPlanWriteGuard } from "./planWriteGuard";
 import { useHydration } from "./useHydration";
+import { ENGINE_VERSION } from "../engineV2/model";
 
 type RemoteRows = Record<string, unknown>;
 const mocks = vi.hoisted(() => ({
@@ -363,7 +364,7 @@ describe("store hydration", () => {
     mocks.requests.set("a",Promise.resolve(rows));
     await render({id:"a"});
     await act(async()=>{await vi.waitFor(()=>expect(snapshot.state.plan).toHaveLength(28));});
-    expect(snapshot.state.plan[0].generatorVersion).toBe("ballwise-v2.3");
+    expect(snapshot.state.plan[0].generatorVersion).toBe(ENGINE_VERSION);
     expect(snapshot.state.planGeneratedFor).toBe("2026-11-02");
   });
   it("reads the active header but never revives an unversioned legacy plan", async () => {

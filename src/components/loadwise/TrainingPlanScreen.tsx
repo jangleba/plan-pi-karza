@@ -5,7 +5,7 @@ import { useLoadwise } from "@/lib/loadwise/store";
 import { generateTrainingPlan } from "@/lib/loadwise/engineV2/planner";
 import type { SessionDay } from "@/lib/loadwise/types";
 import { lockedExecutionDays } from "@/lib/loadwise/engineV2/locks";
-import { trainingProfileRevision } from "@/lib/loadwise/planIdentity";
+import { getPlanStatus } from "@/lib/loadwise/engineV2/planStatus";
 import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
 import { StrengthExperienceSetup } from "./session/StrengthExperienceSetup";
 import "@/styles/ballwise-plan.css";
@@ -30,12 +30,15 @@ export function PlanScreen() {
       ? storedMinutes
       : 75;
   const minutes = timeChoice?.planId === planId ? timeChoice.minutes : savedBudget;
-  const stale =
-    !!state.profile &&
-    state.plan.some(
-      (d) =>
-        !d.executionProtected && d.canonicalRevision !== trainingProfileRevision(state.profile!),
-    );
+  const effectivePlan = resolveEffectivePlan(state.plan, state.modifications, {
+    completions: state.completions,
+  });
+  const status = getPlanStatus({
+    plan: effectivePlan,
+    profile: state.profile,
+    todayIso,
+    completions: state.completions,
+  });
   const preview = useMemo(() => {
     if (!state.profile || (state.plan.length && !rebuild)) return null;
     try {
@@ -74,7 +77,7 @@ export function PlanScreen() {
     todayIso,
     minutes,
   ]);
-  const plan = preview?.result?.plan ?? state.plan;
+  const plan = preview?.result?.plan ?? effectivePlan;
   const issues = preview?.result?.issues ?? state.plan[0]?.enginePlanIssues ?? [];
   async function save() {
     if (!preview?.result || !activatePlanV2) return;
@@ -122,13 +125,20 @@ export function PlanScreen() {
         {!state.profile && hydrated ? <p>Uzupełnij profil, aby przygotować plan.</p> : null}
         {state.plan.length > 0 && !preview ? (
           <div className="space-y-2">
-            {stale ? (
+            {status.kind === "expired" ? (
               <p role="status">
-                Profil zmienił się. Zapisany plan zachowuje poprzednie ustawienia.
+                Cykl zakończony{status.endDate ? ` · ${status.endDate}` : ""}. Przygotuj kolejne 4
+                tygodnie.
+              </p>
+            ) : status.kind === "stale" ? (
+              <p role="status">
+                {status.staleReason === "version"
+                  ? "Dostępna jest aktualna wersja silnika. Przygotuj plan ponownie."
+                  : "Profil zmienił się. Przygotuj aktualny plan przed rozpoczęciem nowej sesji."}
               </p>
             ) : null}
             <button className="text-sm underline py-2" onClick={() => setRebuild(true)}>
-              Przygotuj kolejny plan
+              {status.kind === "stale" ? "Zaktualizuj plan" : "Przygotuj kolejny plan"}
             </button>
           </div>
         ) : null}
@@ -139,6 +149,21 @@ export function PlanScreen() {
               Podgląd dopasowany do Twojego przygotowania siłowego i kalendarza. Zapisz go, aby
               rozpocząć treningi.
             </p>
+            {state.plan.length > 0 ? (
+              <p className="text-sm text-neutral-600">
+                Nowy plan rozpoczyna się {todayIso}. Zapisane wykonanie i historia treningów
+                pozostają zachowane.
+              </p>
+            ) : null}
+            {state.plan.length > 0 ? (
+              <button
+                type="button"
+                className="text-sm underline py-2"
+                onClick={() => setRebuild(false)}
+              >
+                Wróć do zapisanego planu
+              </button>
+            ) : null}
             <button
               type="button"
               className="rounded-xl bg-neutral-900 text-white px-4 py-3"
