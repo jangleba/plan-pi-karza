@@ -71,7 +71,10 @@ const flex = (a: P, b: P, c: P) => {
 };
 describe("coherent body and equipment teaching views", () => {
   it("keeps physical bone lengths, anatomical bends and exact grips across all authored phases", () => {
-    expect(models).toHaveLength(36);
+    expect(models).toHaveLength(38);
+    expect(models.map(([id]) => id)).toEqual(
+      expect.arrayContaining(["split_squat_iso_hold", "overcoming_pin_squat_primer"]),
+    );
     for (const [id, m] of models)
       for (let i = 0; i < 120; i++) {
         const s = m.sample(i / 120),

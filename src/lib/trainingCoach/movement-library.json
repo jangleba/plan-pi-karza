@@ -1360,6 +1360,25 @@
       ]
     },
     {
+      "id": "incline_push_up",
+      "title": "Pompka z dłońmi na podwyższeniu",
+      "group": "Siła",
+      "motion": {
+        "family": "press",
+        "variant": "incline_push_up"
+      },
+      "instructions": [
+        "Ustaw dłonie trochę szerzej niż barki i napnij pośladki, żeby ciało było sztywne od głowy do pięt.",
+        "Schodź klatką między dłonie, prowadząc łokcie ukośnie do tyłu zamiast szeroko na boki.",
+        "Odepchnij podłoże równomiernie obiema rękami, kończąc w pełnym wyproście bez zapadania tułowia."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
       "id": "kettlebell_swing",
       "title": "Wymach kettlebell",
       "group": "Moc",
@@ -1719,6 +1738,28 @@
         "Trener ustawia i sprawdza stałe piny oraz pozycję sztangi. Nie zastępuj pinów przypadkowym ciężarem lub niestabilną przeszkodą.",
         "Ustaw napięty tułów i całe stopy na podłożu. Stopniowo zwiększ nacisk w kierunku wskazanym przez trenera bez zmiany pozycji.",
         "Zakończ po zadanym czasie, odpuść nacisk i odpocznij. Nie dokładaj po tym bloku dodatkowej maksymalnej pracy nóg."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "overcoming_pin_squat_primer",
+      "title": "Krótki nacisk na piny z trenerem",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "squat",
+        "variant": "overcoming_pin_squat_primer",
+        "equipment": "pins",
+        "isometric": true
+      },
+      "instructions": [
+        "Po pełnej rozgrzewce trener sprawdza stojak, nieruchome piny i pozycję. Ustawia kąt zgięcia kolana 90° oraz prowadzi stopniowe próby wprowadzające. Nie używaj przypadkowej przeszkody ani nie próbuj tego pierwszy raz samodzielnie.",
+        "Przygotuj napięcie tułowia bez uderzania w opór. Na sygnał naciskaj w nieruchomy opór z możliwie szybką intencją przez 3 sekundy, bez zmiany pozycji. Oddychaj zgodnie ze wskazówką trenera.",
+        "Wykonaj łącznie 3 próby, odpoczywając 60 sekund pomiędzy nimi. Po całym bloku odpocznij pełne 5 minut przed zaplanowanymi skokami lub bojami; trener ocenia gotowość do dalszej części.",
+        "Zakończ blok przy bólu, pogorszeniu kontroli lub niepewnym mocowaniu. Nie dodawaj prób ani nie skracaj odpoczynku. Wyników RFD nie wylicza się z samego czasomierza."
       ],
       "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
       "sourceStatus": "instructional",
@@ -2251,6 +2292,27 @@
       ]
     },
     {
+      "id": "split_squat_iso_hold",
+      "title": "Utrzymanie przysiadu wykrocznego",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "split",
+        "variant": "split_squat_iso_hold",
+        "isometric": true,
+        "unilateral": true
+      },
+      "instructions": [
+        "Ustaw stabilny wykrok przy pewnym podparciu dla równowagi. Zejdź do komfortowej, powtarzalnej głębokości i pozostaw przednią stopę całą na podłożu.",
+        "Utrzymuj tę pozycję przez wskazany czas, oddychając swobodnie. Kolano prowadź zgodnie z kierunkiem stopy; nie sprężynuj i nie dokładaj ciężaru.",
+        "Wstań spokojnie, zmień stronę i wykonaj taki sam czas. Przerwij próbę przy bólu lub utracie pozycji zamiast wydłużać serię."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
       "id": "split_squat_jump",
       "title": "Wyskoki z pozycji wykrocznej",
       "group": "Skoki i lądowania",
@@ -2451,25 +2513,6 @@
       "instructions": [
         "Kontroluj pozycję wyjściową",
         "Wykonuj ruch dynamicznie i technicznie"
-      ],
-      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
-      "sourceStatus": "instructional",
-      "notes": [
-        "Podgląd ruchu nie mierzy wykonania zawodnika."
-      ]
-    },
-    {
-      "id": "incline_push_up",
-      "title": "Pompka z dłońmi na podwyższeniu",
-      "group": "Siła",
-      "motion": {
-        "family": "press",
-        "variant": "incline_push_up"
-      },
-      "instructions": [
-        "Ustaw dłonie trochę szerzej niż barki i napnij pośladki, żeby ciało było sztywne od głowy do pięt.",
-        "Schodź klatką między dłonie, prowadząc łokcie ukośnie do tyłu zamiast szeroko na boki.",
-        "Odepchnij podłoże równomiernie obiema rękami, kończąc w pełnym wyproście bez zapadania tułowia."
       ],
       "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
       "sourceStatus": "instructional",

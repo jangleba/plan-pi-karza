@@ -273,9 +273,13 @@ export function FocusedSessionRunner({
     const stepIndex = steps.indexOf(current);
     const othersOpen = current.rows.some((r) => r !== row && !closed(r));
     const following = steps[stepIndex + 1];
+    if(othersOpen && current.kind==="linked") {
+      const partner=current.rows.find(r=>r!==row && !closed(r));
+      startRest(restSecondsAfter(row.block,row.exercise,true,true),`Następnie: ${partner?canonicalExerciseName(partner.exercise):"druga część pary"}`);
+    }
     if (!othersOpen && following) {
       startRest(
-        restSecondsAfter(row.block, row.exercise, current.kind === "linked", false),
+        restSecondsAfter(row.block, row.exercise, current.kind === "linked", false, true),
         `Następnie: ${canonicalExerciseName(following.rows[0].exercise)}`,
       );
       go(stepIndex + 1);

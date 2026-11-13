@@ -1,0 +1,428 @@
+import { buildAthleteTrainingProfile } from "../athleteProfile";
+import {
+  getExerciseDefinition,
+  isExerciseAllowedForProfile,
+  resolveEquipmentId,
+} from "../exerciseLibrary";
+import type { Profile } from "../types";
+import type { Dose, ExerciseDecision, Role, EngineSession } from "./model";
+import { trainingTier, ROLE_NAMES } from "./model";
+import { FUNCTIONAL_CATALOGUE } from "./taxonomy";
+import {
+  accelerationDistance,
+  hasVerifiedAdvancedStrength,
+  preparationProfile,
+} from "./preparation";
+import {
+  coachedPrimerDose,
+  coachedPrimerEligible,
+  controlledKneeFlexionDose,
+  quadricepsHoldingDose,
+} from "./strengthProtocols";
+
+/** Roles describe function, independently of the legacy family/hinge labels. */
+export const CANDIDATES: Record<Role, readonly string[]> = {
+  knee_strength: [
+    "heavy_back_squat",
+    "front_squat",
+    "leg_press",
+    "goblet_squat",
+    "bodyweight_squat",
+  ],
+  hip_strength: [
+    "trap_bar_deadlift",
+    "barbell_deadlift",
+    "barbell_romanian_deadlift",
+    "romanian_deadlift_db",
+    "hip_thrust",
+    "glute_bridge",
+  ],
+  unilateral_strength: [
+    "bulgarian_split_squat",
+    "step_up",
+    "reverse_lunge",
+    "bodyweight_split_squat",
+  ],
+  knee_flexion: [
+    "full_nordic_hamstring",
+    "eccentric_nordic_hamstring",
+    "assisted_nordic_hamstring",
+    "seated_leg_curl",
+    "lying_leg_curl",
+    "bilateral_slider_leg_curl",
+    "prone_band_leg_curl",
+  ],
+  hamstring_iso: [
+    "long_lever_hamstring_iso",
+    "heel_dig_hamstring_iso_30",
+    "heel_dig_hamstring_iso_90",
+  ],
+  quad_iso: ["split_squat_iso_hold"],
+  iso_primer: ["overcoming_pin_squat_primer"],
+  adductor: ["copenhagen_plank", "adductor_bridge_squeeze"],
+  calf_straight: ["standing_calf_raise"],
+  calf_bent: ["seated_soleus_raise", "soleus_iso_hold"],
+  push: ["dumbbell_bench_press", "push_up", "incline_push_up"],
+  pull: ["one_arm_dumbbell_row", "lat_pulldown", "bodyweight_row", "face_pull_band"],
+  trunk: ["pallof_press", "dead_bug", "plank"],
+  power: [
+    "dumbbell_jump_squat",
+    "trap_bar_jump",
+    "medicine_ball_rotational_scoop_toss",
+    "countermovement_jump",
+    "broad_jump",
+    "squat_jump",
+  ],
+  landing: ["snap_down", "drop_landing"],
+  speed: ["free_acceleration_sprint"],
+  endurance: ["easy_aerobic_run"],
+  warmup: ["a_march", "bodyweight_squat", "glute_bridge"],
+  mobility: [],
+  breathing: [],
+  ball_skill: [],
+};
+
+export function eligibleExercise(id: string, p: Profile): boolean {
+  const d = getExerciseDefinition(id);
+  const equipment = [
+    ...new Set([...p.equipment, ...(p.trainingMethodPreferences?.declaredEquipment ?? [])]),
+  ];
+  return (
+    !!d &&
+    d.approved !== false &&
+    !d.draft &&
+    isExerciseAllowedForProfile(d, buildAthleteTrainingProfile({ ...p, equipment })).ok
+  );
+}
+
+function pick(role: Role, p: Profile, variant: "A" | "B", used: Set<string>): string | undefined {
+  let ids = [...CANDIDATES[role]];
+  const tier = trainingTier(p);
+  if (role === "knee_strength" && tier !== "performance")
+    ids = ["goblet_squat", "bodyweight_squat", "leg_press"];
+  if (role === "hip_strength" && tier !== "performance")
+    ids = ["romanian_deadlift_db", "glute_bridge", "hip_thrust"];
+  if (role === "knee_flexion" && tier !== "performance")
+    ids = [
+      "seated_leg_curl",
+      "bilateral_slider_leg_curl",
+      "prone_band_leg_curl",
+      "assisted_nordic_hamstring",
+    ];
+  if (role === "power") {
+    const ballistic = p.goal === "power" && hasVerifiedAdvancedStrength(p);
+    const declared = p.equipment.map((value) => resolveEquipmentId(value) ?? value);
+    // Loaded/throwing equipment must be explicitly declared, not inferred from hasGym.
+    ids = ids.filter((id) => {
+      const d = getExerciseDefinition(id)!;
+      return (
+        d.family !== "power" ||
+        (ballistic && d.equipmentRequired.every((e) => declared.includes(e)))
+      );
+    });
+    if (variant === "B") {
+      const rotational = ids.filter((id) => id === "medicine_ball_rotational_scoop_toss");
+      ids = [
+        ...(p.trainingMethodPreferences?.strength === "M09" ? [] : rotational),
+        ...(p.goal === "agility" ? ["lateral_bound_to_stick"] : []),
+        "broad_jump",
+        ...ids.filter((id) => id !== "medicine_ball_rotational_scoop_toss"),
+      ];
+    }
+  }
+  return ids.find((id) => !used.has(id) && eligibleExercise(id, p));
+}
+
+export function estimateSeconds(e: ExerciseDecision, hasNext = false): number {
+  const d = e.dose;
+  const work = d.seconds ?? (d.distanceM ? 8 : (d.reps ?? 1) * (d.intent === "explosive" ? 3 : 4));
+  return (
+    d.sets * work * (d.perSide ? 2 : 1) +
+    Math.max(0, d.sets - 1) * d.restSeconds +
+    (d.postRestSeconds ?? (hasNext ? d.restSeconds : 0)) +
+    45
+  );
+}
+
+/** Execution chronology: the final ordinary rest is only needed before a next row. */
+export function estimateSessionSeconds(exercises: readonly ExerciseDecision[]): number {
+  return exercises.reduce(
+    (total, e, index) => total + estimateSeconds(e, index < exercises.length - 1),
+    0,
+  );
+}
+
+/** Stable A/B exercise identities; phase changes dose, not random exercise rotations. */
+export function buildStrength(
+  p: Profile,
+  variant: "A" | "B",
+  phase: EngineSession["phase"],
+): EngineSession {
+  const preparation = preparationProfile(p),
+    tier = preparation.tier,
+    deload =
+      phase === "deload" ||
+      p.seasonPhase === "transition" ||
+      p.goal === "return" ||
+      p.secondaryLimiter === "fatigue",
+    used = new Set<string>();
+  const exercises: ExerciseDecision[] = [],
+    missing: Role[] = [];
+  // Stable work in weeks 1–3 allows two genuinely comparable exposures before load advice.
+  const sets = deload || tier === "foundation" ? 2 : 3;
+  const add = (role: Role, dose: Dose) => {
+    const id = pick(role, p, variant, used);
+    if (!id) {
+      missing.push(role);
+      return;
+    }
+    used.add(id);
+    if (
+      ["knee_strength", "hip_strength"].includes(role) &&
+      tier !== "foundation" &&
+      !["external", "axial"].includes(getExerciseDefinition(id)!.loadingType)
+    )
+      dose = { ...dose, reps: deload ? 6 : 8, rir: deload ? 4 : 3, restSeconds: 90 };
+    if (role === "knee_flexion") dose = controlledKneeFlexionDose(id, dose.sets, tier);
+    if (FUNCTIONAL_CATALOGUE[id]?.unilateral) dose = { ...dose, perSide: true };
+    if (id.endsWith("_30")) dose = { ...dose, jointAngleDegrees: 30 };
+    if (id.endsWith("_90")) dose = { ...dose, jointAngleDegrees: 90 };
+    if (id === "soleus_iso_hold" || id === "copenhagen_plank" || id === "plank")
+      dose = {
+        ...dose,
+        reps: undefined,
+        seconds: deload ? 12 : 20,
+        rir: undefined,
+        intent: "hold",
+      };
+    exercises.push({
+      exerciseId: id,
+      role,
+      dose,
+      reason: `Cel ćwiczenia: ${ROLE_NAMES[role]}.${
+        ["knee_strength", "hip_strength"].includes(role) &&
+        !["external", "axial"].includes(getExerciseDefinition(id)!.loadingType)
+          ? " Wariant z masą ciała: kontrolowane powtórzenia i zachowanie zapasu."
+          : ""
+      }${
+        ["knee_strength", "hip_strength"].includes(role)
+          ? " W pierwszych trzech tygodniach zachowaj tę samą dawkę; ciężar dobieraj do zapasu i porównywalnych wykonanych serii. Faza opisuje kontekst bloku."
+          : ""
+      }`,
+    });
+  };
+  add("warmup", { sets: 1, seconds: 120, restSeconds: 0, intent: "easy" });
+  if (coachedPrimerEligible(p, phase)) add("iso_primer", coachedPrimerDose());
+  else if (
+    p.trainingMethodPreferences?.strength === "M14" &&
+    p.trainingMethodPreferences.coachedIsometricPrimer === true
+  )
+    missing.push("iso_primer");
+  const powerRole =
+    (tier === "foundation" && (!p.movementCompetence || p.movementCompetence === "low")) ||
+    !pick("power", p, variant, used)
+      ? "landing"
+      : "power";
+  add(powerRole, {
+    sets: deload ? 2 : 3,
+    reps: 3,
+    restSeconds: 90,
+    intent: powerRole === "landing" ? "controlled" : "explosive",
+  });
+  add(variant === "A" ? "knee_strength" : "hip_strength", {
+    sets,
+    reps: tier === "performance" && !preparation.provisional ? 4 : 6,
+    rir: deload || tier === "foundation" ? 4 : preparation.provisional ? 3 : 2,
+    restSeconds: tier === "performance" && !preparation.provisional ? 180 : 120,
+    intent: "controlled",
+  });
+  if (variant === "A")
+    add("knee_flexion", {
+      sets: deload ? 1 : 2,
+      reps: tier === "performance" ? 4 : 6,
+      rir: 3,
+      restSeconds: 120,
+      intent: "controlled",
+    });
+  else {
+    add("unilateral_strength", {
+      sets: deload ? 1 : 2,
+      reps: 5,
+      perSide: true,
+      rir: 3,
+      restSeconds: 90,
+      intent: "controlled",
+    });
+    add("hamstring_iso", { sets: deload ? 1 : 2, seconds: 15, restSeconds: 60, intent: "hold" });
+  }
+  add(variant === "A" ? "push" : "pull", {
+    sets: 2,
+    reps: 8,
+    rir: 3,
+    restSeconds: 75,
+    intent: "controlled",
+  });
+  if (variant === "A")
+    add("adductor", { sets: deload ? 1 : 2, seconds: 15, restSeconds: 60, intent: "hold" });
+  else
+    add("trunk", { sets: deload ? 1 : 2, reps: 8, rir: 3, restSeconds: 60, intent: "controlled" });
+  if (variant === "A" && p.trainingMethodPreferences?.strength === "M13")
+    add("quad_iso", quadricepsHoldingDose(deload));
+  add(variant === "A" ? "calf_straight" : "calf_bent", {
+    sets: deload ? 1 : 2,
+    reps: 10,
+    restSeconds: 60,
+    intent: "controlled",
+  });
+  let organization: EngineSession["organization"] =
+    powerRole === "power" ? "power_first" : "straight";
+  const primary = exercises.find(
+    (e) => e.role === (variant === "A" ? "knee_strength" : "hip_strength"),
+  );
+  const power = exercises.find((e) => e.role === "power");
+  const primaryDefinition = primary ? getExerciseDefinition(primary.exerciseId) : undefined;
+  if (
+    p.trainingMethodPreferences?.strength === "M09" &&
+    hasVerifiedAdvancedStrength(p) &&
+    !p.painInjury &&
+    p.seasonPhase !== "return_injury" &&
+    !deload &&
+    phase !== "adaptation" &&
+    primary &&
+    power &&
+    primaryDefinition &&
+    ["external", "axial"].includes(primaryDefinition.loadingType) &&
+    FUNCTIONAL_CATALOGUE[power.exerciseId]?.actions.includes("jump")
+  ) {
+    organization = "contrast";
+    const pairSets = Math.min(primary.dose.sets, power.dose.sets);
+    primary.dose = { ...primary.dose, sets: pairSets, restSeconds: 180 };
+    power.dose = { ...power.dose, sets: pairSets, restSeconds: 180 };
+    const primaryIndex = exercises.indexOf(primary),
+      powerIndex = exercises.indexOf(power);
+    if (primaryIndex > powerIndex) {
+      exercises.splice(primaryIndex, 1);
+      exercises.splice(powerIndex, 0, primary);
+    }
+  }
+  return {
+    roles: [variant === "A" ? "strengthA" : "strengthB"],
+    tier,
+    phase,
+    organization,
+    highLower: tier !== "foundation",
+    exercises,
+    missing,
+    sprintMetres: 0,
+    minutes: Math.ceil(estimateSessionSeconds(exercises) / 60) + 8,
+  };
+}
+
+export function buildRunning(
+  p: Profile,
+  role: "speed" | "endurance",
+  phase: EngineSession["phase"],
+): EngineSession | null {
+  const declaredSpace = p.trainingMethodPreferences?.spaceLengthM;
+  if (
+    role === "speed" &&
+    (!p.hasSprintSpace ||
+      !Number.isFinite(p.age) ||
+      p.age < 13 ||
+      p.painInjury ||
+      p.seasonPhase === "return_injury" ||
+      (declaredSpace !== undefined && (!Number.isFinite(declaredSpace) || declaredSpace < 20)))
+  )
+    return null;
+  let id = pick(role, p, "A", new Set());
+  if (!id) return null;
+  const tier = trainingTier(p),
+    deload = phase === "deload",
+    light =
+      deload ||
+      p.seasonPhase === "transition" ||
+      p.goal === "return" ||
+      p.secondaryLimiter === "fatigue",
+    sportPrepared = ["intermediate", "advanced", "elite"].includes(p.level),
+    adultPrepared = p.age >= 18 && sportPrepared,
+    sprintDistance = accelerationDistance(p);
+  const flying =
+    role === "speed" &&
+    p.goal === "speed" &&
+    phase === "development" &&
+    !light &&
+    p.age >= 18 &&
+    ["advanced", "elite"].includes(p.level) &&
+    p.movementCompetence === "high" &&
+    ["some", "full"].includes(p.supervisionLevel ?? "none") &&
+    (declaredSpace ?? 0) >= 50 &&
+    eligibleExercise("flying_sprint", p);
+  if (flying) id = "flying_sprint";
+  const dose: Dose =
+    role === "speed"
+      ? {
+          sets: light ? (adultPrepared ? 3 : 2) : adultPrepared ? 6 : 4,
+          reps: 1,
+          distanceM: light ? 10 : sprintDistance,
+          restSeconds: 90,
+          intent: "explosive",
+        }
+      : {
+          sets: 1,
+          seconds: (deload ? 15 : tier === "foundation" ? 20 : 25) * 60,
+          restSeconds: 0,
+          intent: "easy",
+        };
+  if (flying) {
+    dose.sets = 4;
+    dose.distanceM = 10;
+    dose.runInM = 20;
+    dose.restSeconds = 150;
+  }
+  const exercises: ExerciseDecision[] = [
+    {
+      exerciseId: id,
+      role,
+      dose,
+      reason:
+        role === "speed"
+          ? flying
+            ? "Najazd 20 m, odcinek lotny 10 m i co najmniej 20 m stopniowego wyhamowania; trener nadzoruje jakość. Pełny odpoczynek, przerwij przy spadku jakości."
+            : "Przyspieszenie dobrane do wieku, przygotowania sportowego i miejsca, niezależnie od stażu siłowego. Pełny odpoczynek; zakończ przy utracie jakości. Po odcinku 10 m pozostaw co najmniej 10 m do spokojnego wyhamowania, a po 20 m — co najmniej 20 m."
+          : "Tempo konwersacyjne; bez zgadywania MAS i tempa z GPS.",
+    },
+  ];
+  if (
+    role === "speed" &&
+    p.goal === "agility" &&
+    eligibleExercise("progressive_run_three_step_stop", p)
+  )
+    exercises.push({
+      exerciseId: "progressive_run_three_step_stop",
+      role: "landing",
+      dose: {
+        sets: light ? 1 : p.age < 16 ? 2 : 3,
+        distanceM: 10,
+        reps: 1,
+        restSeconds: 90,
+        intent: "controlled",
+      },
+      reason: "Kontrolowane hamowanie po biegu progresywnym; nie reakcyjny test zwinności.",
+    });
+  return {
+    roles: [role],
+    tier,
+    phase,
+    exercises,
+    missing: [],
+    highLower: role === "speed",
+    minutes:
+      role === "endurance"
+        ? dose.seconds! / 60 + 10
+        : Math.ceil(estimateSessionSeconds(exercises) / 60) + 10,
+    sprintMetres: exercises.reduce(
+      (s, e) => s + ((e.dose.distanceM ?? 0) + (e.dose.runInM ?? 0)) * e.dose.sets,
+      0,
+    ),
+  };
+}

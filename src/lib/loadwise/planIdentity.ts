@@ -2,6 +2,18 @@ import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex } from "@noble/hashes/utils";
 import type { Profile, SessionDay } from "./types";
 
+function stable(value: unknown): unknown {
+  return Array.isArray(value)
+    ? value.map(stable)
+    : value && typeof value === "object"
+      ? Object.fromEntries(
+          Object.entries(value)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([key, item]) => [key, stable(item)]),
+        )
+      : value;
+}
+
 /** Only actual generator inputs invalidate a plan; timestamps and Fuel do not. */
 export function trainingProfileRevision(profile: Profile): string {
   const keys = [
@@ -32,6 +44,7 @@ export function trainingProfileRevision(profile: Profile): string {
     "healthPersonalizationEnabled",
     "fieldMasKmh",
     "fieldMasTestedAt",
+    "fieldMasSourceSessionId",
     "runningProgressionLevel",
     "gymExperienceLevel",
     "strengthTrainingMonths",
@@ -72,11 +85,11 @@ export function trainingProfileRevision(profile: Profile): string {
     return [key, orderedKeys.has(key) ? unique : unique.sort()];
   });
   // Keep private inputs out of plan metadata and compact boot caches.
-  return `training-inputs:v1:${bytesToHex(sha256(JSON.stringify(values)))}`;
+  return `training-inputs:v1:${bytesToHex(sha256(JSON.stringify(stable(values))))}`;
 }
 
 export function sessionPrescription(session: SessionDay): string {
-  return JSON.stringify([
+  const values: unknown[] = [
     session.dayType,
     session.type,
     session.sessionType,
@@ -88,5 +101,8 @@ export function sessionPrescription(session: SessionDay): string {
     session.sections,
     session.structuredSections ?? null,
     session.trainingMethods ?? null,
-  ]);
+  ];
+  if (session.engineV2)
+    values.push({ decision: session.engineV2, runningRecipe: session.runningRecipe ?? null });
+  return JSON.stringify(stable(values));
 }

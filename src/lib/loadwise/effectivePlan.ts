@@ -81,7 +81,7 @@ export function resolveModifiedDay(
   source: SessionDay,
   modifications: SessionModification[] = [],
 ): SessionDay {
-  const ordered = [...modifications].sort(byCreatedAt);
+  const ordered = modifications.filter(m=>!source.generatorVersion?.startsWith("ballwise-v2") || (!!source.dayDbId && m.session.dayDbId===source.dayDbId)).sort(byCreatedAt);
   const swap = ordered.filter((item) => item.type === "swap").at(-1);
   const additions = ordered.filter((item) => item.type === "add");
   const dailySecond = additions

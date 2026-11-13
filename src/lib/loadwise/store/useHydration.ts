@@ -35,6 +35,7 @@ import {
   type StoreUser,
 } from "./model";
 import { loadSessionHistory } from "./repository";
+import { loadV2Plan } from "../engineV2/persistence";
 
 const useClientLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 interface HydrationOptions {
@@ -181,7 +182,7 @@ export function useHydration({
             clearTimeout(runningTimeout);
             controller.signal.removeEventListener("abort", cancelRunning);
           });
-        const [profRes, athRes, onboardingRes, logRes, modRes, replacementRes, readinessRes] =
+        const [profRes, athRes, onboardingRes, logRes, modRes, replacementRes, readinessRes, savedV2] =
           await Promise.all([
             supabase
               .from("profiles")
@@ -257,6 +258,7 @@ export function useHydration({
               .eq("user_id", user.id)
               .order("date", { ascending: false })
               .limit(45),
+            loadV2Plan(user.id, controller.signal),
           ]);
 
         clearTimeout(timeout);
@@ -332,10 +334,10 @@ export function useHydration({
             };
           }
         }
-        // Silnik układania tygodnia został usunięty: zapisany plan zostaje w bazie
-        // bez zmian, a aplikacja nie pokazuje ani nie przebudowuje tygodnia.
-        const plan: SessionDay[] = [];
-        const planGeneratedFor: string | null = null;
+        // Only explicitly saved V2 plans are restored; startup never generates or writes.
+        if (cancelled) return;
+        const plan: SessionDay[] = savedV2.plan;
+        const planGeneratedFor: string | null = plan[0]?.date ?? null;
 
         const historyPromise = (async () => {
           const allLogs = await readAllPages(
@@ -404,6 +406,7 @@ export function useHydration({
             : profile,
           plan,
           planGeneratedFor,
+          activePlanId: savedV2.id ?? null,
           readiness: persistedReadiness,
           completions,
           history: cachedState?.history ?? [],

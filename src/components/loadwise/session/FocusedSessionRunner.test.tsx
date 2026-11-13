@@ -112,6 +112,178 @@ async function saveFirstSet() {
 }
 
 describe("ekran treningu", () => {
+  it("po trzecim wysiłku ISO odlicza pełne 300 s, zachowując 60 s między próbami", async () => {
+    let now = new Date("2026-11-10T12:00:00Z").getTime();
+    const clock = vi.spyOn(Date, "now").mockImplementation(() => now);
+    const advance = async (milliseconds: number) => {
+      now += milliseconds;
+      await act(async () => {
+        window.dispatchEvent(new Event("focus"));
+      });
+    };
+    const isoSections: TrainingSection[] = [
+      sectionFixture("prep", [
+        {
+          id: "iso-primer",
+          exerciseId: "overcoming_pin_squat_primer",
+          name: "Nadzorowany nacisk izometryczny",
+          sets: "3",
+          duration: "3 s",
+          displayPrescription: "3 × 3 s",
+          restAfterExercise: "60 s",
+          engineDose: {
+            sets: 3,
+            seconds: 3,
+            restSeconds: 60,
+            postRestSeconds: 300,
+            jointAngleDegrees: 90,
+            intent: "explosive",
+          },
+        },
+      ]),
+      sectionFixture("main", [
+        {
+          id: "next-lift",
+          exerciseId: "glute_bridge",
+          name: "Most biodrowy",
+          sets: "2",
+          reps: "8",
+          restAfterExercise: "60 s",
+        },
+      ]),
+    ];
+    try {
+      await act(async () =>
+        root.render(
+          <FocusedSessionRunner
+            sections={isoSections}
+            date="2026-11-10"
+            kind="strength"
+            canRecord
+            onFinish={() => undefined}
+          />,
+        ),
+      );
+      for (let repetition = 0; repetition < 3; repetition++) {
+        expect(byText("Start 0:03")).toBeDefined();
+        await click(byText("Start 0:03"));
+        expect(host.querySelector(".bw-work-clock")?.textContent).toBe("0:03");
+        await advance(3000);
+        expect(host.querySelector(".bw-work-clock")?.textContent).toBe("0:00");
+        expect(count()).toContain("Wykonane 0 z 2");
+        await click(repetition < 2 ? byText("Seria wykonana") : containing("Wykonane · dalej"));
+        expect(host.querySelector(".bw-rest-big")?.textContent).toBe(
+          repetition < 2 ? "01:00" : "05:00",
+        );
+        if (repetition < 2) {
+          await advance(60000);
+          await nextSet();
+        }
+      }
+      expect(count()).toContain("Wykonane 1 z 2");
+      expect(host.querySelector(".bw-rest-following")?.textContent).toContain("Most biodrowy");
+      expect(byText("Rozpocznij ćwiczenie")).toBeDefined();
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it("po ostatniej serii A zachowuje 180 s przed nieukończoną częścią B kontrastu", async () => {
+    const contrast: TrainingSection[] = [
+      {
+        id: "contrast-main",
+        title: "Część główna",
+        type: "main",
+        blocks: [
+          {
+            id: "pair",
+            title: "Para",
+            blockType: "contrast",
+            intent: "power",
+            exercises: [
+              {
+                id: "contrast-a",
+                label: "A1",
+                exerciseId: "heavy_back_squat",
+                name: "Przysiad ze sztangą",
+                sets: "3",
+                reps: "4",
+                rir: "2",
+                restAfterExercise: "180 s",
+              },
+              {
+                id: "contrast-b",
+                label: "A2",
+                exerciseId: "countermovement_jump",
+                name: "Skok z zamachem",
+                sets: "3",
+                reps: "3",
+                restAfterExercise: "180 s",
+                restAfterPair: "180 s",
+              },
+            ],
+          },
+          {
+            id: "after-pair",
+            title: "Dalej",
+            blockType: "single",
+            intent: "strength",
+            exercises: [
+              {
+                id: "after-pair-ex",
+                exerciseId: "glute_bridge",
+                name: "Most biodrowy",
+                sets: "2",
+                reps: "8",
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    await act(async () =>
+      root.render(
+        <FocusedSessionRunner
+          sections={contrast}
+          date="2026-11-10"
+          kind="strength"
+          canRecord
+          onFinish={() => undefined}
+        />,
+      ),
+    );
+    for (let set = 1; set <= 3; set++) {
+      expect(host.querySelector(".bw-rest-screen")).toBeNull();
+      await act(async () => {
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+        for (const [field, value] of [
+          ["ciężar w kg", "80"],
+          ["powtórzenia", "4"],
+        ]) {
+          const input = host.querySelector<HTMLInputElement>(
+            `input[aria-label="Seria ${set}: ${field}"]`,
+          );
+          expect(input).not.toBeNull();
+          setter.call(input, value);
+          input!.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+      });
+      await click(
+        host.querySelector<HTMLButtonElement>(`button[aria-label="Seria ${set}: zapas 2"]`)!,
+      );
+      await click(
+        host.querySelector<HTMLButtonElement>(`button[aria-label="Zatwierdź serię ${set}"]`)!,
+      );
+      expect(host.querySelector(".bw-rest-screen")).not.toBeNull();
+      expect(host.querySelector(".bw-rest-big")?.textContent).toBe("03:00");
+      if (set < 3) await nextSet();
+    }
+    expect(logs.save).toHaveBeenCalledTimes(3);
+    expect(count()).toContain("Wykonane 1 z 3");
+    expect(host.querySelector(".bw-rest-following")?.textContent).toContain("Skok z zamachem");
+    expect(byText("Rozpocznij ćwiczenie")).toBeDefined();
+  });
+
   it("zapis serii: kolejna seria jest wypełniona, krokiem dodaje się powtórzenie, zapisaną można poprawić", async () => {
     await render(true);
     await click(byText("Następne"));

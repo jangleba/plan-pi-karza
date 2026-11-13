@@ -25,6 +25,7 @@ import {
   type AccountOwnerType,
 } from "@/lib/loadwise/agePolicy";
 import { OWN_EQUIPMENT_OPTIONS } from "@/lib/loadwise/equipmentOptions";
+import { healthFieldsForOnboarding } from "@/lib/loadwise/onboardingHealth";
 import {
   answersFromProfile,
   cleanUnavailableDays,
@@ -149,15 +150,18 @@ const GOAL_OPTIONS: Array<{ id: Goal; title: string }> = [
 ];
 
 const GOAL_DETAIL: Record<Goal, string> = {
-  speed: "Co tydzień sprint: start, prędkość maksymalna albo bieg po łuku, plus siła nóg.",
-  strength: "Dwie sesje siły w tygodniu, progresja ciężaru co blok.",
-  power: "Siła z elementami eksplozywnymi: skoki, rzuty, szybkie powtórzenia.",
-  endurance: "Dwie sesje wytrzymałości: tlen, interwały i bieg pozycyjny.",
-  agility: "Hamowanie, zmiana kierunku i reakcja w sesji sprintu.",
-  general: "Równo siła, sprint, bieg i własna praca z piłką.",
-  matchready: "Świeżość na mecz: mniej objętości, więcej ostrości przed weekendem.",
-  mobility: "Mobilność i stabilizacja jako główne jednostki tygodnia.",
-  return: "Lżejsze wejście w trening, jedna zmiana obciążenia naraz.",
+  speed: "Akcent na przyspieszenie i siłę nóg, dopasowany do przygotowania, miejsca i kalendarza.",
+  strength:
+    "Priorytet siły. Ciężar dobierasz do techniki i zapasu powtórzeń; propozycje zmian wynikają z wykonanych sesji.",
+  power: "Siła i dopasowane elementy mocy, np. skoki albo rzuty.",
+  endurance:
+    "Dwie sesje wytrzymałości: spokojny bieg, a przy odpowiednim przygotowaniu i aktualnym teście także interwały.",
+  agility: "Przygotowanie siłowe i szybkościowe wspierające zwrotność.",
+  general: "Siła, sprint, bieg i własna praca z piłką dopasowane do warunków.",
+  matchready: "Plan podporządkowany meczom: ograniczanie obciążenia i lekka aktywacja przed grą.",
+  mobility: "Akcent na mobilność i stabilizację w połączeniu z pozostałym przygotowaniem.",
+  return:
+    "Lżejsze wejście po przerwie. Powrót po urazie wymaga osobnej oceny i nie jest układany automatycznie.",
 };
 
 const LIMITER_OPTIONS: Array<{ id: SecondaryLimiter; title: string }> = [
@@ -420,9 +424,8 @@ function Onboarding() {
       foodIntolerances: [],
       foodExclusions: [],
       ...training,
-      // Onboarding nie zbiera danych o bólu ani urazach (dane wrażliwe, RODO art. 9).
-      painInjury: false,
-      painLocations: [],
+      // General answers do not clear previously reported pain while health consent remains active.
+      ...healthFieldsForOnboarding(existing, Boolean(consents.health_data)),
       guardianConsent: isGuardianChild ? consent : accountOwnerType === "guardian" ? consent : true,
       onboardingComplete: true,
       createdAt: existing?.createdAt ?? new Date().toISOString(),
@@ -455,9 +458,9 @@ function Onboarding() {
     setBusy(true);
     try {
       pendingRetry = { userId: user!.id, consents };
-      // Not cleared on return: a shown plan may still fail to save and bring the athlete back.
+      // Keep the answers and consents available if the profile write needs a retry.
       await completeOnboarding(profile, consents);
-      // A new plan is shown at once and saved in the background; only an edit is confirmed here.
+      // Plan shows a preview; activating it requires a separate, explicit save.
       if (isEditing) toast.success("Profil zaktualizowany.");
       navigate({ to: isEditing ? "/profil" : "/plan", replace: true });
     } catch (error) {
@@ -800,7 +803,7 @@ function Onboarding() {
           <>
             <StepTitle
               title="Cel"
-              sub="Cel prowadzi plan. Ograniczenie dokłada jedną sesję w tygodniu."
+              sub="Cel prowadzi plan. Ograniczenie dodaje akcent, jeśli pozwalają czas i kalendarz."
               sketch="strength"
             />
             <Group

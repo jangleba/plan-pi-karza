@@ -353,7 +353,20 @@ describe("store hydration", () => {
     expect(snapshot.state.readiness).toEqual({});
     expect(snapshot.state.equipmentNotice).toContain("ostatnie dostępne dane");
   });
-  it("neither reads, rebuilds nor writes the stored plan now that the week engine is removed", async () => {
+  it("restores an explicitly saved V2 plan without generating a replacement",async()=>{
+    const rows=remoteRows("Athlete");
+    rows.profiles={full_name:"Athlete",onboarding_completed:true};
+    const profile=buildProfile(rows.profiles as Record<string,unknown>,rows.athlete_profiles as Record<string,unknown>,null)!;
+    const {generateTrainingPlan}=await import("../engineV2/planner");
+    const generated=generateTrainingPlan(profile,{startDate:"2026-11-02"}).plan;
+    rows.training_plans={id:"saved-v2",plan_json:generated};
+    mocks.requests.set("a",Promise.resolve(rows));
+    await render({id:"a"});
+    await act(async()=>{await vi.waitFor(()=>expect(snapshot.state.plan).toHaveLength(28));});
+    expect(snapshot.state.plan[0].generatorVersion).toBe("ballwise-v2.3");
+    expect(snapshot.state.planGeneratedFor).toBe("2026-11-02");
+  });
+  it("reads the active header but never revives an unversioned legacy plan", async () => {
     const rows = remoteRows("Athlete");
     rows.profiles = { full_name: "Athlete", onboarding_completed: true };
     rows.training_plans = {
@@ -370,7 +383,7 @@ describe("store hydration", () => {
     expect(snapshot.state.planGeneratedFor).toBeNull();
     expect(snapshot.state.transitions).toEqual({});
     const tables = mocks.queries.mock.calls.map(([table]) => table);
-    expect(tables).not.toContain("training_plans");
+    expect(tables).toContain("training_plans");
     expect(tables).not.toContain("weekly_transitions");
   });
 });

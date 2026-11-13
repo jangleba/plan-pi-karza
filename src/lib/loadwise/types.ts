@@ -297,6 +297,7 @@ export type SectionType = "warmup" | "prep" | "main" | "accessory" | "cooldown" 
 export type AgeSafetyLevel = "all" | "youth_ok" | "advanced_only";
 
 export interface TrainingExercise {
+  engineDose?: import("./engineV2/model").Dose;
   methodExecution?: MethodExecution;
   executionBlockedReason?: string;
   id: string;
@@ -596,6 +597,9 @@ export interface SessionClassification {
 }
 
 export interface SessionDay {
+  engineTimeBudgetMin?:number;
+  enginePlanIssues?: import("./engineV2/model").Issue[];
+  engineV2?: import("./engineV2/model").EngineSession;
   postSessionFeedbackKey?: string;
   /**
    * Ustrukturyzowana receptura biegu (rozgrzewka, serie, odcinki, intensywność,
@@ -772,6 +776,8 @@ export interface WeeklyTransition {
 }
 
 export interface LoadwiseState {
+  /** Header observed during hydration, including a hidden legacy plan. */
+  activePlanId?: string | null;
   profile: Profile | null;
   plan: SessionDay[];
   planGeneratedFor: string | null; // date plan starts

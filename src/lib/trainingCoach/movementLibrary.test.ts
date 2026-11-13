@@ -51,7 +51,7 @@ const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 describe("complete shared exercise demonstrations", () => {
   it("resolves every approved physical exercise and every preparation visual", () => {
     const definitions = getApprovedExerciseDefinitions();
-    expect(definitions).toHaveLength(203);
+    expect(definitions).toHaveLength(205);
     for (const definition of definitions) {
       const selection = resolveExerciseAnimation({
         id: definition.id,
@@ -82,6 +82,24 @@ describe("complete shared exercise demonstrations", () => {
         "bw-human-natural",
       );
     }
+  });
+  it("routes the two new isometrics to distinct static demonstrations with their own instructions", () => {
+    for (const id of ["split_squat_iso_hold", "overcoming_pin_squat_primer"]) {
+      const definition = getApprovedExerciseDefinitions().find((exercise) => exercise.id === id)!;
+      const selection = resolveExerciseAnimation({
+        id,
+        exerciseId: id,
+        name: definition.displayNamePl,
+      });
+      expect(selection?.id).toBe(id);
+      const record = library.records.find((entry) => entry.id === id)!;
+      expect(record.instructions).toEqual(definition.instructionsPl);
+      const model = runtime.BWAnim.models[id];
+      expect(model.sample(0.25).hip).toEqual(model.sample(0.75).hip);
+    }
+    expect(runtime.BWAnim.models.split_squat_iso_hold.sample(0.25).phase).toContain("bez ruchu");
+    const primer = library.records.find((entry) => entry.id === "overcoming_pin_squat_primer")!;
+    expect(primer.instructions.join(" ")).toContain("pełne 5 minut");
   });
   it("renders finite poses in the same human style through every phase", () => {
     expect(runtime.BWDrawHuman.style).toBe("anatomical-outline-60");

@@ -53,6 +53,7 @@ export function mergeHydratedState(
       ? {
           profile: current.profile,
           plan: current.plan,
+          activePlanId: current.activePlanId,
           planGeneratedFor: current.planGeneratedFor,
           modifications: current.modifications,
           transitions: current.transitions,

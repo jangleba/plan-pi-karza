@@ -17,6 +17,7 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
     movementCompetence: profile?.movementCompetence ?? "low",
     supervisionLevel: profile?.supervisionLevel ?? "none",
     clubStrengthDays: profile?.clubStrengthDays ?? [],
+    trainingMethodPreferences: profile?.trainingMethodPreferences ?? {},
   }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +51,7 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
             movementCompetence: profile.movementCompetence ?? "low",
             supervisionLevel: profile.supervisionLevel ?? "none",
             clubStrengthDays: profile.clubStrengthDays ?? [],
+            trainingMethodPreferences: profile.trainingMethodPreferences ?? {},
           });
           setError(null);
           setEditing(true);
@@ -175,6 +177,126 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
                 <option value="none">Trenuję sam</option>
                 <option value="some">Trener sprawdza część ćwiczeń</option>
                 <option value="full">Trener prowadzi i nadzoruje sesję</option>
+              </select>
+            </label>
+            <label>
+              Organizacja siły
+              <select
+                value={draft.trainingMethodPreferences?.strength ?? "auto"}
+                disabled={saving}
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    trainingMethodPreferences: {
+                      ...d.trainingMethodPreferences,
+                      strength: e.target.value as "auto" | "M09" | "M13" | "M14",
+                      coachedIsometricPrimer: false,
+                    },
+                  }))
+                }
+              >
+                <option value="auto">Automatyczna</option>
+                <option value="M09">Kontrast siła–moc</option>
+                <option value="M13">Siła z izometrią utrzymywaną</option>
+                <option value="M14">Nadzorowana izometria przed treningiem</option>
+              </select>
+            </label>
+            {draft.trainingMethodPreferences?.strength === "M14" && (
+              <div className="space-y-2">
+                <p className="text-sm">
+                  Opcja dla przygotowanych dorosłych pod pełnym nadzorem. Trener sprawdza stałe
+                  piny, pozycję i wykonanie. Po próbach zaplanowano 5 minut odpoczynku; efekt
+                  poprawy kolejnych ćwiczeń nie jest gwarantowany.
+                </p>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={draft.trainingMethodPreferences?.coachedIsometricPrimer === true}
+                    disabled={saving}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        trainingMethodPreferences: {
+                          ...d.trainingMethodPreferences,
+                          coachedIsometricPrimer: e.target.checked,
+                        },
+                      }))
+                    }
+                  />
+                  Trener będzie obecny i zapoznał mnie z tym protokołem.
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={
+                      draft.trainingMethodPreferences?.declaredEquipment?.includes("fixed_pins") ??
+                      false
+                    }
+                    disabled={saving}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        trainingMethodPreferences: {
+                          ...d.trainingMethodPreferences,
+                          declaredEquipment: e.target.checked
+                            ? [
+                                ...new Set([
+                                  ...(d.trainingMethodPreferences?.declaredEquipment ?? []),
+                                  "fixed_pins",
+                                ]),
+                              ]
+                            : d.trainingMethodPreferences?.declaredEquipment?.filter(
+                                (x) => x !== "fixed_pins",
+                              ),
+                        },
+                      }))
+                    }
+                  />
+                  Mam stanowisko ze stałymi, zabezpieczonymi pinami.
+                </label>
+              </div>
+            )}
+            <label>
+              Aktywacja przed meczem
+              <select
+                disabled={saving}
+                value={
+                  draft.trainingMethodPreferences?.activationLocation ??
+                  (profile.hasPitch ? "field" : "gym")
+                }
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    trainingMethodPreferences: {
+                      ...d.trainingMethodPreferences,
+                      activationLocation: e.target.value as "field" | "gym",
+                    },
+                  }))
+                }
+              >
+                <option value="field">Boisko</option>
+                <option value="gym">Siłownia</option>
+              </select>
+            </label>
+            <label>
+              Mobilność — akcent
+              <select
+                disabled={saving}
+                value={draft.trainingMethodPreferences?.mobilityFocus ?? "general"}
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    trainingMethodPreferences: {
+                      ...d.trainingMethodPreferences,
+                      mobilityFocus: e.target.value as "general" | "hip" | "ankle" | "thoracic",
+                    },
+                  }))
+                }
+              >
+                <option value="general">Całe ciało</option>
+                <option value="hip">Biodra</option>
+                <option value="ankle">Staw skokowy</option>
+                <option value="thoracic">Odcinek piersiowy</option>
               </select>
             </label>
             {clubDays.length > 0 && (
