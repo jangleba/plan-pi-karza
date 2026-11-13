@@ -123,7 +123,12 @@ const reports = [],
   errors = [];
 
 try {
-  const p = await b.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  // BALLWISE_SHOT_SCALE=2 gives sharp screenshots for people; checks run at 1.
+  const p = await b.newPage({
+    viewport: { width: 390, height: 844 },
+    reducedMotion: "reduce",
+    deviceScaleFactor: Number(process.env.BALLWISE_SHOT_SCALE) || 1,
+  });
   p.on("pageerror", (e) => errors.push(e.message));
   p.on("console", (m) => {
     if (m.type() === "error") errors.push(m.text());
@@ -325,7 +330,8 @@ try {
   // Timer-only work records time, never phone GPS distance or sprint accuracy.
   await p.goto(base + "?kind=run&phase=active");
   await p.getByRole("button", { name: "Bez GPS", exact: true }).click();
-  await p.getByRole("button", { name: "Start biegu", exact: true }).click();
+  // A timed recipe runs the guided clock ("Start"); older sessions keep the manual one.
+  await p.getByRole("button", { name: /^Start( biegu)?$/ }).click();
   await p.waitForTimeout(1200);
   await p.getByRole("button", { name: "Zakończ bieg", exact: true }).click();
   await p.getByRole("dialog").waitFor();
@@ -443,6 +449,21 @@ try {
       await p.screenshot({ path: path.join(shotDir, `06-${kind}-${phase}-390.png`) });
       reports.push({ case: `unit-${kind}-${phase}`, ...m, passed: true });
     }
+  // Timed run guide (no GPS): parts of the run, current step, next step, reps, bottom actions.
+  for (const kind of ["intervals", "run"]) {
+    await p.goto(base + `?kind=${kind}&phase=active&unit=1`);
+    await p.locator(".bw-qa-open-unit").click();
+    await unit.getByRole("button", { name: "Bez GPS", exact: true }).click();
+    const guide = unit.locator(".bw-run-guide");
+    if (!(await guide.count())) continue;
+    await unit.getByRole("button", { name: "Start", exact: true }).click();
+    await p.waitForTimeout(1500);
+    const m = await unitMetrics();
+    if (m.overflow > 1) throw Error(`Run guide overflow for ${kind}: ${m.overflow}`);
+    await p.screenshot({ path: path.join(shotDir, `07-${kind}-prowadzenie-390.png`) });
+    await unit.getByRole("button", { name: "Pauza", exact: true }).click();
+    reports.push({ case: `run-guide-${kind}`, passed: true });
+  }
   if (process.env.BALLWISE_UNIT_SHOTS) reports.push({ case: "unit-shots", dir: shotDir });
   if (errors.length) throw Error(errors.join("; "));
 } catch (error) {

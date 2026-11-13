@@ -121,7 +121,7 @@ it("preserves the unfinished native interval when finishing the run", async () =
       />,
     ),
   );
-  await act(async () => button("Zakończ").click());
+  await act(async () => button("Zakończ bieg").click());
   expect(mock.intervals).toHaveBeenCalledWith(
     expect.objectContaining({
       intervalResults: [
@@ -160,7 +160,7 @@ it("recovers the native draft, resumes through native GPS and clears only after 
   expect(host.textContent).toContain("Odzyskano szkic");
   await act(async () => button("Wznów").click());
   expect(mock.resume).toHaveBeenCalledWith({ ownerId, sessionId });
-  await act(async () => button("Zakończ").click());
+  await act(async () => button("Zakończ bieg").click());
   expect(mock.finish).toHaveBeenCalled();
   await act(async () => button("Zapisz bieg").click());
   expect(mock.save.mock.calls[0][0]).toMatchObject({

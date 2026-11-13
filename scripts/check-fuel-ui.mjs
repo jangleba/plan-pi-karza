@@ -159,6 +159,8 @@ try {
     args: ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"],
   });
   const page = await browser.newPage({
+    // BALLWISE_SHOT_SCALE=2 gives sharp screenshots for people; checks run at 1.
+    deviceScaleFactor: Number(process.env.BALLWISE_SHOT_SCALE) || 1,
     viewport: { width: 390, height: 844 },
     reducedMotion: "reduce",
   });
