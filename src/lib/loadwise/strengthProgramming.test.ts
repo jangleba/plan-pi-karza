@@ -19,8 +19,6 @@ import { buildAthleteTrainingProfile } from "./athleteProfile";
 import { getExerciseDefinition, isExerciseAllowedForProfile } from "./exerciseLibrary";
 import { sectionFixture, sessionFixture } from "@/components/loadwise/session/testFixtures";
 import type { Profile, TrainingExercise } from "./types";
-import { generatePlan } from "./planEngine";
-import { validatePlanExerciseContract } from "./planExerciseContract";
 const base = {
   name: "Test",
   secondaryLimiter: null,
@@ -270,63 +268,6 @@ describe("strength programming repair", () => {
       sections[0].blocks[0].exercises[0].instructionSteps,
     );
   });
-  it("keeps the actual 28-day planner usable with missing equipment and different gym experience", () => {
-    for (const age of [13, 17, 24])
-      for (const gym of ["unknown", "advanced"])
-        for (const goal of [
-          "general",
-          "strength",
-          "speed",
-          "power",
-          "agility",
-          "endurance",
-        ] as const)
-          for (const unavailable of [[], ["barbell", "trap_bar", "machine", "band", "cable"]]) {
-            const profile: Profile = {
-              ...base,
-              age,
-              goal,
-              usualMatchDay: null,
-              matchDate: null,
-              weeklyMatches: false,
-              seasonPhase: "preseason",
-              seasonPhaseOverride: true,
-              unavailableEquipmentIds: unavailable,
-              gymExperienceLevel: gym === "unknown" ? undefined : "advanced",
-              strengthTrainingMonths: gym === "unknown" ? undefined : 36,
-              movementCompetence: gym === "unknown" ? undefined : "high",
-              supervisionLevel: age < 18 ? "full" : "some",
-            };
-            const plan = generatePlan(profile, new Date("2026-07-13T00:00:00"), 28);
-            expect(validatePlanExerciseContract(plan)).toEqual([]);
-            const athlete = buildAthleteTrainingProfile(profile);
-            for (const day of plan.flatMap((s) => (s.secondSession ? [s, s.secondSession] : [s]))) {
-              if (!day.title.startsWith("Siłownia:") || !day.structuredSections?.length) continue;
-              const work = day.structuredSections
-                .filter((s) => !["warmup", "cooldown", "prep"].includes(s.type))
-                .flatMap((s) => s.blocks.flatMap((b) => b.exercises));
-              const debug = JSON.stringify({
-                age,
-                gym,
-                goal,
-                unavailable,
-                date: day.date,
-                title: day.title,
-              });
-              expect(new Set(work.map((e) => e.exerciseId)).size, debug).toBe(work.length);
-              for (const exercise of day.structuredSections.flatMap((s) =>
-                s.blocks.flatMap((b) => b.exercises),
-              )) {
-                expect(exercise.executionBlockedReason, debug + exercise.exerciseId).toBeFalsy();
-                expect(
-                  isExerciseAllowedForProfile(getExerciseDefinition(exercise.exerciseId!), athlete)
-                    .ok,
-                  debug + exercise.exerciseId,
-                ).toBe(true);
-              }
-            }
-          }
-  }, 30_000);
   it("keeps the generated matrix canonical, nonduplicated and usable across youth/adult experience and goals", () => {
     for (const age of [13, 14, 17, 24])
       for (const gym of ["unknown", "beginner", "intermediate", "advanced"] as const)

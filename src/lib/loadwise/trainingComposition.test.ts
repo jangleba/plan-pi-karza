@@ -1,9 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { generatePlan } from "./planEngine";
 import { getExerciseDefinition, getExerciseRegression } from "./exerciseLibrary";
 import { buildAthleteTrainingProfile } from "./athleteProfile";
-import { isMainGymSession, classifySession } from "./sessionClassification";
-import { assessSpeedLoad } from "./speedLoad";
 import { balanceStrengthSections } from "./strengthSessionBalance";
 import { buildStrengthMethod } from "./methods/builders";
 import { createMethodSession, methodRecipeKey } from "./methods/planner";
@@ -42,64 +39,6 @@ const work = (s: SessionDay) =>
     ?.filter((s) => ["main", "accessory"].includes(s.type))
     .flatMap((s) => s.blocks.flatMap((b) => b.exercises)) ?? [];
 describe("final player-facing training composition", () => {
-  it("retains complementary knee/hip, push and pull work without duplicate identities after all planner passes", () => {
-    for (const gym of ["beginner", "advanced"] as const)
-      for (const goal of ["strength", "power", "speed"] as const) {
-        const p = {
-          ...base,
-          goal,
-          gymExperienceLevel: gym,
-          strengthTrainingMonths: gym === "advanced" ? 36 : 3,
-          movementCompetence: gym === "advanced" ? ("high" as const) : ("low" as const),
-          supervisionLevel: "some" as const,
-        };
-        const plan = generatePlan(p, new Date(2026, 10, 2), 28);
-        for (const d of plan) if (d.dayType === "match") expect(d.intensity).toBe("wysoka");
-        for (const s of plan.flatMap((d) => [d, d.secondSession].filter(Boolean) as SessionDay[])) {
-          if (!isMainGymSession(s) || s.durationMin <= 25) continue;
-          const es = work(s),
-            ids = es.map((e) => e.exerciseId);
-          expect(new Set(ids).size, s.title).toBe(ids.length);
-          const main =
-            s.structuredSections
-              ?.filter((s) => s.type === "main")
-              .flatMap((s) => s.blocks.flatMap((b) => b.exercises)) ?? [];
-          if (
-            !main.some((e) =>
-              ["squat", "hinge", "lunge"].includes(
-                getExerciseDefinition(e.exerciseId ?? "")?.movementPattern ?? "",
-              ),
-            )
-          )
-            continue;
-          const patterns = es.map(
-            (e) => getExerciseDefinition(e.exerciseId ?? "")?.movementPattern,
-          );
-          expect(patterns, s.title).toContain("push");
-          expect(patterns, s.title).toContain("pull");
-          expect(
-            patterns.some((p) => p === "squat" || p === "lunge"),
-            s.title,
-          ).toBe(true);
-          for (const e of es)
-            if (getExerciseDefinition(e.exerciseId ?? "")?.movementPattern === "isometric") {
-              expect(e.duration, e.name).toBeTruthy();
-              expect(e.reps, e.name).toBeUndefined();
-            }
-        }
-        for (let i = 1; i < plan.length; i++) {
-          const a = plan[i - 1],
-            b = plan[i];
-          expect(
-            isMainGymSession(a) &&
-              a.intensity === "wysoka" &&
-              classifySession(a).isHeavyLegs &&
-              assessSpeedLoad(b).countsAsSpeedExposure &&
-              b.intensity === "wysoka",
-          ).toBe(false);
-        }
-      }
-  }, 30000);
   it("does not reset block progression when automatic method metadata is applied", () => {
     const p = {
       ...base,

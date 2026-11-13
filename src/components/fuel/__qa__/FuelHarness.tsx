@@ -164,18 +164,9 @@ const routes = [
             J
           </button>
         }
-        plan={[{ ...club, title: "Mecz", dayType: "match", sessionType: "Mecz" }]}
-        completions={{}}
-        todayIso={date}
-        checkinComplete={false}
-        checkinDetail="Zmień plan na dziś"
-        busy={false}
-        onCheckin={() => undefined}
         onLab={() => undefined}
         onReaction={() => undefined}
         onPlan={() => void qaRouter.navigate({ to: "/plan" })}
-        onOpen={() => void qaRouter.navigate({ to: "/plan" })}
-        onPrepare={() => undefined}
       />
     ),
   }),

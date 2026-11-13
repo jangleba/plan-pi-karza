@@ -100,32 +100,18 @@ export async function checkStrengthUI({ browser, base, work, ensure, views }) {
         views.push(`sila-${experience}-panel-i-zapis-serii`);
       }
     }
-    // Exact reported path: advanced declaration, blank tenure, Thursday B.
-    await page.goto(base + "?screen=strength-engine&experience=advanced&tenure=blank&slot=B");
+    // Advanced declaration with blank tenure (the full-week Thursday fixture went with the week engine).
+    await page.goto(base + "?screen=strength-engine&experience=advanced&tenure=blank");
     await page.locator(".bw-exercise-open:visible").first().waitFor();
     ensure(
       (await page.locator('.bw-preparation-toggle[aria-expanded="false"]').count()) === 2,
       "Preparation stages should start compact",
     );
-    ensure(
-      (await page.locator(".bw-exercise-open:visible").count()) === 6,
-      "Blank-tenure B should have six purposeful work rows",
-    );
-    ensure(
-      (await page.locator(".bw-exercise-open:visible").first().textContent()).includes(
-        "Martwy ciąg rumuński",
-      ),
-      "Thursday should begin with the hip compound",
-    );
-    ensure(
-      (await page.locator(".bw-exercise-open:visible").nth(1).textContent()).includes("Przysiad"),
-      "Knee compound must precede isolation",
-    );
     await page.screenshot({
-      path: path.join(work, "sila-czwartek-kompaktowo.png"),
+      path: path.join(work, "sila-staz-pusty-kompaktowo.png"),
       fullPage: true,
     });
-    views.push("sila-czwartek-kolejnosc-i-zwijane-przygotowanie");
+    views.push("sila-zwijane-przygotowanie");
     await page.getByRole("button", { name: "Dopasuj trening siłowy", exact: true }).click();
     const experienceSheet = page.getByRole("dialog", { name: "Doświadczenie siłowe", exact: true });
     await experienceSheet.waitFor();
@@ -153,7 +139,7 @@ export async function checkStrengthUI({ browser, base, work, ensure, views }) {
       "Confirmed experience must affect available upper-body work",
     );
     await page.screenshot({
-      path: path.join(work, "sila-czwartek-potwierdzony-staz.png"),
+      path: path.join(work, "sila-potwierdzony-staz.png"),
       fullPage: true,
     });
     views.push("sila-staz-wybor-zapis-i-rzeczywiste-przeliczenie");

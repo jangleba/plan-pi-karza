@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { Profile, SessionDay } from "./types";
 import { gymChangeBlockReason, gymSpacingIssues, repairGymSpacing } from "./strengthScheduling";
 import { normalizeSessionCategory } from "./sessionClassification";
-import { validatePersistedPlan } from "./persistedPlanValidation";
-import { assertFinalPlanMeetsMinimums, requirementsFor } from "./weekFinalization";
 
 const profile = {
   name: "Test",
@@ -71,15 +69,11 @@ describe("gym calendar scheduling", () => {
     expect(gymSpacingIssues([monday, sunday])).toEqual([
       { code: "adjacent-gym-days", date: monday.date },
     ]);
-    expect(validatePersistedPlan([sunday, monday], profile, "current").issues).toContainEqual(
-      expect.objectContaining({ code: "adjacent-gym-days" }),
-    );
   });
 
   it("accepts a complete intervening calendar day, including sparse saved plans", () => {
     const plan = [day("2026-10-05", true), day("2026-10-07", true)];
     expect(gymSpacingIssues(plan)).toEqual([]);
-    expect(validatePersistedPlan(plan, profile, "current").issues).toEqual([]);
   });
 
   it("moves the whole prescription and keeps destination calendar IDs and both non-gym slots", () => {
@@ -139,16 +133,6 @@ describe("gym calendar scheduling", () => {
     expect(plan[1].sections.main).toEqual([]);
     expect(plan[2]).toBe(unavailable);
     expect(plan[3]).toBe(match);
-    expect(
-      assertFinalPlanMeetsMinimums(plan, requirementsFor(plan, profile), profile).finalStatus,
-    ).toBe("invalid");
-  });
-
-  it("final hard gate rejects adjacent gyms even if all weekly minimums were counted", () => {
-    const plan = [day("2026-10-05", true), day("2026-10-06", true)];
-    const report = assertFinalPlanMeetsMinimums(plan, requirementsFor(plan, profile), profile);
-    expect(report.noBackToBackGymDays).toBe(false);
-    expect(report.finalStatus).toBe("invalid");
   });
 
   it("blocks manual additions next to a second-slot gym and duplicate additions on one day", () => {

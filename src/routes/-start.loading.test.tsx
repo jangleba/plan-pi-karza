@@ -4,15 +4,12 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  refresh: vi.fn(),
   store: {
     state: { profile: { onboardingComplete: true }, plan: [], modifications: {} },
     todaySession: null,
     todayIso: "2026-10-25",
     hydrated: true,
-    syncing: false,
-    hydrationError: "Nie udało się wczytać konta." as string | null,
-    planGenerating: false,
+    hydrationError: null as string | null,
   },
 }));
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
@@ -23,7 +20,7 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
 }));
 vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: "owner" } }) }));
 vi.mock("@/lib/loadwise/store", () => ({
-  useLoadwise: () => ({ ...mocks.store, refreshPlanIfNeeded: mocks.refresh }),
+  useLoadwise: () => mocks.store,
 }));
 vi.mock("@/components/loadwise/ui", () => ({ ProfileAvatar: () => <span>Avatar</span> }));
 import { Route } from "./_tabs.start";
@@ -35,10 +32,7 @@ let root: Root;
 let host: HTMLDivElement;
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  mocks.refresh.mockReset();
-  mocks.store.syncing = false;
-  mocks.store.planGenerating = false;
-  mocks.store.hydrationError = "Nie udało się wczytać konta.";
+  mocks.store.hydrated = true;
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -59,27 +53,16 @@ const render = async () => {
   );
 };
 
-it("retries reading after a failed hydration without generating over an unknown server plan", async () => {
-  await render();
-  expect(mocks.refresh).not.toHaveBeenCalled();
-  expect(host.textContent).toContain("Nie udało się wczytać planu");
-  const dispatch = vi.spyOn(window, "dispatchEvent");
-  await act(async () => host.querySelector("button")!.click());
-  expect(dispatch).toHaveBeenCalledWith(
-    expect.objectContaining({ type: "ballwise:server-state-changed" }),
-  );
-  expect(mocks.refresh).not.toHaveBeenCalled();
-});
-
-it("waits for a server read, then generates only when a successful read confirms a missing plan", async () => {
-  mocks.store.syncing = true;
-  mocks.store.hydrationError = null;
+it("shows the loading state until the account is read", async () => {
+  mocks.store.hydrated = false;
   await render();
   expect(host.querySelector('[aria-busy="true"]')).not.toBeNull();
-  expect(mocks.refresh).not.toHaveBeenCalled();
-  mocks.store.syncing = false;
+  expect(host.textContent).not.toContain("Plan wkrótce");
+});
+
+it("shows „Plan wkrótce” after reading the account", async () => {
+  mocks.store.hydrated = true;
+  mocks.store.hydrationError = null;
   await render();
-  expect(mocks.refresh).toHaveBeenCalledTimes(1);
-  await render();
-  expect(mocks.refresh).toHaveBeenCalledTimes(1);
+  expect(host.textContent).toContain("Plan wkrótce");
 });

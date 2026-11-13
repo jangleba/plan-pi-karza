@@ -226,110 +226,16 @@ try {
             await page.getByRole("button", { name: "Wyślij link", exact: true }).waitFor();
             await snap("auth-reset");
           }
-          if (screen === "start" && width === 390) {
+          if ((screen === "start" || screen === "plan") && width === 390) {
+            // The week engine was removed: both tabs show the "Plan wkrótce" state.
+            await page.getByRole("status", { name: "Plan wkrótce" }).waitFor();
             ensure(
               (await page
-                .getByRole("button", { name: /Samopoczucie|Oceń samopoczucie/ })
+                .getByRole("button", { name: /Samopoczucie|Oceń samopoczucie|Plan na dziś/ })
                 .count()) === 0,
-              "Start still asks health questions",
+              screen + " still offers a daily plan check-in",
             );
-            const choose = async (name) => {
-              await page.getByRole("button", { name: /Plan na dziś/ }).click();
-              if (await page.getByRole("button", { name: "Chcę coś zmienić", exact: true }).count())
-                await page.getByRole("button", { name: "Chcę coś zmienić", exact: true }).click();
-              await page.getByRole("button", { name, exact: true }).click();
-            };
-            await choose("Mniej serii lub odcinków");
-            await page.waitForFunction(
-              () => window.__startQA.plan()[0].sections.main[0].prescription === "3 × 8",
-            );
-            ensure(
-              (await page.evaluate(() => window.__startQA.plan()[0].intensity)) === "wysoka",
-              "Shorter strength changes intensity metadata",
-            );
-            await snap("start-mniej-serii");
-            await choose("Mniej serii lub odcinków");
-            ensure(
-              (await page.evaluate(
-                () => window.__startQA.plan()[0].sections.main[0].prescription,
-              )) === "3 × 8",
-              "Repeated choice compounds the reduction",
-            );
-            const beforeFuture = await page.evaluate(() =>
-              JSON.stringify(window.__startQA.plan().slice(1)),
-            );
-            await choose("Pomiń lub zaproponuj inny termin");
-            await page.getByRole("dialog", { name: "Chcesz przenieść tę sesję?" }).waitFor();
-            ensure(
-              (await page.evaluate(() => JSON.stringify(window.__startQA.plan().slice(1)))) ===
-                beforeFuture,
-              "Skip silently modifies another day",
-            );
-            await page.getByRole("button", { name: "Nie nadrabiaj", exact: true }).click();
-            ensure(
-              (await page.evaluate(() => window.__startQA.plan()[0].durationMin)) === 0,
-              "Skip leaves training active",
-            );
-            const record = await page.evaluate(() => {
-              const k = Object.keys(localStorage).find(
-                (k) => k.includes("daily-plan-checkin") && k.endsWith(":2026-11-02"),
-              );
-              return JSON.parse(localStorage.getItem(k));
-            });
-            ensure(
-              Object.keys(record).sort().join(",") ===
-                "completedAt,date,primaryAction,secondAction",
-              "Check-in stores additional personal observations",
-            );
-            await snap("start-pominiety-bez-odrabiania");
-            await page.goto(base + "?screen=start");
-            await page.locator(".bw-home-checks").waitFor();
-            await choose("Pomiń lub zaproponuj inny termin");
-            await page.getByRole("button", { name: /polecane/ }).click();
-            await page.waitForFunction(() => window.__startQA.changes.length === 2);
-            ensure(
-              (await page.evaluate(
-                () => window.__startQA.plan().filter((day) => day.durationMin > 0).length,
-              )) === 1,
-              "Move duplicates the removed training",
-            );
-            await snap("start-przeniesienie-po-akceptacji");
-            await page.goto(base + "?screen=start&locked=1");
-            await page.locator(".bw-home-checks").waitFor();
-            await choose("Mniej serii lub odcinków");
-            ensure(
-              (await page.evaluate(() => window.__startQA.changes.length)) === 0,
-              "Started training was changed",
-            );
-            views.push("start-chroni-rozpoczeta-sesje");
-            await page.goto(base + "?screen=start&locked=1&second=1");
-            await page.locator(".bw-home-checks").waitFor();
-            const firstBefore = await page.evaluate(() =>
-              JSON.stringify({ ...window.__startQA.plan()[0], secondSession: null }),
-            );
-            await page.getByRole("button", { name: /Plan na dziś/ }).click();
-            await page.getByRole("button", { name: "Trenuję według planu", exact: true }).click();
-            await page.getByRole("button", { name: "Tak", exact: true }).click();
-            await page.getByRole("button", { name: "Chcę coś zmienić", exact: true }).click();
-            await page.getByRole("button", { name: "Druga sesja lżej", exact: true }).click();
-            await page.waitForFunction(
-              () =>
-                window.__startQA.plan()[0].secondSession.sections.main[0].prescription === "15 min",
-            );
-            ensure(
-              (await page.evaluate(() =>
-                JSON.stringify({ ...window.__startQA.plan()[0], secondSession: null }),
-              )) === firstBefore,
-              "Second-session change rewrites the executed first session",
-            );
-            views.push("start-druga-sesja-niezalezna");
-          }
-          if (screen === "plan" && width === 390) {
-            await page
-              .getByRole("button", { name: /Następny tydzień/ })
-              .first()
-              .click();
-            await snap("plan-kolejny-tydzien");
+            views.push(screen + "-plan-wkrotce");
           }
           if (screen === "lab" && width === 390) {
             const target = page.getByRole("button", { name: "Rozpocznij CMJ", exact: true });

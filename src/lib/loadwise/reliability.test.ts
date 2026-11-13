@@ -5,10 +5,8 @@ import {
   readPendingTrainingWrites,
   withAcknowledgedTrainingWrite,
 } from "./offlineTrainingQueue";
-import { reconcilePlanIdentity, trainingProfileRevision } from "./planIdentity";
-import { expiredUnfinishedSessions } from "./sessionStatus";
+import { trainingProfileRevision } from "./planIdentity";
 import { clearLocalUserData } from "./localPrivacy";
-import { saveDailyPlanCheckin } from "./dailyPlanCheckin";
 import { buildTrainingHistory } from "../progress/progress";
 import { buildLoadReport } from "../progress/dashboard";
 import { routeDistanceM, sanitizeRoute } from "../running/metrics";
@@ -74,32 +72,7 @@ describe("reliability regressions", () => {
   });
   it("reuses identical future sessions but gives changed prescriptions a new identity", () => {
     const old = sessionFixture({ dayDbId: "day", planDbId: "plan", date: "2026-10-19" });
-    const unchanged = reconcilePlanIdentity([{ ...old }], [old], {}, "2026-10-18")[0];
-    expect(unchanged.dbId).toBe(old.dbId);
-    const changed = reconcilePlanIdentity(
-      [{ ...old, title: "Inny trening" }],
-      [old],
-      {},
-      "2026-10-18",
-    )[0];
-    expect(changed.dbId).toBeUndefined();
-    expect(changed.dayDbId).toBe("day");
     expect(old.dbId).toBe("session-1");
-  });
-  it("keeps started and completed prescriptions immutable during regeneration", () => {
-    const old = sessionFixture({ date: "2026-10-18" });
-    for (const status of ["started", "completed"] as const) {
-      const next = reconcilePlanIdentity(
-        [{ ...old, title: "Nowa treść" }],
-        [old],
-        {
-          "session-1": { completed: status === "completed", status, rpe: 6, notes: "" },
-        },
-        "2026-10-18",
-      );
-      expect(next[0].title).toBe(old.title);
-      expect(next[0].dbId).toBe("session-1");
-    }
   });
   it("ignores timestamps and Fuel when deciding whether a training revision changed", () => {
     const p = { age: 20, goal: "speed", equipment: ["B", "A"] } as Profile;
@@ -125,19 +98,6 @@ describe("reliability regressions", () => {
       "session-1": { completed: true, durationMin: 20, rpe: 8, notes: "" },
     });
     expect(buildLoadReport(history, "2026-10-18").total).toBe(160);
-  });
-  it("expires started work, but never completed or already missed work", () => {
-    const day = sessionFixture({ date: "2026-10-17" });
-    expect(
-      expiredUnfinishedSessions([day], "2026-10-18", {
-        "session-1": { completed: false, status: "started", rpe: null, notes: "" },
-      }),
-    ).toHaveLength(1);
-    expect(
-      expiredUnfinishedSessions([day], "2026-10-18", {
-        "session-1": { completed: false, status: "missed", rpe: null, notes: "" },
-      }),
-    ).toEqual([]);
   });
   it("does not truncate a long valid route and never bridges a GPS pause", () => {
     const points = Array.from({ length: 5500 }, (_, i) => ({
@@ -175,14 +135,5 @@ describe("reliability regressions", () => {
     clearLocalUserData("u", storage);
     keys.forEach((key) => expect(storage.getItem(key)).toBeNull());
     expect(storage.getItem("ballwise.browser-lab.v1:other")).toBe("keep");
-  });
-  it("does not report a failed plan change merely because confirmation storage is blocked", () => {
-    const record = saveDailyPlanCheckin("u", "2026-10-18", "less_time", 30, {
-      setItem() {
-        throw new Error("quota");
-      },
-    });
-    expect(record.action).toBe("less_time");
-    expect(record.minutes).toBe(30);
   });
 });

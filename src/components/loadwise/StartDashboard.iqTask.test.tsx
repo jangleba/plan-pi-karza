@@ -15,18 +15,9 @@ function render(
       <StartDashboard
         name="Jan"
         avatar={null}
-        plan={[]}
-        completions={{}}
-        todayIso="2026-11-08"
-        checkinComplete={false}
-        busy={false}
-        checkinDetail=""
-        onCheckin={noop}
         onPlan={noop}
         onLab={noop}
         onReaction={noop}
-        onOpen={noop}
-        onPrepare={noop}
         iqTask={iqTask}
         iqGoal={iqGoal}
       />,
@@ -71,4 +62,11 @@ it("shows the weakest Football IQ aim with its progress and a way to practise it
   expect(onOpen).toHaveBeenCalledOnce();
   await render();
   expect(host.querySelector('[aria-label="Twój cel w Football IQ"]')).toBeNull();
+});
+
+it("shows the 'Plan wkrótce' state instead of a generated session", async () => {
+  await render();
+  const card = host.querySelector('[aria-label="Plan wkrótce"]');
+  expect(card?.textContent).toContain("Plan wkrótce");
+  expect(card?.getAttribute("role")).toBe("status");
 });

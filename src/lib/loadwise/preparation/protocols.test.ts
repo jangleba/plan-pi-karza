@@ -11,6 +11,8 @@ import {
 } from "./protocols";
 import { runningCooldown } from "../recoveryContent";
 import { buildStrengthPowerStructured, flatToStructured } from "../strengthBlocks";
+import { sessionFixture } from "@/components/loadwise/session/testFixtures";
+import type { Profile, TrainingExercise } from "../types";
 
 const sessionFixtureProfile = {
   name: "Test",
@@ -23,9 +25,6 @@ const sessionFixtureProfile = {
   painInjury: false,
   seasonPhase: "inseason",
 };
-import { sessionFixture } from "@/components/loadwise/session/testFixtures";
-import { buildRunningConditioning } from "../sessionContent";
-import type { Profile, TrainingExercise } from "../types";
 
 describe("dobór rozgrzewki i regeneracji", () => {
   it("nie generuje ruchu dla zerowej sesji ostrożnościowej ani dnia wstrzymanego", () => {
@@ -70,12 +69,6 @@ describe("dobór rozgrzewki i regeneracji", () => {
     const p = buildWarmupProtocol("easy");
     expect(p.exercises.map((e) => e.id)).toEqual(["walk"]);
     expect(p.exercises[0].seconds).toBe(180);
-    const built = buildRunningConditioning(
-      { fieldMasKmh: 15, fieldMasTestedAt: "2026-10-10" } as Profile,
-      { seed: 0, date: "2026-10-15", light: true },
-    );
-    expect(built.sections.warmup).toHaveLength(1);
-    expect(built.sections.warmup[0].visualId).toBe("bwprep:walk");
   });
   it("po lewej stronie daje zmianę, prawą stronę i dopiero potem odpoczynek — w każdej z dwóch serii", () => {
     const p = buildRecoveryProtocol("calves");

@@ -1,9 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { OWN_EQUIPMENT_OPTIONS } from "./equipmentOptions";
 import { resolveEquipmentId } from "./exerciseLibrary";
 import { footballConditions } from "./individualFootballSessionEngine";
-import { generatePlan } from "./planEngine";
-import type { Profile, SessionDay } from "./types";
+import type { Profile } from "./types";
 
 const athlete = {
   name: "Sprzęt",
@@ -39,17 +38,6 @@ const athlete = {
   supervisionLevel: "none",
 } as Profile;
 
-const exercises = (plan: SessionDay[]) =>
-  plan.flatMap((day) =>
-    [day, day.secondSession].flatMap((session) =>
-      session
-        ? Object.values(session.sections)
-            .flat()
-            .map((row) => row.name)
-        : [],
-    ),
-  );
-
 describe("onboarding equipment checklist", () => {
   it("maps every strength option to an equipment id the exercise library understands", () => {
     for (const label of OWN_EQUIPMENT_OPTIONS.filter((item) => !/bramk/i.test(item)))
@@ -67,13 +55,5 @@ describe("onboarding equipment checklist", () => {
         equipment: ["Bramka lub mini-bramka"],
       }).goal,
     ).toBe(false);
-  });
-
-  it("changes a home strength plan when dumbbells are ticked", () => {
-    vi.spyOn(console, "debug").mockImplementation(() => undefined);
-    const start = new Date(2026, 10, 9);
-    const without = exercises(generatePlan(athlete, start, 28));
-    const withDumbbells = exercises(generatePlan({ ...athlete, equipment: ["Hantle"] }, start, 28));
-    expect(withDumbbells).not.toEqual(without);
   });
 });

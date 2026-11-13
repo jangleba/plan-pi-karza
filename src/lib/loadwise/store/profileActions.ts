@@ -15,9 +15,7 @@ import {
 } from "../strengthExperience";
 import { assertNoSupabaseError } from "@/integrations/supabase/errors";
 import type { Json } from "@/integrations/supabase/types";
-import type { Dispatch, RefObject, SetStateAction } from "react";
-import { toast } from "sonner";
-import { trackPlanWrite } from "./planWriteGuard";
+import type { RefObject } from "react";
 import {
   recordConsentDecision,
   recordConsentDecisions,
@@ -25,37 +23,25 @@ import {
   type ConsentDecision,
 } from "../consent";
 import { CONSENTS } from "../legal";
-import type { Profile, SessionDay } from "../types";
-import { prepareMonthlyPlan } from "../persist";
+import type { Profile } from "../types";
 import {
   ONBOARDING_SCHEMA_VERSION,
   type LoadwiseContextValue,
   type StoreActionContext,
 } from "./model";
-import {
-  clearFutureOverlaysForUser,
-  profileWritePayloads,
-  shouldReusePersistedPlan,
-} from "./repository";
+import { profileWritePayloads } from "./repository";
 
 export function createProfileActions(
   context: StoreActionContext & {
-    generatingRef: RefObject<boolean>;
-    setPlanGenerating: Dispatch<SetStateAction<boolean>>;
     profileSaveRefs?: RefObject<ProfileSaveRefs>;
     onProfileSaveStage?: (stage: ProfileSaveStage | null) => void;
     isProfileOwnerCurrent?: () => boolean;
   },
 ): Pick<
   LoadwiseContextValue,
-  | "completeOnboarding"
-  | "updateProfile"
-  | "saveStrengthExperience"
-  | "saveFuelPrecision"
-  | "refreshPlanIfNeeded"
+  "completeOnboarding" | "updateProfile" | "saveStrengthExperience" | "saveFuelPrecision"
 > {
-  const { user, state, setState, todayIso, savePlanToDb, generatingRef, setPlanGenerating } =
-    context;
+  const { user, state, setState, todayIso } = context;
 
   function completedProfile(profile: Profile, revision: string | null): Profile {
     return {
@@ -68,42 +54,16 @@ export function createProfileActions(
     };
   }
 
-  function commitProfilePlan(nextProfile: Profile, plan: SessionDay[], clearTransitions = true) {
-    setState((s) => ({
-      ...s,
-      profile: nextProfile,
-      plan,
-      planGeneratedFor: todayIso,
-      readiness: nextProfile.healthPersonalizationEnabled ? s.readiness : {},
-      modifications: Object.fromEntries(
-        Object.entries(s.modifications).filter(([date]) => date < todayIso),
-      ),
-      transitions: clearTransitions ? {} : s.transitions,
-    }));
-  }
-
   const writeRefs =
     context.profileSaveRefs?.current ??
     ({ attempt: null, flight: null, key: null } as ProfileSaveRefs);
   const stage = (value: ProfileSaveStage | null) => context.onProfileSaveStage?.(value);
-  async function confirmSavedPlan(
-    attempt: NonNullable<ProfileSaveRefs["attempt"]>,
-  ): Promise<string | null> {
-    if (!attempt.prepared || !user) return null;
+  /** Receipt of a write whose response was lost: the profile row changed since the attempt began. */
+  async function confirmSavedProfile(expectedRevision: string | null): Promise<string | null> {
+    if (!user) return null;
     try {
-      return await withProfileDeadline("verification", 5000, async (signal) => {
+      return await withProfileDeadline("saving", 5000, async (signal) => {
         const result = await cancellableRequest(
-          supabase
-            .from("training_plans")
-            .select("id")
-            .eq("user_id", user.id)
-            .eq("id", attempt.prepared!.args.p_plan_id)
-            .eq("active", true)
-            .maybeSingle(),
-          signal,
-        );
-        if (result.error || result.data?.id !== attempt.prepared!.args.p_plan_id) return null;
-        const profile = await cancellableRequest(
           supabase
             .from("athlete_profiles")
             .select("updated_at")
@@ -111,8 +71,9 @@ export function createProfileActions(
             .maybeSingle(),
           signal,
         );
-        return !profile.error && typeof profile.data?.updated_at === "string"
-          ? profile.data.updated_at
+        const updatedAt = result.data?.updated_at;
+        return !result.error && typeof updatedAt === "string" && updatedAt !== expectedRevision
+          ? updatedAt
           : null;
       });
     } catch {
@@ -161,68 +122,11 @@ export function createProfileActions(
       if (context.isProfileOwnerCurrent?.() === false)
         throw new Error("Konto zmieniło się podczas zapisu. Otwórz formularz ponownie.");
     };
-    // A first onboarding shows the plan as soon as it is generated on the device.
-    // Consents and the atomic save continue in the background; if they fail, the
-    // athlete goes back to the form with the answers kept and can send it again.
-    const optimistic = Boolean(consents) && !before.profile?.onboardingComplete;
-    let revealed = false;
-    let reveal!: () => void;
-    const shown = new Promise<void>((resolve) => (reveal = resolve));
+    // Silnik układania tygodnia został usunięty: zapis dotyczy tylko profilu
+    // i zgód. Zapisany wcześniej plan w bazie zostaje bez zmian.
     const work = async () => {
       assertOwner();
-      let nextProfile = attempt.profile;
-      const trainingChanged =
-        !before.profile ||
-        !before.profile.onboardingComplete ||
-        trainingProfileRevision(before.profile) !== attempt.revision;
-      const calendar = (p: Profile) =>
-        JSON.stringify([
-          p.clubTrainingDays,
-          p.individualTrainingDays,
-          p.unavailableDays,
-          p.usualMatchDay,
-          p.matchDate,
-          p.matchDates,
-        ]);
-      const clearTransitions =
-        !before.profile || calendar(before.profile) !== calendar(nextProfile);
-      const publish = (updatedAt: string) => {
-        assertOwner();
-        nextProfile = { ...nextProfile, serverProfileUpdatedAt: updatedAt };
-        if (revealed)
-          // The plan is already on screen and may have been used since; confirm only the profile.
-          setState((current) => ({
-            ...current,
-            profile: { ...(current.profile ?? nextProfile), serverProfileUpdatedAt: updatedAt },
-          }));
-        else if (trainingChanged)
-          commitProfilePlan(nextProfile, attempt.prepared!.plan, clearTransitions);
-        else setState((current) => ({ ...current, profile: nextProfile }));
-        writeRefs.attempt = null;
-        if (typeof window !== "undefined")
-          window.dispatchEvent(new Event("ballwise:server-state-changed"));
-      };
-      if (optimistic && trainingChanged) {
-        if (!attempt.prepared) {
-          stage("generation");
-          const plan = await withProfileDeadline("generation", remaining(12000), (signal) =>
-            savePlanToDb(nextProfile, attempt.revision, [], {}, !clearTransitions, false, signal),
-          );
-          attempt.prepared = prepareMonthlyPlan(user.id, nextProfile, plan);
-        }
-        assertOwner();
-        commitProfilePlan(nextProfile, attempt.prepared.plan, clearTransitions);
-        revealed = true;
-        reveal();
-      }
-      if (attempt.uncertain) {
-        stage("verification");
-        const receipt = await confirmSavedPlan(attempt);
-        if (receipt) {
-          publish(receipt);
-          return;
-        }
-      }
+      const nextProfile = attempt.profile;
       if (consents && !attempt.consentsDone) {
         stage("consents");
         const decisions: ConsentDecision[] = [];
@@ -252,15 +156,25 @@ export function createProfileActions(
         attempt.consentsDone = true;
       }
       assertOwner();
-      if (trainingChanged && !attempt.prepared) {
-        stage("generation");
-        const plan = await withProfileDeadline("generation", remaining(12000), (signal) =>
-          savePlanToDb(nextProfile, attempt.revision, [], {}, !clearTransitions, false, signal),
-        );
-        attempt.prepared = prepareMonthlyPlan(user.id, nextProfile, plan);
-      }
-      assertOwner();
       const { profileRow, athleteRow } = profileWritePayloads(user.id, nextProfile, true);
+      const publish = (updatedAt: string) => {
+        assertOwner();
+        setState((current) => ({
+          ...current,
+          profile: { ...nextProfile, serverProfileUpdatedAt: updatedAt },
+        }));
+        writeRefs.attempt = null;
+        if (typeof window !== "undefined")
+          window.dispatchEvent(new Event("ballwise:server-state-changed"));
+      };
+      // A previous try may have committed although its response was lost.
+      if (attempt.uncertain) {
+        const receipt = await confirmSavedProfile(attempt.expectedRevision);
+        if (receipt) {
+          publish(receipt);
+          return;
+        }
+      }
       stage("saving");
       attempt.uncertain = true;
       try {
@@ -269,9 +183,9 @@ export function createProfileActions(
             supabase.rpc("save_profile_and_plan", {
               p_profile: profileRow as unknown as Json,
               p_athlete: athleteRow as unknown as Json,
-              p_plan: attempt.prepared ? (attempt.prepared.args as unknown as Json) : null,
+              p_plan: null,
               p_expected_profile_updated_at: attempt.expectedRevision ?? undefined,
-              p_clear_transitions: trainingChanged && clearTransitions,
+              p_clear_transitions: false,
               p_from_date: todayIso,
             }),
             signal,
@@ -284,8 +198,7 @@ export function createProfileActions(
           throw new Error("Serwer nie zwrócił potwierdzenia zapisu.");
         publish(athlete.updated_at);
       } catch (error) {
-        stage("verification");
-        const receipt = await confirmSavedPlan(attempt);
+        const receipt = await confirmSavedProfile(attempt.expectedRevision);
         if (receipt) {
           publish(receipt);
           return;
@@ -297,50 +210,21 @@ export function createProfileActions(
           )
         )
           throw new Error(
-            "Nie udało się jeszcze potwierdzić zapisu planu. Odpowiedzi pozostają w formularzu. Spróbuj ponownie — najpierw sprawdzimy zapis, bez ponownego układania planu.",
+            "Nie udało się jeszcze potwierdzić zapisu. Odpowiedzi pozostają w formularzu. Spróbuj ponownie.",
             { cause: error },
           );
         throw error;
       }
     };
-    const revertShownPlan = (error: unknown) => {
-      console.error("[loadwise] onboarding save failed after the plan was shown", error);
-      setState((current) => ({
-        ...current,
-        // The answers stay for the form; the fields set on completion go back to what they were,
-        // so sending the same answers again resumes this attempt instead of starting over.
-        profile: {
-          ...attempt.profile,
-          onboardingComplete: false,
-          onboardingRevision: before.profile?.onboardingRevision,
-          onboardingSchemaVersion: before.profile?.onboardingSchemaVersion,
-          unavailableEquipmentIds: before.profile?.unavailableEquipmentIds,
-        },
-        plan: before.plan,
-        planGeneratedFor: before.planGeneratedFor,
-        modifications: before.modifications,
-        transitions: before.transitions,
-      }));
-      const raw = error instanceof Error ? error.message : "";
-      toast.error(
-        `Nie udało się zapisać planu. ${raw.includes("Odpowiedzi pozostają") ? "" : "Odpowiedzi pozostają w formularzu. "}${raw}`.trim(),
-      );
-    };
     const flight = Promise.resolve()
       .then(work)
-      .catch((error) => {
-        if (!revealed) throw error;
-        revertShownPlan(error);
-      })
       .finally(() => {
         writeRefs.flight = null;
         writeRefs.key = null;
         stage(null);
       });
-    // Session writes wait for this save, because the shown sessions are not on the server yet.
-    if (optimistic) void trackPlanWrite(user.id, flight);
     writeRefs.key = key;
-    writeRefs.flight = Promise.race([flight, shown]);
+    writeRefs.flight = flight;
     return writeRefs.flight;
   }
 
@@ -437,41 +321,10 @@ export function createProfileActions(
       window.dispatchEvent(new Event("ballwise:server-state-changed"));
   }
 
-  function refreshPlanIfNeeded() {
-    const profile = state.profile;
-    if (!user || !profile?.onboardingComplete) return;
-    // Regeneruj tylko, gdy brak planu lub plan pochodzi ze starej wersji
-    // generatora (stare fallbacki/statyczne tygodnie nie mogą zostać aktywne).
-    if (generatingRef.current) return;
-    generatingRef.current = true;
-    setPlanGenerating(true);
-    (async () => {
-      try {
-        if (await shouldReusePersistedPlan(state.plan, profile)) return;
-        const plan = await savePlanToDb(profile, profile.onboardingRevision ?? null);
-        await clearFutureOverlaysForUser(user.id, todayIso, false);
-        setState((s) => ({
-          ...s,
-          plan,
-          planGeneratedFor: todayIso,
-          modifications: Object.fromEntries(
-            Object.entries(s.modifications).filter(([date]) => date < todayIso),
-          ),
-          transitions: s.transitions,
-        }));
-      } catch (error) {
-        console.error("[loadwise] plan refresh failed", error);
-      } finally {
-        generatingRef.current = false;
-        setPlanGenerating(false);
-      }
-    })();
-  }
   return {
     completeOnboarding,
     updateProfile,
     saveStrengthExperience,
     saveFuelPrecision,
-    refreshPlanIfNeeded,
   };
 }

@@ -25,8 +25,8 @@ function Plan() {
   }, [incomplete, navigate]);
   return (
     <main className="p-6">
-      <h1>Plan zapisany</h1>
-      <p data-testid="plan-days">{state.plan.length} dni</p>
+      <h1>Profil zapisany</h1>
+      <p data-testid="profile-saved">{state.profile?.serverProfileUpdatedAt}</p>
     </main>
   );
 }

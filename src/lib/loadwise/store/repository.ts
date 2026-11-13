@@ -1,58 +1,10 @@
-import { cycleStartOf } from "../cycleReview";
-import { generatePlanAsync } from "../generatePlanAsync";
-import { applyConfirmedCalendar } from "../confirmedCalendar";
-import { reconcilePlanIdentity, trainingProfileRevision } from "../planIdentity";
-import { resolveEffectivePlan } from "../effectivePlan";
-import type { LoadwiseState, SessionCompletion } from "../types";
 import { supabase } from "@/integrations/supabase/client";
 import { encodeStrengthExperience } from "../strengthExperience";
-import { assertNoSupabaseError } from "@/integrations/supabase/errors";
 import type { Json } from "@/integrations/supabase/types";
-import { buildMinimumEffectiveWeek } from "../adaptiveWeek";
-import { clearDailyPlanCheckin } from "../dailyPlanCheckin";
-import { isoDate, localToday, parseIso } from "../labels";
-import { planWindowDays } from "../planWindow";
 import { normalizeMatchDates } from "../matchSchedule";
-import { PLAN_ENGINE_VERSION } from "../planVersion";
 import { normalizeCurrentPitchFeelings, normalizeDesiredPitchFeelings } from "../playerDirection";
-import type { Profile, SessionDay, SessionHistoryRecord } from "../types";
-import {
-  ONBOARDING_SCHEMA_VERSION,
-  historyCategoryOf,
-  planRevisionInfo,
-  stampPlanRevision,
-  type AnyRow,
-  type StoreUser,
-} from "./model";
-
-export async function clearFutureOverlaysForUser(
-  userId: string,
-  fromDate: string,
-  clearTransitions = true,
-  knownModificationIds?: string[],
-): Promise<void> {
-  const clearKnownModifications = () => {
-    let query = supabase
-      .from("session_modifications")
-      .update({ active: false })
-      .eq("user_id", userId)
-      .eq("active", true)
-      .gte("date", fromDate);
-    if (knownModificationIds) query = query.in("id", knownModificationIds);
-    return query;
-  };
-  const [modifications, transitions] = await Promise.all([
-    knownModificationIds?.length === 0
-      ? Promise.resolve({ error: null })
-      : clearKnownModifications(),
-    clearTransitions
-      ? supabase.from("weekly_transitions").delete().eq("user_id", userId)
-      : Promise.resolve({ error: null }),
-  ]);
-  assertNoSupabaseError("session_modifications.clear_future", modifications.error);
-  assertNoSupabaseError("weekly_transitions.clear", transitions.error);
-  clearDailyPlanCheckin(userId, fromDate);
-}
+import type { Profile, SessionHistoryRecord } from "../types";
+import { historyCategoryOf, type AnyRow } from "./model";
 
 export async function loadSessionHistory(
   userId: string,
@@ -135,27 +87,6 @@ export async function loadSessionHistory(
   return history.sort((a, b) => (a.date < b.date ? 1 : -1));
 }
 
-export async function shouldReusePersistedPlan(
-  plan: SessionDay[],
-  profile: Profile,
-): Promise<boolean> {
-  const { persistedPlanNeedsRegeneration } = await import("../persistedPlanValidation");
-  const hasMonthly = plan.length >= 14;
-  const today = isoDate(localToday());
-  const coversToday = plan.some((day) => day.date === today);
-  const revision = planRevisionInfo(plan);
-  const sameRevision = (profile.onboardingRevision ?? null) === (revision.revision ?? null);
-  const schemaOk =
-    (revision.schemaVersion ?? ONBOARDING_SCHEMA_VERSION) === ONBOARDING_SCHEMA_VERSION;
-  const persistedPlanIsSafe = !persistedPlanNeedsRegeneration(
-    plan,
-    profile,
-    PLAN_ENGINE_VERSION,
-    today,
-  );
-  return hasMonthly && coversToday && persistedPlanIsSafe && sameRevision && schemaOk;
-}
-
 export function profileWritePayloads(userId: string, profile: Profile, completed: boolean) {
   return {
     profileRow: {
@@ -224,85 +155,4 @@ export function profileWritePayloads(userId: string, profile: Profile, completed
       running_progression_updated_at: profile.runningProgressionUpdatedAt ?? null,
     },
   };
-}
-
-export function createPlanPersistence(
-  user: StoreUser,
-  todayIso: string,
-  state?: LoadwiseState,
-  getState?: () => LoadwiseState,
-) {
-  async function savePlanToDb(
-    profile: Profile,
-    revision: string | null,
-    missedSessions: SessionDay[] = [],
-    recentCompletions: Record<string, SessionCompletion> = {},
-    keepConfirmedCalendar = true,
-    persist = true,
-    signal?: AbortSignal,
-  ): Promise<SessionDay[]> {
-    const snapshot = getState?.() ?? state;
-    const { persistMonthlyPlan } = await import("../persist");
-    const keepsBlock =
-      !!snapshot?.plan[0]?.date && snapshot.plan.some((day) => day.date === todayIso);
-    const start = keepsBlock ? parseIso(snapshot.plan[0].date) : localToday();
-    // Keep confirmed weeks and finish the last week on Sunday.
-    const days = planWindowDays(isoDate(start), keepsBlock ? snapshot.plan.at(-1)?.date : null);
-    const canonical = stampPlanRevision(
-      await applyConfirmedCalendar(
-        (
-          await generatePlanAsync(
-            {
-              ...profile,
-              // Ten sam cykl zachowuje swoją regułę startu (podsumowanie poprzedniego).
-              cycleStart:
-                snapshot?.plan[0]?.date === isoDate(start) ? cycleStartOf(snapshot.plan) : null,
-            },
-            start,
-            days,
-            0,
-            signal,
-          )
-        ).map((day) => ({
-          ...day,
-          cycleId:
-            snapshot?.plan[0]?.date === isoDate(start) ? snapshot.plan[0].cycleId : undefined,
-        })),
-        profile,
-        keepConfirmedCalendar ? (snapshot?.transitions ?? {}) : {},
-      ),
-      revision,
-      ONBOARDING_SCHEMA_VERSION,
-    );
-    let plan = canonical;
-    if (missedSessions.length > 0) {
-      plan = buildMinimumEffectiveWeek(plan, missedSessions, todayIso, profile).plan;
-    }
-    plan = reconcilePlanIdentity(
-      plan,
-      resolveEffectivePlan(snapshot?.plan ?? [], snapshot?.modifications ?? {}),
-      { ...snapshot?.completions, ...recentCompletions },
-      todayIso,
-    );
-    plan = stampPlanRevision(plan, revision, ONBOARDING_SCHEMA_VERSION);
-    signal?.throwIfAborted();
-    if (user && persist) return persistMonthlyPlan(user.id, profile, plan);
-    return plan;
-  }
-  async function saveProfileRows(profile: Profile, completed: boolean): Promise<string | null> {
-    if (!user) return null;
-    const { profileRow, athleteRow } = profileWritePayloads(user.id, profile, completed);
-    const profileWrite = await supabase
-      .from("profiles")
-      .upsert(profileRow, { onConflict: "user_id" });
-    assertNoSupabaseError("profiles.upsert", profileWrite.error);
-    const athleteRes = await supabase
-      .from("athlete_profiles")
-      .upsert(athleteRow, { onConflict: "user_id" })
-      .select("updated_at,created_at")
-      .maybeSingle();
-    assertNoSupabaseError("athlete_profiles.upsert", athleteRes.error);
-    return trainingProfileRevision(profile);
-  }
-  return { savePlanToDb, saveProfileRows };
 }

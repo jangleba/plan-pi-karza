@@ -30,9 +30,9 @@ export async function checkNavigationUI({ browser, base, work, ensure, views }) 
     timings.push({ route, elapsedMs: Math.round(performance.now() - start) });
   }
   try {
-    await page.goto(base + "?screen=journey");
-    await at("/start");
-    await page.getByRole("button", { name: /Otwórz trening/ }).click();
+    // The week engine was removed: Start and Plan show "Plan wkrótce", so a
+    // session is opened by its deep link and the tabs are checked around it.
+    await page.goto(base + "?screen=journey&path=/sesja/2026-11-02");
     await at("/sesja/2026-11-02");
     await page.getByRole("button", { name: "Plan sesji", exact: true }).click();
     await page
@@ -72,43 +72,11 @@ export async function checkNavigationUI({ browser, base, work, ensure, views }) 
       .getByRole("button", { name: /Wstecz|Wróć do planu/ })
       .first()
       .click();
-    await at("/start");
-    await tab("Plan", "/plan");
-    await page.locator(".bw-week-nav strong").waitFor();
-    const before = await page.locator(".bw-week-nav strong").textContent();
-    await page.getByRole("button", { name: "Następny tydzień", exact: true }).click();
-    await page.waitForFunction(
-      (previous) => document.querySelector(".bw-week-nav strong")?.textContent !== previous,
-      before,
-    );
-    await snap("przejscie-nastepny-tydzien");
-    const nextWeek = await page.locator(".bw-week-nav strong").textContent();
-    await page.locator('.bw-plan-day-link[href^="/sesja/2026-11-09"]').first().click();
-    await at("/sesja/2026-11-09");
-    await page.locator(".bw-session-header").waitFor();
-    ensure(
-      !/\d\s+órze/.test(await page.locator("body").textContent()),
-      "Sprint dose contains an amputated repetition label",
-    );
-    await page
-      .getByRole("button", { name: /Wstecz|Wróć do planu/ })
-      .first()
-      .click();
     await at("/plan");
-    await page.waitForFunction(
-      (previous) => document.querySelector(".bw-week-nav strong")?.textContent === previous,
-      nextWeek,
-    );
-    ensure(
-      (await page.locator(".bw-week-nav strong").textContent()) === nextWeek,
-      "Returning from a workout lost the selected week",
-    );
-    views.push("powrot-z-sesji-zachowuje-tydzien");
-    await page.getByRole("button", { name: "Poprzedni tydzień", exact: true }).click();
-    await page.waitForFunction(
-      (previous) => document.querySelector(".bw-week-nav strong")?.textContent === previous,
-      before,
-    );
+    await page.getByRole("status", { name: "Plan wkrótce" }).waitFor();
+    await snap("przejscie-plan-wkrotce");
+    await tab("Start", "/start");
+    await page.getByRole("status", { name: "Plan wkrótce" }).waitFor();
     await tab("Fuel", "/fuel");
     await page.getByRole("heading", { name: "Fuel", exact: true }).waitFor();
     await snap("przejscie-fuel");
@@ -126,14 +94,12 @@ export async function checkNavigationUI({ browser, base, work, ensure, views }) 
     await at("/lab");
     await page.locator(".bl-test-card").first().waitFor();
     await snap("przejscie-lab");
-    await tab("Plan", "/plan");
-    const day = page.locator('.bw-plan-day-link[href^="/sesja/2026-11-03"]').first();
-    // The actual plan rows navigate, retaining the selected session date.
-    await day.click();
+    // Tomorrow's session opened by its link is a preview, not another start.
+    await page.goto(base + "?screen=journey&path=/sesja/2026-11-03");
     await at("/sesja/2026-11-03");
     ensure(
-      (await page.evaluate(() => window.__journeyQA.starts.length)) === 1,
-      "Tomorrow's preview started another session",
+      (await page.evaluate(() => window.__journeyQA.starts.length)) === 0,
+      "Tomorrow's preview started a session",
     );
     await page.setViewportSize({ width: 320, height: 640 });
     await page.evaluate(() => {

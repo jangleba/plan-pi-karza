@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { generatePlan, weekRanges } from "./planEngine";
 import {
   mondayOf,
   offseasonGroup,
@@ -7,8 +6,7 @@ import {
   offseasonWeekLoad,
   seasonPhaseForWeek,
 } from "./offseasonPeriod";
-import { classifySession, isMainGymSession } from "./sessionClassification";
-import type { Level, Profile, SeasonPhase, SessionDay } from "./types";
+import type { Profile, SeasonPhase } from "./types";
 
 function profile(overrides: Partial<Profile> = {}): Profile {
   return {
@@ -40,21 +38,6 @@ function profile(overrides: Partial<Profile> = {}): Profile {
     hasSprintSpace: true,
     ...overrides,
   } as Profile;
-}
-
-const START = new Date("2026-06-15T12:00:00"); // poniedziałek
-
-function weeks(plan: SessionDay[]): SessionDay[][] {
-  return weekRanges(START, plan.length)
-    .filter((range) => range.end - range.start === 7)
-    .map((range) => plan.slice(range.start, range.end));
-}
-
-function ownSessions(week: SessionDay[]): SessionDay[] {
-  return week.flatMap((day) => [
-    ...(day.dayType === "training" || day.dayType === "recovery" ? [day] : []),
-    ...(day.secondSession ? [day.secondSession] : []),
-  ]);
 }
 
 describe("etap okresu bez meczów", () => {
@@ -114,67 +97,5 @@ describe("liczba sesji według wieku i poziomu", () => {
       cap: 3,
       maxDoubles: 0,
     });
-  });
-
-  it.each([
-    [13, "intermediate", 4],
-    [15, "intermediate", 4],
-    [20, "beginner", 4],
-    [20, "intermediate", 5],
-    [24, "elite", 6],
-  ] as [number, Level, number][])(
-    "%i lat (%s) w bazie ma najwyżej %i sesji i siłę oraz szybkość co tydzień",
-    (age, level, cap) => {
-      const plan = generatePlan(
-        profile({ age, level, matchDates: ["2026-10-01"], matchDate: "2026-10-01" }),
-        START,
-        28,
-      );
-      for (const week of weeks(plan)) {
-        const sessions = ownSessions(week);
-        // Ostatni tydzień bloku (deload) może wymagać minimum tygodnia.
-        expect(sessions.length).toBeLessThanOrEqual(Math.max(cap, 5));
-        expect(sessions.some(isMainGymSession)).toBe(true);
-        expect(sessions.some((session) => classifySession(session).countsAsSpeed)).toBe(true);
-      }
-      const youngest = weeks(plan).slice(0, 3);
-      for (const week of youngest) expect(ownSessions(week).length).toBeLessThanOrEqual(cap);
-    },
-  );
-
-  it("13-latek nie dostaje treningu codziennie, nawet gdy zaznaczył 7 dni", () => {
-    const plan = generatePlan(profile({ age: 13 }), START, 28);
-    for (const week of weeks(plan)) {
-      expect(week.filter((day) => day.dayType === "rest").length).toBeGreaterThanOrEqual(3);
-    }
-  });
-
-  it("roztrenowanie po sezonie jest lżejsze niż baza i nadal ma szybkość", () => {
-    const plan = generatePlan(
-      profile({ level: "advanced", age: 22, matchDates: ["2026-06-13"] }),
-      START,
-      28,
-    );
-    const [first, second, , fourth] = weeks(plan);
-    for (const week of [first, second]) {
-      expect(week.some((day) => day.secondSession)).toBe(false);
-      expect(ownSessions(week).length).toBeLessThanOrEqual(3);
-      expect(ownSessions(week).some((session) => classifySession(session).countsAsSpeed)).toBe(
-        true,
-      );
-    }
-    expect(ownSessions(fourth).length).toBeGreaterThan(ownSessions(first).length);
-  });
-
-  it("bez siłowni siła jest z masą ciała, bez sprzętu siłowni", () => {
-    const plan = generatePlan(profile({ goal: "strength", hasGym: false }), START, 28);
-    const equipment = /goblet|hantl|sztang|trap.?bar|kettlebell|rdl/i;
-    for (const session of plan.flatMap((day) => [day, day.secondSession].filter(Boolean))) {
-      const names = [
-        ...(session as SessionDay).sections.main,
-        ...(session as SessionDay).sections.accessory,
-      ].map((exercise) => exercise.name);
-      expect(names.join(" ")).not.toMatch(equipment);
-    }
   });
 });

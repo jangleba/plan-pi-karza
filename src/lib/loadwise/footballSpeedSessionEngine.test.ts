@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Profile } from "./types";
 import { generateFootballSpeedSession } from "./footballSpeedSessionEngine";
-import { applyReadiness } from "./planEngine";
 import { classifySession } from "./sessionClassification";
 import { getExerciseDefinition } from "./exerciseLibrary";
 
@@ -296,43 +295,9 @@ describe("football speed session engine", () => {
       progressionWeek: 3,
       recentPostSkipExerciseIds: ["a_switch_progression", "a_accent", "alternate_leg_bounds"],
     }).session!;
-    const baseTechnicalIds = base.structuredSections
-      ?.flatMap((section) => section.blocks)
-      .flatMap((block) => block.exercises)
-      .filter((exercise) => exercise.speedRole === "technical")
-      .map((exercise) => exercise.exerciseId);
-    const adjusted = applyReadiness(
-      base,
-      {
-        date: "2026-08-20",
-        sleep: 7,
-        energy: 6,
-        fatigue: 6,
-        soreness: 4,
-        jointPain: 1,
-        stress: 4,
-        motivation: 7,
-        overall: 6,
-      },
-      profile(),
-    ).session;
 
     expect(base.speedGeneratorVersion).toBeTruthy();
     expect(classifySession(base).isSpeed).toBe(true);
-    expect(
-      adjusted.sections.main.find((e) => e.exerciseId === "free_acceleration_sprint")?.prescription,
-    ).toBe("3 × 10–15 m");
-    expect(adjusted.structuredSections?.flatMap((section) => section.blocks)).toHaveLength(18);
-    expect(adjusted.sections.cooldown).toHaveLength(1);
-    expect(adjusted.speedFamily).toBe("acceleration");
-    expect(adjusted.speedProgressionWeek).toBe(3);
-    expect(
-      adjusted.structuredSections
-        ?.flatMap((section) => section.blocks)
-        .flatMap((block) => block.exercises)
-        .filter((exercise) => exercise.speedRole === "technical")
-        .map((exercise) => exercise.exerciseId),
-    ).toEqual(baseTechnicalIds);
   });
 
   it("is deterministic and follows the pain stop path", () => {

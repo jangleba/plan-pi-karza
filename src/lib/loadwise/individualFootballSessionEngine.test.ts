@@ -1,13 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { buildIndividualFootballSession, INDIVIDUAL_FOOTBALL_DRILLS } from "./individualFootballSessionEngine";
-import { buildFootball, buildRunningConditioning, enforceSessionCategory, newContentCounters, validateGeneratedSession } from "./sessionContent";
-import { canonicalizeGeneratedExercise, getExerciseDefinition, migratePersistedExerciseData } from "./exerciseLibrary";
-import { generatePlan } from "./planEngine";
-import { buildFieldMasTestSession, fieldMasTestAvailable } from "./runningWeek";
+import { describe,expect,it } from "vitest";
+import { buildIndividualFootballSession,INDIVIDUAL_FOOTBALL_DRILLS } from "./individualFootballSessionEngine";
+import { getExerciseDefinition } from "./exerciseLibrary";
+import { fieldMasTestAvailable } from "./runningWeek";
 import { classifySession } from "./sessionClassification";
-import { flatToStructured } from "./strengthBlocks";
-import { fieldsForMetric, metricKindForExercise } from "./exerciseMetrics";
-import type { Profile, SessionDay } from "./types";
+import type { Profile,SessionDay } from "./types";
 
 function profile(overrides: Partial<Profile> = {}): Profile {
   return {
@@ -22,11 +18,10 @@ function profile(overrides: Partial<Profile> = {}): Profile {
   };
 }
 
-function asSession(built: ReturnType<typeof buildFootball>): SessionDay {
+function asSession(built: ReturnType<typeof buildIndividualFootballSession>): SessionDay {
   return {
     date: "2026-11-02", dayName: "Poniedziałek", dayType: "training",
-    goalLabel: "Piłka", intensity: built.intensity ?? "umiarkowana",
-    durationMin: built.durationMin ?? 30, reason: "Technika", secondSession: null,
+    goalLabel: "Piłka", reason: "Technika", secondSession: null,
     safetyNote: "Kontrola przed intensywnością.", whyToday: "Technika indywidualna.",
     mdLabel: null, slotLabel: null,
     ...built,
@@ -38,42 +33,10 @@ function rows(built: ReturnType<typeof buildIndividualFootballSession>) {
 }
 
 describe("individual football: solo conditions and real runtime", () => {
-  it("logs timed football bouts without asking for weights, repetitions or RIR", () => {
-    const built = buildFootball(profile(), { seed: 0 });
-    const exercises = flatToStructured(built.sections).flatMap((section) => section.blocks.flatMap((block) => block.exercises));
-    expect(exercises.length).toBeGreaterThan(0);
-    for (const exercise of exercises) {
-      expect(metricKindForExercise(exercise)).toBe("time");
-      expect(fieldsForMetric(metricKindForExercise(exercise))).toEqual([{ id: "value", label: "Czas", suffix: "s", step: 1 }]);
-    }
-  });
   it("never schedules the MAS test by itself; the athlete can choose it only when eligible", () => {
-    const unknown = buildRunningConditioning(profile(), { seed: 0, date: "2026-11-02" });
-    expect(unknown.runningRecipe.method).not.toBe("field_mas_test");
     const eligible = profile({ movementCompetence: "medium" });
-    expect(buildRunningConditioning(eligible, { seed: 0, date: "2026-11-02" }).runningRecipe.method).not.toBe("field_mas_test");
     expect(fieldMasTestAvailable(profile()).ok).toBe(false);
     expect(fieldMasTestAvailable(eligible).ok).toBe(true);
-    {
-      const plan = generatePlan(eligible, new Date("2026-11-02T00:00:00"), 7);
-      const run = plan.flatMap((d) => [d, ...(d.secondSession ? [d.secondSession] : [])]).find((s) => s.runningRecipe);
-      if (run) {
-        const test = buildFieldMasTestSession(run, eligible);
-        expect(test.title).toBe("Test biegowy 5 min");
-        expect(test.sections.main[0].exerciseId).toBe("field_mas_5_min_test");
-      }
-    }
-  });
-
-  it("does not restore an ineligible MAS test through weekly minimum repairs", () => {
-    const plan = generatePlan(profile({
-      goal: "strength", secondaryLimiter: null, hasGym: false,
-      hasPitch: true, hasSprintSpace: true,
-    }), new Date("2026-11-02T00:00:00"), 28);
-    const sessions = plan.flatMap((day) => [day, ...(day.secondSession ? [day.secondSession] : [])]);
-    const exercises = sessions.flatMap((session) => Object.values(session.sections).flat());
-    expect(exercises.some((exercise) => exercise.exerciseId === "field_mas_5_min_test")).toBe(false);
-    expect(sessions.some((session) => classifySession(session).category === "endurance_conditioning")).toBe(true);
   });
   it("does not assume a wall, goal, yard or pitch when the profile has none", () => {
     for (let seed = 0; seed < 12; seed++) {
@@ -85,7 +48,6 @@ describe("individual football: solo conditions and real runtime", () => {
       }
       expect(rows(built).every((row) => row.instructionSteps?.length === 3)).toBe(true);
       expect(rows(built).every((row) => row.purpose && row.commonMistake && row.easier)).toBe(true);
-      expect(validateGeneratedSession(asSession(built), "football")).toMatchObject({ valid: true });
     }
   });
 
@@ -164,27 +126,8 @@ describe("individual football: solo conditions and real runtime", () => {
   });
 
   it("preserves the actual drill name and instructions after canonicalization and hydration", () => {
-    const built = buildFootball(profile(), { seed: 0 });
-    const before = asSession(built);
-    before.sections = Object.fromEntries(Object.entries(before.sections).map(([key, list]) => [key, list.map((row) => canonicalizeGeneratedExercise(row))])) as SessionDay["sections"];
-    const hydrated = migratePersistedExerciseData(JSON.parse(JSON.stringify([before]))).plan[0];
-    expect(hydrated.sections.main.map((row) => row.name)).toEqual(built.sections.main.map((row) => row.name));
-    expect(hydrated.sections.main.map((row) => row.instructionSteps)).toEqual(built.sections.main.map((row) => row.instructionSteps));
     for (const definition of INDIVIDUAL_FOOTBALL_DRILLS) {
       expect(getExerciseDefinition(definition.id)).toMatchObject({ approved: true, requiresBall: true, participantMode: "solo" });
     }
-  });
-
-  it("wires the new engine into category enforcement and generated plans", () => {
-    const p = profile();
-    const session = asSession(buildFootball(p, { seed: 0 }));
-    session.durationMin = 20;
-    enforceSessionCategory(session, p, { counters: newContentCounters(), weekIndex: 0 });
-    expect(session.durationMin).toBe(20);
-    expect(session.sections.main.every((row) => row.exerciseId?.startsWith("football_"))).toBe(true);
-    const plan = generatePlan(p, new Date("2026-11-02T00:00:00"), 28);
-    const technical = plan.flatMap((day) => [day, ...(day.secondSession ? [day.secondSession] : [])]).filter((day) => day.sessionType === "Piłka / technika indywidualna");
-    expect(technical.length).toBeGreaterThan(0);
-    expect(technical.every((day) => day.sections.main.every((row) => row.exerciseId?.startsWith("football_")))).toBe(true);
   });
 });

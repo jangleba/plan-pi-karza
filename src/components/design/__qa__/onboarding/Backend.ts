@@ -1,7 +1,7 @@
 /** Isolated browser test backend. Never connects to a real account. */
 const mode = new URLSearchParams(location.search).get("mode") ?? "success";
-export const stats = { consentCalls: 0, saveCalls: 0, generations: 0, planIds: [] as string[] };
-let persistedPlanId: string | null = null;
+export const stats = { consentCalls: 0, saveCalls: 0, planPayloads: [] as unknown[] };
+let savedAt: string | null = null;
 function response(data: unknown, error: unknown = null) {
   return { data, error };
 }
@@ -35,36 +35,22 @@ export const supabase = {
       return request(() => response({ updated_at: "2026-11-04T15:00:00Z" }));
     }
     if (name !== "save_profile_and_plan") throw new Error("Unexpected RPC: " + name);
-    const plan = args.p_plan as Record<string, unknown>;
-    const id = String(plan.p_plan_id);
     stats.saveCalls++;
-    stats.planIds.push(id);
+    stats.planPayloads.push(args.p_plan ?? null);
     return request(() => {
       if (mode === "fail_once" && stats.saveCalls === 1)
         return response(null, { message: "upstream request timeout" });
-      persistedPlanId = id;
+      savedAt = "2026-11-04T15:00:01Z";
       if (mode === "lost_response") return response(null, { message: "upstream request timeout" });
       return response({ athlete: { updated_at: "2026-11-04T15:00:01Z" } });
     }, mode === "hung");
   },
-  from(table: string) {
-    const filters: Record<string, unknown> = {};
+  from() {
     const query = {
       select: () => query,
-      eq: (k: string, v: unknown) => {
-        filters[k] = v;
-        return query;
-      },
-      maybeSingle: () =>
-        request(() =>
-          response(
-            table === "training_plans"
-              ? persistedPlanId && filters.id === persistedPlanId
-                ? { id: persistedPlanId }
-                : null
-              : { updated_at: "2026-11-04T15:00:01Z" },
-          ),
-        ),
+      eq: () => query,
+      // The profile row exists only after a save has landed.
+      maybeSingle: () => request(() => response(savedAt ? { updated_at: savedAt } : null)),
     };
     return query;
   },

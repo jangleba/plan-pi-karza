@@ -1,9 +1,5 @@
 import { readPendingTrainingWrites, recoverTrainingQueue } from "../offlineTrainingQueue";
 import { readAllPages } from "../pagination";
-import { generatePlanAsync } from "../generatePlanAsync";
-import { applyConfirmedCalendar, transitionMatchesBlock } from "../confirmedCalendar";
-import { reconcilePlanIdentity } from "../planIdentity";
-import { cycleStartOf, stampCycleStart } from "../cycleReview";
 import { supabase } from "@/integrations/supabase/client";
 import { assertNoSupabaseError } from "@/integrations/supabase/errors";
 import type { RunningActivity } from "@/lib/running/types";
@@ -12,49 +8,33 @@ import { stateWithoutHealthData } from "../localPrivacy";
 import { clearBootState, loadBootState } from "../bootCache";
 import { primeConsentRows } from "../legalStatus";
 import {
-  hasLocalPlanChanges,
   mergeHydratedRecord,
   mergeHydratedHistory,
   mergeHydratedState,
   mergePendingCompletionRows,
 } from "./hydrationMerge";
 import type { LoadwiseState } from "../types";
-import { migratePersistedExerciseData } from "../exerciseLibrary";
-import { isoDate, localToday, parseIso } from "../labels";
-import { latestConfirmedWeekEnd, planEndsMidWeek, planWindowDays } from "../planWindow";
-import { normalizeMatchDates } from "../matchSchedule";
-import { PLAN_ENGINE_VERSION } from "../planVersion";
-import {
-  guardedPlanWrite,
-  planWriteKey,
-  trackPlanWrite,
-  waitForPlanWrites,
-  wasPlanWriteRejected,
-} from "./planWriteGuard";
+import { waitForPlanWrites } from "./planWriteGuard";
 import type {
   ExerciseReplacement,
   Profile,
   Readiness,
   SessionDay,
   SessionModification,
-  WeeklyTransition,
 } from "../types";
 import { loadLocal, type LocalState } from "./localState";
 import {
   buildProfile,
   initialState,
   mapCompletionRows,
-  ONBOARDING_SCHEMA_VERSION,
-  planRevisionInfo,
   rowToExerciseReplacement,
   rowToModification,
   rowToRunningActivity,
-  stampPlanRevision,
   type AnyRow,
   type StateSetter,
   type StoreUser,
 } from "./model";
-import { clearFutureOverlaysForUser, loadSessionHistory } from "./repository";
+import { loadSessionHistory } from "./repository";
 
 const useClientLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 interface HydrationOptions {
@@ -62,28 +42,10 @@ interface HydrationOptions {
   authLoading: boolean;
   recoveryMode: boolean;
   profileWritePending?: boolean;
-  todayIso: string;
   setState: StateSetter;
   state: LoadwiseState;
   setSyncing?: (value: boolean) => void;
   setHydrationError?: (value: string | null) => void;
-}
-
-/**
- * Modules needed later in hydration are requested up front, in parallel with
- * the queue recovery and Supabase reads, instead of one after another once the
- * data has arrived. On the web each lazy chunk is a separate round trip.
- */
-function preloadHydrationModules() {
-  const modules = {
-    dailyCheckin: import("../dailyCheckin"),
-    speedSessionMigration: import("../speedSessionMigration"),
-    persistedPlanValidation: import("../persistedPlanValidation"),
-    persist: import("../persist"),
-  };
-  // A failed prefetch surfaces where the module is awaited; never as an unhandled rejection.
-  for (const module of Object.values(modules)) module.catch(() => undefined);
-  return modules;
 }
 
 export function useHydration({
@@ -91,7 +53,6 @@ export function useHydration({
   authLoading,
   recoveryMode,
   profileWritePending = false,
-  todayIso,
   setState,
   state,
   setSyncing,
@@ -158,7 +119,6 @@ export function useHydration({
       sameUser && stateRef.current.profile ? stateRef.current : loadBootState(user.id);
     const baselineState = cachedState ?? initialState;
     let pendingAtStart = readPendingTrainingWrites(user.id);
-    const canWritePlan = () => !cancelled && !hasLocalPlanChanges(stateRef.current, baselineState);
     const timeout = setTimeout(() => controller.abort(), 15_000);
     if (cachedState) {
       setState(cachedState);
@@ -167,7 +127,6 @@ export function useHydration({
       setState(initialState);
       setHydrated(false);
     }
-    const modules = preloadHydrationModules();
     (async () => {
       let safeProfile: Profile | null = cachedState?.profile ?? null;
       const safeLocal: LocalState = loadLocal(user.id);
@@ -222,108 +181,83 @@ export function useHydration({
             clearTimeout(runningTimeout);
             controller.signal.removeEventListener("abort", cancelRunning);
           });
-        const [
-          profRes,
-          athRes,
-          onboardingRes,
-          planRes,
-          logRes,
-          modRes,
-          transRes,
-          replacementRes,
-          readinessRes,
-        ] = await Promise.all([
-          supabase
-            .from("profiles")
-            .select("*")
-            .abortSignal(controller.signal)
-            .eq("user_id", user.id)
-            .maybeSingle(),
-          supabase
-            .from("athlete_profiles")
-            .select("*")
-            .abortSignal(controller.signal)
-            .eq("user_id", user.id)
-            .maybeSingle(),
-          supabase
-            .from("onboarding_answers")
+        const [profRes, athRes, onboardingRes, logRes, modRes, replacementRes, readinessRes] =
+          await Promise.all([
+            supabase
+              .from("profiles")
+              .select("*")
+              .abortSignal(controller.signal)
+              .eq("user_id", user.id)
+              .maybeSingle(),
+            supabase
+              .from("athlete_profiles")
+              .select("*")
+              .abortSignal(controller.signal)
+              .eq("user_id", user.id)
+              .maybeSingle(),
+            supabase
+              .from("onboarding_answers")
 
-            .select("answers_json")
-            .abortSignal(controller.signal)
-            .eq("user_id", user.id)
-            .order("completed_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          supabase
-            .from("training_plans")
+              .select("answers_json")
+              .abortSignal(controller.signal)
+              .eq("user_id", user.id)
+              .order("completed_at", { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+            readAllPages(
+              (from, to) =>
+                supabase
+                  .from("session_logs")
 
-            .select("*")
-            .abortSignal(controller.signal)
-            .eq("user_id", user.id)
-            .eq("status", "active")
-            .eq("active", true)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          readAllPages(
-            (from, to) =>
-              supabase
-                .from("session_logs")
+                  .select(
+                    "session_id, completed, completion_status, rpe, notes, duration_minutes, activity_type, started_at, ended_at, updated_at, execution_snapshot, write_version",
+                  )
+                  .abortSignal(controller.signal)
+                  .eq("user_id", user.id)
+                  .gte("updated_at", new Date(Date.now() - 45 * 86400000).toISOString())
+                  .order("id", { ascending: true })
+                  .range(from, to),
+              controller.signal,
+            ),
+            readAllPages(
+              (from, to) =>
+                supabase
+                  .from("session_modifications")
 
-                .select(
-                  "session_id, completed, completion_status, rpe, notes, duration_minutes, activity_type, started_at, ended_at, updated_at, execution_snapshot, write_version",
-                )
-                .abortSignal(controller.signal)
-                .eq("user_id", user.id)
-                .gte("updated_at", new Date(Date.now() - 45 * 86400000).toISOString())
-                .order("id", { ascending: true })
-                .range(from, to),
-            controller.signal,
-          ),
-          readAllPages(
-            (from, to) =>
-              supabase
-                .from("session_modifications")
+                  .select("*")
+                  .abortSignal(controller.signal)
+                  .eq("user_id", user.id)
+                  .eq("active", true)
+                  .order("created_at", { ascending: true })
+                  .order("id", { ascending: true })
+                  .range(from, to),
+              controller.signal,
+            ),
+            readAllPages(
+              (from, to) =>
+                supabase
+                  .from("exercise_replacements")
 
-                .select("*")
-                .abortSignal(controller.signal)
-                .eq("user_id", user.id)
-                .eq("active", true)
-                .order("created_at", { ascending: true })
-                .order("id", { ascending: true })
-                .range(from, to),
-            controller.signal,
-          ),
-          supabase
-            .from("weekly_transitions")
-            .select("*")
-            .abortSignal(controller.signal)
-            .eq("user_id", user.id),
-          readAllPages(
-            (from, to) =>
-              supabase
-                .from("exercise_replacements")
+                  .select("*")
+                  .abortSignal(controller.signal)
+                  .eq("user_id", user.id)
+                  .eq("active", true)
+                  .order("created_at", { ascending: true })
+                  .order("id", { ascending: true })
+                  .range(from, to),
+              controller.signal,
+            ),
+            supabase
+              .from("readiness_logs")
 
-                .select("*")
-                .abortSignal(controller.signal)
-                .eq("user_id", user.id)
-                .eq("active", true)
-                .order("created_at", { ascending: true })
-                .order("id", { ascending: true })
-                .range(from, to),
-            controller.signal,
-          ),
-          supabase
-            .from("readiness_logs")
-
-            .select(
-              "date, sleep, energy, fatigue, soreness, stress, pain_level, pain_location, pain_onset, alters_movement, red_flags, overall",
-            )
-            .abortSignal(controller.signal)
-            .eq("user_id", user.id)
-            .order("date", { ascending: false })
-            .limit(45),
-        ]);
+              .select(
+                "date, sleep, energy, fatigue, soreness, stress, pain_level, pain_location, pain_onset, alters_movement, red_flags, overall",
+              )
+              .abortSignal(controller.signal)
+              .eq("user_id", user.id)
+              .order("date", { ascending: false })
+              .limit(45),
+          ]);
 
         clearTimeout(timeout);
         if (cancelled) return;
@@ -359,10 +293,8 @@ export function useHydration({
           ...cachedState?.runningActivities,
         };
         safeProfile = profile;
-        assertNoSupabaseError("training_plans.load", planRes.error);
         assertNoSupabaseError("session_logs.load", logRes.error);
         assertNoSupabaseError("session_modifications.load", modRes.error);
-        assertNoSupabaseError("weekly_transitions.load", transRes.error);
         assertNoSupabaseError("readiness_logs.load", readinessRes.error);
 
         const pendingWrites = [...pendingAtStart, ...readPendingTrainingWrites(user.id)];
@@ -377,42 +309,6 @@ export function useHydration({
           } as AnyRow);
           if (activity) runningActivities[activity.sessionId] = activity;
         }
-        // Every confirmation saved for the active block. A block that was cut short
-        // is rebuilt with them, then only the ones that match the shown weeks stay.
-        const cycleTransitions: Record<number, WeeklyTransition> = {};
-        const activePlanRow = planRes.data as AnyRow | null;
-        const activeDays = (
-          (Array.isArray(activePlanRow?.plan_json) ? activePlanRow.plan_json : []) as SessionDay[]
-        ).map((day) => ({
-          ...day,
-          cycleId: day.cycleId ?? String(activePlanRow?.cycle_id ?? activePlanRow?.id),
-        }));
-        const activeCycle = activeDays[0]?.cycleId ?? activePlanRow?.cycle_id;
-        for (const row of (transRes.data as AnyRow[] | null) ?? []) {
-          const wn = Number(row.week_number);
-          if (!Number.isFinite(wn) || !activeCycle || row.cycle_id !== activeCycle) continue;
-          cycleTransitions[wn] = {
-            id: row.id as string,
-            weekNumber: wn,
-            cycleId: String(activeCycle),
-            weekStart: row.week_start as string,
-            weekEnd: row.week_end as string,
-            nextMatchDate: (row.next_match_date as string) ?? null,
-            nextMatchDates: normalizeMatchDates([
-              row.next_match_date as string | null,
-              ...(Array.isArray(row.next_match_dates) ? (row.next_match_dates as string[]) : []),
-            ]),
-            noMatchNextWeek: Boolean(row.no_match_next_week),
-            confirmedAt: (row.confirmed_at as string) ?? new Date().toISOString(),
-          };
-        }
-        const matchingTransitions = (days: SessionDay[]) =>
-          Object.fromEntries(
-            Object.entries(cycleTransitions).filter(([key, item]) =>
-              transitionMatchesBlock(days, item, Number(key)),
-            ),
-          ) as Record<number, WeeklyTransition>;
-        let transitions = matchingTransitions(activeDays);
 
         const persistedReadiness: Record<string, Readiness> = {};
         if (profile?.healthPersonalizationEnabled) {
@@ -436,235 +332,10 @@ export function useHydration({
             };
           }
         }
-        let plan: SessionDay[] = [];
-        let migrationOriginalPlan: SessionDay[] | null = null;
-        let migrationChanged = false;
-        let planGeneratedFor: string | null = null;
-        let clearFutureOverlays = false;
-        // The plan is shown at once; its save runs after the first render.
-        let backgroundWrite: {
-          key: string;
-          plan: SessionDay[];
-          fallback: SessionDay[];
-          fallbackGeneratedFor: string | null;
-          commit?: () => Promise<SessionDay[]>;
-        } | null = null;
-        const planRow = planRes.data as AnyRow | null;
-        const planRowCreatedAt = (planRow?.created_at as string | undefined) ?? null;
-        if (planRow && Array.isArray(planRow.plan_json)) {
-          const { normalizeLegacyPersistedPlan } = await modules.dailyCheckin;
-          plan = (planRow.plan_json as SessionDay[]).map((day) => ({
-            ...day,
-            planDbId: planRow.id as string,
-            cycleId: day.cycleId ?? String(planRow.cycle_id ?? planRow.id),
-          }));
-          planGeneratedFor = (planRow.created_at as string)?.slice(0, 10) ?? null;
-          const normalized = normalizeLegacyPersistedPlan(plan);
-          plan = normalized.plan;
-          const exerciseMigration = migratePersistedExerciseData(plan);
-          if (exerciseMigration.changed) {
-            migrationOriginalPlan = plan;
-            migrationChanged = true;
-            plan = exerciseMigration.plan;
-          }
-        }
-        if (profile && plan.length > 0) {
-          const { migratePersistedSpeedSessions } = await modules.speedSessionMigration;
-          const persistedModifications: Record<string, SessionModification[]> = {};
-          for (const row of (modRes.data as AnyRow[] | null) ?? []) {
-            const mod = rowToModification(row);
-            if (mod) (persistedModifications[mod.date] ??= []).push(mod);
-          }
-          const migrated = migratePersistedSpeedSessions(
-            plan,
-            profile,
-            todayIso,
-            completions,
-            persistedModifications,
-          );
-          if (migrated.migratedDates.length > 0) {
-            migrationOriginalPlan = plan;
-            plan = migrated.plan;
-            migrationChanged = true;
-          }
-        }
-
-        if (!profile?.onboardingComplete) {
-          plan = [];
-          planGeneratedFor = null;
-        } else {
-          const { persistedPlanNeedsRegeneration } = await modules.persistedPlanValidation;
-          const revisionInfo = planRevisionInfo(plan);
-          const profileRevision = profile.onboardingRevision ?? null;
-          const schemaMissingOrMismatched =
-            revisionInfo.schemaVersion === null ||
-            revisionInfo.schemaVersion !== ONBOARDING_SCHEMA_VERSION;
-          const revisionMismatch =
-            (profileRevision && revisionInfo.revision !== profileRevision) ||
-            (!revisionInfo.revision && !!profileRevision);
-          const mixedRevisionData = revisionInfo.mixedRevisions || revisionInfo.mixedSchemas;
-          const planOlderThanProfile =
-            !!profileRevision &&
-            !profileRevision.startsWith("training-inputs:") &&
-            !!planRowCreatedAt &&
-            planRowCreatedAt < profileRevision;
-          const missingToday = !plan.some((day) => day.date === todayIso);
-          // A block that stops mid-week (older 28-day blocks, or one a rebuild cut
-          // short) is rebuilt so the current week shows Monday–Sunday.
-          const endsMidWeek = planEndsMidWeek(plan.map((day) => day.date));
-          const invalidCanonical =
-            plan.length === 0 ||
-            missingToday ||
-            endsMidWeek ||
-            persistedPlanNeedsRegeneration(plan, profile, PLAN_ENGINE_VERSION, todayIso);
-          const shouldRebuildCanonical =
-            invalidCanonical ||
-            mixedRevisionData ||
-            schemaMissingOrMismatched ||
-            revisionMismatch ||
-            planOlderThanProfile;
-
-          const storedPlan = plan;
-          const writeKey = (kind: string) =>
-            planWriteKey([
-              user.id,
-              kind,
-              (planRow?.id as string | undefined) ?? null,
-              PLAN_ENGINE_VERSION,
-              profileRevision,
-              todayIso,
-            ]);
-          if (shouldRebuildCanonical) {
-            const keepsBlock = !!plan[0]?.date && !missingToday;
-            const blockStart = keepsBlock ? plan[0].date : isoDate(localToday());
-            const sameCycle = Boolean(plan[0]?.date) && plan.some((day) => day.date === todayIso);
-            // Nowy cykl po zakończonym: podsumowanie poprzedniego steruje startem silnika.
-            // Przebudowa w trakcie cyklu używa reguły zapisanej w jego planie.
-            const cycleStart = sameCycle
-              ? cycleStartOf(plan)
-              : await import("../cycleReviewData")
-                  .then(({ reviewEndedCycle }) =>
-                    reviewEndedCycle({
-                      userId: user.id,
-                      todayIso,
-                      profile,
-                      plan,
-                      modifications: ((modRes.data as AnyRow[] | null) ?? [])
-                        .map(rowToModification)
-                        .filter((mod): mod is SessionModification => Boolean(mod)),
-                      completions,
-                      readiness: Object.values(persistedReadiness),
-                      signal: controller.signal,
-                    }),
-                  )
-                  .catch(() => null);
-            const cycleProfile = cycleStart ? { ...profile, cycleStart } : profile;
-            const canonical = stampPlanRevision(
-              await applyConfirmedCalendar(
-                await generatePlanAsync(
-                  cycleProfile,
-                  parseIso(blockStart),
-                  // Keep confirmed weeks and finish the last week on Sunday.
-                  planWindowDays(
-                    blockStart,
-                    keepsBlock ? plan.at(-1)?.date : null,
-                    keepsBlock ? latestConfirmedWeekEnd(cycleTransitions, todayIso) : null,
-                  ),
-                  0,
-                  controller.signal,
-                ).then((days) =>
-                  stampCycleStart(
-                    plan[0]?.cycleId && keepsBlock
-                      ? days.map((day) => ({ ...day, cycleId: plan[0].cycleId }))
-                      : days,
-                    cycleStart,
-                  ),
-                ),
-                cycleProfile,
-                keepsBlock ? cycleTransitions : {},
-                controller.signal,
-              ),
-              profileRevision,
-              ONBOARDING_SCHEMA_VERSION,
-            );
-            plan = stampPlanRevision(
-              reconcilePlanIdentity(canonical, plan, completions, todayIso),
-              profileRevision,
-              ONBOARDING_SCHEMA_VERSION,
-            );
-            // Even a corrupted empty snapshot still has a real active header for optimistic locking.
-            if (plan[0] && planRow?.id && !plan[0].planDbId) plan[0].planDbId = String(planRow.id);
-            if (cancelled) return;
-            if (canWritePlan()) {
-              const key = writeKey("rebuild");
-              if (wasPlanWriteRejected(key)) {
-                plan = storedPlan; // rejected before: keep showing what is actually stored
-              } else {
-                backgroundWrite = {
-                  key,
-                  plan,
-                  fallback: storedPlan,
-                  fallbackGeneratedFor: planGeneratedFor,
-                };
-                planGeneratedFor = todayIso;
-                clearFutureOverlays = true;
-              }
-            } else {
-              planGeneratedFor = todayIso;
-              clearFutureOverlays = true;
-            }
-          } else if (revisionInfo.revision !== profileRevision || schemaMissingOrMismatched) {
-            plan = stampPlanRevision(plan, profileRevision, ONBOARDING_SCHEMA_VERSION);
-            if (cancelled) return;
-            if (canWritePlan()) {
-              const key = writeKey("stamp");
-              if (wasPlanWriteRejected(key)) plan = storedPlan;
-              else
-                backgroundWrite = {
-                  key,
-                  plan,
-                  fallback: storedPlan,
-                  fallbackGeneratedFor: planGeneratedFor,
-                };
-            }
-            planGeneratedFor = todayIso;
-          } else if (migrationOriginalPlan && migrationChanged) {
-            const key = writeKey("migrate");
-            if (canWritePlan() && !wasPlanWriteRejected(key)) {
-              plan = stampPlanRevision(
-                reconcilePlanIdentity(plan, migrationOriginalPlan, completions, todayIso),
-                profileRevision,
-                ONBOARDING_SCHEMA_VERSION,
-              );
-              backgroundWrite = {
-                key,
-                plan,
-                fallback: migrationOriginalPlan,
-                fallbackGeneratedFor: planGeneratedFor,
-              };
-            } else plan = migrationOriginalPlan;
-          }
-        }
-        if (backgroundWrite && profile) {
-          // Final ids come from one small read, so the shown sessions can be started
-          // as soon as the background snapshot lands.
-          try {
-            const { stageMonthlyPlan } = await modules.persist;
-            const staged = await stageMonthlyPlan(user.id, profile, backgroundWrite.plan);
-            plan = staged.plan;
-            backgroundWrite = { ...backgroundWrite, plan, commit: staged.commit };
-          } catch (error) {
-            console.warn(
-              "[loadwise] plan snapshot could not be prepared; showing the stored plan",
-              error,
-            );
-            plan = backgroundWrite.fallback;
-            planGeneratedFor = backgroundWrite.fallbackGeneratedFor;
-            clearFutureOverlays = false;
-            backgroundWrite = null;
-          }
-          if (cancelled) return;
-        }
+        // Silnik układania tygodnia został usunięty: zapisany plan zostaje w bazie
+        // bez zmian, a aplikacja nie pokazuje ani nie przebudowuje tygodnia.
+        const plan: SessionDay[] = [];
+        const planGeneratedFor: string | null = null;
 
         const historyPromise = (async () => {
           const allLogs = await readAllPages(
@@ -706,12 +377,9 @@ export function useHydration({
         });
 
         const modifications: Record<string, SessionModification[]> = {};
-        const storedModifications: Record<string, SessionModification[]> = {};
         for (const row of (modRes.data as AnyRow[] | null) ?? []) {
           const mod = rowToModification(row);
           if (!mod) continue;
-          (storedModifications[mod.date] ??= []).push(mod);
-          if (clearFutureOverlays && mod.date >= todayIso) continue;
           (modifications[mod.date] ??= []).push(mod);
         }
 
@@ -725,7 +393,6 @@ export function useHydration({
           .flatMap((replacement) => replacement.equipmentIds);
 
         if (cancelled) return;
-        transitions = matchingTransitions(plan);
         const remoteState: LoadwiseState = {
           profile: profile
             ? {
@@ -741,7 +408,7 @@ export function useHydration({
           completions,
           history: cachedState?.history ?? [],
           modifications,
-          transitions,
+          transitions: {},
           exerciseReplacements: !replacementRes.error
             ? persistedReplacements
             : local.exerciseReplacements,
@@ -777,40 +444,6 @@ export function useHydration({
             ),
           }));
         });
-        if (backgroundWrite && profile) {
-          const { key, plan: shown, fallback, fallbackGeneratedFor, commit } = backgroundWrite;
-          const futureModificationIds = ((modRes.data as AnyRow[] | null) ?? [])
-            .filter((row) => String(row.date) >= todayIso)
-            .map((row) => String(row.id));
-          const ownerStillActive = () => activeUserIdRef.current === user.id;
-          void trackPlanWrite(
-            user.id,
-            (async () => {
-              const saved = commit ? await guardedPlanWrite(key, commit) : null;
-              if (!saved) throw new Error("plan snapshot rejected");
-              // Saved copies carry the database ids. A local edit made meanwhile wins.
-              if (ownerStillActive())
-                setState((current) =>
-                  current.plan === shown ? { ...current, plan: saved } : current,
-                );
-              if (clearFutureOverlays)
-                await clearFutureOverlaysForUser(user.id, todayIso, false, futureModificationIds);
-            })(),
-          ).catch((error) => {
-            console.warn("[loadwise] background plan save failed; showing the stored plan", error);
-            if (!ownerStillActive()) return;
-            setState((current) =>
-              current.plan === shown
-                ? {
-                    ...current,
-                    plan: fallback,
-                    planGeneratedFor: fallbackGeneratedFor,
-                    modifications: storedModifications,
-                  }
-                : current,
-            );
-          });
-        }
         void historyPromise.then((history) => {
           if (!cancelled)
             setState((current) => ({

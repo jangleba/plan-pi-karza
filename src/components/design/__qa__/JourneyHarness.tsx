@@ -69,7 +69,9 @@ const router = createRouter({
   defaultViewTransition: true,
   history: createMemoryHistory({
     initialEntries: [
-      new URLSearchParams(location.search).get("legacy") === "1" ? "/sesja/2026-11-01" : "/start",
+      new URLSearchParams(location.search).get("legacy") === "1"
+        ? "/sesja/2026-11-01"
+        : (new URLSearchParams(location.search).get("path") ?? "/start"),
     ],
   }),
 });

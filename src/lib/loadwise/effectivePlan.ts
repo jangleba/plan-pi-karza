@@ -6,7 +6,6 @@ import type {
   SessionDay,
   SessionModification,
 } from "./types";
-import { adaptMdPlusOneFromMatchMinutes } from "./adaptiveWeek";
 import { enforceSprintOnlyContent } from "./sprintContentPolicy";
 import { enforceStrengthEligibility } from "./strengthEligibility";
 
@@ -127,14 +126,7 @@ export function resolveEffectivePlan(
     enforceSprintOnlyContent(resolveModifiedDay(day, modifications[day.date] ?? [])),
   );
   if (!context) return modified;
-  // Recorded match minutes are execution data; readiness answers are not used.
-  const adapted = adaptMdPlusOneFromMatchMinutes(
-    modified,
-    context.completions ?? {},
-    {},
-    context.profile,
-  ).plan;
-  return adapted.map((day) => resolveExecutionDay(day, context));
+  return modified.map((day) => resolveExecutionDay(day, context));
 }
 
 /** Wszystkie realne sloty planu, maksymalnie dwa na dzień. */

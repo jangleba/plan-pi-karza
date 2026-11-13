@@ -214,9 +214,9 @@ try {
       seen.at(-1) === "conditions",
       `${size.width}: did not reach the last step (${seen.join(" → ")})`,
     );
-    // No summary screen: saving on the last step opens the plan.
-    await page.getByRole("button", { name: "Zapisz i wygeneruj plan", exact: true }).click();
-    await page.getByTestId("plan-days").waitFor({ timeout: 20000 });
+    // No summary screen: saving on the last step saves the profile and opens the app.
+    await page.getByRole("button", { name: "Zapisz", exact: true }).click();
+    await page.getByTestId("profile-saved").waitFor({ timeout: 20000 });
     report.push({ size: `${size.width}x${size.height}`, steps: seen });
     await page.close();
   }

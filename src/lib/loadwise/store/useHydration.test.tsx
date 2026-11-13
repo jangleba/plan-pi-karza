@@ -3,7 +3,6 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LoadwiseState, SessionHistoryRecord } from "../types";
-import { generatePlan } from "../planEngine";
 import { buildProfile, initialState, type StoreUser } from "./model";
 import { resetPlanWriteGuard } from "./planWriteGuard";
 import { useHydration } from "./useHydration";
@@ -15,7 +14,6 @@ const mocks = vi.hoisted(() => ({
   queries: vi.fn(),
   history: vi.fn(),
   clearBootState: vi.fn(),
-  persist: vi.fn(),
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -49,13 +47,6 @@ vi.mock("@/integrations/supabase/client", () => ({
     },
   },
 }));
-vi.mock("../persist", () => ({
-  persistMonthlyPlan: mocks.persist,
-  stageMonthlyPlan: async (userId: string, profile: unknown, plan: unknown) => ({
-    plan,
-    commit: () => mocks.persist(userId, profile, plan),
-  }),
-}));
 vi.mock("../legalStatus", () => ({ primeConsentRows: vi.fn() }));
 vi.mock("../bootCache", () => ({
   loadBootState: (userId: string) => mocks.cached.get(userId) ?? null,
@@ -63,7 +54,6 @@ vi.mock("../bootCache", () => ({
 }));
 vi.mock("./repository", () => ({
   loadSessionHistory: mocks.history,
-  clearFutureOverlaysForUser: vi.fn(),
 }));
 
 function deferred<T>() {
@@ -112,7 +102,6 @@ function Harness({
     authLoading: false,
     recoveryMode,
     profileWritePending,
-    todayIso: "2026-09-29",
     setState,
     state,
   });
@@ -132,7 +121,6 @@ beforeEach(() => {
   mocks.queries.mockClear();
   mocks.history.mockReset().mockResolvedValue([]);
   mocks.clearBootState.mockClear();
-  mocks.persist.mockReset().mockImplementation(async (_user, _profile, plan) => plan);
   onRender.mockClear();
   resetPlanWriteGuard();
   window.localStorage.clear();
@@ -149,7 +137,7 @@ afterEach(async () => {
 });
 
 describe("store hydration", () => {
-  it("opens the plan while running history is still loading and merges it without undoing a new local result", async () => {
+  it("opens the app while running history is still loading and merges it without undoing a new local result", async () => {
     const runs = deferred<RemoteRows>();
     const rows = remoteRows("Athlete");
     rows.profiles = { full_name: "Athlete", onboarding_completed: true };
@@ -157,12 +145,10 @@ describe("store hydration", () => {
     mocks.requests.set("a:running_activities", runs.promise);
     await render({ id: "a" });
     await act(async () => {
-      await vi.waitFor(() => expect(mocks.persist).toHaveBeenCalled(), {
-        timeout: 5000,
-      });
+      await vi.waitFor(() => expect(snapshot.state.profile?.onboardingComplete).toBe(true));
     });
     expect(snapshot.hydrated).toBe(true);
-    expect(snapshot.state.plan.length).toBeGreaterThan(0);
+    expect(snapshot.state.plan).toEqual([]);
     const localRun = {
       id: "local",
       sessionId: "new-run",
@@ -241,11 +227,7 @@ describe("store hydration", () => {
     expect(snapshot.state.profile?.name).toBe("Cached athlete");
 
     await act(async () => remote.resolve(remoteRows("Updated athlete")));
-    expect(mocks.queries).toHaveBeenCalledWith("training_plans", "a", {
-      user_id: "a",
-      status: "active",
-      active: true,
-    });
+    expect(mocks.queries).toHaveBeenCalledWith("profiles", "a", { user_id: "a" });
     expect(snapshot.state.profile?.name).toBe("Updated athlete");
     expect(snapshot.state.history).toEqual([]);
     const completed = {
@@ -371,92 +353,25 @@ describe("store hydration", () => {
     expect(snapshot.state.readiness).toEqual({});
     expect(snapshot.state.equipmentNotice).toContain("ostatnie dostępne dane");
   });
-  it("keeps the expected active header when recovering an empty corrupted plan snapshot", async () => {
+  it("neither reads, rebuilds nor writes the stored plan now that the week engine is removed", async () => {
     const rows = remoteRows("Athlete");
     rows.profiles = { full_name: "Athlete", onboarding_completed: true };
     rows.training_plans = {
-      id: "existing-active-header",
-      plan_json: [],
+      id: "stored-plan",
+      plan_json: [{ date: "2026-09-29", dayType: "training", title: "Stary trening" }],
       created_at: "2026-09-28T12:00:00Z",
     };
     mocks.requests.set("a", Promise.resolve(rows));
     await render({ id: "a" });
     await act(async () => {
-      await vi.waitFor(() => expect(mocks.persist).toHaveBeenCalled(), { timeout: 5000 });
+      await vi.waitFor(() => expect(snapshot.state.profile?.onboardingComplete).toBe(true));
     });
-    const plan = mocks.persist.mock.calls[0][2] as { planDbId?: string }[];
-    expect(plan[0].planDbId).toBe("existing-active-header");
-  });
-  it("shows a rebuilt plan before its save finishes, then switches to the saved copy", async () => {
-    const rows = remoteRows("Athlete");
-    rows.profiles = { full_name: "Athlete", onboarding_completed: true };
-    const save = deferred<{ date: string; dbId: string }[]>();
-    mocks.persist.mockReturnValue(save.promise);
-    mocks.requests.set("a", Promise.resolve(rows));
-    await render({ id: "a" });
-    await act(async () => {
-      await vi.waitFor(() => expect(mocks.persist).toHaveBeenCalled(), { timeout: 5000 });
-    });
-    expect(snapshot.hydrated).toBe(true);
-    expect(snapshot.state.plan.length).toBeGreaterThan(0);
-    const saved = [{ date: "2026-09-29", dbId: "saved" }];
-    await act(async () => save.resolve(saved));
-    expect(snapshot.state.plan).toBe(saved);
-  });
-  it("rebuilds a block that stops mid-week into a full week and keeps its confirmed match", async () => {
-    const rows = remoteRows("Athlete");
-    rows.profiles = { full_name: "Athlete", onboarding_completed: true };
-    const profile = buildProfile(
-      rows.profiles as Record<string, unknown>,
-      rows.athlete_profiles as Record<string, unknown>,
-      null,
-    )!;
-    // A 28-day block started on a Thursday ends on Wednesday 30 September.
-    const stored = generatePlan(profile, new Date(2026, 8, 3), 28);
-    expect(stored.at(-1)?.date).toBe("2026-09-30");
-    rows.training_plans = {
-      id: "plan-1",
-      cycle_id: "cycle-1",
-      plan_json: stored,
-      created_at: "2026-09-03T08:00:00Z",
-    };
-    rows.weekly_transitions = [
-      {
-        id: "week-5",
-        week_number: 4,
-        cycle_id: "cycle-1",
-        week_start: "2026-09-28",
-        week_end: "2026-10-04",
-        next_match_date: "2026-10-03",
-        next_match_dates: ["2026-10-03"],
-        no_match_next_week: false,
-      },
-    ];
-    mocks.requests.set("a", Promise.resolve(rows));
-    await render({ id: "a" });
-    await act(async () => {
-      await vi.waitFor(() => expect(mocks.persist).toHaveBeenCalled(), { timeout: 15000 });
-    });
-    const plan = snapshot.state.plan;
-    expect(plan[0].date).toBe("2026-09-03");
-    expect(plan.at(-1)?.date).toBe("2026-10-04");
-    expect(plan.find((day) => day.date === "2026-10-03")?.dayType).toBe("match");
-    expect(snapshot.state.transitions[4]?.nextMatchDates).toEqual(["2026-10-03"]);
-  }, 30000);
-  it("goes back to the stored plan when the background save is rejected", async () => {
-    const rows = remoteRows("Athlete");
-    rows.profiles = { full_name: "Athlete", onboarding_completed: true };
-    const save = deferred<never>();
-    mocks.persist.mockReturnValue(save.promise);
-    mocks.requests.set("a", Promise.resolve(rows));
-    vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    await render({ id: "a" });
-    await act(async () => {
-      await vi.waitFor(() => expect(mocks.persist).toHaveBeenCalled(), { timeout: 5000 });
-    });
-    expect(snapshot.state.plan.length).toBeGreaterThan(0);
-    await act(async () => save.reject(new Error("Plan changed on another device (code: 40001)")));
     expect(snapshot.state.plan).toEqual([]);
+    expect(snapshot.state.planGeneratedFor).toBeNull();
+    expect(snapshot.state.transitions).toEqual({});
+    const tables = mocks.queries.mock.calls.map(([table]) => table);
+    expect(tables).not.toContain("training_plans");
+    expect(tables).not.toContain("weekly_transitions");
   });
 });
 
@@ -470,5 +385,5 @@ it("does not start hydration queries while an atomic profile write is active, th
   });
   expect(mocks.queries).not.toHaveBeenCalled();
   await render({ id: "a" });
-  expect(mocks.queries.mock.calls.filter(([table]) => table === "training_plans")).toHaveLength(1);
+  expect(mocks.queries.mock.calls.filter(([table]) => table === "profiles")).toHaveLength(1);
 });

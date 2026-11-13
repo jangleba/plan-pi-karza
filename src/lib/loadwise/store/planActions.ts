@@ -1,10 +1,4 @@
-import { cycleStartOf } from "../cycleReview";
-import { assertSafePlanChange } from "../planChangeValidation";
-import { repairSegmentBoundaries } from "../segmentBoundary";
-import { boundedRequest } from "@/lib/boundedRequest";
-import { generatePlanAsync } from "../generatePlanAsync";
-import { reconcilePlanIdentity, sessionPrescription } from "../planIdentity";
-import { ONBOARDING_SCHEMA_VERSION, stampPlanRevision } from "./model";
+import { sessionPrescription } from "../planIdentity";
 import { supabase } from "@/integrations/supabase/client";
 import { assertNoSupabaseError } from "@/integrations/supabase/errors";
 import type { Json } from "@/integrations/supabase/types";
@@ -14,42 +8,18 @@ import {
   selectEquipmentAwareReplacement,
 } from "../exerciseLibrary";
 import { buildEquipmentReplacement } from "../equipmentReplacement";
-import { parseIso } from "../labels";
-import { addIsoDays } from "@/lib/isoDate";
-import { weeklyConfirmationBounds } from "../weeklyNavigation";
-import { transitionMatchesBlock } from "../confirmedCalendar";
-import { normalizeMatchDates } from "../matchSchedule";
-import { resolveEffectivePlan, resolveModifiedDay } from "../effectivePlan";
-import { gymChangeBlockReason } from "../strengthScheduling";
+import { resolveModifiedDay } from "../effectivePlan";
 import type {
   ExerciseReplacement,
   ModificationType,
-  Profile,
   Readiness,
   SessionDay,
   SessionModification,
   SessionStatus,
   TrainingExercise,
-  WeeklyTransition,
 } from "../types";
 import { persistLocal } from "./localState";
-import {
-  type LoadwiseContextValue,
-  type StoreActionContext,
-  type WeeklyConfirmation,
-} from "./model";
-
-export const WEEK_STAGE_TIMEOUT_MS = 12_000;
-export const WEEK_STAGE_TIMEOUT_MESSAGE =
-  "Nie udało się połączyć z serwerem. Sprawdź internet i spróbuj ponownie.";
-
-// Each snapshot names the plan it replaces, so writes must land in order.
-let planCommitQueue: Promise<unknown> = Promise.resolve();
-function queuePlanCommit<T>(commit: () => Promise<T>): Promise<T> {
-  const run = planCommitQueue.then(commit, commit);
-  planCommitQueue = run.catch(() => undefined);
-  return run;
-}
+import { type LoadwiseContextValue, type StoreActionContext } from "./model";
 
 export function createPlanActions(
   context: StoreActionContext & { replacementInFlightRef: RefObject<Set<string>> },
@@ -59,7 +29,6 @@ export function createPlanActions(
   | "undoExerciseReplacement"
   | "applyModification"
   | "undoModification"
-  | "confirmWeeklyTransition"
   | "saveReadiness"
 > {
   const { user, state, setState, replacementInFlightRef } = context;
@@ -275,20 +244,6 @@ export function createPlanActions(
       originalSession: original,
       createdAt: new Date().toISOString(),
     };
-    const retained = (state.modifications[date] ?? []).filter(
-      (item) =>
-        !(type === "swap" && item.type === "swap") && !(replaceSecond && item.type === "add"),
-    );
-    const changedDay = resolveModifiedDay(sourceDay ?? current, [...retained, mod]);
-    const effective = resolveEffectivePlan(state.plan, state.modifications);
-    const blockReason = gymChangeBlockReason(effective, date, changedDay);
-    if (blockReason) throw new Error(blockReason);
-    if (state.profile)
-      assertSafePlanChange(
-        effective,
-        effective.map((day) => (day.date === date ? changedDay : day)),
-        state.profile,
-      );
     const expectedPlanId = current.planDbId ?? sourceDay?.planDbId;
     if (!expectedPlanId) throw new Error("Odśwież plan przed zapisaniem zmiany.");
     const result = await supabase.rpc("apply_plan_modification", {
@@ -371,171 +326,6 @@ export function createPlanActions(
     });
   }
 
-  async function confirmWeeklyTransition(
-    weekNumber: number,
-    nextMatchDates: string[],
-    noMatchNextWeek: boolean,
-  ): Promise<WeeklyConfirmation> {
-    if (!user) throw new Error("Zaloguj się, żeby zapisać tydzień.");
-    const profile = state.profile;
-    if (!profile) throw new Error("Najpierw uzupełnij profil.");
-    const [{ weekRanges }, { stageMonthlyPlan }] = await Promise.all([
-      import("../planEngine"),
-      import("../persist"),
-    ]);
-
-    // weekNumber = indeks (0-based) ODBLOKOWYWANEGO tygodnia kalendarzowego.
-    // Wyznaczamy jego przedział w planie wg granic poniedziałek–niedziela.
-    let current = state.plan;
-    const normalizedMatchDates = noMatchNextWeek ? [] : normalizeMatchDates(nextMatchDates);
-    const bounds = weeklyConfirmationBounds(
-      current.map((day) => day.date),
-      weekNumber,
-    );
-    if (
-      normalizedMatchDates.some((date) => date < bounds.startDate || date > bounds.endDate) ||
-      (!noMatchNextWeek && !normalizedMatchDates.length)
-    )
-      throw new Error("Wybierz daty meczów w podanym tygodniu.");
-    const lastDate = current[current.length - 1].date;
-    const knownDates = normalizeMatchDates(
-      [
-        ...(profile.matchDates ?? []),
-        ...(profile.matchDate ? [profile.matchDate] : []),
-        ...current.filter((day) => day.dayType === "match").map((day) => day.date),
-        ...Object.entries(state.transitions)
-          .filter(([key, item]) => transitionMatchesBlock(state.plan, item, Number(key)))
-          .flatMap(
-            ([, item]) => item.nextMatchDates ?? (item.nextMatchDate ? [item.nextMatchDate] : []),
-          ),
-      ],
-      64,
-    ).filter((date) => date < bounds.startDate || date > bounds.endDate);
-    const dates = normalizeMatchDates([...knownDates, ...normalizedMatchDates], 64);
-    if (lastDate < bounds.endDate) {
-      const extensionDays = Math.round(
-        (Date.parse(`${bounds.endDate}T12:00:00Z`) - Date.parse(`${lastDate}T12:00:00Z`)) /
-          86_400_000,
-      );
-      if (extensionDays > 13) throw new Error("Najpierw przygotuj poprzedni tydzień.");
-      const extension = await generatePlanAsync(
-        {
-          ...profile,
-          cycleStart: cycleStartOf(current),
-          usualMatchDay: "no_fixed_day",
-          matchDate: dates[0] ?? null,
-          matchDates: dates,
-        },
-        parseIso(addIsoDays(lastDate, 1)),
-        extensionDays,
-        Math.max(0, weekNumber - 1),
-      );
-      current = repairSegmentBoundaries(
-        [...current, ...extension],
-        extension.map((day) => day.date),
-      );
-    }
-    let newPlan = current;
-    const planStart = current[0] ? parseIso(current[0].date) : null;
-    const ranges = planStart ? weekRanges(planStart, current.length) : [];
-    const range = ranges[weekNumber];
-
-    if (!range || !current[range.start]) throw new Error("Nie znaleziono tygodnia. Odśwież plan.");
-    const startDate = current[range.start].date;
-    const endDate = current[range.end - 1].date;
-    if (
-      normalizedMatchDates.some((date) => date < startDate || date > endDate) ||
-      (!noMatchNextWeek && normalizedMatchDates.length === 0)
-    )
-      throw new Error("Wybierz daty meczów w podanym tygodniu.");
-    if (range && current[range.start]) {
-      const startIdx = range.start;
-      const weekStart = parseIso(current[startIdx].date);
-      // Keep neighboring confirmed matches so Monday still knows about Sunday's load.
-      const tempProfile: Profile = {
-        ...profile,
-        cycleStart: cycleStartOf(current),
-        usualMatchDay: "no_fixed_day",
-        matchDate: dates[0] ?? null,
-        matchDates: dates,
-      };
-      const regenDays = range.end - range.start;
-      const fresh = stampPlanRevision(
-        await generatePlanAsync(tempProfile, weekStart, regenDays, weekNumber),
-        profile.onboardingRevision ?? null,
-        ONBOARDING_SCHEMA_VERSION,
-      );
-      newPlan = repairSegmentBoundaries(
-        [...current.slice(0, startIdx), ...fresh, ...current.slice(startIdx + regenDays)],
-        fresh.map((day) => day.date),
-      );
-      newPlan = reconcilePlanIdentity(newPlan, current, state.completions, context.todayIso);
-      newPlan = stampPlanRevision(
-        newPlan,
-        profile.onboardingRevision ?? null,
-        ONBOARDING_SCHEMA_VERSION,
-      );
-      assertSafePlanChange(current, newPlan, { ...profile, matchDate: null, matchDates: [] });
-      const effectiveNew = resolveEffectivePlan(newPlan, state.modifications);
-      for (const matchDate of normalizedMatchDates) {
-        if (effectiveNew.find((day) => day.date === matchDate)?.dayType !== "match")
-          throw new Error(
-            "Zapisana zmiana sesji koliduje z nowym meczem. Cofnij zmianę tego dnia i potwierdź tydzień ponownie.",
-          );
-      }
-      assertSafePlanChange(resolveEffectivePlan(current, state.modifications), effectiveNew, {
-        ...profile,
-        matchDate: null,
-        matchDates: [],
-      });
-    }
-
-    const id = state.transitions[weekNumber]?.id ?? crypto.randomUUID();
-    const transition: WeeklyTransition = {
-      id,
-      weekNumber,
-      cycleId: current[0]?.cycleId,
-      weekStart: startDate,
-      weekEnd: endDate,
-      nextMatchDate: normalizedMatchDates[0] ?? null,
-      nextMatchDates: normalizedMatchDates,
-      noMatchNextWeek,
-      confirmedAt: new Date().toISOString(),
-    };
-
-    // Ids come from one small read; the week is shown right away and the atomic
-    // snapshot is sent in the background. A failed write restores the old week.
-    const staged = await boundedRequest(
-      () => stageMonthlyPlan(user.id, profile, newPlan, transition),
-      WEEK_STAGE_TIMEOUT_MS,
-      WEEK_STAGE_TIMEOUT_MESSAGE,
-    );
-    const previousPlan = state.plan;
-    const previousTransition = state.transitions[weekNumber];
-    setState((s) => ({
-      ...s,
-      plan: staged.plan,
-      transitions: { ...s.transitions, [weekNumber]: transition },
-    }));
-    const saved = queuePlanCommit(staged.commit).then(
-      () => undefined,
-      (error: unknown) => {
-        setState((s) => {
-          // A newer change (or a fresh load) owns the plan now; keep it.
-          if (s.plan !== staged.plan) return s;
-          const transitions = { ...s.transitions };
-          if (previousTransition) transitions[weekNumber] = previousTransition;
-          else delete transitions[weekNumber];
-          return { ...s, plan: previousPlan, transitions };
-        });
-        throw error instanceof Error
-          ? error
-          : new Error("Nie udało się zapisać tygodnia. Spróbuj ponownie.");
-      },
-    );
-    return { saved };
-  }
-
   async function saveReadiness(r: Readiness) {
     if (!state.profile?.healthPersonalizationEnabled) {
       throw new Error("Check-in jest wyłączony. Włącz opcjonalną personalizację w profilu.");
@@ -576,7 +366,6 @@ export function createPlanActions(
     undoExerciseReplacement,
     applyModification,
     undoModification,
-    confirmWeeklyTransition,
     saveReadiness,
   };
 }

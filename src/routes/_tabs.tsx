@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_tabs")({
 
 function TabsLayout() {
   const { user, loading } = useAuth();
-  const { hydrated, syncing, hydrationError, todayIso, state, refreshPlanIfNeeded } = useLoadwise();
+  const { hydrated, hydrationError, state } = useLoadwise();
   const navigate = useNavigate();
 
   // Protect: must be signed in.
@@ -34,13 +34,6 @@ function TabsLayout() {
       navigate({ to: "/onboarding", replace: true });
     }
   }, [loading, user, hydrated, state.profile?.onboardingComplete, hydrationError, navigate]);
-
-  useEffect(() => {
-    if (hydrated && !syncing && !hydrationError && state.profile?.onboardingComplete) {
-      refreshPlanIfNeeded();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, syncing, hydrationError, todayIso]);
 
   if (hydrationError && !state.profile?.onboardingComplete) return <AppDataError />;
 

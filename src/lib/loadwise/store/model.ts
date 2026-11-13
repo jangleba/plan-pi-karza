@@ -1,24 +1,24 @@
 import { trainingProfileRevision } from "../planIdentity";
-import type { RunningActivity, RunningActivityDraft } from "@/lib/running/types";
-import type { Dispatch, SetStateAction } from "react";
+import type { RunningActivity,RunningActivityDraft } from "@/lib/running/types";
+import type { Dispatch,SetStateAction } from "react";
 import { ageOnDate } from "../agePolicy";
-import { decodeStrengthExperience, type StrengthExperience } from "../strengthExperience";
+import { decodeStrengthExperience,type StrengthExperience } from "../strengthExperience";
 import { normalizeMatchDates } from "../matchSchedule";
-import { normalizeCurrentPitchFeelings, normalizeDesiredPitchFeelings } from "../playerDirection";
+import { normalizeCurrentPitchFeelings,normalizeDesiredPitchFeelings } from "../playerDirection";
 import { normalizePersistedPainLocations } from "../profilePainPersistence";
 import type {
-  ExerciseItem,
-  ExerciseReplacement,
-  LoadwiseState,
-  ModificationType,
-  Profile,
-  Readiness,
-  SessionCompletion,
-  SessionDay,
-  SessionHistoryCategory,
-  SessionModification,
-  SessionStatus,
-  TrainingExercise,
+ExerciseItem,
+ExerciseReplacement,
+LoadwiseState,
+ModificationType,
+Profile,
+Readiness,
+SessionCompletion,
+SessionDay,
+SessionHistoryCategory,
+SessionModification,
+SessionStatus,
+TrainingExercise,
 } from "../types";
 
 export const initialState: LoadwiseState = {
@@ -455,11 +455,6 @@ export function rowToRunningActivity(row: AnyRow): RunningActivity | null {
   };
 }
 
-export interface WeeklyConfirmation {
-  /** Rejects with a readable message when the background write fails (the old week is restored). */
-  saved: Promise<void>;
-}
-
 export interface LoadwiseContextValue {
   profileSaveStage?: import("../profileSave").ProfileSaveStage | null;
   state: LoadwiseState;
@@ -470,9 +465,6 @@ export interface LoadwiseContextValue {
   updateProfile: (profile: Profile) => Promise<void>;
   saveStrengthExperience: (value: StrengthExperience) => Promise<void>;
   saveFuelPrecision: (enabled: boolean, weightKg: number | null) => Promise<void>;
-  refreshPlanIfNeeded: () => void;
-  /** Trwa generowanie/zapisywanie planu — ekrany pokazują wtedy stan ładowania. */
-  planGenerating: boolean;
   startSession: (session: SessionDay) => Promise<void>;
   completeSession: (
     session: SessionDay,
@@ -496,12 +488,6 @@ export interface LoadwiseContextValue {
   undoExerciseReplacement: (date: string, replacementId: string) => Promise<void>;
   saveRunningActivity: (draft: RunningActivityDraft) => Promise<void>;
   deleteRunningActivity: (activityId: string) => Promise<void>;
-  /** Resolves once the new week is shown; `saved` settles when the server confirms it. */
-  confirmWeeklyTransition: (
-    weekNumber: number,
-    nextMatchDates: string[],
-    noMatchNextWeek: boolean,
-  ) => Promise<WeeklyConfirmation>;
   saveReadiness: (r: Readiness) => Promise<void>;
   todayIso: string;
   todaySession: SessionDay | null;
@@ -544,14 +530,4 @@ export interface StoreActionContext {
   state: LoadwiseState;
   setState: StateSetter;
   todayIso: string;
-  saveProfileRows: (profile: Profile, completed: boolean) => Promise<string | null>;
-  savePlanToDb: (
-    profile: Profile,
-    revision: string | null,
-    missedSessions?: SessionDay[],
-    recentCompletions?: Record<string, SessionCompletion>,
-    keepConfirmedCalendar?: boolean,
-    persist?: boolean,
-    signal?:AbortSignal,
-  ) => Promise<SessionDay[]>;
 }

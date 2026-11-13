@@ -1,4 +1,4 @@
-import { selectEffectivePlan, selectPlanWeeks } from "./effectivePlanSelector";
+import { selectEffectivePlan } from "./effectivePlanSelector";
 import type { Profile, Readiness, SessionCompletion } from "./types";
 import { describe, expect, it } from "vitest";
 import type { SessionDay, SessionModification } from "./types";
@@ -166,12 +166,4 @@ describe("shared read-only plan projection", () => {
     expect(after).not.toBe(before);
     expect(after[0].title).toBe("Wykonany trening");
   });
-});
-
-it("reuses the prepared week decoration and rebuilds it for changed inputs", () => {
-  const plan = selectEffectivePlan([day("Technika")], {});
-  const weeks = selectPlanWeeks(plan, null);
-  expect(selectPlanWeeks(plan, null)).toBe(weeks);
-  expect(selectPlanWeeks([...plan], null)).not.toBe(weeks);
-  expect(selectPlanWeeks(plan, undefined)).not.toBe(weeks);
 });

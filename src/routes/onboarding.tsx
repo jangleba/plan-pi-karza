@@ -1120,7 +1120,7 @@ function Onboarding() {
               ? profileSaveStage
                 ? PROFILE_SAVE_LABELS[profileSaveStage]
                 : "Przygotowuję zapis…"
-              : "Zapisz i wygeneruj plan"}
+              : "Zapisz"}
           </Button>
         ) : (
           <Button className="h-12 w-full" size="lg" onClick={goNext}>

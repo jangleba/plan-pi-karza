@@ -4,7 +4,7 @@ import { sessionFixture } from "@/components/loadwise/session/testFixtures";
 import type { SessionDay } from "@/lib/loadwise/types";
 import { initialState, buildProfile, applyExerciseReplacements } from "@/lib/loadwise/store/model";
 import type { LoadwiseContextValue } from "@/lib/loadwise/store/model";
-import { generatePlan } from "@/lib/loadwise/planEngine";
+import { qaPlan } from "./qaPlanFixture";
 import { isStrengthSession } from "@/lib/loadwise/sessionClassification";
 import { legacyStrengthSession } from "./LegacyStrengthSession";
 export { applyExerciseReplacements };
@@ -82,11 +82,11 @@ if (new URLSearchParams(location.search).get("screen") === "methods")
     movementCompetence: "high",
     supervisionLevel: "full",
   });
-let plan = generatePlan(profile, new Date(2026, 10, 2), 14);
+let plan = qaPlan(profile, today, 14);
 if (journeyQA) {
-  // Stable generated exercises, with a known session to exercise the actual route gates.
+  // Stable built exercises, with a known session to exercise the actual route gates.
   const strength = plan.find(isStrengthSession);
-  if (!strength) throw new Error("Navigation fixture requires a generated strength session");
+  if (!strength) throw new Error("Navigation fixture requires a strength session");
   plan = plan.map((day, index) => ({
     ...(index === 0
       ? { ...strength, date: day.date, dayName: day.dayName, secondSession: null }
@@ -190,7 +190,6 @@ export const useLoadwise = () => {
     state,
     hydrated: true,
     syncing: false,
-    planGenerating: false,
     hydrationError: null,
     loading: false,
     todayIso: today,
@@ -227,7 +226,6 @@ export const useLoadwise = () => {
       for (const fn of listeners) fn();
     },
     completeSession: async () => {},
-    refreshPlanIfNeeded: async () => {},
     applyModification: async (date: string, _kind: string, replacement: SessionDay) => {
       changes.push(date);
       designState = {

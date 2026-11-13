@@ -1,29 +1,28 @@
-import { describe, expect, it } from "vitest";
+import { describe,expect,it } from "vitest";
 import { TRAINING_METHODS } from "./catalogue";
 import { METHOD_RESEARCH_SOURCES } from "./research";
 import {
-  normalizeMethodConditions,
-  normalizeMethodPreferences,
-  trainingMethodEligibility,
+normalizeMethodConditions,
+normalizeMethodPreferences,
+trainingMethodEligibility,
 } from "./eligibility";
 import {
-  applyAutomaticMethod,
-  createMethodSession,
-  createStrengthMicrodose,
-  enforceMethodEligibility,
-  hasCurrentMethodRecipe,
-  methodRecipeKey,
+applyAutomaticMethod,
+createMethodSession,
+createStrengthMicrodose,
+enforceMethodEligibility,
+hasCurrentMethodRecipe,
+methodRecipeKey,
 } from "./planner";
-import { buildStrengthPowerStructured, structuredToFlat } from "../strengthBlocks";
+import { buildStrengthPowerStructured,structuredToFlat } from "../strengthBlocks";
 import { enforceStrengthEligibility } from "../strengthEligibility";
 import { resolveExecutionDay } from "../effectivePlan";
 import { classifySession } from "../sessionClassification";
-import { decodeStrengthExperience, encodeStrengthExperience } from "../strengthExperience";
+import { decodeStrengthExperience,encodeStrengthExperience } from "../strengthExperience";
 import { getExerciseDefinition } from "../exerciseLibrary";
-import { generatePlan } from "../planEngine";
 import { validatePlanExerciseContract } from "../planExerciseContract";
 import { sessionFixture } from "@/components/loadwise/session/testFixtures";
-import type { Profile, SessionCompletion, SessionDay } from "../types";
+import type { Profile,SessionCompletion,SessionDay } from "../types";
 import type { TrainingMethodId } from "./types";
 export const methodProfile = {
   name: "Test",
@@ -283,29 +282,6 @@ describe("method library and routing", () => {
         .trainingMethods?.primary,
     ).not.toBe("M08");
   });
-  it("keeps all generated profiles executable, ball-free in speed sessions and unchanged for completed snapshots", () => {
-    for (const age of [14, 17, 25])
-      for (const level of ["beginner", "advanced"] as const) {
-        const p = {
-          ...methodProfile,
-          age,
-          level,
-          gymExperienceLevel: level,
-          strengthTrainingMonths: level === "beginner" ? 0 : 36,
-          movementCompetence: level === "beginner" ? ("low" as const) : ("high" as const),
-        };
-        const plan = generatePlan(p, new Date(2026, 10, 2), 28);
-        expect(validatePlanExerciseContract(plan)).toEqual([]);
-        for (const s of plan.flatMap((d) => [d, d.secondSession].filter(Boolean) as SessionDay[])) {
-          if (classifySession(s).isSpeed)
-            expect(
-              (
-                s.structuredSections?.flatMap((s) => s.blocks.flatMap((b) => b.exercises)) ?? []
-              ).every((e) => !getExerciseDefinition(e.exerciseId ?? "")?.requiresBall),
-            ).toBe(true);
-        }
-      }
-  }, 30000);
 });
 
 it("preserves the current primary movement when shortening a method-tagged upper-body session",()=>{
