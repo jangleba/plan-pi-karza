@@ -1,4 +1,5 @@
 import type { SessionDay } from "@/lib/loadwise/types";
+import { recipeToProtocol, sessionRunningRecipe } from "./recipeSession";
 import type {
   RunningIntervalProtocol,
   RunningIntervalResult,
@@ -112,6 +113,9 @@ function uniqueMainExercises(session: SessionDay): ExerciseLike[] {
 
 /** Zamienia zapis sesji (np. 8 × 1 min / 1 min) na kroki prowadzenia w kieszeni. */
 export function deriveRunningIntervalProtocol(session: SessionDay): RunningIntervalProtocol | null {
+  // Receptura jest źródłem prawdy: opis, licznik i zapis powstają z tych samych liczb.
+  const recipe = sessionRunningRecipe(session);
+  if (recipe) return recipeToProtocol(recipe);
   const steps: RunningIntervalStep[] = [];
   const summaries: string[] = [];
   // Numeric method recipes are authoritative; do not reparse their display strings.
@@ -241,14 +245,22 @@ export function intervalRemainingLabel(
   return formatTarget(step.target.mode, remaining);
 }
 
+/** Krótszych odcinków GPS telefonu nie mierzy wiarygodnie — nie oceniamy ich tempa. */
+export const MIN_PACE_EVIDENCE_SEC = 60;
+
 export function buildIntervalResult(input: {
   step: RunningIntervalStep;
   durationSec: number;
   distanceM: number;
   completed: boolean;
+  recipeId?: string;
 }): RunningIntervalResult {
   const durationSec = Math.max(0, Math.round(input.durationSec * 10) / 10);
   const distanceM = Math.max(0, Math.round(input.distanceM * 10) / 10);
+  const shortRep =
+    input.step.target.mode === "time" &&
+    (input.step.target.value ?? 0) > 0 &&
+    (input.step.target.value ?? 0) < MIN_PACE_EVIDENCE_SEC;
   return {
     stepId: input.step.id,
     kind: input.step.kind,
@@ -260,10 +272,13 @@ export function buildIntervalResult(input: {
     targetLabel: input.step.target.label,
     durationSec,
     distanceM,
-    paceSecPerKm: distanceM >= 50 && durationSec > 0 ? durationSec / (distanceM / 1_000) : null,
+    paceSecPerKm:
+      !shortRep && distanceM >= 50 && durationSec > 0 ? durationSec / (distanceM / 1_000) : null,
     targetPaceFastestSecPerKm: input.step.target.paceTarget?.fastestSecPerKm ?? null,
     targetPaceSlowestSecPerKm: input.step.target.paceTarget?.slowestSecPerKm ?? null,
     completed: input.completed,
+    ...(input.step.phase ? { phase: input.step.phase } : {}),
+    ...(input.recipeId ? { recipeId: input.recipeId } : {}),
   };
 }
 
@@ -318,6 +333,10 @@ export function sanitizeIntervalResults(input: unknown): RunningIntervalResult[]
         targetPaceSlowestSecPerKm:
           targetSlow != null && finite(targetSlow) && targetSlow > 0 ? targetSlow : null,
         completed: Boolean(row.completed),
+        ...(row.phase === "warmup" || row.phase === "main" || row.phase === "cooldown"
+          ? { phase: row.phase }
+          : {}),
+        ...(typeof row.recipeId === "string" ? { recipeId: row.recipeId.slice(0, 80) } : {}),
       },
     ];
   });

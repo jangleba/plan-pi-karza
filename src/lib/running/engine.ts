@@ -118,7 +118,8 @@ export function buildRunningSessionPrescription(input: {
     };
   }
 
-  const shouldScheduleTest = input.scheduleFieldMasTest ?? input.sessionIndex === 0;
+  // Test 5 min jest dobrowolny: powstaje tylko na wyraźną prośbę, nigdy z numeru sesji.
+  const shouldScheduleTest = input.scheduleFieldMasTest === true;
   if (!hasCurrentMas && shouldScheduleTest) {
     return {
       method: "field_mas_test",
@@ -238,16 +239,15 @@ export function fieldMasFromActivity(
       result.durationSec >= 298 &&
       result.durationSec <= 302,
   );
-  return test
-    ? calculateFieldMasKmh(test.distanceM, test.durationSec)
-    : activity.intervalResults.length === 0 &&
-        activity.durationSec >= 298 &&
-        activity.durationSec <= 302
-      ? calculateFieldMasKmh(activity.distanceM, activity.durationSec)
-      : null;
+  // Zwykłe pięć minut biegu (bez odcinka testu) nigdy nie jest wynikiem testu.
+  return test ? calculateFieldMasKmh(test.distanceM, test.durationSec) : null;
 }
 
-function isFieldMasTestActivity(activity: Pick<RunningActivity, "intervalResults">): boolean {
+/** Wynikiem testu jest tylko zapis sesji oznaczonej jako test 5 min. */
+function isFieldMasTestActivity(
+  activity: Pick<RunningActivity, "intervalResults" | "isFieldMasTest">,
+): boolean {
+  if (activity.isFieldMasTest !== true) return false;
   const work = activity.intervalResults.filter(
     (result) => result.kind === "work" && result.completed,
   );

@@ -1,3 +1,5 @@
+import { buildFieldMasTestSession } from "./runningWeek";
+import { deriveRunningIntervalProtocol } from "@/lib/running/intervals";
 import { describe, expect, it } from "vitest";
 import { generatePlan } from "./planEngine";
 import { classifySession } from "./sessionClassification";
@@ -67,48 +69,32 @@ describe("aktywny Plan korzysta z jednego silnika biegowego", () => {
     ).toBe(false);
   });
 
-  it("bez aktualnego MAS planuje najwyżej jeden test w tygodniu, a każdy bieg jest bez piłki", () => {
+  it("bez aktualnego MAS nie planuje testu, a każdy bieg jest bez piłki i prowadzony RPE", () => {
     const sessions = endurance(generatePlan(profile(), new Date("2026-07-13T00:00:00"), 7));
     expect(sessions.length).toBeGreaterThanOrEqual(2);
     expect(
       sessions.filter((session) => classifySession(session).subcategory === "field_mas_test"),
-    ).toHaveLength(1);
+    ).toHaveLength(0);
     for (const session of sessions) {
       expect(exerciseText(session)).not.toMatch(/piłk|podani|przyjęci|dryblin/i);
+      expect(session.runningRecipe?.paceSource).toBe("effort");
     }
-    const fieldTest = sessions.find(
-      (session) => classifySession(session).subcategory === "field_mas_test",
-    );
-    expect(fieldTest).toBeDefined();
-    expect(fieldTest?.durationMin).toBe(25);
-    expect(fieldTest?.intensity).toBe("wysoka");
-    expect(fieldTest?.sections.main[0]).toEqual(
-      expect.objectContaining({
-        exerciseId: "field_mas_5_min_test",
-        name: "Test biegowy 5 min",
-      }),
-    );
   });
 
-  it("nie łączy testu 5-minutowego z ciężką pracą nóg", () => {
-    const plan = generatePlan(
-      profile({ goal: "strength", hasGym: true }),
-      new Date("2026-07-13T00:00:00"),
-      28,
+  it("test 5 min na prośbę zawodnika zastępuje bieg pełną recepturą testu", () => {
+    const athlete = profile({ movementCompetence: "medium" });
+    const run = endurance(generatePlan(athlete, new Date("2026-07-13T00:00:00"), 7))[0];
+    const test = buildFieldMasTestSession(run, athlete);
+    expect(classifySession(test).subcategory).toBe("field_mas_test");
+    expect(test.intensity).toBe("wysoka");
+    expect(test.sections.main[0]).toEqual(
+      expect.objectContaining({ exerciseId: "field_mas_5_min_test" }),
     );
-    const testDays = plan.filter((day) =>
-      [day, day.secondSession]
-        .filter(Boolean)
-        .some((session) => classifySession(session as SessionDay).subcategory === "field_mas_test"),
-    );
-    expect(testDays.length).toBeGreaterThan(0);
-    for (const day of testDays) {
-      const text = [day, day.secondSession]
-        .filter(Boolean)
-        .map((session) => exerciseText(session as SessionDay))
-        .join(" ");
-      expect(text).not.toMatch(/trap.?bar|martwy|deadlift|rdl|przysiad|squat|wykrok|lunge/i);
-    }
+    const protocol = deriveRunningIntervalProtocol(test)!;
+    const work = protocol.steps.filter((step) => step.kind === "work");
+    expect(work).toHaveLength(1);
+    expect(work[0].target).toMatchObject({ mode: "time", value: 300 });
+    expect(protocol.steps[0].phase).toBe("warmup");
   });
 
   it("po aktualnym teście używa indywidualnego tempa min/km zamiast starej losowej puli", () => {

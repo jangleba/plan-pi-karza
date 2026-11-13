@@ -9,6 +9,7 @@ export interface CycleStartRecord extends CycleStartPolicy {
 }
 
 import type { RunningActivity } from "@/lib/running/types";
+import type { RunningRecipe } from "@/lib/running/recipe";
 import type { AccountOwnerType, OwnershipTransferStatus, SubscriptionPayerType } from "./agePolicy";
 import type {
   MethodExecution,
@@ -596,6 +597,11 @@ export interface SessionClassification {
 
 export interface SessionDay {
   postSessionFeedbackKey?: string;
+  /**
+   * Ustrukturyzowana receptura biegu (rozgrzewka, serie, odcinki, intensywność,
+   * przerwy, schłodzenie). Gdy jest, steruje opisem, licznikiem i zapisem.
+   */
+  runningRecipe?: RunningRecipe;
   trainingMethods?: TrainingMethodPlan;
   executionSlot?: 1 | 2;
   /** Dzień całkowicie zablokowany przez dostępność zawodnika. */

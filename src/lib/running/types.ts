@@ -36,6 +36,9 @@ export interface RunningIntervalTarget {
   };
 }
 
+/** Etap sesji: rozgrzewka i schłodzenie nie są pracą do progresji. */
+export type RunningStepPhase = "warmup" | "main" | "cooldown";
+
 export interface RunningIntervalStep {
   id: string;
   kind: RunningIntervalKind;
@@ -44,12 +47,20 @@ export interface RunningIntervalStep {
   repeatIndex: number;
   repeatTotal: number;
   target: RunningIntervalTarget;
+  phase?: RunningStepPhase;
+  /** Numer serii (1-based) i liczba serii, gdy odcinki są w seriach. */
+  setIndex?: number;
+  setTotal?: number;
+  /** Odczuwany wysiłek — zawsze dostępny, także bez wyniku testu. */
+  effort?: { rpe: [number, number]; label: string };
 }
 
 export interface RunningIntervalProtocol {
   title: string;
   summary: string;
   steps: RunningIntervalStep[];
+  /** Identyfikator receptury, z której powstały kroki (brak dla starszych sesji). */
+  recipeId?: string;
 }
 
 export interface RunningIntervalResult {
@@ -67,6 +78,8 @@ export interface RunningIntervalResult {
   targetPaceFastestSecPerKm?: number | null;
   targetPaceSlowestSecPerKm?: number | null;
   completed: boolean;
+  phase?: RunningStepPhase;
+  recipeId?: string;
 }
 
 export interface RunningActivity {
