@@ -10,8 +10,6 @@ import {
   runningCooldown,
   runningPreparation,
 } from "./recoveryContent";
-import { recoverySession } from "./sessionRuntime";
-import { buildRecoveryPrehab } from "./sessionContent";
 
 const builders = {
   generalCooldown,
@@ -89,17 +87,5 @@ describe("concrete recovery and cool-down content", () => {
       (item) => item.exerciseId,
     );
     expect(new Set(ids).size).toBe(ids.length);
-  });
-
-  it("uses the same concrete content in both recovery builders", () => {
-    const runtime = recoverySession();
-    const prehab = buildRecoveryPrehab();
-    expect(runtime.main.map((item) => item.exerciseId)).toContain("cat_cow");
-    expect(
-      runtime.cooldown?.some((item) => item.exerciseId === "half_kneeling_hip_flexor_stretch"),
-    ).toBe(true);
-    expect(prehab.sections.main.map((item) => item.exerciseId)).toContain("cat_cow");
-    for (const item of [...runtime.main, ...prehab.sections.main])
-      expect(item.name).not.toMatch(/mobilność całego ciała|prehab tkanek/i);
   });
 });

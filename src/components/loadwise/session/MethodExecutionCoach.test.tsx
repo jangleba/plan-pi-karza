@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { MethodExecutionCoach } from "./MethodExecutionCoach";
-import { executionFor } from "@/lib/loadwise/methods/builders";
+import { executionFor } from "@/lib/loadwise/methods/catalogue";
 vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: "velocity-owner" } }) }));
 let root: Root, host: HTMLDivElement;
 beforeEach(() => {

@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { StrengthStructuredSections } from "./StrengthRunner";
 import { sectionFixture } from "./testFixtures";
-import { executionFor } from "@/lib/loadwise/methods/builders";
+import { executionFor } from "@/lib/loadwise/methods/catalogue";
 import { legacyStrengthSession } from "@/components/design/__qa__/LegacyStrengthSession";
 
 const m = vi.hoisted(() => ({

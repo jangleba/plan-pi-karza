@@ -1,5 +1,5 @@
 import type { Profile } from "./types";
-import { normalizeMethodPreferences } from "./methods/eligibility";
+import { normalizeMethodPreferences } from "./methods/preferences";
 
 export type StrengthExperience = Pick<
   Profile,

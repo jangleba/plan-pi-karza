@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TrainingSection } from "./types";
-import { flatToStructured, structuredToFlat } from "./strengthBlocks";
+import { flatToStructured, structuredToFlat } from "./sessionStructure";
 import { resolveExerciseAnimation } from "@/lib/trainingCoach/animationCatalog";
 
 describe("persisted animation rhythm", () => {

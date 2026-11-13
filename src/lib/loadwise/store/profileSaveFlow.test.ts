@@ -4,10 +4,22 @@ import { createProfileActions } from "./profileActions";
 import { initialState, buildProfile } from "./model";
 import type { ProfileSaveRefs, ProfileSaveStage } from "../profileSave";
 import type { LoadwiseState } from "../types";
-import { sessionFixture } from "@/components/loadwise/session/testFixtures";
-const mocks = vi.hoisted(() => ({ rpc: vi.fn(), consents: vi.fn(), from: vi.fn() }));
+const mocks = vi.hoisted(() => ({ rpc: vi.fn(), consents: vi.fn(), savedAt: null as string | null }));
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { rpc: mocks.rpc, from: mocks.from },
+  supabase: {
+    rpc: mocks.rpc,
+    from: () => {
+      const chain = {
+        select: () => chain,
+        eq: () => chain,
+        maybeSingle: async () => ({
+          data: mocks.savedAt ? { updated_at: mocks.savedAt } : null,
+          error: null,
+        }),
+      };
+      return chain;
+    },
+  },
 }));
 vi.mock("../consent", () => ({
   recordConsentDecisions: mocks.consents,
@@ -15,7 +27,6 @@ vi.mock("../consent", () => ({
 }));
 let state: LoadwiseState, stages: Array<ProfileSaveStage | null>;
 const refs = { current: { attempt: null, flight: null, key: null } as ProfileSaveRefs };
-const generate = vi.fn();
 function actions() {
   return createProfileActions({
     user: { id: "owner" },
@@ -25,10 +36,6 @@ function actions() {
       state = typeof update === "function" ? update(state) : update;
     },
     todayIso: "2026-11-04",
-    savePlanToDb: generate,
-    saveProfileRows: vi.fn(),
-    generatingRef: { current: false },
-    setPlanGenerating: vi.fn(),
     profileSaveRefs: refs,
     onProfileSaveStage: (s) => stages.push(s),
   } as Parameters<typeof createProfileActions>[0]);
@@ -47,117 +54,48 @@ beforeEach(() => {
     ),
   };
   mocks.consents.mockReset().mockResolvedValue("consent-version");
+  mocks.savedAt = null;
   mocks.rpc
     .mockReset()
     .mockResolvedValue({ data: { athlete: { updated_at: "saved-version" } }, error: null });
-  generate
-    .mockReset()
-    .mockResolvedValue([
-      sessionFixture({
-        date: "2026-11-04",
-        dbId: undefined,
-        sections: {
-          warmup: [],
-          main: [
-            {
-              name: "Bieg",
-              exerciseId: "easy_aerobic_run",
-              prescription: "10 min",
-              technique: "Biegnij spokojnie",
-            },
-          ],
-          accessory: [],
-          footballTransfer: [],
-          cooldown: [],
-        },
-      }),
-    ]);
-  mocks.from.mockReset().mockImplementation(() => {
-    const chain = {
-      select: () => chain,
-      eq: () => chain,
-      maybeSingle: async () => ({ data: null, error: null }),
-    };
-    return chain;
-  });
 });
 afterEach(() => vi.useRealTimers());
-/** The first onboarding returns once the plan is shown; the save finishes in the background. */
-async function backgroundSave() {
-  for (let i = 0; i < 20 && refs.current.flight; i++) await vi.advanceTimersByTimeAsync(0);
-}
-it("coalesces double submissions across rerenders into one generation and one atomic write", async () => {
+it("coalesces double submissions across rerenders into one atomic profile write without a plan", async () => {
   const first = actions().completeOnboarding(state.profile!, consents),
     second = actions().completeOnboarding({ ...state.profile! }, consents);
   expect(second).toBe(first);
   await first;
-  await backgroundSave();
-  expect(generate).toHaveBeenCalledTimes(1);
   expect(mocks.rpc).toHaveBeenCalledTimes(1);
+  expect(mocks.rpc.mock.calls[0][1]).toMatchObject({ p_plan: null, p_clear_transitions: false });
   expect(mocks.consents).toHaveBeenCalledWith(
     expect.any(Array),
     null,
     expect.objectContaining({ notify: false }),
   );
   expect(state.profile?.onboardingComplete).toBe(true);
-  expect(stages.at(-1)).toBeNull();
+  expect(state.profile?.serverProfileUpdatedAt).toBe("saved-version");
+  expect(state.plan).toEqual([]);
+  expect(stages).toEqual(["consents", "saving", null]);
 });
-it("recovers a committed write after a lost response using owner-scoped plan identity", async () => {
-  mocks.rpc.mockImplementation(() => new Promise(() => {}));
-  const filters: Array<[string, unknown]> = [];
-  mocks.from.mockImplementation((table:string) => {
-    const chain = {
-      select: () => chain,
-      eq: (k: string, v: unknown) => {
-        filters.push([k, v]);
-        return chain;
-      },
-      maybeSingle: async () => ({
-        data:
-          table === "training_plans"
-            ? { id: refs.current.attempt?.prepared?.args.p_plan_id }
-            : { updated_at: "verified-version" },
-        error: null,
-      }),
-    };
-    return chain;
-  });
-  const work = actions().completeOnboarding(state.profile!, consents);
-  await work;
-  await vi.advanceTimersByTimeAsync(12001);
-  await backgroundSave();
-  expect(state.profile?.serverProfileUpdatedAt).toBe("verified-version");
-  expect(state.plan[0].dbId).toBeTruthy();
-  expect(filters).toContainEqual(["user_id", "owner"]);
-  expect(filters).toContainEqual(["active", true]);
-  expect(mocks.rpc).toHaveBeenCalledTimes(1);
-});
-it("retains the prepared plan and acknowledged consents after timeout, then retries the same operation", async () => {
+it("keeps acknowledged consents after a timeout and retries the same profile write", async () => {
   const originalProfile = state.profile!;
   mocks.rpc.mockImplementationOnce(() => new Promise(() => {}));
-  vi.spyOn(console, "error").mockImplementation(() => undefined);
-  await actions().completeOnboarding(originalProfile, consents);
-  expect(state.profile?.onboardingComplete).toBe(true);
+  const first = actions().completeOnboarding(originalProfile, consents);
+  const failed = expect(first).rejects.toThrow("Odpowiedzi pozostają w formularzu");
   await vi.advanceTimersByTimeAsync(12001);
-  await backgroundSave();
-  // Back to the form: the answers stay, the plan that never saved is gone.
+  await failed;
   expect(state.profile?.onboardingComplete).toBe(false);
-  expect(state.profile?.name).toBe(originalProfile.name);
-  expect(state.plan).toEqual([]);
   const savedPayload = mocks.rpc.mock.calls[0][1];
-  expect(refs.current.attempt?.prepared).toBeTruthy();
   await actions().completeOnboarding({ ...originalProfile }, consents);
-  await backgroundSave();
-  expect(generate).toHaveBeenCalledTimes(1);
   expect(mocks.consents).toHaveBeenCalledTimes(1);
   expect(mocks.rpc.mock.calls[1][1]).toEqual(savedPayload);
   expect(state.profile?.onboardingComplete).toBe(true);
 });
 it("does not treat an empty or failed response as a completed onboarding", async () => {
   mocks.rpc.mockResolvedValueOnce({ data: null, error: null });
-  vi.spyOn(console, "error").mockImplementation(() => undefined);
-  await actions().completeOnboarding(state.profile!, consents);
-  await backgroundSave();
+  await expect(actions().completeOnboarding(state.profile!, consents)).rejects.toThrow(
+    "Serwer nie zwrócił potwierdzenia zapisu.",
+  );
   expect(state.profile?.onboardingComplete).toBe(false);
   expect(state.plan).toEqual([]);
 });
@@ -171,4 +109,14 @@ it("rejects a different edit while an earlier command is still in flight", async
   ).rejects.toThrow("Trwa zapisywanie");
   finish({ data: { athlete: { updated_at: "ok" } }, error: null });
   await p;
+});
+it("recovers a committed write after a lost response without sending it again", async () => {
+  mocks.rpc.mockImplementationOnce(async () => {
+    mocks.savedAt = "landed-version";
+    return { data: null, error: { message: "upstream request timeout" } };
+  });
+  await actions().completeOnboarding(state.profile!, consents);
+  expect(mocks.rpc).toHaveBeenCalledTimes(1);
+  expect(state.profile?.onboardingComplete).toBe(true);
+  expect(state.profile?.serverProfileUpdatedAt).toBe("landed-version");
 });

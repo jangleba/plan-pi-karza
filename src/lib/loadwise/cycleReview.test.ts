@@ -8,8 +8,6 @@ import {
   type CycleReviewInput,
   type PlannedOwnSession,
 } from "./cycleReview";
-import { endedCycleWindow } from "./cycleReviewData";
-import { dismissCycle, dismissedCycles } from "./useCycleReview";
 import type { Readiness, SessionDay, SessionHistoryRecord } from "./types";
 
 const START = "2026-10-12";
@@ -245,32 +243,5 @@ describe("cycle review — copy", () => {
       "Następny cykl: przygotowania do sezonu",
     ]);
     expect(copy.button).toBe("Zaczynam nowy cykl");
-  });
-});
-
-describe("cycle review — when it is shown", () => {
-  const plan = (from: string, to: string) =>
-    [{ date: to }, { date: from }] as unknown as SessionDay[];
-
-  it("only for a cycle that ended before today and not too long ago", () => {
-    expect(endedCycleWindow(plan(START, END), "2026-11-09")).toEqual({
-      startDate: START,
-      endDate: END,
-    });
-    // Przebudowa w trakcie cyklu — plan sięga dziś lub dalej.
-    expect(endedCycleWindow(plan(START, "2026-11-09"), "2026-11-09")).toBeNull();
-    // Stary cykl sprzed ponad 3 tygodni.
-    expect(endedCycleWindow(plan(START, END), "2026-12-15")).toBeNull();
-  });
-
-  it("remembers dismissed cycles per user", () => {
-    const data = new Map<string, string>();
-    const store = {
-      getItem: (key: string) => data.get(key) ?? null,
-      setItem: (key: string, value: string) => void data.set(key, value),
-    };
-    dismissCycle("u1", "c1", store);
-    expect(dismissedCycles("u1", store)).toEqual(["c1"]);
-    expect(dismissedCycles("u2", store)).toEqual([]);
   });
 });

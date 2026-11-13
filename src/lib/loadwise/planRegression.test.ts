@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { flatToStructured } from "./strengthBlocks";
+import { flatToStructured } from "./sessionStructure";
 import type { ExerciseItem } from "./types";
 
 /**

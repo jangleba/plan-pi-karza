@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { resolveExerciseAnimation } from "@/lib/trainingCoach/animationCatalog";
-import { generateFootballSpeedSession } from "./footballSpeedSessionEngine";
 import { canonicalExerciseName, formatRestValue, restLine } from "./sessionPresentation";
 import { skipRoundLabel } from "./skipRounds";
-import type { Profile } from "./types";
 
 describe("rundy skipów", () => {
   it("opisuje rundę i rytm z zapisanego wariantu", () => {
@@ -25,44 +22,6 @@ describe("rundy skipów", () => {
       }),
     ).toBe("Skip C — runda 1 · z dostawieniem");
     expect(canonicalExerciseName({ id: "2", exerciseId: "c_skip", name: "Skip C" })).toBe("Skip C");
-  });
-
-  it("pierwsza runda z silnika ma jeden rytm: animacja bez wyboru techniki", () => {
-    const result = generateFootballSpeedSession({
-      profile: {
-        name: "Test",
-        age: 24,
-        position: "midfielder",
-        level: "advanced",
-        clubTrainingDays: [],
-        individualTrainingDays: [2, 4, 6],
-        usualMatchDay: null,
-        matchDate: null,
-        equipment: [],
-        painInjury: false,
-        onboardingComplete: true,
-        createdAt: "2026-01-01",
-        hasSprintSpace: true,
-      } as unknown as Profile,
-      date: "2026-08-20",
-      family: "acceleration",
-    });
-    const primers = result.exercises.filter((e) => e.role === "primer");
-    expect(primers).toHaveLength(8);
-    for (const row of primers.slice(0, 4)) {
-      expect(row.variant).toBe("gather");
-      expect(row.coachingCuesPl[0]).toMatch(/^Z dostawieniem:/);
-      expect(row.coachingCuesPl.join(" ")).not.toMatch(/albo|lub dodatkowe odbicie/i);
-      const animation = resolveExerciseAnimation({
-        id: row.exerciseId,
-        exerciseId: row.exerciseId,
-        name: row.name,
-        animationVariant: row.variant,
-      });
-      expect(animation?.needsChoice).toBeFalsy();
-      expect(animation?.id).toBe(`review:${row.exerciseId}:gather`);
-    }
-    for (const row of primers.slice(4)) expect(row.variant).toBe("continuous");
   });
 });
 

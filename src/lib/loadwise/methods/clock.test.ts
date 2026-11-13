@@ -8,7 +8,7 @@ import {
   startMethodClock,
   velocityLoss,
 } from "./clock";
-import { executionFor } from "./builders";
+import { executionFor } from "./catalogue";
 describe("method clocks and honest manual measurements", () => {
   it("runs timed intervals, separate block rests, and no final post-work rest", () => {
     const p = executionFor("M29", {

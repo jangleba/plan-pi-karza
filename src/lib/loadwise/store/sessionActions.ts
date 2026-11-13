@@ -54,7 +54,7 @@ export function createSessionActions(
   LoadwiseContextValue,
   "startSession" | "completeSession" | "saveRunningActivity" | "deleteRunningActivity"
 > {
-  const { user, state, setState, todayIso, savePlanToDb } = context;
+  const { user, state, setState } = context;
   const latest = () => context.getState?.() ?? state;
   const slotFor = (session: SessionDay): 1 | 2 =>
     resolveEffectivePlan(latest().plan, latest().modifications).some(
@@ -63,11 +63,7 @@ export function createSessionActions(
       ? 2
       : 1;
 
-  async function refreshDerived(
-    row: AnyRow | undefined,
-    before: Profile | null,
-    completion?: Record<string, SessionCompletion>,
-  ) {
+  async function refreshDerived(row: AnyRow | undefined, before: Profile | null) {
     if (!row || !before) {
       requestRefresh();
       return;
@@ -79,19 +75,8 @@ export function createSessionActions(
     }
     const profile = derivedProfile(before, row);
     if (trainingProfileRevision(before) === trainingProfileRevision(profile)) return;
+    // Wynik (np. MAS) aktualizuje profil; tygodnia nie przeliczamy — silnik usunięty.
     setState((s) => (s.profile === before ? { ...s, profile } : s));
-    try {
-      const plan = await savePlanToDb(profile, profile.onboardingRevision ?? null, [], completion);
-      setState((s) =>
-        s.profile === before || s.profile === profile
-          ? { ...s, profile, plan, planGeneratedFor: todayIso }
-          : s,
-      );
-    } catch (error) {
-      console.warn("[loadwise] result saved; derived plan refresh deferred", error);
-      toast.info("Wynik zapisany. Plan odświeży się po ponownym połączeniu.");
-      requestRefresh();
-    }
   }
 
   async function startSession(session: SessionDay) {
@@ -247,7 +232,6 @@ export function createSessionActions(
       await refreshDerived(
         (result.data as AnyRow | null)?.profile as AnyRow | undefined,
         before.profile,
-        { [sid]: completion },
       );
   }
 
@@ -335,15 +319,6 @@ export function createSessionActions(
       await refreshDerived(
         (write.data as AnyRow | null)?.profile as AnyRow | undefined,
         before.profile,
-        {
-          [activity.sessionId]: before.completions[activity.sessionId] ?? {
-            completed: false,
-            status: "started",
-            rpe: null,
-            notes: "",
-            executionSnapshot: linked ?? null,
-          },
-        },
       );
   }
 

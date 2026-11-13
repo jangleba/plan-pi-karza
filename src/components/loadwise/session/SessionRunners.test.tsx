@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import { SprintStructuredSections } from "./SprintRunner";
 import { StrengthStructuredSections } from "./StrengthRunner";
-import { StructuredSections } from "./GenericRunner";
 import { sectionFixture, sessionFixture, sprintSectionsFixture } from "./testFixtures";
 
 const mocks = vi.hoisted(() => ({ unavailable: vi.fn() }));
@@ -312,22 +311,5 @@ describe("session runners", () => {
     expect(host.textContent).toContain("Koniec");
     await click("Zakończ trening");
     expect(finish).toHaveBeenCalledTimes(1);
-  });
-
-  it("retains generic exercise completion when switching sections", async () => {
-    const sections = [
-      sectionFixture("warmup", [{ id: "warm", name: "Przygotowanie" }]),
-      sectionFixture("main", [{ id: "main", name: "Ćwiczenie główne" }]),
-    ];
-    await act(async () =>
-      root.render(<StructuredSections sections={sections} date="2026-09-29" />),
-    );
-    await act(async () =>
-      host.querySelector<HTMLButtonElement>('[aria-label="Oznacz jako wykonane"]')!.click(),
-    );
-    await click("Część główna1 ćwiczenie");
-    expect(host.textContent).toContain("Ćwiczenie główne");
-    await click("Przygotowanie ruchowe1 ćwiczenie");
-    expect(host.querySelector('[aria-label="Wykonane"]')).not.toBeNull();
   });
 });

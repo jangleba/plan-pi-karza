@@ -5,7 +5,7 @@ import { beforeEach, afterEach, it, expect, vi } from "vitest";
 import { RunClock } from "./RunClock";
 import { sessionFixture } from "@/components/loadwise/session/testFixtures";
 import { applyRunningRecipe } from "@/lib/running/recipeSession";
-import { EMPTY_DAY_LOAD, selectRunningRecipe } from "@/lib/running/prescription";
+import { INTERVAL_RECIPE } from "@/lib/running/testRecipes";
 
 const m = vi.hoisted(() => ({
   save: vi.fn(),
@@ -148,27 +148,7 @@ it("pauza zatrzymuje czas, a wznowienie liczy dalej od tego samego miejsca", asy
 });
 
 it("po zablokowaniu ekranu planuje sygnały i nadrabia kroki po powrocie", async () => {
-  const day = applyRunningRecipe(
-    session,
-    selectRunningRecipe({
-      date: "2026-11-12",
-      age: 20,
-      level: "intermediate",
-      goal: "endurance",
-      limiter: null,
-      fieldMasKmh: null,
-      fieldMasTestedAt: null,
-      progressionLevel: 0,
-      phase: "preseason",
-      availableMin: 60,
-      mdLabel: null,
-      sameDay: EMPTY_DAY_LOAD,
-      previousDay: EMPTY_DAY_LOAD,
-      nextDay: EMPTY_DAY_LOAD,
-      week: { hardRuns: 0, methods: [], lastMethod: null, matches: 0, clubSessions: 0 },
-      doubleHeavyAllowed: false,
-    }).recipe,
-  );
+  const day = applyRunningRecipe(session, INTERVAL_RECIPE);
   expect(day.runningRecipe?.method).not.toBe("easy_continuous");
   await render(day);
   await act(async () => button("Start").click());

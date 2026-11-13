@@ -6,7 +6,6 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
-import { startupBudgetPlugin } from "./scripts/startup-budget";
 import { previewAuthStoragePlugin } from "./scripts/preview-auth-storage";
 
 export default defineConfig({
@@ -36,6 +35,6 @@ export default defineConfig({
         ],
       },
     },
-    plugins: [previewAuthStoragePlugin(), mcpPlugin(), startupBudgetPlugin()],
+    plugins: [previewAuthStoragePlugin(), mcpPlugin()],
   },
 });

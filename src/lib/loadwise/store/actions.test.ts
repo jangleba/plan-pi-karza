@@ -18,7 +18,6 @@ const mocks = vi.hoisted(() => ({
   error: null as { message: string; status?: number } | null,
   rpcData: null as Record<string, unknown> | null,
   consent: vi.fn(),
-  clearOverlays: vi.fn(),
 }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
@@ -62,24 +61,15 @@ vi.mock("../consent", () => ({
   recordConsentDecisions: mocks.consent,
   recordConsentDecision: mocks.consent,
 }));
-vi.mock("./repository", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./repository")>()),
-  clearFutureOverlaysForUser: mocks.clearOverlays,
-  shouldReusePersistedPlan: vi.fn(),
-}));
 vi.mock("sonner", () => ({ toast: { info: vi.fn() } }));
 
 let state: LoadwiseState;
-const saveProfileRows = vi.fn<StoreActionContext["saveProfileRows"]>();
-const savePlanToDb = vi.fn<StoreActionContext["savePlanToDb"]>();
 function context(): StoreActionContext {
   return {
     user: { id: "athlete" },
     state,
     getState: () => state,
     todayIso: "2026-09-29",
-    saveProfileRows,
-    savePlanToDb,
     setState(update) {
       mocks.events.push("state");
       state = typeof update === "function" ? update(state) : update;
@@ -87,11 +77,7 @@ function context(): StoreActionContext {
   };
 }
 function profileActions() {
-  return createProfileActions({
-    ...context(),
-    generatingRef: { current: false },
-    setPlanGenerating: vi.fn(),
-  });
+  return createProfileActions(context());
 }
 function session(overrides: Partial<SessionDay> = {}): SessionDay {
   return {
@@ -156,9 +142,6 @@ beforeEach(() => {
   mocks.consent.mockReset().mockImplementation(async () => {
     mocks.events.push("consent");
   });
-  mocks.clearOverlays.mockReset().mockImplementation(async () => {
-    mocks.events.push("clearOverlays");
-  });
   state = {
     ...initialState,
     profile: {
@@ -166,14 +149,6 @@ beforeEach(() => {
       healthPersonalizationEnabled: true,
     },
   };
-  saveProfileRows.mockReset().mockImplementation(async (_profile, completed) => {
-    mocks.events.push(`profile:${completed}`);
-    return "revision";
-  });
-  savePlanToDb.mockReset().mockImplementation(async () => {
-    mocks.events.push("plan");
-    return [session()];
-  });
 });
 
 describe("store action contracts", () => {
@@ -189,7 +164,7 @@ describe("store action contracts", () => {
     expect(mocks.events).toContain("save_training_log");
   });
 
-  it("shows the generated plan at once, then records consent before the server save", async () => {
+  it("records consent, then saves only the profile (no plan) and publishes it", async () => {
     state.profile!.unavailableEquipmentIds = ["sled"];
     const profile = { ...state.profile!, unavailableEquipmentIds: [] };
     await profileActions().completeOnboarding(profile, {
@@ -197,36 +172,22 @@ describe("store action contracts", () => {
       privacy: true,
       health_data: true,
     });
-    // The plan is on screen before the profile and plan reach the server.
-    expect(mocks.events.slice(0, 2)).toEqual(["plan", "state"]);
-    expect(mocks.events).not.toContain("save_profile_and_plan");
-    expect(state.profile?.onboardingComplete).toBe(true);
-    await vi.waitFor(() => expect(mocks.events).toHaveLength(5));
-    expect(mocks.events).toEqual(["plan", "state", "consent", "save_profile_and_plan", "state"]);
+    expect(mocks.events).toEqual(["consent", "save_profile_and_plan", "state"]);
     expect(state.profile?.serverProfileUpdatedAt).toBeTruthy();
     expect(state.profile).toMatchObject({
       onboardingComplete: true,
       unavailableEquipmentIds: ["sled"],
     });
     expect(state.profile?.onboardingRevision).toMatch(/^training-inputs:v1:/);
-    expect(state.planGeneratedFor).toBe("2026-09-29");
+    expect(state.plan).toEqual([]);
     expect(
       mocks.writes.find((write) => write.table === "save_profile_and_plan")?.payload,
     ).toMatchObject({
       p_profile: { onboarding_completed: true },
       p_athlete: { unavailable_equipment_ids: ["sled"] },
+      p_plan: null,
+      p_clear_transitions: false,
     });
-  });
-
-  it("does not clear overlays or publish a profile when plan persistence fails", async () => {
-    const previous = state;
-    savePlanToDb.mockRejectedValueOnce(new Error("Plan write failed"));
-    await expect(
-      profileActions().updateProfile({ ...state.profile!, name: "Changed" }),
-    ).rejects.toThrow("Plan write failed");
-    expect(state).toBe(previous);
-    expect(mocks.clearOverlays).not.toHaveBeenCalled();
-    expect(mocks.writes).toEqual([]);
   });
 
   it("queues failed start/completion writes under the same key and retains the final completion", async () => {
@@ -248,8 +209,6 @@ describe("store action contracts", () => {
       startedAt,
     });
     expect(state.history).toHaveLength(1);
-    expect(saveProfileRows).not.toHaveBeenCalled();
-    expect(savePlanToDb).not.toHaveBeenCalled();
   });
 
   it("preserves a rejected draft without falsely publishing completion", async () => {
@@ -262,7 +221,7 @@ describe("store action contracts", () => {
     expect(readPendingTrainingWrites("athlete")).toHaveLength(1);
   });
 
-  it("persists completed running progression before regenerating and publishing its plan", async () => {
+  it("publishes completed running progression in the profile without rebuilding a plan", async () => {
     const endurance = session({
       classification: {
         isEndurance: true,
@@ -295,7 +254,8 @@ describe("store action contracts", () => {
       profile: { running_progression_level: 1, updated_at: "2026-09-29T12:00:00Z" },
     };
     await createSessionActions(context()).completeSession(endurance, 6, "");
-    expect(mocks.events).toEqual(["save_training_log", "state", "state", "plan", "state"]);
+    expect(mocks.events).toEqual(["save_training_log", "state", "state"]);
+    expect(state.plan).toEqual([]);
     expect(state.profile).toMatchObject({
       runningProgressionLevel: 1,
       onboardingRevision: expect.stringMatching(/^training-inputs:v1:/),
@@ -316,7 +276,6 @@ describe("store action contracts", () => {
     expect(queue[0].payload).not.toHaveProperty("splits");
     expect(queue[0].payload).not.toHaveProperty("intervalResults");
     expect(state.runningActivities.session.route).toEqual(draft.route);
-    expect(savePlanToDb).not.toHaveBeenCalled();
   });
 
   it("rejects an incomplete MAS test before attempting any write", async () => {
@@ -330,6 +289,5 @@ describe("store action contracts", () => {
     );
     expect(mocks.writes).toEqual([]);
     expect(readPendingTrainingWrites("athlete")).toEqual([]);
-    expect(saveProfileRows).not.toHaveBeenCalled();
   });
 });

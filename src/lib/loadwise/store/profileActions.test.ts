@@ -1,7 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe,expect,it,vi } from "vitest";
 import { createProfileActions } from "./profileActions";
 import { decodeStrengthExperience } from "../strengthExperience";
-import { shouldReusePersistedPlan } from "./repository";
 
 const mocks = vi.hoisted(() => ({ from: vi.fn() }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: mocks.from } }));
@@ -25,7 +24,6 @@ function setup(data: unknown = { user_id: "real-user" }) {
     exerciseReplacements: { saved: [] },
   };
   let state = original;
-  const rebuild = vi.fn();
   const setState = vi.fn((fn: (current: typeof original) => typeof original) => {
     state = fn(state);
   });
@@ -33,11 +31,8 @@ function setup(data: unknown = { user_id: "real-user" }) {
     user: { id: "real-user" },
     state: original,
     setState,
-    savePlanToDb: rebuild,
-    generatingRef: { current: false },
-    setPlanGenerating: vi.fn(),
   } as unknown as Parameters<typeof createProfileActions>[0]);
-  return { actions, original, getState: () => state, rebuild, update, eq, setState };
+  return { actions, original, getState: () => state, update, eq, setState };
 }
 describe("strength experience profile update", () => {
   it("saves only owned experience and preserves the plan, overlays and logs", async () => {
@@ -62,7 +57,6 @@ describe("strength experience profile update", () => {
       "exerciseReplacements",
     ] as const)
       expect(x.getState()[key]).toBe(x.original[key]);
-    expect(x.rebuild).not.toHaveBeenCalled();
   });
   it("preserves method preferences when the existing experience form saves without them",async()=>{
     const x=setup();await x.actions.saveStrengthExperience({gymExperienceLevel:"beginner",strengthTrainingMonths:3,movementCompetence:"low",supervisionLevel:"full"});
@@ -81,26 +75,5 @@ describe("strength experience profile update", () => {
       x.actions.saveStrengthExperience({ gymExperienceLevel: "none" }),
     ).rejects.toThrow();
     expect(x.setState).not.toHaveBeenCalled();
-    expect(x.rebuild).not.toHaveBeenCalled();
   });
-});
-
-it("marks a refresh busy while validation is pending, without starting duplicate generation", async () => {
-  let finish!: (reuse: boolean) => void;
-  vi.mocked(shouldReusePersistedPlan).mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
-  const setPlanGenerating = vi.fn();
-  const savePlanToDb = vi.fn();
-  const actions = createProfileActions({
-    user: { id: "real-user" },
-    state: { profile: { onboardingComplete: true }, plan: [] },
-    generatingRef: { current: false },
-    setPlanGenerating,
-    savePlanToDb,
-  } as unknown as Parameters<typeof createProfileActions>[0]);
-  actions.refreshPlanIfNeeded();
-  actions.refreshPlanIfNeeded();
-  expect(setPlanGenerating.mock.calls).toEqual([[true]]);
-  finish(true);
-  await vi.waitFor(() => expect(setPlanGenerating).toHaveBeenLastCalledWith(false));
-  expect(savePlanToDb).not.toHaveBeenCalled();
 });

@@ -4,7 +4,6 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import tsConfigPaths from "vite-tsconfig-paths";
-import { startupBudgetPlugin } from "./scripts/startup-budget";
 import { previewAuthStoragePlugin } from "./scripts/preview-auth-storage";
 
 // Capacitor needs static files. This config intentionally stays separate from the regular
@@ -16,7 +15,6 @@ export default defineConfig({
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   plugins: [
     previewAuthStoragePlugin(),
-    startupBudgetPlugin(),
     tsConfigPaths(),
     tanstackStart({
       server: { entry: "server" },

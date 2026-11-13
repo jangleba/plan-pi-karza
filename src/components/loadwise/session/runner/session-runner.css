@@ -810,22 +810,6 @@
   font-size: 15px;
   font-weight: 600;
 }
-.bw-load-hint {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  background: color-mix(in oklch, var(--primary) 7%, var(--card));
-  font-size: 14px;
-  font-weight: 600;
-}
-.bw-load-hint button {
-  min-height: 44px;
-  padding: 0 8px;
-  color: var(--primary);
-}
 
 /* Jak wykonać */
 .bw-howto-panel {

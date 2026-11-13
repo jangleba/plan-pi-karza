@@ -1,11 +1,8 @@
 import type { Profile } from "./types";
-import type { prepareMonthlyPlan } from "./persist";
-export type ProfileSaveStage = "consents" | "generation" | "saving" | "verification";
+export type ProfileSaveStage = "consents" | "saving";
 export const PROFILE_SAVE_LABELS: Record<ProfileSaveStage, string> = {
   consents: "Zapisuję ustawienia…",
-  generation: "Układam Twój plan…",
-  saving: "Zapisuję plan…",
-  verification: "Sprawdzam zapis…",
+  saving: "Zapisuję profil…",
 };
 export interface ProfileSaveAttempt {
   key: string;
@@ -14,7 +11,7 @@ export interface ProfileSaveAttempt {
   expectedRevision: string | null;
   consentsDone?: boolean;
   consentIndex?: number;
-  prepared?: ReturnType<typeof prepareMonthlyPlan>;
+  /** A save was sent; its outcome is not known yet. */
   uncertain?: boolean;
 }
 export interface ProfileSaveRefs {
@@ -26,7 +23,7 @@ export class ProfileSaveTimeout extends Error {
   constructor(public stage: ProfileSaveStage) {
     super(
       stage === "saving"
-        ? "Serwer nie potwierdził jeszcze zapisu planu."
+        ? "Serwer nie potwierdził jeszcze zapisu profilu."
         : "Odpowiedź serwera trwa zbyt długo. Twoje odpowiedzi pozostają w formularzu.",
     );
     this.name = "ProfileSaveTimeout";

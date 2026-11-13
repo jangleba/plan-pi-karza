@@ -9,25 +9,17 @@ import type {
   Profile,
   SeasonPhase,
   SecondaryLimiter,
-  SessionDay,
 } from "./types";
 import { validateSeason } from "./seasonValidation";
-import { ISO_DAY_LABELS } from "./labels";
 import {
-  CURRENT_FEELING_SHORT,
-  DESIRED_FEELING_SHORT,
   MAX_PITCH_FEELINGS,
   ONBOARDING_CURRENT_FEELINGS,
   ONBOARDING_DESIRED_FEELINGS,
 } from "./playerDirection";
-import { directionAccentFor } from "./planEngine";
-import { limitationSupportCategory } from "./planRules";
 
 /**
- * Answers collected by the onboarding screens that drive the training plan.
- * Every field here changes the generated plan for at least one athlete
- * (see onboardingFlow.test.ts); "Etap w sezonie" changed nothing and is no
- * longer asked. The pitch feelings set the plan accent (directionAccentFor).
+ * Answers collected by the onboarding screens. They are saved in the profile
+ * as input for the week-planning engine (to be rebuilt).
  */
 export interface OnboardingAnswers {
   position: Position | null;
@@ -229,181 +221,5 @@ export function answersFromProfile(profile?: Profile | null): OnboardingAnswers 
     hasWall: hasWallEquipment(profile?.equipment ?? []),
     equipment: (profile?.equipment ?? []).filter((item) => !WALL.test(item)),
     doubleSessionsAllowed: profile?.doubleSessionsAllowed ?? "no",
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Summary: what follows from the answers (facts only, no reasons)
-// ---------------------------------------------------------------------------
-
-export interface PlanFact {
-  id: "week" | "first" | "match" | "strength" | "focus" | "direction" | "off";
-  label: string;
-  value: string;
-}
-
-const SHORT_DAY = ["nd", "pn", "wt", "śr", "cz", "pt", "so"];
-
-function shortDate(date: string): string {
-  const [, month, day] = date.split("-");
-  return `${SHORT_DAY[new Date(`${date}T12:00:00Z`).getUTCDay()]} ${Number(day)}.${month}`;
-}
-
-function plural(count: number, one: string, few: string, many: string): string {
-  if (count === 1) return `${count} ${one}`;
-  const last = count % 10;
-  const tens = count % 100;
-  return `${count} ${last >= 2 && last <= 4 && (tens < 12 || tens > 14) ? few : many}`;
-}
-
-const FOCUS_LABELS: Record<Goal, string> = {
-  speed: "Szybkość",
-  strength: "Siła",
-  endurance: "Wytrzymałość",
-  power: "Moc",
-  agility: "Zwrotność i hamowanie",
-  general: "Gra z piłką",
-  mobility: "Mobilność i prehab",
-  return: "Powrót po przerwie",
-  matchready: "Gotowość meczowa",
-};
-
-/** Limiter that names the same quality as the goal (then it is not repeated). */
-const SAME_AS_GOAL: Partial<Record<Goal, SecondaryLimiter>> = {
-  speed: "speed",
-  strength: "strength",
-  endurance: "endurance",
-  power: "power",
-  agility: "cod",
-  general: "ball",
-  return: "return",
-};
-
-const LIMITER_FOCUS: Record<SecondaryLimiter, string> = {
-  speed: "szybkość",
-  strength: "siła",
-  endurance: "wytrzymałość",
-  cod: "zwrotność",
-  power: "moc",
-  ball: "gra z piłką",
-  fatigue: "mniej zmęczenia",
-  return: "powrót po przerwie",
-};
-
-/**
- * Short facts about the first seven days of the generated plan and the
- * settings it follows. Counts come from the real plan, so the summary shows
- * exactly what the athlete will get.
- */
-export function onboardingPlanFacts(profile: Profile, plan: SessionDay[]): PlanFact[] {
-  const week = plan.slice(0, 7);
-  const own = week.filter((day) => day.dayType === "training").length;
-  const extra = week.filter((day) => day.secondSession).length;
-  const club = week.filter((day) => day.dayType === "club").length;
-  const facts: PlanFact[] = [];
-  const parts = [
-    plural(own, "trening własny", "treningi własne", "treningów własnych"),
-    ...(club ? [plural(club, "klubowy", "klubowe", "klubowych")] : []),
-    ...(extra ? [plural(extra, "dodatkowa sesja", "dodatkowe sesje", "dodatkowych sesji")] : []),
-  ];
-  facts.push({ id: "week", label: "Pierwsze 7 dni", value: parts.join(" · ") });
-  const first = week.find((day) => day.dayType === "training");
-  if (first)
-    facts.push({
-      id: "first",
-      label: "Pierwszy trening",
-      value: `${shortDate(first.date)} · ${first.title}`,
-    });
-  const match = week.find((day) => day.dayType === "match");
-  const usual =
-    typeof profile.usualMatchDay === "number"
-      ? ISO_DAY_LABELS.find((item) => item.value === profile.usualMatchDay)?.label.toLowerCase()
-      : null;
-  facts.push({
-    id: "match",
-    label: "Mecz",
-    value: match
-      ? `${shortDate(match.date)}${usual ? ` · co tydzień: ${usual}` : ""}`
-      : profile.matchDate
-        ? `${shortDate(profile.matchDate)}${usual ? ` · co tydzień: ${usual}` : ""}`
-        : "Bez meczu",
-  });
-  const tools = profile.equipment.filter((item) => !WALL.test(item) && !/bramk/i.test(item));
-  facts.push({
-    id: "strength",
-    label: "Siła",
-    value: profile.hasGym
-      ? "Na siłowni"
-      : tools.length
-        ? `Bez siłowni: ${tools.join(", ").toLowerCase()}`
-        : "Bez siłowni: masa ciała",
-  });
-  facts.push({
-    id: "focus",
-    label: "Akcent",
-    value: `${FOCUS_LABELS[profile.goal]}${
-      profile.secondaryLimiter && SAME_AS_GOAL[profile.goal] !== profile.secondaryLimiter
-        ? ` · dodatkowo ${LIMITER_FOCUS[profile.secondaryLimiter]}`
-        : ""
-    }`,
-  });
-  const direction = directionFact(profile, week);
-  if (direction) facts.push(direction);
-  const off = profile.unavailableDays ?? [];
-  if (off.length)
-    facts.push({
-      id: "off",
-      label: "Bez treningu",
-      value: off.map((day) => ISO_DAY_LABELS.find((item) => item.value === day)?.short).join(", "),
-    });
-  return facts;
-}
-
-/**
- * „Kierunek”: the feeling the athlete picked and what the first week has for it —
- * the form of the sprint session, or how many sessions of the quality it has.
- */
-function directionFact(profile: Profile, week: SessionDay[]): PlanFact | null {
-  const desired = profile.desiredPitchFeelings?.find((id) => DESIRED_FEELING_SHORT[id]);
-  const current = profile.currentPitchFeelings?.find((id) => CURRENT_FEELING_SHORT[id]);
-  const feeling = desired
-    ? DESIRED_FEELING_SHORT[desired]
-    : current
-      ? CURRENT_FEELING_SHORT[current]
-      : null;
-  if (!feeling) return null;
-  const accent = directionAccentFor(profile);
-  const slots = week
-    .flatMap((day) => [day, day.secondSession])
-    .filter((slot): slot is SessionDay => Boolean(slot) && slot!.dayType === "training");
-  if (!accent) return { id: "direction", label: "Kierunek", value: feeling };
-  if (accent === "mobility") {
-    const n = slots.filter((slot) => slot.type === "prehab_mobility").length;
-    return {
-      id: "direction",
-      label: "Kierunek",
-      value: `${feeling} · ${n ? `mobilność ${n}× w tygodniu` : "mobilność"}`,
-    };
-  }
-  const category = limitationSupportCategory(accent);
-  if (accent === "speed" || accent === "cod") {
-    // The sprint session's own name when it has the asked form (a speed or
-    // agility goal keeps its own form).
-    const form = accent === "cod" ? /hamowanie|zmiana kierunku|reakcja/i : /sprint|przyspiesz/i;
-    const sprint = slots.find(
-      (slot) => slot.classification?.category === category && form.test(slot.title),
-    );
-    return {
-      id: "direction",
-      label: "Kierunek",
-      value: sprint ? `${feeling} · ${sprint.title}` : feeling,
-    };
-  }
-  const n = slots.filter((slot) => slot.classification?.category === category).length;
-  const label = accent === "strength" ? "siła" : accent === "endurance" ? "wytrzymałość" : "piłka";
-  return {
-    id: "direction",
-    label: "Kierunek",
-    value: `${feeling} · ${label}${n ? ` ${n}× w tygodniu` : ""}`,
   };
 }

@@ -23,28 +23,10 @@ import {
 import { planLockScreenCues, isRunCueId } from "./lockScreenCues";
 import { stepAnnouncement } from "./runSignals";
 import { recipeToProtocol } from "./recipeSession";
-import { EMPTY_DAY_LOAD, selectRunningRecipe, type RunningPlanContext } from "./prescription";
-
-const ctx = (patch: Partial<RunningPlanContext> = {}): RunningPlanContext => ({
-  date: "2026-11-12",
-  age: 20,
-  level: "intermediate",
-  goal: "endurance",
-  limiter: null,
-  progressionLevel: 0,
-  phase: "preseason",
-  availableMin: 60,
-  mdLabel: null,
-  sameDay: EMPTY_DAY_LOAD,
-  previousDay: EMPTY_DAY_LOAD,
-  nextDay: EMPTY_DAY_LOAD,
-  week: { hardRuns: 0, methods: [], lastMethod: null, matches: 0, clubSessions: 0 },
-  doubleHeavyAllowed: false,
-  ...patch,
-});
+import { HIIT_RECIPE, INTERVAL_RECIPE } from "./testRecipes";
 
 const intervals = () => {
-  const recipe = selectRunningRecipe(ctx()).recipe;
+  const recipe = INTERVAL_RECIPE;
   return { recipe, protocol: recipeToProtocol(recipe) };
 };
 const T0 = 1_800_000_000_000;
@@ -179,9 +161,7 @@ describe("sygnały przy zablokowanym ekranie", () => {
   });
 
   it("nie przekracza limitu iOS i pomija kroki już za nami", () => {
-    const rsa = selectRunningRecipe(
-      ctx({ age: 24, level: "advanced", phase: "in_season", goal: "speed", progressionLevel: 3 }),
-    ).recipe;
+    const rsa = HIIT_RECIPE;
     const protocol = recipeToProtocol(rsa);
     const cues = planLockScreenCues(protocol, 0, T0);
     expect(cues.length).toBeLessThanOrEqual(48);

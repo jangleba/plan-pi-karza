@@ -5,7 +5,6 @@ import {
   activeSessionGraceDeadline,
   isActiveSessionWithinGrace,
 } from "./activeSession";
-import { expiredUnfinishedSessions } from "./sessionStatus";
 import type { SessionCompletion } from "./types";
 
 const previous = sessionFixture({ date: "2026-10-19" });
@@ -26,30 +25,16 @@ describe("bounded workout continuity across midnight", () => {
     expect(activeSessionGraceDeadline(previous.date, started, "2026-10-20", afterMidnight)).toBe(
       Date.parse("2026-10-20T03:30:00Z"),
     );
-    expect(
-      expiredUnfinishedSessions([previous], "2026-10-20", { "session-1": started }, afterMidnight),
-    ).toEqual([]);
   });
   it("expires the grace at four elapsed hours, including an abandoned started log", () => {
     const now = Date.parse("2026-10-20T03:30:00Z");
     expect(isActiveSessionWithinGrace(previous.date, started, "2026-10-20", now)).toBe(false);
-    expect(
-      expiredUnfinishedSessions([previous], "2026-10-20", { "session-1": started }, now),
-    ).toEqual([previous]);
   });
   it("does not reopen a completed result or mark it missed later", () => {
     const complete = { ...started, completed: true, status: "completed" as const };
     expect(isActiveSessionWithinGrace(previous.date, complete, "2026-10-20", afterMidnight)).toBe(
       false,
     );
-    expect(
-      expiredUnfinishedSessions(
-        [previous],
-        "2026-10-20",
-        { "session-1": complete },
-        afterMidnight + 8 * 3600000,
-      ),
-    ).toEqual([]);
   });
   it.each([
     { ...started, startedAt: null },

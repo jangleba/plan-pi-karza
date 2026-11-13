@@ -1,7 +1,6 @@
 import { expect, it } from "vitest";
 import { executionKey, measuredSessionMinutes } from "./sessionExecution";
 import { sessionFixture } from "@/components/loadwise/session/testFixtures";
-import { recentSessionFeedback } from "./postSessionFeedback";
 import { resolveExecutionDay } from "./effectivePlan";
 import type { Profile, SessionCompletion } from "./types";
 const now = Date.parse("2026-11-07T10:30:00Z");
@@ -34,19 +33,6 @@ const completion: SessionCompletion = {
   executionSnapshot: sessionFixture({ date: "2026-11-06" }),
   endedAt: "2026-11-06T20:00:00Z",
 };
-it("uses consented recent answers and excludes old or future feedback", () => {
-  const p = { healthPersonalizationEnabled: true } as Profile;
-  expect(recentSessionFeedback(p, { x: completion }, "2026-11-07")?.legFatigue).toBe(9);
-  expect(
-    recentSessionFeedback(
-      { ...p, healthPersonalizationEnabled: false },
-      { x: completion },
-      "2026-11-07",
-    )?.legFatigue,
-  ).toBe(0);
-  expect(recentSessionFeedback(p, { x: completion }, "2026-11-09")).toBeNull();
-  expect(recentSessionFeedback(p, { x: completion }, "2026-11-05")).toBeNull();
-});
 it("does not derive a hidden hold from an old post-session note and preserves the prescription", () => {
   const p = { healthPersonalizationEnabled: true } as Profile;
   const day = sessionFixture({ date: "2026-11-07", dbId: "today" });

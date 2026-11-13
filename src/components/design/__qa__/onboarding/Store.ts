@@ -1,9 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { initialState, buildProfile, type LoadwiseContextValue } from "@/lib/loadwise/store/model";
 import { createProfileActions } from "@/lib/loadwise/store/profileActions";
-import { createPlanPersistence } from "@/lib/loadwise/store/repository";
 import type { ProfileSaveRefs, ProfileSaveStage } from "@/lib/loadwise/profileSave";
-import { stats } from "./Backend";
 const profile = buildProfile(
   { full_name: "Jan", onboarding_completed: false },
   {
@@ -57,7 +55,6 @@ export function useLoadwise() {
     () => snapshot,
     () => snapshot,
   );
-  const persistence = createPlanPersistence(user, "2026-11-04", state, () => state);
   const actions = createProfileActions({
     user,
     state,
@@ -66,14 +63,7 @@ export function useLoadwise() {
       state = (typeof update === "function" ? update(state) : update) as typeof state;
       emit();
     },
-    ...persistence,
-    savePlanToDb: (...args) => {
-      stats.generations++;
-      return persistence.savePlanToDb(...args);
-    },
     todayIso: "2026-11-04",
-    generatingRef: { current: false },
-    setPlanGenerating: () => {},
     profileSaveRefs: refs,
     onProfileSaveStage: (value) => {
       stage = value;

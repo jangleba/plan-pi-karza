@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getExerciseDefinition } from "@/lib/loadwise/exerciseLibrary";
-import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
+import { flatToStructured } from "@/lib/loadwise/sessionStructure";
 import type { ExerciseItem, SessionDay, TrainingSection } from "@/lib/loadwise/types";
 import {
   buildSprintRunnerBlocks,

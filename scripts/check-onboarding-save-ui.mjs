@@ -128,8 +128,7 @@ try {
     await page.getByRole("checkbox").nth(1).check();
     // Go forward until the last step, which carries the save button.
     for (let i = 0; i < 24; i++) {
-      if (await page.getByRole("button", { name: "Zapisz i wygeneruj plan", exact: true }).count())
-        break;
+      if (await page.getByRole("button", { name: "Zapisz", exact: true }).count()) break;
       const step = await page.locator(".ob-step").first().getAttribute("data-step");
       if (step === "calendar") await page.locator(".ob-date").nth(3).click();
       await page.getByRole("button", { name: "Dalej", exact: true }).click();
@@ -137,7 +136,7 @@ try {
     }
     await page.screenshot({ path: path.join(work, mode + "-formularz.png") });
     await fs.writeFile(path.join(work, mode + "-formularz.html"), await page.content());
-    const save = page.getByRole("button", { name: "Zapisz i wygeneruj plan", exact: true });
+    const save = page.getByRole("button", { name: "Zapisz", exact: true });
     await save.waitFor();
     const at = Date.now();
     await save.click();
@@ -146,39 +145,24 @@ try {
         .getByText("Odpowiedzi pozostają w formularzu", { exact: false })
         .waitFor({ timeout: 25000 });
       ensure(await save.isEnabled(), mode + ": retry is disabled");
-      ensure(
-        (await page.evaluate(() => window.__onboardingQA.generations)) === 1,
-        mode + ": duplicated generation",
-      );
       await page.screenshot({ path: path.join(work, mode + "-zachowane-odpowiedzi.png") });
       if (mode === "fail_once") {
         await save.click();
-        await page.getByTestId("plan-days").waitFor();
-        // The plan is shown first; the save itself finishes in the background.
-        await page.waitForFunction(() => window.__onboardingQA.saveCalls >= 2, null, {
-          timeout: 20000,
-        });
+        await page.getByTestId("profile-saved").waitFor({ timeout: 20000 });
       }
     } else {
-      await page.getByTestId("plan-days").waitFor({ timeout: 20000 });
-      // The plan is shown before the background save; let it finish (and any retry happen).
-      await page.waitForFunction(() => window.__onboardingQA.saveCalls >= 1, null, {
-        timeout: 20000,
-      });
-      await page.waitForTimeout(1500);
+      await page.getByTestId("profile-saved").waitFor({ timeout: 20000 });
     }
     const stats = await page.evaluate(() => window.__onboardingQA);
-    ensure(stats.generations === 1, "Regenerated on retry");
-    if (mode !== "hung")
-      ensure(
-        // Full Monday–Sunday weeks: at least 28 days, ending on a Sunday.
-        Number.parseInt(await page.getByTestId("plan-days").textContent(), 10) >= 28,
-        "Saved less than the complete plan",
-      );
+    // The week engine was removed: the save carries the profile only, never a plan.
+    ensure(
+      stats.planPayloads.every((plan) => plan === null),
+      "Onboarding sent a plan: " + JSON.stringify(stats),
+    );
     if (mode === "fail_once")
       ensure(
-        stats.saveCalls === 2 && stats.planIds[0] === stats.planIds[1] && stats.consentCalls === 4,
-        "Retry changed plan ID or repeated consents: " + JSON.stringify(stats),
+        stats.saveCalls === 2 && stats.consentCalls === 4,
+        "Retry repeated consents or writes: " + JSON.stringify(stats),
       );
     if (mode === "lost_response")
       ensure(stats.saveCalls === 1, "Lost response duplicated a write: " + JSON.stringify(stats));

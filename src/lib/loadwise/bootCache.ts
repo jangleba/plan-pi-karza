@@ -1,19 +1,24 @@
 import type { LoadwiseState } from "./types";
 import type { RunningActivity } from "@/lib/running/types";
-import { PLAN_ENGINE_VERSION } from "./planVersion";
 
-const BOOT_CACHE_VERSION = 2;
+// v3: the week-planning engine was removed; caches from v2 carried its plan.
+const BOOT_CACHE_VERSION = 3;
+const LEGACY_CACHE_VERSIONS = [2];
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 interface BootCacheEnvelope {
   version: number;
-  engineVersion: string;
   savedAt: number;
   state: LoadwiseState;
 }
 
-function cacheKey(userId: string) {
-  return `loadwise:boot:v${BOOT_CACHE_VERSION}:${userId}`;
+function cacheKey(userId: string, version = BOOT_CACHE_VERSION) {
+  return `loadwise:boot:v${version}:${userId}`;
+}
+
+function dropLegacyCaches(userId: string) {
+  for (const version of LEGACY_CACHE_VERSIONS)
+    window.localStorage.removeItem(cacheKey(userId, version));
 }
 
 function compactRunningActivity(activity: RunningActivity): RunningActivity {
@@ -57,12 +62,12 @@ export function redactStateForBootCache(state: LoadwiseState): LoadwiseState {
 export function loadBootState(userId: string): LoadwiseState | null {
   if (typeof window === "undefined") return null;
   try {
+    dropLegacyCaches(userId);
     const raw = window.localStorage.getItem(cacheKey(userId));
     if (!raw) return null;
     const envelope = JSON.parse(raw) as Partial<BootCacheEnvelope>;
     if (
       envelope.version !== BOOT_CACHE_VERSION ||
-      envelope.engineVersion !== PLAN_ENGINE_VERSION ||
       typeof envelope.savedAt !== "number" ||
       !Number.isFinite(envelope.savedAt) ||
       envelope.savedAt > Date.now() ||
@@ -94,7 +99,6 @@ export function saveBootState(userId: string, state: LoadwiseState): void {
   try {
     const envelope: BootCacheEnvelope = {
       version: BOOT_CACHE_VERSION,
-      engineVersion: PLAN_ENGINE_VERSION,
       savedAt: Date.now(),
       state: redactStateForBootCache(state),
     };
@@ -108,6 +112,7 @@ export function clearBootState(userId: string): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.removeItem(cacheKey(userId));
+    dropLegacyCaches(userId);
   } catch {
     // Ignore unavailable browser storage.
   }

@@ -1,20 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { describe,it,expect } from "vitest";
 import type { Profile } from "./types";
 import {
-  buildAthleteTrainingProfile,
-  getDevelopmentStage,
-  getStrengthExperienceLevel,
-  validateExerciseForAthleteProfile,
-  validateExerciseAgainstInjuries,
-  getSafeExerciseAlternatives,
-  replaceUnsafeExercise,
-  classifyExerciseTypes,
+buildAthleteTrainingProfile,
+getDevelopmentStage,
+getStrengthExperienceLevel,
+validateExerciseForAthleteProfile,
+validateExerciseAgainstInjuries,
+getSafeExerciseAlternatives,
+replaceUnsafeExercise,
+classifyExerciseTypes,
 } from "./athleteProfile";
-import {
-  validateWorkoutForAthleteProfile,
-  repairUnsafeExercisesForAthleteProfile,
-} from "./athleteProfileRepair";
-import { generatePlan } from "./planEngine";
 
 function makeProfile(over: Partial<Profile>): Profile {
   return {
@@ -43,22 +38,6 @@ function makeProfile(over: Partial<Profile>): Profile {
     hasSprintSpace: true,
     ...over,
   };
-}
-
-function collectAllNames(plan: ReturnType<typeof generatePlan>): string[] {
-  const out: string[] = [];
-  for (const d of plan) {
-    const sessions = [d, d.secondSession].filter(Boolean) as typeof plan;
-    for (const s of sessions) {
-      const sec = s.sections;
-      if (sec)
-        for (const k of ["warmup", "main", "accessory", "footballTransfer", "cooldown"] as const)
-          for (const e of sec[k] ?? []) out.push(e.name);
-      for (const st of s.structuredSections ?? [])
-        for (const b of st.blocks) for (const e of b.exercises) out.push(e.name);
-    }
-  }
-  return out;
 }
 
 describe("development stage & experience", () => {
@@ -147,37 +126,5 @@ describe("replaceUnsafeExercise", () => {
     expect(fixed.wasAdjustedForAthleteProfile).toBe(true);
     expect(fixed.replacementForBlockedExercise).toMatch(/deadlift/i);
     expect(fixed.name).not.toMatch(/sztang/i);
-  });
-});
-
-describe("plan-level repair", () => {
-  it("14yo beginner: no heavy lifts in generated plan, but still has gym strength", () => {
-    const profile = makeProfile({ age: 14, level: "beginner", goal: "strength" });
-    const plan = generatePlan(profile, new Date("2026-07-06"), 7);
-    const names = collectAllNames(plan).join(" | ").toLowerCase();
-    expect(names).not.toMatch(/martwy ciąg ze sztang|ciężki back squat|1rm|snatch|clean/);
-    // walidator nie zgłasza żadnych niezgodności
-    const a = buildAthleteTrainingProfile(profile);
-    const { plan: again, adjustments } = repairUnsafeExercisesForAthleteProfile(plan, profile);
-    expect(again.length).toBe(plan.length);
-    // ponowny przebieg nie wymaga już zmian
-    expect(adjustments.length).toBe(0);
-    void a;
-  });
-
-  it("does not strip a whole session, only changes content", () => {
-    const profile = makeProfile({ age: 14, level: "beginner", goal: "strength" });
-    const plan = generatePlan(profile, new Date("2026-07-06"), 7);
-    const gymDays = plan.filter((d) => (d.structuredSections?.length ?? 0) > 0);
-    const a = buildAthleteTrainingProfile(profile);
-    for (const d of gymDays) {
-      const { session } = validateWorkoutForAthleteProfile(d, a);
-      const total =
-        session.structuredSections?.reduce(
-          (n, s) => n + s.blocks.reduce((m, b) => m + b.exercises.length, 0),
-          0,
-        ) ?? 0;
-      expect(total).toBeGreaterThan(0);
-    }
   });
 });
