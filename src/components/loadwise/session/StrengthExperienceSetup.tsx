@@ -189,13 +189,14 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
                     ...d,
                     trainingMethodPreferences: {
                       ...d.trainingMethodPreferences,
-                      strength: e.target.value as "auto" | "M09" | "M13" | "M14",
+                      strength: e.target.value as "auto" | "M08" | "M09" | "M13" | "M14",
                       coachedIsometricPrimer: false,
                     },
                   }))
                 }
               >
                 <option value="auto">Automatyczna</option>
+                <option value="M08">Klastry w głównym ćwiczeniu</option>
                 <option value="M09">Kontrast siła–moc</option>
                 <option value="M13">Siła z izometrią utrzymywaną</option>
                 <option value="M14">Nadzorowana izometria przed treningiem</option>

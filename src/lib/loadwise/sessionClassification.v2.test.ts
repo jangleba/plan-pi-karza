@@ -100,13 +100,16 @@ describe("V2 numeric prescription shared by session, Fuel and Progress", () => {
   });
 
   it("keeps both actual stimuli in a combined strength and sprint session despite translated titles or stale classification", () => {
-    const combined = mainSessions.find(
-      (session) =>
-        session.engineV2!.roles.includes("speed") &&
-        session.engineV2!.roles.some((role) => role.startsWith("strength")),
-    );
-    expect(combined).toBeDefined();
-    const session = translated(structuredClone(combined!));
+    // V2.5 no longer generates these; immutable V2.4 execution history must
+    // still retain both stimuli for Fuel and Progress.
+    const gym = structuredClone(roleSession("strengthA"));
+    const speed = roleSession("speed");
+    gym.generatorVersion = "ballwise-v2.4";
+    gym.engineV2!.roles.push("speed");
+    gym.engineV2!.exercises.push(...structuredClone(speed.engineV2!.exercises));
+    gym.engineV2!.sprintMetres = speed.engineV2!.sprintMetres;
+    gym.engineV2!.highLower = true;
+    const session = translated(gym);
     session.classification = classifySession(roleSession("activation"));
     expect(isStrengthSession(session)).toBe(true);
     expect(isMainGymSession(session)).toBe(true);

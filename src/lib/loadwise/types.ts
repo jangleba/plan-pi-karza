@@ -297,6 +297,7 @@ export type SectionType = "warmup" | "prep" | "main" | "accessory" | "cooldown" 
 export type AgeSafetyLevel = "all" | "youth_ok" | "advanced_only";
 
 export interface TrainingExercise {
+  progressionPhase?: "normal" | "reduced";
   engineDose?: import("./engineV2/model").Dose;
   methodExecution?: MethodExecution;
   executionBlockedReason?: string;

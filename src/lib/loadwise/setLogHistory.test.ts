@@ -63,7 +63,7 @@ describe("exercise set history", () => {
   it("weryfikuje cel z wykonanej rozpiski strukturalnej, nie z bieżącego planu", () => {
     const recent = previousExerciseSessions([row("latest", 1, "2026-09-18T10:01:00Z")], "current");
     const result = verifyExerciseHistory(recent, "squat", { latest: completion() });
-    expect(result[0].verification).toEqual({ expectedSets: 2, prescriptionKey: exercisePrescriptionKey(exercise) });
+    expect(result[0].verification).toEqual({ expectedSets: 2, prescriptionKey: exercisePrescriptionKey(exercise), phase: "normal", sessionDate: "2026-09-29" });
     expect(recent[0].verification).toBeUndefined();
   });
 

@@ -123,7 +123,7 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
       }
     setCurrent({ ...mine, ...localEdits.current });
     setPrevious(previousSessionLogs(rows, sessionId));
-    setRecentSessions(previousExerciseSessions(rows, sessionId));
+    setRecentSessions(previousExerciseSessions(rows, sessionId, 8));
     setLoading(false);
   }, [userId, key, sessionId, scope]);
 

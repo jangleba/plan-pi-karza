@@ -175,7 +175,7 @@ describe("preparation grounded in existing onboarding", () => {
     const key = exercisePrescriptionKey(main[0]);
     expect(main.slice(0, 3).map(exercisePrescriptionKey)).toEqual([key, key, key]);
     expect(main[0].engineDose).toMatchObject({ sets: 3, reps: 4, rir: 2, restSeconds: 180 });
-    expect(main[3].engineDose).toMatchObject({ sets: 2, reps: 4, rir: 4 });
+    expect(main[3].engineDose).toMatchObject({ sets: 3, reps: 4, rir: 2 });
     const completions: Record<string, SessionCompletion> = {};
     const recorded: ExerciseSessionLog[] = sessions
       .slice(0, 2)

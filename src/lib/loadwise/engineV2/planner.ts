@@ -1,14 +1,15 @@
+import { attachCycle, cycleForWeek } from "./cycle";
 import { scheduledMatchDates } from "../matchSchedule";
 import { trainingProfileRevision, trainingSetupRevision } from "../planIdentity";
 import { hydrateTrainingExerciseFromDefinition, getExerciseDefinition } from "../exerciseLibrary";
 import { structuredToFlat } from "../sessionStructure";
 import type { Profile, SessionDay, TrainingSection } from "../types";
-import { buildStrength, buildRunning, estimateSessionSeconds, eligibleExercise } from "./exercises";
+import { buildStrength, buildRunning, fitStrengthToBudget, eligibleExercise } from "./exercises";
 import { ENGINE_VERSION, trainingTier, plusDays, weekday, dayDistance, ROLE_NAMES } from "./model";
 import type { EngineResult, EngineOptions, EngineSession, Issue } from "./model";
 import { FUNCTIONAL_CATALOGUE } from "./taxonomy";
 import { easyRunningRecipe } from "./running";
-import { coachedPrimerEligible } from "./strengthProtocols";
+import { coachedPrimerEligible, clusterEligible } from "./strengthProtocols";
 import { solveWeeklySchedule, assessPlacement, type PlacementAttempt } from "./scheduling";
 import { validateEngineSession } from "./validation";
 import { buildActivation, buildRecovery, buildMobility, buildSkills } from "./support";
@@ -123,6 +124,24 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
       rir: d.rir === undefined ? undefined : String(d.rir),
       purpose: e.reason,
       engineDose: d,
+      progressionPhase: recipe.phase === "deload" ? "reduced" : "normal",
+      methodExecution: d.cluster
+        ? {
+            methodId: "M08",
+            mode: "cluster",
+            rounds: d.sets,
+            repetitions: 1,
+            repGroups: d.cluster.repGroups,
+            workReps: d.reps,
+            restSeconds: d.cluster.intraRestSeconds,
+            roundRestSeconds: d.restSeconds,
+            intensityLabel: `Zapas ${d.rir} powtórzeń`,
+            stopRule:
+              "Przerwij przy utracie techniki. Nie dodawaj powtórzeń poza zapisanymi grupami.",
+            focus: `${d.cluster.repGroups.join(" + ")} powtórzenia; ${d.cluster.intraRestSeconds} s między grupami. Zapisz sumę powtórzeń całej serii.`,
+            assessment: "athlete_or_coach",
+          }
+        : undefined,
       cue:
         d.intent === "explosive"
           ? "Każda próba jakościowa; pełny odpoczynek. Przerwij przy utracie kontroli."
@@ -202,7 +221,7 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
         } as Record<string, string>
       )[support]
     : gym
-      ? `${speed ? "Sprint + " : ""}Siła ${recipe.roles.includes("strengthA") ? "A" : "B"} · ${recipe.tier === "foundation" ? "podstawy" : recipe.tier === "development" ? "rozwój" : "performance"}`
+      ? `Siła ${recipe.roles.includes("strengthA") ? "A" : "B"} · ${recipe.tier === "foundation" ? "podstawy" : recipe.tier === "development" ? "rozwój" : "performance"}`
       : speed
         ? "Przyspieszenie"
         : (recipe.runningRecipe?.title ?? "Bieg tlenowy");
@@ -248,37 +267,11 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
       ? "Spokojne wykonanie bez wymuszania zakresu; czas sesji jest orientacyjny."
       : recipe.roles[0] === "endurance"
         ? "Rozgrzewkę i schłodzenie prowadzi licznik biegu."
-        : "8 minut przygotowania ogólnego i serii wprowadzających uwzględniono w czasie sesji. Nie zaczynaj od ciężaru roboczego.",
+        : speed
+          ? "Wykonaj zapisane przygotowanie i narastające przebieżki przed głównymi sprintami. Zakończ próbę przy utracie jakości."
+          : "8 minut przygotowania ogólnego i serii wprowadzających uwzględniono w czasie sesji. Nie zaczynaj od ciężaru roboczego.",
     structuredSections: sections,
     sections: structuredToFlat(sections),
-  };
-}
-
-function merged(a: EngineSession, b: EngineSession): EngineSession {
-  const base = a.roles.some((r) => r.startsWith("strength")) ? a : b;
-  const exercises = [...a.exercises, ...b.exercises].sort((x, y) =>
-    x.role === "warmup"
-      ? -1
-      : y.role === "warmup"
-        ? 1
-        : x.role === "iso_primer"
-          ? -1
-          : y.role === "iso_primer"
-            ? 1
-            : x.role === "speed"
-              ? -1
-              : y.role === "speed"
-                ? 1
-                : 0,
-  );
-  return {
-    ...base,
-    roles: [...a.roles, ...b.roles],
-    exercises,
-    missing: [...a.missing, ...b.missing],
-    sprintMetres: a.sprintMetres + b.sprintMetres,
-    highLower: a.highLower || b.highLower,
-    minutes: Math.ceil(estimateSessionSeconds(exercises) / 60) + 8,
   };
 }
 
@@ -347,7 +340,7 @@ function place(
     options,
     matchDates: matches,
     precedingDays: preceding,
-    combinedMinutes: (a, b) => merged(a, b).minutes,
+    combinedMinutes: (a, b) => a.minutes + b.minutes,
   });
   if (!gate.allowed) {
     // An easy alternative remains an explicit adaptation, and still passes every calendar gate.
@@ -360,20 +353,9 @@ function place(
     }
     return { blocked: { code: gate.code, message: gate.message } };
   }
-  let replacement: SessionDay;
-  if (gate.mode === "merge_strength_speed") {
-    const original = gate.slot === 0 ? current : current.secondSession!;
-    const session = render(current.date, merged(original.engineV2!, recipe), p);
-    session.mdLabel = current.mdLabel;
-    replacement =
-      gate.slot === 0
-        ? { ...session, secondSession: current.secondSession }
-        : { ...current, secondSession: session };
-  } else {
-    const session = render(current.date, recipe, p);
-    session.mdLabel = current.mdLabel;
-    replacement = gate.mode === "new" ? session : { ...current, secondSession: session };
-  }
+  const session = render(current.date, recipe, p);
+  session.mdLabel = current.mdLabel;
+  const replacement = gate.mode === "new" ? session : { ...current, secondSession: session };
   return {
     state: days.map((d, i) => (i === index ? replacement : d)),
     penalty:
@@ -410,9 +392,9 @@ function placeResolvedEndurance(
     options,
     matchDates: matches,
     precedingDays: preceding,
-    combinedMinutes: (a, b) => merged(a, b).minutes,
+    combinedMinutes: (a, b) => a.minutes + b.minutes,
   });
-  if (!gate.allowed || gate.mode === "merge_strength_speed") return null;
+  if (!gate.allowed) return null;
   const current = days[index],
     session = render(current.date, recipe, p);
   session.mdLabel = current.mdLabel;
@@ -478,11 +460,17 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
     plan: SessionDay[] = [],
     tier = trainingTier(p);
   const method = p.trainingMethodPreferences?.strength;
-  if (method && !["auto", "M09", "M13", "M14"].includes(method))
+  if (method && !["auto", "M08", "M09", "M13", "M14"].includes(method))
     issues.push({
       code: "METHOD_UNSUPPORTED",
       message:
         "Wybrana metoda specjalistyczna nie należy do obsługiwanych protokołów tego planu. Zastosowano standardowe serie; zmień preferencję, jeśli chcesz inny wariant.",
+    });
+  if (method === "M08" && !clusterEligible(p, "development"))
+    issues.push({
+      code: "METHOD_CONDITIONS",
+      message:
+        "Klastry wymagają zadeklarowanego przygotowania i nadzoru, u niepełnoletnich pełnego. Zachowano zwykłe serie bez automatycznej zmiany ciężaru.",
     });
   if (method === "M14" && !coachedPrimerEligible(p, "development"))
     issues.push({
@@ -503,7 +491,7 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
         "Automatyczne treningi własne wstrzymano: ten silnik nie układa rehabilitacji ani powrotu po urazie.",
     });
   for (let week = 0; week < weeks; week++) {
-    const phase = (["adaptation", "development", "peak", "deload"] as const)[week];
+    const { phase, cycle } = cycleForWeek(p, options, plusDays(options.startDate, week * 7));
     const base = Array.from({ length: 7 }, (_, i) => {
       const date = plusDays(options.startDate, week * 7 + i),
         locked = options.lockedDays?.find((d) => d.date === date);
@@ -526,8 +514,14 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
     });
     const policy = resolveGoalPolicy(p);
     const tasks = [
-      buildStrength(routedProfile(p, policy.strengthGoal), "A", phase),
-      buildStrength(routedProfile(p, policy.strengthGoal), "B", phase),
+      fitStrengthToBudget(
+        buildStrength(routedProfile(p, policy.strengthGoal), "A", phase),
+        options.minutesPerSession ?? 75,
+      ),
+      fitStrengthToBudget(
+        buildStrength(routedProfile(p, policy.strengthGoal), "B", phase),
+        options.minutesPerSession ?? 75,
+      ),
       buildRunning(routedProfile(p, policy.speedGoal), "speed", phase),
       plannedEndurance(p, base[0].date, phase),
     ];
@@ -670,10 +664,11 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
               : "Nie znaleziono miejsca na dodatkową mobilność bez naruszania pozostałych ograniczeń.",
         });
     }
+    attachCycle(best, cycle);
     best.forEach((d) => {
       if (!d.executionProtected)
         for (const s of own(d)) {
-          s.blockWeekNumber = week + 1;
+          s.blockWeekNumber = (cycle.weekIndex % 4) + 1;
         }
     });
     plan.push(...best);
@@ -709,6 +704,17 @@ export function validateTrainingPlan(
   for (const d of plan) {
     if (seen.has(d.date)) fail("DUPLICATE_DATE", d.date, "Powtórzona data.");
     seen.add(d.date);
+    if (!d.executionProtected) {
+      const mainRoles = own(d).flatMap((s) => s.engineV2!.roles);
+      const strengthCount = mainRoles.filter((r) => r.startsWith("strength")).length;
+      if (strengthCount > 1) fail("TWO_STRENGTH_SAME_DAY", d.date, "Dwie siłownie w jednym dniu.");
+      if (strengthCount && mainRoles.includes("speed"))
+        fail(
+          "STRENGTH_SPEED_SEPARATE",
+          d.date,
+          "Siłownia i sprint wymagają osobnych dni w tym programie.",
+        );
+    }
     if (d.secondSession?.secondSession) fail("THIRD_SLOT", d.date, "Trzeci slot w dniu.");
     for (const s of own(d)) {
       if (d.executionProtected) continue;

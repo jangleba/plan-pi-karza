@@ -45,6 +45,8 @@ export function PlanScreen() {
       return {
         result: generateTrainingPlan(state.profile, {
           startDate: todayIso,
+          previousPlan: state.plan,
+          completions: state.completions,
           expectedPlanId: state.activePlanId ?? null,
           minutesPerSession: minutes,
           lockedDays: lockedExecutionDays(
@@ -202,6 +204,13 @@ export function PlanScreen() {
                     <span className="text-sm text-neutral-500">{s.durationMin} min</span>
                   ) : null}
                 </div>
+                {s.engineV2?.cycle &&
+                ["deload", "reentry", "review"].includes(s.engineV2.cycle.state) ? (
+                  <details className="text-sm text-neutral-600">
+                    <summary>{s.blockPhaseLabel}</summary>
+                    <p>{s.engineV2.cycle.reason}</p>
+                  </details>
+                ) : null}
                 {s.dbId && !preview && s.dayType !== "rest" ? (
                   <button
                     className="text-sm underline py-2"

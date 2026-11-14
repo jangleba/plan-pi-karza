@@ -2,7 +2,26 @@ import { resolveEquipmentId } from "../exerciseLibrary";
 import type { Profile } from "../types";
 import type { Dose, EngineSession } from "./model";
 import { resolveGoalPolicy } from "./goalPolicy";
-import { hasVerifiedAdvancedStrength } from "./preparation";
+import { hasVerifiedAdvancedStrength, preparationProfile } from "./preparation";
+
+/** Qualification is a product gate; studies do not establish a birthday threshold. */
+export function clusterEligible(p: Profile, phase: EngineSession["phase"]): boolean {
+  const prep = preparationProfile(p);
+  return (
+    p.trainingMethodPreferences?.strength === "M08" &&
+    !prep.provisional &&
+    prep.tier !== "foundation" &&
+    !p.painInjury &&
+    !resolveGoalPolicy(p).reduced &&
+    p.seasonPhase !== "transition" &&
+    p.seasonPhase !== "return_injury" &&
+    phase !== "deload" &&
+    phase !== "adaptation" &&
+    (p.age < 18
+      ? p.supervisionLevel === "full"
+      : ["some", "full"].includes(p.supervisionLevel ?? ""))
+  );
+}
 
 /** Evidence identifies an optional conditioning activity, not guaranteed potentiation. */
 export const COACHED_ISOMETRIC_PRIMER = {

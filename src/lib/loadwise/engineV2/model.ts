@@ -1,7 +1,7 @@
 import type { Profile, Readiness, SessionDay } from "../types";
 import { preparationProfile } from "./preparation";
 
-export const ENGINE_VERSION = "ballwise-v2.4";
+export const ENGINE_VERSION = "ballwise-v2.5";
 export type Tier = "foundation" | "development" | "performance";
 export type Role =
   | "knee_strength"
@@ -27,6 +27,8 @@ export type Role =
   | "ball_skill";
 export type SupportRole = "activation" | "recovery" | "mobility" | "skills";
 export interface Dose {
+  /** Intra-set rest is additional to the ordinary between-set rest. */
+  cluster?: { repGroups: number[]; intraRestSeconds: number };
   sets: number;
   reps?: number;
   seconds?: number;
@@ -70,6 +72,8 @@ export interface ExerciseDecision {
   reason: string;
 }
 export interface EngineSession {
+  cycle?: CycleContext;
+  variant?: "full" | "compact";
   runningRecipe?: import("@/lib/running/recipe").RunningRecipe;
   roles: ("strengthA" | "strengthB" | "speed" | "endurance" | SupportRole)[];
   organization?: "straight" | "power_first" | "contrast";
@@ -81,12 +85,22 @@ export interface EngineSession {
   sprintMetres: number;
   phase: "adaptation" | "development" | "peak" | "deload";
 }
+export interface CycleContext {
+  anchorDate: string;
+  weekIndex: number;
+  state: "build" | "review" | "deload" | "reentry";
+  reason: string;
+}
 export interface Issue {
   code: string;
   date?: string;
   message: string;
 }
 export interface EngineOptions {
+  /** Continue the existing cycle when rebuilding or extending a plan. */
+  cycleAnchorDate?: string;
+  previousPlan?: SessionDay[];
+  completions?: Record<string, import("../types").SessionCompletion>;
   expectedPlanId?: string | null;
   startDate: string;
   weeks?: number;

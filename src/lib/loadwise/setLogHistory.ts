@@ -29,6 +29,8 @@ export interface ExerciseSessionLog {
   verification?: {
     expectedSets: number;
     prescriptionKey: string;
+    phase?: "normal" | "reduced";
+    sessionDate?: string;
   };
 }
 
@@ -137,7 +139,12 @@ export function verifyExerciseHistory(
     if (expectedSets < 1) return item;
     return {
       ...item,
-      verification: { expectedSets, prescriptionKey: exercisePrescriptionKey(candidates[0]) },
+      verification: {
+        expectedSets,
+        prescriptionKey: exercisePrescriptionKey(candidates[0]),
+        phase: snapshot.engineV2?.phase === "deload" ? "reduced" : "normal",
+        sessionDate: snapshot.date,
+      },
     };
   });
 }
