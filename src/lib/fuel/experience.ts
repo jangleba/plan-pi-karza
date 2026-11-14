@@ -1,6 +1,7 @@
 import type { FuelLoadBand, FuelMoment } from "./assistant";
 import type { SessionDay, SessionCompletion } from "../loadwise/types";
 import { classifySession } from "../loadwise/sessionClassification";
+import { CLUB_DEFAULT_MINUTES } from "../loadwise/sessionFeedback";
 import { sessionKindFrom } from "./planAdapter";
 import type { SessionKind } from "./types";
 import type { StoreProduct } from "./storeCheck";
@@ -15,6 +16,8 @@ export interface FuelContext {
   load: FuelLoadBand;
   fromPlan: boolean;
   completed?: boolean;
+  /** True when the duration is the planning assumption (club: 90 min), not a measurement. */
+  durationEstimated?: boolean;
   scheduledStartTime?: string | null;
   endedAt?: number | null;
 }
@@ -140,7 +143,12 @@ export function planFuelContexts(
         .filter((s): s is SessionDay => Boolean(s))
         .flatMap((session, index) => {
           const kind = sessionKindFrom(session);
-          if (kind === "none" || !session.durationMin) return [];
+          // A planned club session has no known length: plan with the 90-minute product
+          // assumption (for the day's context only; it is not a completed activity).
+          const clubEstimate =
+            session.dayType === "club" && !session.engineV2 && !session.durationMin;
+          const durationMin = clubEstimate ? CLUB_DEFAULT_MINUTES : session.durationMin;
+          if (kind === "none" || !durationMin) return [];
           const engineLoad = session.engineV2 ? classifySession(session).loadLevel : null;
           return [
             {
@@ -148,7 +156,8 @@ export function planFuelContexts(
               date,
               kind,
               title: session.title || SESSION_LABELS[kind],
-              durationMin: session.durationMin,
+              durationMin,
+              durationEstimated: clubEstimate || undefined,
               load: (engineLoad && engineLoad !== "none"
                 ? engineLoad
                 : kind === "match" || session.intensity === "wysoka"
