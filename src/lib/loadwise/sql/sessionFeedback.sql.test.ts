@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { bootstrapSqlDatabase } from "./schemaHarness";
@@ -137,5 +138,15 @@ describe.sequential("session feedback v1 in the database", () => {
   it("does not let another user's session be written through this owner's feedback", async () => {
     const foreign = uid();
     await expect(save(foreign, 0, done({ feedback_version: 1 }))).rejects.toThrow();
+  });
+
+  it("the read-only readiness script for the target database is valid and all checks pass on the full chain", async () => {
+    const sql = readFileSync(
+      "supabase/verification/engine_v24_session_feedback_readiness.sql",
+      "utf8",
+    );
+    const result = await db.query<{ n: number; check_name: string; ok: boolean }>(sql);
+    expect(result.rows).toHaveLength(11);
+    expect(result.rows.filter((r) => !r.ok).map((r) => r.check_name)).toEqual([]);
   });
 });

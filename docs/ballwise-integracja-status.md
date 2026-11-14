@@ -1,0 +1,15 @@
+# BallWise — status poprawek integracji
+
+Gałąź: `claude/eloquent-brown-b5sfyf` (baza `ec531c7`, V2.5). Wznawiaj od tej tabeli.
+Legenda: **zrobione** = kod + test uruchomiony w tej sesji; **częściowo**; **niewykonane**.
+Migracje: *przygotowane* (plik w repo) ≠ *zastosowane lokalnie* (PGlite w testach) ≠ *potwierdzone na zdalnej bazie* (niewykonane).
+
+| Etap | Stan | Wykonane | Dowód testu | Bloker |
+|---|---|---|---|---|
+| 1 Baza i zapis biegania | częściowo | Migracja V2.4 jest w repo i w łańcuchu testów; nowa migracja `20261114100000` buduje na jej `save_training_log`. Skrypt tylko do odczytu `supabase/verification/engine_v24_session_feedback_readiness.sql` do bazy docelowej. | `runtimeContracts.sql.test.ts` (RPE późne w obu kolejnościach, ponowienia, HIIT 8–9/10, jednokrotność), `sessionFeedback.sql.test.ts` (6, w tym skrypt gotowości) | Baza docelowa: niezweryfikowana, migracje niezastosowane. Brak dostępu. |
+| 2 Tydzień i priorytety | częściowo | Ranking: cel główny przed liczbą zadań; testy granicy niedziela/poniedziałek, okien i poprzedniego planu, 0/1/2 meczów, zmieniony dzień meczu, tylko dwa dni, kompaktowy budżet, wiek 13/16/17/20, ograniczony sprzęt, wspólna data dnia (Warszawa, DST). | `scheduling.test.ts`, `mainGoalPriority.test.ts`, `weekRobustness.test.ts`, `todayIso.test.ts` | Niewykonane: propozycja po zmianie terminu meczu/dni/czasu/sprzętu dla przyszłych sesji (pkt D), „Dziś nie mogę” (pkt F). |
+| 3 Ta sama sesja w planie/szczegółach/liczniku | częściowo | Bez zmian kodu w tej sesji. Istniejące testy V2.4/V2.5 pokrywają wspólną strukturę, snapshot wykonania i blokady. | istniejące `sessionRunner`, `locks`, `FocusedSessionRunner` | Nie wykonano audytu punktów A–I w tej sesji; wymaga przeglądu. |
+| 4 Klub, mecz, korekty | zrobione w kodzie | Pola typowane do zapisu/RPC/odczytu/kolejki/eksportu; formularz; propozycje z akceptacją; klub zamiast dodatkowego biegu jako `external_reported`. | `sessionFeedback*.test.ts`, `feedbackAdjustment.test.ts`, `FeedbackAdjustmentCard.test.tsx`, `SessionCompletion.test.tsx` | Konflikt drugiego urządzenia testowany tylko jednostkowo. Wersja feedbacku to kolumna `feedback_version`, nie `writeVersion`. |
+| 5 Progres, wywiad, kolejny plan | zrobione w kodzie | Podsumuj plan, podsumowanie, 3 kroki, jawne zmiany, podgląd z budżetem i ciągłością cyklu. | `planSummary`, `nextPlanInterview`, `PlanEndSummary`, `-postep.nextplan`, `TrainingPlanScreen` | Porównywalne wyniki siły z serii nie są liczone w podsumowaniu. |
+| 6 MAS, chronologia, sprint | niewykonane | — | — | Cały etap: test MAS w aplikacji, serwerowe przeliczanie chronologiczne, powiązanie czasu sprintu z powtórzeniem. |
+| 7 Spójność ekranów i test całości | częściowo | Dokumentacja silnika zaktualizowana. Plan z `activatePlanV2` jest jednym źródłem dla Startu, Planu, Sesji, Fuel i Progresu. | `docs/training-engine-v2.md` | Fuel: szacowane 90 min klubu nie dodane; test pełnego scenariusza nowego/istniejącego konta, zmiany kont, offline i czas do użytecznego Startu niewykonane; telefon/GPS niewykonane. |
