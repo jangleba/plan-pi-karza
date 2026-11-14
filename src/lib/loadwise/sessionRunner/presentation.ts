@@ -6,6 +6,7 @@ import { parseRestDuration } from "../restTimer";
 import { skipRound } from "../skipRounds";
 import { linkedNextStep } from "../blockMethod";
 import { FUNCTIONAL_CATALOGUE } from "../engineV2/taxonomy";
+import { GYM_EXERCISE_RULES } from "../gymStrengthExercises";
 
 /** What the athlete records or does on the current card. */
 export type TaskKind =
@@ -32,6 +33,7 @@ const isTimedText = (text: string) => /\d\s*(?:s|sek\w*|min\w*)\b/i.test(text);
 
 /** Power, plyometric and landing work is judged by quality, never by reps in reserve. */
 export function isPowerTask(exercise: TrainingExercise): boolean {
+  if (exercise.exerciseId === "gym_step_brake") return true;
   const definition = definitionOf(exercise);
   if (definition && ["power", "plyometric"].includes(definition.category)) return true;
   if (definition && ["ballistic", "impact"].includes(definition.loadingType)) return true;
@@ -52,6 +54,7 @@ export function taskKind(
   const sets = plannedSets(exercise);
   const seconds = exercise.engineDose?.seconds;
   const numericDuration = typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0;
+  if (GYM_EXERCISE_RULES[exercise.exerciseId ?? ""]?.timedDynamic) return "general";
   const isometric =
     definition?.movementPattern === "isometric" ||
     (definition && FUNCTIONAL_CATALOGUE[definition.id]?.contraction === "isometric");

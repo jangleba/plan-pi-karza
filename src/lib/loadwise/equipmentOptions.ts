@@ -13,4 +13,7 @@ export const OWN_EQUIPMENT_OPTIONS = [
   "Ławka",
   "Skrzynia plyometryczna",
   "Piłka lekarska",
+  "Wolna strefa skoków na siłowni 6 × 3 m",
+  "Gumy ze stałym mocowaniem górnym",
+  "Gumy z dolnymi mocowaniami, pasem i mankietami",
 ] as const;

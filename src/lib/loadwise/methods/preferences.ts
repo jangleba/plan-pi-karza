@@ -3,6 +3,9 @@ import type { TrainingMethodPreferences } from "./types";
 
 /** Zapisane w profilu preferencje metod (dane profilu, nie układanie treningu). */
 export const METHOD_SPECIAL_EQUIPMENT = [
+  "gym_jump_lane",
+  "overhead_band_station",
+  "low_band_station",
   "flywheel",
   "fixed_pins",
   "assistance_rig",
@@ -18,9 +21,15 @@ export function normalizeMethodPreferences(raw: unknown): TrainingMethodPreferen
   const r = raw as Record<string, unknown>,
     out: TrainingMethodPreferences = {};
   if (
-    ["auto", "acceleration", "max_velocity", "curve", "braking", "planned_cod", "reactive"].includes(
-      String(r.sprintFocus),
-    )
+    [
+      "auto",
+      "acceleration",
+      "max_velocity",
+      "curve",
+      "braking",
+      "planned_cod",
+      "reactive",
+    ].includes(String(r.sprintFocus))
   )
     out.sprintFocus = r.sprintFocus as TrainingMethodPreferences["sprintFocus"];
   if (r.coachedIsometricPrimer === true) out.coachedIsometricPrimer = true;
@@ -55,6 +64,6 @@ export function normalizeMethodPreferences(raw: unknown): TrainingMethodPreferen
             typeof v === "string" && (METHOD_SPECIAL_EQUIPMENT as readonly string[]).includes(v),
         ),
       ),
-    ].slice(0, 7);
+    ].slice(0, METHOD_SPECIAL_EQUIPMENT.length);
   return out;
 }

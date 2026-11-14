@@ -1,5 +1,6 @@
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import { getExerciseDefinition } from "./exerciseLibrary";
+import { GYM_EXERCISE_RULES } from "./gymStrengthExercises";
 
 /** Rodzaj pomiaru wykonania serii. */
 export type MetricKind = "load" | "time" | "distance" | "contacts" | "hold";
@@ -13,6 +14,13 @@ export interface MetricField {
 
 /** Deterministyczny typ pomiaru wynikający z danych ćwiczenia. */
 export function metricKindForExercise(e: TrainingExercise): MetricKind {
+  if (e.exerciseId === "gym_step_brake") return "contacts";
+  if (GYM_EXERCISE_RULES[e.exerciseId ?? ""]?.timedDynamic) return "time";
+  if (
+    GYM_EXERCISE_RULES[e.exerciseId ?? ""] &&
+    getExerciseDefinition(e.exerciseId!)?.movementPattern === "jump"
+  )
+    return "contacts";
   if (
     e.methodExecution?.mode !== "none" &&
     e.methodExecution?.workSeconds &&

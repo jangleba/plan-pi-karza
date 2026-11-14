@@ -14,6 +14,7 @@ import type { PainLocation } from "./types";
 import { functionalReplacementCompatible } from "./engineV2/taxonomy";
 import { SKIP_GUIDES, SKIP_LANDING } from "./skipGuides";
 import { INDIVIDUAL_FOOTBALL_DRILLS } from "./individualFootballDrills";
+import { GYM_STRENGTH_EXERCISES, GYM_EXERCISE_RULES } from "./gymStrengthExercises";
 import type { ExerciseInstructionStep, ExerciseItem, SessionDay, TrainingExercise } from "./types";
 import type {
   AthleteTrainingProfile,
@@ -102,6 +103,9 @@ export type ParticipantMode = "solo" | "partner" | "small_group" | "team";
 export type SpaceRequirement = "home_small" | "indoor_gym" | "pitch" | "sprint_lane" | "open_field";
 
 export type EquipmentId =
+  | "gym_jump_lane"
+  | "overhead_band_station"
+  | "low_band_station"
   | "barbell"
   | "trap_bar"
   | "rack"
@@ -134,6 +138,21 @@ export interface EquipmentDefinition {
 }
 
 export const EQUIPMENT_REGISTRY: readonly EquipmentDefinition[] = [
+  {
+    id: "gym_jump_lane",
+    displayName: "Wolna strefa skoków na siłowni 6 × 3 m",
+    aliases: ["gym_jump_lane"],
+  },
+  {
+    id: "overhead_band_station",
+    displayName: "Gumy ze stałym mocowaniem górnym",
+    aliases: ["overhead_band_station"],
+  },
+  {
+    id: "low_band_station",
+    displayName: "Gumy z dolnymi mocowaniami, pasem i mankietami",
+    aliases: ["low_band_station"],
+  },
   { id: "flat_markers", displayName: "Płaskie znaczniki", aliases: ["flat_markers", "znaczniki"] },
   { id: "flywheel", displayName: "Urządzenie flywheel", aliases: ["flywheel", "koło zamachowe"] },
   { id: "fixed_pins", displayName: "Stałe piny do izometrii", aliases: ["fixed_pins"] },
@@ -3889,6 +3908,7 @@ const METHOD_SPECIFIC_EXERCISES: ExerciseDefinition[] = [
 ];
 LIBRARY.push(...METHOD_SPECIFIC_EXERCISES);
 LIBRARY.push(...STRENGTH_DOMAIN_EXPANSIONS);
+LIBRARY.push(...GYM_STRENGTH_EXERCISES.map(strengthDomainExercise));
 LIBRARY.push(...PHASE_3A_EXERCISES);
 LIBRARY.push(...FOOTBALL_SPEED_EXERCISES);
 LIBRARY.push(...REQUIRED_FAMILY_EXERCISES);
@@ -5395,6 +5415,13 @@ export function isExerciseAllowedForProfile(
   }
 
   const reasons: string[] = [];
+  const gymRule = GYM_EXERCISE_RULES[def.id];
+  if (gymRule) {
+    if (!a.gymAccess) reasons.push("To ćwiczenie wymaga dostępu do siłowni.");
+    const levels = { beginner: 0, intermediate: 1, advanced: 2, elite: 3 };
+    if ((levels[a.trainingLevel] ?? -1) < levels[gymRule.minLevel])
+      reasons.push("Poziom treningowy zbyt niski dla tego wariantu siłowni.");
+  }
   if (def.draft === true || def.approved === false)
     reasons.push("Ćwiczenie nie jest zatwierdzone do sesji zawodnika.");
   // Skoki bez obciążenia i sprzętu ocenia kontrola ruchu wyniesiona z gry
@@ -5410,6 +5437,7 @@ export function isExerciseAllowedForProfile(
   // Ćwiczenia siłowe z masą ciała bez sprzętu (pompki, przysiady, mostki) też ocenia gra.
   // Biegi i testy maksymalne nadal wymagają jawnej kompetencji.
   const bodyweightOnly =
+    !!gymRule ||
     bodyweightJump ||
     (def.equipmentRequired.length === 0 &&
       def.loadingType === "bodyweight" &&

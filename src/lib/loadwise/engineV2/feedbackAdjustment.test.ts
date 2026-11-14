@@ -6,7 +6,13 @@ import {
   proposeFeedbackAdjustment,
   type AdjustmentProposal,
 } from "./feedbackAdjustment";
-import { generateTrainingPlan, removeOwnSession, validateTrainingPlan } from "./planner";
+import {
+  generateTrainingPlan,
+  removeOwnSession,
+  validateTrainingPlan,
+  placeRecipeOnDate,
+} from "./planner";
+import { fitStrengthToBudget } from "./exercises";
 import { lockedExecutionDays } from "./locks";
 import type { Profile, SessionCompletion, SessionDay } from "../types";
 
@@ -386,11 +392,22 @@ describe("feedback-based adjustment proposals", () => {
 
   it("skips only a session that is not the main goal, and only when nothing lighter exists", () => {
     const speed = { ...base, goal: "speed", secondaryLimiter: "fatigue" } as Profile;
-    const plan = savedPlan(speed);
-    const tue = plan.find((d) => d.date === TODAY)!;
-    const strength = slots(tue).find((s) => s.engineV2?.roles.includes("strengthA"))!;
-    // 28 min: no compact variant exists below 30 min, the reduced route is already reduced
-    strength.engineV2!.minutes = 28;
+    const minimalPlan = (p: Profile) => {
+      const original = savedPlan(p);
+      const source = slots(original.find((d) => d.date === TODAY)!).find((s) =>
+        s.engineV2?.roles.includes("strengthA"),
+      )!;
+      // Use a real minimum compact recipe, not an inconsistent cached duration.
+      const recipe = fitStrengthToBudget(source.engineV2!, 1);
+      const options = { startDate: TODAY, minutesPerSession: 75 };
+      const removed = removeOwnSession(original, source.dbId!, p, options)!;
+      const placed = placeRecipeOnDate(removed, source.date, recipe, p, options);
+      if ("blocked" in placed) throw new Error(placed.blocked.message);
+      placed.session.dbId = source.dbId;
+      expect(placed.session.engineV2!.variant).toBe("compact");
+      return { plan: placed.plan, strength: placed.session };
+    };
+    const { plan, strength } = minimalPlan(speed);
     const proposal = propose(speed, plan, clubDone())!;
     const skip = proposal.changes.find((c) => c.sessionId === strength.dbId)!;
     expect(skip.kind).toBe("skip");
@@ -398,10 +415,7 @@ describe("feedback-based adjustment proposals", () => {
     expect(issuesOf(proposal, speed)).toEqual([]);
     // the same situation with the main goal never skips it
     const strengthGoal = { ...base, secondaryLimiter: "fatigue" } as Profile;
-    const own = savedPlan(strengthGoal);
-    slots(own.find((d) => d.date === TODAY)!).find((s) =>
-      s.engineV2?.roles.includes("strengthA"),
-    )!.engineV2!.minutes = 28;
+    const own = minimalPlan(strengthGoal).plan;
     expect(
       propose(strengthGoal, own, clubDone())?.changes.some((c) => c.kind === "skip") ?? false,
     ).toBe(false);

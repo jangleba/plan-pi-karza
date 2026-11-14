@@ -60,7 +60,7 @@ describe("V2 final training contracts", () => {
     const cards = getAllExerciseDefinitions().filter((e) =>
       ["strength", "power", "plyometric", "tendon_isometric", "trunk"].includes(e.family ?? ""),
     );
-    expect(cards).toHaveLength(104);
+    expect(cards).toHaveLength(113);
     expect(cards.filter((e) => !FUNCTIONAL_CATALOGUE[e.id]).map((e) => e.id)).toEqual([]);
   });
   it("keeps run counter seconds consistent with the planned duration", () => {

@@ -11,6 +11,13 @@ import type { Profile } from "../types";
 import type { Dose, ExerciseDecision, Role, EngineSession } from "./model";
 import { trainingTier, ROLE_NAMES } from "./model";
 import { FUNCTIONAL_CATALOGUE } from "./taxonomy";
+import {
+  gymPowerCandidates,
+  gymPowerDose,
+  gymHamstringSupportCandidates,
+  gymHamstringSupportDose,
+  strengthLandingCount,
+} from "./gymPower";
 import { hasVerifiedAdvancedStrength, preparationProfile } from "./preparation";
 import {
   coachedPrimerDose,
@@ -57,6 +64,7 @@ export const CANDIDATES: Record<Role, readonly string[]> = {
     "heel_dig_hamstring_iso_30",
     "heel_dig_hamstring_iso_90",
   ],
+  hamstring_dynamic_support: ["gym_fast_band_curl", "gym_bridge_pulses"],
   quad_iso: ["split_squat_iso_hold"],
   iso_primer: ["overcoming_pin_squat_primer"],
   adductor: ["copenhagen_plank", "adductor_bridge_squeeze"],
@@ -102,6 +110,9 @@ export function eligibleExercise(id: string, p: Profile): boolean {
           "sliders",
           "med_ball",
           "sled",
+          "gym_jump_lane",
+          "overhead_band_station",
+          "low_band_station",
         ].includes(e),
       )
       .every((e) => equipment.some((value) => (resolveEquipmentId(value) ?? value) === e)) &&
@@ -191,12 +202,34 @@ export function buildStrength(
   // Stable work in weeks 1–3 allows two genuinely comparable exposures before load advice.
   const sets = deload ? (tier === "foundation" ? 1 : 2) : tier === "foundation" ? 2 : 3;
   const add = (role: Role, dose: Dose) => {
-    const id = pick(role, p, variant, used);
+    const preferred =
+      role === "power"
+        ? gymPowerCandidates(p, variant, phase)
+        : role === "hamstring_dynamic_support"
+          ? gymHamstringSupportCandidates(p, phase)
+          : [];
+    const legacy = role === "hamstring_dynamic_support" ? undefined : pick(role, p, variant, used);
+    const preferredId = preferred
+      .filter((id) => id !== "gym_cmj")
+      .find((candidate) => !used.has(candidate) && eligibleExercise(candidate, p));
+    const legacyGymPower =
+      legacy &&
+      getExerciseDefinition(legacy)?.family === "power" &&
+      (getExerciseDefinition(legacy)?.spaceRequirement !== "open_field" || p.hasPitch)
+        ? legacy
+        : undefined;
+    const id =
+      preferredId ??
+      (role === "power" && p.hasGym
+        ? (legacyGymPower ?? (eligibleExercise("gym_cmj", p) ? "gym_cmj" : undefined))
+        : legacy);
     if (!id) {
       missing.push(role);
       return;
     }
     used.add(id);
+    if (role === "power" && id.startsWith("gym_")) dose = gymPowerDose(id, p, phase);
+    if (role === "hamstring_dynamic_support") dose = gymHamstringSupportDose(id, phase);
     if (
       ["knee_strength", "hip_strength"].includes(role) &&
       tier !== "foundation" &&
@@ -243,7 +276,10 @@ export function buildStrength(
     missing.push("iso_primer");
   const powerRole =
     (tier === "foundation" && (!p.movementCompetence || p.movementCompetence === "low")) ||
-    !pick("power", p, variant, used)
+    !(
+      gymPowerCandidates(p, variant, phase).some((id) => eligibleExercise(id, p)) ||
+      pick("power", p, variant, used)
+    )
       ? "landing"
       : "power";
   add(powerRole, {
@@ -252,6 +288,21 @@ export function buildStrength(
     restSeconds: powerRole === "power" && tier !== "foundation" ? 120 : 90,
     intent: powerRole === "landing" ? "controlled" : "explosive",
   });
+  if (
+    p.hasGym &&
+    variant === "B" &&
+    resolveGymBraking(p) &&
+    powerRole === "power" &&
+    eligibleExercise("gym_step_brake", p)
+  ) {
+    exercises.push({
+      exerciseId: "gym_step_brake",
+      role: "landing",
+      dose: { sets: 1, reps: 2, perSide: true, restSeconds: 45, intent: "controlled" },
+      reason:
+        "Przyjęcie obciążenia po kroku i stabilizacja na siłowni. To przygotowanie hamowania, nie sprint ani hamowanie z dużej prędkości.",
+    });
+  }
   add(variant === "A" ? "knee_strength" : "hip_strength", {
     sets,
     reps: tier === "performance" && !preparation.provisional ? 4 : 6,
@@ -284,7 +335,15 @@ export function buildStrength(
       restSeconds: 90,
       intent: "controlled",
     });
-    add("hamstring_iso", { sets: deload ? 1 : 2, seconds: 15, restSeconds: 60, intent: "hold" });
+    if (gymHamstringSupportCandidates(p, phase).some((id) => eligibleExercise(id, p)))
+      add("hamstring_dynamic_support", {
+        sets: 2,
+        seconds: 8,
+        restSeconds: 60,
+        intent: "controlled",
+      });
+    else
+      add("hamstring_iso", { sets: deload ? 1 : 2, seconds: 15, restSeconds: 60, intent: "hold" });
   }
   add(variant === "A" ? "push" : "pull", {
     sets: deload ? 1 : 2,
@@ -363,6 +422,7 @@ export function buildStrength(
     exercises,
     missing,
     sprintMetres: 0,
+    plyometricContacts: strengthLandingCount(exercises),
     minutes: Math.ceil(estimateSessionSeconds(exercises) / 60) + 8,
   };
 }
@@ -400,7 +460,12 @@ export function fitStrengthToBudget(recipe: EngineSession, budget: number): Engi
     if (minutes() > budget) compact.exercises.splice(index, 1);
   }
   compact.minutes = minutes();
+  compact.plyometricContacts = strengthLandingCount(compact.exercises);
   return compact;
+}
+
+function resolveGymBraking(p: Profile): boolean {
+  return p.goal === "agility" || p.secondaryLimiter === "cod";
 }
 
 export function buildRunning(

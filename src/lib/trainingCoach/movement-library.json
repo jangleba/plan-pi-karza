@@ -1,5 +1,5 @@
 {
-  "version": 51,
+  "version": 52,
   "records": [
     {
       "id": "adductor_bridge_squeeze",
@@ -2518,6 +2518,185 @@
       "sourceStatus": "instructional",
       "notes": [
         "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "gym_cmj",
+      "title": "CMJ — skok pionowy na siłowni",
+      "group": "Siłownia — moc i kontrola",
+      "motion": {
+        "family": "gym_jump",
+        "variant": "vertical"
+      },
+      "instructions": [
+        "Sprawdź wolne miejsce nad głową i nieśliską strefę lądowania. Stań obunóż, stopy w wygodnym rozkroku.",
+        "Cofnij biodra i krótko ugnij kolana, po czym płynnie wybij się w górę. Użyj swobodnego zamachu obu ramion.",
+        "Wyląduj obunóż, uginając biodra i kolana. Zatrzymaj pozycję na 2 sekundy; dopiero potem ustaw się do kolejnej próby. Początkowo skacz na wysokość, którą kontrolujesz."
+      ],
+      "scope": "Pokaz ruchu i ustawienia sprzętu. Dawkę określa sesja A/B. Podgląd nie mierzy ani nie potwierdza techniki zawodnika.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Tempo i geometria pokazu są poglądowe. Wykonuj zapisane serie, strony i przerwy; ustawienie mocowań sprawdź według instrukcji."
+      ]
+    },
+    {
+      "id": "gym_cmj_assisted",
+      "title": "CMJ z asystą gum z góry",
+      "group": "Siłownia — moc i kontrola",
+      "motion": {
+        "family": "gym_jump",
+        "variant": "vertical",
+        "equipment": "assist_band"
+      },
+      "instructions": [
+        "Użyj dwóch jednakowych gum przypiętych do przeznaczonego do tego, nieruchomego mocowania nad głową. Sprawdź gumy, wysokość, chwyt i wolne miejsce; stopy mają opierać się stabilnie na podłożu.",
+        "Trzymaj po jednej gumie w każdej dłoni, dłonie wysoko przy głowie, a łokcie w stałym ugięciu. Nie podciągaj się; wybierz lekką asystę, która nie unosi Cię w pozycji stojącej. Nie owijaj gum wokół szyi ani nadgarstków.",
+        "Krótko ugnij biodra i kolana, następnie wybij się pionowo. Wyląduj obunóż i ustabilizuj pozycję na 2 sekundy. Przerwij przy nierównym ciągnięciu lub utracie chwytu; nie puszczaj napiętych gum."
+      ],
+      "scope": "Pokaz ruchu i ustawienia sprzętu. Dawkę określa sesja A/B. Podgląd nie mierzy ani nie potwierdza techniki zawodnika.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Tempo i geometria pokazu są poglądowe. Wykonuj zapisane serie, strony i przerwy; ustawienie mocowań sprawdź według instrukcji."
+      ]
+    },
+    {
+      "id": "gym_cmj_resisted",
+      "title": "CMJ z oporem gum od dołu",
+      "group": "Siłownia — moc i kontrola",
+      "motion": {
+        "family": "gym_jump",
+        "variant": "vertical",
+        "equipment": "resist_band_belt"
+      },
+      "instructions": [
+        "Użyj dwóch jednakowych gum w przeznaczonym do skoków stanowisku z dolnymi, stałymi mocowaniami i pasem biodrowym. Sprawdź mocowania i pas. Nie zastępuj stanowiska gumą luźno przydeptaną ani gumą na karku.",
+        "Ustaw stopy obunóż i symetryczne, lekkie napięcie gum. Krótko ugnij biodra i kolana, następnie wybij się pionowo; opór nie może zatrzymywać płynnego wybicia ani przechylać tułowia.",
+        "Wyląduj obunóż bez szarpnięcia pasa i ustabilizuj pozycję na 2 sekundy. Między próbami ustaw się od nowa. Zakończ serię, jeśli gumy szarpią, pas się przesuwa lub lądowanie przestaje być kontrolowane."
+      ],
+      "scope": "Pokaz ruchu i ustawienia sprzętu. Dawkę określa sesja A/B. Podgląd nie mierzy ani nie potwierdza techniki zawodnika.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Tempo i geometria pokazu są poglądowe. Wykonuj zapisane serie, strony i przerwy; ustawienie mocowań sprawdź według instrukcji."
+      ]
+    },
+    {
+      "id": "gym_broad_jump",
+      "title": "Skok w dal z zatrzymaniem — siłownia",
+      "group": "Siłownia — moc i kontrola",
+      "motion": {
+        "family": "gym_jump",
+        "variant": "broad"
+      },
+      "instructions": [
+        "Przygotuj wolną, nieśliską strefę co najmniej 6 × 3 m. Stań za linią; usuń sprzęt z miejsca lądowania i powrotu.",
+        "Cofnij biodra, wykonaj zamach obu ramion i wybij się obunóż do przodu. Dobierz odległość tak, żeby wylądować stabilnie w wolnej strefie.",
+        "Wyląduj na obu stopach z amortyzacją bioder i kolan. Utrzymaj równowagę przez 2 sekundy, wróć spacerem i ustaw się od nowa. Nie łącz prób w wieloskok."
+      ],
+      "scope": "Pokaz ruchu i ustawienia sprzętu. Dawkę określa sesja A/B. Podgląd nie mierzy ani nie potwierdza techniki zawodnika.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Tempo i geometria pokazu są poglądowe. Wykonuj zapisane serie, strony i przerwy; ustawienie mocowań sprawdź według instrukcji."
+      ]
+    },
+    {
+      "id": "gym_lateral_jump",
+      "title": "Skok w bok obunóż z zatrzymaniem",
+      "group": "Siłownia — moc i kontrola",
+      "motion": {
+        "family": "gym_jump",
+        "variant": "lateral_bilateral"
+      },
+      "instructions": [
+        "Wyznacz wolną, nieśliską strefę 6 × 3 m. Stań obunóż bokiem do kierunku skoku.",
+        "Lekko ugnij biodra i kolana. Wykonaj krótki skok w bok, odrywając obie stopy i lądując obunóż.",
+        "Zatrzymaj lądowanie na 2 sekundy. Każdą próbę rozpocznij od stabilnego ustawienia; wykonaj zapisaną liczbę prób w lewo, a następnie w prawo. To nie są szybkie przeskoki bez zatrzymania."
+      ],
+      "scope": "Pokaz ruchu i ustawienia sprzętu. Dawkę określa sesja A/B. Podgląd nie mierzy ani nie potwierdza techniki zawodnika.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Tempo i geometria pokazu są poglądowe. Wykonuj zapisane serie, strony i przerwy; ustawienie mocowań sprawdź według instrukcji.",
+        "Widok z przodu pokazuje kierunek i podporę. Projekcja nie służy do odczytu kąta zgięcia kolana lub biodra."
+      ]
+    },
+    {
+      "id": "gym_lateral_bound",
+      "title": "Skok w bok jednonóż z zatrzymaniem — siłownia",
+      "group": "Siłownia — moc i kontrola",
+      "motion": {
+        "family": "gym_jump",
+        "variant": "lateral_single",
+        "unilateral": true
+      },
+      "instructions": [
+        "Ustaw wolną, nieśliską strefę 6 × 3 m. Stań na jednej nodze i wybierz krótki dystans, na którym zachowujesz równowagę.",
+        "Odepchnij się w bok i wyląduj na przeciwnej nodze. Cofnij biodra, lekko ugnij kolano i prowadź je zgodnie z kierunkiem stopy.",
+        "Utrzymaj pozycję przez 2 sekundy bez podskakiwania. Wróć spacerem do startu. Zrób wszystkie zapisane próby w jedną stronę, następnie zmień nogę wybicia i kierunek."
+      ],
+      "scope": "Pokaz ruchu i ustawienia sprzętu. Dawkę określa sesja A/B. Podgląd nie mierzy ani nie potwierdza techniki zawodnika.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Tempo i geometria pokazu są poglądowe. Wykonuj zapisane serie, strony i przerwy; ustawienie mocowań sprawdź według instrukcji.",
+        "Widok z przodu pokazuje kierunek i podporę. Projekcja nie służy do odczytu kąta zgięcia kolana lub biodra."
+      ]
+    },
+    {
+      "id": "gym_step_brake",
+      "title": "Krok i zatrzymanie — przygotowanie hamowania",
+      "group": "Siłownia — moc i kontrola",
+      "motion": {
+        "family": "gym_braking",
+        "variant": "step",
+        "unilateral": true
+      },
+      "instructions": [
+        "Wyznacz wolną strefę 6 × 3 m. Zacznij od spokojnego marszu i zostaw miejsce na zatrzymanie oraz powrót.",
+        "Wykonaj dwa krótkie kroki do przodu. Zatrzymaj się na wybranej nodze z lekkim ugięciem biodra i kolana; druga stopa może lekko dotknąć podłoża dla równowagi.",
+        "Utrzymaj zatrzymanie na 2 sekundy, wróć spacerem i powtórz. Po zapisanej liczbie prób zmień nogę zatrzymującą. Nie zwiększaj samodzielnie prędkości do sprintu."
+      ],
+      "scope": "Pokaz ruchu i ustawienia sprzętu. Dawkę określa sesja A/B. Podgląd nie mierzy ani nie potwierdza techniki zawodnika.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Tempo i geometria pokazu są poglądowe. Wykonuj zapisane serie, strony i przerwy; ustawienie mocowań sprawdź według instrukcji."
+      ]
+    },
+    {
+      "id": "gym_fast_band_curl",
+      "title": "Szybkie uginanie kolan z gumą",
+      "group": "Siłownia — moc i kontrola",
+      "motion": {
+        "family": "gym_fast_curl",
+        "variant": "alternating",
+        "cycleMs": 600
+      },
+      "instructions": [
+        "Połóż się przodem na macie. Załóż przeznaczone do tego mankiety z gumami nad kostkami; gumy mają osobne, stabilne dolne mocowania za stopami. Sprawdź ich stan i lekki opór.",
+        "Przy nieruchomych biodrach szybko zginaj i prostuj kolana naprzemiennie w kontrolowanym zakresie. Nie uderzaj piętami o pośladki ani kolanami w przeprost. To ruch dynamiczny, nie utrzymanie izometryczne.",
+        "Pracuj tylko przez czas zapisany w sesji i odpocznij do następnej próby. Zatrzymaj serię, gdy tracisz rytm lub unosisz biodra. Nie zwiększaj oporu kosztem ruchu; kolor gumy nie jest uniwersalnym oznaczeniem siły."
+      ],
+      "scope": "Pokaz ruchu i ustawienia sprzętu. Dawkę określa sesja A/B. Podgląd nie mierzy ani nie potwierdza techniki zawodnika.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Tempo i geometria pokazu są poglądowe. Wykonuj zapisane serie, strony i przerwy; ustawienie mocowań sprawdź według instrukcji."
+      ]
+    },
+    {
+      "id": "gym_bridge_pulses",
+      "title": "Krótkie oscylacje mostu na tył uda",
+      "group": "Siłownia — moc i kontrola",
+      "motion": {
+        "family": "gym_bridge_pulses",
+        "variant": "pulses",
+        "cycleMs": 4000
+      },
+      "instructions": [
+        "Połóż się na plecach, oprzyj pięty na podłożu nieco dalej od bioder niż w zwykłym moście. Ustaw równo miednicę i lekko ugnij kolana.",
+        "Unieś biodra do kontrolowanej wysokości. Wykonuj krótkie, płynne pulsacje bioder w zakresie około 2–3 cm, bez odkładania miednicy i wyginania lędźwi.",
+        "Zakończ po zapisanym czasie lub wcześniej, jeśli zakres ruchu rośnie i tracisz ustawienie. Nie dodawaj gumy, ciężaru ani czasu poza dawką. To pulsacje z ruchem, a nie izometria."
+      ],
+      "scope": "Pokaz ruchu i ustawienia sprzętu. Dawkę określa sesja A/B. Podgląd nie mierzy ani nie potwierdza techniki zawodnika.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Tempo i geometria pokazu są poglądowe. Wykonuj zapisane serie, strony i przerwy; ustawienie mocowań sprawdź według instrukcji."
       ]
     }
   ]

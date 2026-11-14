@@ -51,7 +51,7 @@ const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 describe("complete shared exercise demonstrations", () => {
   it("resolves reviewed demonstrations and explicitly identifies new instruction-only drills", () => {
     const definitions = getApprovedExerciseDefinitions();
-    expect(definitions).toHaveLength(207);
+    expect(definitions).toHaveLength(216);
     for (const definition of definitions) {
       const selection = resolveExerciseAnimation({
         id: definition.id,
