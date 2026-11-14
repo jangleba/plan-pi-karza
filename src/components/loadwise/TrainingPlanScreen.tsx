@@ -153,10 +153,17 @@ export function PlanScreen() {
         todayIso,
       )
     : [];
-  const nextDaysDiff =
+  // The write replaces the plan from today on, so the preview names both the nearest days and
+  // any change further ahead before anything is saved.
+  const allDiff =
     preview?.result && state.plan.length
-      ? windowDiff(effectivePlan, preview.result.plan, todayIso)
+      ? windowDiff(effectivePlan, preview.result.plan, todayIso, 28)
       : [];
+  const nearEnd = new Date(`${todayIso}T12:00:00Z`);
+  nearEnd.setUTCDate(nearEnd.getUTCDate() + 6);
+  const nearLimit = nearEnd.toISOString().slice(0, 10);
+  const nextDaysDiff = allDiff.filter((d) => d.date <= nearLimit);
+  const laterDiff = allDiff.filter((d) => d.date > nearLimit);
   const issues = preview?.result?.issues ?? state.plan[0]?.enginePlanIssues ?? [];
   async function save() {
     if (!preview?.result || !activatePlanV2) return;
@@ -247,11 +254,33 @@ export function PlanScreen() {
                 ))}
               </ul>
             ) : null}
+            {state.plan.length > 0 && preview?.result ? (
+              <p className="text-sm">
+                Zapis zastąpi plan od {todayIso} do {preview.result.plan.at(-1)?.date}. Zmiany:{" "}
+                {nextDaysDiff.length} w najbliższych 7 dniach
+                {laterDiff.length > 0
+                  ? `, ${laterDiff.length} w dalszych tygodniach (poniżej)`
+                  : ", żadnych w dalszych tygodniach"}
+                .
+              </p>
+            ) : null}
             {nextDaysDiff.length > 0 ? (
               <details className="text-sm">
                 <summary>Najbliższe 7 dni · zmiany ({nextDaysDiff.length})</summary>
                 <ul>
                   {nextDaysDiff.map((d) => (
+                    <li key={d.date}>
+                      {d.date}: {d.before} → {d.after}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
+            {laterDiff.length > 0 ? (
+              <details className="text-sm" open>
+                <summary>Dalsze tygodnie · zmiany ({laterDiff.length})</summary>
+                <ul>
+                  {laterDiff.map((d) => (
                     <li key={d.date}>
                       {d.date}: {d.before} → {d.after}
                     </li>

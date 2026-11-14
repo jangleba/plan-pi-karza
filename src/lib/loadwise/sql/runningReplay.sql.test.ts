@@ -4,9 +4,6 @@ import { bootstrapSqlDatabase } from "./schemaHarness";
 
 let db: PGlite;
 const uid = () => crypto.randomUUID();
-const plan = "40000000-0000-4000-8000-000000000001";
-const cycle = "40000000-0000-4000-8000-000000000099";
-const dayId = "20000000-0000-4000-8000-000000000001";
 let owner = "";
 
 const intervals = (count = 4) =>
