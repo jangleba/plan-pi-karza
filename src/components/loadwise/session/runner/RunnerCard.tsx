@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Check, RotateCcw } from "lucide-react";
 import { canonicalExerciseName } from "@/lib/loadwise/sessionPresentation";
 import { linkedLabel } from "@/lib/loadwise/blockMethod";
-import { plannedSets } from "@/lib/loadwise/setLogs";
+import { plannedSets, useExerciseSetLogs } from "@/lib/loadwise/setLogs";
 import {
   occurrenceLogKey,
   type RunnerRow,
@@ -61,7 +61,11 @@ export function rowFacts(row: RunnerRow, kind: TaskKind, linked: boolean): Fact[
   if (isUnilateral(exercise)) facts.push({ label: "Strony", value: "Lewa i prawa" });
   if (exercise.tempo?.trim()) facts.push({ label: "Tempo", value: exercise.tempo.trim() });
   if (rest) facts.push({ label: "Odpoczynek", value: rest.replace(/^Przerwa\s*/, "") });
-  if(exercise.engineDose?.postRestSeconds) facts.push({label:"Po bloku",value:`${exercise.engineDose.postRestSeconds/60} min odpoczynku`});
+  if (exercise.engineDose?.postRestSeconds)
+    facts.push({
+      label: "Po bloku",
+      value: `${exercise.engineDose.postRestSeconds / 60} min odpoczynku`,
+    });
   return facts;
 }
 
@@ -122,6 +126,8 @@ export function RunnerCard({
   onComplete,
   onUndo,
   onUnskip,
+  roundSet,
+  onRoundComplete,
 }: {
   row: RunnerRow;
   step: RunnerStep;
@@ -139,6 +145,8 @@ export function RunnerCard({
   onComplete: () => Promise<boolean>;
   onUndo: () => void;
   onUnskip: () => void;
+  roundSet?: number;
+  onRoundComplete?: () => Promise<boolean>;
 }) {
   const { exercise, block, section } = row;
   const kind = taskKind(exercise, section, sessionKind);
@@ -247,16 +255,21 @@ export function RunnerCard({
             logKey={logKey}
             kind={table}
             sets={sets}
+            onlySetNumber={roundSet}
             withRir={Boolean(effortLine(exercise, kind)?.startsWith("Zapas"))}
             unilateral={isUnilateral(exercise)}
             canRecord
             onSetSaved={(_, savedCount, isNew, next) => {
               if (!isNew) return;
+              if (roundSet && onRoundComplete) {
+                void onRoundComplete();
+                return;
+              }
               if (savedCount >= sets.max) void finish();
               else onSetDone(next);
             }}
             finishing={finishing}
-            onFinish={() => void finish()}
+            onFinish={() => void (roundSet && onRoundComplete ? onRoundComplete() : finish())}
             restNote={restAfterSave}
             docked={!linked}
             title={
@@ -288,6 +301,13 @@ export function RunnerCard({
             }
           />
         </>
+      ) : roundSet && onRoundComplete ? (
+        <PowerContrastSet
+          row={row}
+          sessionId={sessionId}
+          setNumber={roundSet}
+          onComplete={onRoundComplete}
+        />
       ) : (
         <BoutControls
           scope={scope}
@@ -315,6 +335,68 @@ export function RunnerCard({
         </BoutControls>
       )}
     </article>
+  );
+}
+
+/** A power set records an explicit completion, never an invented height, force or RIR. */
+function PowerContrastSet({
+  row,
+  sessionId,
+  setNumber,
+  onComplete,
+}: {
+  row: RunnerRow;
+  sessionId?: string | null;
+  setNumber: number;
+  onComplete: () => Promise<boolean>;
+}) {
+  const logs = useExerciseSetLogs(sessionId, occurrenceLogKey(row));
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState<string | null>(null);
+  const lock = useRef(false);
+  const saved =
+    logs.current[setNumber]?.metricKind === "completion" &&
+    logs.current[setNumber]?.metricValue === 1;
+  async function confirm() {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      const ok =
+        saved ||
+        (await logs.saveSet({
+          setNumber,
+          exerciseName: row.exercise.name,
+          weightKg: null,
+          reps: null,
+          rir: null,
+          metricKind: "completion",
+          metricValue: 1,
+        }));
+      if (!ok || !(await onComplete())) setError("Nie zapisano serii. Spróbuj ponownie.");
+    } catch {
+      setError("Nie zapisano serii. Spróbuj ponownie.");
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
+  return (
+    <div>
+      <p>
+        Seria {setNumber} z {plannedSets(row.exercise)} · {row.exercise.reps} powt.
+      </p>
+      {error && <p role="alert">{error}</p>}
+      <button
+        type="button"
+        className="bw-runner-primary"
+        disabled={busy || logs.loading}
+        onClick={() => void confirm()}
+      >
+        {busy ? "Zapisuję…" : saved ? "Seria zapisana — kontynuuj rundę" : "Seria skoków wykonana"}
+      </button>
+    </div>
   );
 }
 

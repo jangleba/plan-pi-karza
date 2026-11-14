@@ -8,6 +8,7 @@ import { recipeTotalSeconds, type RunningRecipe, type RunIntensity } from "@/lib
 import type { Profile } from "../types";
 import { eligibleExercise } from "./exercises";
 import { trainingTier, type EngineSession } from "./model";
+import { runningCalibrationKey } from "./runningCalibrationKey";
 
 function validDate(value: string): boolean {
   const date = value.slice(0, 10);
@@ -216,6 +217,7 @@ export function buildEnduranceForDate(
   }
   const block = recipe.blocks[0];
   return {
+    runningCalibrationKey: runningCalibrationKey(p),
     roles: ["endurance"],
     tier: trainingTier(p),
     phase,

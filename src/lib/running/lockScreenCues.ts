@@ -42,21 +42,31 @@ export function planLockScreenCues(
   protocol: RunningIntervalProtocol,
   guideElapsedSec: number,
   nowMs: number,
+  options: { masTrialStarted?: boolean } = {},
 ): PlannedCue[] {
   const { totalSec } = stepBoundaries(protocol);
   const ahead = crossedSteps(protocol, guideElapsedSec, totalSec);
-  return ahead.slice(0, MAX_CUES).map(({ index, endSec }, order) => {
-    const next = protocol.steps[index + 1] ?? null;
-    const rep = repLabel(next);
-    return {
-      id: RUN_CUE_ID_MIN + order,
-      at: Math.round(nowMs + (endSec - guideElapsedSec) * 1000),
-      title: next ? stageLabel(next) : "Koniec biegu",
-      body: next
-        ? [rep, next.target.label, next.effort?.label].filter(Boolean).join(" · ")
-        : "Zakończ zapis w aplikacji.",
-    };
-  });
+  const mas = protocol.recipeId?.startsWith("v2:mas-test:") === true;
+  const gate = protocol.steps.findIndex((s) => s.phase === "main");
+  // A manual readiness gate is not a timed step. Only the completed countdown can start trial cues.
+  return ahead
+    .filter((s) => !mas || options.masTrialStarted || s.index < gate)
+    .slice(0, MAX_CUES)
+    .map(({ index, endSec }, order) => {
+      const next = protocol.steps[index + 1] ?? null;
+      const ready = mas && !options.masTrialStarted && index + 1 === gate;
+      const rep = repLabel(next);
+      return {
+        id: RUN_CUE_ID_MIN + order,
+        at: Math.round(nowMs + (endSec - guideElapsedSec) * 1000),
+        title: ready ? "Rozgrzewka zakończona" : next ? stageLabel(next) : "Koniec biegu",
+        body: ready
+          ? "Wróć do aplikacji. Rozpocznij próbę po potwierdzeniu gotowości i odliczaniu."
+          : next
+            ? [rep, next.target.label, next.effort?.label].filter(Boolean).join(" · ")
+            : "Zakończ zapis w aplikacji.",
+      };
+    });
 }
 
 let queue: Promise<unknown> = Promise.resolve();

@@ -1,7 +1,7 @@
 import type { Profile, Readiness, SessionDay } from "../types";
 import { preparationProfile } from "./preparation";
 
-export const ENGINE_VERSION = "ballwise-v2.6";
+export const ENGINE_VERSION = "ballwise-v2.7";
 export type Tier = "foundation" | "development" | "performance";
 export type Role =
   | "knee_strength"
@@ -27,6 +27,8 @@ export type Role =
   | "ball_skill";
 export type SupportRole = "activation" | "recovery" | "mobility" | "skills";
 export interface Dose {
+  sequence?: { distanceM: number; runOutM: number; instruction: string }[];
+  sequenceStep?: { round: number; rounds: number; attempt: number; attempts: number };
   speedStage?:
     "preparation" | "technical" | "buildup" | "resisted" | "main" | "addition" | "cooldown";
   circuit?: {
@@ -95,6 +97,7 @@ export interface ExerciseDecision {
   reason: string;
 }
 export interface EngineSession {
+  runningCalibrationKey?: string;
   sprintRecipeVersion?: 1;
   sprintGoal?: SprintGoal;
   /** Which qualified variant and drill set were chosen when the plan was saved, and why. */
@@ -139,6 +142,8 @@ export interface EngineOptions {
   completions?: Record<string, import("../types").SessionCompletion>;
   expectedPlanId?: string | null;
   startDate: string;
+  /** Actual decision date when recalibrating an existing window without moving its boundaries. */
+  asOfDate?: string;
   weeks?: number;
   minutesPerSession?: number;
   readiness?: Record<string, Readiness>;

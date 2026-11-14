@@ -11,6 +11,7 @@ import type { LoadwiseState } from "./types";
 import type { EngineResult } from "./engineV2/model";
 
 import { loadV2Plan } from "./engineV2/persistence";
+import { useRunningCalibration } from "./store/useRunningCalibration";
 
 import { resolveEffectivePlan } from "./effectivePlan";
 
@@ -64,6 +65,14 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   };
   useOfflineTrainingSync(user, { setState: guardedSetState });
   usePersistedState(user, hydrated && !syncing, state);
+  useRunningCalibration({
+    ownerId: user?.id,
+    ready: hydrated && !syncing && !profileSaveStage,
+    state,
+    getState: () => stateRef.current,
+    setState: guardedSetState,
+    todayIso,
+  });
   const profileActions = createProfileActions({
     ...context,
     profileSaveRefs,

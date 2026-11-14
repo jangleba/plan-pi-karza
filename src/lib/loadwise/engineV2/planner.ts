@@ -162,9 +162,17 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
       restAfterExercise: `${d.restSeconds} s`,
       rir: d.rir === undefined ? undefined : String(d.rir),
       purpose: e.reason,
+      instructionSteps:
+        d.speedStage &&
+        !["preparation", "cooldown"].includes(d.speedStage) &&
+        (!d.circuit || e.exerciseId === "dribble_to_sprint_transition")
+          ? [{ title: "Wykonanie wariantu", description: e.reason }]
+          : undefined,
       label: d.circuit
         ? `Runda ${d.circuit.round}/${d.circuit.rounds} · ćwiczenie ${d.circuit.task}/3`
-        : undefined,
+        : d.sequenceStep
+          ? `Runda ${d.sequenceStep.round}/${d.sequenceStep.rounds} · odcinek ${d.sequenceStep.attempt}/${d.sequenceStep.attempts}`
+          : undefined,
       engineDose: d,
       progressionPhase: recipe.phase === "deload" ? "reduced" : "normal",
       methodExecution: d.cluster
@@ -238,6 +246,7 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
         ...primary,
         title: "Siła i moc",
         blockType: "contrast" as const,
+        executionProtocol: "contrast-rounds-v1" as const,
         exercises: [...primary.exercises, ...power.exercises],
         restAfterBlock: primary.exercises[0].restAfterExercise,
       };

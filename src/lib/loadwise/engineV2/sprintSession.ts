@@ -120,7 +120,11 @@ export function buildSprintSession(
   const group =
     goal === "acceleration" ? "start" : goal === "max_velocity" ? "max_velocity" : "directional";
   const sets = DRILL_SETS.filter(
-    (d) => d.groups.includes(group) && (!d.wall || hasWall) && d.drills.every(eligible),
+    (d) =>
+      d.groups.includes(group) &&
+      (!d.wall || hasWall) &&
+      (!d.spaceM || env.space >= d.spaceM) &&
+      d.drills.every(eligible),
   ).sort((a, b) => Number(!!b.wall && hasWall) - Number(!!a.wall && hasWall));
   const forcedSet = context.force && sets.find((d) => d.id === context.force!.drillSetId);
   const chosenSet = forcedSet
@@ -140,12 +144,23 @@ export function buildSprintSession(
       {
         sets: rounds,
         seconds: 12,
+        ...(exerciseId === "dribble_to_sprint_transition"
+          ? {
+              seconds: undefined,
+              reps: 1,
+              distanceM: 20,
+              fastMetres: 10,
+              runOutM: 10,
+            }
+          : {}),
         restSeconds: 30,
         intent: "controlled",
         speedStage: "technical",
         circuit: { id: "sprint-technique-v1", roundRestSeconds: 60 },
       },
-      `${rounds} rundy tych samych trzech ćwiczeń w kolejności 1 → 2 → 3. Każde 12 s, 30 s na zmianę ćwiczenia i 60 s po rundzie. Kontrola przed tempem.`,
+      exerciseId === "dribble_to_sprint_transition"
+        ? "10 m niskiego drobienia, płynnie 10 m przyspieszenia i wolna strefa 10 m do wyhamowania. Jedna próba w każdej rundzie; 30 s na zmianę ćwiczenia i 60 s po rundzie."
+        : `${rounds} rundy tych samych trzech ćwiczeń w kolejności 1 → 2 → 3. Każde 12 s, 30 s na zmianę ćwiczenia i 60 s po rundzie. Kontrola przed tempem.`,
     );
   add(
     "progressive_build_up_sprint",

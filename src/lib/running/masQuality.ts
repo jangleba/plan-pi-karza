@@ -1,5 +1,6 @@
 import { samplesFromRoute, distanceAt } from "./liveMetrics";
-import type { RunningActivity, RunningIntervalResult } from "./types";
+import type { RunningActivity, RunningActivityDraft, RunningIntervalResult } from "./types";
+import { withMeasuredDistance } from "./intervals";
 
 /** GPS acceptance thresholds are product heuristics, not validation of a clinical MAS test. */
 export const MAS_GPS_POLICY = {
@@ -134,4 +135,46 @@ export function masEvidenceProblem(e: MasTestEvidence | null | undefined): strin
 
 export function verifiedMasKmh(e: MasTestEvidence | null | undefined): number | null {
   return masEvidenceProblem(e) ? null : Math.round((e!.distanceM / 300) * 360) / 100;
+}
+
+/** A full trace wins; a recovered review may use its frozen, coordinate-free proof only. */
+export function resolveMasEvidence(
+  activity: Pick<RunningActivity, "route" | "source" | "intervalResults"> &
+    Partial<Pick<RunningActivity, "masTestEvidence">>,
+  interrupted = false,
+): MasTestEvidence | null {
+  if (activity.route.length)
+    return measureMasEvidence(
+      activity,
+      interrupted || activity.masTestEvidence?.interrupted === true,
+    );
+  const evidence = activity.masTestEvidence;
+  const trial = masTrial(activity.intervalResults);
+  if (
+    activity.source !== "gps" ||
+    !evidence ||
+    !trial ||
+    evidence.recipeId !== trial.recipeId ||
+    evidence.startElapsedSec !== trial.startElapsedSec ||
+    Math.abs(evidence.distanceM - trial.distanceM) > 0.1
+  )
+    return null;
+  return { ...evidence, interrupted: interrupted || evidence.interrupted };
+}
+
+/** Freeze proof before a journal intentionally drops coordinates. Never invent missing proof. */
+export function freezeMasReview(
+  draft: RunningActivityDraft,
+  interrupted = false,
+): RunningActivityDraft {
+  const evidence = resolveMasEvidence(draft, interrupted);
+  return {
+    ...draft,
+    masTestEvidence: evidence,
+    intervalResults: draft.intervalResults.map((r) =>
+      r.phase === "main" && r.completed && evidence
+        ? withMeasuredDistance(r, evidence.distanceM)
+        : r,
+    ),
+  };
 }

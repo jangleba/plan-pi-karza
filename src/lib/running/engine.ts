@@ -244,9 +244,11 @@ export function fieldMasFromActivity(
     : activity.masTestEvidence;
   const trial = masTrial(activity.intervalResults);
   if (
+    (activity.source !== undefined && activity.source !== "gps") ||
     !trial ||
     !evidence ||
     trial.recipeId !== evidence.recipeId ||
+    trial.startElapsedSec !== evidence.startElapsedSec ||
     Math.abs(trial.distanceM - evidence.distanceM) > 0.1 ||
     activity.durationSec < evidence.startElapsedSec + 300
   )

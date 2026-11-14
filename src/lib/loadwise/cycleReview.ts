@@ -36,6 +36,8 @@ export interface PlannedOwnSession {
 
 export interface StrengthSetEntry {
   exerciseKey: string;
+  /** Proven by the completed execution snapshot; unknown legacy rows cannot prove a trend. */
+  prescriptionKey?: string;
   date: string;
   weightKg: number | null;
   reps: number | null;
@@ -187,10 +189,12 @@ export function strengthChanges(
   const byExercise = new Map<string, Map<string, number>>();
   for (const set of sets) {
     if (!inRange(set.date, start, end)) continue;
+    if (!set.prescriptionKey) continue;
     if (!set.weightKg || set.weightKg <= 0 || !set.reps || set.reps < 1 || set.reps > 12) continue;
-    const days = byExercise.get(set.exerciseKey) ?? new Map<string, number>();
+    const key = `${set.exerciseKey}|${set.prescriptionKey}`;
+    const days = byExercise.get(key) ?? new Map<string, number>();
     days.set(set.date, Math.max(days.get(set.date) ?? 0, e1rm(set.weightKg, set.reps)));
-    byExercise.set(set.exerciseKey, days);
+    byExercise.set(key, days);
   }
   const result: TestChangeSummary = { improved: 0, declined: 0, flat: 0 };
   for (const days of byExercise.values()) {

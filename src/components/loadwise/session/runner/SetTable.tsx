@@ -91,6 +91,7 @@ export function SetTable({
   facts = null,
   restNote = false,
   docked = false,
+  onlySetNumber,
 }: {
   exercise: TrainingExercise;
   sessionId?: string | null;
@@ -118,6 +119,8 @@ export function SetTable({
   restNote?: boolean;
   /** The save button sticks to the bottom of the screen (single exercise). */
   docked?: boolean;
+  /** A contrast coordinator owns the round; the real set number remains the log identity. */
+  onlySetNumber?: number;
 }) {
   const { user } = useAuth();
   const logs = useExerciseSetLogs(sessionId, logKey);
@@ -150,7 +153,7 @@ export function SetTable({
       .map(Number)
       .filter((n) => n <= 20),
   );
-  const numbers = Array.from({ length: total }, (_, i) => i + 1);
+  const numbers = onlySetNumber ? [onlySetNumber] : Array.from({ length: total }, (_, i) => i + 1);
   const savedCount = numbers.filter((n) => current[n]).length;
   const nextOpen = numbers.find((n) => !current[n]) ?? null;
   const metricKind = kind === "hold" ? "hold" : "load";
@@ -434,20 +437,27 @@ export function SetTable({
               Anuluj
             </button>
           )}
-          {onFinish && canRecord && editing === null && savedCount >= Math.max(1, sets.min) && (
-            <button
-              type="button"
-              className={active === null ? "bw-runner-primary" : "bw-set-dock-link"}
-              disabled={finishing}
-              onClick={onFinish}
-            >
-              {finishing
-                ? "Zapisuję…"
-                : savedCount >= sets.max
-                  ? "Oznacz jako wykonane"
-                  : `Zakończ po ${savedCount} ${savedCount === 1 ? "serii" : "seriach"}`}
-            </button>
-          )}
+          {onFinish &&
+            canRecord &&
+            editing === null &&
+            (onlySetNumber
+              ? Boolean(current[onlySetNumber])
+              : savedCount >= Math.max(1, sets.min)) && (
+              <button
+                type="button"
+                className={active === null ? "bw-runner-primary" : "bw-set-dock-link"}
+                disabled={finishing}
+                onClick={onFinish}
+              >
+                {finishing
+                  ? "Zapisuję…"
+                  : onlySetNumber
+                    ? "Seria zapisana — kontynuuj rundę"
+                    : savedCount >= sets.max
+                      ? "Oznacz jako wykonane"
+                      : `Zakończ po ${savedCount} ${savedCount === 1 ? "serii" : "seriach"}`}
+              </button>
+            )}
         </div>
       </Docked>
     </div>

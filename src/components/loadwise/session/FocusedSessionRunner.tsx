@@ -33,6 +33,7 @@ import { DockSlot } from "./runner/Dock";
 import { RowPlan, RunnerCard, type RowStatus } from "./runner/RunnerCard";
 import { HowToPanel } from "./runner/HowToSection";
 import { SessionPlanList } from "./runner/SessionPlanList";
+import { ContrastRounds } from "./runner/ContrastRounds";
 import "./runner/session-runner.css";
 
 export interface StartAction {
@@ -636,6 +637,20 @@ export function FocusedSessionRunner({
                 }}
               />
             </article>
+          ) : step.kind === "linked" &&
+            step.rows[0].block.executionProtocol === "contrast-rounds-v1" ? (
+            <ContrastRounds
+              step={step}
+              scope={scope}
+              sessionId={sessionId}
+              date={date}
+              sessionKind={kind}
+              mark={(row) => mark(row, true)}
+              onRest={(seconds, label, final) =>
+                startRest(seconds, label, final ? {} : { stepKey: step.key })
+              }
+              onNext={() => (isLast ? onFinish() : go(index + 1))}
+            />
           ) : step.kind === "linked" ? (
             <section className="bw-runner-linked" aria-label={method?.name}>
               {step.rows.map((row) => cardFor(row, true))}
