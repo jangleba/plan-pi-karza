@@ -1,4 +1,4 @@
-# BallWise — silnik treningowy V2.3
+# BallWise — silnik treningowy V2.4
 
 Kod do zastosowania i integracji, bez ponownego projektowania przez Claude. Nowy generator nie przywraca usuniętego silnika. Dla zawodników od 13 lat tworzy podgląd 1–4 tygodni, zapisuje go dopiero po świadomej akcji zawodnika i odtwarza zatwierdzony zapis. Nie generuje ani nie zapisuje planu przy każdym wejściu do aplikacji.
 
@@ -15,6 +15,7 @@ Kod do zastosowania i integracji, bez ponownego projektowania przez Claude. Nowy
 - `support.ts`: aktywacja przed meczem, mobilność z wybranym obszarem, spokojny ruch/oddech i indywidualna technika z piłką.
 - `validation.ts`: niezależnie przelicza dawki, czas, metry i obciążenie; sprawdza funkcję ćwiczenia, reprezentację wykonania i limity. Jest walidatorem, a nie drugim generatorem naprawiającym wynik po cichu.
 - `progression.ts`: propozycja ciężaru na podstawie potwierdzonej historii. `activation.ts`, `persistence.ts` i `locks.ts`: zapis, kontrola wersji oraz zachowanie wykonania.
+- `planStatus.ts`: stan pustego, aktualnego, zakończonego lub wymagającego aktualizacji planu oraz warunki nowego rozpoczęcia sesji.
 
 ## Zawodnik i tydzień
 
@@ -76,6 +77,24 @@ Podgląd pamięta identyfikator planu zaobserwowany podczas jego budowania, rów
 
 Limit czasu sesji jest częścią wyniku i zapisanego planu; po odczycie ekran przywraca zapisany limit. Zatwierdzanie ponownie waliduje go zamiast używać innego domyślnego budżetu. Połączony sprint + siła mieści się w jednym limicie, a dwie osobne sesje mają osobne limity — nie jest to deklaracja łącznego dziennego czasu zawodnika.
 
-Rozpoczęte i ukończone wykonania pozostają zamrożone podczas przebudowy. Nieudany zapis nie staje się sukcesem w UI. Poprzednie zapisy V2.1/V2.2 można odczytać; nie są automatycznie przebudowywane przy starcie. Nieznana nowsza wersja i uszkodzona struktura nie są po cichu nadpisywane. Starych modyfikacji i zamienników nie nakłada się na niepowiązany nowy dzień lub odmienną dawkę.
+Rozpoczęte i ukończone wykonania pozostają zamrożone podczas przebudowy. Nieudany zapis nie staje się sukcesem w UI. Poprzednie zapisy V2.1–V2.3 można odczytać; nowy start własnej sesji ze starszej wersji wymaga aktualnego podglądu i zapisu, a istniejący zapis wykonania pozostaje dostępny. Nieznana nowsza wersja i uszkodzona struktura nie są po cichu nadpisywane. Starych modyfikacji i zamienników nie nakłada się na niepowiązany nowy dzień lub odmienną dawkę.
+
+## Integracja wykonania w V2.4
+
+- Start korzysta z tego samego efektywnego planu co widok sesji. Po ukończeniu pierwszego slotu wskazuje drugi. Pusty plan, koniec zapisanego okna i zmiana ustawień/wersji mają osobne stany. Kolejny podgląd zaczyna się od aktualnej daty; samo otwarcie aplikacji nie generuje ani nie zapisuje następnych 28 dni.
+- Nowe rozpoczęcie sprawdza aktualną sesję, datę, wersję, ustawienia i jawne ograniczenia. Zapisane symptomy nie są unieważniane dobrym wynikiem ogólnym; dane zdrowotne są używane zgodnie ze zgodą. Nie dodano obowiązkowych pytań zdrowotnych ani nowego check-inu w Start. Historyczne dane check-inu są obsługiwanym wejściem, nie reklamą dostępnego formularza.
+- Serwer dodatkowo odrzuca nowy start sesji z zastąpionego planu, także gdy drugie urządzenie nie odświeżyło jeszcze lokalnych danych. Kontrola jest serializowana z zapisem planu. Rozpoczęte wykonanie i późniejsze wpisy historyczne pozostają dostępne.
+- Zgłoszenie braku sprzętu w V2 wymaga aktualnego podglądu, który dobiera łącznie ćwiczenia i liczbowe dawki. Nie nakłada się starszego mechanizmu pojedynczej podmiany na zapisany protokół V2. Komunikat prowadzi do planu; zamienniki starszych sesji zachowują dotychczasowe działanie.
+- Pochodne wyniki MAS i poziomu biegania nie oznaczają zmiany wyborów treningowych. Nie przebudowują zapisanych dawek ani nie blokują kolejnej sesji tylko przez zmianę wyniku. Uwzględnia je następny świadomie przygotowany podgląd; kontrola aktualności już otwartego podglądu nadal obejmuje pełne dane wejściowe.
+- Własne sesje V2 bez biegu wykonuje istniejący runner z zapisanych `structuredSections`. Mobilność i spokojny ruch nie są zastępowane nowym protokołem RecoveryCoach; ten mechanizm pozostaje dla starszych sesji bez receptury V2. Zmiana obszaru mobilności w profilu nie przepisuje wykonania. Podgląd biegu, GPS i licznik bez GPS otrzymują tę samą zapisaną recepturę; ekran nie układa jej ponownie po wejściu.
+- Zwykłe utrzymanie izometryczne ma zapis faktycznie wykonanych sekund, także gdy karta ma szeroką kategorię prehab. Eksplozywny primer pozostaje stałym protokołem czasowym z 60/300 s odpoczynku, bez zamiany na tabelę kilogramów/RIR lub automatyczną progresję utrzymania.
+
+Aktualizacja biegowego poziomu wymaga ukończonej sesji, zapisanego wyniku oraz niepustego RPE. Oba zapisy mogą dotrzeć w różnej kolejności; zastosowanie wyniku jest jednorazowe, a brak RPE pozostawia go oczekującym. Dla rozpoznanej zapisanej receptury krótkiego HIIT 60/60 s z celem RPE 8–9 samo osiągnięcie tej trudności nie oznacza porażki ani podstawy zwiększenia poziomu. RPE 10, nieukończona lub nierówna praca nadal podlegają regułom obniżenia. Nie odtwarza się ponownie historii już wykorzystanej do progresji.
+
+Ta część wymaga zastosowania migracji `supabase/migrations/20261113202126_engine_v24_running_feedback.sql` wraz z jej wcześniejszymi zależnościami. Sam plik SQL i testy kodu nie dowodzą wykonania migracji na docelowej bazie. Po zastosowaniu trzeba sprawdzić obie kolejności zapisu, późniejsze RPE i powtórzenie żądania na środowisku testowym; dopiero wtedy można potwierdzić działanie zapisu bazodanowego.
+
+Pozostają granice produktu: po deloadzie kolejny blok nadal wymaga jawnego podglądu; nie ma wyuczonego przekazania obciążeń między cyklami, automatycznej progresji trudności ćwiczeń z masą ciała ani osobnej pętli progresji mocy/sprintu z wyników sportowych. Bez wiarygodnego dystansu/tempa licznik bez GPS dostarcza czasy, a nie dowód utrzymania tempa. Ta poprawka nie obejmuje testu biegu z GPS w terenie ani integracji i weryfikacji urządzeń ubieralnych.
+
+Wyniki Lab/IQ nie zmieniają automatycznie dawki fizycznej. Przed adaptacją ze sprintowych pomiarów trzeba dodatkowo ujednolicić przypisanie czasu do konkretnego powtórzenia i rodzaju startu. Serwer nie odtwarza chronologicznie całej historii, gdy kilka różnych biegów zostanie przesłanych poza kolejnością; aktualizacja zachowuje tę dotychczasową politykę oraz już zużyte decyzje.
 
 Testy obejmują kontrakty planowania, niezależne przeliczenia, niekorzystne kalendarze, granice wieku/przygotowania/sprzętu, protokoły ISO, źródło MAS, blokady wykonania, konflikt wersji, podgląd i odczyt. Wyniki wykonanych kontroli oraz ewentualne wcześniejsze błędy repozytorium należy dołączyć do paczki osobno; nie ukrywać ich przez usuwanie testów. Testy programu i build nie potwierdzają skuteczności sportowej. Nie deklarujemy wykonania testu w prawdziwej przeglądarce, na żywej bazie lub klinicznej walidacji, jeśli nie zostały wykonane. Silnik nie układa automatycznie rehabilitacji.

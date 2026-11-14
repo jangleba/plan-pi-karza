@@ -1154,6 +1154,15 @@ export type Database = {
         Args: { current_level: number; results: Json; rpe: number }
         Returns: number
       }
+      next_running_level_for_session: {
+        Args: {
+          current_level: number
+          execution_snapshot: Json
+          results: Json
+          rpe: number
+        }
+        Returns: number
+      }
       persist_training_plan_atomic: {
         Args: {
           p_days: Json

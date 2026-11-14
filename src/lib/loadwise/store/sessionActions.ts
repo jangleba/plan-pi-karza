@@ -1,5 +1,6 @@
-import { trainingProfileRevision } from "../planIdentity";
+import { sessionPrescription, trainingProfileRevision } from "../planIdentity";
 import { resolveEffectivePlan } from "../effectivePlan";
+import { sessionStartIssue } from "../engineV2/planStatus";
 import { supabase } from "@/integrations/supabase/client";
 import { assertNoSupabaseError } from "@/integrations/supabase/errors";
 import type { Json } from "@/integrations/supabase/types";
@@ -11,6 +12,7 @@ import { waitForPlanWrites } from "./planWriteGuard";
 import type { Profile, SessionCompletion, SessionDay, SessionHistoryRecord } from "../types";
 import {
   findSessionByDbId,
+  applyExerciseReplacements,
   historyCategoryOf,
   mapCompletionRows,
   rowToRunningActivity,
@@ -75,7 +77,7 @@ export function createSessionActions(
     }
     const profile = derivedProfile(before, row);
     if (trainingProfileRevision(before) === trainingProfileRevision(profile)) return;
-    // Wynik (np. MAS) aktualizuje profil; tygodnia nie przeliczamy — silnik usunięty.
+    // Results update the input for the next preview; a saved prescription stays intact.
     setState((s) => (s.profile === before ? { ...s, profile } : s));
   }
 
@@ -84,13 +86,29 @@ export function createSessionActions(
     if (!user || !sid) throw new Error("Nie można rozpocząć tej sesji.");
     // A plan shown right after login or onboarding may still be on its way to the server.
     await waitForPlanWrites(user.id);
-    if (session.loadLabelOverride === "Wstrzymaj trening")
-      throw new Error("Ta sesja została wstrzymana ze względów ostrożnościowych.");
-    const existing = latest().completions[sid];
+    const before = latest();
+    const existing = before.completions[sid];
     if (existing?.completed || existing?.status === "started") return;
+    const linked = findSessionByDbId(
+      resolveEffectivePlan(before.plan, before.modifications, { completions: before.completions }),
+      sid,
+    );
+    const currentSession = linked
+      ? applyExerciseReplacements(linked, before.exerciseReplacements[linked.date] ?? [])
+      : session;
+    if (session.engineV2 && (!linked || sessionPrescription(currentSession) !== sessionPrescription(session)))
+      throw new Error("Plan zmienił się. Otwórz aktualną sesję przed rozpoczęciem treningu.");
+    const issue = sessionStartIssue({
+      session: currentSession,
+      profile: before.profile,
+      readiness: before.readiness[currentSession.date],
+      todayIso: context.todayIso,
+      completion: existing,
+    });
+    if (issue) throw new Error(issue);
     const startedAt = new Date().toISOString(),
       operationId = crypto.randomUUID();
-    const snapshot = executionSnapshot(session, slotFor(session)),
+    const snapshot = executionSnapshot(currentSession, slotFor(currentSession)),
       expectedVersion = existing?.writeVersion ?? 0;
     const payload = {
       user_id: user.id,
@@ -206,7 +224,7 @@ export function createSessionActions(
       toast.info("Brak internetu — ukończenie zapisano i zsynchronizuje się później.");
     } else if (result.data)
       completion = mapCompletionRows([result.data as AnyRow])[sid] ?? completion;
-    const category = historyCategoryOf(snapshot.sessionType, snapshot.dayType);
+    const category = historyCategoryOf(snapshot.type ?? snapshot.sessionType, snapshot.dayType);
     const record: SessionHistoryRecord | null = category
       ? {
           key: sid,

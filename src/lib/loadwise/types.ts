@@ -597,7 +597,7 @@ export interface SessionClassification {
 }
 
 export interface SessionDay {
-  engineTimeBudgetMin?:number;
+  engineTimeBudgetMin?: number;
   enginePlanIssues?: import("./engineV2/model").Issue[];
   engineV2?: import("./engineV2/model").EngineSession;
   postSessionFeedbackKey?: string;
@@ -624,6 +624,8 @@ export interface SessionDay {
   speedProgressionWeek?: number;
   speedRecentPostSkipExerciseIds?: string[];
   canonicalRevision?: string | null;
+  /** Training choices excluding derived running results; saved recipes remain explicit snapshots. */
+  trainingSetupRevision?: string;
   canonicalSchemaVersion?: number;
   dbId?: string; // id wiersza training_sessions (po zapisie do bazy)
   planDbId?: string; // revision header used for optimistic concurrency

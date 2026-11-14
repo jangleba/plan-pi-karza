@@ -362,7 +362,147 @@ function deriveLoadLevel(
 
 // ───────────────────────────── Główny normalizator ─────────────────────────────
 
+/** V2 prescriptions carry explicit tasks. Their names are presentation, never classification inputs. */
+function classifyEngineSession(session: SessionDay): SessionClassification | null {
+  const engine = session.engineV2;
+  if (!engine) return null;
+  const roles = new Set(engine.roles);
+  const work = engine.exercises.filter(
+    (exercise) =>
+      Number.isFinite(exercise.dose.sets) &&
+      exercise.dose.sets > 0 &&
+      [exercise.dose.reps, exercise.dose.seconds, exercise.dose.distanceM].some(
+        (value) => value !== undefined && Number.isFinite(value) && value > 0,
+      ),
+  );
+  const isGym =
+    (roles.has("strengthA") || roles.has("strengthB")) &&
+    work.some((exercise) => ["knee_strength", "hip_strength"].includes(exercise.role));
+  const speedWork = work.filter(
+    (exercise) =>
+      exercise.role === "speed" &&
+      Number.isFinite(exercise.dose.distanceM) &&
+      (exercise.dose.distanceM ?? 0) > 0,
+  );
+  const isSpeed = roles.has("speed") && speedWork.length > 0;
+  const isEndurance =
+    roles.has("endurance") && work.some((exercise) => exercise.role === "endurance");
+  const supportOnly =
+    engine.roles.length > 0 &&
+    engine.roles.every((role) => ["activation", "recovery", "mobility", "skills"].includes(role));
+  const isRecovery = supportOnly && roles.has("recovery");
+  const isMobility = supportOnly && roles.has("mobility");
+  const isActivation = supportOnly && roles.has("activation");
+  const isBall =
+    supportOnly && roles.has("skills") && work.some((exercise) => exercise.role === "ball_skill");
+  const run = engine.runningRecipe ?? session.runningRecipe;
+  const interval =
+    isEndurance &&
+    Boolean(
+      run &&
+      (!["easy_continuous", "long_continuous"].includes(run.method) ||
+        run.blocks.some((block) => block.intensity.zone !== "easy")),
+    );
+  const isMaxVelocity =
+    isSpeed &&
+    speedWork.some(
+      (exercise) => exercise.exerciseId === "flying_sprint" || (exercise.dose.runInM ?? 0) > 0,
+    );
+  const isAcceleration =
+    isSpeed &&
+    speedWork.some(
+      (exercise) => exercise.exerciseId !== "flying_sprint" && !(exercise.dose.runInM ?? 0),
+    );
+  const isHeavyLegs = isGym && engine.tier !== "foundation";
+  const isHighImpactRunning = isSpeed || interval;
+  const category: SessionCategory = isGym
+    ? "gym_strength"
+    : isSpeed
+      ? "speed_sprint"
+      : isEndurance
+        ? "endurance_conditioning"
+        : isRecovery
+          ? "recovery_prehab"
+          : isMobility
+            ? "mobility"
+            : "other";
+  const subcategory: SessionSubcategory = isGym
+    ? "full_body_strength"
+    : isSpeed
+      ? isMaxVelocity
+        ? "max_velocity"
+        : "acceleration"
+      : isEndurance
+        ? interval
+          ? "aerobic_intervals"
+          : "easy_run"
+        : isRecovery
+          ? "recovery"
+          : isMobility
+            ? "mobility"
+            : isActivation
+              ? "activation"
+              : isBall
+                ? "ball_technical"
+                : "unknown";
+  const loadLevel: SessionLoadLevel =
+    supportOnly || (isEndurance && !interval)
+      ? "low"
+      : isHeavyLegs ||
+          isHighImpactRunning ||
+          work.some((exercise) => exercise.role === "iso_primer")
+        ? "high"
+        : "moderate";
+  const intensity: Intensity =
+    loadLevel === "high" ? "wysoka" : loadLevel === "low" ? "niska" : "umiarkowana";
+  return {
+    category,
+    subcategory,
+    intensity,
+    loadLevel,
+    durationMinutes: session.durationMin,
+    tags: buildTags({
+      category,
+      subcategory,
+      isHeavyLegs,
+      isHighImpactRunning,
+      isMaxVelocity,
+      isAcceleration,
+      isDeceleration: false,
+      isChangeOfDirection: false,
+      clubIsSpeedFocused: false,
+    }),
+    countsAsStrength: isGym,
+    countsAsEndurance: isEndurance,
+    countsAsSpeed: isSpeed,
+    countsAsClub: false,
+    countsAsMatch: false,
+    isGym,
+    isClubSession: false,
+    isEndurance,
+    isSpeed,
+    isMatch: false,
+    isRecovery,
+    isPrehab: false,
+    isMobility,
+    isHeavyLegs,
+    isHighImpactRunning,
+    isMaxVelocity,
+    isAcceleration,
+    isDeceleration: false,
+    isChangeOfDirection: false,
+    canBeSecondSession:
+      supportOnly || (isEndurance && !interval) || (isGym && !isHeavyLegs && !isSpeed),
+    generatedBy: session.classification?.generatedBy ?? "engine",
+    placementReason: session.classification?.placementReason ?? session.whyToday ?? "",
+    sourceRule: "engineV2=roles+numeric-work",
+    repairTag: session.classification?.repairTag,
+  };
+}
+
 export function classifySession(session: SessionDay): SessionClassification {
+  const engineClassification = classifyEngineSession(session);
+  if (engineClassification) return engineClassification;
   const { category, subcategory, sourceRule } = resolveCategory(session);
   const text = fullText(session);
   const intensity: Intensity = session.intensity ?? "umiarkowana";
@@ -525,6 +665,7 @@ export function normalizeSessionCategory(session: SessionDay): SessionDay {
 // ───────────────────────────── Helpery (źródło prawdy) ─────────────────────────────
 
 function classOf(session: SessionDay): SessionClassification {
+  if (session.engineV2) return classifySession(session);
   return session.classification ?? classifySession(session);
 }
 

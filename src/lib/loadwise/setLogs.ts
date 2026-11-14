@@ -46,16 +46,8 @@ export function previousSessionLogs(
   rows: SetLogRow[],
   currentSessionId: string | null | undefined,
 ): Record<number, SetLog> {
-  const previousRows = rows.filter(
-    (row) => !currentSessionId || row.session_id !== currentSessionId,
-  );
-  const first = previousRows[0];
-  if (!first) return {};
-  const group = first.session_id ?? first.performed_at.slice(0, 10);
-  const selected = previousRows.filter(
-    (row) => (row.session_id ?? row.performed_at.slice(0, 10)) === group,
-  );
-  return Object.fromEntries(selected.map((row) => [row.set_number, toSetLog(row)]));
+  const previous = previousExerciseSessions(rows, currentSessionId, 1)[0];
+  return Object.fromEntries((previous?.sets ?? []).map((set) => [set.setNumber, set]));
 }
 
 /**

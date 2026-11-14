@@ -57,7 +57,7 @@ const TECHNIQUE: Record<RunningMethod, string> = {
   aerobic_intervals:
     "Płaska trasa bez ostrych nawrotów. Licznik prowadzi odcinki i przerwy; w przerwie truchtaj, nie stój.",
   short_hiit:
-    "Wyznacz prostą lub pętlę. Na sygnał biegnij mocno 15 s, potem 15 s przerwy. Licznik prowadzi serie.",
+    "Wyznacz prostą lub pętlę. Biegnij równo, bez maksymalnego sprintu. Licznik prowadzi odcinki i przerwy.",
   rsa: "Odmierz 20 m i miejsce na wyhamowanie. Sprint na sygnał, wyhamuj spokojnie, wróć marszem na start.",
   field_mas_test:
     "Płaska, otwarta trasa z dobrym sygnałem GPS. Po rozgrzewce biegnij równo przez pełne 5 minut.",
@@ -96,6 +96,14 @@ function mainItem(recipe: RunningRecipe, block: RunRecipeBlock): ExerciseItem {
     ? ` · ok. ${block.workDistanceHintM[0]}–${block.workDistanceHintM[1]} m na odcinek`
     : "";
   const prescription = `${blockDoseText(block)} · ${intensityText(block.intensity)}${hint}`;
+  const technique =
+    recipe.method === "short_hiit"
+      ? `${TECHNIQUE.short_hiit} Odcinek pracy: ${formatClock(block.work.seconds)}.${
+          block.recovery.seconds > 0
+            ? ` Między odcinkami: ${formatClock(block.recovery.seconds)} ${MODE[block.recovery.mode]}.`
+            : ""
+        }`
+      : TECHNIQUE[recipe.method];
   return {
     exerciseId: EXERCISE_ID[recipe.method],
     visualId: EXERCISE_ID[recipe.method],
@@ -107,7 +115,7 @@ function mainItem(recipe: RunningRecipe, block: RunRecipeBlock): ExerciseItem {
           : block.label,
     prescription,
     displayPrescription: blockDoseText(block),
-    technique: TECHNIQUE[recipe.method],
+    technique,
     ...(block.recovery.seconds > 0 && !(block.sets === 1 && block.repsPerSet === 1)
       ? { rest: `${formatClock(block.recovery.seconds)} ${MODE[block.recovery.mode]}` }
       : {}),

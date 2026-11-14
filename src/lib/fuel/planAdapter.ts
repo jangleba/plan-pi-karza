@@ -5,6 +5,7 @@ import { addIsoDays } from "@/lib/isoDate";
  */
 
 import type { SessionDay } from "@/lib/loadwise/types";
+import { classifySession } from "@/lib/loadwise/sessionClassification";
 import type { FuelSessionInput, SessionIntensity, SessionKind } from "./types";
 
 export const EMPTY_SESSION: FuelSessionInput = {
@@ -21,6 +22,19 @@ export const EMPTY_SESSION: FuelSessionInput = {
 
 export function sessionKindFrom(session: SessionDay | null): SessionKind {
   if (!session) return "none";
+  if (session.engineV2) {
+    const classification = classifySession(session);
+    if (classification.countsAsStrength) return "strength";
+    if (classification.countsAsEndurance) return "endurance";
+    if (classification.countsAsSpeed) return "speed";
+    if (
+      classification.isRecovery ||
+      classification.isMobility ||
+      classification.subcategory === "activation"
+    )
+      return "recovery";
+    return classification.subcategory === "ball_technical" ? "football" : "none";
+  }
   if (session.dayType === "match") return "match";
   if (session.dayType === "rest") return "none";
   if (session.dayType === "recovery") return "recovery";
@@ -39,7 +53,9 @@ export function sessionFromPlan(session: SessionDay | null, todayIso: string): F
   if (kind === "none") return EMPTY_SESSION;
   return {
     kind,
-    intensity: (session.intensity as SessionIntensity | undefined) ?? null,
+    intensity: session.engineV2
+      ? classifySession(session).intensity
+      : ((session.intensity as SessionIntensity | undefined) ?? null),
     durationMin: session.durationMin ?? null,
     minutesToStart: null,
     title: session.title ?? null,

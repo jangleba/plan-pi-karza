@@ -15,24 +15,24 @@ export const Route = createFileRoute("/faq")({
 
 const FAQ_ITEMS = [
   {
-    question: "Dlaczego mój plan zmienił się w trakcie tygodnia?",
+    question: "Jak zmienić zapisany plan?",
     answer:
-      "BallWise dopasowuje plan do meczu, treningów klubowych, dostępności oraz Twojej decyzji w check-inie. Zmiana ma chronić jakość najważniejszych jednostek, a nie dokładać trening za wszelką cenę.",
+      "W Planie wybierz „Przygotuj kolejny plan”. Podgląd uwzględni aktualny kalendarz, dostępność, sprzęt i czas na jednostkę. Zastąpi zapisany plan dopiero po wybraniu „Zapisz”. Rozpoczęte i ukończone sesje zachowują swoje wykonanie.",
   },
   {
     question: "Czy trening klubowy zastępuje trening BallWise?",
     answer:
-      "Trening klubowy liczy się do całkowitego obciążenia, ale zwykle nie zastępuje pracy indywidualnej. W bardzo obciążonym tygodniu aplikacja może ograniczyć lub zmienić sesję, aby zachować bezpieczny odstęp od meczu.",
+      "Trening klubowy zajmuje miejsce w kalendarzu i wpływa na dostępne terminy, ale nie zalicza automatycznie własnej siłowni BallWise. Podczas przygotowywania podglądu silnik sprawdza obciążenia i odstęp od meczu. Jeśli nie zmieści wszystkich jednostek, pokaże ograniczenia planu.",
   },
   {
-    question: "Co oznacza check-in przed treningiem?",
+    question: "Czy przed treningiem muszę zrobić check-in?",
     answer:
-      "To jedna odpowiedź: „Trenuję”, „Mam mniej czasu” albo „Dziś nie mogę”. Check-in nie pyta o zdrowie, sen ani samopoczucie. „Mam mniej czasu” skraca tylko pracę (rozgrzewka i przerwy zostają), a „Dziś nie mogę” nie przenosi automatycznie treningu na kolejny dzień.",
+      "Obecny ekran Start prowadzi do zapisanej sesji i nie zawiera dodatkowego formularza check-in. Wybierz sesję i rozpocznij trening. Jeśli zmieniła się Twoja dostępność lub czas, przygotuj nowy podgląd w Planie i sprawdź go przed zapisem.",
   },
   {
     question: "Co zrobić, gdy czuję ból?",
     answer:
-      "Nie wykonuj ruchu, który nasila ból, i wybierz w check-inie „Dziś nie mogę”, jeśli nie chcesz dziś trenować. BallWise nie diagnozuje urazów. Przy ostrym, narastającym lub utrzymującym się bólu przerwij trening i skontaktuj się ze specjalistą.",
+      "Nie wykonuj ruchu, który nasila ból. BallWise nie diagnozuje urazów. Przy ostrym, narastającym lub utrzymującym się bólu przerwij trening i skontaktuj się ze specjalistą.",
   },
   {
     question: "Nie mam sprzętu do ćwiczenia — co dalej?",
@@ -67,7 +67,7 @@ const FAQ_ITEMS = [
   {
     question: "Dlaczego w Postępie nie widzę jeszcze trendu?",
     answer:
-      "Trend potrzebuje kilku regularnie ukończonych sesji i check-inów. Na początku brak wykresu jest prawidłowy; aplikacja nie tworzy sztucznego wyniku bez wystarczających danych.",
+      "Trend potrzebuje kilku regularnie ukończonych sesji i kompletnych zapisów wykonania. Na początku brak wykresu jest prawidłowy; aplikacja nie tworzy sztucznego wyniku bez wystarczających danych.",
   },
   {
     question: "Gdzie mogę pobrać lub usunąć swoje dane?",

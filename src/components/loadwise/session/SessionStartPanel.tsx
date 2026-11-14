@@ -29,8 +29,13 @@ export function useSessionStart(session: SessionDay, canStart: boolean) {
     setError(null);
     try {
       await startSession(session);
-    } catch {
-      setError("Nie udało się rozpocząć sesji. Sprawdź połączenie i dostępną pamięć telefonu.");
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message.trim() : "";
+      setError(
+        message && message.length <= 300
+          ? message
+          : "Nie udało się rozpocząć sesji. Sprawdź połączenie i dostępną pamięć telefonu.",
+      );
     } finally {
       setBusy(false);
     }

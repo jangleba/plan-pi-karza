@@ -20,6 +20,7 @@ import { ArrowRight, SlidersHorizontal, Undo2 } from "lucide-react";
 import { EnduranceRunTracker } from "@/components/running/EnduranceRunTracker";
 import { RunPlanPreview } from "@/components/running/RunPlanPreview";
 import { isRecipePhaseItem } from "@/lib/running/recipeSession";
+import { trainingSetupRevision } from "@/lib/loadwise/planIdentity";
 import "@/components/loadwise/session/runner/session-runner.css";
 import { isTrackableEnduranceRun, normalizeRunningPreparation } from "@/lib/running/session";
 import { isBallTechnicalSession, isStrengthSession } from "@/lib/loadwise/sessionClassification";
@@ -207,8 +208,23 @@ export function SessionDetailView({
   );
   const completed = session.dbId && state.completions[session.dbId]?.status === "completed";
   const executionStarted = session.dbId && state.completions[session.dbId]?.status === "started";
+  // The versioned plan owns its prescription; legacy guides must not rebuild it on entry.
+  const savedV2Session =
+    !!session.engineV2 || session.generatorVersion?.startsWith("ballwise-v2") === true;
+  const equipmentRecords = state.exerciseReplacements[date] ?? [];
+  const equipmentReplanPending =
+    savedV2Session &&
+    (equipmentRecords.length > 0 || state.equipmentNotice?.startsWith("Sprzęt ")) &&
+    session.trainingSetupRevision !== trainingSetupRevision(state.profile);
+  const equipmentNotice = equipmentReplanPending
+    ? "Sprzęt zapisany. Zaktualizuj plan, aby dobrać ćwiczenia i dawki."
+    : savedV2Session && state.equipmentNotice?.startsWith("Sprzęt ")
+      ? null
+      : state.equipmentNotice;
   const displayedSession =
-    completed || executionStarted ? replacedSession : normalizeRunningPreparation(replacedSession);
+    savedV2Session || completed || executionStarted
+      ? replacedSession
+      : normalizeRunningPreparation(replacedSession);
 
   // Strukturalne sekcje: wygenerowane bloki, inaczej fallback z płaskich danych.
   const structured: TrainingSection[] =
@@ -235,7 +251,7 @@ export function SessionDetailView({
   // Z recepturą trucht rozgrzewki i schłodzenia prowadzi licznik biegu, więc
   // tutaj zostają tylko ćwiczenia (mobilność, skipy, rozciąganie).
   const recipeJog = (exercise: { name: string }) =>
-    Boolean(session.runningRecipe) && isRecipePhaseItem(exercise);
+    Boolean(displayedSession.runningRecipe) && isRecipePhaseItem(exercise);
   const enduranceWarmup = structured
     .filter((s) => s.type === "warmup" || s.type === "prep")
     .flatMap((s) => s.blocks.flatMap((b) => b.exercises))
@@ -250,7 +266,11 @@ export function SessionDetailView({
     }));
   const ballTechnicalSession = isBallTechnicalSession(session);
   const recoveryRunner =
-    !isClub && !sprintRunner && !strengthRunner && canGuideRecoverySession(session);
+    !savedV2Session &&
+    !isClub &&
+    !sprintRunner &&
+    !strengthRunner &&
+    canGuideRecoverySession(session);
   const recoveryContext = recoveryContextForSession(
     session,
     state.plan,
@@ -260,8 +280,8 @@ export function SessionDetailView({
 
   const presentedSession =
     recoveryRunner && recoveryDuration != null
-      ? { ...session, durationMin: recoveryDuration }
-      : session;
+      ? { ...displayedSession, durationMin: recoveryDuration }
+      : displayedSession;
   const completion = session.dbId ? state.completions[session.dbId] : undefined;
   const hasStarted = completion?.status === "started" || !!completion?.completed;
   const canExecute =
@@ -319,9 +339,14 @@ export function SessionDetailView({
         {shortNote && (session.loadLabelOverride || isClub) && (
           <div className="bw-session-notice">{shortNote}</div>
         )}
-        {state.equipmentNotice && (
+        {equipmentNotice && (
           <div className="soft-card px-4 py-3 text-sm text-muted-foreground">
-            {state.equipmentNotice}
+            <p>{equipmentNotice}</p>
+            {equipmentReplanPending && (
+              <Link to="/plan" className="inline-flex py-2 font-medium underline">
+                Zaktualizuj plan
+              </Link>
+            )}
           </div>
         )}
 
@@ -403,7 +428,7 @@ export function SessionDetailView({
                 {runMode === "timer" && session.classification?.subcategory !== "field_mas_test" ? (
                   <RunClock
                     key={`${user.id}:${session.dbId}`}
-                    session={session}
+                    session={displayedSession}
                     enabled={canExecute && !completion?.completed}
                     onBusy={setRunBusy}
                     onFinish={(seconds) => {
@@ -415,7 +440,7 @@ export function SessionDetailView({
                   <EnduranceRunTracker
                     key={`${user.id}:${session.dbId}`}
                     ownerId={user.id}
-                    session={session}
+                    session={displayedSession}
                     sessionId={session.dbId}
                     date={session.date}
                     canRecord={canExecute && !completion?.completed}
@@ -511,14 +536,18 @@ export function SessionDetailView({
         {(state.exerciseReplacements[date] ?? []).length > 0 && (
           <div className="soft-card flex flex-wrap items-center gap-3 p-3 text-xs">
             <span className="text-muted-foreground">
-              {(state.exerciseReplacements[date] ?? []).length === 1
-                ? "Ćwiczenie zostało zamienione."
-                : "Ćwiczenia zostały zamienione."}
+              {savedV2Session
+                ? "Zapisano niedostępny sprzęt. Dobór ćwiczeń następuje przy aktualizacji planu."
+                : (state.exerciseReplacements[date] ?? []).length === 1
+                  ? "Ćwiczenie zostało zamienione."
+                  : "Ćwiczenia zostały zamienione."}
             </span>
             {(state.exerciseReplacements[date] ?? []).map((replacement) => (
               <span key={replacement.id} className="inline-flex items-center gap-2">
                 <span className="text-muted-foreground">
-                  {replacement.original.name} → {replacement.replacement.name}
+                  {savedV2Session
+                    ? replacement.original.name
+                    : `${replacement.original.name} → ${replacement.replacement.name}`}
                 </span>
                 <button
                   type="button"
@@ -529,7 +558,8 @@ export function SessionDetailView({
                   }}
                   className="inline-flex shrink-0 items-center gap-1 font-medium text-primary"
                 >
-                  <Undo2 className="h-3.5 w-3.5" /> Cofnij
+                  <Undo2 className="h-3.5 w-3.5" />
+                  {savedV2Session ? "Cofnij zgłoszenie" : "Cofnij"}
                 </button>
               </span>
             ))}

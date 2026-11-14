@@ -1,4 +1,5 @@
 import type { RunningActivity, RunningIntervalResult } from "./types";
+import type { RunningRecipe } from "./recipe";
 
 export const FIELD_MAS_TEST_DURATION_SEC = 5 * 60;
 export const FIELD_MAS_RETEST_DAYS = 28;
@@ -261,6 +262,7 @@ function isFieldMasTestActivity(
 export function deriveRunningEngineState(
   activities: RunningActivity[],
   rpeBySession: Record<string, number | null> = {},
+  executionBySession: Record<string, RunningFeedbackPrescription> = {},
 ): {
   fieldMasKmh: number | null;
   fieldMasTestedAt: string | null;
@@ -287,10 +289,11 @@ export function deriveRunningEngineState(
       continue;
     }
     if (!fieldMasTestedAt || activity.date < fieldMasTestedAt) continue;
-    const next = nextRunningProgressionLevel({
+    const next = nextRunningProgressionLevelForSession({
       currentLevel: runningProgressionLevel,
       rpe: rpeBySession[activity.sessionId] ?? null,
       results: activity.intervalResults,
+      executionSnapshot: executionBySession[activity.sessionId],
     });
     if (next !== runningProgressionLevel) {
       runningProgressionLevel = next;
@@ -362,4 +365,42 @@ export function nextRunningProgressionLevel(input: {
   )
     return Math.min(3, current + 1);
   return current;
+}
+
+/** The pinned prescription, never a newly generated recipe or the current profile. */
+export interface RunningFeedbackPrescription {
+  engineV2?: { roles: readonly string[] };
+  runningRecipe?: RunningRecipe;
+}
+
+/** Mirrors SQL next_running_level_for_session; high planned HIIT effort is not failure. */
+export function nextRunningProgressionLevelForSession(input: {
+  currentLevel: number;
+  rpe: number | null;
+  results: RunningIntervalResult[];
+  executionSnapshot?: RunningFeedbackPrescription;
+}): number {
+  if (input.rpe == null) return clamp(Math.round(input.currentLevel), 0, 3);
+  const recipe = input.executionSnapshot?.runningRecipe;
+  const block = recipe?.blocks?.[0];
+  const hardHiit =
+    input.executionSnapshot?.engineV2?.roles?.includes("endurance") &&
+    recipe?.schema === "ballwise-run-recipe-v1" &&
+    recipe.method === "short_hiit" &&
+    typeof recipe.id === "string" &&
+    recipe.id.startsWith("v2:endurance:short_hiit:") &&
+    recipe.paceSource === "field_mas" &&
+    recipe.blocks.length === 1 &&
+    Array.isArray(block?.intensity?.rpe) &&
+    block.intensity.rpe.length === 2 &&
+    block.intensity.rpe[0] === 8 &&
+    block.intensity.rpe[1] === 9 &&
+    block.work?.seconds === 60 &&
+    block.recovery?.seconds === 60;
+  return nextRunningProgressionLevel({
+    ...input,
+    // Retain the actual RPE in history. Only the policy's effort condition differs:
+    // no automatic increase from HIIT; incomplete or uneven work can still regress.
+    rpe: hardHiit && input.rpe <= 9 ? null : input.rpe,
+  });
 }

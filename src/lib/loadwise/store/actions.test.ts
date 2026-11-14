@@ -11,6 +11,7 @@ import { buildProfile, initialState, type StoreActionContext } from "./model";
 import { createProfileActions } from "./profileActions";
 import { createSessionActions } from "./sessionActions";
 import { resetPlanWriteGuard, trackPlanWrite } from "./planWriteGuard";
+import { generateTrainingPlan } from "../engineV2/planner";
 
 const mocks = vi.hoisted(() => ({
   events: [] as string[],
@@ -103,6 +104,25 @@ function session(overrides: Partial<SessionDay> = {}): SessionDay {
     ...overrides,
   } as SessionDay;
 }
+function currentV2Session(): SessionDay {
+  const profile = {
+    ...state.profile!,
+    individualTrainingDays: [1, 2, 3, 4, 5, 6, 7],
+    clubTrainingDays: [],
+    unavailableDays: [],
+    weeklyMatches: false,
+    usualMatchDay: null,
+    matchDate: null,
+    matchDates: [],
+    painInjury: false,
+  };
+  state.profile = profile;
+  const result = generateTrainingPlan(profile, { startDate: "2026-09-29", weeks: 1 });
+  const own = result.plan.find((d) => d.engineV2)!;
+  const current = { ...own, date: "2026-09-29", dbId: "session", secondSession: null };
+  state.plan = [current];
+  return current;
+}
 const work: RunningIntervalResult = {
   stepId: "work",
   kind: "work",
@@ -156,12 +176,43 @@ describe("store action contracts", () => {
     resetPlanWriteGuard();
     let land!: () => void;
     void trackPlanWrite("athlete", new Promise<void>((resolve) => (land = resolve)));
-    const started = createSessionActions(context()).startSession(session());
+    const started = createSessionActions(context()).startSession(currentV2Session());
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(mocks.events).not.toContain("save_training_log");
     land();
     await started;
     expect(mocks.events).toContain("save_training_log");
+  });
+
+  it("rejects a stale view before starting and persists the current role-preserving prescription", async () => {
+    const planned = currentV2Session();
+    state.plan = [{ ...planned, durationMin: planned.durationMin + 1 }];
+    await expect(createSessionActions(context()).startSession(planned)).rejects.toThrow("Plan zmienił się");
+    expect(mocks.events).not.toContain("save_training_log");
+    const current = state.plan[0];
+    await createSessionActions(context()).startSession(current);
+    expect(state.completions.session.executionSnapshot).toMatchObject({
+      durationMin: current.durationMin,
+      engineV2: current.engineV2,
+    });
+  });
+
+  it("rechecks the current profile and date for new starts but keeps a started snapshot immutable", async () => {
+    const planned = currentV2Session();
+    state.profile = { ...state.profile!, painInjury: true };
+    await expect(createSessionActions(context()).startSession(planned)).rejects.toThrow("wstrzymany");
+    state.profile = { ...state.profile!, painInjury: false };
+    state.plan = [{ ...planned, date: "2026-09-30" }];
+    await expect(createSessionActions(context()).startSession(state.plan[0])).rejects.toThrow("tylko w dniu");
+    state.plan = [planned];
+    await createSessionActions(context()).startSession(planned);
+    const pinned = state.completions.session.executionSnapshot;
+    state.profile = { ...state.profile!, painInjury: true };
+    await createSessionActions(context()).startSession({ ...planned, durationMin: 999 });
+    expect(state.completions.session.executionSnapshot).toEqual(pinned);
+    await createSessionActions(context()).completeSession(planned, 7, "", { durationMin: 24 });
+    expect(state.completions.session.executionSnapshot).toEqual(pinned);
+    expect(state.history[0].category).toBe("gym");
   });
 
   it("records consent, then saves only the profile (no plan) and publishes it", async () => {

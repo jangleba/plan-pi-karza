@@ -1,6 +1,7 @@
 import type { SessionDay, TrainingSection, TrainingExercise } from "./types";
 import { getExerciseDefinition, specialistEquipmentForExercise } from "./exerciseLibrary";
 import { equipmentNamesFor, canonicalExerciseName } from "./sessionPresentation";
+import { classifySession } from "./sessionClassification";
 
 const SPRINT_BLOCK_FLOW = [
   { key: "ramp", index: "01", title: "Przygotowanie RAMP", estMin: 10 },
@@ -227,6 +228,11 @@ export function buildSprintRunnerBlocks(sections: TrainingSection[]): SprintBloc
 }
 
 export function isSprintRunnerSession(session: SessionDay): boolean {
+  if (session.engineV2) {
+    const classification = classifySession(session);
+    return classification.isSpeed &&
+      (classification.isAcceleration || classification.isMaxVelocity);
+  }
   if (session.speedGeneratorVersion) {
     return !session.classification || session.classification.isSpeed;
   }

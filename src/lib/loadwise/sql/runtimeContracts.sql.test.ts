@@ -3,6 +3,8 @@ import { PGlite } from "@electric-sql/pglite";
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from "vitest";
 
 import { LEGAL_VERSION, CONSENTS } from "../legal";
+import { hardHiitExecution, hiitResults } from "@/lib/running/__fixtures__/feedback";
+import { nextRunningProgressionLevelForSession } from "@/lib/running/engine";
 
 let db: PGlite;
 const owner = "10000000-0000-4000-8000-000000000001";
@@ -36,7 +38,7 @@ async function log(
   );
   return r.rows[0].result;
 }
-const completed = (rpe = 8) => ({
+const completed = (rpe: number | null = 8) => ({
   completed: true,
   completion_status: "completed",
   rpe,
@@ -147,6 +149,45 @@ describe.sequential("full migration runtime contracts", () => {
     expect(edited.rpe).toBe(6);
     expect(edited.execution_snapshot).toEqual(snapshot);
   });
+  it("starts only the active plan while preserving archived executions and historical logging", async () => {
+    const startedId = await seedSession(),
+      blockedId = await seedSession(),
+      blockedOp = uid();
+    const started = {
+      completed: false,
+      completion_status: "started",
+      started_at: "2026-10-17T10:00Z",
+      updated_at: "2026-10-17T10:00Z",
+      execution_snapshot: { title: "Pinned before archive" },
+    };
+    expect((await log(startedId, 0, started)).write_version).toBe(1);
+    await db.query("update training_plans set active=false,status='archived' where id=$1", [plan]);
+    try {
+      await expect(log(blockedId, 0, started, blockedOp)).rejects.toMatchObject({
+        code: "40001",
+        message: "Plan zmienił się na innym urządzeniu. Odśwież plan.",
+      });
+      expect(
+        (await db.query("select id from session_logs where session_id=$1", [blockedId])).rows,
+      ).toEqual([]);
+      expect(
+        (
+          await db.query("select operation_id from training_write_receipts where operation_id=$1", [
+            blockedOp,
+          ])
+        ).rows,
+      ).toEqual([]);
+      expect((await log(startedId, 1, started)).write_version).toBe(2);
+      expect((await log(startedId, 2, completed(7))).completed).toBe(true);
+      const edited = await log(startedId, 3, completed(6));
+      expect(edited.rpe).toBe(6);
+      expect(edited.execution_snapshot).toEqual(started.execution_snapshot);
+      // Entering a completed historical workout is not starting a new prescription.
+      expect((await log(blockedId, 0, completed(5))).completed).toBe(true);
+    } finally {
+      await db.query("update training_plans set active=true,status='active' where id=$1", [plan]);
+    }
+  });
   it("rebases a coalesced write only onto acknowledged predecessors for the same target", async () => {
     const sid = await seedSession(),
       op = uid();
@@ -238,6 +279,148 @@ describe.sequential("full migration runtime contracts", () => {
         ])
       ).rows[0].n,
     ).toBe(0);
+  });
+  it.each(["run-first", "log-first"] as const)(
+    "waits for late RPE and applies it once in %s order, including retries",
+    async (order) => {
+      await db.query("update athlete_profiles set running_progression_level=1 where user_id=$1", [
+        owner,
+      ]);
+      const sid = await seedSession(),
+        runOperation = uid(),
+        logOperation = uid();
+      const payload = {
+        id: uid(),
+        session_id: sid,
+        date: "2026-10-17",
+        duration_sec: 720,
+        distance_m: 2400,
+        interval_results: intervals(),
+      };
+      const saveRun = () =>
+        db.query("select save_running_result($1,$2::jsonb,0)", [
+          runOperation,
+          JSON.stringify(payload),
+        ]);
+      const saveLog = () => log(sid, 0, completed(null), logOperation);
+      if (order === "run-first") {
+        await saveRun();
+        await saveLog();
+      } else {
+        await saveLog();
+        await saveRun();
+      }
+      const state = async () =>
+        (
+          await db.query<{ running_progression_level: number; progression_applied: boolean }>(
+            "select p.running_progression_level,a.progression_applied from athlete_profiles p join running_activities a on a.user_id=p.user_id where p.user_id=$1 and a.session_id=$2",
+            [owner, sid],
+          )
+        ).rows[0];
+      expect(await state()).toEqual({ running_progression_level: 1, progression_applied: false });
+      await saveRun();
+      await saveLog();
+      expect(await state()).toEqual({ running_progression_level: 1, progression_applied: false });
+      const rpeOperation = uid();
+      await log(sid, 1, completed(6), rpeOperation);
+      expect(await state()).toEqual({ running_progression_level: 2, progression_applied: true });
+      await log(sid, 1, completed(6), rpeOperation);
+      await log(sid, 2, completed(5));
+      expect(await state()).toEqual({ running_progression_level: 2, progression_applied: true });
+      await expect(
+        db.query("select save_running_result($1,$2::jsonb,1)", [uid(), JSON.stringify(payload)]),
+      ).rejects.toMatchObject({ code: "40001" });
+    },
+  );
+  it.each(["run-first", "log-first"] as const)(
+    "uses the pinned actual V2 HIIT prescription in %s order without changing reported RPE",
+    async (order) => {
+      await db.query("update athlete_profiles set running_progression_level=1 where user_id=$1", [
+        owner,
+      ]);
+      const sid = await seedSession(),
+        pinned = hardHiitExecution();
+      expect(pinned.runningRecipe.blocks[0].intensity.rpe).toEqual([8, 9]);
+      await log(sid, 0, {
+        completed: false,
+        completion_status: "started",
+        started_at: "2026-10-17T10:00:00Z",
+        updated_at: "2026-10-17T10:00:00Z",
+        execution_snapshot: pinned,
+      });
+      const payload = {
+        id: uid(),
+        session_id: sid,
+        date: "2026-10-17",
+        duration_sec: 660,
+        distance_m: 1600,
+        interval_results: hiitResults(),
+      };
+      const saveRun = () =>
+        db.query("select save_running_result($1,$2::jsonb,0)", [uid(), JSON.stringify(payload)]);
+      // Later caller input cannot replace the policy source saved at start.
+      const saveLog = () =>
+        log(sid, 1, { ...completed(9), execution_snapshot: { runningRecipe: null } });
+      if (order === "run-first") {
+        await saveRun();
+        await saveLog();
+      } else {
+        await saveLog();
+        await saveRun();
+      }
+      const row = (
+        await db.query<{
+          running_progression_level: number;
+          rpe: number;
+          progression_applied: boolean;
+          execution_snapshot: unknown;
+        }>(
+          "select p.running_progression_level,l.rpe,a.progression_applied,l.execution_snapshot from athlete_profiles p join running_activities a on a.user_id=p.user_id join session_logs l on l.session_id=a.session_id and l.user_id=p.user_id where p.user_id=$1 and a.session_id=$2",
+          [owner, sid],
+        )
+      ).rows[0];
+      expect(row).toMatchObject({
+        running_progression_level: 1,
+        rpe: 9,
+        progression_applied: true,
+        execution_snapshot: pinned,
+      });
+    },
+  );
+  it("keeps SQL and client effort policy aligned for actual V2 HIIT and legacy evidence", async () => {
+    const pinned = hardHiitExecution(),
+      completeWork = hiitResults();
+    const partialWork = completeWork.map((r, i) => ({ ...r, completed: i < 3 }));
+    const unevenWork = completeWork.map((r, i) => ({ ...r, paceSecPerKm: i ? 225 : 300 }));
+    const cases = [
+      { rpe: 9, results: completeWork, executionSnapshot: pinned, expected: 1 },
+      { rpe: 8, results: completeWork, executionSnapshot: pinned, expected: 1 },
+      { rpe: 6, results: completeWork, executionSnapshot: pinned, expected: 1 },
+      { rpe: 10, results: completeWork, executionSnapshot: pinned, expected: 0 },
+      { rpe: 9, results: partialWork, executionSnapshot: pinned, expected: 0 },
+      { rpe: 9, results: unevenWork, executionSnapshot: pinned, expected: 0 },
+      { rpe: null, results: partialWork, executionSnapshot: pinned, expected: 1 },
+      { rpe: 9, results: completeWork, executionSnapshot: undefined, expected: 0 },
+      { rpe: 6, results: completeWork, executionSnapshot: undefined, expected: 2 },
+    ];
+    for (const c of cases) {
+      const server = (
+        await db.query<{ n: number }>(
+          "select next_running_level_for_session(1,$1,$2::jsonb,$3::jsonb) n",
+          [c.rpe, JSON.stringify(c.results), JSON.stringify(c.executionSnapshot ?? null)],
+        )
+      ).rows[0].n;
+      expect(server).toBe(c.expected);
+      expect(nextRunningProgressionLevelForSession({ currentLevel: 1, ...c })).toBe(server);
+    }
+  });
+  it("keeps the new policy invoker-only and unavailable to anonymous callers", async () => {
+    const row = (
+      await db.query<{ prosecdef: boolean; anon: boolean; authenticated: boolean }>(
+        "select p.prosecdef,has_function_privilege('anon',p.oid,'EXECUTE') anon,has_function_privilege('authenticated',p.oid,'EXECUTE') authenticated from pg_proc p where p.oid='public.next_running_level_for_session(integer,integer,jsonb,jsonb)'::regprocedure",
+      )
+    ).rows[0];
+    expect(row).toEqual({ prosecdef: false, anon: false, authenticated: true });
   });
   it("atomically stores MAS source and clears it on deletion", async () => {
     const sid = await seedSession(),
