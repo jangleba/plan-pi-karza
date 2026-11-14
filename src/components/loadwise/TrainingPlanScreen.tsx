@@ -8,6 +8,7 @@ import { lockedExecutionDays } from "@/lib/loadwise/engineV2/locks";
 import { getPlanStatus } from "@/lib/loadwise/engineV2/planStatus";
 import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
 import { StrengthExperienceSetup } from "./session/StrengthExperienceSetup";
+import { FeedbackAdjustmentCard } from "./FeedbackAdjustmentCard";
 import "@/styles/ballwise-plan.css";
 
 /** Preview, explicit activation and execution of the versioned training plan. */
@@ -102,6 +103,7 @@ export function PlanScreen() {
       <AppHeader title="Plan" sketch="pitch" />
       <div className="px-4 space-y-4">
         {!hydrated || syncing ? <p role="status">Wczytywanie profilu…</p> : null}
+        {!preview ? <FeedbackAdjustmentCard /> : null}
         {state.profile ? (
           <details className="rounded-2xl border border-black/10 p-4">
             <summary>Dopasowanie treningu</summary>

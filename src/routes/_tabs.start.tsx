@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { ProfileAvatar } from "@/components/loadwise/ui";
 import { StartDashboard } from "@/components/loadwise/StartDashboard";
+import { FeedbackAdjustmentCard } from "@/components/loadwise/FeedbackAdjustmentCard";
 import {
   completeFieldTask,
   openFieldTask,
@@ -57,6 +58,7 @@ function StartScreen() {
           search: { slot: today.slot },
         })
       }
+      adjustment={<FeedbackAdjustmentCard />}
       avatar={<ProfileAvatar />}
       onPlan={() => void navigate({ to: "/plan" })}
       onLab={() => void navigate({ to: "/lab" })}

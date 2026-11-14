@@ -634,6 +634,8 @@ export interface SessionDay {
   /** Podsumowanie poprzedniego cyklu i reguła startu tego cyklu (ta sama na każdym dniu). */
   cycleStart?: CycleStartRecord | null;
   executionProtected?: boolean;
+  feedbackAdjustments?: FeedbackAdjustmentMark[];
+  externalGoalCredits?: ExternalGoalCredit[];
   dayDbId?: string; // id wiersza training_days (po zapisie do bazy)
   readinessAdjustedDate?: string | null;
   readinessAdjustmentKey?: string;
@@ -716,6 +718,25 @@ export interface WeekMeta {
 }
 
 export type ActivityTag = "running_endurance" | "technical" | "tactical_game";
+
+/** Zapis, że dzień został zmieniony po akceptacji propozycji opartej na feedbacku. */
+export interface FeedbackAdjustmentMark {
+  proposalId: string;
+  sourceSessionId: string;
+  kind: "reschedule" | "lighter" | "compact" | "skip" | "external_credit";
+  appliedAt: string;
+}
+/** Cel wydolności pokryty zgłoszoną pracą w klubie: osobno od wykonanej sesji własnej. */
+export interface ExternalGoalCredit {
+  goal: "endurance";
+  status: "external_reported";
+  sourceSessionId: string;
+  sourceDate: string;
+  rpe: number;
+  tags: ActivityTag[];
+  replacedTitle: string;
+  proposalId: string;
+}
 export type DurationSource = "user" | "measured" | "club_default";
 
 export interface SessionCompletion {

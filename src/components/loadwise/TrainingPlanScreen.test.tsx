@@ -12,6 +12,7 @@ const mock = vi.hoisted(() => ({
   navigate: vi.fn(),
 }));
 vi.mock("@/lib/loadwise/store", () => ({ useLoadwise: () => mock.store }));
+vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: "plan-test" } }) }));
 vi.mock("@/components/loadwise/ui", () => ({ AppHeader: () => null }));
 vi.mock("@tanstack/react-router", async (importActual) => ({
   ...(await importActual<object>()),

@@ -16,12 +16,15 @@ export function StartDashboard({
   planStatus,
   todayComplete = false,
   onToday,
+  adjustment,
 }: {
   name: string;
   todayTitle?: string;
   planStatus?: "empty" | "active" | "expired" | "stale";
   todayComplete?: boolean;
   onToday?: () => void;
+  /** Optional proposal card after hard club or match feedback. */
+  adjustment?: ReactNode;
   avatar: ReactNode;
   onPlan: () => void;
   onLab: () => void;
@@ -80,6 +83,7 @@ export function StartDashboard({
           <small>{subtitle}</small>
         </span>
       </button>
+      {adjustment}
       {iqTask && (
         <section className="bw-home-iq-task" aria-label="Zadanie na boisko z Football IQ">
           <Target size={18} aria-hidden="true" />
