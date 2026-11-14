@@ -18,6 +18,7 @@ import { buildTrainingHistory, mergeTrainingHistory } from "@/lib/progress/progr
 import { rowsToStrengthSets, useStrengthSetRows } from "@/lib/loadwise/strengthSets";
 import { StrengthExperienceSetup } from "./session/StrengthExperienceSetup";
 import { FeedbackAdjustmentCard } from "./FeedbackAdjustmentCard";
+import { MasTestAction } from "./MasTestAction";
 import "@/styles/ballwise-plan.css";
 
 /** Preview, explicit activation and execution of the versioned training plan. */
@@ -187,6 +188,7 @@ export function PlanScreen() {
       <div className="px-4 space-y-4">
         {!hydrated || syncing ? <p role="status">Wczytywanie profilu…</p> : null}
         {!preview ? <FeedbackAdjustmentCard /> : null}
+        {!preview ? <MasTestAction /> : null}
         {state.profile ? (
           <details className="rounded-2xl border border-black/10 p-4">
             <summary>Dopasowanie treningu</summary>

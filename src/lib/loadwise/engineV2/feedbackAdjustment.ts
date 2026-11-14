@@ -63,7 +63,7 @@ export interface AdjustmentProposal {
   policyVersion: string;
   sourceSessionId: string;
   sourceDate: string;
-  sourceKind: "club" | "match";
+  sourceKind: "club" | "match" | "voluntary";
   feedback: {
     rpe: number;
     tags: ActivityTag[];
@@ -96,6 +96,8 @@ export interface AdjustmentInput {
 }
 
 const slotsOf = (d: SessionDay) => [d, ...(d.secondSession ? [d.secondSession] : [])];
+/** Stable short fingerprint of what a proposal would change (plan, ids, dates). */
+export const proposalFingerprint = (parts: unknown) => hash(JSON.stringify(parts));
 const hash = (text: string) => {
   let h = 5381;
   for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) >>> 0;
@@ -472,7 +474,7 @@ export function proposeFeedbackAdjustment(input: AdjustmentInput): AdjustmentPro
 
 /** The explicit write goes through the same version-checked activation as any new plan. */
 export function proposalToEngineResult(
-  proposal: AdjustmentProposal,
+  proposal: Pick<AdjustmentProposal, "planId" | "minutesPerSession" | "candidatePlan">,
   profile: Profile,
 ): EngineResult {
   return {
