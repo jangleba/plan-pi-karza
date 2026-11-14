@@ -5,13 +5,15 @@ import { afterEach, beforeEach, it, expect, vi } from "vitest";
 import { PlanScreen } from "./TrainingPlanScreen";
 import { buildProfile, initialState } from "@/lib/loadwise/store/model";
 import { generateTrainingPlan } from "@/lib/loadwise/engineV2/planner";
-import type { LoadwiseState } from "@/lib/loadwise/types";
+import type { LoadwiseState, SessionDay } from "@/lib/loadwise/types";
+import { trainingStorageKey } from "@/lib/loadwise/trainingDetails";
 const mock = vi.hoisted(() => ({
   store: null as unknown as Record<string, unknown>,
   activate: vi.fn(),
   navigate: vi.fn(),
 }));
 vi.mock("@/lib/loadwise/store", () => ({ useLoadwise: () => mock.store }));
+vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: "plan-test" } }) }));
 vi.mock("@/components/loadwise/ui", () => ({ AppHeader: () => null }));
 vi.mock("@tanstack/react-router", async (importActual) => ({
   ...(await importActual<object>()),
@@ -19,6 +21,7 @@ vi.mock("@tanstack/react-router", async (importActual) => ({
 }));
 let root: Root, host: HTMLDivElement;
 beforeEach(() => {
+  localStorage.clear();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   host = document.createElement("div");
   document.body.append(host);
@@ -155,5 +158,134 @@ it("offers an explicit profile update and lets the player return to the saved sn
   );
   expect(host.textContent).not.toContain("Twój plan · 4 tygodnie");
   expect((mock.store.state as LoadwiseState).plan).toBe(saved);
+  expect(mock.activate).not.toHaveBeenCalled();
+});
+
+it("prepares the next preview from the confirmed choices, continues the cycle and carries the summary", async () => {
+  const state = mock.store.state as LoadwiseState;
+  // A profile with real training days, so the ended cycle contains own sessions to summarize.
+  const profile = {
+    ...state.profile!,
+    individualTrainingDays: [1, 2, 3, 4, 5, 6, 7],
+    hasPitch: true,
+    hasSprintSpace: true,
+  };
+  const old = generateTrainingPlan(profile, { startDate: "2026-10-05", weeks: 4 }).plan;
+  expect(old.some((d) => d.engineV2 || d.secondSession?.engineV2)).toBe(true);
+  mock.store.state = { ...state, profile, activePlanId: "old-cycle", plan: old };
+  localStorage.setItem(
+    trainingStorageKey("next-plan-intent", "plan-test"),
+    JSON.stringify({ planId: "old-cycle", minutes: 45, createdAt: "2026-11-02T08:00:00Z" }),
+  );
+  await act(async () => root.render(<PlanScreen />));
+  // The preview opens by itself, with the chosen budget, and nothing is saved yet.
+  expect(host.textContent).toContain("Twój plan · 4 tygodnie");
+  expect(
+    host.querySelector<HTMLSelectElement>('select[aria-label="Czas na jednostkę"]')!.value,
+  ).toBe("45");
+  expect(mock.activate).not.toHaveBeenCalled();
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((b) => b.textContent?.startsWith("Zapisz plan"))!
+      .click(),
+  );
+  const result = mock.activate.mock.calls[0][0];
+  expect(result.minutesPerSession).toBe(45);
+  expect(result.expectedPlanId).toBe("old-cycle");
+  // the summary of the ended cycle is stamped on the new plan, so it stays in Progress
+  expect(result.plan[0].cycleStart.review).toMatchObject({
+    startDate: "2026-10-05",
+    endDate: "2026-11-01",
+  });
+  expect(result.plan.every((d: { cycleStart?: unknown }) => d.cycleStart)).toBe(true);
+  // the saved cycle is continued, not reset: week 5 of the same block
+  const first = result.plan
+    .flatMap((d: SessionDay) => [d, ...(d.secondSession ? [d.secondSession] : [])])
+    .find((s: SessionDay) => s.engineV2?.cycle)!;
+  expect(first.engineV2!.cycle!.anchorDate).toBe("2026-10-05");
+  expect(first.engineV2!.cycle!.weekIndex).toBeGreaterThanOrEqual(4);
+});
+
+it("ignores confirmed choices that belong to another saved plan", async () => {
+  const state = mock.store.state as LoadwiseState;
+  const old = generateTrainingPlan(state.profile!, { startDate: "2026-10-05", weeks: 4 }).plan;
+  mock.store.state = { ...state, activePlanId: "old-cycle", plan: old };
+  localStorage.setItem(
+    trainingStorageKey("next-plan-intent", "plan-test"),
+    JSON.stringify({ planId: "some-other-plan", minutes: 30, createdAt: "2026-11-02T08:00:00Z" }),
+  );
+  await act(async () => root.render(<PlanScreen />));
+  expect(host.textContent).not.toContain("Twój plan · 4 tygodnie");
+  expect(host.textContent).toContain("Cykl zakończony");
+});
+
+it("'Wróć do zapisanego planu' drops the confirmed choices instead of reopening the preview", async () => {
+  const state = mock.store.state as LoadwiseState;
+  const old = generateTrainingPlan(state.profile!, { startDate: "2026-10-05", weeks: 4 }).plan;
+  mock.store.state = { ...state, activePlanId: "old-cycle", plan: old };
+  const key = trainingStorageKey("next-plan-intent", "plan-test");
+  localStorage.setItem(
+    key,
+    JSON.stringify({ planId: "old-cycle", minutes: 45, createdAt: "2026-11-02T08:00:00Z" }),
+  );
+  await act(async () => root.render(<PlanScreen />));
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((b) => b.textContent === "Wróć do zapisanego planu")!
+      .click(),
+  );
+  expect(host.textContent).not.toContain("Twój plan · 4 tygodnie");
+  expect(localStorage.getItem(key)).toBe("null");
+});
+
+it("proposes an update after a moved match: names the change, shows the next days, saves only on request", async () => {
+  const state = mock.store.state as LoadwiseState;
+  const profile = {
+    ...state.profile!,
+    individualTrainingDays: [1, 2, 3, 4, 5, 6, 7],
+    hasPitch: true,
+    hasSprintSpace: true,
+    matchDates: ["2026-11-06"],
+  };
+  const saved = generateTrainingPlan(profile, { startDate: "2026-11-02", weeks: 4 }).plan;
+  mock.store.state = {
+    ...state,
+    profile: { ...profile, matchDates: ["2026-11-04"] },
+    activePlanId: "saved",
+    plan: saved,
+  };
+  await act(async () => root.render(<PlanScreen />));
+  expect(host.textContent).toContain("Terminy meczów: 6.11 → 4.11");
+  expect(mock.activate).not.toHaveBeenCalled();
+  await act(async () =>
+    [...host.querySelectorAll("button")].find((b) => b.textContent === "Zaktualizuj plan")!.click(),
+  );
+  expect(host.textContent).toContain("Najbliższe 7 dni · zmiany");
+  expect(mock.activate).not.toHaveBeenCalled();
+});
+
+it("a new time budget opens a preview of the nearest sessions instead of changing the plan silently", async () => {
+  const state = mock.store.state as LoadwiseState;
+  const profile = {
+    ...state.profile!,
+    individualTrainingDays: [1, 2, 3, 4, 5, 6, 7],
+    hasPitch: true,
+    hasSprintSpace: true,
+  };
+  const saved = generateTrainingPlan(profile, {
+    startDate: "2026-11-02",
+    weeks: 4,
+    minutesPerSession: 75,
+  }).plan;
+  mock.store.state = { ...state, profile, activePlanId: "saved", plan: saved };
+  await act(async () => root.render(<PlanScreen />));
+  expect(host.textContent).not.toContain("Twój plan · 4 tygodnie");
+  const time = host.querySelector<HTMLSelectElement>('select[aria-label="Czas na jednostkę"]')!;
+  await act(async () => {
+    time.value = "30";
+    time.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  expect(host.textContent).toContain("Twój plan · 4 tygodnie");
+  expect(host.textContent).toContain("Czas na jednostkę: 75 → 30 min");
   expect(mock.activate).not.toHaveBeenCalled();
 });

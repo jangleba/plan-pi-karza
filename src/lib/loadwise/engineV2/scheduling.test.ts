@@ -353,3 +353,50 @@ describe("shared calendar and load constraints", () => {
     });
   });
 });
+
+describe("main goal ranking in a tight week", () => {
+  // Two dates. The main target M is only feasible on date 0 and then occupies date 1 too
+  // (a recovery gap). S1 fits date 0, S2 fits date 1. Counting targets alone prefers S1+S2.
+  type State = string[];
+  const tryPlace = (state: State, recipe: string, i: number) => {
+    if (state[i] !== "") return { blocked: { code: "OCCUPIED", message: "zajęte" } };
+    if (recipe === "M") {
+      if (i !== 0 || state[1] !== "") return { blocked: { code: "GAP", message: "przerwa" } };
+      return { state: ["M", "gap"] as State };
+    }
+    if (recipe === "S1" && i !== 0) return { blocked: { code: "DAY", message: "dzień" } };
+    if (recipe === "S2" && i !== 1) return { blocked: { code: "DAY", message: "dzień" } };
+    return { state: state.map((x, k) => (k === i ? recipe : x)) };
+  };
+  const tasks = [
+    { id: "S1", recipe: "S1", priority: 30 },
+    { id: "S2", recipe: "S2", priority: 30 },
+    { id: "M", recipe: "M", priority: 10 },
+  ];
+  const input = {
+    initialState: ["", ""] as State,
+    tasks,
+    dayCount: 2,
+    isCovered: (state: State, id: string) => state.includes(id),
+    tryPlace,
+  };
+  it("without a main goal keeps the previous objective (most targets, then priority)", () => {
+    const result = solveWeeklySchedule(input);
+    expect(result.covered.sort()).toEqual(["S1", "S2"]);
+    expect(result.objective.main).toBe(0);
+  });
+  it("with a main goal keeps it even though fewer targets fit", () => {
+    const result = solveWeeklySchedule({ ...input, mainGoalIds: ["M"] });
+    expect(result.covered).toEqual(["M"]);
+    expect(result.unmet.sort()).toEqual(["S1", "S2"]);
+    expect(result.objective.main).toBe(1);
+  });
+  it("prefers more targets again when the main goal is covered either way", () => {
+    const result = solveWeeklySchedule({
+      ...input,
+      tasks: tasks.filter((t) => t.id !== "M"),
+      mainGoalIds: ["S1"],
+    });
+    expect(result.covered.sort()).toEqual(["S1", "S2"]);
+  });
+});

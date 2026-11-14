@@ -1,7 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { useAuth } from "@/lib/loadwise/auth";
 import { ProgressWorkspace } from "@/components/progress/ProgressWorkspace";
+import type { NextPlanDraft } from "@/lib/loadwise/nextPlanInterview";
+import { parseNextPlanIntent, type NextPlanIntent } from "@/lib/loadwise/nextPlanIntent";
+import { trainingStorageKey } from "@/lib/loadwise/trainingDetails";
+import { useTrainingLocalState } from "@/lib/loadwise/useTrainingLocalState";
 
 export const Route = createFileRoute("/_tabs/postep")({
   validateSearch: (s: Record<string, unknown>): { view?: "history"; session?: string } => ({
@@ -29,9 +33,27 @@ export const Route = createFileRoute("/_tabs/postep")({
 });
 
 function ProgressScreen() {
-  const { state, todayIso, hydrated, syncing } = useLoadwise();
+  const { state, todayIso, hydrated, syncing, updateProfile } = useLoadwise();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const search = Route.useSearch();
+  const intent = useTrainingLocalState<NextPlanIntent | null>(
+    trainingStorageKey("next-plan-intent", user?.id),
+    null,
+    parseNextPlanIntent,
+  );
+  const stored = state.plan[0]?.engineTimeBudgetMin;
+  const currentMinutes = typeof stored === "number" && stored >= 10 && stored <= 120 ? stored : 75;
+  // Saves only the confirmed profile changes; the plan itself is saved later, after the preview.
+  async function prepareNextPlan(draft: NextPlanDraft) {
+    if (draft.profileChanged) await updateProfile(draft.profile);
+    intent.setValue({
+      planId: state.activePlanId ?? null,
+      minutes: draft.minutes,
+      createdAt: new Date().toISOString(),
+    });
+    await navigate({ to: "/plan" });
+  }
   return (
     <ProgressWorkspace
       key={user?.id ?? "signed-out"}
@@ -41,6 +63,7 @@ function ProgressScreen() {
       initialTab={search.view}
       focusSessionId={search.session}
       loading={!hydrated || syncing}
+      planEnd={user ? { currentMinutes, onPrepare: prepareNextPlan } : undefined}
     />
   );
 }

@@ -101,3 +101,21 @@ export function routedProfile(p: Profile, goal: Goal): Profile {
     ? { ...p, goal: "return", secondaryLimiter: "fatigue" }
     : { ...p, goal };
 }
+
+export type WeeklyTaskId = "strengthA" | "strengthB" | "speed" | "endurance";
+
+/**
+ * Weekly targets that realise the main goal; the scheduler ranks these first in a week too
+ * tight for everything. Explicit mapping of the existing goals, no new goal is invented:
+ * speed/agility → sprint, endurance → endurance, strength/power → both strength days.
+ * Any other goal follows the highest-weighted targets of the existing priority table.
+ */
+export function mainGoalTasks(p: Profile): WeeklyTaskId[] {
+  const ids: WeeklyTaskId[] = ["strengthA", "strengthB", "speed", "endurance"];
+  if (p.goal === "speed" || p.goal === "agility") return ["speed"];
+  if (p.goal === "endurance") return ["endurance"];
+  if (p.goal === "strength" || p.goal === "power") return ["strengthA", "strengthB"];
+  const { priorities } = resolveGoalPolicy(p);
+  const top = Math.max(...priorities);
+  return ids.filter((_, i) => priorities[i] === top);
+}

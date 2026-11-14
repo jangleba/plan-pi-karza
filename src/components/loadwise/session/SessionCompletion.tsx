@@ -12,14 +12,18 @@ import { useTrainingLocalState } from "@/lib/loadwise/useTrainingLocalState";
 import { trainingStorageKey } from "@/lib/loadwise/trainingDetails";
 import { measuredSessionMinutes } from "@/lib/loadwise/sessionExecution";
 import { readPendingTrainingWrites } from "@/lib/loadwise/offlineTrainingQueue";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { professionalSessionTitle } from "@/lib/loadwise/labels";
+import {
+  ACTIVITY_TAGS,
+  ACTIVITY_TAG_LABELS,
+  MATCH_MINUTES_MAX,
+  activityTypeFromTags,
+  clubDuration,
+  effectiveActivityTags,
+  normalizeActivityTags,
+  isValidMatchMinutes,
+} from "@/lib/loadwise/sessionFeedback";
+import type { ActivityTag } from "@/lib/loadwise/types";
 
 export function MatchStartPanel({ session, isToday }: { session: SessionDay; isToday: boolean }) {
   const { state, startSession } = useLoadwise();
@@ -101,30 +105,43 @@ function CompletionContent({ session, onSaved, suggestedDurationMin }: Completio
       rpe: existing?.rpe ?? null,
       minutes: initialMinutes == null ? "" : String(initialMinutes),
       later: false,
+      tags: effectiveActivityTags(existing ?? {}) as ActivityTag[],
+      matchMinutes: existing?.matchMinutesPlayed == null ? "" : String(existing.matchMinutesPlayed),
     },
     parseFinishDraft,
   );
   const [notes, setNotes] = useState(parsed.notes);
-  const [activityType, setActivityType] = useState(existing?.activityType ?? "mixed");
   const [saving, setSaving] = useState(false),
     [error, setError] = useState<string | null>(null);
-  const external = session.dayType === "club" || session.dayType === "match";
+  const isClub = session.dayType === "club",
+    isMatch = session.dayType === "match";
   const minutes = Number(draft.value.minutes),
     rpe = draft.value.rpe;
-  const valid =
-    Number.isInteger(minutes) &&
-    minutes >= 1 &&
-    minutes <= 300 &&
-    (rpe !== null || draft.value.later);
+  const matchMinutes =
+    draft.value.matchMinutes.trim() === "" ? null : Number(draft.value.matchMinutes);
+  // Club time is an explicit product default (90 min) and a match is described by the minutes
+  // actually played, so neither asks for the whole-session time.
+  const timeless = isClub || isMatch;
+  const minutesOk = timeless || (Number.isInteger(minutes) && minutes >= 1 && minutes <= 300);
+  const matchOk = !isMatch || isValidMatchMinutes(matchMinutes);
+  const valid = minutesOk && matchOk && (rpe !== null || draft.value.later);
   if (!session.dbId) return null;
   async function save() {
     if (!valid || saving) return;
     setSaving(true);
     setError(null);
     try {
+      const tags = draft.value.tags;
       await completeSession(session, rpe, consent ? notes.trim() : "", {
-        durationMin: minutes,
-        ...(external ? { activityType } : {}),
+        ...(isClub
+          ? clubDuration(existing)
+          : isMatch
+            ? {}
+            : { durationMin: minutes, durationSource: existing?.durationSource ?? "user" }),
+        ...(isClub || isMatch
+          ? { activityTags: tags, activityType: activityTypeFromTags(tags) }
+          : {}),
+        ...(isMatch ? { matchMinutesPlayed: matchMinutes } : {}),
       });
       const pending =
         user &&
@@ -162,29 +179,52 @@ function CompletionContent({ session, onSaved, suggestedDurationMin }: Completio
           {(activity.distanceM / 1000).toLocaleString("pl-PL", { maximumFractionDigits: 2 })} km
         </p>
       )}
-      <label className="bw-finish-duration">
-        <span>Czas całej sesji</span>
-        <span>
-          <Input
-            aria-label="Czas całej sesji w minutach"
-            type="number"
-            inputMode="numeric"
-            min={1}
-            max={300}
-            value={draft.value.minutes}
-            onChange={(e) => draft.setValue((v) => ({ ...v, minutes: e.target.value }))}
-          />{" "}
-          min
-        </span>
-      </label>
-      <p className="bw-session-muted">
-        Uwzględnij rozgrzewkę i przerwy. Plan: {session.durationMin} min.
-      </p>
+      {!timeless && (
+        <>
+          <label className="bw-finish-duration">
+            <span>Czas całej sesji</span>
+            <span>
+              <Input
+                aria-label="Czas całej sesji w minutach"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={300}
+                value={draft.value.minutes}
+                onChange={(e) => draft.setValue((v) => ({ ...v, minutes: e.target.value }))}
+              />{" "}
+              min
+            </span>
+          </label>
+          <p className="bw-session-muted">
+            Uwzględnij rozgrzewkę i przerwy. Plan: {session.durationMin} min.
+          </p>
+        </>
+      )}
+      {isMatch && (
+        <label className="bw-finish-duration">
+          <span>Ile minut zagrałeś?</span>
+          <span>
+            <Input
+              aria-label="Rozegrane minuty meczu"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={MATCH_MINUTES_MAX}
+              value={draft.value.matchMinutes}
+              onChange={(e) => draft.setValue((v) => ({ ...v, matchMinutes: e.target.value }))}
+            />{" "}
+            min
+          </span>
+        </label>
+      )}
       <fieldset className="bw-rpe-field">
         <legend>Jak ciężki był trening?</legend>
-        <p className="bw-session-muted">0 — bez wysiłku · 10 — maksymalnie ciężko</p>
+        <p className="bw-session-muted">1 — bardzo lekko · 10 — maksymalnie ciężko</p>
         <div className="bw-rpe-options">
-          {Array.from({ length: 11 }, (_, n) => (
+          {Array.from({ length: existing?.rpe === 0 ? 11 : 10 }, (_, i) =>
+            existing?.rpe === 0 ? i : i + 1,
+          ).map((n) => (
             <button
               key={n}
               type="button"
@@ -205,27 +245,34 @@ function CompletionContent({ session, onSaved, suggestedDurationMin }: Completio
           {draft.value.later ? "RPE uzupełnię później ✓" : "Uzupełnię RPE później"}
         </button>
       </fieldset>
-      {(consent || external) && (
+      {isClub && (
+        <fieldset className="bw-rpe-field">
+          <legend>Charakter treningu</legend>
+          <p className="bw-session-muted">Możesz wybrać kilka. Bez wyboru — brak odpowiedzi.</p>
+          <div className="bw-rpe-options">
+            {ACTIVITY_TAGS.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                aria-pressed={draft.value.tags.includes(tag)}
+                onClick={() =>
+                  draft.setValue((v) => ({
+                    ...v,
+                    tags: v.tags.includes(tag)
+                      ? v.tags.filter((t) => t !== tag)
+                      : ACTIVITY_TAGS.filter((t) => t === tag || v.tags.includes(t)),
+                  }))
+                }
+              >
+                {ACTIVITY_TAG_LABELS[tag]}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+      )}
+      {consent && (
         <details className="bw-session-extra">
           <summary>Dodatkowe informacje</summary>
-          {external && (
-            <label className="block space-y-2 text-sm">
-              Charakter wysiłku
-              <Select
-                value={activityType}
-                onValueChange={(v) => setActivityType(v as typeof activityType)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="technical">Głównie z piłką</SelectItem>
-                  <SelectItem value="mixed">Mieszany</SelectItem>
-                  <SelectItem value="running_endurance">Głównie biegowy / wydolnościowy</SelectItem>
-                </SelectContent>
-              </Select>
-            </label>
-          )}
           {consent && (
             <>
               <label className="block text-sm">
@@ -257,9 +304,14 @@ function CompletionContent({ session, onSaved, suggestedDurationMin }: Completio
     </section>
   );
 }
-function parseFinishDraft(
-  value: unknown,
-): { rpe: number | null; minutes: string; later: boolean } | undefined {
+type FinishDraft = {
+  rpe: number | null;
+  minutes: string;
+  later: boolean;
+  tags: ActivityTag[];
+  matchMinutes: string;
+};
+function parseFinishDraft(value: unknown): FinishDraft | undefined {
   if (!value || typeof value !== "object") return;
   const v = value as Record<string, unknown>;
   if (
@@ -272,7 +324,10 @@ function parseFinishDraft(
     )
   )
     return;
-  return { rpe: v.rpe as number | null, minutes: v.minutes, later: v.later };
+  const tags = normalizeActivityTags(v.tags) ?? [];
+  const matchMinutes =
+    typeof v.matchMinutes === "string" && v.matchMinutes.length <= 3 ? v.matchMinutes : "";
+  return { rpe: v.rpe as number | null, minutes: v.minutes, later: v.later, tags, matchMinutes };
 }
 
 export function ClubMonitoring({ session }: { session?: SessionDay }) {

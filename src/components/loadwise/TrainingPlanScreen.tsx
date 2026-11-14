@@ -7,7 +7,17 @@ import type { SessionDay } from "@/lib/loadwise/types";
 import { lockedExecutionDays } from "@/lib/loadwise/engineV2/locks";
 import { getPlanStatus } from "@/lib/loadwise/engineV2/planStatus";
 import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
+import { useAuth } from "@/lib/loadwise/auth";
+import { cycleStartRecord, stampCycleStart } from "@/lib/loadwise/cycleReview";
+import { parseNextPlanIntent, type NextPlanIntent } from "@/lib/loadwise/nextPlanIntent";
+import { buildPlanSummary } from "@/lib/loadwise/planSummary";
+import { describeScheduleChanges, windowDiff } from "@/lib/loadwise/scheduleChange";
+import { trainingStorageKey } from "@/lib/loadwise/trainingDetails";
+import { useTrainingLocalState } from "@/lib/loadwise/useTrainingLocalState";
+import { buildTrainingHistory, mergeTrainingHistory } from "@/lib/progress/progress";
+import { rowsToStrengthSets, useStrengthSetRows } from "@/lib/loadwise/strengthSets";
 import { StrengthExperienceSetup } from "./session/StrengthExperienceSetup";
+import { FeedbackAdjustmentCard } from "./FeedbackAdjustmentCard";
 import "@/styles/ballwise-plan.css";
 
 /** Preview, explicit activation and execution of the versioned training plan. */
@@ -16,11 +26,21 @@ export function PlanScreen() {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false),
     [error, setError] = useState<string | null>(null);
-  const [rebuild, setRebuild] = useState(false);
+  const { user } = useAuth();
+  const [rebuildRequested, setRebuild] = useState(false);
+  // Choices confirmed in Progress (time budget); a different saved plan voids them.
+  const intentState = useTrainingLocalState<NextPlanIntent | null>(
+    trainingStorageKey("next-plan-intent", user?.id),
+    null,
+    parseNextPlanIntent,
+  );
   const [timeChoice, setTimeChoice] = useState<{ planId: string | null; minutes: number } | null>(
     null,
   );
   const planId = state.activePlanId ?? null;
+  const intent =
+    intentState.value && intentState.value.planId === planId ? intentState.value : null;
+  const rebuild = rebuildRequested || intent !== null;
   const storedMinutes = state.plan[0]?.engineTimeBudgetMin;
   const savedBudget =
     typeof storedMinutes === "number" &&
@@ -29,39 +49,77 @@ export function PlanScreen() {
     storedMinutes <= 120
       ? storedMinutes
       : 75;
-  const minutes = timeChoice?.planId === planId ? timeChoice.minutes : savedBudget;
-  const effectivePlan = resolveEffectivePlan(state.plan, state.modifications, {
-    completions: state.completions,
-  });
-  const status = getPlanStatus({
-    plan: effectivePlan,
-    profile: state.profile,
-    todayIso,
-    completions: state.completions,
-  });
+  const minutes =
+    timeChoice?.planId === planId ? timeChoice.minutes : (intent?.minutes ?? savedBudget);
+  const effectivePlan = useMemo(
+    () =>
+      resolveEffectivePlan(state.plan, state.modifications, {
+        completions: state.completions,
+      }),
+    [state.plan, state.modifications, state.completions],
+  );
+  const status = useMemo(
+    () =>
+      getPlanStatus({
+        plan: effectivePlan,
+        profile: state.profile,
+        todayIso,
+        completions: state.completions,
+      }),
+    [effectivePlan, state.profile, todayIso, state.completions],
+  );
+  const setRows = useStrengthSetRows(
+    status.kind === "expired" ? user?.id : undefined,
+    effectivePlan[0]?.date,
+    effectivePlan[effectivePlan.length - 1]?.date,
+  );
   const preview = useMemo(() => {
     if (!state.profile || (state.plan.length && !rebuild)) return null;
     try {
-      return {
-        result: generateTrainingPlan(state.profile, {
-          startDate: todayIso,
-          previousPlan: state.plan,
-          completions: state.completions,
-          expectedPlanId: state.activePlanId ?? null,
-          minutesPerSession: minutes,
-          lockedDays: lockedExecutionDays(
-            resolveEffectivePlan(state.plan, state.modifications, {
-              completions: state.completions,
-            }),
-            state.completions,
-          ),
-          precedingDays: resolveEffectivePlan(state.plan, state.modifications, {
+      const generated = generateTrainingPlan(state.profile, {
+        startDate: todayIso,
+        previousPlan: state.plan,
+        completions: state.completions,
+        expectedPlanId: state.activePlanId ?? null,
+        minutesPerSession: minutes,
+        lockedDays: lockedExecutionDays(
+          resolveEffectivePlan(state.plan, state.modifications, {
             completions: state.completions,
-          }).filter((d) => d.date < todayIso),
-          readiness: state.profile.healthPersonalizationEnabled ? state.readiness : undefined,
-        }),
-        error: null,
-      };
+          }),
+          state.completions,
+        ),
+        precedingDays: resolveEffectivePlan(state.plan, state.modifications, {
+          completions: state.completions,
+        }).filter((d) => d.date < todayIso),
+        readiness: state.profile.healthPersonalizationEnabled ? state.readiness : undefined,
+      });
+      // The summary of the ended cycle travels with the new plan, so it stays in Progress.
+      const summary =
+        state.plan.length && status.kind === "expired"
+          ? buildPlanSummary({
+              profile: state.profile,
+              plan: effectivePlan,
+              completions: state.completions,
+              history: mergeTrainingHistory(
+                state.history,
+                buildTrainingHistory(effectivePlan, state.completions),
+                state.completions,
+              ),
+              readiness: state.readiness,
+              todayIso,
+              strengthSets: setRows ? rowsToStrengthSets(setRows, state.completions) : [],
+            })
+          : null;
+      const result = summary?.review
+        ? {
+            ...generated,
+            plan: stampCycleStart(
+              generated.plan,
+              cycleStartRecord(summary.review, state.plan[0]?.cycleId ?? null),
+            ),
+          }
+        : generated;
+      return { result, error: null };
     } catch (e) {
       return {
         result: null,
@@ -75,11 +133,30 @@ export function PlanScreen() {
     state.readiness,
     state.modifications,
     state.activePlanId,
+    state.history,
     rebuild,
     todayIso,
     minutes,
+    effectivePlan,
+    status.kind,
+    setRows,
   ]);
   const plan = preview?.result?.plan ?? effectivePlan;
+  // What changed since the saved plan was built, and what the next days would look like.
+  const scheduleChanges = state.profile
+    ? describeScheduleChanges(
+        effectivePlan[0]?.planInputs,
+        state.profile,
+        preview?.result
+          ? minutes
+          : (effectivePlan[0]?.planInputs?.minutesPerSession ?? savedBudget),
+        todayIso,
+      )
+    : [];
+  const nextDaysDiff =
+    preview?.result && state.plan.length
+      ? windowDiff(effectivePlan, preview.result.plan, todayIso)
+      : [];
   const issues = preview?.result?.issues ?? state.plan[0]?.enginePlanIssues ?? [];
   async function save() {
     if (!preview?.result || !activatePlanV2) return;
@@ -102,6 +179,7 @@ export function PlanScreen() {
       <AppHeader title="Plan" sketch="pitch" />
       <div className="px-4 space-y-4">
         {!hydrated || syncing ? <p role="status">Wczytywanie profilu…</p> : null}
+        {!preview ? <FeedbackAdjustmentCard /> : null}
         {state.profile ? (
           <details className="rounded-2xl border border-black/10 p-4">
             <summary>Dopasowanie treningu</summary>
@@ -111,7 +189,11 @@ export function PlanScreen() {
               <select
                 aria-label="Czas na jednostkę"
                 value={minutes}
-                onChange={(e) => setTimeChoice({ planId, minutes: Number(e.target.value) })}
+                onChange={(e) => {
+                  setTimeChoice({ planId, minutes: Number(e.target.value) });
+                  // A new time budget is a proposal: show the preview, save only on request.
+                  if (state.plan.length && Number(e.target.value) !== savedBudget) setRebuild(true);
+                }}
               >
                 {[...new Set([30, 45, 60, 75, 90, 120, minutes])]
                   .sort((a, b) => a - b)
@@ -127,6 +209,13 @@ export function PlanScreen() {
         {!state.profile && hydrated ? <p>Uzupełnij profil, aby przygotować plan.</p> : null}
         {state.plan.length > 0 && !preview ? (
           <div className="space-y-2">
+            {scheduleChanges.length > 0 && status.kind === "stale" ? (
+              <ul className="text-sm">
+                {scheduleChanges.map((c) => (
+                  <li key={c.kind}>{c.line}</li>
+                ))}
+              </ul>
+            ) : null}
             {status.kind === "expired" ? (
               <p role="status">
                 Cykl zakończony{status.endDate ? ` · ${status.endDate}` : ""}. Przygotuj kolejne 4
@@ -151,6 +240,25 @@ export function PlanScreen() {
               Podgląd dopasowany do Twojego przygotowania siłowego i kalendarza. Zapisz go, aby
               rozpocząć treningi.
             </p>
+            {scheduleChanges.length > 0 ? (
+              <ul className="text-sm text-neutral-600">
+                {scheduleChanges.map((c) => (
+                  <li key={c.kind}>{c.line}</li>
+                ))}
+              </ul>
+            ) : null}
+            {nextDaysDiff.length > 0 ? (
+              <details className="text-sm">
+                <summary>Najbliższe 7 dni · zmiany ({nextDaysDiff.length})</summary>
+                <ul>
+                  {nextDaysDiff.map((d) => (
+                    <li key={d.date}>
+                      {d.date}: {d.before} → {d.after}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
             {state.plan.length > 0 ? (
               <p className="text-sm text-neutral-600">
                 Nowy plan rozpoczyna się {todayIso}. Zapisane wykonanie i historia treningów
@@ -161,7 +269,10 @@ export function PlanScreen() {
               <button
                 type="button"
                 className="text-sm underline py-2"
-                onClick={() => setRebuild(false)}
+                onClick={() => {
+                  setRebuild(false);
+                  intentState.setValue(null);
+                }}
               >
                 Wróć do zapisanego planu
               </button>

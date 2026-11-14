@@ -9,6 +9,7 @@ import type { RunningActivity, RunningActivityDraft } from "@/lib/running/types"
 import { toast } from "sonner";
 import { isRetryableWriteError, withDurableTrainingWrite } from "../offlineTrainingQueue";
 import { waitForPlanWrites } from "./planWriteGuard";
+import { FEEDBACK_VERSION } from "../sessionFeedback";
 import type { Profile, SessionCompletion, SessionDay, SessionHistoryRecord } from "../types";
 import {
   findSessionByDbId,
@@ -17,6 +18,7 @@ import {
   mapCompletionRows,
   rowToRunningActivity,
   type AnyRow,
+  type CompletionDetails,
   type LoadwiseContextValue,
   type StoreActionContext,
 } from "./model";
@@ -54,7 +56,11 @@ export function createSessionActions(
   context: StoreActionContext,
 ): Pick<
   LoadwiseContextValue,
-  "startSession" | "completeSession" | "saveRunningActivity" | "deleteRunningActivity"
+  | "startSession"
+  | "skipSession"
+  | "completeSession"
+  | "saveRunningActivity"
+  | "deleteRunningActivity"
 > {
   const { user, state, setState } = context;
   const latest = () => context.getState?.() ?? state;
@@ -96,7 +102,10 @@ export function createSessionActions(
     const currentSession = linked
       ? applyExerciseReplacements(linked, before.exerciseReplacements[linked.date] ?? [])
       : session;
-    if (session.engineV2 && (!linked || sessionPrescription(currentSession) !== sessionPrescription(session)))
+    if (
+      session.engineV2 &&
+      (!linked || sessionPrescription(currentSession) !== sessionPrescription(session))
+    )
       throw new Error("Plan zmienił się. Otwórz aktualną sesję przed rozpoczęciem treningu.");
     const issue = sessionStartIssue({
       session: currentSession,
@@ -163,11 +172,80 @@ export function createSessionActions(
     );
   }
 
+  /**
+   * Skipping is a recorded fact, not a reschedule: the session stays in the plan as skipped and no
+   * overdue work is moved to another day. A started or finished session cannot be skipped.
+   */
+  async function skipSession(session: SessionDay) {
+    const sid = session.dbId;
+    if (!user || !sid) throw new Error("Nie można opuścić tej sesji.");
+    await waitForPlanWrites(user.id);
+    const existing = latest().completions[sid];
+    if (existing?.completed || existing?.status === "started" || existing?.status === "missed")
+      return;
+    if (session.date !== context.todayIso) throw new Error("Opuścić można tylko dzisiejszą sesję.");
+    if (!session.engineV2) throw new Error("Opuścić można tylko własny trening z planu.");
+    const at = new Date().toISOString(),
+      operationId = crypto.randomUUID(),
+      expectedVersion = existing?.writeVersion ?? 0;
+    const snapshot = executionSnapshot(session, slotFor(session));
+    const payload = {
+      user_id: user.id,
+      session_id: sid,
+      completed: false,
+      completion_status: "missed",
+      rpe: null,
+      notes: null,
+      duration_minutes: null,
+      activity_type: null,
+      started_at: null,
+      ended_at: null,
+      updated_at: at,
+      execution_snapshot: snapshot as unknown as Json,
+    };
+    const result = await withDurableTrainingWrite(
+      user.id,
+      { kind: "session_log", dedupeKey: `session:${sid}`, payload, operationId, expectedVersion },
+      (entry) =>
+        supabase.rpc("save_training_log", {
+          p_operation_id: operationId,
+          p_session_id: sid,
+          p_expected_version: expectedVersion,
+          p_payload: {
+            ...payload,
+            _predecessor_operation_ids: entry.predecessors ?? [],
+          } as unknown as Json,
+        }),
+    );
+    let completion: SessionCompletion = {
+      completed: false,
+      status: "missed",
+      rpe: null,
+      notes: "",
+      durationMin: null,
+      startedAt: null,
+      endedAt: null,
+      executionSnapshot: snapshot,
+      writeVersion: expectedVersion,
+    };
+    if (result.error) {
+      if (!isRetryableWriteError(result.error))
+        assertNoSupabaseError("save_training_log.skip", result.error);
+      toast.info("Brak internetu — opuszczenie zapisano na tym telefonie.");
+    } else if (result.data)
+      completion = mapCompletionRows([result.data as AnyRow])[sid] ?? completion;
+    setState((s) =>
+      s.completions[sid]?.completed || s.completions[sid]?.status === "started"
+        ? s
+        : { ...s, completions: { ...s.completions, [sid]: completion } },
+    );
+  }
+
   async function completeSession(
     session: SessionDay,
     rpe: number | null,
     notes: string,
-    details: Pick<SessionCompletion, "durationMin" | "activityType"> = {},
+    details: CompletionDetails = {},
   ) {
     const sid = session.dbId;
     if (!user || !sid) throw new Error("Nie można zapisać tej sesji.");
@@ -184,7 +262,17 @@ export function createSessionActions(
       rpe,
       notes,
       durationMin: details.durationMin ?? existing?.durationMin ?? null,
+      durationSource:
+        details.durationSource ??
+        (details.durationMin == null ? (existing?.durationSource ?? null) : "user"),
       activityType: details.activityType ?? null,
+      activityTags: details.activityTags ?? existing?.activityTags ?? null,
+      matchMinutesPlayed:
+        details.matchMinutesPlayed === undefined
+          ? (existing?.matchMinutesPlayed ?? null)
+          : details.matchMinutesPlayed,
+      // A legacy RPE 0 cannot be re-saved under the 1–10 contract; keep its old version.
+      feedbackVersion: rpe === 0 ? (existing?.feedbackVersion ?? null) : FEEDBACK_VERSION,
       startedAt: existing?.startedAt ?? endedAt,
       endedAt,
       executionSnapshot: snapshot,
@@ -199,6 +287,10 @@ export function createSessionActions(
       notes,
       duration_minutes: completion.durationMin,
       activity_type: completion.activityType,
+      activity_tags: completion.activityTags ?? null,
+      duration_source: completion.durationSource ?? null,
+      match_minutes_played: completion.matchMinutesPlayed ?? null,
+      feedback_version: completion.feedbackVersion ?? null,
       started_at: completion.startedAt,
       ended_at: endedAt,
       updated_at: endedAt,
@@ -232,7 +324,9 @@ export function createSessionActions(
           title: snapshot.title,
           category,
           durationMin: completion.durationMin ?? 0,
-          durationEstimated: completion.durationMin == null,
+          durationEstimated:
+            completion.durationMin == null || completion.durationSource === "club_default",
+          matchMinutesPlayed: completion.matchMinutesPlayed ?? null,
           rpe: completion.rpe,
           notes: completion.notes,
         }
@@ -355,5 +449,5 @@ export function createSessionActions(
     });
     requestRefresh();
   }
-  return { startSession, completeSession, saveRunningActivity, deleteRunningActivity };
+  return { startSession, skipSession, completeSession, saveRunningActivity, deleteRunningActivity };
 }

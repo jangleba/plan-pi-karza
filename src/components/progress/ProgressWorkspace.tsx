@@ -9,6 +9,11 @@ import {
 import { buildMicrocycle, buildDirection, nextActionableSession } from "@/lib/progress/center";
 import { buildCycleBar, buildLoadReport, buildTimeline } from "@/lib/progress/dashboard";
 import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
+import { getPlanStatus } from "@/lib/loadwise/engineV2/planStatus";
+import { buildPlanSummary } from "@/lib/loadwise/planSummary";
+import type { NextPlanDraft } from "@/lib/loadwise/nextPlanInterview";
+import { rowsToStrengthSets, useStrengthSetRows } from "@/lib/loadwise/strengthSets";
+import { PlanEndSummary } from "./PlanEndSummary";
 import { ProgressDashboard } from "./ProgressDashboard";
 import { ProgressHistory } from "./ProgressHistory";
 import { CycleReviewHistory } from "./CycleReviewHistory";
@@ -24,6 +29,7 @@ export function ProgressWorkspace({
   loading = false,
   initialTab,
   focusSessionId,
+  planEnd,
 }: {
   state: LoadwiseState;
   todayIso: string;
@@ -32,6 +38,8 @@ export function ProgressWorkspace({
   loading?: boolean;
   initialTab?: "history";
   focusSessionId?: string;
+  /** Provided by the route: lets the end-of-plan summary prepare the next preview. */
+  planEnd?: { currentMinutes: number; onPrepare: (draft: NextPlanDraft) => Promise<void> };
 }) {
   const [tab, setTab] = useState<"dashboard" | "history">(initialTab ?? "dashboard");
   const [period, setPeriod] = useState<ProgressPeriod>(7);
@@ -85,6 +93,37 @@ export function ProgressWorkspace({
     () => progressSessionTargets(plan, state.modifications),
     [plan, state.modifications],
   );
+  const windowStart = plan[0]?.date;
+  const windowEnd = plan[plan.length - 1]?.date;
+  const setRows = useStrengthSetRows(planEnd ? ownerId : undefined, windowStart, windowEnd);
+  const planSummary = useMemo(() => {
+    if (!planEnd || !state.profile) return null;
+    const status = getPlanStatus({
+      plan,
+      profile: state.profile,
+      todayIso,
+      completions: state.completions,
+    });
+    if (status.kind !== "expired") return null;
+    return buildPlanSummary({
+      profile: state.profile,
+      plan,
+      completions: state.completions,
+      history,
+      readiness: state.readiness,
+      todayIso,
+      strengthSets: setRows ? rowsToStrengthSets(setRows, state.completions) : [],
+    });
+  }, [
+    planEnd,
+    state.profile,
+    state.completions,
+    state.readiness,
+    plan,
+    history,
+    todayIso,
+    setRows,
+  ]);
   const missingRpe = history.find(
     (row) =>
       row.rpe === null && row.date >= micro.fromIso && row.date <= todayIso && targets[row.key],
@@ -154,6 +193,14 @@ export function ProgressWorkspace({
           <>
             {tab === "dashboard" ? (
               <>
+                {planSummary && planEnd && state.profile && (
+                  <PlanEndSummary
+                    summary={planSummary}
+                    profile={state.profile}
+                    currentMinutes={planEnd.currentMinutes}
+                    onPrepare={planEnd.onPrepare}
+                  />
+                )}
                 <CycleReviewHistory ownerId={ownerId} plan={state.plan} />
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs text-muted-foreground">Zapisane treningi</span>

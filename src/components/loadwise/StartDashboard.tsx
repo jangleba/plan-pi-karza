@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Brain, CalendarDays, Move, ScanLine, Target } from "lucide-react";
 import { PageHeader } from "./PageHeader";
 
@@ -16,12 +16,21 @@ export function StartDashboard({
   planStatus,
   todayComplete = false,
   onToday,
+  adjustment,
+  onSummarize,
+  onSkipToday,
 }: {
   name: string;
   todayTitle?: string;
   planStatus?: "empty" | "active" | "expired" | "stale";
   todayComplete?: boolean;
   onToday?: () => void;
+  /** Optional proposal card after hard club or match feedback. */
+  adjustment?: ReactNode;
+  /** End of a saved plan: one action that opens the summary in Progress. */
+  onSummarize?: () => void;
+  /** "Dziś nie mogę": present only for an unstarted own session of today. */
+  onSkipToday?: () => Promise<void>;
   avatar: ReactNode;
   onPlan: () => void;
   onLab: () => void;
@@ -46,7 +55,9 @@ export function StartDashboard({
             : (todayTitle ?? "Dzisiaj wolne");
   const subtitle =
     status === "expired"
-      ? "Przygotuj kolejny plan na 4 tygodnie"
+      ? onSummarize
+        ? "Podsumuj plan"
+        : "Przygotuj kolejny plan na 4 tygodnie"
       : status === "stale"
         ? "Dostosuj go do aktualnego profilu"
         : status === "empty"
@@ -55,6 +66,8 @@ export function StartDashboard({
             ? "Otwórz dzisiejszą sesję"
             : "Zobacz kolejne dni planu";
   const openToday = status === "active" && todayTitle && !todayComplete;
+  const [confirmSkip, setConfirmSkip] = useState(false);
+  const [skipError, setSkipError] = useState<string | null>(null);
   return (
     <main className="bw-home-compact">
       <PageHeader
@@ -72,7 +85,13 @@ export function StartDashboard({
       <button
         type="button"
         className="bw-plan-soon bw-plan-soon--compact"
-        onClick={openToday ? (onToday ?? onPlan) : onPlan}
+        onClick={
+          openToday
+            ? (onToday ?? onPlan)
+            : status === "expired" && onSummarize
+              ? onSummarize
+              : onPlan
+        }
       >
         <CalendarDays size={18} aria-hidden="true" />
         <span>
@@ -80,6 +99,39 @@ export function StartDashboard({
           <small>{subtitle}</small>
         </span>
       </button>
+      {adjustment}
+      {openToday && onSkipToday && (
+        <div className="bw-home-skip">
+          {confirmSkip ? (
+            <>
+              <small>
+                Sesja zostanie oznaczona jako opuszczona. Nie przesuwamy jej na inny dzień.
+              </small>
+              <button
+                type="button"
+                onClick={() => {
+                  setSkipError(null);
+                  void onSkipToday()
+                    .then(() => setConfirmSkip(false))
+                    .catch((e: unknown) =>
+                      setSkipError(e instanceof Error ? e.message : "Nie udało się zapisać."),
+                    );
+                }}
+              >
+                Potwierdź opuszczenie
+              </button>
+              <button type="button" onClick={() => setConfirmSkip(false)}>
+                Anuluj
+              </button>
+              {skipError ? <small role="alert">{skipError}</small> : null}
+            </>
+          ) : (
+            <button type="button" onClick={() => setConfirmSkip(true)}>
+              Dziś nie mogę
+            </button>
+          )}
+        </div>
+      )}
       {iqTask && (
         <section className="bw-home-iq-task" aria-label="Zadanie na boisko z Football IQ">
           <Target size={18} aria-hidden="true" />

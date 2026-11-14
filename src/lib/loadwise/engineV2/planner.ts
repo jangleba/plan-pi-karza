@@ -14,7 +14,7 @@ import { solveWeeklySchedule, assessPlacement, type PlacementAttempt } from "./s
 import { validateEngineSession } from "./validation";
 import { buildActivation, buildRecovery, buildMobility, buildSkills } from "./support";
 import { buildEnduranceForDate, hasCurrentVerifiedMas } from "./endurance";
-import { resolveGoalPolicy, routedProfile } from "./goalPolicy";
+import { resolveGoalPolicy, routedProfile, mainGoalTasks } from "./goalPolicy";
 import { hasReadinessStop } from "./planStatus";
 import { preparationProfile, hasVerifiedAdvancedStrength } from "./preparation";
 import { recipeTotalSeconds } from "@/lib/running/recipe";
@@ -538,6 +538,7 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
       initialState: base,
       tasks: available,
       dayCount: 7,
+      mainGoalIds: mainGoalTasks(p),
       isCovered: (days, id) =>
         days.some((d) =>
           own(d).some((s) => s.engineV2!.roles.includes(id as (typeof ids)[number])),
@@ -571,6 +572,7 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
         const reasons = [...new Set((solved.rejections[role] ?? []).map((r) => r.message))];
         issues.push({
           code: "UNMET_WEEKLY_TARGET",
+          target: role,
           date: base[0].date,
           message: `Tydzień ${week + 1}: nie znaleziono terminu na ${{ strengthA: "siłę A", strengthB: "siłę B", speed: "sprint", endurance: "wydolność" }[role]}. ${reasons.length ? reasons.join(" ") : "Brak dopuszczonego wariantu przy zadanym sprzęcie i przygotowaniu."}`,
         });
@@ -611,6 +613,7 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
       if (countEndurance(best) < 2)
         issues.push({
           code: "UNMET_GOAL_TARGET",
+          target: "endurance",
           date: base[0].date,
           message: `Tydzień ${week + 1}: zaplanowano ${countEndurance(best)} z 2 jednostek wydolności. Po zabezpieczeniu celów bazowych nie znaleziono miejsca na drugi spokojny bieg przy aktualnym kalendarzu, czasie i limitach sesji.`,
         });
@@ -677,6 +680,15 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
   if (plan[0]) {
     plan[0].enginePlanIssues = [...issues, ...violations];
     plan[0].engineTimeBudgetMin = options.minutesPerSession ?? 75;
+    plan[0].planInputs = {
+      matchDates: [...(p.matchDates ?? [])].sort(),
+      individualTrainingDays: [...p.individualTrainingDays].sort((a, b) => a - b),
+      unavailableDays: [...(p.unavailableDays ?? [])].sort((a, b) => a - b),
+      clubTrainingDays: [...p.clubTrainingDays].sort((a, b) => a - b),
+      unavailableEquipmentIds: [...(p.unavailableEquipmentIds ?? [])].sort(),
+      equipment: [...p.equipment].sort(),
+      minutesPerSession: options.minutesPerSession ?? 75,
+    };
   }
   return {
     version: ENGINE_VERSION,
@@ -774,4 +786,123 @@ export function validateTrainingPlan(
     }
   }
   return errors;
+}
+
+/* Primitives for adjustments after feedback. They reuse the generator's builders, placement
+ * gate and renderer, so an adjusted session passes the same checks as a planned one. */
+
+export interface AdjustmentRecipe {
+  kind: "lighter" | "compact";
+  recipe: EngineSession;
+}
+const doseWeight = (r: EngineSession) =>
+  r.exercises.reduce(
+    (sum, e) => sum + e.dose.sets * (e.dose.reps ?? (e.dose.seconds ? e.dose.seconds / 10 : 1)),
+    0,
+  );
+
+/** Existing lighter routes only: the reduced route, then the compact strength variant. */
+export function lighterRecipes(
+  session: SessionDay,
+  p: Profile,
+  minutesPerSession: number,
+): AdjustmentRecipe[] {
+  const r = session.engineV2;
+  if (!r) return [];
+  const out: AdjustmentRecipe[] = [];
+  const light = routedProfile({ ...p, secondaryLimiter: "fatigue" }, p.goal);
+  const strength = r.roles.includes("strengthA") || r.roles.includes("strengthB");
+  let reduced: EngineSession | null = null;
+  if (strength)
+    reduced = fitStrengthToBudget(
+      buildStrength(light, r.roles.includes("strengthA") ? "A" : "B", r.phase),
+      minutesPerSession,
+    );
+  else if (r.roles.includes("speed")) reduced = buildRunning(light, "speed", r.phase);
+  else if (r.roles.includes("endurance"))
+    reduced = plannedEndurance(p, session.date, r.phase, true);
+  if (reduced && reduced.minutes <= r.minutes && doseWeight(reduced) < doseWeight(r))
+    out.push({ kind: "lighter", recipe: reduced });
+  if (strength && r.minutes > 30) {
+    const compact = fitStrengthToBudget(r, Math.floor(r.minutes * 0.75));
+    if (compact.variant === "compact" && compact.minutes < r.minutes)
+      out.push({ kind: "compact", recipe: compact });
+  }
+  for (const item of out) {
+    item.recipe.cycle = r.cycle ? { ...r.cycle } : item.recipe.cycle;
+    item.recipe.phase = r.phase;
+  }
+  return out;
+}
+
+export type AdjustmentPlacement =
+  { plan: SessionDay[]; session: SessionDay } | { blocked: { code: string; message: string } };
+
+/** Places a recipe on a date of a flat plan through the shared gate and renderer. */
+export function placeRecipeOnDate(
+  plan: SessionDay[],
+  date: string,
+  recipe: EngineSession,
+  p: Profile,
+  options: EngineOptions,
+): AdjustmentPlacement {
+  const index = plan.findIndex((d) => d.date === date);
+  if (index < 0) return { blocked: { code: "INVALID_DATE", message: "Brak daty w planie." } };
+  const matches = new Set(
+    scheduledMatchDates(p, plusDays(options.startDate, -7), plan.length + 14),
+  );
+  const attempt = place(plan, index, recipe, p, options, matches, options.precedingDays ?? []);
+  if (!("state" in attempt)) return { blocked: attempt.blocked };
+  const before = plan[index];
+  const after = attempt.state[index];
+  const day = {
+    ...after,
+    dayDbId: before.dayDbId,
+    planDbId: before.planDbId,
+    cycleId: before.cycleId,
+  };
+  const secondMode = !!after.secondSession && after.secondSession !== before.secondSession;
+  const session = secondMode ? day.secondSession! : day;
+  return { plan: attempt.state.map((d, i) => (i === index ? day : d)), session };
+}
+
+/** Removes one unstarted own session; a second own session of that day stays as it is. */
+export function removeOwnSession(
+  plan: SessionDay[],
+  sessionId: string,
+  p: Profile,
+  options: EngineOptions,
+): SessionDay[] | null {
+  const index = plan.findIndex((d) => slots(d).some((s) => s.dbId === sessionId));
+  if (index < 0) return null;
+  const current = plan[index];
+  if (slots(current).some((s) => s.executionProtected) || current.executionProtected) return null;
+  if (current.secondSession?.dbId === sessionId)
+    return plan.map((d, i) => (i === index ? { ...d, secondSession: null } : d));
+  if (current.dbId !== sessionId || !current.engineV2) return null;
+  const second = current.secondSession;
+  if (second) {
+    // The other own session of the day becomes the day's session; its prescription is untouched.
+    if (!second.engineV2 || second.executionProtected) return null;
+    const promoted: SessionDay = {
+      ...second,
+      secondSession: null,
+      dayDbId: current.dayDbId,
+      planDbId: current.planDbId,
+      cycleId: current.cycleId,
+      mdLabel: current.mdLabel,
+    };
+    return plan.map((d, i) => (i === index ? promoted : d));
+  }
+  const matches = new Set(
+    scheduledMatchDates(p, plusDays(options.startDate, -7), plan.length + 14),
+  );
+  const shell = {
+    ...day(current.date, p, matches),
+    dayDbId: current.dayDbId,
+    planDbId: current.planDbId,
+    cycleId: current.cycleId,
+    mdLabel: current.mdLabel,
+  };
+  return plan.map((d, i) => (i === index ? shell : d));
 }

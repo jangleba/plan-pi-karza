@@ -634,6 +634,10 @@ export interface SessionDay {
   /** Podsumowanie poprzedniego cyklu i reguła startu tego cyklu (ta sama na każdym dniu). */
   cycleStart?: CycleStartRecord | null;
   executionProtected?: boolean;
+  feedbackAdjustments?: FeedbackAdjustmentMark[];
+  /** On the first day of a generated plan: the inputs it was built from. */
+  planInputs?: PlanInputsSnapshot;
+  externalGoalCredits?: ExternalGoalCredit[];
   dayDbId?: string; // id wiersza training_days (po zapisie do bazy)
   readinessAdjustedDate?: string | null;
   readinessAdjustmentKey?: string;
@@ -715,6 +719,39 @@ export interface WeekMeta {
   finalPolicyVersion?: string;
 }
 
+/** Schedule-relevant inputs a plan was generated from; lets the app say what changed later. */
+export interface PlanInputsSnapshot {
+  matchDates: string[];
+  individualTrainingDays: number[];
+  unavailableDays: number[];
+  clubTrainingDays: number[];
+  unavailableEquipmentIds: string[];
+  equipment: string[];
+  minutesPerSession: number;
+}
+
+export type ActivityTag = "running_endurance" | "technical" | "tactical_game";
+
+/** Zapis, że dzień został zmieniony po akceptacji propozycji opartej na feedbacku. */
+export interface FeedbackAdjustmentMark {
+  proposalId: string;
+  sourceSessionId: string;
+  kind: "reschedule" | "lighter" | "compact" | "skip" | "external_credit";
+  appliedAt: string;
+}
+/** Cel wydolności pokryty zgłoszoną pracą w klubie: osobno od wykonanej sesji własnej. */
+export interface ExternalGoalCredit {
+  goal: "endurance";
+  status: "external_reported";
+  sourceSessionId: string;
+  sourceDate: string;
+  rpe: number;
+  tags: ActivityTag[];
+  replacedTitle: string;
+  proposalId: string;
+}
+export type DurationSource = "user" | "measured" | "club_default";
+
 export interface SessionCompletion {
   completed: boolean;
   status?: "started" | "completed" | "missed";
@@ -722,6 +759,14 @@ export interface SessionCompletion {
   notes: string;
   durationMin?: number | null;
   activityType?: "technical" | "mixed" | "running_endurance" | null;
+  /** Wielokrotny wybór po klubie; brak pola = brak odpowiedzi, nie „żaden”. */
+  activityTags?: ActivityTag[] | null;
+  /** Skąd pochodzi durationMin: wpis zawodnika, pomiar start/stop albo założenie klubowe. */
+  durationSource?: DurationSource | null;
+  /** Rzeczywiste rozegrane minuty meczu; 0 = nie grał. Niezależne od czasu całej sesji. */
+  matchMinutesPlayed?: number | null;
+  /** Wersja formularza feedbacku; brak = rekord sprzed wprowadzenia pól. */
+  feedbackVersion?: number | null;
   startedAt?: string | null;
   endedAt?: string | null;
   executionSnapshot?: SessionDay | null;
@@ -742,6 +787,7 @@ export type SessionHistoryCategory =
 /** Ukończona jednostka niezależna od aktualnie aktywnego planu. */
 export interface SessionHistoryRecord {
   durationEstimated?: boolean;
+  matchMinutesPlayed?: number | null;
   key: string;
   date: string;
   title: string;

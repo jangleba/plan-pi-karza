@@ -114,7 +114,7 @@ it("opens the next unfinished effective slot instead of a completed base session
   });
 });
 
-it("recognizes an expired cycle and directs the player to preparation without creating a plan", async () => {
+it("recognizes an expired cycle and offers one 'Podsumuj plan' action leading to Progress, without creating a plan", async () => {
   const state = mocks.store.state;
   mocks.store.state = {
     ...state,
@@ -122,7 +122,8 @@ it("recognizes an expired cycle and directs the player to preparation without cr
   };
   await render();
   expect(host.textContent).toContain("Cykl zakończony");
+  expect(host.querySelector(".bw-plan-soon")?.textContent).toContain("Podsumuj plan");
   await act(async () => (host.querySelector(".bw-plan-soon") as HTMLButtonElement).click());
-  expect(mocks.navigate).toHaveBeenCalledWith({ to: "/plan" });
+  expect(mocks.navigate).toHaveBeenCalledWith({ to: "/postep" });
   expect(mocks.store.state.plan[0].date).toBe("2026-10-05");
 });

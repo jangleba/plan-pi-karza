@@ -21,6 +21,12 @@ export interface ExactScheduleInput<State, Recipe> {
   dayCount: number;
   /** Both callbacks must be pure; the solver never mutates a supplied state. */
   isCovered: (state: State, taskId: string) => boolean;
+  /**
+   * Targets that realise the athlete's main goal. They outrank the raw number of covered
+   * targets: a week that keeps them beats one that fits more secondary sessions. Hard
+   * placement gates still apply to every task; this only orders feasible solutions.
+   */
+  mainGoalIds?: readonly string[];
   tryPlace: (state: State, recipe: Recipe, dayIndex: number) => PlacementAttempt<State>;
 }
 export interface ExactScheduleResult<State> {
@@ -30,16 +36,18 @@ export interface ExactScheduleResult<State> {
   placements: Record<string, number>;
   rejections: Record<string, Array<SchedulingBlock & { dayIndex: number }>>;
   exploredNodes: number;
-  objective: { fulfilled: number; priority: number; penalty: number };
+  objective: { main: number; fulfilled: number; priority: number; penalty: number };
 }
 
 /** Exhaustive search of the four weekly targets, including the choice to leave
- * a target unmet. At most 1+8+64+512+4096 nodes for seven dates and four tasks.
+ * a target unmet. Ranking: main-goal targets covered, then all targets covered,
+ * then their priority, then placement cost. At most 1+8+64+512+4096 nodes for seven dates and four tasks.
  * Cosmetic penalties cannot make a three-target plan beat a feasible full week. */
 export function solveWeeklySchedule<State, Recipe>(
   input: ExactScheduleInput<State, Recipe>,
 ): ExactScheduleResult<State> {
   const { tasks, dayCount, isCovered, tryPlace } = input;
+  const mainIds = new Set(input.mainGoalIds ?? []);
   if (!Number.isInteger(dayCount) || dayCount < 1 || dayCount > 7)
     throw new Error("Weekly scheduling requires one to seven dates.");
   if (tasks.length > 4 || new Set(tasks.map((task) => task.id)).size !== tasks.length)
@@ -58,6 +66,7 @@ export function solveWeeklySchedule<State, Recipe>(
   const evaluate = (state: State, penalty: number) => {
     const covered = tasks.filter((task) => isCovered(state, task.id));
     return {
+      main: covered.filter((task) => mainIds.has(task.id)).length,
       fulfilled: covered.length,
       priority: covered.reduce((sum, task) => sum + task.priority, 0),
       penalty,
@@ -67,9 +76,11 @@ export function solveWeeklySchedule<State, Recipe>(
     a: ExactScheduleResult<State>["objective"],
     b: ExactScheduleResult<State>["objective"],
   ) =>
-    a.fulfilled > b.fulfilled ||
-    (a.fulfilled === b.fulfilled &&
-      (a.priority > b.priority || (a.priority === b.priority && a.penalty < b.penalty)));
+    a.main > b.main ||
+    (a.main === b.main &&
+      (a.fulfilled > b.fulfilled ||
+        (a.fulfilled === b.fulfilled &&
+          (a.priority > b.priority || (a.priority === b.priority && a.penalty < b.penalty)))));
   function visit(state: State, index: number, penalty: number, placements: Record<string, number>) {
     exploredNodes += 1;
     if (index === tasks.length) {

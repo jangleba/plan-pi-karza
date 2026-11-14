@@ -78,7 +78,10 @@ export async function loadSessionHistory(
           : typeof session.duration_min === "number"
             ? session.duration_min
             : 0,
-      durationEstimated: typeof log.duration_minutes !== "number",
+      durationEstimated:
+        typeof log.duration_minutes !== "number" || log.duration_source === "club_default",
+      matchMinutesPlayed:
+        typeof log.match_minutes_played === "number" ? log.match_minutes_played : null,
       rpe: typeof log.rpe === "number" ? log.rpe : null,
       notes: typeof log.notes === "string" ? log.notes : "",
     });

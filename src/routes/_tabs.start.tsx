@@ -4,6 +4,9 @@ import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { ProfileAvatar } from "@/components/loadwise/ui";
 import { StartDashboard } from "@/components/loadwise/StartDashboard";
+import { FeedbackAdjustmentCard } from "@/components/loadwise/FeedbackAdjustmentCard";
+import { ScheduleChangeCard } from "@/components/loadwise/ScheduleChangeCard";
+import { describeScheduleChanges } from "@/lib/loadwise/scheduleChange";
 import {
   completeFieldTask,
   openFieldTask,
@@ -19,7 +22,7 @@ export const Route = createFileRoute("/_tabs/start")({
 
 function StartScreen() {
   const { user } = useAuth();
-  const { state, hydrated, todayIso } = useLoadwise();
+  const { state, hydrated, todayIso, skipSession } = useLoadwise();
   const navigate = useNavigate();
   const router = useRouter();
   const [iqTask, setIqTask] = useState<FieldTask | null>(null);
@@ -43,6 +46,15 @@ function StartScreen() {
     completions: state.completions,
   });
   const today = todayTrainingState(effectivePlan, state.completions, todayIso);
+  const scheduleChanges =
+    status.kind === "stale" && status.staleReason === "profile" && state.profile
+      ? describeScheduleChanges(
+          effectivePlan[0]?.planInputs,
+          state.profile,
+          effectivePlan[0]?.planInputs?.minutesPerSession ?? 75,
+          todayIso,
+        )
+      : [];
 
   return (
     <StartDashboard
@@ -56,6 +68,24 @@ function StartScreen() {
           params: { date: todayIso },
           search: { slot: today.slot },
         })
+      }
+      adjustment={
+        <>
+          <ScheduleChangeCard
+            changes={scheduleChanges}
+            onOpen={() => void navigate({ to: "/plan" })}
+          />
+          <FeedbackAdjustmentCard />
+        </>
+      }
+      onSummarize={() => void navigate({ to: "/postep" })}
+      onSkipToday={
+        today.session?.engineV2 &&
+        today.session.dbId &&
+        !state.completions[today.session.dbId]?.status &&
+        !state.completions[today.session.dbId]?.completed
+          ? () => skipSession(today.session!)
+          : undefined
       }
       avatar={<ProfileAvatar />}
       onPlan={() => void navigate({ to: "/plan" })}

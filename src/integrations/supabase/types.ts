@@ -765,14 +765,18 @@ export type Database = {
       }
       session_logs: {
         Row: {
+          activity_tags: string[] | null
           activity_type: string | null
           completed: boolean | null
           completion_status: string
           created_at: string
           duration_minutes: number | null
+          duration_source: string | null
           ended_at: string | null
           execution_snapshot: Json | null
+          feedback_version: number | null
           id: string
+          match_minutes_played: number | null
           notes: string | null
           rpe: number | null
           server_updated_at: string
@@ -783,14 +787,18 @@ export type Database = {
           write_version: number
         }
         Insert: {
+          activity_tags?: string[] | null
           activity_type?: string | null
           completed?: boolean | null
           completion_status?: string
           created_at?: string
           duration_minutes?: number | null
+          duration_source?: string | null
           ended_at?: string | null
           execution_snapshot?: Json | null
+          feedback_version?: number | null
           id?: string
+          match_minutes_played?: number | null
           notes?: string | null
           rpe?: number | null
           server_updated_at?: string
@@ -801,14 +809,18 @@ export type Database = {
           write_version?: number
         }
         Update: {
+          activity_tags?: string[] | null
           activity_type?: string | null
           completed?: boolean | null
           completion_status?: string
           created_at?: string
           duration_minutes?: number | null
+          duration_source?: string | null
           ended_at?: string | null
           execution_snapshot?: Json | null
+          feedback_version?: number | null
           id?: string
+          match_minutes_played?: number | null
           notes?: string | null
           rpe?: number | null
           server_updated_at?: string
