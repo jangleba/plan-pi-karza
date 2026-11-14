@@ -4,6 +4,7 @@ import type { Dispatch,SetStateAction } from "react";
 import { ageOnDate } from "../agePolicy";
 import { decodeStrengthExperience,type StrengthExperience } from "../strengthExperience";
 import { normalizeMatchDates } from "../matchSchedule";
+import { normalizeActivityTags } from "../sessionFeedback";
 import { normalizeCurrentPitchFeelings,normalizeDesiredPitchFeelings } from "../playerDirection";
 import { normalizePersistedPainLocations } from "../profilePainPersistence";
 import type {
@@ -458,6 +459,13 @@ export function rowToRunningActivity(row: AnyRow): RunningActivity | null {
   };
 }
 
+export type CompletionDetails = Partial<
+  Pick<
+    SessionCompletion,
+    "durationMin" | "durationSource" | "activityType" | "activityTags" | "matchMinutesPlayed"
+  >
+>;
+
 export interface LoadwiseContextValue {
   activatePlanV2?: (result: import("../engineV2/model").EngineResult) => Promise<void>;
   profileSaveStage?: import("../profileSave").ProfileSaveStage | null;
@@ -474,7 +482,7 @@ export interface LoadwiseContextValue {
     session: SessionDay,
     rpe: number | null,
     notes: string,
-    details?: Pick<SessionCompletion, "durationMin" | "activityType">,
+    details?: CompletionDetails,
   ) => Promise<void>;
   applyModification: (
     date: string,
@@ -514,6 +522,10 @@ export function mapCompletionRows(rows: AnyRow[]): Record<string, SessionComplet
       notes: (row.notes as string) ?? "",
       durationMin: (row.duration_minutes as number) ?? null,
       activityType: (row.activity_type as SessionCompletion["activityType"]) ?? null,
+      activityTags: normalizeActivityTags(row.activity_tags),
+      durationSource: (row.duration_source as SessionCompletion["durationSource"]) ?? null,
+      matchMinutesPlayed: (row.match_minutes_played as number | null) ?? null,
+      feedbackVersion: (row.feedback_version as number | null) ?? null,
       startedAt: (row.started_at as string | null) ?? null,
       endedAt: (row.ended_at as string | null) ?? null,
       executionSnapshot:

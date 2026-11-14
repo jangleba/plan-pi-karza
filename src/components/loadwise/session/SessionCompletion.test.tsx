@@ -83,8 +83,11 @@ describe("session completion", () => {
     expect(host.querySelector("textarea")?.value).toBe("Ciężkie nogi");
     await act(async () => saveButton().click());
     expect(saveButton().disabled).toBe(true);
+    // A real historical time is preserved (never rewritten to the 90-minute default).
     expect(mocks.complete).toHaveBeenCalledWith(session, 8, "Ciężkie nogi", {
       durationMin: 73,
+      durationSource: "user",
+      activityTags: ["technical"],
       activityType: "technical",
     });
     await act(async () => resolveSave());
@@ -105,7 +108,10 @@ describe("session completion", () => {
     expect(host.textContent).not.toContain("Prywatna notatka");
     await minutes(45);
     await act(async () => saveButton().click());
-    expect(mocks.complete).toHaveBeenCalledWith(session, 5, "", { durationMin: 45 });
+    expect(mocks.complete).toHaveBeenCalledWith(session, 5, "", {
+      durationMin: 45,
+      durationSource: "user",
+    });
   });
 
   it("allows retry after a completion save fails", async () => {
@@ -160,10 +166,85 @@ it("does not invent RPE or copy planned minutes into a new completion", async ()
     host.querySelector<HTMLInputElement>('[aria-label="Czas całej sesji w minutach"]')!.value,
   ).toBe("");
   await minutes(12);
-  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="RPE 0"]')!.click());
+  // New answers use 1–10: there is no RPE 0 button for a new entry.
+  expect(host.querySelector('[aria-label="RPE 0"]')).toBeNull();
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="RPE 1"]')!.click());
   await act(async () => saveButton().click());
-  expect(mocks.complete).toHaveBeenCalledWith(expect.anything(), 0, expect.any(String), {
+  expect(mocks.complete).toHaveBeenCalledWith(expect.anything(), 1, expect.any(String), {
     durationMin: 12,
+    durationSource: "user",
+  });
+});
+
+function click(label: RegExp | string) {
+  const el = [...host.querySelectorAll("button")].find((b) =>
+    typeof label === "string" ? b.textContent === label : label.test(b.textContent ?? ""),
+  )!;
+  return act(async () => el.click());
+}
+function setInput(aria: string, value: string) {
+  const input = host.querySelector<HTMLInputElement>(`[aria-label="${aria}"]`)!;
+  return act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+describe("club and match feedback", () => {
+  it("completes a new club session without asking for time: 90 min club_default, multi-select tags", async () => {
+    const session = sessionFixture({ dayType: "club" });
+    await act(async () => root.render(<CompletionPanel session={session} />));
+    expect(host.querySelector('[aria-label="Czas całej sesji w minutach"]')).toBeNull();
+    expect(saveButton().disabled).toBe(true);
+    await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="RPE 6"]')!.click());
+    // Nothing is pre-selected: an unanswered character stays "no data".
+    expect(
+      [...host.querySelectorAll("button[aria-pressed=true]")].map((b) => b.textContent),
+    ).toEqual(["6"]);
+    await click("Biegowy / wydolnościowy");
+    await click("Taktyka / gra z piłką");
+    await act(async () => saveButton().click());
+    expect(mocks.complete).toHaveBeenCalledWith(session, 6, expect.any(String), {
+      durationMin: 90,
+      durationSource: "club_default",
+      activityTags: ["running_endurance", "tactical_game"],
+      activityType: "mixed",
+    });
+  });
+
+  it("saves a club session with no tag and no RPE as missing data, not as a default", async () => {
+    const session = sessionFixture({ dayType: "club" });
+    await act(async () => root.render(<CompletionPanel session={session} />));
+    await click(/Uzupełnię RPE później/);
+    await act(async () => saveButton().click());
+    expect(mocks.complete).toHaveBeenCalledWith(session, null, expect.any(String), {
+      durationMin: 90,
+      durationSource: "club_default",
+      activityTags: [],
+      activityType: null,
+    });
+  });
+
+  it("requires played minutes for a match, accepts 0 and keeps them apart from session time", async () => {
+    const session = sessionFixture({ dayType: "match" });
+    await act(async () => root.render(<CompletionPanel session={session} />));
+    await minutes(115);
+    await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="RPE 7"]')!.click());
+    expect(saveButton().disabled).toBe(true); // missing minutes
+    for (const bad of ["-1", "181", "12.5", "abc"]) {
+      await setInput("Rozegrane minuty meczu", bad);
+      expect(saveButton().disabled).toBe(true);
+    }
+    await setInput("Rozegrane minuty meczu", "0");
+    expect(saveButton().disabled).toBe(false);
+    await act(async () => saveButton().click());
+    expect(mocks.complete).toHaveBeenCalledWith(session, 7, expect.any(String), {
+      durationMin: 115,
+      durationSource: "user",
+      activityTags: [],
+      activityType: null,
+      matchMinutesPlayed: 0,
+    });
   });
 });
 it("allows missing RPE explicitly without substituting six", async () => {

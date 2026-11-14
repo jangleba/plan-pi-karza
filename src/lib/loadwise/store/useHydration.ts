@@ -211,7 +211,7 @@ export function useHydration({
                   .from("session_logs")
 
                   .select(
-                    "session_id, completed, completion_status, rpe, notes, duration_minutes, activity_type, started_at, ended_at, updated_at, execution_snapshot, write_version",
+                    "session_id, completed, completion_status, rpe, notes, duration_minutes, activity_type, activity_tags, duration_source, match_minutes_played, feedback_version, started_at, ended_at, updated_at, execution_snapshot, write_version",
                   )
                   .abortSignal(controller.signal)
                   .eq("user_id", user.id)
@@ -345,7 +345,7 @@ export function useHydration({
               supabase
                 .from("session_logs")
                 .select(
-                  "session_id,completed,rpe,notes,duration_minutes,id,execution_snapshot,write_version",
+                  "session_id,completed,rpe,notes,duration_minutes,duration_source,match_minutes_played,id,execution_snapshot,write_version",
                 )
                 .eq("user_id", user.id)
                 .eq("completed", true)

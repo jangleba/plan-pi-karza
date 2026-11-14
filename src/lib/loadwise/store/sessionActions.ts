@@ -9,6 +9,7 @@ import type { RunningActivity, RunningActivityDraft } from "@/lib/running/types"
 import { toast } from "sonner";
 import { isRetryableWriteError, withDurableTrainingWrite } from "../offlineTrainingQueue";
 import { waitForPlanWrites } from "./planWriteGuard";
+import { FEEDBACK_VERSION } from "../sessionFeedback";
 import type { Profile, SessionCompletion, SessionDay, SessionHistoryRecord } from "../types";
 import {
   findSessionByDbId,
@@ -17,6 +18,7 @@ import {
   mapCompletionRows,
   rowToRunningActivity,
   type AnyRow,
+  type CompletionDetails,
   type LoadwiseContextValue,
   type StoreActionContext,
 } from "./model";
@@ -96,7 +98,10 @@ export function createSessionActions(
     const currentSession = linked
       ? applyExerciseReplacements(linked, before.exerciseReplacements[linked.date] ?? [])
       : session;
-    if (session.engineV2 && (!linked || sessionPrescription(currentSession) !== sessionPrescription(session)))
+    if (
+      session.engineV2 &&
+      (!linked || sessionPrescription(currentSession) !== sessionPrescription(session))
+    )
       throw new Error("Plan zmienił się. Otwórz aktualną sesję przed rozpoczęciem treningu.");
     const issue = sessionStartIssue({
       session: currentSession,
@@ -167,7 +172,7 @@ export function createSessionActions(
     session: SessionDay,
     rpe: number | null,
     notes: string,
-    details: Pick<SessionCompletion, "durationMin" | "activityType"> = {},
+    details: CompletionDetails = {},
   ) {
     const sid = session.dbId;
     if (!user || !sid) throw new Error("Nie można zapisać tej sesji.");
@@ -184,7 +189,17 @@ export function createSessionActions(
       rpe,
       notes,
       durationMin: details.durationMin ?? existing?.durationMin ?? null,
+      durationSource:
+        details.durationSource ??
+        (details.durationMin == null ? (existing?.durationSource ?? null) : "user"),
       activityType: details.activityType ?? null,
+      activityTags: details.activityTags ?? existing?.activityTags ?? null,
+      matchMinutesPlayed:
+        details.matchMinutesPlayed === undefined
+          ? (existing?.matchMinutesPlayed ?? null)
+          : details.matchMinutesPlayed,
+      // A legacy RPE 0 cannot be re-saved under the 1–10 contract; keep its old version.
+      feedbackVersion: rpe === 0 ? (existing?.feedbackVersion ?? null) : FEEDBACK_VERSION,
       startedAt: existing?.startedAt ?? endedAt,
       endedAt,
       executionSnapshot: snapshot,
@@ -199,6 +214,10 @@ export function createSessionActions(
       notes,
       duration_minutes: completion.durationMin,
       activity_type: completion.activityType,
+      activity_tags: completion.activityTags ?? null,
+      duration_source: completion.durationSource ?? null,
+      match_minutes_played: completion.matchMinutesPlayed ?? null,
+      feedback_version: completion.feedbackVersion ?? null,
       started_at: completion.startedAt,
       ended_at: endedAt,
       updated_at: endedAt,
@@ -232,7 +251,9 @@ export function createSessionActions(
           title: snapshot.title,
           category,
           durationMin: completion.durationMin ?? 0,
-          durationEstimated: completion.durationMin == null,
+          durationEstimated:
+            completion.durationMin == null || completion.durationSource === "club_default",
+          matchMinutesPlayed: completion.matchMinutesPlayed ?? null,
           rpe: completion.rpe,
           notes: completion.notes,
         }
