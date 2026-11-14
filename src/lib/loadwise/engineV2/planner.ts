@@ -69,6 +69,17 @@ function day(date: string, p: Profile, matches: Set<string>): SessionDay {
   };
 }
 
+/** First external/axial-loaded main lift of a strength session: where a ramp-up is shown. */
+function isFirstLoadedMain(recipe: EngineSession, index: number): boolean {
+  if (!recipe.roles.some((r) => r.startsWith("strength"))) return false;
+  const first = recipe.exercises.findIndex(
+    (e) =>
+      ["knee_strength", "hip_strength"].includes(e.role) &&
+      ["external", "axial"].includes(getExerciseDefinition(e.exerciseId)?.loadingType ?? ""),
+  );
+  return first === index;
+}
+
 function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
   const revision = trainingProfileRevision(p);
   const sections: TrainingSection[] = [];
@@ -147,7 +158,9 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
           ? "Każda próba jakościowa; pełny odpoczynek. Przerwij przy utracie kontroli."
           : d.intent === "easy"
             ? "Swobodny oddech i tempo konwersacyjne."
-            : undefined,
+            : isFirstLoadedMain(recipe, index)
+              ? `Przed pierwszą serią roboczą wykonaj ${recipe.tier === "foundation" ? "2 bardzo lekkie serie wprowadzające" : "2–3 serie wprowadzające"} (np. ok. 50% i 70% planowanego ciężaru po 3–5 powtórzeń). To nie są serie robocze: nie zapisuj ich jako wykonanych i nie liczą się do progresji. Pierwszy ciężar roboczy dobierz tak, by zostawał zapas ${d.rir ?? 3} powtórzeń.`
+              : undefined,
       groundContacts:
         FUNCTIONAL_CATALOGUE[e.exerciseId]?.actions.includes("jump") || e.exerciseId === "snap_down"
           ? (d.reps ?? 0) * (d.perSide ? 2 : 1)
@@ -223,7 +236,9 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
     : gym
       ? `Siła ${recipe.roles.includes("strengthA") ? "A" : "B"} · ${recipe.tier === "foundation" ? "podstawy" : recipe.tier === "development" ? "rozwój" : "performance"}`
       : speed
-        ? "Przyspieszenie"
+        ? recipe.exercises.some((e) => e.role === "speed" && (e.dose.runInM ?? 0) > 0)
+          ? "Prędkość maksymalna"
+          : "Przyspieszenie"
         : (recipe.runningRecipe?.title ?? "Bieg tlenowy");
   return {
     ...day(date, p, new Set()),
@@ -856,10 +871,19 @@ export function validateTrainingPlan(
         )
       )
         fail("CONSECUTIVE_HIGH_LOWER", d.date, "Ciężkie obciążenie nóg dzień po dniu.");
+      // The ramp-up note is guidance added later; plans saved before it must stay valid.
+      const plain = (value: unknown) =>
+        JSON.stringify(value, (key, item) =>
+          key === "cue" &&
+          typeof item === "string" &&
+          item.startsWith("Przed pierwszą serią roboczą")
+            ? undefined
+            : item,
+        );
+      const fresh = render(s.date, r, p);
       if (
-        JSON.stringify(s.structuredSections) !==
-          JSON.stringify(render(s.date, r, p).structuredSections) ||
-        JSON.stringify(s.sections) !== JSON.stringify(render(s.date, r, p).sections)
+        plain(s.structuredSections) !== plain(fresh.structuredSections) ||
+        plain(s.sections) !== plain(fresh.sections)
       )
         fail("DOSE_MISMATCH", d.date, "Dawka wykonania różni się od decyzji silnika.");
     }

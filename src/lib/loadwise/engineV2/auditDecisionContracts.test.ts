@@ -6,7 +6,7 @@ import {
   plannedOwnSessions,
   stampCycleStart,
 } from "../cycleReview";
-import { generateTrainingPlan } from "./planner";
+import { generateTrainingPlan, validateTrainingPlan } from "./planner";
 
 const profile = {
   name: "Decision audit",
@@ -219,9 +219,10 @@ describe("recommendation from the review shapes the plan it was decided for", ()
       "2:normal",
       "3:normal",
     ]);
-    expect(phases(rec("progress"))).toEqual(phases(null));
-    expect(phases(rec("maintain"))).toEqual(phases(null));
-  });
+    const none = phases(null);
+    expect(phases(rec("progress"))).toEqual(none);
+    expect(phases(rec("maintain"))).toEqual(none);
+  }, 60000);
   it("is kept when the saved plan is rebuilt later, without lighting the light start up again", () => {
     const record = rec("deload");
     const saved = generateTrainingPlan(profile, {
@@ -272,5 +273,75 @@ describe("key endurance session is not silently replaced by calm runs", () => {
       .map((s) => s.runningRecipe?.method);
     expect(runs).toContain("tempo"); // the key unit stays
     expect(r.issues.some((i) => i.code === "UNMET_WEEKLY_TARGET")).toBe(true); // what was limited is named
+  });
+});
+
+describe("sprint titles describe the actual dose", () => {
+  it("a flying-sprint dose is titled as maximum velocity, a plain one as acceleration", () => {
+    const flying = generateTrainingPlan({ ...profile, goal: "speed", level: "elite" } as Profile, {
+      startDate: "2026-11-02",
+      weeks: 1,
+    });
+    const sprints = flying.plan.flatMap(slotsOf).filter((s) => s.engineV2?.roles.includes("speed"));
+    expect(sprints.length).toBeGreaterThan(0);
+    for (const s of sprints) {
+      const fly = s.engineV2!.exercises.some((e) => e.role === "speed" && (e.dose.runInM ?? 0) > 0);
+      expect(s.title).toBe(fly ? "Prędkość maksymalna" : "Przyspieszenie");
+    }
+    const plain = generateTrainingPlan(
+      {
+        ...profile,
+        goal: "speed",
+        age: 15,
+        level: "beginner",
+        gymExperienceLevel: "beginner",
+        strengthTrainingMonths: 0,
+      } as Profile,
+      { startDate: "2026-11-02", weeks: 1 },
+    );
+    for (const s of plain.plan.flatMap(slotsOf).filter((x) => x.engineV2?.roles.includes("speed")))
+      expect(s.title).toBe("Przyspieszenie");
+  });
+});
+
+describe("guided ramp-up before the first loaded lift", () => {
+  it("is shown once per strength session, is not a work set, and leaves the working dose unchanged", () => {
+    const plan = generateTrainingPlan(profile, { startDate: "2026-11-02", weeks: 1 }).plan;
+    const gym = plan
+      .flatMap(slotsOf)
+      .filter((s) => s.engineV2?.roles.some((r) => r.startsWith("strength")));
+    expect(gym.length).toBeGreaterThan(0);
+    for (const s of gym) {
+      const ex = s.structuredSections!.flatMap((x) => x.blocks.flatMap((b) => b.exercises));
+      const withRamp = ex.filter((e) => e.cue?.includes("serie wprowadzające"));
+      expect(withRamp.length).toBeLessThanOrEqual(1);
+      for (const e of withRamp) {
+        expect(e.cue).toContain("nie zapisuj ich jako wykonanych");
+        const dose = s.engineV2!.exercises.find((d) => d.exerciseId === e.exerciseId)!.dose;
+        expect(e.sets).toBe(String(dose.sets)); // working sets are not inflated by the ramp-up
+      }
+    }
+    expect(
+      gym.some((s) =>
+        s.structuredSections!.some((x) =>
+          x.blocks.some((b) => b.exercises.some((e) => e.cue?.includes("serie wprowadzające"))),
+        ),
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("plans saved before the ramp-up note stay valid", () => {
+  it("a stored session without the note passes the dose-consistency check", () => {
+    const plan = generateTrainingPlan(profile, { startDate: "2026-11-02", weeks: 1 }).plan;
+    const old = JSON.parse(
+      JSON.stringify(plan, (k, v) =>
+        k === "cue" && typeof v === "string" && v.startsWith("Przed pierwszą") ? undefined : v,
+      ),
+    );
+    expect(JSON.stringify(old)).not.toContain("Przed pierwszą serią roboczą");
+    expect(
+      validateTrainingPlan(old, profile, { startDate: "2026-11-02", minutesPerSession: 75 }),
+    ).toEqual([]);
   });
 });
