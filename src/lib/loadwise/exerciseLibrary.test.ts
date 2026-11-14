@@ -1,31 +1,31 @@
-import { describe,it,expect } from "vitest";
-import type { Profile,SessionDay } from "./types";
+import { describe, it, expect } from "vitest";
+import type { Profile, SessionDay } from "./types";
 import { buildAthleteTrainingProfile } from "./athleteProfile";
 import {
-getAllExerciseDefinitions,
-getExerciseDefinition,
-isExerciseAllowedForProfile,
-getExerciseRegression,
-replaceExerciseWithSafeAlternative,
-validateExerciseLibraryCompleteness,
-validateWorkoutExercises,
-normalizeExerciseName,
-resolveExerciseId,
-resolveExerciseByName,
-validateExerciseDefinition,
-getAllEquipmentDefinitions,
-resolveEquipmentId,
-selectEquipmentAwareReplacement,
-getApprovedExerciseDefinitions,
-isApprovedCanonicalExercise,
-canonicalizeGeneratedExercise,
-hydrateExerciseItemFromDefinition,
-hydrateTrainingExerciseFromDefinition,
-migratePersistedExerciseData,
-validateCanonicalReplacementChains,
-type ExerciseDefinition,
-getFootballSpeedCatalog,
-getFoundationalSprintFlow,
+  getAllExerciseDefinitions,
+  getExerciseDefinition,
+  isExerciseAllowedForProfile,
+  getExerciseRegression,
+  replaceExerciseWithSafeAlternative,
+  validateExerciseLibraryCompleteness,
+  validateWorkoutExercises,
+  normalizeExerciseName,
+  resolveExerciseId,
+  resolveExerciseByName,
+  validateExerciseDefinition,
+  getAllEquipmentDefinitions,
+  resolveEquipmentId,
+  selectEquipmentAwareReplacement,
+  getApprovedExerciseDefinitions,
+  isApprovedCanonicalExercise,
+  canonicalizeGeneratedExercise,
+  hydrateExerciseItemFromDefinition,
+  hydrateTrainingExerciseFromDefinition,
+  migratePersistedExerciseData,
+  validateCanonicalReplacementChains,
+  type ExerciseDefinition,
+  getFootballSpeedCatalog,
+  getFoundationalSprintFlow,
 } from "./exerciseLibrary";
 
 function makeProfile(over: Partial<Profile>): Profile {
@@ -335,7 +335,13 @@ describe("library contract 2.0", () => {
 
   it("covers every required canonical family with approved, non-draft records", () => {
     const families = new Set(getApprovedExerciseDefinitions().map((exercise) => exercise.family));
-    for (const family of ["tendon_isometric", "mobility", "recovery", "conditioning", "trunk"] as const) {
+    for (const family of [
+      "tendon_isometric",
+      "mobility",
+      "recovery",
+      "conditioning",
+      "trunk",
+    ] as const) {
       expect(families.has(family)).toBe(true);
     }
   });
@@ -495,7 +501,13 @@ describe("library contract 2.0", () => {
       expect(
         catalog.every((exercise) => exercise.approved === true && exercise.draft !== true),
       ).toBe(true);
-      expect(catalog.every((exercise) => exercise.equipmentRequired.length === 0)).toBe(true);
+      // Only the two V2.6 drills need declared equipment (markers, a secured band); the rest need none.
+      expect(
+        catalog
+          .filter((exercise) => exercise.equipmentRequired.length > 0)
+          .map((exercise) => exercise.id)
+          .sort(),
+      ).toEqual(["resisted_a_march", "wicket_run"]);
     });
 
     it("keeps one canonical record for prescription variants and the exact A → C → B → D flow", () => {
