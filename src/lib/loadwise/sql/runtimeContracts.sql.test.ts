@@ -1,3 +1,4 @@
+import { masEvidence } from "@/lib/running/__fixtures__/mas";
 import { readFileSync, readdirSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from "vitest";
@@ -336,7 +337,10 @@ describe.sequential("full migration runtime contracts", () => {
       expect(await state()).toEqual({ running_progression_level: 2, progression_applied: true });
       // A correction of the same evidence is allowed (with the current version) and replays the
       // same history: the level does not move again.
-      await db.query("select save_running_result($1,$2::jsonb,1)", [uid(), JSON.stringify(payload)]);
+      await db.query("select save_running_result($1,$2::jsonb,1)", [
+        uid(),
+        JSON.stringify(payload),
+      ]);
       expect(await state()).toEqual({ running_progression_level: 2, progression_applied: true });
     },
   );
@@ -432,7 +436,17 @@ describe.sequential("full migration runtime contracts", () => {
   it("atomically stores MAS source and clears it on deletion", async () => {
     const sid = await seedSession(),
       id = uid();
+    await log(sid, 0, {
+      completion_status: "started",
+      execution_snapshot: {
+        runningRecipe: { method: "field_mas_test", id: masEvidence().recipeId },
+      },
+    });
     const p = {
+      started_at: "2026-10-17T10:00:00Z",
+      ended_at: "2026-10-17T10:05:00Z",
+      mas_test_evidence: masEvidence(1500),
+      mas_test_attempt: true,
       id,
       session_id: sid,
       date: "2026-10-17",
@@ -442,6 +456,8 @@ describe.sequential("full migration runtime contracts", () => {
       interval_results: [
         {
           kind: "work",
+          phase: "main",
+          recipeId: masEvidence().recipeId,
           completed: true,
           targetMode: "time",
           targetValue: 300,

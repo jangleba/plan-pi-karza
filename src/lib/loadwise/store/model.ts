@@ -1,25 +1,25 @@
 import { trainingProfileRevision } from "../planIdentity";
-import type { RunningActivity,RunningActivityDraft } from "@/lib/running/types";
-import type { Dispatch,SetStateAction } from "react";
+import type { RunningActivity, RunningActivityDraft } from "@/lib/running/types";
+import type { Dispatch, SetStateAction } from "react";
 import { ageOnDate } from "../agePolicy";
-import { decodeStrengthExperience,type StrengthExperience } from "../strengthExperience";
+import { decodeStrengthExperience, type StrengthExperience } from "../strengthExperience";
 import { normalizeMatchDates } from "../matchSchedule";
 import { normalizeActivityTags } from "../sessionFeedback";
-import { normalizeCurrentPitchFeelings,normalizeDesiredPitchFeelings } from "../playerDirection";
+import { normalizeCurrentPitchFeelings, normalizeDesiredPitchFeelings } from "../playerDirection";
 import { normalizePersistedPainLocations } from "../profilePainPersistence";
 import type {
-ExerciseItem,
-ExerciseReplacement,
-LoadwiseState,
-ModificationType,
-Profile,
-Readiness,
-SessionCompletion,
-SessionDay,
-SessionHistoryCategory,
-SessionModification,
-SessionStatus,
-TrainingExercise,
+  ExerciseItem,
+  ExerciseReplacement,
+  LoadwiseState,
+  ModificationType,
+  Profile,
+  Readiness,
+  SessionCompletion,
+  SessionDay,
+  SessionHistoryCategory,
+  SessionModification,
+  SessionStatus,
+  TrainingExercise,
 } from "../types";
 
 export const initialState: LoadwiseState = {
@@ -453,6 +453,11 @@ export function rowToRunningActivity(row: AnyRow): RunningActivity | null {
       : [],
     source: "gps",
     isFieldMasTest: row.is_field_mas_test === true,
+    masTestAttempt: row.mas_test_attempt === true,
+    masTestEvidence:
+      row.mas_test_evidence && typeof row.mas_test_evidence === "object"
+        ? (row.mas_test_evidence as unknown as RunningActivity["masTestEvidence"])
+        : null,
     createdAt: timestamp,
     updatedAt: typeof row.updated_at === "string" ? row.updated_at : timestamp,
     writeVersion: Number(row.write_version ?? 0),

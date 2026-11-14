@@ -84,7 +84,7 @@ export function BoutControls({
       }
       progress.setValue({ done: next });
       work.setValue(null);
-      if (setEnds) onSetFinished();
+      if (setEnds || kind === "sprint") onSetFinished();
     } finally {
       lock.current = false;
       setBusy(false);

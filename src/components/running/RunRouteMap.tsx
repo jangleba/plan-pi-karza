@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RoutePoint } from "@/lib/running/types";
 
 /**
@@ -50,14 +50,20 @@ const ROUTE_COLOR = "#16a34a";
 
 export function RunRouteMap({ route, height = 220 }: { route: RoutePoint[]; height?: number }) {
   const host = useRef<HTMLDivElement>(null);
+  const instance = useRef<{
+    L: typeof import("leaflet");
+    map: import("leaflet").Map;
+    layer: import("leaflet").LayerGroup;
+  } | null>(null);
   const [mode, setMode] = useState<"loading" | "map" | "sketch">("loading");
-  const segments = useMemo(() => routeSegments(route), [route]);
+  const hasPosition = route.length > 0;
 
+  // One map per mounted host. New GPS samples update layers, never the map itself.
   useEffect(() => {
-    if (route.length < 2 || !host.current) return;
+    if (!hasPosition || !host.current) return;
     let cancelled = false;
     let dispose: (() => void) | undefined;
-    (async () => {
+    void (async () => {
       try {
         const [{ default: L }] = await Promise.all([
           import("leaflet"),
@@ -69,43 +75,26 @@ export function RunRouteMap({ route, height = 220 }: { route: RoutePoint[]; heig
           attributionControl: true,
           scrollWheelZoom: false,
         });
+        const layer = L.layerGroup().addTo(map);
+        let failures = 0;
         L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 19,
           attribution: "© OpenStreetMap",
-        }).addTo(map);
-        const lines = segments.map((segment) =>
-          L.polyline(segment, { color: ROUTE_COLOR, weight: 4, opacity: 0.95 }).addTo(map),
-        );
-        const first = route[0];
-        const last = route[route.length - 1];
-        L.circleMarker([first.lat, first.lng], {
-          radius: 6,
-          color: "#fff",
-          weight: 2,
-          fillColor: ROUTE_COLOR,
-          fillOpacity: 1,
-        }).addTo(map);
-        L.circleMarker([last.lat, last.lng], {
-          radius: 6,
-          color: "#fff",
-          weight: 2,
-          fillColor: "#111827",
-          fillOpacity: 1,
-        }).addTo(map);
-        const bounds = L.featureGroup(lines).getBounds();
-        map.fitBounds(bounds, { padding: [18, 18] });
-        // Mapa w zwiniętej sekcji ma zerowy rozmiar — dopasuj po rozwinięciu.
+        })
+          .on("tileerror", () => {
+            if (++failures >= 3 && !cancelled) setMode("sketch");
+          })
+          .addTo(map);
+        instance.current = { L, map, layer };
         const resize =
           typeof ResizeObserver === "undefined"
             ? null
-            : new ResizeObserver(() => {
-                map.invalidateSize();
-                map.fitBounds(bounds, { padding: [18, 18] });
-              });
+            : new ResizeObserver(() => map.invalidateSize());
         resize?.observe(host.current);
         dispose = () => {
           resize?.disconnect();
           map.remove();
+          instance.current = null;
         };
         setMode("map");
       } catch {
@@ -116,9 +105,43 @@ export function RunRouteMap({ route, height = 220 }: { route: RoutePoint[]; heig
       cancelled = true;
       dispose?.();
     };
-  }, [route, segments]);
+  }, [hasPosition]);
 
-  if (route.length < 2) return null;
+  useEffect(() => {
+    const state = instance.current;
+    if (!state || !route.length || mode !== "map") return;
+    const { L, map, layer } = state;
+    layer.clearLayers();
+    for (const segment of routeSegments(route))
+      if (segment.length > 1)
+        L.polyline(segment, { color: ROUTE_COLOR, weight: 4, opacity: 0.95 }).addTo(layer);
+    const last = route[route.length - 1];
+    L.circleMarker([last.lat, last.lng], {
+      radius: 6,
+      color: "#fff",
+      weight: 2,
+      fillColor: ROUTE_COLOR,
+      fillOpacity: 1,
+    }).addTo(layer);
+    if (route.length === 1) map.setView([last.lat, last.lng], 17);
+    else
+      map.fitBounds(L.latLngBounds(route.map((p) => [p.lat, p.lng])), {
+        padding: [18, 18],
+        maxZoom: 17,
+        animate: false,
+      });
+  }, [route, mode]);
+
+  if (!hasPosition)
+    return (
+      <div
+        className="bw-run-map flex items-center justify-center p-4 text-center text-xs text-muted-foreground"
+        style={{ height }}
+        role="status"
+      >
+        Włącz lokalizację, aby przygotować mapę. Bez pozycji GPS nie rysujemy trasy.
+      </div>
+    );
   const paths = mode === "sketch" ? projectRoute(route, 320, height) : [];
   return (
     <div className="bw-run-map" style={{ height }}>
@@ -129,25 +152,39 @@ export function RunRouteMap({ route, height = 220 }: { route: RoutePoint[]; heig
         aria-label="Mapa trasy biegu"
         hidden={mode === "sketch"}
       />
+      {mode === "loading" && (
+        <p role="status" className="p-3 text-xs">
+          Przygotowuję mapę…
+        </p>
+      )}
       {mode === "sketch" && (
-        <svg
-          viewBox={`0 0 320 ${height}`}
-          className="bw-run-map-canvas"
-          role="img"
-          aria-label="Kształt trasy biegu"
-        >
-          {paths.map((d, i) => (
-            <path
-              key={i}
-              d={d}
-              fill="none"
-              stroke={ROUTE_COLOR}
-              strokeWidth={3}
-              strokeLinejoin="round"
-              strokeLinecap="round"
-            />
-          ))}
-        </svg>
+        <>
+          <svg
+            viewBox={`0 0 320 ${height}`}
+            className="bw-run-map-canvas"
+            role="img"
+            aria-label="Kształt trasy biegu"
+          >
+            {paths.map((d, i) => (
+              <path
+                key={i}
+                d={d}
+                fill="none"
+                stroke={ROUTE_COLOR}
+                strokeWidth={3}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
+            ))}
+            {route.length === 1 && <circle cx="160" cy={height / 2} r="5" fill={ROUTE_COLOR} />}
+          </svg>
+          <p
+            role="status"
+            className="absolute bottom-2 left-2 right-2 rounded-lg bg-background/90 p-2 text-xs"
+          >
+            Podkład mapy niedostępny. GPS i zapis śladu działają niezależnie.
+          </p>
+        </>
       )}
     </div>
   );

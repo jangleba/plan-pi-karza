@@ -1,3 +1,6 @@
+import { RunRouteMap } from "./RunRouteMap";
+import { isMasTestRecipe } from "@/lib/loadwise/engineV2/masTestRecipe";
+import { measureMasEvidence, masEvidenceProblem } from "@/lib/running/masQuality";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FileUp, LocateFixed, Pause, Play, Save, SkipForward, Trash2, Volume2 } from "lucide-react";
 import { toast } from "sonner";
@@ -138,7 +141,14 @@ function RunTracker({
   /** Receptura czasowa: kroki wynikają z czasu biegu, więc prowadzenie działa też w tle. */
   const timedGuide = isTimedProtocol(intervalProtocol);
   const samplesRef = useRef<DistanceSample[]>([]);
-  const isFieldMasTest = session.classification?.subcategory === "field_mas_test";
+  const isFieldMasTest =
+    session.classification?.subcategory === "field_mas_test" ||
+    isMasTestRecipe(session.runningRecipe);
+  const masInterruptedRef = useRef(false);
+  const [previewRoute, setPreviewRoute] = useState<RoutePoint[]>([]);
+  const [gpsPreparing, setGpsPreparing] = useState(false);
+  const [masCountdown, setMasCountdown] = useState<number | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [safetyAcknowledged, setSafetyAcknowledged] = useState(false);
   const nativeMode = !!ownerId && nativeRunningAvailable();
   const nativeIdentity = { ownerId: ownerId ?? "", sessionId };
@@ -208,6 +218,14 @@ function RunTracker({
       setElapsedSec(Math.round(value.durationSec ?? 0));
       setDistanceM(value.distanceM ?? 0);
       setRoutePointCount(value.pointCount ?? 0);
+      if (value.livePoint) {
+        const point = nativeRoute({ ...value, route: [value.livePoint] })[0];
+        if (point && routeRef.current.at(-1)?.recordedAt !== point.recordedAt) {
+          routeRef.current.push(point);
+          setPreviewRoute([...routeRef.current]);
+        }
+      }
+      if (value.recovered) masInterruptedRef.current = true;
       if (value.phase === "recording")
         samplesRef.current = pushSample(samplesRef.current, {
           elapsedSec: value.durationSec ?? 0,
@@ -360,11 +378,12 @@ function RunTracker({
     };
   }, [ownerId, sessionId, date, phase, pending, nativeMode, currentElapsed]);
 
-  const persistNativeGuide = () => {
+  const persistNativeGuide = useCallback(() => {
     if (!nativeMode) return;
     void nativeRecorder
       .updateIntervals({
-        ...nativeIdentity,
+        ownerId: ownerId ?? "",
+        sessionId,
         intervalResults: intervalResultsRef.current,
         guideState: {
           started: guideStartedRef.current,
@@ -377,7 +396,7 @@ function RunTracker({
       .catch(() =>
         setGpsError("Nie zapisano prowadzenia interwałów. Zachowaj ekran i spróbuj ponownie."),
       );
-  };
+  }, [nativeMode, ownerId, sessionId]);
 
   const releaseWakeLock = async () => {
     const lock = wakeLockRef.current;
@@ -421,6 +440,7 @@ function RunTracker({
       distanceM: distanceMRef.current,
     });
     setRoutePointCount(routeRef.current.length);
+    if (isFieldMasTest) setPreviewRoute([...routeRef.current]);
     setDistanceM(distanceMRef.current);
   };
 
@@ -507,12 +527,26 @@ function RunTracker({
       if (now < end) break;
       completeCurrentInterval(true, end, false);
       lastEnd = end;
+      if (isFieldMasTest && step.phase === "warmup") {
+        guideStartedRef.current = false;
+        setGuideStarted(false);
+        persistNativeGuide();
+        void cancelLockScreenCues();
+        lastEnd = null;
+        break;
+      }
     }
     if (lastEnd != null && now - lastEnd < 2.5)
       announceStep(
         guideCompleteRef.current ? null : intervalProtocol.steps[intervalStepIndexRef.current],
       );
-  }, [completeCurrentInterval, currentElapsed, intervalProtocol]);
+  }, [
+    completeCurrentInterval,
+    currentElapsed,
+    intervalProtocol,
+    isFieldMasTest,
+    persistNativeGuide,
+  ]);
 
   /** Pozycja na osi receptury — do planu powiadomień przy zablokowanym ekranie. */
   const guideTimelineSec = useCallback(() => {
@@ -555,9 +589,97 @@ function RunTracker({
     return () => {
       mountedRef.current = false;
       stopWatch();
+      if (countdownRef.current) clearInterval(countdownRef.current);
       void releaseWakeLock();
     };
   }, []);
+
+  async function prepareGps() {
+    if (gpsPreparing || !navigator.geolocation) {
+      if (!navigator.geolocation) setGpsError("Ta przeglądarka nie obsługuje lokalizacji GPS.");
+      return;
+    }
+    setGpsPreparing(true);
+    setGpsError(null);
+    try {
+      const p = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 15000,
+        }),
+      );
+      if (!mountedRef.current) return;
+      if (
+        !Number.isFinite(p.coords.accuracy) ||
+        p.coords.accuracy > 35 ||
+        Math.abs(Date.now() - p.timestamp) > 5000
+      ) {
+        setGpsError(
+          "GPS nie jest jeszcze dostatecznie dokładny lub świeży. Wyjdź na otwartą przestrzeń i ponów przygotowanie mapy.",
+        );
+        return;
+      }
+      setPreviewRoute([
+        {
+          lat: p.coords.latitude,
+          lng: p.coords.longitude,
+          recordedAt: new Date(p.timestamp).toISOString(),
+          elapsedSec: 0,
+          accuracyM: p.coords.accuracy,
+          segment: 0,
+        },
+      ]);
+    } catch (error) {
+      setGpsError(positionErrorMessage(error as GeolocationPositionError));
+    } finally {
+      setGpsPreparing(false);
+    }
+  }
+
+  async function startMasCountdown() {
+    if (countdownRef.current || startingRef.current || phaseRef.current !== "recording") return;
+    startingRef.current = true;
+    try {
+      const fix = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 15000,
+        }),
+      );
+      if (!mountedRef.current || phaseRef.current !== "recording") return;
+      if (
+        !Number.isFinite(fix.coords.accuracy) ||
+        fix.coords.accuracy > 35 ||
+        Math.abs(Date.now() - fix.timestamp) > 5000
+      ) {
+        setGpsError(
+          "Przed próbą potrzebny jest dokładny, świeży GPS. Poczekaj na sygnał i kliknij Start ponownie.",
+        );
+        return;
+      }
+      setGpsError(null);
+    } catch (error) {
+      setGpsError(positionErrorMessage(error as GeolocationPositionError));
+      return;
+    } finally {
+      startingRef.current = false;
+    }
+    let remaining = 3;
+    setMasCountdown(remaining);
+    countdownRef.current = setInterval(() => {
+      remaining--;
+      if (remaining > 0) {
+        setMasCountdown(remaining);
+        return;
+      }
+      clearInterval(countdownRef.current!);
+      countdownRef.current = null;
+      setMasCountdown(null);
+      if (phaseRef.current === "recording") startIntervalGuide();
+    }, 1000);
+  }
 
   async function startRecording() {
     if (startingRef.current || phaseRef.current !== "idle") return;
@@ -574,6 +696,7 @@ function RunTracker({
       setGpsError("Ta przeglądarka nie obsługuje lokalizacji GPS.");
       return;
     }
+    masInterruptedRef.current = false;
     startingRef.current = true;
     unlockSignals();
     if (timedGuide) void ensureLockScreenPermission();
@@ -593,6 +716,17 @@ function RunTracker({
         }),
       );
       if (!mountedRef.current) return;
+      if (
+        isFieldMasTest &&
+        (!Number.isFinite(first.coords.accuracy) ||
+          first.coords.accuracy > 35 ||
+          Math.abs(Date.now() - first.timestamp) > 5000)
+      ) {
+        setGpsError(
+          "Poczekaj na dokładny, świeży sygnał GPS (do 35 m). Rozgrzewka jeszcze nie wystartowała.",
+        );
+        return;
+      }
       segmentRef.current = 0;
       const now = Date.now();
       startedAtRef.current = new Date(now).toISOString();
@@ -607,6 +741,7 @@ function RunTracker({
         segment: 0,
       };
       routeRef.current = [firstPoint];
+      setPreviewRoute([firstPoint]);
       distanceMRef.current = 0;
       setRoutePointCount(1);
       setDistanceM(0);
@@ -647,6 +782,8 @@ function RunTracker({
   }
 
   function pauseRecording() {
+    if (isFieldMasTest && intervalProtocol?.steps[intervalStepIndexRef.current]?.phase === "main")
+      masInterruptedRef.current = true;
     void cancelLockScreenCues();
     if (nativeMode) {
       void nativeRecorder
@@ -683,6 +820,19 @@ function RunTracker({
   useEffect(() => {
     const onHidden = () => {
       const guiding = guideStartedRef.current && !guideCompleteRef.current;
+      if (document.hidden && countdownRef.current) {
+        clearInterval(countdownRef.current);
+        countdownRef.current = null;
+        setMasCountdown(null);
+      }
+      if (
+        !nativeMode &&
+        document.hidden &&
+        isFieldMasTest &&
+        guiding &&
+        intervalProtocol?.steps[intervalStepIndexRef.current]?.phase === "main"
+      )
+        masInterruptedRef.current = true;
       if (nativeMode && timedGuide && guiding) {
         // Kroki wynikają z czasu: po powrocie licznik nadrobi granice z zapisu GPS.
         if (document.hidden && phaseRef.current === "recording") {
@@ -713,7 +863,11 @@ function RunTracker({
         watchIdRef.current = null;
         setElapsedSec(Math.round(accumulatedSecRef.current));
         setPhase("paused");
-        setGpsError("Pomiar wstrzymany po ukryciu aplikacji. Wróć na ekran biegu i wznów GPS.");
+        setGpsError(
+          isFieldMasTest && masInterruptedRef.current
+            ? "Próba MAS przerwana po ukryciu ekranu. Możesz zapisać bieg, ale nie wyznaczy on MAS."
+            : "Pomiar wstrzymany po ukryciu aplikacji. Wróć na ekran biegu i wznów GPS.",
+        );
       }
     };
     document.addEventListener("visibilitychange", onHidden);
@@ -734,6 +888,7 @@ function RunTracker({
   }
 
   async function finishRecording() {
+    if (timedGuide && phaseRef.current === "recording") advanceTimedGuide();
     void cancelLockScreenCues();
     if (nativeMode) {
       if (finishingRef.current) return;
@@ -806,6 +961,7 @@ function RunTracker({
         }
       }
     }
+    intervalResults = remeasureIntervals(intervalResults, samplesRef.current);
     const draft = buildRunningActivityDraft({
       sessionId,
       date,
@@ -864,7 +1020,21 @@ function RunTracker({
     savingRef.current = true;
     setSaving(true);
     try {
-      await onSave(pending);
+      const evidence = isFieldMasTest
+        ? measureMasEvidence(pending, masInterruptedRef.current)
+        : null;
+      const result = isFieldMasTest
+        ? {
+            ...pending,
+            masTestEvidence: evidence,
+            intervalResults: pending.intervalResults.map((r) =>
+              r.phase === "main" && r.completed && evidence
+                ? withMeasuredDistance(r, evidence.distanceM)
+                : r,
+            ),
+          }
+        : pending;
+      await onSave(result);
       if (ownerId && pending.route.length > 1)
         saveRunToHistory(
           ownerId,
@@ -882,7 +1052,7 @@ function RunTracker({
       setPending(null);
       setPhase("idle");
       toast.success("Zapisano dystans, czas i średnie tempo biegu.");
-      onFinish?.(pending);
+      onFinish?.(result);
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -907,6 +1077,9 @@ function RunTracker({
   }
 
   const shownActivity = pending ?? activity;
+  const masEvidence =
+    isFieldMasTest && pending ? measureMasEvidence(pending, masInterruptedRef.current) : null;
+  const masProblem = isFieldMasTest && pending ? masEvidenceProblem(masEvidence) : null;
   const isTracking = phase === "recording" || phase === "paused";
   const currentIntervalStep =
     intervalProtocol && guideStarted && !guideComplete
@@ -1008,9 +1181,13 @@ function RunTracker({
         <div className="rounded-2xl border border-primary/25 bg-primary/5 p-3">
           <h3 className="text-sm font-semibold">Najpierw bezpieczeństwo</h3>
           <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs leading-relaxed text-muted-foreground">
-            <li>Wykonaj 10–12 minut spokojnej rozgrzewki na płaskiej, bezpiecznej trasie.</li>
             <li>
-              Po kliknięciu „Start testu” uruchom odcinek i biegnij równo przez pełne 5 minut.
+              Wybierz płaską, otwartą trasę bez ruchu ulicznego i ostrych nawrotów. Licznik
+              poprowadzi 10 minut rozgrzewki.
+            </li>
+            <li>
+              Po rozgrzewce kliknij „Start próby 5 min”. Po odliczaniu biegnij równo przez 300
+              sekund bez pauzy. Potem wykonaj 5 minut schłodzenia.
             </li>
             <li>
               Przerwij przy ostrym bólu, zawrotach głowy, bólu w klatce lub innym niepokojącym
@@ -1061,7 +1238,46 @@ function RunTracker({
         </div>
       )}
 
+      {isFieldMasTest && !pending && !activity && (
+        <div className="space-y-3">
+          <RunRouteMap route={previewRoute} height={220} />
+          {!isTracking && (
+            <>
+              <div
+                className="flex justify-between text-2xl font-semibold tabular-nums"
+                aria-label="Gotowość testu"
+              >
+                <span>05:00</span>
+                <span>0 m</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => void prepareGps()}
+                disabled={gpsPreparing}
+                className="w-full rounded-full border px-4 py-3 text-sm font-medium"
+              >
+                {gpsPreparing
+                  ? "Szukam dokładnej pozycji…"
+                  : previewRoute.length
+                    ? "Odśwież pozycję GPS"
+                    : "Włącz lokalizację i przygotuj mapę"}
+              </button>
+            </>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Test daje terenowe oszacowanie tempa MAS, nie pomiar VO₂max. Mapa i współrzędne
+            pozostają w telefonie.
+          </p>
+        </div>
+      )}
       {shownActivity && !isTracking && <RunActivitySummary activity={shownActivity} showSplits />}
+      {pending && isFieldMasTest && (
+        <p role="status" className="rounded-xl bg-muted/40 p-3 text-sm">
+          {masProblem
+            ? `${masProblem} Bieg zapiszesz w historii; dotychczasowy MAS pozostanie bez zmian.`
+            : "Próba spełnia warunki zapisu. MAS obliczymy wyłącznie z dystansu odcinka 5 min."}
+        </p>
+      )}
 
       {isTracking && (
         <div className="bw-run-live" data-started="">
@@ -1077,18 +1293,26 @@ function RunTracker({
           ) : intervalProtocol && !guideStarted ? (
             <>
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-                Gotowy do części głównej
+                {isFieldMasTest ? "Gotowy do próby 5 min" : "Gotowy do części głównej"}
               </div>
-              <div className="mt-2 text-2xl font-semibold">Uruchom prowadzenie biegu</div>
+              <div className="mt-2 text-2xl font-semibold">
+                {masCountdown !== null
+                  ? masCountdown
+                  : isFieldMasTest
+                    ? "05:00 · 0 m"
+                    : "Uruchom prowadzenie biegu"}
+              </div>
               <p className="mt-1 text-sm opacity-70">
                 Po rozgrzewce rozpocznij część główną. Dalej prowadzą komendy głosowe.
               </p>
               <button
                 type="button"
-                onClick={startIntervalGuide}
+                onClick={isFieldMasTest ? startMasCountdown : startIntervalGuide}
+                disabled={masCountdown !== null}
                 className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"
               >
-                <Play className="h-4 w-4" /> Rozpocznij bieg
+                <Play className="h-4 w-4" />{" "}
+                {isFieldMasTest ? "Start próby 5 min" : "Rozpocznij bieg"}
               </button>
             </>
           ) : currentIntervalStep ? (
@@ -1126,6 +1350,20 @@ function RunTracker({
                   )}
                 </div>
                 <p className="bw-run-now-until">{untilLabel(currentIntervalStep)}</p>
+                {isFieldMasTest && currentIntervalStep.phase === "main" && (
+                  <p className="text-3xl font-semibold tabular-nums" aria-label="Dystans próby MAS">
+                    {Math.round(
+                      Math.max(
+                        0,
+                        distanceAt(
+                          samplesRef.current,
+                          Math.min(elapsedSec, intervalStepStartedElapsedRef.current + 300),
+                        ) - distanceAt(samplesRef.current, intervalStepStartedElapsedRef.current),
+                      ),
+                    )}{" "}
+                    m
+                  </p>
+                )}
                 <div
                   className="bw-run-step-bar"
                   role="progressbar"
@@ -1228,7 +1466,11 @@ function RunTracker({
             {routePointCount < 2 ? " · szukam sygnału GPS" : ""}
           </p>
           <div className="bw-run-dock">
-            {phase === "recording" ? (
+            {phase === "recording" && isFieldMasTest ? (
+              <p className="py-2 text-center text-xs">
+                Próba 5 min bez pauzy. Przerwanie zachowa bieg bez kalibracji MAS.
+              </p>
+            ) : phase === "recording" ? (
               <button
                 type="button"
                 onClick={pauseRecording}
@@ -1246,7 +1488,7 @@ function RunTracker({
               </button>
             )}
             <div className="bw-run-dock-links">
-              {currentIntervalStep ? (
+              {currentIntervalStep && !isFieldMasTest ? (
                 <button type="button" onClick={() => completeCurrentInterval(true)}>
                   <SkipForward className="h-4 w-4" aria-hidden="true" /> Zakończ ten krok
                 </button>
@@ -1254,7 +1496,7 @@ function RunTracker({
                 <span />
               )}
               <button type="button" onClick={finishRecording}>
-                Zakończ bieg
+                {isFieldMasTest && !guideComplete ? "Przerwij i podsumuj bieg" : "Zakończ bieg"}
               </button>
             </div>
           </div>
@@ -1276,11 +1518,17 @@ function RunTracker({
             <button
               type="button"
               onClick={() => void startRecording()}
-              disabled={isFieldMasTest && !safetyAcknowledged}
+              disabled={
+                isFieldMasTest && (!safetyAcknowledged || !previewRoute.length || gpsPreparing)
+              }
               className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
             >
               <LocateFixed className="h-4 w-4" />{" "}
-              {activity ? "Nagraj ponownie" : isFieldMasTest ? "Start testu 5 min" : "Start GPS"}
+              {activity
+                ? "Nagraj ponownie"
+                : isFieldMasTest
+                  ? "Rozpocznij rozgrzewkę 10 min"
+                  : "Start GPS"}
             </button>
           )}
           {!pending && (

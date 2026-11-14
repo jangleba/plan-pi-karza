@@ -27,6 +27,11 @@ export interface ExactScheduleInput<State, Recipe> {
    * placement gates still apply to every task; this only orders feasible solutions.
    */
   mainGoalIds?: readonly string[];
+  /**
+   * Whether a covered target is covered in its intended form (e.g. the key endurance session, not
+   * its calm substitute). Counted for main-goal targets right after coverage itself.
+   */
+  isFull?: (state: State, taskId: string) => boolean;
   tryPlace: (state: State, recipe: Recipe, dayIndex: number) => PlacementAttempt<State>;
 }
 export interface ExactScheduleResult<State> {
@@ -36,7 +41,13 @@ export interface ExactScheduleResult<State> {
   placements: Record<string, number>;
   rejections: Record<string, Array<SchedulingBlock & { dayIndex: number }>>;
   exploredNodes: number;
-  objective: { main: number; fulfilled: number; priority: number; penalty: number };
+  objective: {
+    main: number;
+    mainFull: number;
+    fulfilled: number;
+    priority: number;
+    penalty: number;
+  };
 }
 
 /** Exhaustive search of the four weekly targets, including the choice to leave
@@ -67,6 +78,9 @@ export function solveWeeklySchedule<State, Recipe>(
     const covered = tasks.filter((task) => isCovered(state, task.id));
     return {
       main: covered.filter((task) => mainIds.has(task.id)).length,
+      mainFull: covered.filter(
+        (task) => mainIds.has(task.id) && (input.isFull ? input.isFull(state, task.id) : true),
+      ).length,
       fulfilled: covered.length,
       priority: covered.reduce((sum, task) => sum + task.priority, 0),
       penalty,
@@ -78,9 +92,12 @@ export function solveWeeklySchedule<State, Recipe>(
   ) =>
     a.main > b.main ||
     (a.main === b.main &&
-      (a.fulfilled > b.fulfilled ||
-        (a.fulfilled === b.fulfilled &&
-          (a.priority > b.priority || (a.priority === b.priority && a.penalty < b.penalty)))));
+      (a.mainFull > b.mainFull ||
+        (a.mainFull === b.mainFull &&
+          (a.fulfilled > b.fulfilled ||
+            (a.fulfilled === b.fulfilled &&
+              (a.priority > b.priority ||
+                (a.priority === b.priority && a.penalty < b.penalty)))))));
   function visit(state: State, index: number, penalty: number, placements: Record<string, number>) {
     exploredNodes += 1;
     if (index === tasks.length) {

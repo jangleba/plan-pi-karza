@@ -15,18 +15,20 @@ import type {
   SessionHistoryRecord,
 } from "./types";
 
-export type SummaryTarget = "strengthA" | "strengthB" | "speed" | "endurance";
+export type SummaryTarget = "strengthA" | "strengthB" | "speed" | "endurance" | "mobility";
 export const SUMMARY_TARGETS: readonly SummaryTarget[] = [
   "strengthA",
   "strengthB",
   "speed",
   "endurance",
+  "mobility",
 ];
 export const TARGET_LABELS: Record<SummaryTarget, string> = {
   strengthA: "Siła A",
   strengthB: "Siła B",
   speed: "Sprint",
   endurance: "Wydolność",
+  mobility: "Mobilność",
 };
 
 export interface TargetSummary {
@@ -77,7 +79,9 @@ const targetOf = (s: SessionDay): SummaryTarget | null => {
         ? "speed"
         : r.includes("endurance")
           ? "endurance"
-          : null;
+          : r.includes("mobility")
+            ? "mobility"
+            : null;
 };
 const LEGACY_LABELS: Array<[RegExp, SummaryTarget]> = [
   [/siłę A/, "strengthA"],
@@ -159,6 +163,8 @@ export function buildPlanSummary(input: PlanSummaryInput): PlanSummary | null {
       }
       const target = targetOf(s);
       if (!target) continue;
+      // Mobility is a weekly target only for the mobility goal; elsewhere it is a support block.
+      if (target === "mobility" && input.profile?.goal !== "mobility") continue;
       const row = targets.get(target)!;
       row.planned += 1;
       own.planned += 1;

@@ -1,3 +1,4 @@
+import { sprintChronology, fitSprintToBudget } from "./sprintRecipe";
 import { attachCycle, cycleForWeek } from "./cycle";
 import { scheduledMatchDates } from "../matchSchedule";
 import { trainingProfileRevision, trainingSetupRevision } from "../planIdentity";
@@ -69,10 +70,44 @@ function day(date: string, p: Profile, matches: Set<string>): SessionDay {
   };
 }
 
+/** First external/axial-loaded main lift of a strength session: where a ramp-up is shown. */
+function isFirstLoadedMain(recipe: EngineSession, index: number): boolean {
+  if (!recipe.roles.some((r) => r.startsWith("strength"))) return false;
+  const first = recipe.exercises.findIndex(
+    (e) =>
+      ["knee_strength", "hip_strength"].includes(e.role) &&
+      ["external", "axial"].includes(getExerciseDefinition(e.exerciseId)?.loadingType ?? ""),
+  );
+  return first === index;
+}
+
+/** Variants used by earlier sprint sessions, oldest first (saved plan, locked days, this build). */
+function sprintHistory(
+  days: readonly SessionDay[],
+  previous: readonly SessionDay[] = [],
+  before: string,
+) {
+  const seen = new Set<string>();
+  return [...previous, ...days]
+    .flatMap(slots)
+    .filter((s) => s.engineV2?.sprintVariant && s.date < before)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .filter((s) => {
+      const key = `${s.date}:${s.engineV2!.sprintVariant!.mainVariantId}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((s) => s.engineV2!.sprintVariant!);
+}
+
 function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
   const revision = trainingProfileRevision(p);
   const sections: TrainingSection[] = [];
-  for (const [index, e] of recipe.exercises.entries()) {
+  for (const [index, e] of (recipe.sprintRecipeVersion === 1
+    ? sprintChronology(recipe.exercises)
+    : recipe.exercises
+  ).entries()) {
     const d = e.dose;
     const accessory = [
       "push",
@@ -85,13 +120,15 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
       "quad_iso",
     ].includes(e.role);
     const type =
-      e.role === "warmup"
-        ? "warmup"
-        : e.role === "iso_primer"
-          ? "prep"
-          : accessory
-            ? "accessory"
-            : "main";
+      d.speedStage === "cooldown"
+        ? "cooldown"
+        : e.role === "warmup"
+          ? "warmup"
+          : e.role === "iso_primer"
+            ? "prep"
+            : accessory
+              ? "accessory"
+              : "main";
     let section = sections.find((s) => s.type === type);
     if (!section) {
       section = {
@@ -101,7 +138,9 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
             ? "Przygotowanie"
             : type === "accessory"
               ? "Uzupełnienie"
-              : "Część główna",
+              : type === "cooldown"
+                ? "Zakończenie"
+                : "Część główna",
         type,
         blocks: [],
       };
@@ -110,7 +149,7 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
     const text = d.seconds
       ? `${d.seconds} s${d.perSide ? " / stronę" : ""}`
       : d.distanceM
-        ? `${d.runInM ? `${d.runInM} m nabiegu + ` : ""}${d.distanceM} m`
+        ? `${d.runInM ? `${d.runInM} m nabiegu + ` : ""}${d.distanceM} m${d.perSide ? " / stronę" : ""}`
         : `${d.reps}${d.perSide ? " / stronę" : ""}`;
     const exercise = hydrateTrainingExerciseFromDefinition({
       id: `${date}:${e.role}:${index}`,
@@ -123,6 +162,9 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
       restAfterExercise: `${d.restSeconds} s`,
       rir: d.rir === undefined ? undefined : String(d.rir),
       purpose: e.reason,
+      label: d.circuit
+        ? `Runda ${d.circuit.round}/${d.circuit.rounds} · ćwiczenie ${d.circuit.task}/3`
+        : undefined,
       engineDose: d,
       progressionPhase: recipe.phase === "deload" ? "reduced" : "normal",
       methodExecution: d.cluster
@@ -147,7 +189,9 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
           ? "Każda próba jakościowa; pełny odpoczynek. Przerwij przy utracie kontroli."
           : d.intent === "easy"
             ? "Swobodny oddech i tempo konwersacyjne."
-            : undefined,
+            : isFirstLoadedMain(recipe, index)
+              ? `Przed pierwszą serią roboczą wykonaj ${recipe.tier === "foundation" ? "2 bardzo lekkie serie wprowadzające" : "2–3 serie wprowadzające"} (np. ok. 50% i 70% planowanego ciężaru po 3–5 powtórzeń). To nie są serie robocze: nie zapisuj ich jako wykonanych i nie liczą się do progresji. Pierwszy ciężar roboczy dobierz tak, by zostawał zapas ${d.rir ?? 3} powtórzeń.`
+              : undefined,
       groundContacts:
         FUNCTIONAL_CATALOGUE[e.exerciseId]?.actions.includes("jump") || e.exerciseId === "snap_down"
           ? (d.reps ?? 0) * (d.perSide ? 2 : 1)
@@ -223,7 +267,14 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
     : gym
       ? `Siła ${recipe.roles.includes("strengthA") ? "A" : "B"} · ${recipe.tier === "foundation" ? "podstawy" : recipe.tier === "development" ? "rozwój" : "performance"}`
       : speed
-        ? "Przyspieszenie"
+        ? {
+            acceleration: "Przyspieszenie",
+            max_velocity: "Sprint lotny",
+            curve: "Sprint po łuku",
+            braking: "Hamowanie i ponowny start",
+            planned_cod: "Zaplanowana zmiana kierunku",
+            reactive: "Reaktywna zmiana kierunku (z partnerem)",
+          }[recipe.sprintGoal ?? "acceleration"]
         : (recipe.runningRecipe?.title ?? "Bieg tlenowy");
   return {
     ...day(date, p, new Set()),
@@ -523,20 +574,39 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
       return kept;
     });
     const policy = resolveGoalPolicy(p);
+    // The mobility goal makes the mobility session a weekly task of its own (second slot);
+    // strength B is then tried afterwards as a supplement, not placed instead of mobility.
+    const mobilityRecipe = policy.primary === "mobility" ? buildMobility(p, phase) : null;
+    const strengthB = () =>
+      fitStrengthToBudget(
+        buildStrength(routedProfile(p, policy.strengthGoal), "B", phase),
+        options.minutesPerSession ?? 75,
+      );
     const tasks = [
       fitStrengthToBudget(
         buildStrength(routedProfile(p, policy.strengthGoal), "A", phase),
         options.minutesPerSession ?? 75,
       ),
-      fitStrengthToBudget(
-        buildStrength(routedProfile(p, policy.strengthGoal), "B", phase),
+      mobilityRecipe ?? strengthB(),
+      fitSprintToBudget(
+        buildRunning(routedProfile(p, policy.speedGoal), "speed", phase, {
+          history: sprintHistory(
+            [...(options.precedingDays ?? []), ...(options.lockedDays ?? []), ...plan],
+            options.previousPlan,
+            base[0].date,
+          ),
+        }),
         options.minutesPerSession ?? 75,
       ),
-      buildRunning(routedProfile(p, policy.speedGoal), "speed", phase),
       plannedEndurance(p, base[0].date, phase),
     ];
     const weights = policy.priorities;
-    const ids = ["strengthA", "strengthB", "speed", "endurance"] as const;
+    const ids = [
+      "strengthA",
+      mobilityRecipe ? "mobility" : "strengthB",
+      "speed",
+      "endurance",
+    ] as const;
     const available = tasks.flatMap((recipe, t) =>
       recipe &&
       (!ids[t].startsWith("strength") ||
@@ -544,19 +614,78 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
         ? [{ id: ids[t], recipe, priority: weights[t] }]
         : [],
     );
-    const solved = solveWeeklySchedule({
-      initialState: base,
-      tasks: available,
-      dayCount: 7,
-      mainGoalIds: mainGoalTasks(p),
-      isCovered: (days, id) =>
-        days.some((d) =>
-          own(d).some((s) => s.engineV2!.roles.includes(id as (typeof ids)[number])),
-        ),
-      tryPlace: (days, recipe, i) =>
-        place(days, i, recipe, p, options, matches, [...(options.precedingDays ?? []), ...plan]),
-    });
+    const solve = (candidates: typeof available) =>
+      solveWeeklySchedule({
+        initialState: base,
+        tasks: candidates,
+        dayCount: 7,
+        mainGoalIds: mainGoalTasks(p),
+        // The key endurance session (intervals/tempo) counts in full only when it is the one placed;
+        // a calm run in its place still covers the target but ranks below the key session.
+        isFull: (days, id) => {
+          const intended = candidates.find((t) => t.id === "endurance")?.recipe.highLower;
+          return (
+            id !== "endurance" ||
+            !intended ||
+            days.some((d) =>
+              own(d).some((s) => s.engineV2!.roles.includes("endurance") && s.engineV2!.highLower),
+            )
+          );
+        },
+        isCovered: (days, id) =>
+          days.some((d) =>
+            own(d).some((s) => s.engineV2!.roles.includes(id as (typeof ids)[number])),
+          ),
+        tryPlace: (days, recipe, i) =>
+          place(days, i, recipe, p, options, matches, [...(options.precedingDays ?? []), ...plan]),
+      });
+    let solved = solve(available);
+    // One strength slot in a week: alternate A and B across weeks by what the last four weeks
+    // actually contained, instead of repeating A forever. Both are never merged into one session.
+    const strengthIds = ["strengthA", "strengthB"] as const;
+    const placedStrength = strengthIds.filter((id) => solved.covered.includes(id));
+    if (
+      placedStrength.length === 1 &&
+      available.some((t) => t.id === "strengthA") &&
+      available.some((t) => t.id === "strengthB")
+    ) {
+      const recent = [...(options.precedingDays ?? []), ...plan].filter(
+        (d) => dayDistance(base[0].date, d.date) <= 28 && dayDistance(base[0].date, d.date) > 0,
+      );
+      const count = (id: string) =>
+        recent.flatMap(slots).filter((s) => s.engineV2?.roles.includes(id as never)).length;
+      const prefer = count("strengthA") > count("strengthB") ? "strengthB" : "strengthA";
+      if (placedStrength[0] !== prefer) {
+        const nudged = available.map((t) =>
+          t.id === prefer ? { ...t, priority: t.priority + 1 } : t,
+        );
+        const retry = solve(nudged);
+        if (retry.covered.includes(prefer) && retry.covered.length >= solved.covered.length)
+          solved = retry;
+      }
+    }
     let best = solved.state;
+    if (mobilityRecipe) {
+      // Strength B supplements the mobility goal where a day allows it (same gates as any session).
+      const supplement = strengthB();
+      let extra: { state: SessionDay[]; penalty: number } | undefined;
+      for (let i = 0; i < 7; i++) {
+        const attempt = place(best, i, supplement, p, options, matches, [
+          ...(options.precedingDays ?? []),
+          ...plan,
+        ]);
+        if ("state" in attempt && (!extra || (attempt.penalty ?? 0) < extra.penalty))
+          extra = { state: attempt.state, penalty: attempt.penalty ?? 0 };
+      }
+      if (extra) best = extra.state;
+      else
+        issues.push({
+          code: "UNMET_WEEKLY_TARGET",
+          target: "strengthB",
+          date: base[0].date,
+          message: `Tydzień ${week + 1}: przy celu mobilności siła B nie zmieściła się w kalendarzu; zachowano mobilność i siłę A.`,
+        });
+    }
     for (const d of best)
       for (const s of own(d)) {
         if (
@@ -573,7 +702,7 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
             code: "ADAPTED_ENDURANCE",
             date: d.date,
             message:
-              "Interwały zastąpiono spokojnym biegiem ze względu na termin, obciążenie lub dostępny czas.",
+              "Kluczową jednostkę wydolnościową (interwały lub tempo) zastąpiono spokojnym biegiem ze względu na termin, obciążenie lub czas. To jawna adaptacja, nie równoważne zaliczenie tego bodźca.",
           });
       }
     tasks.forEach((recipe, t) => {
@@ -584,7 +713,7 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
           code: "UNMET_WEEKLY_TARGET",
           target: role,
           date: base[0].date,
-          message: `Tydzień ${week + 1}: nie znaleziono terminu na ${{ strengthA: "siłę A", strengthB: "siłę B", speed: "sprint", endurance: "wydolność" }[role]}. ${reasons.length ? reasons.join(" ") : "Brak dopuszczonego wariantu przy zadanym sprzęcie i przygotowaniu."}`,
+          message: `Tydzień ${week + 1}: nie znaleziono terminu na ${{ strengthA: "siłę A", strengthB: "siłę B", speed: "sprint", endurance: "wydolność", mobility: "mobilność" }[role]}. ${reasons.length ? reasons.join(" ") : "Brak dopuszczonego wariantu przy zadanym sprzęcie i przygotowaniu."}`,
         });
       }
       if (recipe)
@@ -653,7 +782,7 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
       } else if (after)
         best = placeSupport(best, i, buildRecovery(p, phase), p, options, matches) ?? best;
     }
-    const supportKind = policy.support;
+    const supportKind = mobilityRecipe ? null : policy.support;
     if (supportKind) {
       const supportRecipe =
         supportKind === "skills" ? buildSkills(p, phase) : buildMobility(p, phase);
@@ -787,10 +916,19 @@ export function validateTrainingPlan(
         )
       )
         fail("CONSECUTIVE_HIGH_LOWER", d.date, "Ciężkie obciążenie nóg dzień po dniu.");
+      // The ramp-up note is guidance added later; plans saved before it must stay valid.
+      const plain = (value: unknown) =>
+        JSON.stringify(value, (key, item) =>
+          key === "cue" &&
+          typeof item === "string" &&
+          item.startsWith("Przed pierwszą serią roboczą")
+            ? undefined
+            : item,
+        );
+      const fresh = render(s.date, r, p);
       if (
-        JSON.stringify(s.structuredSections) !==
-          JSON.stringify(render(s.date, r, p).structuredSections) ||
-        JSON.stringify(s.sections) !== JSON.stringify(render(s.date, r, p).sections)
+        plain(s.structuredSections) !== plain(fresh.structuredSections) ||
+        plain(s.sections) !== plain(fresh.sections)
       )
         fail("DOSE_MISMATCH", d.date, "Dawka wykonania różni się od decyzji silnika.");
     }
@@ -828,7 +966,8 @@ export function lighterRecipes(
       buildStrength(light, r.roles.includes("strengthA") ? "A" : "B", r.phase),
       minutesPerSession,
     );
-  else if (r.roles.includes("speed")) reduced = buildRunning(light, "speed", r.phase);
+  else if (r.roles.includes("speed"))
+    reduced = buildRunning(light, "speed", r.phase, { force: r.sprintVariant });
   else if (r.roles.includes("endurance"))
     reduced = plannedEndurance(p, session.date, r.phase, true);
   if (reduced && reduced.minutes <= r.minutes && doseWeight(reduced) < doseWeight(r))

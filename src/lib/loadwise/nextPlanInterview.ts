@@ -109,14 +109,17 @@ export function readNote(text: string): NoteReading {
     )
   )
     out.barriers.add("time");
-  if (
-    /(brak|nie\s+mam|bez)\W+(\w+\W+){0,2}(sprz[ęe]t\w*|si[łl]owni\w*|hantl\w*|kettlebell\w*|gum\w*|[łl]awk\w*|skrzyni\w*|lekarsk\w*|sztang\w*)/i.test(
-      note,
-    )
-  ) {
+  // A negation covers only its own clause: "Nie mam sztangi, ale mam hantle" excludes the barbell
+  // and nothing else. Clauses are split at commas, "ale", "oraz" and sentence ends.
+  const NEG =
+    /(?:brak|nie\s+mam|bez)\W+(?:\w+\W+){0,2}?(?:sprz[ęe]t\w*|si[łl]owni\w*|hantl\w*|kettlebell\w*|gum\w*|[łl]awk\w*|skrzyni\w*|lekarsk\w*|sztang\w*)/i;
+  for (const clause of note.split(/[,;.!?]|\bale\b|\boraz\b|\blecz\b/i)) {
+    const hit = NEG.exec(clause);
+    if (!hit) continue;
     out.barriers.add("equipment");
-    for (const [re, id] of NOTE_EQUIPMENT) if (re.test(note)) out.equipmentIds.push(id);
-    out.noGym = /(brak|nie\s+mam|bez)\W+(\w+\W+){0,2}si[łl]owni\w*/i.test(note);
+    for (const [re, id] of NOTE_EQUIPMENT)
+      if (re.test(hit[0]) && !out.equipmentIds.includes(id)) out.equipmentIds.push(id);
+    if (/si[łl]owni\w*/i.test(hit[0])) out.noGym = true;
   }
   if (/zm[ęe]cz\w*|przemecz\w*|przem[ęe]cz\w*|ci[ęe][żz]ko/i.test(note))
     out.barriers.add("fatigue");

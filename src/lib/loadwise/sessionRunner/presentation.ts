@@ -114,6 +114,7 @@ export function taskKind(
 
 /** True when the dose is done on each side separately. */
 export function isUnilateral(exercise: TrainingExercise): boolean {
+  if (exercise.engineDose?.perSide) return true;
   return /(?:\/|\bna\s+(?:każdą\s+)?)\s*(?:stron\w*|nog\w*|rękę|ręk\w*)\b|każd\w*\s+(?:stron\w*|nog\w*|ręk\w*)|\bL\s*\/\s*P\b|lewa\s*(?:i|\+|\/)\s*prawa/i.test(
     doseText(exercise),
   );

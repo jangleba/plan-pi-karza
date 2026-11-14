@@ -136,5 +136,13 @@ Podsumowanie siły używa rzeczywistych serii (`exercise_set_logs`): tylko ukoń
 - Poziom biegowy jest wyliczany po stronie serwera z dowodów (ukończony bieg z RPE) w kolejności czasu wykonania, remis rozstrzyga identyfikator; kolejność dostarczenia, ponowienia, późne RPE i korekty dają ten sam wynik. Nowszy test MAS wyznacza nowy punkt odniesienia; starsze dowody nie są odtwarzane.
 - Próba sprintu ma dystans, rodzaj startu i metodę pomiaru; porównujemy tylko próby o zgodnych warunkach, historyczne bez metadanych nie są porównywalne.
 
+### Audyt decyzji (etapy 1–2 i część 3)
+- **Rekomendacja z Progresu zmienia dawkę.** Podsumowanie poprzedniego cyklu jest ustalane przed generowaniem i trafia do jednego generatora (`EngineOptions.cycleStart`, a przy przebudowie czytane z rekordu zapisanego na planie). `deload` i `transition` obniżają pierwszy tydzień nowego planu, `health` dwa pierwsze; `consistency`, `maintain`, `vary`, `progress` same nie dodają ani nie zmieniają obciążenia. Przebudowa w trakcie cyklu nie zapala lżejszego startu ponownie. Nie ma fazy „peak”.
+- **Cele jako zadania tygodnia.** Mobilność jest zadaniem pierwszej klasy (zajmuje drugi slot zadań; siła B jest dokładana jako uzupełnienie, gdy dzień pozwala). Jawne definicje: powrót → siła A + spokojna wydolność, ogólny → siła A + sprint + wydolność, gotowość meczowa → siła A + sprint.
+- **Jedna siłownia w tygodniu:** A i B przeplatają się między tygodniami według tego, co realnie było w ostatnich 4 tygodniach; nigdy nie są łączone w jedną sesję, a brak wciąż jest widoczny w ograniczeniach planu.
+- **Kluczowa jednostka wydolnościowa** (interwały/tempo) liczy się w rankingu wyżej niż jej spokojny zamiennik; zamiana jest jawną adaptacją, a nie równoważnym zaliczeniem.
+- Tytuł sprintu z nabiegiem to „Prędkość maksymalna”. Przed pierwszym ćwiczeniem z obciążeniem sesja siłowa pokazuje serie wprowadzające (nie są seriami roboczymi ani progresem); plany zapisane wcześniej pozostają poprawne.
+- Uwagi o sprzęcie: negacja dotyczy tylko własnej klauzuli.
+
 ### Czego ta wersja nie robi
-Zapis zmiany ustawień zastępuje plan od dziś do końca (pokazane są zmiany w najbliższych 7 dniach i w dalszych tygodniach). Bieg testu MAS w terenie, testy na urządzeniu (telefon, GPS, tło, offline) oraz zastosowanie migracji na zdalnej bazie nie zostały wykonane.
+Prowadzenie rundami pary kontrastowej (M09) w runnerze, osobne cele COD/zwinności reakcyjnej, osiągalność krótkiego HIIT z normalnego planowania (wybór metody wciąż zależy od fazy), reguły progresji dla masy ciała, izometrii, mocy i sprintu oraz jedna wersjonowana historia zdarzeń łącząca Plan, Start, runner i Progres nie są zaimplementowane. Wcześniejsze ograniczenia (test w terenie, urządzenie, zdalna baza) pozostają.

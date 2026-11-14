@@ -1,7 +1,7 @@
 import type { Profile, Readiness, SessionDay } from "../types";
 import { preparationProfile } from "./preparation";
 
-export const ENGINE_VERSION = "ballwise-v2.5";
+export const ENGINE_VERSION = "ballwise-v2.6";
 export type Tier = "foundation" | "development" | "performance";
 export type Role =
   | "knee_strength"
@@ -27,8 +27,15 @@ export type Role =
   | "ball_skill";
 export type SupportRole = "activation" | "recovery" | "mobility" | "skills";
 export interface Dose {
-  speedStage?: "preparation" | "technical" | "buildup" | "resisted" | "main" | "addition" | "cooldown";
-  circuit?: { id: string; roundRestSeconds: number; round?: number; rounds?: number; task?: number };
+  speedStage?:
+    "preparation" | "technical" | "buildup" | "resisted" | "main" | "addition" | "cooldown";
+  circuit?: {
+    id: string;
+    roundRestSeconds: number;
+    round?: number;
+    rounds?: number;
+    task?: number;
+  };
   fastMetres?: number;
   runOutM?: number;
   contactsPerRep?: number;
@@ -70,6 +77,17 @@ export const ROLE_NAMES: Record<Role, string> = {
   breathing: "spokojny oddech",
   ball_skill: "technika z piłką",
 };
+export type SprintGoal =
+  "acceleration" | "max_velocity" | "curve" | "braking" | "planned_cod" | "reactive";
+export interface SprintVariantRef {
+  goal: SprintGoal;
+  mainVariantId: string;
+  drillSetId: string;
+  /** Optional small addition used in this session (null when none). */
+  addition: string | null;
+  /** Short, human-readable reasons for the choice (rotation, level, space, equipment). */
+  why: string[];
+}
 export interface ExerciseDecision {
   exerciseId: string;
   role: Role;
@@ -78,7 +96,10 @@ export interface ExerciseDecision {
 }
 export interface EngineSession {
   sprintRecipeVersion?: 1;
-  sprintGoal?: "acceleration" | "max_velocity" | "curve" | "braking" | "planned_cod";
+  sprintGoal?: SprintGoal;
+  /** Which qualified variant and drill set were chosen when the plan was saved, and why. */
+  sprintVariant?: SprintVariantRef;
+  /** Known prescribed landing events in explicitly counted jump tasks, not estimated drill contacts. */
   plyometricContacts?: number;
   cycle?: CycleContext;
   variant?: "full" | "compact";
@@ -104,9 +125,14 @@ export interface Issue {
   date?: string;
   message: string;
   /** Weekly target a diagnostic refers to; absent for older saved plans. */
-  target?: "strengthA" | "strengthB" | "speed" | "endurance";
+  target?: "strengthA" | "strengthB" | "speed" | "endurance" | "mobility";
 }
 export interface EngineOptions {
+  /**
+   * Recommendation from the review of the cycle that just ended. It is decided before the plan is
+   * generated and shapes its first weeks; when absent it is read from the saved plan's own record.
+   */
+  cycleStart?: import("../types").CycleStartRecord | null;
   /** Continue the existing cycle when rebuilding or extending a plan. */
   cycleAnchorDate?: string;
   previousPlan?: SessionDay[];

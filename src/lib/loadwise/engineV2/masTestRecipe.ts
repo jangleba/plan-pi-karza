@@ -1,4 +1,3 @@
-import { isFieldMasCurrent } from "@/lib/running/engine";
 import { recipeTotalSeconds, type RunningRecipe, type RunIntensity } from "@/lib/running/recipe";
 import type { Profile } from "../types";
 import { resolveGoalPolicy } from "./goalPolicy";
@@ -19,7 +18,7 @@ export function masTestIneligibility(p: Profile, date: string): string | null {
     return "Test 5-minutowy wymaga co najmniej 16 lat i potwierdzonego przygotowania sportowego.";
   if (resolveGoalPolicy(p).reduced) return "Test nie jest układany w trybie powrotu lub zmęczenia.";
   if (!p.hasPitch) return "Test wymaga boiska lub miejsca do równego biegu.";
-  if (hasCurrentVerifiedMas(p, date) || isFieldMasCurrent(p.fieldMasTestedAt, date))
+  if (hasCurrentVerifiedMas(p, date))
     return `Aktualny wynik testu (z ${p.fieldMasTestedAt}) jest nadal ważny.`;
   return null;
 }
@@ -70,7 +69,7 @@ export function buildMasTestSession(p: Profile, date: string): EngineSession {
     },
     intensity: "wysoka",
     loadLevel: "high",
-    evidence: ["foster2001"],
+    evidence: ["berthon1997", "foster2001"],
     reasons: [
       "Dobrowolny test 5-minutowy ustala Twoje tempo do kolejnych biegów. RPE nie jest pomiarem MAS.",
       "Wynik powstaje dopiero z zapisanego dystansu i czasu; zegar bez dystansu nie potwierdza tempa.",

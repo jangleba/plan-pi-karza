@@ -49,15 +49,20 @@ runtime.BWMotionLibrary.register(library.records);
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
 describe("complete shared exercise demonstrations", () => {
-  it("resolves every approved physical exercise and every preparation visual", () => {
+  it("resolves reviewed demonstrations and explicitly identifies new instruction-only drills", () => {
     const definitions = getApprovedExerciseDefinitions();
-    expect(definitions).toHaveLength(205);
+    expect(definitions).toHaveLength(207);
     for (const definition of definitions) {
       const selection = resolveExerciseAnimation({
         id: definition.id,
         exerciseId: definition.id,
         name: definition.displayNamePl,
       });
+      if (["wicket_run", "resisted_a_march"].includes(definition.id)) {
+        expect(selection, definition.id).toBeNull();
+        expect(definition.instructionsPl?.length).toBe(3);
+        continue;
+      }
       expect(selection, definition.id).not.toBeNull();
       expect(runtime.BWAnim.models[selection!.id], definition.id).toBeDefined();
     }

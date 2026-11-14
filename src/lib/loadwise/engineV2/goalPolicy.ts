@@ -80,6 +80,8 @@ export function resolveGoalPolicy(p: Profile): GoalPolicy {
     p.secondaryLimiter === "endurance" ? 4 : firstAccent === "endurance" ? 2 : 0;
   priorities[0] += strengthBoost;
   priorities[1] += strengthBoost;
+  // For the mobility goal the second task slot is the mobility session, not strength B.
+  if (p.goal === "mobility") priorities[1] = 40;
   priorities[2] += speedBoost;
   priorities[3] += enduranceBoost;
   return {
@@ -102,7 +104,7 @@ export function routedProfile(p: Profile, goal: Goal): Profile {
     : { ...p, goal };
 }
 
-export type WeeklyTaskId = "strengthA" | "strengthB" | "speed" | "endurance";
+export type WeeklyTaskId = "strengthA" | "strengthB" | "speed" | "endurance" | "mobility";
 
 /**
  * Weekly targets that realise the main goal; the scheduler ranks these first in a week too
@@ -112,6 +114,15 @@ export type WeeklyTaskId = "strengthA" | "strengthB" | "speed" | "endurance";
  */
 export function mainGoalTasks(p: Profile): WeeklyTaskId[] {
   const ids: WeeklyTaskId[] = ["strengthA", "strengthB", "speed", "endurance"];
+  // Explicit definitions, so no goal depends on a default table:
+  //  mobility     → the mobility session itself (a first-class weekly task, strength A stays beside it)
+  //  return       → reduced strength A and calm endurance (the planner's reduced route)
+  //  general      → one of each stimulus: strength A, sprint, endurance
+  //  matchready   → strength A and sprint kept sharp around fixtures
+  if (p.goal === "mobility") return ["mobility"];
+  if (p.goal === "return") return ["strengthA", "endurance"];
+  if (p.goal === "general") return ["strengthA", "speed", "endurance"];
+  if (p.goal === "matchready") return ["strengthA", "speed"];
   if (p.goal === "speed" || p.goal === "agility") return ["speed"];
   if (p.goal === "endurance") return ["endurance"];
   if (p.goal === "strength" || p.goal === "power") return ["strengthA", "strengthB"];

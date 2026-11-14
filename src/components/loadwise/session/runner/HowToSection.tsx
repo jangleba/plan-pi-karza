@@ -16,6 +16,15 @@ export function HowToPanel({ id, exercise }: { id?: string; exercise: TrainingEx
   const howTo = useMemo(() => resolveHowTo(exercise), [exercise]);
   return (
     <div id={id} className="bw-howto-panel">
+      {exercise.displayPrescription && (
+        <p className="text-sm font-medium">
+          {exercise.displayPrescription}
+          {exercise.restAfterExercise ? ` · odpoczynek ${exercise.restAfterExercise}` : ""}
+        </p>
+      )}
+      {howTo.objective && (
+        <p className="text-sm leading-relaxed text-muted-foreground">{howTo.objective}</p>
+      )}
       {howTo.animation ? (
         <AnimationStage
           key={`${exercise.id}:${howTo.animation.id}`}
@@ -34,6 +43,8 @@ export function HowToPanel({ id, exercise }: { id?: string; exercise: TrainingEx
       ) : (
         <p className="bw-howto-gap">Wykonaj zadanie zgodnie z opisem dawki.</p>
       )}
+      {howTo.cue && <p className="text-sm font-medium">{howTo.cue}</p>}
+      {howTo.stop && <p className="text-xs leading-relaxed text-muted-foreground">{howTo.stop}</p>}
       {howTo.watch.length > 0 && (
         <div className="bw-howto-watch">
           <h4>Na co uważać</h4>
@@ -134,6 +145,11 @@ function AnimationStage({
           className="bw-howto-frame"
         />
       </div>
+      {exercise.engineDose?.speedStage && (
+        <p className="text-xs text-muted-foreground">
+          Zwolniony pokaz techniki. Tempo animacji nie wyznacza tempa Twojego biegu.
+        </p>
+      )}
       <div className="bw-howto-controls">
         <button
           type="button"

@@ -1,3 +1,4 @@
+import { masEvidence } from "@/lib/running/__fixtures__/mas";
 import { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { bootstrapSqlDatabase } from "./schemaHarness";
@@ -244,6 +245,16 @@ describe.sequential("running level is derived from the chronology of evidence", 
     await sendLog(a);
     expect(await level()).toBe(await expectedFold(2, [{ rpe: 6 }]));
     const test = await session(d, 12, null);
+    await db.query("select save_training_log($1,$2,0,$3::jsonb)", [
+      uid(),
+      test.sid,
+      JSON.stringify({
+        completion_status: "started",
+        execution_snapshot: {
+          runningRecipe: { method: "field_mas_test", id: masEvidence().recipeId },
+        },
+      }),
+    ]);
     await db.query("select save_running_result($1,$2::jsonb,0)", [
       uid(),
       JSON.stringify({
@@ -253,11 +264,15 @@ describe.sequential("running level is derived from the chronology of evidence", 
         duration_sec: 300,
         distance_m: 1500,
         is_field_mas_test: true,
+        mas_test_attempt: true,
+        mas_test_evidence: masEvidence(1500),
         started_at: iso(test),
         ended_at: iso2(test),
         interval_results: [
           {
             kind: "work",
+            phase: "main",
+            recipeId: masEvidence().recipeId,
             completed: true,
             targetMode: "time",
             targetValue: 300,

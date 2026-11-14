@@ -85,6 +85,7 @@ export interface RunningIntervalResult {
 }
 
 export interface RunningActivity {
+  masTestEvidence?: import("./masQuality").MasTestEvidence | null;
   id: string;
   sessionId: string;
   date: string;
@@ -98,6 +99,7 @@ export interface RunningActivity {
   intervalResults: RunningIntervalResult[];
   source: RunningActivitySource;
   isFieldMasTest?: boolean;
+  masTestAttempt?: boolean;
   createdAt: string;
   updatedAt: string;
   writeVersion?: number;

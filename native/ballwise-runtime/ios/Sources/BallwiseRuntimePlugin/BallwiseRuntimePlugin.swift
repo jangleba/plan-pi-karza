@@ -104,7 +104,10 @@ public final class BallwiseRuntimePlugin: CAPPlugin, CAPBridgedPlugin, CLLocatio
         value["durationSec"] = elapsed()
         value.removeValue(forKey: "activeSince")
         // Trasa zostaje w telefonie; do JS trafia tylko w podsumowaniu, nie co sekundę.
-        if value["phase"] as? String != "review" { value.removeValue(forKey: "route") }
+        if value["phase"] as? String != "review" {
+            if let points = value["route"] as? [[Double]], let last = points.last { value["livePoint"] = last }
+            value.removeValue(forKey: "route")
+        }
         if let storageFailure { value["storageError"] = storageFailure }
         return value
     }

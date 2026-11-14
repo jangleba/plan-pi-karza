@@ -60,7 +60,14 @@ describe("main goal in a week too tight for everything", () => {
     expect(mainGoalTasks({ ...base, goal: "strength" })).toEqual(["strengthA", "strengthB"]);
     expect(mainGoalTasks({ ...base, goal: "power" })).toEqual(["strengthA", "strengthB"]);
     // other goals follow the highest-weighted targets of the existing table
-    expect(mainGoalTasks({ ...base, goal: "general" })).toEqual(["strengthA", "strengthB"]);
+    expect(mainGoalTasks({ ...base, goal: "general" })).toEqual([
+      "strengthA",
+      "speed",
+      "endurance",
+    ]);
+    expect(mainGoalTasks({ ...base, goal: "return" })).toEqual(["strengthA", "endurance"]);
+    expect(mainGoalTasks({ ...base, goal: "matchready" })).toEqual(["strengthA", "speed"]);
+    expect(mainGoalTasks({ ...base, goal: "mobility" })).toEqual(["mobility"]);
   });
 
   it("one free day goes to the main goal and the miss stays visible", () => {

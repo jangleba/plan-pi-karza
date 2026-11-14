@@ -273,9 +273,12 @@ export function FocusedSessionRunner({
     const stepIndex = steps.indexOf(current);
     const othersOpen = current.rows.some((r) => r !== row && !closed(r));
     const following = steps[stepIndex + 1];
-    if(othersOpen && current.kind==="linked") {
-      const partner=current.rows.find(r=>r!==row && !closed(r));
-      startRest(restSecondsAfter(row.block,row.exercise,true,true),`Następnie: ${partner?canonicalExerciseName(partner.exercise):"druga część pary"}`);
+    if (othersOpen && current.kind === "linked") {
+      const partner = current.rows.find((r) => r !== row && !closed(r));
+      startRest(
+        restSecondsAfter(row.block, row.exercise, true, true),
+        `Następnie: ${partner ? canonicalExerciseName(partner.exercise) : "druga część pary"}`,
+      );
     }
     if (!othersOpen && following) {
       startRest(
@@ -769,7 +772,8 @@ function ExerciseView({
       </section>
     );
 
-  const showHead = !active || guidedLabel !== null || linked;
+  const showHead =
+    !active || guidedLabel !== null || linked || !!first.exercise.engineDose?.circuit;
   return (
     <section className="bw-unit-exercise" aria-label="Ćwiczenie">
       {onList && (
@@ -785,7 +789,7 @@ function ExerciseView({
       {showHead && (
         <header className="bw-unit-exercise-head">
           <p className="bw-runner-eyebrow">
-            {sectionLabel(step.section)}
+            {first.exercise.engineDose?.circuit ? first.exercise.label : sectionLabel(step.section)}
             {method && ` · ${method.name}`}
           </p>
           <h2>
