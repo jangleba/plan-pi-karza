@@ -59,6 +59,7 @@ function StartScreen() {
         })
       }
       adjustment={<FeedbackAdjustmentCard />}
+      onSummarize={() => void navigate({ to: "/postep" })}
       avatar={<ProfileAvatar />}
       onPlan={() => void navigate({ to: "/plan" })}
       onLab={() => void navigate({ to: "/lab" })}

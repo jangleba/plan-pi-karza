@@ -95,6 +95,8 @@ export interface Issue {
   code: string;
   date?: string;
   message: string;
+  /** Weekly target a diagnostic refers to; absent for older saved plans. */
+  target?: "strengthA" | "strengthB" | "speed" | "endurance";
 }
 export interface EngineOptions {
   /** Continue the existing cycle when rebuilding or extending a plan. */

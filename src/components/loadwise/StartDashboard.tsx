@@ -17,6 +17,7 @@ export function StartDashboard({
   todayComplete = false,
   onToday,
   adjustment,
+  onSummarize,
 }: {
   name: string;
   todayTitle?: string;
@@ -25,6 +26,8 @@ export function StartDashboard({
   onToday?: () => void;
   /** Optional proposal card after hard club or match feedback. */
   adjustment?: ReactNode;
+  /** End of a saved plan: one action that opens the summary in Progress. */
+  onSummarize?: () => void;
   avatar: ReactNode;
   onPlan: () => void;
   onLab: () => void;
@@ -49,7 +52,9 @@ export function StartDashboard({
             : (todayTitle ?? "Dzisiaj wolne");
   const subtitle =
     status === "expired"
-      ? "Przygotuj kolejny plan na 4 tygodnie"
+      ? onSummarize
+        ? "Podsumuj plan"
+        : "Przygotuj kolejny plan na 4 tygodnie"
       : status === "stale"
         ? "Dostosuj go do aktualnego profilu"
         : status === "empty"
@@ -75,7 +80,13 @@ export function StartDashboard({
       <button
         type="button"
         className="bw-plan-soon bw-plan-soon--compact"
-        onClick={openToday ? (onToday ?? onPlan) : onPlan}
+        onClick={
+          openToday
+            ? (onToday ?? onPlan)
+            : status === "expired" && onSummarize
+              ? onSummarize
+              : onPlan
+        }
       >
         <CalendarDays size={18} aria-hidden="true" />
         <span>

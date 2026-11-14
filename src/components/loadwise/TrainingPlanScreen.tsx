@@ -7,6 +7,13 @@ import type { SessionDay } from "@/lib/loadwise/types";
 import { lockedExecutionDays } from "@/lib/loadwise/engineV2/locks";
 import { getPlanStatus } from "@/lib/loadwise/engineV2/planStatus";
 import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
+import { useAuth } from "@/lib/loadwise/auth";
+import { cycleStartRecord, stampCycleStart } from "@/lib/loadwise/cycleReview";
+import { parseNextPlanIntent, type NextPlanIntent } from "@/lib/loadwise/nextPlanIntent";
+import { buildPlanSummary } from "@/lib/loadwise/planSummary";
+import { trainingStorageKey } from "@/lib/loadwise/trainingDetails";
+import { useTrainingLocalState } from "@/lib/loadwise/useTrainingLocalState";
+import { buildTrainingHistory, mergeTrainingHistory } from "@/lib/progress/progress";
 import { StrengthExperienceSetup } from "./session/StrengthExperienceSetup";
 import { FeedbackAdjustmentCard } from "./FeedbackAdjustmentCard";
 import "@/styles/ballwise-plan.css";
@@ -17,11 +24,21 @@ export function PlanScreen() {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false),
     [error, setError] = useState<string | null>(null);
-  const [rebuild, setRebuild] = useState(false);
+  const { user } = useAuth();
+  const [rebuildRequested, setRebuild] = useState(false);
+  // Choices confirmed in Progress (time budget); a different saved plan voids them.
+  const intentState = useTrainingLocalState<NextPlanIntent | null>(
+    trainingStorageKey("next-plan-intent", user?.id),
+    null,
+    parseNextPlanIntent,
+  );
   const [timeChoice, setTimeChoice] = useState<{ planId: string | null; minutes: number } | null>(
     null,
   );
   const planId = state.activePlanId ?? null;
+  const intent =
+    intentState.value && intentState.value.planId === planId ? intentState.value : null;
+  const rebuild = rebuildRequested || intent !== null;
   const storedMinutes = state.plan[0]?.engineTimeBudgetMin;
   const savedBudget =
     typeof storedMinutes === "number" &&
@@ -30,39 +47,71 @@ export function PlanScreen() {
     storedMinutes <= 120
       ? storedMinutes
       : 75;
-  const minutes = timeChoice?.planId === planId ? timeChoice.minutes : savedBudget;
-  const effectivePlan = resolveEffectivePlan(state.plan, state.modifications, {
-    completions: state.completions,
-  });
-  const status = getPlanStatus({
-    plan: effectivePlan,
-    profile: state.profile,
-    todayIso,
-    completions: state.completions,
-  });
+  const minutes =
+    timeChoice?.planId === planId ? timeChoice.minutes : (intent?.minutes ?? savedBudget);
+  const effectivePlan = useMemo(
+    () =>
+      resolveEffectivePlan(state.plan, state.modifications, {
+        completions: state.completions,
+      }),
+    [state.plan, state.modifications, state.completions],
+  );
+  const status = useMemo(
+    () =>
+      getPlanStatus({
+        plan: effectivePlan,
+        profile: state.profile,
+        todayIso,
+        completions: state.completions,
+      }),
+    [effectivePlan, state.profile, todayIso, state.completions],
+  );
   const preview = useMemo(() => {
     if (!state.profile || (state.plan.length && !rebuild)) return null;
     try {
-      return {
-        result: generateTrainingPlan(state.profile, {
-          startDate: todayIso,
-          previousPlan: state.plan,
-          completions: state.completions,
-          expectedPlanId: state.activePlanId ?? null,
-          minutesPerSession: minutes,
-          lockedDays: lockedExecutionDays(
-            resolveEffectivePlan(state.plan, state.modifications, {
-              completions: state.completions,
-            }),
-            state.completions,
-          ),
-          precedingDays: resolveEffectivePlan(state.plan, state.modifications, {
+      const generated = generateTrainingPlan(state.profile, {
+        startDate: todayIso,
+        previousPlan: state.plan,
+        completions: state.completions,
+        expectedPlanId: state.activePlanId ?? null,
+        minutesPerSession: minutes,
+        lockedDays: lockedExecutionDays(
+          resolveEffectivePlan(state.plan, state.modifications, {
             completions: state.completions,
-          }).filter((d) => d.date < todayIso),
-          readiness: state.profile.healthPersonalizationEnabled ? state.readiness : undefined,
-        }),
-        error: null,
-      };
+          }),
+          state.completions,
+        ),
+        precedingDays: resolveEffectivePlan(state.plan, state.modifications, {
+          completions: state.completions,
+        }).filter((d) => d.date < todayIso),
+        readiness: state.profile.healthPersonalizationEnabled ? state.readiness : undefined,
+      });
+      // The summary of the ended cycle travels with the new plan, so it stays in Progress.
+      const summary =
+        state.plan.length && status.kind === "expired"
+          ? buildPlanSummary({
+              profile: state.profile,
+              plan: effectivePlan,
+              completions: state.completions,
+              history: mergeTrainingHistory(
+                state.history,
+                buildTrainingHistory(effectivePlan, state.completions),
+                state.completions,
+              ),
+              readiness: state.readiness,
+              todayIso,
+            })
+          : null;
+      const result = summary?.review
+        ? {
+            ...generated,
+            plan: stampCycleStart(
+              generated.plan,
+              cycleStartRecord(summary.review, state.plan[0]?.cycleId ?? null),
+            ),
+          }
+        : generated;
+      return { result, error: null };
     } catch (e) {
       return {
         result: null,
@@ -76,9 +125,12 @@ export function PlanScreen() {
     state.readiness,
     state.modifications,
     state.activePlanId,
+    state.history,
     rebuild,
     todayIso,
     minutes,
+    effectivePlan,
+    status.kind,
   ]);
   const plan = preview?.result?.plan ?? effectivePlan;
   const issues = preview?.result?.issues ?? state.plan[0]?.enginePlanIssues ?? [];
@@ -163,7 +215,10 @@ export function PlanScreen() {
               <button
                 type="button"
                 className="text-sm underline py-2"
-                onClick={() => setRebuild(false)}
+                onClick={() => {
+                  setRebuild(false);
+                  intentState.setValue(null);
+                }}
               >
                 Wróć do zapisanego planu
               </button>

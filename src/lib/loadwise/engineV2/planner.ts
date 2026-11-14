@@ -572,6 +572,7 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
         const reasons = [...new Set((solved.rejections[role] ?? []).map((r) => r.message))];
         issues.push({
           code: "UNMET_WEEKLY_TARGET",
+          target: role,
           date: base[0].date,
           message: `Tydzień ${week + 1}: nie znaleziono terminu na ${{ strengthA: "siłę A", strengthB: "siłę B", speed: "sprint", endurance: "wydolność" }[role]}. ${reasons.length ? reasons.join(" ") : "Brak dopuszczonego wariantu przy zadanym sprzęcie i przygotowaniu."}`,
         });
@@ -612,6 +613,7 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
       if (countEndurance(best) < 2)
         issues.push({
           code: "UNMET_GOAL_TARGET",
+          target: "endurance",
           date: base[0].date,
           message: `Tydzień ${week + 1}: zaplanowano ${countEndurance(best)} z 2 jednostek wydolności. Po zabezpieczeniu celów bazowych nie znaleziono miejsca na drugi spokojny bieg przy aktualnym kalendarzu, czasie i limitach sesji.`,
         });
