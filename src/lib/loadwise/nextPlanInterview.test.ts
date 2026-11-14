@@ -98,6 +98,14 @@ describe("next plan interview", () => {
     expect(gym.profile.hasGym).toBe(false);
   });
 
+  it("a negation covers only its own clause", () => {
+    expect(readNote("Nie mam sztangi, ale mam hantle").equipmentIds).toEqual(["barbell"]);
+    expect(readNote("Mam hantle. Brak ławki").equipmentIds).toEqual(["bench"]);
+    expect(readNote("brak hantli oraz gumy").equipmentIds).toEqual(["dumbbell"]); // 'gumy' is its own clause start without a negation
+    expect(readNote("Nie mam siłowni, ale mam hantle").noGym).toBe(true);
+    expect(readNote("Nie mam siłowni, ale mam hantle").equipmentIds).not.toContain("dumbbell");
+  });
+
   it("unclear text gets one concrete question instead of a hidden guess", () => {
     const draft = draftNextPlan(profile, 75, answers({ notes: "Było różnie" }), all([]));
     expect(draft.clarification?.options.map((o) => o.id)).toEqual([
