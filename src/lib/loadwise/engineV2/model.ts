@@ -27,6 +27,11 @@ export type Role =
   | "ball_skill";
 export type SupportRole = "activation" | "recovery" | "mobility" | "skills";
 export interface Dose {
+  speedStage?: "preparation" | "technical" | "buildup" | "resisted" | "main" | "addition" | "cooldown";
+  circuit?: { id: string; roundRestSeconds: number; round?: number; rounds?: number; task?: number };
+  fastMetres?: number;
+  runOutM?: number;
+  contactsPerRep?: number;
   /** Intra-set rest is additional to the ordinary between-set rest. */
   cluster?: { repGroups: number[]; intraRestSeconds: number };
   sets: number;
@@ -72,6 +77,9 @@ export interface ExerciseDecision {
   reason: string;
 }
 export interface EngineSession {
+  sprintRecipeVersion?: 1;
+  sprintGoal?: "acceleration" | "max_velocity" | "curve" | "braking" | "planned_cod";
+  plyometricContacts?: number;
   cycle?: CycleContext;
   variant?: "full" | "compact";
   runningRecipe?: import("@/lib/running/recipe").RunningRecipe;
