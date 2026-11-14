@@ -59,6 +59,8 @@ export type Database = {
           pain_injury: boolean | null
           pain_locations: Json
           position: string | null
+          running_progression_base_at: string | null
+          running_progression_base_level: number | null
           running_progression_level: number
           running_progression_updated_at: string | null
           season_phase: string | null
@@ -120,6 +122,8 @@ export type Database = {
           pain_injury?: boolean | null
           pain_locations?: Json
           position?: string | null
+          running_progression_base_at?: string | null
+          running_progression_base_level?: number | null
           running_progression_level?: number
           running_progression_updated_at?: string | null
           season_phase?: string | null
@@ -181,6 +185,8 @@ export type Database = {
           pain_injury?: boolean | null
           pain_locations?: Json
           position?: string | null
+          running_progression_base_at?: string | null
+          running_progression_base_level?: number | null
           running_progression_level?: number
           running_progression_updated_at?: string | null
           season_phase?: string | null
@@ -435,6 +441,7 @@ export type Database = {
           server_updated_at?: string
           session_id?: string | null
           set_number: number
+          start_type?: string | null
           updated_at?: string
           user_id: string
           weight_kg?: number | null
@@ -1208,6 +1215,10 @@ export type Database = {
           p_transition?: Json
         }
         Returns: undefined
+      }
+      recompute_running_progression: {
+        Args: { p_owner: string }
+        Returns: number
       }
       record_billing_entitlement: {
         Args: {
