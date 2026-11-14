@@ -48,6 +48,33 @@ export function cycleAnchor(options: EngineOptions): string {
   );
 }
 
+/** Weeks of lighter start per recommendation; other kinds never add load by themselves. */
+const LIGHT_START_WEEKS: Partial<Record<string, number>> = { deload: 1, health: 2, transition: 1 };
+const START_REASON: Record<string, string> = {
+  deload:
+    "Podsumowanie poprzedniego cyklu zaleciło lżejszy start: mniej serii przez pierwszy tydzień, potem zwykła dawka.",
+  health:
+    "Podsumowanie poprzedniego cyklu zaleciło ostrożny start: lżejsze dawki przez dwa pierwsze tygodnie.",
+  transition:
+    "Okres po sezonie lub powrocie: lżejszy pierwszy tydzień, bez zakładania utraty formy.",
+};
+
+/** The recommendation in force: passed explicitly, else the record stamped on the saved plan. */
+export function startRecommendation(options: EngineOptions) {
+  // A new plan applies it from its own first day; a rebuild of a saved plan keeps the date that
+  // plan started, so rebuilding mid-cycle never lights the "lighter start" up again.
+  if (options.cycleStart?.review)
+    return { kind: options.cycleStart.kind, appliesFrom: options.startDate };
+  const stamped = [
+    ...(options.previousPlan ?? []),
+    ...(options.precedingDays ?? []),
+    ...(options.lockedDays ?? []),
+  ]
+    .filter((d) => d.cycleStart?.review && validDate(d.date))
+    .sort((a, b) => a.date.localeCompare(b.date))[0];
+  return stamped ? { kind: stamped.cycleStart!.kind, appliesFrom: stamped.date } : null;
+}
+
 function strengthCompletions(options: EngineOptions): SessionCompletion[] {
   const seen = new Set<string>();
   return Object.values(options.completions ?? {})
@@ -105,7 +132,13 @@ export function cycleForWeek(
     state === "review"
       ? "Przegląd po trzech tygodniach. Sam numer tygodnia nie wymusza deloadu ani zwiększenia dawki."
       : "Kontynuacja cyklu; obciążenie dobierane do wykonania, bez automatycznego dodawania serii.";
-  if (declaredLighter || (currentWeek && repeatedHard)) {
+  const recommended = startRecommendation(options);
+  const lightWeeks = recommended ? (LIGHT_START_WEEKS[recommended.kind] ?? 0) : 0;
+  const weekOfStart = recommended ? Math.floor(dayDistance(date, recommended.appliesFrom) / 7) : -1;
+  if (recommended && weekOfStart >= 0 && weekOfStart < lightWeeks && !declaredLighter) {
+    state = "deload";
+    reason = START_REASON[recommended.kind];
+  } else if (declaredLighter || (currentWeek && repeatedHard)) {
     state = "deload";
     reason = declaredLighter
       ? "Lżejszy wariant wynika z zadeklarowanego zmęczenia, okresu przejściowego lub powrotu do treningów."

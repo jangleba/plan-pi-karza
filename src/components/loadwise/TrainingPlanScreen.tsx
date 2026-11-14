@@ -77,24 +77,7 @@ export function PlanScreen() {
   const preview = useMemo(() => {
     if (!state.profile || (state.plan.length && !rebuild)) return null;
     try {
-      const generated = generateTrainingPlan(state.profile, {
-        startDate: todayIso,
-        previousPlan: state.plan,
-        completions: state.completions,
-        expectedPlanId: state.activePlanId ?? null,
-        minutesPerSession: minutes,
-        lockedDays: lockedExecutionDays(
-          resolveEffectivePlan(state.plan, state.modifications, {
-            completions: state.completions,
-          }),
-          state.completions,
-        ),
-        precedingDays: resolveEffectivePlan(state.plan, state.modifications, {
-          completions: state.completions,
-        }).filter((d) => d.date < todayIso),
-        readiness: state.profile.healthPersonalizationEnabled ? state.readiness : undefined,
-      });
-      // The summary of the ended cycle travels with the new plan, so it stays in Progress.
+      // The recommendation is decided first, then handed to the one generator.
       const summary =
         state.plan.length && status.kind === "expired"
           ? buildPlanSummary({
@@ -111,14 +94,30 @@ export function PlanScreen() {
               strengthSets: setRows ? rowsToStrengthSets(setRows, state.completions) : [],
             })
           : null;
-      const result = summary?.review
-        ? {
-            ...generated,
-            plan: stampCycleStart(
-              generated.plan,
-              cycleStartRecord(summary.review, state.plan[0]?.cycleId ?? null),
-            ),
-          }
+      const record = summary?.review
+        ? cycleStartRecord(summary.review, state.plan[0]?.cycleId ?? null)
+        : null;
+      const generated = generateTrainingPlan(state.profile, {
+        cycleStart: record,
+        startDate: todayIso,
+        previousPlan: state.plan,
+        completions: state.completions,
+        expectedPlanId: state.activePlanId ?? null,
+        minutesPerSession: minutes,
+        lockedDays: lockedExecutionDays(
+          resolveEffectivePlan(state.plan, state.modifications, {
+            completions: state.completions,
+          }),
+          state.completions,
+        ),
+        precedingDays: resolveEffectivePlan(state.plan, state.modifications, {
+          completions: state.completions,
+        }).filter((d) => d.date < todayIso),
+        readiness: state.profile.healthPersonalizationEnabled ? state.readiness : undefined,
+      });
+      // The same record travels with the new plan, so it stays in Progress and survives rebuilds.
+      const result = record
+        ? { ...generated, plan: stampCycleStart(generated.plan, record) }
         : generated;
       return { result, error: null };
     } catch (e) {

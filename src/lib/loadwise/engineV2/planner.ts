@@ -523,20 +523,30 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
       return kept;
     });
     const policy = resolveGoalPolicy(p);
+    // The mobility goal makes the mobility session a weekly task of its own (second slot);
+    // strength B is then tried afterwards as a supplement, not placed instead of mobility.
+    const mobilityRecipe = policy.primary === "mobility" ? buildMobility(p, phase) : null;
+    const strengthB = () =>
+      fitStrengthToBudget(
+        buildStrength(routedProfile(p, policy.strengthGoal), "B", phase),
+        options.minutesPerSession ?? 75,
+      );
     const tasks = [
       fitStrengthToBudget(
         buildStrength(routedProfile(p, policy.strengthGoal), "A", phase),
         options.minutesPerSession ?? 75,
       ),
-      fitStrengthToBudget(
-        buildStrength(routedProfile(p, policy.strengthGoal), "B", phase),
-        options.minutesPerSession ?? 75,
-      ),
+      mobilityRecipe ?? strengthB(),
       buildRunning(routedProfile(p, policy.speedGoal), "speed", phase),
       plannedEndurance(p, base[0].date, phase),
     ];
     const weights = policy.priorities;
-    const ids = ["strengthA", "strengthB", "speed", "endurance"] as const;
+    const ids = [
+      "strengthA",
+      mobilityRecipe ? "mobility" : "strengthB",
+      "speed",
+      "endurance",
+    ] as const;
     const available = tasks.flatMap((recipe, t) =>
       recipe &&
       (!ids[t].startsWith("strength") ||
@@ -544,19 +554,66 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
         ? [{ id: ids[t], recipe, priority: weights[t] }]
         : [],
     );
-    const solved = solveWeeklySchedule({
-      initialState: base,
-      tasks: available,
-      dayCount: 7,
-      mainGoalIds: mainGoalTasks(p),
-      isCovered: (days, id) =>
-        days.some((d) =>
-          own(d).some((s) => s.engineV2!.roles.includes(id as (typeof ids)[number])),
-        ),
-      tryPlace: (days, recipe, i) =>
-        place(days, i, recipe, p, options, matches, [...(options.precedingDays ?? []), ...plan]),
-    });
+    const solve = (candidates: typeof available) =>
+      solveWeeklySchedule({
+        initialState: base,
+        tasks: candidates,
+        dayCount: 7,
+        mainGoalIds: mainGoalTasks(p),
+        isCovered: (days, id) =>
+          days.some((d) =>
+            own(d).some((s) => s.engineV2!.roles.includes(id as (typeof ids)[number])),
+          ),
+        tryPlace: (days, recipe, i) =>
+          place(days, i, recipe, p, options, matches, [...(options.precedingDays ?? []), ...plan]),
+      });
+    let solved = solve(available);
+    // One strength slot in a week: alternate A and B across weeks by what the last four weeks
+    // actually contained, instead of repeating A forever. Both are never merged into one session.
+    const strengthIds = ["strengthA", "strengthB"] as const;
+    const placedStrength = strengthIds.filter((id) => solved.covered.includes(id));
+    if (
+      placedStrength.length === 1 &&
+      available.some((t) => t.id === "strengthA") &&
+      available.some((t) => t.id === "strengthB")
+    ) {
+      const recent = [...(options.precedingDays ?? []), ...plan].filter(
+        (d) => dayDistance(base[0].date, d.date) <= 28 && dayDistance(base[0].date, d.date) > 0,
+      );
+      const count = (id: string) =>
+        recent.flatMap(slots).filter((s) => s.engineV2?.roles.includes(id as never)).length;
+      const prefer = count("strengthA") > count("strengthB") ? "strengthB" : "strengthA";
+      if (placedStrength[0] !== prefer) {
+        const nudged = available.map((t) =>
+          t.id === prefer ? { ...t, priority: t.priority + 1 } : t,
+        );
+        const retry = solve(nudged);
+        if (retry.covered.includes(prefer) && retry.covered.length >= solved.covered.length)
+          solved = retry;
+      }
+    }
     let best = solved.state;
+    if (mobilityRecipe) {
+      // Strength B supplements the mobility goal where a day allows it (same gates as any session).
+      const supplement = strengthB();
+      let extra: { state: SessionDay[]; penalty: number } | undefined;
+      for (let i = 0; i < 7; i++) {
+        const attempt = place(best, i, supplement, p, options, matches, [
+          ...(options.precedingDays ?? []),
+          ...plan,
+        ]);
+        if ("state" in attempt && (!extra || (attempt.penalty ?? 0) < extra.penalty))
+          extra = { state: attempt.state, penalty: attempt.penalty ?? 0 };
+      }
+      if (extra) best = extra.state;
+      else
+        issues.push({
+          code: "UNMET_WEEKLY_TARGET",
+          target: "strengthB",
+          date: base[0].date,
+          message: `Tydzień ${week + 1}: przy celu mobilności siła B nie zmieściła się w kalendarzu; zachowano mobilność i siłę A.`,
+        });
+    }
     for (const d of best)
       for (const s of own(d)) {
         if (
@@ -584,7 +641,7 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
           code: "UNMET_WEEKLY_TARGET",
           target: role,
           date: base[0].date,
-          message: `Tydzień ${week + 1}: nie znaleziono terminu na ${{ strengthA: "siłę A", strengthB: "siłę B", speed: "sprint", endurance: "wydolność" }[role]}. ${reasons.length ? reasons.join(" ") : "Brak dopuszczonego wariantu przy zadanym sprzęcie i przygotowaniu."}`,
+          message: `Tydzień ${week + 1}: nie znaleziono terminu na ${{ strengthA: "siłę A", strengthB: "siłę B", speed: "sprint", endurance: "wydolność", mobility: "mobilność" }[role]}. ${reasons.length ? reasons.join(" ") : "Brak dopuszczonego wariantu przy zadanym sprzęcie i przygotowaniu."}`,
         });
       }
       if (recipe)
@@ -653,7 +710,7 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
       } else if (after)
         best = placeSupport(best, i, buildRecovery(p, phase), p, options, matches) ?? best;
     }
-    const supportKind = policy.support;
+    const supportKind = mobilityRecipe ? null : policy.support;
     if (supportKind) {
       const supportRecipe =
         supportKind === "skills" ? buildSkills(p, phase) : buildMobility(p, phase);

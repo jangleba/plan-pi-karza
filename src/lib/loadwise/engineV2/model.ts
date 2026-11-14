@@ -96,9 +96,14 @@ export interface Issue {
   date?: string;
   message: string;
   /** Weekly target a diagnostic refers to; absent for older saved plans. */
-  target?: "strengthA" | "strengthB" | "speed" | "endurance";
+  target?: "strengthA" | "strengthB" | "speed" | "endurance" | "mobility";
 }
 export interface EngineOptions {
+  /**
+   * Recommendation from the review of the cycle that just ended. It is decided before the plan is
+   * generated and shapes its first weeks; when absent it is read from the saved plan's own record.
+   */
+  cycleStart?: import("../types").CycleStartRecord | null;
   /** Continue the existing cycle when rebuilding or extending a plan. */
   cycleAnchorDate?: string;
   previousPlan?: SessionDay[];
