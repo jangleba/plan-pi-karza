@@ -1,3 +1,4 @@
+import { masEvidence, masResult } from "./__fixtures__/mas";
 import { describe, expect, it } from "vitest";
 import {
   buildRunningSessionPrescription,
@@ -94,7 +95,8 @@ describe("silnik biegowy", () => {
       fieldMasFromActivity({
         distanceM: 3_000,
         durationSec: 1_200,
-        intervalResults: [{ ...result(240), durationSec: 300, distanceM: 1_250 }],
+        intervalResults: [masResult(1250)],
+        masTestEvidence: masEvidence(1250),
       }),
     ).toBe(15);
   });
@@ -136,7 +138,7 @@ describe("silnik biegowy", () => {
     ).toBe(2);
   });
 
-  it("odtwarza MAS i progresję z historii bez nowych kolumn bazy", () => {
+  it("odtwarza MAS i progresję z historii z zapisem jakości próby", () => {
     const testActivity = {
       id: "run-1",
       userId: "user-1",
@@ -153,7 +155,8 @@ describe("silnik biegowy", () => {
       createdAt: "2026-09-01T10:05:00Z",
       updatedAt: "2026-09-01T10:05:00Z",
       isFieldMasTest: true,
-      intervalResults: [{ ...result(200), durationSec: 300, distanceM: 1_500 }],
+      intervalResults: [masResult(1500)],
+      masTestEvidence: masEvidence(1500),
     };
     const trainingActivity = {
       ...testActivity,

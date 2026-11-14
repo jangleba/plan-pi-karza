@@ -122,9 +122,10 @@ describe("weekly planner end-to-end contracts", () => {
       ] as Profile["desiredPitchFeelings"],
     };
     const hasBraking = (p: Profile) =>
-      ownSlots(generateTrainingPlan(p, options).plan).some((s) =>
-        s.engineV2!.exercises.some((e) => e.exerciseId === "progressive_run_three_step_stop"),
-      );
+      ownSlots(
+        generateTrainingPlan({ ...p, trainingMethodPreferences: { spaceLengthM: 40 } }, options)
+          .plan,
+      ).some((s) => ["planned_cod", "braking"].includes(s.engineV2!.sprintGoal ?? ""));
     expect(hasBraking(strong)).toBe(false);
     expect(hasBraking(agile)).toBe(true);
     expect(hasBraking({ ...agile, goal: "speed", secondaryLimiter: "cod" })).toBe(false);

@@ -9,11 +9,19 @@ export const METHOD_SPECIAL_EQUIPMENT = [
   "velocity_device",
   "chains",
   "hill",
+  "sled",
+  "flat_markers",
 ] as const;
 export function normalizeMethodPreferences(raw: unknown): TrainingMethodPreferences {
   if (!raw || typeof raw !== "object") return {};
   const r = raw as Record<string, unknown>,
     out: TrainingMethodPreferences = {};
+  if (
+    ["auto", "acceleration", "max_velocity", "curve", "braking", "planned_cod"].includes(
+      String(r.sprintFocus),
+    )
+  )
+    out.sprintFocus = r.sprintFocus as TrainingMethodPreferences["sprintFocus"];
   if (r.coachedIsometricPrimer === true) out.coachedIsometricPrimer = true;
   if (r.activationLocation === "field" || r.activationLocation === "gym")
     out.activationLocation = r.activationLocation;

@@ -1,3 +1,4 @@
+import type { TrainingMethodPreferences } from "@/lib/loadwise/methods/types";
 import { useState } from "react";
 import { ChevronRight, SlidersHorizontal } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
@@ -300,6 +301,83 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
                 <option value="thoracic">Odcinek piersiowy</option>
               </select>
             </label>
+            <label>
+              Akcent sprintu
+              <select
+                value={draft.trainingMethodPreferences?.sprintFocus ?? "auto"}
+                disabled={saving}
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    trainingMethodPreferences: {
+                      ...d.trainingMethodPreferences,
+                      sprintFocus: e.target.value as TrainingMethodPreferences["sprintFocus"],
+                    },
+                  }))
+                }
+              >
+                <option value="auto">Dobierz do celu i przygotowania</option>
+                <option value="acceleration">Pierwsze kroki i przyspieszenie</option>
+                <option value="max_velocity">Prędkość maksymalna — bieg lotny</option>
+                <option value="curve">Bieg po szerokim łuku</option>
+                <option value="braking">Hamowanie i ponowny start</option>
+                <option value="planned_cod">Zaplanowana zmiana kierunku</option>
+              </select>
+            </label>
+            <label>
+              Prosta z wybiegiem — łączna długość (m)
+              <input
+                type="number"
+                min="20"
+                max="500"
+                step="5"
+                inputMode="numeric"
+                disabled={saving}
+                value={draft.trainingMethodPreferences?.spaceLengthM ?? ""}
+                placeholder="np. 50"
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    trainingMethodPreferences: {
+                      ...d.trainingMethodPreferences,
+                      spaceLengthM: e.target.value === "" ? undefined : Number(e.target.value),
+                    },
+                  }))
+                }
+              />
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                disabled={saving}
+                checked={
+                  draft.trainingMethodPreferences?.declaredEquipment?.includes("sled") ?? false
+                }
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    trainingMethodPreferences: {
+                      ...d.trainingMethodPreferences,
+                      declaredEquipment: e.target.checked
+                        ? [
+                            ...new Set([
+                              ...(d.trainingMethodPreferences?.declaredEquipment ?? []),
+                              "sled",
+                            ]),
+                          ]
+                        : d.trainingMethodPreferences?.declaredEquipment?.filter(
+                            (v) => v !== "sled",
+                          ),
+                    },
+                  }))
+                }
+              />
+              Mam sanie do sprintu
+            </label>
+            <p className="bw-strength-tenure-note">
+              Silnik sprawdza wiek, technikę, nadzór i miejsce. Gdy warunki nie wystarczają,
+              zachowuje prostsze przyspieszenia.
+            </p>
             {clubDays.length > 0 && (
               <div
                 className="bw-strength-tenure"

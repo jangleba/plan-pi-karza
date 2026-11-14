@@ -13,6 +13,8 @@ export interface NativeRunState {
   durationSec?: number;
   distanceM?: number;
   pointCount?: number;
+  /** Latest GPS point only while recording; the full trace is returned at review. */
+  livePoint?: number[];
   recovered?: boolean;
   storageError?: string;
   intervalResults?: RunningIntervalResult[];

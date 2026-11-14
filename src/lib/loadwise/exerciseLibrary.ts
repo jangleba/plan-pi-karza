@@ -124,6 +124,7 @@ export type EquipmentId =
   | "assistance_rig"
   | "chains"
   | "hill"
+  | "flat_markers"
   | "none";
 
 export interface EquipmentDefinition {
@@ -133,6 +134,7 @@ export interface EquipmentDefinition {
 }
 
 export const EQUIPMENT_REGISTRY: readonly EquipmentDefinition[] = [
+  { id: "flat_markers", displayName: "Płaskie znaczniki", aliases: ["flat_markers", "znaczniki"] },
   { id: "flywheel", displayName: "Urządzenie flywheel", aliases: ["flywheel", "koło zamachowe"] },
   { id: "fixed_pins", displayName: "Stałe piny do izometrii", aliases: ["fixed_pins"] },
   {
@@ -3472,9 +3474,9 @@ const FOOTBALL_SPEED_SPECIAL_EXERCISES: ExerciseDefinition[] = [
     objective:
       "Podnieść temperaturę, odzyskać zakres ruchu i przygotować układ nerwowy bez zmęczenia.",
     instructionsPl: [
-      "Raise: 2–3 min lekkiego truchtu, stopniowo podnoś temperaturę.",
-      "Activate i Mobilise: po 6–8 powtórzeń na stronę dla biodra, kostki i tylnej taśmy.",
-      "Potentiate: 2 krótkie przebieżki 15 m od około 60% do 80%, bez sprintu maksymalnego.",
+      "Zacznij od 2 minut lekkiego truchtu po płaskim podłożu; swobodnie oddychaj.",
+      "Przez 3 minuty wykonuj naprzemiennie wykrok z ruchem biodra, wspięcie na palce i wymach nogi: po 6–8 spokojnych powtórzeń na stronę.",
+      "Przez ostatnią minutę wykonaj krótkie, luźne skipy A i C. Następnie przejdź do osobnych drilli i przebieżek zapisanych w planie.",
     ],
     coachingCues: [
       "Każda minuta ma zwiększać gotowość, nie zmęczenie.",
@@ -3497,8 +3499,8 @@ const FOOTBALL_SPEED_SPECIAL_EXERCISES: ExerciseDefinition[] = [
     loadingType: "external",
     speedIntensity: "high",
     impactLevel: "moderate",
-    replacementIds: ["wall_march"],
-    safeAlternativeIds: ["wall_march"],
+    replacementIds: [],
+    safeAlternativeIds: [],
     objective: "Wzmocnić poziome pchnięcie w pierwszych krokach bez psucia pozycji akceleracyjnej.",
     instructionsPl: [
       "Dobierz taki opór, aby pierwsze kroki pozostały dynamiczne, a tułów tworzył jedną linię.",
@@ -3589,9 +3591,7 @@ const wallMarchForResistedBlock = FOOTBALL_SPEED_EXERCISES.find(
   (exercise) => exercise.id === "wall_march",
 );
 if (wallMarchForResistedBlock) {
-  wallMarchForResistedBlock.sessionRoles = Array.from(
-    new Set([...(wallMarchForResistedBlock.sessionRoles ?? []), "resisted"]),
-  );
+  wallMarchForResistedBlock.sessionRoles = ["preparation", "technical"];
 }
 for (const id of [
   "a_march",
@@ -4598,6 +4598,8 @@ if (existingMaxVelocity) {
   };
 }
 const FOOTBALL_SPEED_CATALOG_IDS = new Set<string>([
+  "wicket_run",
+  "resisted_a_march",
   ...FOOTBALL_SPEED_EXERCISES.map((exercise) => exercise.id),
   ...SPRINT_LIBRARY_ENRICHMENTS.map((exercise) => exercise.id),
   ...FOOTBALL_SPEED_SPECIAL_EXERCISES.filter(
@@ -4608,7 +4610,7 @@ const FOOTBALL_SPEED_CATALOG_IDS = new Set<string>([
 ]);
 
 // Distinct IDs keep dynamic and holding prescriptions/instructions unambiguous.
-const splitSquatBase = LIBRARY.find(exercise => exercise.id === "bodyweight_split_squat")!;
+const splitSquatBase = LIBRARY.find((exercise) => exercise.id === "bodyweight_split_squat")!;
 LIBRARY.push({
   ...splitSquatBase,
   id: "split_squat_iso_hold",
@@ -4622,9 +4624,15 @@ LIBRARY.push({
   stimulus: "quadriceps holding capacity",
   minAge: 13,
   kneeLoadLevel: "moderate",
-  injuryCautions: ["Utrzymuj tylko pozycję, którą kontrolujesz bez bólu; nie pracuj do utraty ustawienia."],
-  progressionIds: [], regressionIds: [], safeAlternativeIds: [], replacementIds: [],
-  objective: "Utrzymanie kontrolowanej pozycji wykrocznej pod własnym ciężarem; osobne zadanie izometryczne, nie zamiennik dynamicznego przysiadu.",
+  injuryCautions: [
+    "Utrzymuj tylko pozycję, którą kontrolujesz bez bólu; nie pracuj do utraty ustawienia.",
+  ],
+  progressionIds: [],
+  regressionIds: [],
+  safeAlternativeIds: [],
+  replacementIds: [],
+  objective:
+    "Utrzymanie kontrolowanej pozycji wykrocznej pod własnym ciężarem; osobne zadanie izometryczne, nie zamiennik dynamicznego przysiadu.",
   instructionsPl: [
     "Ustaw stabilny wykrok przy pewnym podparciu dla równowagi. Zejdź do komfortowej, powtarzalnej głębokości i pozostaw przednią stopę całą na podłożu.",
     "Utrzymuj tę pozycję przez wskazany czas, oddychając swobodnie. Kolano prowadź zgodnie z kierunkiem stopy; nie sprężynuj i nie dokładaj ciężaru.",
@@ -4632,9 +4640,10 @@ LIBRARY.push({
   ],
   coachingCues: ["Ta sama głębokość na obu stronach", "Spokojny oddech", "Stabilna przednia stopa"],
   commonErrors: ["Ruch zamiast utrzymania", "Zapadanie kolana", "Wstrzymywanie oddechu"],
-  approved: true, draft: false,
+  approved: true,
+  draft: false,
 });
-const pinSquatBase = LIBRARY.find(exercise => exercise.id === "overcoming_pin_squat")!;
+const pinSquatBase = LIBRARY.find((exercise) => exercise.id === "overcoming_pin_squat")!;
 LIBRARY.push({
   ...pinSquatBase,
   id: "overcoming_pin_squat_primer",
@@ -4645,27 +4654,101 @@ LIBRARY.push({
   recommendedDevelopmentStage: "adult",
   primaryAdaptation: "rfd",
   stimulus: "coached brief force intent",
-  spinalLoadLevel: "high", kneeLoadLevel: "high",
-  progressionIds: [], regressionIds: [], safeAlternativeIds: [], replacementIds: [],
-  objective: "Opcjonalny, wcześniej przećwiczony blok z trenerem przed dalszym treningiem. Nie gwarantuje poprawy skoku ani ciężkiego boju.",
+  spinalLoadLevel: "high",
+  kneeLoadLevel: "high",
+  progressionIds: [],
+  regressionIds: [],
+  safeAlternativeIds: [],
+  replacementIds: [],
+  objective:
+    "Opcjonalny, wcześniej przećwiczony blok z trenerem przed dalszym treningiem. Nie gwarantuje poprawy skoku ani ciężkiego boju.",
   instructionsPl: [
     "Po pełnej rozgrzewce trener sprawdza stojak, nieruchome piny i pozycję. Ustawia kąt zgięcia kolana 90° oraz prowadzi stopniowe próby wprowadzające. Nie używaj przypadkowej przeszkody ani nie próbuj tego pierwszy raz samodzielnie.",
     "Przygotuj napięcie tułowia bez uderzania w opór. Na sygnał naciskaj w nieruchomy opór z możliwie szybką intencją przez 3 sekundy, bez zmiany pozycji. Oddychaj zgodnie ze wskazówką trenera.",
     "Wykonaj łącznie 3 próby, odpoczywając 60 sekund pomiędzy nimi. Po całym bloku odpocznij pełne 5 minut przed zaplanowanymi skokami lub bojami; trener ocenia gotowość do dalszej części.",
     "Zakończ blok przy bólu, pogorszeniu kontroli lub niepewnym mocowaniu. Nie dodawaj prób ani nie skracaj odpoczynku. Wyników RFD nie wylicza się z samego czasomierza.",
   ],
-  coachingCues: ["Pewny opór sprawdzony przez trenera", "3 sekundy bez ruchu", "5 minut po całym bloku"],
-  commonErrors: ["Szarpnięcie bez przygotowania", "Niepewne piny", "Skracanie końcowego odpoczynku"],
-  approved: true, draft: false,
+  coachingCues: [
+    "Pewny opór sprawdzony przez trenera",
+    "3 sekundy bez ruchu",
+    "5 minut po całym bloku",
+  ],
+  commonErrors: [
+    "Szarpnięcie bez przygotowania",
+    "Niepewne piny",
+    "Skracanie końcowego odpoczynku",
+  ],
+  approved: true,
+  draft: false,
 });
+
+LIBRARY.push(
+  footballSpeedExercise({
+    id: "wicket_run",
+    family: "speed",
+    stimulus: "upright sprint rhythm",
+    name: "Wicket run",
+    displayNamePl: "Bieg przez niskie znaczniki",
+    speedQualities: ["sprint_technique", "maximum_velocity_exposure"],
+    sessionRoles: ["technical"],
+    minAge: 16,
+    requiredMovementCompetenceLevel: "high",
+    requiredSupervisionLevel: "some",
+    equipmentRequired: ["flat_markers"],
+    spaceRequirement: "sprint_lane",
+    objective: "Utrzymać rytm i kontakt pod biodrem bez sięgania do znacznika.",
+    instructionsPl: [
+      "Z trenerem ustaw 4–6 płaskich znaczników w indywidualnym rozstawie, z wolnym nabiegiem i długim wybiegiem. Nie stosuj sztywnych płotków ani uniwersalnego rozstawu.",
+      "Rozpędź się łagodnie i przebiegnij rytmicznie między znacznikami. Nie przeskakuj ich ani nie wydłużaj kroku, żeby trafić stopą.",
+      "Wybiegnij spokojnie poza ostatni znacznik. Jeśli rytm się rozpada, trener zmienia rozstaw lub wracasz do niskiego dribble.",
+    ],
+    coachingCues: ["Rytm bez sięgania stopą", "Znaczniki dopasowane do Ciebie"],
+    commonErrors: ["Wymuszanie długości kroku", "Skakanie nad przeszkodą"],
+    regressionIds: ["low_dribble"],
+    replacementIds: ["low_dribble"],
+    safeAlternativeIds: ["low_dribble"],
+  }),
+  footballSpeedExercise({
+    id: "resisted_a_march",
+    family: "speed",
+    stimulus: "resisted acceleration posture",
+    name: "Resisted A march",
+    displayNamePl: "Marsz A z oporem",
+    speedQualities: ["acceleration", "sprint_technique"],
+    sessionRoles: ["resisted"],
+    minAge: 16,
+    equipmentRequired: ["band"],
+    loadingType: "external",
+    requiredMovementCompetenceLevel: "medium",
+    requiredSupervisionLevel: "some",
+    requiresPartner: true,
+    minParticipants: 2,
+    participantMode: "partner",
+    objective: "Ćwiczyć pchnięcie podłoża i kontrolę miednicy przy niewielkim oporze.",
+    instructionsPl: [
+      "Trener sprawdza gumę i mocowanie przeznaczone do pracy na pasie biodrowym. Partner stoi za Tobą i utrzymuje lekki, stały opór; nie zaczepiaj gumy o przypadkowe elementy.",
+      "Maszeruj krótkimi krokami: unieś kolano, utrzymaj tułów i sprowadź stopę pod biodro. Pchaj podłoże za siebie bez wyginania pleców.",
+      "Po zapisanym czasie zatrzymaj się, a partner spokojnie zwalnia napięcie. Przerwij przy szarpaniu, bólu lub utracie równowagi.",
+    ],
+    coachingCues: ["Mały, równy opór", "Miednica stabilna"],
+    commonErrors: ["Zbyt duże napięcie gumy", "Niepewne mocowanie"],
+    regressionIds: [],
+    replacementIds: [],
+    safeAlternativeIds: [],
+  }),
+);
 
 const LIBRARY_INDEX = new Map<string, ExerciseDefinition>(LIBRARY.map((e) => [e.id, e]));
 
 // Old edges such as leg curl → RDL or Nordic → bridge describe a shared region,
 // not an equivalent training task. They cannot silently fulfil the original role.
-for(const source of LIBRARY) for(const field of ["regressionIds","safeAlternativeIds","replacementIds"] as const) {
-  if(source[field]) source[field]=source[field].filter(targetId=>functionalReplacementCompatible(source.id,targetId));
-}
+for (const source of LIBRARY)
+  for (const field of ["regressionIds", "safeAlternativeIds", "replacementIds"] as const) {
+    if (source[field])
+      source[field] = source[field].filter((targetId) =>
+        functionalReplacementCompatible(source.id, targetId),
+      );
+  }
 
 export function getAllExerciseDefinitions(): ExerciseDefinition[] {
   return LIBRARY;
@@ -4709,7 +4792,7 @@ function isCanonicalReplacementCompatible(
   source: ExerciseDefinition,
   target: ExerciseDefinition,
 ): boolean {
-  if(!functionalReplacementCompatible(source.id,target.id)) return false;
+  if (!functionalReplacementCompatible(source.id, target.id)) return false;
   const stimulusMatches =
     replacementStimulus(source) === replacementStimulus(target) ||
     source.family === target.family ||
@@ -4848,7 +4931,10 @@ const GENERATED_NAME_HINTS: ReadonlyArray<readonly [RegExp, string]> = [
   // Hinge names must never fall through to the squat family fallback.
   [/trap[\s-]?bar/i, "trap_bar_deadlift"],
   // No approved kettlebell deadlift exists yet; a hinge keeps the pattern, not the implement.
-  [/martwy ciąg rumuński|rumuński martwy ciąg|\brdl\b|good morning|kettlebell.*(?:martwy|deadlift)/i, "romanian_deadlift_db"],
+  [
+    /martwy ciąg rumuński|rumuński martwy ciąg|\brdl\b|good morning|kettlebell.*(?:martwy|deadlift)/i,
+    "romanian_deadlift_db",
+  ],
   [/martwy ciąg|deadlift/i, "barbell_deadlift"],
   [/akcj\w* (?:pozycyjn|meczow)|akcje pewności/i, "football_technical_self_selected"],
   // A medicine ball is not football ball work.
@@ -4884,7 +4970,10 @@ const GENERATED_NAME_HINTS: ReadonlyArray<readonly [RegExp, string]> = [
   // Loose technical strides stay a low-volume drill: no dedicated sprint lane needed.
   [/luźne przebieżki/i, "acceleration_mechanics"],
   [/przebieżk|build-up|narastając|budowanie prędkości/i, "progressive_build_up_sprint"],
-  [/^przyspieszenia$|sprinty? liniow|sprinty z akceleracją|krótkie zrywy|sprinty 15 m/i, "free_acceleration_sprint"],
+  [
+    /^przyspieszenia$|sprinty? liniow|sprinty z akceleracją|krótkie zrywy|sprinty 15 m/i,
+    "free_acceleration_sprint",
+  ],
   [/koordynacja i zwinność/i, "acceleration_mechanics"],
   [/rozgrzewka dynamiczna|dynamiczna rozgrzewka biegowa|\bramp\b/i, "sprint_ramp_warmup"],
   [/interwał\w* biegow|odcinki tempowe/i, "method_interval_run"],
@@ -5361,10 +5450,7 @@ export function isExerciseAllowedForProfile(
   }
 
   // Plyometria vs gotowość i kompetencja lądowania (movement competence)
-  if (
-    highImpact &&
-    (competence === "low" || a.readiness <= 4)
-  ) {
+  if (highImpact && (competence === "low" || a.readiness <= 4)) {
     reasons.push("Zbyt wysoka intensywność plyometryczna dla kompetencji/gotowości.");
   }
 

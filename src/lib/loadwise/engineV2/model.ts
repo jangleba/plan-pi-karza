@@ -1,7 +1,7 @@
 import type { Profile, Readiness, SessionDay } from "../types";
 import { preparationProfile } from "./preparation";
 
-export const ENGINE_VERSION = "ballwise-v2.5";
+export const ENGINE_VERSION = "ballwise-v2.6";
 export type Tier = "foundation" | "development" | "performance";
 export type Role =
   | "knee_strength"
@@ -27,8 +27,15 @@ export type Role =
   | "ball_skill";
 export type SupportRole = "activation" | "recovery" | "mobility" | "skills";
 export interface Dose {
-  speedStage?: "preparation" | "technical" | "buildup" | "resisted" | "main" | "addition" | "cooldown";
-  circuit?: { id: string; roundRestSeconds: number; round?: number; rounds?: number; task?: number };
+  speedStage?:
+    "preparation" | "technical" | "buildup" | "resisted" | "main" | "addition" | "cooldown";
+  circuit?: {
+    id: string;
+    roundRestSeconds: number;
+    round?: number;
+    rounds?: number;
+    task?: number;
+  };
   fastMetres?: number;
   runOutM?: number;
   contactsPerRep?: number;
@@ -79,6 +86,7 @@ export interface ExerciseDecision {
 export interface EngineSession {
   sprintRecipeVersion?: 1;
   sprintGoal?: "acceleration" | "max_velocity" | "curve" | "braking" | "planned_cod";
+  /** Known prescribed landing events in explicitly counted jump tasks, not estimated drill contacts. */
   plyometricContacts?: number;
   cycle?: CycleContext;
   variant?: "full" | "compact";

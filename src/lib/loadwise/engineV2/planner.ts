@@ -1,3 +1,4 @@
+import { sprintChronology, fitSprintToBudget } from "./sprintRecipe";
 import { attachCycle, cycleForWeek } from "./cycle";
 import { scheduledMatchDates } from "../matchSchedule";
 import { trainingProfileRevision, trainingSetupRevision } from "../planIdentity";
@@ -83,7 +84,10 @@ function isFirstLoadedMain(recipe: EngineSession, index: number): boolean {
 function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
   const revision = trainingProfileRevision(p);
   const sections: TrainingSection[] = [];
-  for (const [index, e] of recipe.exercises.entries()) {
+  for (const [index, e] of (recipe.sprintRecipeVersion === 1
+    ? sprintChronology(recipe.exercises)
+    : recipe.exercises
+  ).entries()) {
     const d = e.dose;
     const accessory = [
       "push",
@@ -96,13 +100,15 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
       "quad_iso",
     ].includes(e.role);
     const type =
-      e.role === "warmup"
-        ? "warmup"
-        : e.role === "iso_primer"
-          ? "prep"
-          : accessory
-            ? "accessory"
-            : "main";
+      d.speedStage === "cooldown"
+        ? "cooldown"
+        : e.role === "warmup"
+          ? "warmup"
+          : e.role === "iso_primer"
+            ? "prep"
+            : accessory
+              ? "accessory"
+              : "main";
     let section = sections.find((s) => s.type === type);
     if (!section) {
       section = {
@@ -112,7 +118,9 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
             ? "Przygotowanie"
             : type === "accessory"
               ? "Uzupełnienie"
-              : "Część główna",
+              : type === "cooldown"
+                ? "Zakończenie"
+                : "Część główna",
         type,
         blocks: [],
       };
@@ -121,7 +129,7 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
     const text = d.seconds
       ? `${d.seconds} s${d.perSide ? " / stronę" : ""}`
       : d.distanceM
-        ? `${d.runInM ? `${d.runInM} m nabiegu + ` : ""}${d.distanceM} m`
+        ? `${d.runInM ? `${d.runInM} m nabiegu + ` : ""}${d.distanceM} m${d.perSide ? " / stronę" : ""}`
         : `${d.reps}${d.perSide ? " / stronę" : ""}`;
     const exercise = hydrateTrainingExerciseFromDefinition({
       id: `${date}:${e.role}:${index}`,
@@ -134,6 +142,9 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
       restAfterExercise: `${d.restSeconds} s`,
       rir: d.rir === undefined ? undefined : String(d.rir),
       purpose: e.reason,
+      label: d.circuit
+        ? `Runda ${d.circuit.round}/${d.circuit.rounds} · ćwiczenie ${d.circuit.task}/3`
+        : undefined,
       engineDose: d,
       progressionPhase: recipe.phase === "deload" ? "reduced" : "normal",
       methodExecution: d.cluster
@@ -236,9 +247,13 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
     : gym
       ? `Siła ${recipe.roles.includes("strengthA") ? "A" : "B"} · ${recipe.tier === "foundation" ? "podstawy" : recipe.tier === "development" ? "rozwój" : "performance"}`
       : speed
-        ? recipe.exercises.some((e) => e.role === "speed" && (e.dose.runInM ?? 0) > 0)
-          ? "Prędkość maksymalna"
-          : "Przyspieszenie"
+        ? {
+            acceleration: "Przyspieszenie",
+            max_velocity: "Sprint lotny",
+            curve: "Sprint po łuku",
+            braking: "Hamowanie i ponowny start",
+            planned_cod: "Zaplanowana zmiana kierunku",
+          }[recipe.sprintGoal ?? "acceleration"]
         : (recipe.runningRecipe?.title ?? "Bieg tlenowy");
   return {
     ...day(date, p, new Set()),
@@ -552,7 +567,10 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
         options.minutesPerSession ?? 75,
       ),
       mobilityRecipe ?? strengthB(),
-      buildRunning(routedProfile(p, policy.speedGoal), "speed", phase),
+      fitSprintToBudget(
+        buildRunning(routedProfile(p, policy.speedGoal), "speed", phase),
+        options.minutesPerSession ?? 75,
+      ),
       plannedEndurance(p, base[0].date, phase),
     ];
     const weights = policy.priorities;

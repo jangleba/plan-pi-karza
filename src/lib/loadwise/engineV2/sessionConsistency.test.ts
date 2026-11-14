@@ -1,3 +1,4 @@
+import { sprintChronology } from "./sprintRecipe";
 import { describe, expect, it } from "vitest";
 import { generateTrainingPlan } from "./planner";
 import { executionKey, sessionExercises } from "../sessionExecution";
@@ -70,9 +71,11 @@ describe("one structure for plan, details and counter", () => {
         const r = s.engineV2!;
         const shown = sessionExercises(s);
         // the exercises, their order and doses shown are the engine's decision
-        expect(shown.map((e) => e.exerciseId)).toEqual(r.exercises.map((e) => e.exerciseId));
+        const prescription =
+          r.sprintRecipeVersion === 1 ? sprintChronology(r.exercises) : r.exercises;
+        expect(shown.map((e) => e.exerciseId)).toEqual(prescription.map((e) => e.exerciseId));
         shown.forEach((e, i) => {
-          const dose = r.exercises[i].dose;
+          const dose = prescription[i].dose;
           expect(e.engineDose).toEqual(dose);
           expect(e.sets).toBe(String(dose.sets));
           expect(e.restAfterExercise).toBe(`${dose.restSeconds} s`);

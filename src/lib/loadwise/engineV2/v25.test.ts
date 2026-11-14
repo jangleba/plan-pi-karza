@@ -85,11 +85,11 @@ describe("V2.5 coherent sessions, cycle and feedback", () => {
         );
     }
   });
-  it("gives sprint an executable warm-up and counts main sprint metres separately", () => {
+  it("gives sprint an executable warm-up and counts every fast approach", () => {
     const speed = buildRunning(p, "speed", "development")!;
     expect(speed.exercises[0].role).toBe("warmup");
     expect(speed.exercises.filter((e) => e.role === "warmup").length).toBeGreaterThanOrEqual(2);
-    expect(speed.sprintMetres).toBe(120);
+    expect(speed.sprintMetres).toBe(180);
   });
   it("does not require a football pitch for sprint preparation on an available lane", () => {
     const profile = { ...p, hasPitch: false };

@@ -16,6 +16,9 @@ import {
  * text stays and the gap is named — no other movement is shown instead.
  */
 export interface HowTo {
+  objective: string | null;
+  cue: string | null;
+  stop: string | null;
   steps: string[];
   watch: string[];
   animation: AnimationSelection | null;
@@ -110,6 +113,20 @@ export function resolveHowTo(exercise: TrainingExercise): HowTo {
       (selection.choices?.length ?? 0) > 1
         ? "Plan nie zapisuje jednego wariantu tego ruchu, więc animacja nie jest pokazywana."
         : "Dostępny jest tylko schemat części ruchu, więc animacja nie jest pokazywana.";
+  else if (["wicket_run", "resisted_a_march", "a_skip_add_step"].includes(definition?.id ?? ""))
+    animationGap =
+      "Instrukcja jest gotowa. Animacja tego wariantu wymaga jeszcze sprawdzenia zgodności ruchu.";
   else animation = selection;
-  return { steps, watch, animation, animationGap };
+  return {
+    objective: clean(definition?.objective),
+    cue: clean(definition?.coachingCues?.[0]),
+    stop:
+      definition?.category === "speed"
+        ? "Przerwij przy bólu, utracie równowagi lub pogorszeniu techniki. Odpocznij zgodnie z planem."
+        : null,
+    steps,
+    watch,
+    animation,
+    animationGap,
+  };
 }

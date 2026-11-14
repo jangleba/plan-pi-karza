@@ -192,7 +192,7 @@ describe("independent final-session validation", () => {
     const s = session("speed"),
       e = s.engineV2!.exercises.find((e) => e.role === "speed")!;
     e.dose = { ...e.dose, sets: 2, reps: 2, distanceM: 10, runInM: 20, perSide: true };
-    expect(deriveEngineSessionLoad(s.engineV2!, profile).sprintMetres).toBe(240);
+    expect(deriveEngineSessionLoad(s.engineV2!, profile).sprintMetres).toBe(300); // 240 main + 40 build-ups + 20 braking approaches
   });
   it("does not trust a low cached time when the numeric work is long", () => {
     const s = session("strengthA");

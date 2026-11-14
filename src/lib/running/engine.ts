@@ -1,3 +1,4 @@
+import { measureMasEvidence, verifiedMasKmh, masTrial } from "./masQuality";
 import type { RunningActivity, RunningIntervalResult } from "./types";
 import type { RunningRecipe } from "./recipe";
 
@@ -231,17 +232,26 @@ export function buildRunningSessionPrescription(input: {
 }
 
 export function fieldMasFromActivity(
-  activity: Pick<RunningActivity, "distanceM" | "durationSec" | "intervalResults">,
+  activity: Pick<RunningActivity, "distanceM" | "durationSec" | "intervalResults"> &
+    Partial<Pick<RunningActivity, "masTestEvidence" | "route" | "source">>,
 ): number | null {
-  const test = activity.intervalResults.find(
-    (result) =>
-      result.kind === "work" &&
-      result.completed &&
-      result.durationSec >= 298 &&
-      result.durationSec <= 302,
-  );
-  // Zwykłe pięć minut biegu (bez odcinka testu) nigdy nie jest wynikiem testu.
-  return test ? calculateFieldMasKmh(test.distanceM, test.durationSec) : null;
+  // Full local traces take precedence over uploaded summaries; a bad trace cannot borrow good evidence.
+  const evidence = activity.route?.length
+    ? measureMasEvidence(
+        { ...activity, route: activity.route, source: activity.source ?? "gps" },
+        activity.masTestEvidence?.interrupted ?? false,
+      )
+    : activity.masTestEvidence;
+  const trial = masTrial(activity.intervalResults);
+  if (
+    !trial ||
+    !evidence ||
+    trial.recipeId !== evidence.recipeId ||
+    Math.abs(trial.distanceM - evidence.distanceM) > 0.1 ||
+    activity.durationSec < evidence.startElapsedSec + 300
+  )
+    return null;
+  return verifiedMasKmh(evidence);
 }
 
 /** Wynikiem testu jest tylko zapis sesji oznaczonej jako test 5 min. */
@@ -288,7 +298,7 @@ export function deriveRunningEngineState(
       }
       continue;
     }
-    if (!fieldMasTestedAt || activity.date < fieldMasTestedAt) continue;
+    if (activity.masTestAttempt || !fieldMasTestedAt || activity.date < fieldMasTestedAt) continue;
     const next = nextRunningProgressionLevelForSession({
       currentLevel: runningProgressionLevel,
       rpe: rpeBySession[activity.sessionId] ?? null,

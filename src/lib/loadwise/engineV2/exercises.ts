@@ -1,3 +1,4 @@
+import { buildSprintSession } from "./sprintSession";
 import { buildAthleteTrainingProfile } from "../athleteProfile";
 import {
   getExerciseDefinition,
@@ -8,11 +9,7 @@ import type { Profile } from "../types";
 import type { Dose, ExerciseDecision, Role, EngineSession } from "./model";
 import { trainingTier, ROLE_NAMES } from "./model";
 import { FUNCTIONAL_CATALOGUE } from "./taxonomy";
-import {
-  accelerationDistance,
-  hasVerifiedAdvancedStrength,
-  preparationProfile,
-} from "./preparation";
+import { hasVerifiedAdvancedStrength, preparationProfile } from "./preparation";
 import {
   coachedPrimerDose,
   coachedPrimerEligible,
@@ -409,136 +406,31 @@ export function buildRunning(
   role: "speed" | "endurance",
   phase: EngineSession["phase"],
 ): EngineSession | null {
-  const declaredSpace = p.trainingMethodPreferences?.spaceLengthM;
-  if (
-    role === "speed" &&
-    (!p.hasSprintSpace ||
-      !Number.isFinite(p.age) ||
-      p.age < 13 ||
-      p.painInjury ||
-      p.seasonPhase === "return_injury" ||
-      (declaredSpace !== undefined && (!Number.isFinite(declaredSpace) || declaredSpace < 20)))
-  )
-    return null;
-  let id = pick(role, p, "A", new Set());
+  if (role === "speed") return buildSprintSession(p, phase, (id) => eligibleExercise(id, p));
+  const id = pick("endurance", p, "A", new Set());
   if (!id) return null;
-  const tier = trainingTier(p),
-    deload = phase === "deload",
-    light =
-      deload ||
-      p.seasonPhase === "transition" ||
-      p.goal === "return" ||
-      p.secondaryLimiter === "fatigue",
-    sportPrepared = ["intermediate", "advanced", "elite"].includes(p.level),
-    adultPrepared = p.age >= 18 && sportPrepared,
-    sprintDistance = accelerationDistance(p);
-  const flying =
-    role === "speed" &&
-    p.goal === "speed" &&
-    phase === "development" &&
-    !light &&
-    p.age >= 18 &&
-    ["advanced", "elite"].includes(p.level) &&
-    p.movementCompetence === "high" &&
-    ["some", "full"].includes(p.supervisionLevel ?? "none") &&
-    (declaredSpace ?? 0) >= 50 &&
-    eligibleExercise("flying_sprint", p);
-  if (flying) id = "flying_sprint";
-  const dose: Dose =
-    role === "speed"
-      ? {
-          sets: light ? (adultPrepared ? 3 : 2) : adultPrepared ? 6 : 4,
-          reps: 1,
-          distanceM: light ? 10 : sprintDistance,
-          restSeconds: 90,
-          intent: "explosive",
-        }
-      : {
-          sets: 1,
-          seconds: (deload ? 15 : tier === "foundation" ? 20 : 25) * 60,
-          restSeconds: 0,
-          intent: "easy",
-        };
-  if (flying) {
-    dose.sets = 4;
-    dose.distanceM = 10;
-    dose.runInM = 20;
-    dose.restSeconds = 150;
-  }
-  const exercises: ExerciseDecision[] = [
-    {
-      exerciseId: id,
-      role,
-      dose,
-      reason:
-        role === "speed"
-          ? flying
-            ? "Najazd 20 m, odcinek lotny 10 m i co najmniej 20 m stopniowego wyhamowania; trener nadzoruje jakość. Pełny odpoczynek, przerwij przy spadku jakości."
-            : "Przyspieszenie dobrane do wieku, przygotowania sportowego i miejsca, niezależnie od stażu siłowego. Pełny odpoczynek; zakończ przy utracie jakości. Po odcinku 10 m pozostaw co najmniej 10 m do spokojnego wyhamowania, a po 20 m — co najmniej 20 m."
-          : "Tempo konwersacyjne; bez zgadywania MAS i tempa z GPS.",
-    },
-  ];
-  if (role === "speed") {
-    const prep: ExerciseDecision[] = [];
-    if (eligibleExercise("easy_aerobic_run", p))
-      prep.push({
-        exerciseId: "easy_aerobic_run",
-        role: "warmup",
-        dose: { sets: 1, seconds: 180, restSeconds: 30, intent: "easy" },
-        reason:
-          "3 min swobodnego truchtu; następnie ćwiczenia dynamiczne i stopniowe rozpędzanie. To przygotowanie, nie trening wydolnościowy.",
-      });
-    if (eligibleExercise("a_march", p))
-      prep.push({
-        exerciseId: "a_march",
-        role: "warmup",
-        dose: { sets: 2, seconds: 20, restSeconds: 30, intent: "controlled" },
-        reason:
-          "Dwa krótkie odcinki marszu A. Kontroluj rytm i ustawienie tułowia; nie jest to sprint maksymalny.",
-      });
-    if (eligibleExercise("progressive_build_up_sprint", p))
-      prep.push({
-        exerciseId: "progressive_build_up_sprint",
-        role: "warmup",
-        dose: { sets: 2, reps: 1, distanceM: 10, restSeconds: 45, intent: "controlled" },
-        reason:
-          "Dwie przebieżki po 10 m, od swobodnej do wyraźnie szybszej, nadal submaksymalnej. Zachowaj wolną strefę hamowania; gotowość do głównych prób oceń po rozgrzewce.",
-      });
-    exercises.unshift(...prep);
-  }
-  if (
-    role === "speed" &&
-    p.goal === "agility" &&
-    eligibleExercise("progressive_run_three_step_stop", p)
-  )
-    exercises.push({
-      exerciseId: "progressive_run_three_step_stop",
-      role: "landing",
-      dose: {
-        sets: light ? 1 : p.age < 16 ? 2 : 3,
-        distanceM: 10,
-        reps: 1,
-        restSeconds: 90,
-        intent: "controlled",
-      },
-      reason: "Kontrolowane hamowanie po biegu progresywnym; nie reakcyjny test zwinności.",
-    });
+  const tier = trainingTier(p);
+  const seconds = (phase === "deload" ? 15 : tier === "foundation" ? 20 : 25) * 60;
   return {
-    roles: [role],
+    roles: ["endurance"],
     tier,
     phase,
-    exercises,
+    highLower: false,
     missing: [],
-    highLower: role === "speed",
-    minutes:
-      role === "endurance"
-        ? dose.seconds! / 60 + 10
-        : Math.ceil(estimateSessionSeconds(exercises) / 60) + 2,
-    sprintMetres: exercises.reduce(
-      (s, e) =>
-        s +
-        (e.role === "warmup" ? 0 : ((e.dose.distanceM ?? 0) + (e.dose.runInM ?? 0)) * e.dose.sets),
-      0,
-    ),
+    exercises: [
+      {
+        exerciseId: id,
+        role: "endurance",
+        dose: {
+          sets: 1,
+          seconds,
+          restSeconds: 0,
+          intent: "easy",
+        },
+        reason: "Tempo konwersacyjne; bez zgadywania MAS i tempa z GPS.",
+      },
+    ],
+    minutes: seconds / 60 + 10,
+    sprintMetres: 0,
   };
 }

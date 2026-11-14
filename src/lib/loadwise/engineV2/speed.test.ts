@@ -45,7 +45,7 @@ describe("sport-specific speed preparation", () => {
       distanceM: 20,
       restSeconds: 90,
     });
-    expect(s.sprintMetres).toBe(120);
+    expect(s.sprintMetres).toBe(180); // includes 40 m of build-ups and 20 m of braking approaches
   });
   it("does not turn advanced gym experience into advanced sport preparation", () => {
     const s = buildRunning(
@@ -105,7 +105,7 @@ describe("sport-specific speed preparation", () => {
       runInM: 20,
       restSeconds: 150,
     });
-    expect(s.sprintMetres).toBe(120);
+    expect(s.sprintMetres).toBe(180); // includes 40 m of build-ups and 20 m of braking approaches
     for (const patch of [
       { age: 17 },
       { level: "intermediate" as const },

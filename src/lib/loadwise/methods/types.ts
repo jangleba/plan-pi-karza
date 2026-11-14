@@ -22,6 +22,7 @@ export interface TrainingMethodPreferences {
   strength?: "auto" | TrainingMethodId;
   conditioning?: "auto" | TrainingMethodId;
   sprint?: "auto" | TrainingMethodId;
+  sprintFocus?: "auto" | "acceleration" | "max_velocity" | "curve" | "braking" | "planned_cod";
   spaceLengthM?: number;
   declaredEquipment?: string[];
 }

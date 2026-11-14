@@ -1,3 +1,5 @@
+import { isMasTestRecipe } from "../engineV2/masTestRecipe";
+import { measureMasEvidence } from "@/lib/running/masQuality";
 import { sessionPrescription, trainingProfileRevision } from "../planIdentity";
 import { resolveEffectivePlan } from "../effectivePlan";
 import { sessionStartIssue } from "../engineV2/planStatus";
@@ -354,11 +356,13 @@ export function createSessionActions(
         resolveEffectivePlan(before.plan, before.modifications),
         draft.sessionId,
       );
-    const isMas = linked?.classification?.subcategory === "field_mas_test";
-    if (isMas && !fieldMasFromActivity(draft as RunningActivity))
-      throw new Error(
-        "Test 5-minutowy nie ma pełnego, wiarygodnego odcinka GPS. Powtórz test na otwartej przestrzeni.",
-      );
+    const masTestAttempt =
+      linked?.classification?.subcategory === "field_mas_test" ||
+      isMasTestRecipe(linked?.runningRecipe);
+    const masTestEvidence = masTestAttempt
+      ? (draft.masTestEvidence ?? measureMasEvidence(draft))
+      : null;
+    const isMas = masTestAttempt && fieldMasFromActivity({ ...draft, masTestEvidence }) !== null;
     const operationId = crypto.randomUUID(),
       updatedAt = new Date().toISOString();
     const prior = before.runningActivities[draft.sessionId],
@@ -372,6 +376,8 @@ export function createSessionActions(
       distance_m: draft.distanceM,
       avg_pace_sec_per_km: draft.avgPaceSecPerKm,
       is_field_mas_test: isMas,
+      mas_test_attempt: masTestAttempt,
+      mas_test_evidence: masTestEvidence as unknown as Json,
       updated_at: updatedAt,
       started_at: draft.startedAt,
       ended_at: draft.endedAt,
@@ -422,6 +428,8 @@ export function createSessionActions(
       intervalResults: draft.intervalResults,
       source: draft.source,
       isFieldMasTest: isMas,
+      masTestAttempt,
+      masTestEvidence,
     };
     setState((s) => ({
       ...s,

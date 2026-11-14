@@ -187,7 +187,9 @@ describe("store action contracts", () => {
   it("rejects a stale view before starting and persists the current role-preserving prescription", async () => {
     const planned = currentV2Session();
     state.plan = [{ ...planned, durationMin: planned.durationMin + 1 }];
-    await expect(createSessionActions(context()).startSession(planned)).rejects.toThrow("Plan zmienił się");
+    await expect(createSessionActions(context()).startSession(planned)).rejects.toThrow(
+      "Plan zmienił się",
+    );
     expect(mocks.events).not.toContain("save_training_log");
     const current = state.plan[0];
     await createSessionActions(context()).startSession(current);
@@ -200,10 +202,14 @@ describe("store action contracts", () => {
   it("rechecks the current profile and date for new starts but keeps a started snapshot immutable", async () => {
     const planned = currentV2Session();
     state.profile = { ...state.profile!, painInjury: true };
-    await expect(createSessionActions(context()).startSession(planned)).rejects.toThrow("wstrzymany");
+    await expect(createSessionActions(context()).startSession(planned)).rejects.toThrow(
+      "wstrzymany",
+    );
     state.profile = { ...state.profile!, painInjury: false };
     state.plan = [{ ...planned, date: "2026-09-30" }];
-    await expect(createSessionActions(context()).startSession(state.plan[0])).rejects.toThrow("tylko w dniu");
+    await expect(createSessionActions(context()).startSession(state.plan[0])).rejects.toThrow(
+      "tylko w dniu",
+    );
     state.plan = [planned];
     await createSessionActions(context()).startSession(planned);
     const pinned = state.completions.session.executionSnapshot;
@@ -329,16 +335,15 @@ describe("store action contracts", () => {
     expect(state.runningActivities.session.route).toEqual(draft.route);
   });
 
-  it("rejects an incomplete MAS test before attempting any write", async () => {
+  it("stores an incomplete MAS attempt without calibrating MAS", async () => {
+    mocks.error = { message: "Network error" };
     state.plan = [
       session({
         classification: { subcategory: "field_mas_test" } as SessionDay["classification"],
       }),
     ];
-    await expect(createSessionActions(context()).saveRunningActivity(runDraft())).rejects.toThrow(
-      "Test 5-minutowy nie ma pełnego",
-    );
-    expect(mocks.writes).toEqual([]);
-    expect(readPendingTrainingWrites("athlete")).toEqual([]);
+    await createSessionActions(context()).saveRunningActivity(runDraft());
+    expect(state.runningActivities.session.isFieldMasTest).toBe(false);
+    expect(state.runningActivities.session.masTestAttempt).toBe(true);
   });
 });

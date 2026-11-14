@@ -1,3 +1,4 @@
+import { sprintSeconds, sprintDistance, sprintChronology } from "./sprintRecipe";
 import { buildAthleteTrainingProfile } from "../athleteProfile";
 import { getExerciseDefinition, isExerciseAllowedForProfile } from "../exerciseLibrary";
 import type { RunningRecipe } from "@/lib/running/recipe";
@@ -120,6 +121,12 @@ export function deriveEngineSessionLoad(
   recipe: EngineSession,
   profile: Profile,
 ): DerivedSessionLoad {
+  if (recipe.sprintRecipeVersion === 1)
+    return {
+      minutes: Math.ceil(sprintSeconds(recipe.exercises) / 60) + 2,
+      sprintMetres: sprintDistance(recipe.exercises),
+      highLower: true,
+    };
   let seconds = 0,
     sprintMetres = 0;
   for (const [index, exercise] of recipe.exercises.entries()) {
@@ -352,7 +359,14 @@ export function validateEngineSession(
         `Ćwiczenie nie realizuje przypisanej funkcji: ${exercise.exerciseId}.`,
       );
     const positive = [d.reps, d.seconds, d.distanceM];
-    const nonnegative = [d.restSeconds, d.runInM, d.postRestSeconds];
+    const nonnegative = [
+      d.restSeconds,
+      d.runInM,
+      d.postRestSeconds,
+      d.fastMetres,
+      d.runOutM,
+      d.contactsPerRep,
+    ];
     if (
       !Number.isInteger(d.sets) ||
       d.sets <= 0 ||
@@ -500,6 +514,75 @@ export function validateEngineSession(
         "UNSUPPORTED_RUN_METHOD",
         "Ta receptura nie może zastępować zaplanowanej pracy tlenowej lub interwałowej.",
       );
+  }
+  if (recipe.sprintRecipeVersion === 1) {
+    const circuits = recipe.exercises.filter((e) => e.dose.circuit);
+    const first = circuits[0]?.dose;
+    if (
+      circuits.length !== 3 ||
+      !first?.circuit ||
+      !first.circuit.id ||
+      circuits.some(
+        (e) =>
+          e.dose.circuit?.id !== first.circuit?.id ||
+          e.dose.sets !== first.sets ||
+          !Number.isFinite(e.dose.circuit?.roundRestSeconds) ||
+          (e.dose.circuit?.roundRestSeconds ?? -1) < 0,
+      ) ||
+      first.sets < 1 ||
+      first.sets > 3
+    ) {
+      fail(
+        "INVALID_SPRINT_CIRCUIT",
+        "Sprint wymaga trzech stałych drilli i zgodnej liczby 1–3 rund.",
+      );
+      return issues;
+    }
+    const stages = recipe.exercises.map((e) => e.dose.speedStage);
+    const mainIndex = stages.indexOf("main"),
+      buildupIndex = stages.indexOf("buildup");
+    if (
+      stages[0] !== "preparation" ||
+      stages.at(-1) !== "cooldown" ||
+      mainIndex < 0 ||
+      buildupIndex < 0 ||
+      buildupIndex >= mainIndex ||
+      stages.filter((s) => s === "main").length !== 1 ||
+      stages.filter((s) => s === "addition").length > 1 ||
+      recipe.exercises.some(
+        (e, i) =>
+          (e.dose.circuit && (e.dose.speedStage !== "technical" || i >= buildupIndex)) ||
+          (e.dose.speedStage === "resisted" && i >= mainIndex),
+      )
+    )
+      fail(
+        "INVALID_SPRINT_STAGES",
+        "Sprint wymaga kolejnego przygotowania, drilli, przebieżek, pracy głównej i zakończenia.",
+      );
+    const actual =
+      session.structuredSections?.flatMap((s) => s.blocks.flatMap((b) => b.exercises)) ?? [];
+    const expected = sprintChronology(recipe.exercises);
+    if (
+      actual.length !== expected.length ||
+      actual.some(
+        (e, i) =>
+          e.exerciseId !== expected[i]?.exerciseId ||
+          stableJson(e.engineDose) !== stableJson(expected[i]?.dose),
+      )
+    )
+      fail(
+        "SPRINT_CHRONOLOGY_MISMATCH",
+        "Kolejność i dawka runnera muszą odpowiadać rundom receptury.",
+      );
+    if (
+      recipe.exercises.some(
+        (e) =>
+          (["speed", "landing"].includes(e.role) || e.dose.speedStage === "buildup") &&
+          e.dose.fastMetres !== undefined &&
+          e.dose.fastMetres < (e.dose.distanceM ?? 0) + (e.dose.runInM ?? 0),
+      )
+    )
+      fail("UNDERCOUNTED_SPRINT_METRES", "Szybkie metry muszą obejmować cały odcinek i nabieg.");
   }
   const totals = deriveEngineSessionLoad(recipe, profile);
   if (

@@ -44,7 +44,7 @@ export function proposeMasTest(input: AdjustmentInput): MasTestOffer {
     )
   )
     return { ok: false, reason: "Profil zmienił się; najpierw zaktualizuj plan." };
-  const minutesPerSession = input.minutesPerSession ?? upcoming[0]?.engineTimeBudgetMin ?? 75;
+  const minutesPerSession = input.minutesPerSession ?? input.plan[0]?.engineTimeBudgetMin ?? 75;
   const options: EngineOptions = {
     startDate: todayIso,
     minutesPerSession,
