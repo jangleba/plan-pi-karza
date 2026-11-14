@@ -13,6 +13,10 @@ export function FeedbackAdjustmentCard() {
             <li key={`${c.kind}:${c.sessionId}`}>{c.line}</li>
           ))}
         </ul>
+        <small>
+          Zmieniamy tylko wymienione sesje. Wykonane i rozpoczęte oraz reszta planu zostają bez
+          zmian.
+        </small>
         {error ? <small role="alert">{error}</small> : null}
       </span>
       <button type="button" disabled={busy} onClick={() => void apply()}>

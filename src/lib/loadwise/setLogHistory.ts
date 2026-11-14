@@ -8,6 +8,10 @@ export interface HistorySetLog {
   rir: number | null;
   metricKind?: string | null;
   metricValue?: number | null;
+  /** Sprint trials: distance, kind of start and how it was measured (null for older rows). */
+  distanceM?: number | null;
+  startType?: "standing" | "flying" | null;
+  measurementMethod?: "manual_stopwatch" | "video_reviewed" | null;
 }
 
 export interface HistorySetLogRow {
@@ -18,6 +22,9 @@ export interface HistorySetLogRow {
   rir: number | null;
   metric_kind?: string | null;
   metric_value?: number | string | null;
+  distance_m?: number | string | null;
+  start_type?: string | null;
+  measurement_method?: string | null;
   performed_at: string;
 }
 
@@ -158,6 +165,13 @@ export function toSetLog(row: HistorySetLogRow): HistorySetLog {
     metricKind: row.metric_kind ?? null,
     metricValue:
       row.metric_value === null || row.metric_value === undefined ? null : Number(row.metric_value),
+    distanceM:
+      row.distance_m === null || row.distance_m === undefined ? null : Number(row.distance_m),
+    startType: row.start_type === "standing" || row.start_type === "flying" ? row.start_type : null,
+    measurementMethod:
+      row.measurement_method === "manual_stopwatch" || row.measurement_method === "video_reviewed"
+        ? row.measurement_method
+        : null,
   };
 }
 

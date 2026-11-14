@@ -18,6 +18,14 @@ async function login(id = owner) {
     `reset role; set role authenticated; select set_config('request.jwt.claim.sub','${id}',false);`,
   );
 }
+async function seedLevel(level: number) {
+  // Earlier cases leave their own evidence behind; the replay folds all evidence of the owner.
+  await db.query("delete from running_activities where user_id=$1", [owner]);
+  await db.query(
+    "update athlete_profiles set running_progression_level=$2,running_progression_base_level=$2,running_progression_base_at='2026-01-01T00:00:00Z' where user_id=$1",
+    [owner, level],
+  );
+}
 async function seedSession(title = "Trening") {
   const id = uid();
   await db.query(
@@ -283,9 +291,8 @@ describe.sequential("full migration runtime contracts", () => {
   it.each(["run-first", "log-first"] as const)(
     "waits for late RPE and applies it once in %s order, including retries",
     async (order) => {
-      await db.query("update athlete_profiles set running_progression_level=1 where user_id=$1", [
-        owner,
-      ]);
+      // Baseline of the replay: the level held before this evidence (level 1, long ago).
+      await seedLevel(1);
       const sid = await seedSession(),
         runOperation = uid(),
         logOperation = uid();
@@ -327,17 +334,17 @@ describe.sequential("full migration runtime contracts", () => {
       await log(sid, 1, completed(6), rpeOperation);
       await log(sid, 2, completed(5));
       expect(await state()).toEqual({ running_progression_level: 2, progression_applied: true });
-      await expect(
-        db.query("select save_running_result($1,$2::jsonb,1)", [uid(), JSON.stringify(payload)]),
-      ).rejects.toMatchObject({ code: "40001" });
+      // A correction of the same evidence is allowed (with the current version) and replays the
+      // same history: the level does not move again.
+      await db.query("select save_running_result($1,$2::jsonb,1)", [uid(), JSON.stringify(payload)]);
+      expect(await state()).toEqual({ running_progression_level: 2, progression_applied: true });
     },
   );
   it.each(["run-first", "log-first"] as const)(
     "uses the pinned actual V2 HIIT prescription in %s order without changing reported RPE",
     async (order) => {
-      await db.query("update athlete_profiles set running_progression_level=1 where user_id=$1", [
-        owner,
-      ]);
+      // Baseline of the replay: the level held before this evidence (level 1, long ago).
+      await seedLevel(1);
       const sid = await seedSession(),
         pinned = hardHiitExecution();
       expect(pinned.runningRecipe.blocks[0].intensity.rpe).toEqual([8, 9]);

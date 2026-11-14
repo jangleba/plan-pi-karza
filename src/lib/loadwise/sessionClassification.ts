@@ -433,9 +433,11 @@ function classifyEngineSession(session: SessionDay): SessionClassification | nul
         ? "max_velocity"
         : "acceleration"
       : isEndurance
-        ? interval
-          ? "aerobic_intervals"
-          : "easy_run"
+        ? (session.runningRecipe ?? engine?.runningRecipe)?.method === "field_mas_test"
+          ? "field_mas_test"
+          : interval
+            ? "aerobic_intervals"
+            : "easy_run"
         : isRecovery
           ? "recovery"
           : isMobility

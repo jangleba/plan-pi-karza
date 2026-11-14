@@ -131,5 +131,10 @@ Plan zapisuje wejścia, z których powstał (`planInputs`: terminy meczów, dni 
 ### Progres, Fuel, sprint
 Podsumowanie siły używa rzeczywistych serii (`exercise_set_logs`): tylko ukończone sesje, serie z ciężarem i powtórzeniami, bez sesji lżejszych (deload) i bez pomiarów czasu. Fuel planuje przyszły trening klubowy z założeniem 90 min (oznaczonym jako szacunek, nie ukończona aktywność); przyszły mecz nie dostaje minut. Czas sprintu jest przypisany do wybranego powtórzenia (numer = powtórzenie planu, pominięcie nie przenumerowuje, ponowny zapis poprawia ten sam wpis).
 
+### Test MAS, chronologia biegów, próby sprintu
+- „Ustal tempo” (dobrowolny): test 5 min z rozgrzewką 10 i schłodzeniem 5 min zastępuje jeden nierozpoczęty spokojny bieg w najbliższych 7 dniach po akceptacji (nie dokłada trzeciej sesji), przechodzi bramkę rozmieszczenia i walidator; oferowany od 16 lat, przy potwierdzonym przygotowaniu, bez trybu powrotu/zmęczenia i bez ważnego wyniku. Wynik z dystansu GPS zapisuje istniejący RPC; silnik używa tempa tylko przy wyniku z sesją źródłową, nie starszym niż 28 dni (reguła produktu).
+- Poziom biegowy jest wyliczany po stronie serwera z dowodów (ukończony bieg z RPE) w kolejności czasu wykonania, remis rozstrzyga identyfikator; kolejność dostarczenia, ponowienia, późne RPE i korekty dają ten sam wynik. Nowszy test MAS wyznacza nowy punkt odniesienia; starsze dowody nie są odtwarzane.
+- Próba sprintu ma dystans, rodzaj startu i metodę pomiaru; porównujemy tylko próby o zgodnych warunkach, historyczne bez metadanych nie są porównywalne.
+
 ### Czego ta wersja nie robi
-Dobrowolny test MAS w aplikacji („Ustal tempo”), deterministyczne serwerowe przeliczanie poziomu biegania niezależne od kolejności dostarczenia biegów oraz rozróżnienie rodzaju startu/dystansu przy porównywaniu czasów sprintu nie są zaimplementowane. Testy na urządzeniu (telefon, GPS, tło, offline) i zastosowanie migracji na zdalnej bazie nie zostały wykonane.
+Zapis zmiany ustawień zastępuje plan od dziś do końca (pokazane są zmiany w najbliższych 7 dniach i w dalszych tygodniach). Bieg testu MAS w terenie, testy na urządzeniu (telefon, GPS, tło, offline) oraz zastosowanie migracji na zdalnej bazie nie zostały wykonane.

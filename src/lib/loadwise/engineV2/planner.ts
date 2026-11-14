@@ -316,7 +316,12 @@ function place(
   const current = days[index];
   const distance = Math.min(99, ...[...matches].map((m) => Math.abs(dayDistance(current.date, m))));
   // Resolve measured running pace against the actual candidate date, including test expiry.
-  if (recipe.roles.length === 1 && recipe.roles[0] === "endurance") {
+  // A prepared MAS test keeps its own recipe; only calm runs are re-resolved for the date.
+  if (
+    recipe.roles.length === 1 &&
+    recipe.roles[0] === "endurance" &&
+    recipe.runningRecipe?.method !== "field_mas_test"
+  ) {
     const dated = plannedEndurance(
       p,
       current.date,
@@ -344,7 +349,12 @@ function place(
   });
   if (!gate.allowed) {
     // An easy alternative remains an explicit adaptation, and still passes every calendar gate.
-    if (recipe.roles[0] === "endurance" && recipe.highLower) {
+    // (never for a prepared MAS test: a calm run is not that test)
+    if (
+      recipe.roles[0] === "endurance" &&
+      recipe.highLower &&
+      recipe.runningRecipe?.method !== "field_mas_test"
+    ) {
       const easy = plannedEndurance(p, current.date, recipe.phase, true);
       if (easy) {
         const light = placeResolvedEndurance(days, index, easy, p, options, matches, preceding);

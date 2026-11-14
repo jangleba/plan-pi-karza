@@ -261,6 +261,34 @@ it("proposes an update after a moved match: names the change, shows the next day
     [...host.querySelectorAll("button")].find((b) => b.textContent === "Zaktualizuj plan")!.click(),
   );
   expect(host.textContent).toContain("Najbliższe 7 dni · zmiany");
+  // the scope of the write is named before saving, including changes beyond the nearest week
+  expect(host.textContent).toContain("Zapis zastąpi plan od 2026-11-02 do 2026-11-29");
+  expect(host.textContent).toMatch(/Zmiany: \d+ w najbliższych 7 dniach/);
+  expect(mock.activate).not.toHaveBeenCalled();
+});
+
+it("a change that reaches later weeks says so before the save", async () => {
+  const state = mock.store.state as LoadwiseState;
+  const profile = {
+    ...state.profile!,
+    individualTrainingDays: [1, 2, 3, 4, 5, 6, 7],
+    hasPitch: true,
+    hasSprintSpace: true,
+  };
+  const saved = generateTrainingPlan(profile, { startDate: "2026-11-02", weeks: 4 }).plan;
+  // a lasting change (fewer available days) alters every week, not only the next seven days
+  mock.store.state = {
+    ...state,
+    profile: { ...profile, individualTrainingDays: [2, 4] },
+    activePlanId: "saved",
+    plan: saved,
+  };
+  await act(async () => root.render(<PlanScreen />));
+  await act(async () =>
+    [...host.querySelectorAll("button")].find((b) => b.textContent === "Zaktualizuj plan")!.click(),
+  );
+  expect(host.textContent).toContain("Dalsze tygodnie · zmiany");
+  expect(host.textContent).toMatch(/w dalszych tygodniach \(poniżej\)/);
   expect(mock.activate).not.toHaveBeenCalled();
 });
 

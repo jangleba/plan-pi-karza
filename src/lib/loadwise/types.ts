@@ -736,7 +736,7 @@ export type ActivityTag = "running_endurance" | "technical" | "tactical_game";
 export interface FeedbackAdjustmentMark {
   proposalId: string;
   sourceSessionId: string;
-  kind: "reschedule" | "lighter" | "compact" | "skip" | "external_credit";
+  kind: "reschedule" | "lighter" | "compact" | "skip" | "external_credit" | "mas_test";
   appliedAt: string;
 }
 /** Cel wydolności pokryty zgłoszoną pracą w klubie: osobno od wykonanej sesji własnej. */

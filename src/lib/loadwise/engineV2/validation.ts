@@ -8,6 +8,7 @@ import { hasDeclaredFootball, hasDeclaredWall, requiresDeclaredWall } from "./su
 import { coachedPrimerEligible, coachedPrimerDose, clusterEligible } from "./strengthProtocols";
 import { hasCurrentVerifiedMas } from "./endurance";
 import { hasVerifiedAdvancedStrength } from "./preparation";
+import { MAS_TEST_SECONDS, isMasTestRecipe, masTestIneligibility } from "./masTestRecipe";
 import { resolveGoalPolicy } from "./goalPolicy";
 
 const TARGETS = new Set([
@@ -474,8 +475,16 @@ export function validateEngineSession(
         "MISSING_INTERVAL_RECOVERY",
         "Receptura interwałów nie zawiera odpoczynków pomiędzy odcinkami.",
       );
+    const masTest = isMasTestRecipe(run);
+    if (masTest) {
+      const why = masTestIneligibility(profile, session.date);
+      if (why) fail("MAS_TEST_ELIGIBILITY", why);
+      if (run.blocks.length !== 1 || run.blocks[0].work.seconds !== MAS_TEST_SECONDS)
+        fail("MAS_TEST_RECIPE", "Test MAS to jeden równy odcinek 5 minut.");
+    }
     if (
       timeline.hard &&
+      !masTest &&
       (!hasCurrentVerifiedMas(profile, session.date) ||
         profile.age < 16 ||
         !["intermediate", "advanced", "elite"].includes(profile.level))
@@ -486,7 +495,7 @@ export function validateEngineSession(
       );
     if (run.paceSource === "field_mas" && !hasCurrentVerifiedMas(profile, session.date))
       fail("UNVERIFIED_RUN_PACE", "Tempo biegu nie pochodzi z aktualnego wskazanego testu.");
-    if (["rsa", "field_mas_test"].includes(run.method))
+    if (run.method === "rsa" || (run.method === "field_mas_test" && !masTest))
       fail(
         "UNSUPPORTED_RUN_METHOD",
         "Ta receptura nie może zastępować zaplanowanej pracy tlenowej lub interwałowej.",

@@ -6,13 +6,19 @@ import { SprintTimingPanel } from "./SprintTimingPanel";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 
 const mocks = vi.hoisted(() => ({
-  current: {} as Record<number, { setNumber: number; metricKind: string; metricValue: number }>,
+  current: {} as Record<number, Record<string, unknown>>,
+  previous: {} as Record<number, Record<string, unknown>>,
   saveSet: vi.fn(),
 }));
 vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: "sprint-user" } }) }));
 vi.mock("@/lib/loadwise/setLogs", () => ({
   exerciseKey: () => "sprint_20",
-  useExerciseSetLogs: () => ({ current: mocks.current, loading: false, saveSet: mocks.saveSet }),
+  useExerciseSetLogs: () => ({
+    current: mocks.current,
+    previous: mocks.previous,
+    loading: false,
+    saveSet: mocks.saveSet,
+  }),
 }));
 vi.mock("@/features/browser-lab/storage", () => ({ loadBrowserResults: () => [] }));
 
@@ -36,6 +42,7 @@ const type = (value: string) =>
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   mocks.current = {};
+  mocks.previous = {};
   mocks.saveSet.mockReset().mockResolvedValue(true);
   host = document.createElement("div");
   document.body.append(host);
@@ -93,4 +100,58 @@ it("lists saved times by repetition with their source", async () => {
   mocks.current = { 2: { setNumber: 2, metricKind: "sprint_manual", metricValue: 3.3 } };
   await render();
   expect(host.textContent).toContain("Powtórzenie 2: 3.300 s");
+});
+
+it("records the distance, kind of start and measurement method with the trial", async () => {
+  await render();
+  await type("3.4");
+  await act(async () => button("Zapisz czas").click());
+  expect(mocks.saveSet.mock.calls[0][0]).toMatchObject({
+    setNumber: 1,
+    distanceM: 20,
+    startType: "standing",
+    measurementMethod: "manual_stopwatch",
+  });
+});
+
+it("a flying start is recorded as such", async () => {
+  const flying = {
+    ...exercise,
+    engineDose: { sets: 2, distanceM: 10, runInM: 20, restSeconds: 120, intent: "explosive" },
+  } as never;
+  await act(async () =>
+    root.render(<SprintTimingPanel exercise={flying} sessionId="s1" onRepeat={() => {}} />),
+  );
+  await type("1.2");
+  await act(async () => button("Zapisz czas").click());
+  expect(mocks.saveSet.mock.calls[0][0]).toMatchObject({ distanceM: 10, startType: "flying" });
+});
+
+it("compares with the earlier session only under the same conditions and otherwise says why not", async () => {
+  mocks.current = {
+    1: {
+      setNumber: 1,
+      metricKind: "sprint_manual",
+      metricValue: 3.2,
+      distanceM: 20,
+      startType: "standing",
+      measurementMethod: "manual_stopwatch",
+    },
+  };
+  mocks.previous = {
+    1: {
+      setNumber: 1,
+      metricKind: "sprint_manual",
+      metricValue: 3.3,
+      distanceM: 20,
+      startType: "standing",
+      measurementMethod: "manual_stopwatch",
+    },
+  };
+  await render();
+  expect(host.textContent).toContain("Najlepszy wynik wcześniej (te same warunki): 3.300 s");
+  mocks.previous = { 1: { setNumber: 1, metricKind: "sprint_manual", metricValue: 3.0 } };
+  await render();
+  expect(host.textContent).toContain("nie porównujemy");
+  expect(host.textContent).not.toContain("Najlepszy wynik wcześniej");
 });
