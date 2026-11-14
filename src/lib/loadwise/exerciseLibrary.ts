@@ -2519,7 +2519,7 @@ const STRENGTH_DOMAIN_EXPANSIONS: ExerciseDefinition[] = [
     replacementIds: ["long_lever_hamstring_iso"],
     objective: "Uczy generowania napięcia hamstringa przy bardziej otwartym kącie kolana.",
     instructionsPl: [
-      "Połóż pięty na podłożu tak, żeby kolana były tylko lekko ugięte, a palce stóp skierowane do góry.",
+      "Połóż pięty na podłożu i ustaw około 30° zgięcia kolan (0° oznacza pełny wyprost), a palce stóp skieruj do góry. To ustawienie tego wariantu, nie uniwersalny kąt dla wszystkich ćwiczeń.",
       "Wbij pięty w ziemię i lekko unieś biodra, utrzymując napięcie głównie w tylnej stronie uda.",
       "Trzymaj pozycję bez kurczenia łydek i bez przenoszenia pracy do lędźwi.",
     ],
@@ -2539,7 +2539,7 @@ const STRENGTH_DOMAIN_EXPANSIONS: ExerciseDefinition[] = [
     objective:
       "Pozwala budować napięcie hamstringa przy większym zgięciu kolana i mniejszym stresie długościowym.",
     instructionsPl: [
-      "Ustaw pięty bliżej pośladków, tak żeby kolana były ugięte mniej więcej do kąta prostego.",
+      "Ustaw pięty bliżej pośladków, tak żeby kolana miały około 90° zgięcia (0° oznacza pełny wyprost). Zachowaj to samo ustawienie podczas kolejnych prób tego wariantu.",
       "Wbij pięty mocno w podłoże, delikatnie unoś biodra i poczuj równy nacisk obu nóg.",
       "Utrzymuj pozycję bez drżenia miednicy i bez unoszenia żeber do góry.",
     ],

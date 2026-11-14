@@ -257,6 +257,11 @@ export function validateEngineSession(
     return issues;
   }
   const strength = recipe.roles.some((role) => role.startsWith("strength"));
+  if (!strength && recipe.exercises.some((e) => e.role === "iso_primer"))
+    fail(
+      "ISOMETRIC_PRIMER_ORDER",
+      "Nadzorowany nacisk na piny należy do opracowanej sesji siłowej; nie dodawaj go do regeneracji, mobilności ani biegania.",
+    );
   if (strength && recipe.roles.includes("speed"))
     fail("MIXED_STRENGTH_SPEED", "Siłownia i sprint wymagają osobnych jednostek.");
   if (recipe.roles.includes("strengthA") && recipe.roles.includes("strengthB"))
@@ -264,6 +269,40 @@ export function validateEngineSession(
   if (strength) {
     const roles = new Set(recipe.exercises.map((e) => e.role));
     const tasks = recipe.exercises.filter((e) => e.role !== "warmup").map((e) => e.role);
+    const primerIndex = recipe.exercises.findIndex((e) => e.role === "iso_primer");
+    if (
+      primerIndex >= 0 &&
+      (primerIndex === 0 ||
+        recipe.exercises.findIndex((e) => e.role !== "warmup") !== primerIndex ||
+        recipe.exercises.slice(primerIndex + 1).some((e) => e.role === "warmup") ||
+        !["power", "landing", "knee_strength", "hip_strength"].includes(
+          recipe.exercises[primerIndex + 1]?.role ?? "",
+        ))
+    )
+      fail(
+        "ISOMETRIC_PRIMER_ORDER",
+        "Krótki nacisk na piny wymaga rozgrzewki przed blokiem oraz zaplanowanej części głównej po pełnym odpoczynku.",
+      );
+    // These roles describe accessory holding work, not a general ban on brief
+    // preparatory holds. The latter must have a separate reviewed prescription.
+    const lastPriorityIndex = recipe.exercises.reduce(
+      (last, e, index) =>
+        ["power", "landing", "knee_strength", "hip_strength", "unilateral_strength"].includes(
+          e.role,
+        )
+          ? index
+          : last,
+      -1,
+    );
+    if (
+      recipe.exercises.some(
+        (e, index) => ["hamstring_iso", "quad_iso"].includes(e.role) && index < lastPriorityIndex,
+      )
+    )
+      fail(
+        "ISOMETRIC_SUPPORT_ORDER",
+        "Uzupełniające utrzymania izometryczne wykonuj po zaplanowanej mocy i głównych ćwiczeniach siłowych; nie zastępują krótkiego nacisku przygotowawczego.",
+      );
     if (new Set(tasks).size !== tasks.length)
       fail(
         "DUPLICATE_STRENGTH_FUNCTION",
@@ -386,9 +425,26 @@ export function validateEngineSession(
     }
     if (
       ["hamstring_iso", "quad_iso", "iso_primer"].includes(exercise.role) &&
-      (!d.seconds || d.reps !== undefined)
+      (!d.seconds ||
+        d.reps !== undefined ||
+        d.distanceM !== undefined ||
+        d.cluster !== undefined ||
+        (["hamstring_iso", "quad_iso"].includes(exercise.role) && d.intent !== "hold"))
     )
-      fail("ISOMETRIC_DOSE_MISMATCH", "Izometria wymaga czasu utrzymania zamiast liczby ruchów.");
+      fail(
+        "ISOMETRIC_DOSE_MISMATCH",
+        "Izometria wymaga czasu bez powtórzeń ruchu, dystansu i klastrów. Utrzymanie pozycji wymaga intencji hold; nacisk na piny ma osobny protokół.",
+      );
+    const isometricAngle = FUNCTIONAL_CATALOGUE[exercise.exerciseId]?.jointAngleDegrees;
+    if (
+      FUNCTIONAL_CATALOGUE[exercise.exerciseId]?.contraction === "isometric" &&
+      isometricAngle !== undefined &&
+      d.jointAngleDegrees !== isometricAngle
+    )
+      fail(
+        "ISOMETRIC_ANGLE_MISMATCH",
+        "Kąt w dawce izometrii nie odpowiada konkretnemu wariantowi ćwiczenia. Nie zamieniaj ustawienia 30° na 90° ani nie usuwaj go z receptury.",
+      );
     if (exercise.role === "iso_primer") {
       const protocol = coachedPrimerDose();
       if (

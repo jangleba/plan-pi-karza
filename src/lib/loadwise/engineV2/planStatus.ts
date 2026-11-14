@@ -1,6 +1,7 @@
 import type { Profile, Readiness, SessionCompletion, SessionDay } from "../types";
 import { trainingProfileRevision, trainingSetupRevision } from "../planIdentity";
 import { ENGINE_VERSION } from "./model";
+import { validateEngineSession } from "./validation";
 
 export type PlanStatusKind = "empty" | "active" | "expired" | "stale";
 export interface PlanStatus {
@@ -108,6 +109,9 @@ export function sessionStartIssue({
     if (readiness.overall <= 4 && (!supportOnly || jump))
       return "Bieżący check-in wymaga lżejszego planu. Przygotuj go ponownie przed startem.";
   }
+  const recipeIssue = validateEngineSession(session, profile)[0];
+  if (recipeIssue)
+    return `Receptura wymaga poprawy przed startem: ${recipeIssue.message} Przygotuj aktualny plan.`;
   return null;
 }
 

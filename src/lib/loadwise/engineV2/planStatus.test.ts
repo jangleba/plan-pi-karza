@@ -227,11 +227,13 @@ describe("new session start eligibility", () => {
   it("allows a low-readiness gentle support session but blocks main work and jumping activation", () => {
     const low = { ...readiness, overall: 3 };
     expect(issue(main, profile, low)).toContain("lżejszego planu");
-    const support: SessionDay = {
-      ...main,
-      engineV2: { ...main.engineV2!, roles: ["activation"], exercises: [] },
-    };
-    expect(issue(support, profile, low)).toBeNull();
+    const supportProfile = { ...profile, goal: "mobility" as const };
+    const support = generateTrainingPlan(supportProfile, { startDate: main.date, weeks: 1 })
+      .plan.flatMap((day) => [day, day.secondSession])
+      .find((day) => day?.engineV2?.roles.includes("mobility"))!;
+    expect(support).toBeDefined();
+    expect(issue(support, supportProfile, low, undefined, support.date)).toBeNull();
+    support.engineV2!.roles = ["activation"];
     support.engineV2!.exercises = [
       {
         exerciseId: "countermovement_jump",
@@ -240,7 +242,13 @@ describe("new session start eligibility", () => {
         reason: "activation",
       },
     ];
-    expect(issue(support, profile, low)).toContain("lżejszego planu");
+    expect(issue(support, supportProfile, low, undefined, support.date)).toContain(
+      "lżejszego planu",
+    );
+  });
+  it("blocks an empty saved prescription before a new start", () => {
+    const empty = { ...main, engineV2: { ...main.engineV2!, exercises: [] } };
+    expect(issue(empty)).toContain("nie zawiera ćwiczeń");
   });
   it("preserves started/completed logging after a profile change and cycle rollover", () => {
     const stale = { ...main, generatorVersion: "ballwise-v2.2", canonicalRevision: "old" };
