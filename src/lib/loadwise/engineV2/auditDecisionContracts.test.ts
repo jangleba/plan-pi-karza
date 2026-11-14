@@ -253,3 +253,24 @@ describe("recommendation from the review shapes the plan it was decided for", ()
     if (light) expect(light.engineV2!.phase).toBe("deload");
   });
 });
+
+describe("key endurance session is not silently replaced by calm runs", () => {
+  it("adult with a current MAS, endurance goal, club Tue/Thu and a Sunday match keeps the key session and says what was limited", () => {
+    const p = {
+      ...profile,
+      goal: "endurance",
+      clubTrainingDays: [2, 4],
+      matchDates: ["2026-11-08"],
+      fieldMasKmh: 15.5,
+      fieldMasTestedAt: "2026-11-01",
+      fieldMasSourceSessionId: "src",
+    } as Profile;
+    const r = generateTrainingPlan(p, { startDate: "2026-11-02", weeks: 1 });
+    const runs = r.plan
+      .flatMap(slotsOf)
+      .filter((s) => s.engineV2?.roles.includes("endurance"))
+      .map((s) => s.runningRecipe?.method);
+    expect(runs).toContain("tempo"); // the key unit stays
+    expect(r.issues.some((i) => i.code === "UNMET_WEEKLY_TARGET")).toBe(true); // what was limited is named
+  });
+});

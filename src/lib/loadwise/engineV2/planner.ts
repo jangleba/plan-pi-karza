@@ -560,6 +560,18 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
         tasks: candidates,
         dayCount: 7,
         mainGoalIds: mainGoalTasks(p),
+        // The key endurance session (intervals/tempo) counts in full only when it is the one placed;
+        // a calm run in its place still covers the target but ranks below the key session.
+        isFull: (days, id) => {
+          const intended = candidates.find((t) => t.id === "endurance")?.recipe.highLower;
+          return (
+            id !== "endurance" ||
+            !intended ||
+            days.some((d) =>
+              own(d).some((s) => s.engineV2!.roles.includes("endurance") && s.engineV2!.highLower),
+            )
+          );
+        },
         isCovered: (days, id) =>
           days.some((d) =>
             own(d).some((s) => s.engineV2!.roles.includes(id as (typeof ids)[number])),
@@ -630,7 +642,7 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
             code: "ADAPTED_ENDURANCE",
             date: d.date,
             message:
-              "Interwały zastąpiono spokojnym biegiem ze względu na termin, obciążenie lub dostępny czas.",
+              "Kluczową jednostkę wydolnościową (interwały lub tempo) zastąpiono spokojnym biegiem ze względu na termin, obciążenie lub czas. To jawna adaptacja, nie równoważne zaliczenie tego bodźca.",
           });
       }
     tasks.forEach((recipe, t) => {
