@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { rowsToStrengthSets, type StrengthSetRow } from "./strengthSets";
+import { strengthChanges } from "./cycleReview";
 import type { SessionCompletion } from "./types";
 
 const row = (patch: Partial<StrengthSetRow> = {}): StrengthSetRow => ({
@@ -42,4 +43,64 @@ describe("rowsToStrengthSets", () => {
       )[0].date,
     ).toBe("2026-10-26");
   });
+});
+
+it("compares only identical tempo prescriptions from immutable execution snapshots", () => {
+  const snapshot = (date: string, tempo: string) => ({
+    date,
+    engineV2: { phase: "development" },
+    structuredSections: [
+      {
+        type: "main",
+        blocks: [
+          {
+            exercises: [
+              { id: "rdl", exerciseId: "rdl", name: "RDL", sets: "3", reps: "6", rir: "2", tempo },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+  const summary = (tempo: string) => {
+    const c = {
+      s1: {
+        completed: true,
+        status: "completed",
+        rpe: 7,
+        notes: "",
+        executionSnapshot: snapshot("2026-11-02", "4-0-2"),
+      },
+      s2: {
+        completed: true,
+        status: "completed",
+        rpe: 7,
+        notes: "",
+        executionSnapshot: snapshot("2026-11-09", tempo),
+      },
+    } as unknown as Record<string, SessionCompletion>;
+    return strengthChanges(
+      rowsToStrengthSets(
+        [
+          row({ exercise_key: "rdl", weight_kg: 40 }),
+          row({ session_id: "s2", exercise_key: "rdl", weight_kg: 50 }),
+        ],
+        c,
+      ),
+      "2026-11-01",
+      "2026-11-14",
+    );
+  };
+  expect(summary("1-0-1").improved).toBe(0);
+  expect(summary("4-0-2").improved).toBe(1);
+  expect(
+    strengthChanges(
+      [
+        { exerciseKey: "unknown", date: "2026-11-02", weightKg: 40, reps: 6 },
+        { exerciseKey: "unknown", date: "2026-11-09", weightKg: 50, reps: 6 },
+      ],
+      "2026-11-01",
+      "2026-11-14",
+    ).improved,
+  ).toBe(0);
 });

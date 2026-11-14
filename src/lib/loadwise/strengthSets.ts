@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import type { StrengthSetEntry } from "./cycleReview";
 import { readAllPages } from "./pagination";
 import type { SessionCompletion } from "./types";
+import { verifyExerciseHistory } from "./setLogHistory";
+import { exerciseHistoryKey } from "./setLogHistory";
 
 export interface StrengthSetRow {
   session_id: string | null;
@@ -31,11 +33,26 @@ export function rowsToStrengthSets(
     const weight = row.weight_kg === null ? null : Number(row.weight_kg);
     if (weight === null || !Number.isFinite(weight) || weight <= 0 || !row.reps || row.reps < 1)
       continue;
+    const working = completion.executionSnapshot?.structuredSections?.some(
+      (section) =>
+        ["main", "accessory", "footballTransfer"].includes(section.type) &&
+        section.blocks.some((block) =>
+          block.exercises.some((exercise) => exerciseHistoryKey(exercise) === row.exercise_key),
+        ),
+    );
+    const verification = working
+      ? verifyExerciseHistory(
+          [{ sessionKey: row.session_id!, performedAt: row.performed_at, sets: [] }],
+          row.exercise_key,
+          completions,
+        )[0]?.verification
+      : undefined;
     out.push({
       exerciseKey: row.exercise_key,
       date: completion.executionSnapshot?.date ?? row.performed_at.slice(0, 10),
       weightKg: weight,
       reps: row.reps,
+      ...(verification ? { prescriptionKey: verification.prescriptionKey } : {}),
     });
   }
   return out;

@@ -57,9 +57,14 @@ const startVariant = (
     restSeconds: 90,
     intent: "explosive",
     speedStage: "main",
+    ...(exerciseId === "dribble_to_sprint_transition"
+      ? { distanceM: 10, runInM: 10, runOutM: 10 }
+      : {}),
   }),
   instruction: (env) =>
-    `${instruction} Odcinek ${distanceM(env)} m z wolną strefą ${distanceM(env)} m do wyhamowania. ${stop}`,
+    exerciseId === "dribble_to_sprint_transition"
+      ? `10 m niskiego drobienia, płynnie 10 m przyspieszenia, następnie wolna strefa 10 m do wyhamowania. ${stop}`
+      : `${instruction} Odcinek ${distanceM(env)} m z wolną strefą ${distanceM(env)} m do wyhamowania. ${stop}`,
 });
 
 export const MAIN_VARIANTS: readonly MainVariant[] = [
@@ -68,7 +73,7 @@ export const MAIN_VARIANTS: readonly MainVariant[] = [
     "accel_free",
     "free_acceleration_sprint",
     (e) => e.distance,
-    "Start z naturalnej pozycji; pierwsze kroki dłuższe i niskie, tułów przechylony.",
+    "Start z naturalnej pozycji; pchaj podłoże, długość kroku zwiększaj stopniowo, tułów przechylony.",
     () => true,
     true,
   ),
@@ -100,7 +105,7 @@ export const MAIN_VARIANTS: readonly MainVariant[] = [
     "dribble_to_sprint_transition",
     (e) => e.distance,
     "Zacznij od krótkiego drobienia, przejdź płynnie w przyspieszenie; bez szarpnięcia na starcie.",
-    (e) => e.age >= 14 && e.level !== "beginner" && !e.reduced,
+    (e) => e.age >= 14 && e.level !== "beginner" && !e.reduced && e.space >= 30,
   ),
   {
     id: "accel_lateral",
@@ -222,6 +227,11 @@ export const MAIN_VARIANTS: readonly MainVariant[] = [
       reps: 1,
       distanceM: 15,
       fastMetres: 30,
+      sequence: [5, 10, 15].map((distanceM) => ({
+        distanceM,
+        runOutM: 15,
+        instruction: `${distanceM} m kontrolowanego nabiegu, następnie stopniowe hamowanie w wolnej strefie 15 m. Zakończ przy utracie kontroli.`,
+      })),
       runOutM: 15,
       restSeconds: 120,
       intent: "controlled",
@@ -265,7 +275,7 @@ export const MAIN_VARIANTS: readonly MainVariant[] = [
       speedStage: "main",
     }),
     instruction: () =>
-      "10 m, hamowanie i wyjście bokiem, osobno na każdą stronę. Wejście kontrolowane; zakończ przy utracie równowagi.",
+      "5 m kontrolowanego nabiegu, hamowanie i 5 m wyjścia w bok — łącznie 10 m, osobno na każdą stronę. Pozostaw 5 m wolnego wybiegu; zakończ przy utracie równowagi.",
   },
   // Planned change of direction: known geometry, both sides.
   {
@@ -363,6 +373,7 @@ export const MAIN_VARIANTS: readonly MainVariant[] = [
 
 /** Three complementary drills per set; a session repeats exactly this triple in each round. */
 export interface DrillSet {
+  spaceM?: number;
   id: string;
   groups: Array<"start" | "max_velocity" | "directional">;
   drills: [string, string, string];
@@ -397,6 +408,7 @@ export const DRILL_SETS: readonly DrillSet[] = [
   },
   {
     id: "ds_start_transition",
+    spaceM: 30,
     groups: ["start"],
     drills: ["a_skip", "low_dribble", "dribble_to_sprint_transition"],
     why: "rytm → szybkie stopy → przejście do biegu",

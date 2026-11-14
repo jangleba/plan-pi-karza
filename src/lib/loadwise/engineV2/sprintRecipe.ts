@@ -6,7 +6,8 @@ export function sprintDistance(exercises: readonly ExerciseDecision[]): number {
   return exercises.reduce(
     (sum, e) =>
       sum +
-      (e.dose.fastMetres ??
+      (e.dose.sequence?.reduce((n, a) => n + a.distanceM, 0) ??
+        e.dose.fastMetres ??
         (["speed", "landing"].includes(e.role)
           ? (e.dose.distanceM ?? 0) + (e.dose.runInM ?? 0)
           : 0)) *
@@ -22,6 +23,30 @@ export function sprintChronology(exercises: readonly ExerciseDecision[]): Exerci
   const output: ExerciseDecision[] = [];
   for (let i = 0; i < exercises.length; i++) {
     const e = exercises[i];
+    if (e.dose.sequence?.length) {
+      for (let round = 1; round <= e.dose.sets; round++)
+        for (const [attempt, item] of e.dose.sequence.entries())
+          output.push({
+            ...e,
+            reason: item.instruction,
+            dose: {
+              ...e.dose,
+              sequence: undefined,
+              sets: 1,
+              reps: 1,
+              distanceM: item.distanceM,
+              fastMetres: item.distanceM,
+              runOutM: item.runOutM,
+              sequenceStep: {
+                round,
+                rounds: e.dose.sets,
+                attempt: attempt + 1,
+                attempts: e.dose.sequence.length,
+              },
+            },
+          });
+      continue;
+    }
     if (!e.dose.circuit) {
       output.push(e);
       continue;
@@ -83,6 +108,7 @@ export function fitSprintToBudget(
   for (const stage of ["addition", "resisted"])
     if (result.minutes > budget) {
       result.exercises = result.exercises.filter((e) => e.dose.speedStage !== stage);
+      if (stage === "addition" && result.sprintVariant) result.sprintVariant.addition = null;
       updateSprintTotals(result);
     }
   while (

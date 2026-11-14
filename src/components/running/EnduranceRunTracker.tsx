@@ -1,6 +1,11 @@
 import { RunRouteMap } from "./RunRouteMap";
 import { isMasTestRecipe } from "@/lib/loadwise/engineV2/masTestRecipe";
-import { measureMasEvidence, masEvidenceProblem } from "@/lib/running/masQuality";
+import {
+  resolveMasEvidence,
+  freezeMasReview,
+  masEvidenceProblem,
+  verifiedMasKmh,
+} from "@/lib/running/masQuality";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FileUp, LocateFixed, Pause, Play, Save, SkipForward, Trash2, Volume2 } from "lucide-react";
 import { toast } from "sonner";
@@ -242,12 +247,15 @@ function RunTracker({
         setGuideComplete(guide.complete);
         setIntervalStepIndex(guide.stepIndex);
       }
-      if (value.phase === "review") setPending(nativeRunDraft(value));
+      if (value.phase === "review") {
+        const draft = nativeRunDraft(value);
+        setPending(isFieldMasTest ? freezeMasReview(draft, masInterruptedRef.current) : draft);
+      }
       if (value.storageError) setGpsError(value.storageError);
       else if (value.recovered)
         setGpsError("Odzyskano szkic biegu. Pomiar był przerwany; wznów go lub zapisz wynik.");
     },
-    [ownerId, sessionId],
+    [ownerId, sessionId, isFieldMasTest],
   );
 
   useEffect(() => {
@@ -838,7 +846,9 @@ function RunTracker({
         if (document.hidden && phaseRef.current === "recording") {
           const now = Date.now();
           void scheduleLockScreenCues(
-            planLockScreenCues(intervalProtocol!, guideTimelineSec(), now),
+            planLockScreenCues(intervalProtocol!, guideTimelineSec(), now, {
+              masTrialStarted: intervalStepIndexRef.current > 0 && !countdownRef.current,
+            }),
           );
         } else if (!document.hidden) {
           void cancelLockScreenCues();
@@ -983,7 +993,7 @@ function RunTracker({
     }
     intervalResultsRef.current = intervalResults;
     phaseRef.current = "review";
-    setPending(draft);
+    setPending(isFieldMasTest ? freezeMasReview(draft, masInterruptedRef.current) : draft);
     setPhase("review");
   }
 
@@ -1021,7 +1031,7 @@ function RunTracker({
     setSaving(true);
     try {
       const evidence = isFieldMasTest
-        ? measureMasEvidence(pending, masInterruptedRef.current)
+        ? resolveMasEvidence(pending, masInterruptedRef.current)
         : null;
       const result = isFieldMasTest
         ? {
@@ -1078,7 +1088,7 @@ function RunTracker({
 
   const shownActivity = pending ?? activity;
   const masEvidence =
-    isFieldMasTest && pending ? measureMasEvidence(pending, masInterruptedRef.current) : null;
+    isFieldMasTest && pending ? resolveMasEvidence(pending, masInterruptedRef.current) : null;
   const masProblem = isFieldMasTest && pending ? masEvidenceProblem(masEvidence) : null;
   const isTracking = phase === "recording" || phase === "paused";
   const currentIntervalStep =
@@ -1275,7 +1285,7 @@ function RunTracker({
         <p role="status" className="rounded-xl bg-muted/40 p-3 text-sm">
           {masProblem
             ? `${masProblem} Bieg zapiszesz w historii; dotychczasowy MAS pozostanie bez zmian.`
-            : "Próba spełnia warunki zapisu. MAS obliczymy wyłącznie z dystansu odcinka 5 min."}
+            : `Próba spełnia warunki zapisu. Wynik MAS: ${verifiedMasKmh(masEvidence)?.toLocaleString("pl-PL")} km/h. Po zapisie aplikacja automatycznie dobierze przyszłe jednostki biegowe do wyniku, przygotowania i kalendarza.`}
         </p>
       )}
 

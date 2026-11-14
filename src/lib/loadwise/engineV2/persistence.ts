@@ -18,6 +18,8 @@ export async function loadV2Plan(userId: string, signal?: AbortSignal) {
     "ballwise-v2.2",
     "ballwise-v2.3",
     "ballwise-v2.4",
+    "ballwise-v2.5",
+    "ballwise-v2.6",
     ENGINE_VERSION,
   ];
   if (

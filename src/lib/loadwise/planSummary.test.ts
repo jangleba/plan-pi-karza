@@ -216,8 +216,20 @@ describe("plan summary", () => {
 
 describe("strength comparison from real set logs", () => {
   const sets = (key: string, a: [string, number, number], b: [string, number, number]) => [
-    { exerciseKey: key, date: a[0], weightKg: a[1], reps: a[2] },
-    { exerciseKey: key, date: b[0], weightKg: b[1], reps: b[2] },
+    {
+      prescriptionKey: "verified-comparable-dose",
+      exerciseKey: key,
+      date: a[0],
+      weightKg: a[1],
+      reps: a[2],
+    },
+    {
+      prescriptionKey: "verified-comparable-dose",
+      exerciseKey: key,
+      date: b[0],
+      weightKg: b[1],
+      reps: b[2],
+    },
   ];
   it("reports improvement, flat and decline from comparable sets, never from attendance", () => {
     const p = plan();

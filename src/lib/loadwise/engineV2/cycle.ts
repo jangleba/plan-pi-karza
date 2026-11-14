@@ -86,7 +86,7 @@ function strengthCompletions(options: EngineOptions): SessionCompletion[] {
         c.status !== "missed" &&
         !!s?.engineV2?.roles.some((r) => r.startsWith("strength")) &&
         validDate(s.date) &&
-        s.date < options.startDate
+        s.date < (options.asOfDate ?? options.startDate)
       );
     })
     .filter((c) => {
@@ -110,10 +110,14 @@ export function cycleForWeek(
 } {
   const anchorDate = cycleAnchor(options);
   const weekIndex = Math.max(0, Math.floor(dayDistance(date, anchorDate) / 7));
-  const currentWeek = dayDistance(date, options.startDate) < 7;
+  const decisionDate = options.asOfDate ?? options.startDate;
+  if (!validDate(decisionDate)) throw new Error("Nieprawidłowa data oceny cyklu.");
+  const currentWeek =
+    Math.floor(dayDistance(date, options.startDate) / 7) ===
+    Math.max(0, Math.floor(dayDistance(decisionDate, options.startDate) / 7));
   const history = strengthCompletions(options);
   const latest = history[0]?.executionSnapshot;
-  const gap = latest ? dayDistance(options.startDate, latest.date) : 0;
+  const gap = latest ? dayDistance(decisionDate, latest.date) : 0;
   const recent = history.slice(0, 2);
   const repeatedHard =
     recent.length === 2 &&
@@ -122,7 +126,7 @@ export function cycleForWeek(
         typeof c.rpe === "number" &&
         c.rpe >= 9 &&
         c.rpe <= 10 &&
-        dayDistance(options.startDate, c.executionSnapshot!.date) <= 7 &&
+        dayDistance(decisionDate, c.executionSnapshot!.date) <= 7 &&
         c.executionSnapshot!.engineV2?.phase !== "deload",
     );
   const declaredLighter =

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { fieldMasFromActivity } from "./engine";
-import { measureMasEvidence, masEvidenceProblem, verifiedMasKmh } from "./masQuality";
+import {
+  measureMasEvidence,
+  masEvidenceProblem,
+  verifiedMasKmh,
+  freezeMasReview,
+  resolveMasEvidence,
+} from "./masQuality";
 import { masEvidence, masResult } from "./__fixtures__/mas";
 import type { RoutePoint, RunningActivityDraft } from "./types";
 const start = Date.parse("2026-11-14T10:00:00Z");
@@ -80,4 +86,19 @@ describe("MAS continuous-trial measurement", () => {
       }),
     ).toBeNull();
   });
+});
+
+it("freezes a coordinate-free review without restoring invalid, interrupted or borrowed evidence", () => {
+  const valid = freezeMasReview(activity());
+  const restored = { ...valid, route: [] };
+  expect(verifiedMasKmh(resolveMasEvidence(restored))).toBe(15.6);
+  expect(verifiedMasKmh(resolveMasEvidence(restored, true))).toBeNull();
+  expect(resolveMasEvidence({ ...restored, intervalResults: [] })).toBeNull();
+  expect(resolveMasEvidence({ ...restored, source: "gpx" })).toBeNull();
+  expect(
+    resolveMasEvidence({
+      ...restored,
+      intervalResults: restored.intervalResults.map((r) => ({ ...r, startElapsedSec: 601 })),
+    }),
+  ).toBeNull();
 });

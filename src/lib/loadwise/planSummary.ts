@@ -207,7 +207,7 @@ export function buildPlanSummary(input: PlanSummaryInput): PlanSummary | null {
   const compared = strength.improved + strength.declined + strength.flat;
   if (compared > 0)
     comparable.push(
-      `Siła (szacowany 1RM z zapisanych serii, ćwiczenia z co najmniej dwoma dniami): poprawa ${strength.improved}, bez zmiany ${strength.flat}, spadek ${strength.declined} z ${compared}. To nie jest wynik szybkości ani mocy.`,
+      `Siła (szacowany 1RM z zapisanych serii, porównywalne dawki ćwiczeń z co najmniej dwoma dniami): poprawa ${strength.improved}, bez zmiany ${strength.flat}, spadek ${strength.declined} z ${compared}. To nie jest wynik szybkości ani mocy.`,
     );
   else
     comparable.push(
