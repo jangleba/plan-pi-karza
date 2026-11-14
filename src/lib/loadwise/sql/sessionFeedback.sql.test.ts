@@ -159,13 +159,58 @@ describe.sequential("session feedback v1 in the database", () => {
     expect(later.completion_status).toBe("completed");
   });
 
+  it("stores sprint trial metadata, corrects the same repetition in place and keeps it when a payload omits it", async () => {
+    const sid = await seedSession(clubDay);
+    const trial = (extra: Record<string, unknown>, version = 0) =>
+      db.query<{ r: Record<string, unknown> }>("select save_exercise_set($1,$2::jsonb,$3) r", [
+        uid(),
+        JSON.stringify({
+          session_id: sid,
+          exercise_key: "sprint_20",
+          set_number: 2,
+          metric_kind: "sprint_manual",
+          metric_value: 3.4,
+          performed_at: "2026-11-12T10:00:00Z",
+          ...extra,
+        }),
+        version,
+      ]);
+    const first = (
+      await trial({
+        distance_m: 20,
+        start_type: "standing",
+        measurement_method: "manual_stopwatch",
+      })
+    ).rows[0].r;
+    expect(first).toMatchObject({
+      set_number: 2,
+      distance_m: 20,
+      start_type: "standing",
+      measurement_method: "manual_stopwatch",
+    });
+    // the correction of repetition 2 updates the same row
+    const fixed = (await trial({ metric_value: 3.3 }, Number(first.write_version))).rows[0].r;
+    expect(fixed.id).toBe(first.id);
+    expect(fixed).toMatchObject({ metric_value: 3.3, distance_m: 20, start_type: "standing" });
+    const count = (
+      await db.query<{ n: number }>(
+        "select count(*)::int n from exercise_set_logs where session_id=$1",
+        [sid],
+      )
+    ).rows[0].n;
+    expect(count).toBe(1);
+    // invalid conditions are refused
+    await expect(trial({ set_number: 3, distance_m: 500 })).rejects.toThrow();
+    await expect(trial({ set_number: 3, start_type: "rolling" })).rejects.toThrow();
+  });
+
   it("the read-only readiness script for the target database is valid and all checks pass on the full chain", async () => {
     const sql = readFileSync(
       "supabase/verification/engine_v24_session_feedback_readiness.sql",
       "utf8",
     );
     const result = await db.query<{ n: number; check_name: string; ok: boolean }>(sql);
-    expect(result.rows).toHaveLength(13);
+    expect(result.rows).toHaveLength(15);
     expect(result.rows.filter((r) => !r.ok).map((r) => r.check_name)).toEqual([]);
   });
 });

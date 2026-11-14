@@ -5,6 +5,7 @@ import type { TrainingExercise } from "@/lib/loadwise/types";
 import { loadBrowserResults } from "@/features/browser-lab/storage";
 import { resultRecordingQuality } from "@/features/browser-lab/timingQuality";
 import { timingSource } from "@/lib/loadwise/sessionExecution";
+import { TRIAL_REASON_TEXT, bestComparableTrial, compareTrials } from "@/lib/loadwise/sprintTrials";
 
 export function SprintTimingPanel({
   exercise,
@@ -28,6 +29,17 @@ export function SprintTimingPanel({
   const saved = Object.values(logs.current).filter((r) => r.metricKind?.startsWith("sprint_"));
   // The time belongs to a chosen planned repetition. Skipping one never renumbers the others,
   // and saving the same repetition again corrects it instead of adding a duplicate.
+  const distance = Number(
+    `${exercise.displayPrescription ?? ""} ${exercise.reps ?? ""}`.match(/\b(\d+)\s*m\b/i)?.[1],
+  );
+  const trialDistance =
+    typeof exercise.engineDose?.distanceM === "number"
+      ? exercise.engineDose.distanceM
+      : Number.isFinite(distance) && distance > 0
+        ? distance
+        : null;
+  const trialStart: "standing" | "flying" =
+    (exercise.engineDose?.runInM ?? 0) > 0 ? "flying" : "standing";
   const planned = Math.min(
     20,
     Math.max(1, Math.round(Number(exercise.engineDose?.sets ?? exercise.sets) || 1)),
@@ -36,6 +48,29 @@ export function SprintTimingPanel({
   const savedReps = new Set(saved.map((r) => r.setNumber));
   const firstFree = Array.from({ length: planned }, (_, i) => i + 1).find((n) => !savedReps.has(n));
   const chosen = rep ?? firstFree ?? planned;
+  // Compared only under the same distance, start and measurement method; otherwise say why not.
+  const bestNow = saved.reduce<(typeof saved)[number] | null>(
+    (best, r) => (!best || (r.metricValue ?? Infinity) < (best.metricValue ?? Infinity) ? r : best),
+    null,
+  );
+  const earlier = Object.values(logs.previous).filter((r) => r.metricKind?.startsWith("sprint_"));
+  const comparison = (() => {
+    if (!bestNow || earlier.length === 0) return null;
+    const { best, skipped } = bestComparableTrial(bestNow, earlier);
+    if (best)
+      return (
+        <p className="bw-session-muted">
+          Najlepszy wynik wcześniej (te same warunki): {best.metricValue?.toFixed(3)} s.
+        </p>
+      );
+    const why = compareTrials(bestNow, earlier[0]);
+    return (
+      <p className="bw-session-muted">
+        Poprzednich prób{skipped ? ` (${skipped})` : ""} nie porównujemy:{" "}
+        {why.comparable ? "brak danych" : TRIAL_REASON_TEXT[why.reason]}.
+      </p>
+    );
+  })();
   async function save(seconds: number, source: string) {
     if (busy || !Number.isFinite(seconds) || seconds <= 0 || seconds > 120) {
       setError("Wpisz czas odcinka w sekundach.");
@@ -55,6 +90,11 @@ export function SprintTimingPanel({
         rir: null,
         metricKind: source,
         metricValue: seconds,
+        distanceM: trialDistance,
+        startType: trialStart,
+        measurementMethod: source.startsWith("sprint_video:")
+          ? "video_reviewed"
+          : "manual_stopwatch",
       });
       if (!ok) throw new Error();
       setTime("");
@@ -66,14 +106,12 @@ export function SprintTimingPanel({
       setBusy(false);
     }
   }
-  const distance = Number(
-    `${exercise.displayPrescription ?? ""} ${exercise.reps ?? ""}`.match(/\b(\d+)\s*m\b/i)?.[1],
-  );
   return (
     <div className="bw-sprint-result-entry">
       <p className="bw-session-muted">
         Zapisane czasy: {saved.length} z {planned}. Pomiar jest opcjonalny.
       </p>
+      {comparison}
       <label>
         Powtórzenie
         <select

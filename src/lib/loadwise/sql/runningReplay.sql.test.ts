@@ -268,6 +268,18 @@ describe.sequential("running level is derived from the chronology of evidence", 
       }),
     ]);
     expect(await level()).toBe(0);
+    // the result and its date are stored with the profile (read back after a new login)
+    await db.exec("reset role");
+    const stored = (
+      await db.query<{ kmh: string; at: string; src: string }>(
+        "select field_mas_kmh::text kmh, field_mas_tested_at::text at, field_mas_source_session_id::text src from athlete_profiles where user_id=$1",
+        [owner],
+      )
+    ).rows[0];
+    await db.exec(
+      `set role authenticated; select set_config('request.jwt.claim.sub','${owner}',false);`,
+    );
+    expect(stored).toEqual({ kmh: "18.00", at: "2026-10-10", src: test.sid });
     const after = await session(d, 14, 6);
     await sendRun(after);
     await sendLog(after);

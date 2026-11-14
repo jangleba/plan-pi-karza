@@ -401,9 +401,11 @@ export type Database = {
       exercise_set_logs: {
         Row: {
           created_at: string
+          distance_m: number | null
           exercise_key: string
           exercise_name: string | null
           id: string
+          measurement_method: string | null
           metric_kind: string | null
           metric_value: number | null
           performed_at: string
@@ -412,6 +414,7 @@ export type Database = {
           server_updated_at: string
           session_id: string | null
           set_number: number
+          start_type: string | null
           updated_at: string
           user_id: string
           weight_kg: number | null
@@ -419,9 +422,11 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          distance_m?: number | null
           exercise_key: string
           exercise_name?: string | null
           id?: string
+          measurement_method?: string | null
           metric_kind?: string | null
           metric_value?: number | null
           performed_at?: string
@@ -437,9 +442,11 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          distance_m?: number | null
           exercise_key?: string
           exercise_name?: string | null
           id?: string
+          measurement_method?: string | null
           metric_kind?: string | null
           metric_value?: number | null
           performed_at?: string
@@ -448,6 +455,7 @@ export type Database = {
           server_updated_at?: string
           session_id?: string | null
           set_number?: number
+          start_type?: string | null
           updated_at?: string
           user_id?: string
           weight_kg?: number | null

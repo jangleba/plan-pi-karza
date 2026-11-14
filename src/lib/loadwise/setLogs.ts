@@ -83,7 +83,7 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
     );
     const { data, error } = await table()
       .select(
-        "session_id,exercise_key,set_number,weight_kg,reps,rir,metric_kind,metric_value,performed_at,write_version",
+        "session_id,exercise_key,set_number,weight_kg,reps,rir,metric_kind,metric_value,distance_m,start_type,measurement_method,performed_at,write_version",
       )
       .eq("user_id", userId)
       .eq("exercise_key", key)
@@ -153,6 +153,15 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
         rir: log.rir,
         metric_kind: log.metricKind ?? null,
         metric_value: log.metricValue ?? null,
+        ...(log.distanceM !== undefined ||
+        log.startType !== undefined ||
+        log.measurementMethod !== undefined
+          ? {
+              distance_m: log.distanceM ?? null,
+              start_type: log.startType ?? null,
+              measurement_method: log.measurementMethod ?? null,
+            }
+          : {}),
         performed_at: new Date().toISOString(),
       };
       const dedupeKey = `set:${sessionId ?? "none"}:${key}:${log.setNumber}`;
