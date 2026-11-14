@@ -14,6 +14,7 @@ import { buildPlanSummary } from "@/lib/loadwise/planSummary";
 import { trainingStorageKey } from "@/lib/loadwise/trainingDetails";
 import { useTrainingLocalState } from "@/lib/loadwise/useTrainingLocalState";
 import { buildTrainingHistory, mergeTrainingHistory } from "@/lib/progress/progress";
+import { rowsToStrengthSets, useStrengthSetRows } from "@/lib/loadwise/strengthSets";
 import { StrengthExperienceSetup } from "./session/StrengthExperienceSetup";
 import { FeedbackAdjustmentCard } from "./FeedbackAdjustmentCard";
 import "@/styles/ballwise-plan.css";
@@ -66,6 +67,11 @@ export function PlanScreen() {
       }),
     [effectivePlan, state.profile, todayIso, state.completions],
   );
+  const setRows = useStrengthSetRows(
+    status.kind === "expired" ? user?.id : undefined,
+    effectivePlan[0]?.date,
+    effectivePlan[effectivePlan.length - 1]?.date,
+  );
   const preview = useMemo(() => {
     if (!state.profile || (state.plan.length && !rebuild)) return null;
     try {
@@ -100,6 +106,7 @@ export function PlanScreen() {
               ),
               readiness: state.readiness,
               todayIso,
+              strengthSets: setRows ? rowsToStrengthSets(setRows, state.completions) : [],
             })
           : null;
       const result = summary?.review
@@ -131,6 +138,7 @@ export function PlanScreen() {
     minutes,
     effectivePlan,
     status.kind,
+    setRows,
   ]);
   const plan = preview?.result?.plan ?? effectivePlan;
   const issues = preview?.result?.issues ?? state.plan[0]?.enginePlanIssues ?? [];

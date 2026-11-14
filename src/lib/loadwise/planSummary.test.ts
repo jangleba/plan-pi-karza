@@ -213,3 +213,32 @@ describe("plan summary", () => {
     expect(summary.comparable.join(" ")).toContain("Sama frekwencja nie oznacza poprawy");
   });
 });
+
+describe("strength comparison from real set logs", () => {
+  const sets = (key: string, a: [string, number, number], b: [string, number, number]) => [
+    { exerciseKey: key, date: a[0], weightKg: a[1], reps: a[2] },
+    { exerciseKey: key, date: b[0], weightKg: b[1], reps: b[2] },
+  ];
+  it("reports improvement, flat and decline from comparable sets, never from attendance", () => {
+    const p = plan();
+    const summary = buildPlanSummary({
+      profile,
+      plan: p,
+      completions: {},
+      history: [],
+      readiness: {},
+      todayIso: "2026-11-20",
+      strengthSets: [
+        ...sets("squat", ["2026-11-03", 80, 6], ["2026-11-10", 90, 6]), // up
+        ...sets("rdl", ["2026-11-03", 100, 6], ["2026-11-10", 100, 6]), // flat
+        ...sets("bench", ["2026-11-03", 70, 6], ["2026-11-10", 60, 6]), // down
+        { exerciseKey: "row", date: "2026-11-10", weightKg: 50, reps: 8 }, // one day only: not compared
+      ],
+    })!;
+    expect(summary.comparable.join(" ")).toContain("poprawa 1, bez zmiany 1, spadek 1 z 3");
+    expect(summary.comparable.join(" ")).not.toContain("Brak porównywalnych");
+  });
+  it("keeps the honest 'no data' line when there are no sets", () => {
+    expect(build(plan(), {}).comparable.join(" ")).toContain("Brak porównywalnych pomiarów");
+  });
+});

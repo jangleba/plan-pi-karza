@@ -12,6 +12,7 @@ import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
 import { getPlanStatus } from "@/lib/loadwise/engineV2/planStatus";
 import { buildPlanSummary } from "@/lib/loadwise/planSummary";
 import type { NextPlanDraft } from "@/lib/loadwise/nextPlanInterview";
+import { rowsToStrengthSets, useStrengthSetRows } from "@/lib/loadwise/strengthSets";
 import { PlanEndSummary } from "./PlanEndSummary";
 import { ProgressDashboard } from "./ProgressDashboard";
 import { ProgressHistory } from "./ProgressHistory";
@@ -92,6 +93,9 @@ export function ProgressWorkspace({
     () => progressSessionTargets(plan, state.modifications),
     [plan, state.modifications],
   );
+  const windowStart = plan[0]?.date;
+  const windowEnd = plan[plan.length - 1]?.date;
+  const setRows = useStrengthSetRows(planEnd ? ownerId : undefined, windowStart, windowEnd);
   const planSummary = useMemo(() => {
     if (!planEnd || !state.profile) return null;
     const status = getPlanStatus({
@@ -108,8 +112,18 @@ export function ProgressWorkspace({
       history,
       readiness: state.readiness,
       todayIso,
+      strengthSets: setRows ? rowsToStrengthSets(setRows, state.completions) : [],
     });
-  }, [planEnd, state.profile, state.completions, state.readiness, plan, history, todayIso]);
+  }, [
+    planEnd,
+    state.profile,
+    state.completions,
+    state.readiness,
+    plan,
+    history,
+    todayIso,
+    setRows,
+  ]);
   const missingRpe = history.find(
     (row) =>
       row.rpe === null && row.date >= micro.fromIso && row.date <= todayIso && targets[row.key],

@@ -1,4 +1,10 @@
-import { buildCycleReview, plannedOwnSessions, type CycleReview } from "./cycleReview";
+import {
+  buildCycleReview,
+  plannedOwnSessions,
+  strengthChanges,
+  type CycleReview,
+  type StrengthSetEntry,
+} from "./cycleReview";
 import { estimatedSessionLoad } from "./sessionFeedback";
 import type {
   ExternalGoalCredit,
@@ -88,6 +94,8 @@ export interface PlanSummaryInput {
   history: readonly SessionHistoryRecord[];
   readiness: Record<string, Readiness>;
   todayIso: string;
+  /** Comparable sets from the real logs of this window (see strengthSets.ts). */
+  strengthSets?: readonly StrengthSetEntry[];
 }
 
 /** Pure, read-only summary: opening Progress never regenerates or saves a plan. */
@@ -182,16 +190,18 @@ export function buildPlanSummary(input: PlanSummaryInput): PlanSummary | null {
         planned: plannedOwnSessions(plan),
         history: [...input.history],
         readiness: consent ? Object.values(input.readiness) : [],
-        strengthSets: [],
+        strengthSets: [...(input.strengthSets ?? [])],
         tests: { improved: 0, declined: 0, flat: 0 },
         age: input.profile.age,
         phaseNext: input.profile.seasonPhase ?? "inseason",
       })
     : null;
   const comparable: string[] = [];
-  if (review && review.progressMeasured > 0)
+  const strength = strengthChanges([...(input.strengthSets ?? [])], startDate, endDate);
+  const compared = strength.improved + strength.declined + strength.flat;
+  if (compared > 0)
     comparable.push(
-      `Porównywalne pomiary: ${review.progressImproved} z ${review.progressMeasured} poprawione.`,
+      `Siła (szacowany 1RM z zapisanych serii, ćwiczenia z co najmniej dwoma dniami): poprawa ${strength.improved}, bez zmiany ${strength.flat}, spadek ${strength.declined} z ${compared}. To nie jest wynik szybkości ani mocy.`,
     );
   else
     comparable.push(
