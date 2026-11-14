@@ -32,6 +32,10 @@ export interface FeedbackPolicy {
   horizonDays: number;
   /** Minimum RPE for a reported running club session to qualify a calm-run credit. */
   creditMinRpe: number;
+  /** A match opens a proposal when minutes played × RPE reaches this (not "minutes > 0"). */
+  matchLoadAu: number;
+  /** ...and RPE is at least this, so a long easy match is not read as a hard one. */
+  matchMinRpe: number;
 }
 export const DEFAULT_FEEDBACK_POLICY: FeedbackPolicy = {
   version: "feedback-policy-1",
@@ -39,6 +43,8 @@ export const DEFAULT_FEEDBACK_POLICY: FeedbackPolicy = {
   windowHours: 48,
   horizonDays: 7,
   creditMinRpe: 5,
+  matchLoadAu: 240,
+  matchMinRpe: 5,
 };
 
 export type AdjustmentKind = FeedbackAdjustmentMark["kind"];
@@ -215,9 +221,13 @@ export function proposeFeedbackAdjustment(input: AdjustmentInput): AdjustmentPro
     const rpe = event.completion.rpe!;
     const tags = effectiveActivityTags(event.completion);
     const minutesPlayed = event.completion.matchMinutesPlayed ?? null;
+    // A club uses RPE alone; a match combines the minutes actually played with RPE.
     const hard =
-      rpe >= policy.hardRpe &&
-      (event.kind === "club" || (isValidMatchMinutes(minutesPlayed) && minutesPlayed > 0));
+      event.kind === "club"
+        ? rpe >= policy.hardRpe
+        : isValidMatchMinutes(minutesPlayed) &&
+          rpe >= policy.matchMinRpe &&
+          minutesPlayed * rpe >= policy.matchLoadAu;
     let work = structuredClone(upcoming);
     const changes: AdjustmentChange[] = [];
     const mark = (date: string, kind: AdjustmentKind) => {

@@ -314,6 +314,34 @@ describe("feedback-based adjustment proposals", () => {
     expect(propose(profile, plan, done(null))).toBeNull();
   });
 
+  it("a match combines played minutes with RPE: a short cameo or a long easy match is not 'hard'", () => {
+    const profile = { ...base, matchDates: ["2026-11-02"], clubTrainingDays: [] } as Profile;
+    const plan = savedPlan(profile);
+    plan.find((d) => d.date === CLUB_DATE)!.dbId = "m1";
+    const done = (rpe: number, minutes: number): Record<string, SessionCompletion> => ({
+      m1: {
+        completed: true,
+        status: "completed",
+        rpe,
+        notes: "",
+        matchMinutesPlayed: minutes,
+        feedbackVersion: 1,
+        endedAt: `${CLUB_DATE}T20:00:00Z`,
+      },
+    });
+    // load = minutes × RPE must reach the policy value, and RPE must not be tiny
+    expect(DEFAULT_FEEDBACK_POLICY.matchLoadAu).toBe(240);
+    expect(propose(profile, plan, done(10, 0))).toBeNull(); // did not play
+    expect(propose(profile, plan, done(9, 10))).toBeNull(); // 90 AU cameo
+    expect(propose(profile, plan, done(3, 90))).toBeNull(); // long, but RPE below the floor
+    // 80 min at RPE 7 (560 AU) qualifies although RPE alone is below the club threshold of 8
+    const proposal = propose(profile, plan, done(7, 80))!;
+    expect(proposal.reason).toContain("Po meczu (80 min gry, RPE 7)");
+    expect(proposal.sourceKind).toBe("match");
+    expect(proposal.changes.length).toBeGreaterThan(0);
+    expect(issuesOf(proposal, profile)).toEqual([]);
+  });
+
   it("returns nothing when the plan does not cover today, is stale for the profile, or has overlays", () => {
     const plan = savedPlan(base);
     expect(

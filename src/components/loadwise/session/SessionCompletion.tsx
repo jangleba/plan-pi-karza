@@ -119,8 +119,10 @@ function CompletionContent({ session, onSaved, suggestedDurationMin }: Completio
     rpe = draft.value.rpe;
   const matchMinutes =
     draft.value.matchMinutes.trim() === "" ? null : Number(draft.value.matchMinutes);
-  // Club time is an explicit product default (90 min), so it is never asked for.
-  const minutesOk = isClub || (Number.isInteger(minutes) && minutes >= 1 && minutes <= 300);
+  // Club time is an explicit product default (90 min) and a match is described by the minutes
+  // actually played, so neither asks for the whole-session time.
+  const timeless = isClub || isMatch;
+  const minutesOk = timeless || (Number.isInteger(minutes) && minutes >= 1 && minutes <= 300);
   const matchOk = !isMatch || isValidMatchMinutes(matchMinutes);
   const valid = minutesOk && matchOk && (rpe !== null || draft.value.later);
   if (!session.dbId) return null;
@@ -133,7 +135,9 @@ function CompletionContent({ session, onSaved, suggestedDurationMin }: Completio
       await completeSession(session, rpe, consent ? notes.trim() : "", {
         ...(isClub
           ? clubDuration(existing)
-          : { durationMin: minutes, durationSource: existing?.durationSource ?? "user" }),
+          : isMatch
+            ? {}
+            : { durationMin: minutes, durationSource: existing?.durationSource ?? "user" }),
         ...(isClub || isMatch
           ? { activityTags: tags, activityType: activityTypeFromTags(tags) }
           : {}),
@@ -175,7 +179,7 @@ function CompletionContent({ session, onSaved, suggestedDurationMin }: Completio
           {(activity.distanceM / 1000).toLocaleString("pl-PL", { maximumFractionDigits: 2 })} km
         </p>
       )}
-      {!isClub && (
+      {!timeless && (
         <>
           <label className="bw-finish-duration">
             <span>Czas całej sesji</span>

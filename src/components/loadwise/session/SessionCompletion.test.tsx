@@ -228,7 +228,8 @@ describe("club and match feedback", () => {
   it("requires played minutes for a match, accepts 0 and keeps them apart from session time", async () => {
     const session = sessionFixture({ dayType: "match" });
     await act(async () => root.render(<CompletionPanel session={session} />));
-    await minutes(115);
+    // no whole-session time is asked for a match
+    expect(host.querySelector('[aria-label="Czas całej sesji w minutach"]')).toBeNull();
     await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="RPE 7"]')!.click());
     expect(saveButton().disabled).toBe(true); // missing minutes
     for (const bad of ["-1", "181", "12.5", "abc"]) {
@@ -239,8 +240,6 @@ describe("club and match feedback", () => {
     expect(saveButton().disabled).toBe(false);
     await act(async () => saveButton().click());
     expect(mocks.complete).toHaveBeenCalledWith(session, 7, expect.any(String), {
-      durationMin: 115,
-      durationSource: "user",
       activityTags: [],
       activityType: null,
       matchMinutesPlayed: 0,
