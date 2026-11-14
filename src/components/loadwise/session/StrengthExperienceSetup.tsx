@@ -322,6 +322,7 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
                 <option value="curve">Bieg po szerokim łuku</option>
                 <option value="braking">Hamowanie i ponowny start</option>
                 <option value="planned_cod">Zaplanowana zmiana kierunku</option>
+                <option value="reactive">Reakcja na bodziec (wymaga partnera)</option>
               </select>
             </label>
             <label>
@@ -373,6 +374,34 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
                 }
               />
               Mam sanie do sprintu
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                disabled={saving}
+                checked={
+                  draft.trainingMethodPreferences?.declaredEquipment?.includes("partner") ?? false
+                }
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    trainingMethodPreferences: {
+                      ...d.trainingMethodPreferences,
+                      declaredEquipment: e.target.checked
+                        ? [
+                            ...new Set([
+                              ...(d.trainingMethodPreferences?.declaredEquipment ?? []),
+                              "partner",
+                            ]),
+                          ]
+                        : d.trainingMethodPreferences?.declaredEquipment?.filter(
+                            (v) => v !== "partner",
+                          ),
+                    },
+                  }))
+                }
+              />
+              Mam partnera, który daje sygnał w trakcie biegu
             </label>
             <p className="bw-strength-tenure-note">
               Silnik sprawdza wiek, technikę, nadzór i miejsce. Gdy warunki nie wystarczają,

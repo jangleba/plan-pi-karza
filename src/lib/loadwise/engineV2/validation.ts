@@ -9,6 +9,7 @@ import { hasDeclaredFootball, hasDeclaredWall, requiresDeclaredWall } from "./su
 import { coachedPrimerEligible, coachedPrimerDose, clusterEligible } from "./strengthProtocols";
 import { hasCurrentVerifiedMas } from "./endurance";
 import { hasVerifiedAdvancedStrength } from "./preparation";
+import { drillSetById, variantById } from "./sprintCatalog";
 import { MAS_TEST_SECONDS, isMasTestRecipe, masTestIneligibility } from "./masTestRecipe";
 import { resolveGoalPolicy } from "./goalPolicy";
 
@@ -537,6 +538,26 @@ export function validateEngineSession(
         "Sprint wymaga trzech stałych drilli i zgodnej liczby 1–3 rund.",
       );
       return issues;
+    }
+    // The stored variant must be the one actually prescribed (set, main exercise, drill triple).
+    const ref = recipe.sprintVariant;
+    if (ref) {
+      const variant = variantById(ref.mainVariantId);
+      const set = drillSetById(ref.drillSetId);
+      const main = recipe.exercises.find((e) => e.dose.speedStage === "main");
+      const drills = recipe.exercises.filter((e) => e.dose.circuit).map((e) => e.exerciseId);
+      if (
+        !variant ||
+        !set ||
+        variant.goal !== ref.goal ||
+        variant.goal !== recipe.sprintGoal ||
+        main?.exerciseId !== variant.exerciseId ||
+        stableJson(drills) !== stableJson(set.drills)
+      )
+        fail(
+          "SPRINT_VARIANT_MISMATCH",
+          "Zapisany wariant sprintu nie odpowiada ćwiczeniom i zestawowi drilli w recepturze.",
+        );
     }
     const stages = recipe.exercises.map((e) => e.dose.speedStage);
     const mainIndex = stages.indexOf("main"),

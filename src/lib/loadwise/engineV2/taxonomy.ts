@@ -118,7 +118,7 @@ group("plank", ["brace"], "isometric");
 group("side_plank", ["brace"], "isometric", true);
 group("dead_bug bird_dog pallof_press bodyweight_march_hold", ["brace"], "mixed", true);
 group(
-  "resisted_sled_acceleration flying_sprint football_curved_sprint accel_decel_reaccel planned_cut a_march free_acceleration_sprint flying_sprint easy_aerobic_run method_interval_run progressive_run_three_step_stop progressive_deceleration_5_10_15",
+  "resisted_sled_acceleration flying_sprint football_curved_sprint accel_decel_reaccel planned_cut a_march free_acceleration_sprint flying_sprint easy_aerobic_run method_interval_run progressive_run_three_step_stop progressive_deceleration_5_10_15 half_kneeling_start falling_start split_stance_start dribble_to_sprint_transition lateral_start_acceleration run_two_step_stop deceleration_lateral_exit planned_505 cut_and_reaccelerate reactive_180_turn reactive_curved_sprint",
   ["locomotion"],
 );
 

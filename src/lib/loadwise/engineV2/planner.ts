@@ -81,6 +81,26 @@ function isFirstLoadedMain(recipe: EngineSession, index: number): boolean {
   return first === index;
 }
 
+/** Variants used by earlier sprint sessions, oldest first (saved plan, locked days, this build). */
+function sprintHistory(
+  days: readonly SessionDay[],
+  previous: readonly SessionDay[] = [],
+  before: string,
+) {
+  const seen = new Set<string>();
+  return [...previous, ...days]
+    .flatMap(slots)
+    .filter((s) => s.engineV2?.sprintVariant && s.date < before)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .filter((s) => {
+      const key = `${s.date}:${s.engineV2!.sprintVariant!.mainVariantId}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((s) => s.engineV2!.sprintVariant!);
+}
+
 function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
   const revision = trainingProfileRevision(p);
   const sections: TrainingSection[] = [];
@@ -253,6 +273,7 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
             curve: "Sprint po łuku",
             braking: "Hamowanie i ponowny start",
             planned_cod: "Zaplanowana zmiana kierunku",
+            reactive: "Reaktywna zmiana kierunku (z partnerem)",
           }[recipe.sprintGoal ?? "acceleration"]
         : (recipe.runningRecipe?.title ?? "Bieg tlenowy");
   return {
@@ -568,7 +589,13 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
       ),
       mobilityRecipe ?? strengthB(),
       fitSprintToBudget(
-        buildRunning(routedProfile(p, policy.speedGoal), "speed", phase),
+        buildRunning(routedProfile(p, policy.speedGoal), "speed", phase, {
+          history: sprintHistory(
+            [...(options.precedingDays ?? []), ...(options.lockedDays ?? []), ...plan],
+            options.previousPlan,
+            base[0].date,
+          ),
+        }),
         options.minutesPerSession ?? 75,
       ),
       plannedEndurance(p, base[0].date, phase),
@@ -939,7 +966,8 @@ export function lighterRecipes(
       buildStrength(light, r.roles.includes("strengthA") ? "A" : "B", r.phase),
       minutesPerSession,
     );
-  else if (r.roles.includes("speed")) reduced = buildRunning(light, "speed", r.phase);
+  else if (r.roles.includes("speed"))
+    reduced = buildRunning(light, "speed", r.phase, { force: r.sprintVariant });
   else if (r.roles.includes("endurance"))
     reduced = plannedEndurance(p, session.date, r.phase, true);
   if (reduced && reduced.minutes <= r.minutes && doseWeight(reduced) < doseWeight(r))

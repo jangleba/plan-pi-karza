@@ -4,13 +4,23 @@ import { hasDeclaredWall } from "./support";
 import { accelerationDistance } from "./preparation";
 import { trainingTier, type Dose, type EngineSession, type ExerciseDecision } from "./model";
 import { updateSprintTotals } from "./sprintRecipe";
+import {
+  DRILL_SETS,
+  MAIN_VARIANTS,
+  rotate,
+  type SprintEnv,
+  type SprintHistory,
+} from "./sprintCatalog";
+import type { SprintGoal, SprintVariantRef } from "./model";
 
 /** Conservative coaching templates. Rounds are a product choice, not a proven optimal dose. */
 export function buildSprintSession(
   p: Profile,
   phase: EngineSession["phase"],
   eligible: (id: string) => boolean,
+  context: { history?: SprintHistory; force?: SprintVariantRef } = {},
 ): EngineSession | null {
+  const history = context.history ?? [];
   const space = p.trainingMethodPreferences?.spaceLengthM;
   if (
     !p.hasSprintSpace ||
@@ -40,8 +50,8 @@ export function buildSprintSession(
     (space ?? 0) >= 50 &&
     (requested === "max_velocity" || (requested === "auto" && p.goal === "speed")) &&
     eligible("flying_sprint");
-  let goal: NonNullable<EngineSession["sprintGoal"]> = flying ? "max_velocity" : "acceleration";
-  let mainId = flying ? "flying_sprint" : "free_acceleration_sprint";
+  let goal: SprintGoal = flying ? "max_velocity" : "acceleration";
+  const partner = (p.trainingMethodPreferences?.declaredEquipment ?? []).includes("partner");
   // Curves and changes of direction require a pitch and competent control, not just a straight lane.
   if (
     !reduced &&
@@ -51,17 +61,44 @@ export function buildSprintSession(
     p.movementCompetence === "high" &&
     (space ?? 0) >= 40
   ) {
-    if (requested === "curve") {
-      goal = "curve";
-      mainId = "football_curved_sprint";
-    } else if (requested === "braking") {
-      goal = "braking";
-      mainId = "accel_decel_reaccel";
-    } else if (requested === "planned_cod" || (requested === "auto" && p.goal === "agility")) {
+    if (requested === "curve") goal = "curve";
+    else if (requested === "braking") goal = "braking";
+    else if (requested === "planned_cod" || (requested === "auto" && p.goal === "agility"))
       goal = "planned_cod";
-      mainId = "planned_cut";
-    }
+    else if (requested === "reactive" && partner) goal = "reactive";
   }
+  const distance = reduced ? 10 : accelerationDistance(p);
+  const env: SprintEnv = {
+    age: p.age,
+    level: p.level,
+    prepared,
+    coached,
+    reduced,
+    hasPitch: !!p.hasPitch,
+    space: space ?? (flying ? 50 : 0),
+    distance,
+    partner,
+    phase,
+  };
+  // Qualified variants of this goal, then a deterministic rotation against the saved history.
+  const pool = MAIN_VARIANTS.filter(
+    (v) =>
+      v.goal === goal &&
+      v.qualifies(env) &&
+      eligible(v.exerciseId) &&
+      (!reduced || v.simple || goal !== "acceleration"),
+  );
+  const forced = context.force && pool.find((v) => v.id === context.force!.mainVariantId);
+  const picked = forced
+    ? { item: forced, reasons: ["ten sam wariant co w zapisanej sesji"] }
+    : rotate(
+        pool,
+        history.filter((h) => h.goal === goal).map((h) => h.mainVariantId),
+        reduced,
+      );
+  if (!picked) return null;
+  const variant = picked.item;
+  const mainId = variant.exerciseId;
   if (!eligible(mainId)) return null;
   const exercises: ExerciseDecision[] = [];
   const add = (exerciseId: string, role: ExerciseDecision["role"], dose: Dose, reason: string) => {
@@ -79,13 +116,22 @@ export function buildSprintSession(
     },
     "2 min lekkiego truchtu, następnie ruchy bioder i kostek oraz krótkie skipy. Przebieżki są osobnym krokiem po drillach.",
   );
-  const candidates = flying
-    ? ["ankling", "low_dribble", "high_dribble", "a_march", "a_skip"]
-    : hasDeclaredWall(p)
-      ? ["a_march", "wall_single_switch", "a_skip", "ankling", "low_dribble"]
-      : ["a_march", "a_skip", "low_dribble", "ankling", "c_skip"];
-  const drills = candidates.filter(eligible).slice(0, 3);
-  if (drills.length !== 3 || !exercises.length) return null;
+  const hasWall = hasDeclaredWall(p);
+  const group =
+    goal === "acceleration" ? "start" : goal === "max_velocity" ? "max_velocity" : "directional";
+  const sets = DRILL_SETS.filter(
+    (d) => d.groups.includes(group) && (!d.wall || hasWall) && d.drills.every(eligible),
+  ).sort((a, b) => Number(!!b.wall && hasWall) - Number(!!a.wall && hasWall));
+  const forcedSet = context.force && sets.find((d) => d.id === context.force!.drillSetId);
+  const chosenSet = forcedSet
+    ? { item: forcedSet, reasons: ["ten sam zestaw co w zapisanej sesji"] }
+    : rotate(
+        sets,
+        history.map((h) => h.drillSetId),
+        false,
+      );
+  if (!chosenSet) return null;
+  const drills = [...chosenSet.item.drills];
   const rounds = reduced || p.age < 16 || p.level === "beginner" ? 2 : 3;
   for (const exerciseId of drills)
     add(
@@ -101,7 +147,6 @@ export function buildSprintSession(
       },
       `${rounds} rundy tych samych trzech ćwiczeń w kolejności 1 → 2 → 3. Każde 12 s, 30 s na zmianę ćwiczenia i 60 s po rundzie. Kontrola przed tempem.`,
     );
-  const distance = reduced ? 10 : accelerationDistance(p);
   add(
     "progressive_build_up_sprint",
     "warmup",
@@ -152,35 +197,24 @@ export function buildSprintSession(
       },
       "Trzy osobne skoki z zatrzymanym lądowaniem. Odpocznij i ustaw się przed każdym skokiem; przerwij przy utracie kontroli.",
     );
-  const directional = goal === "curve" || goal === "planned_cod";
-  add(
-    mainId,
-    "speed",
-    {
-      sets: reduced ? (prepared ? 3 : 2) : directional ? 2 : flying ? 4 : prepared ? 6 : 4,
-      reps: 1,
-      distanceM: flying ? 10 : directional || goal === "braking" ? 10 : distance,
-      ...(flying ? { runInM: 20 } : {}),
-      ...(directional ? { perSide: true } : {}),
-      runOutM: flying ? 20 : distance,
-      // The full travelled path is counted: 5 + 5 m for a planned cut/reacceleration.
-      restSeconds: flying ? 150 : directional || goal === "braking" ? 120 : 90,
-      intent: "explosive",
-      speedStage: "main",
-    },
-    flying
-      ? "20 m płynnego nabiegu + 10 m lotnego biegu + 20 m stopniowego wyhamowania. Pełny odpoczynek, bez wymuszania kroku."
-      : goal === "planned_cod"
-        ? "5 m do znacznika, zaplanowany łagodny zwrot i 5 m wyjścia. Najpierw lewa, potem prawa; kierunek znany z góry. To nie test reakcji."
-        : goal === "braking"
-          ? "5 m kontrolowanego przyspieszenia, spokojne obniżenie pozycji i 5 m ponownego przyspieszenia. Nie wymuszaj zatrzymania na jednym kroku."
-          : goal === "curve"
-            ? "10 m po szerokim, równym łuku, osobno w lewo i w prawo. Zacznij kontrolowanie; nie zacieśniaj łuku kosztem równowagi."
-            : `Każdy odcinek ${distance} m jakościowo, z wolną strefą ${distance} m do wyhamowania. Nie skracaj przerwy; zakończ przy utracie techniki.`,
-  );
-  if (prepared && !reduced && p.goal !== "power" && goal !== "planned_cod" && goal !== "braking")
+  add(mainId, "speed", variant.dose(env), variant.instruction(env));
+  // A small addition is not repeated in consecutive sessions, and never when the main task is a
+  // change of direction or braking; the athlete's last session decides.
+  const lastAddition = history.at(-1)?.addition ?? null;
+  const additionId =
+    prepared &&
+    !reduced &&
+    p.goal !== "power" &&
+    goal !== "planned_cod" &&
+    goal !== "braking" &&
+    goal !== "reactive" &&
+    lastAddition !== "progressive_run_three_step_stop" &&
+    eligible("progressive_run_three_step_stop")
+      ? "progressive_run_three_step_stop"
+      : null;
+  if (additionId)
     add(
-      "progressive_run_three_step_stop",
+      additionId,
       "landing",
       {
         sets: 2,
@@ -209,6 +243,17 @@ export function buildSprintSession(
   return updateSprintTotals({
     sprintRecipeVersion: 1,
     sprintGoal: goal,
+    sprintVariant: {
+      goal,
+      mainVariantId: variant.id,
+      drillSetId: chosenSet.item.id,
+      addition: additionId,
+      why: [
+        ...picked.reasons,
+        `zestaw drilli ${chosenSet.item.id}: ${chosenSet.item.why}`,
+        ...chosenSet.reasons,
+      ],
+    },
     roles: ["speed"],
     tier: trainingTier(p),
     phase,

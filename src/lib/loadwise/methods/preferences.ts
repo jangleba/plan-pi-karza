@@ -11,13 +11,14 @@ export const METHOD_SPECIAL_EQUIPMENT = [
   "hill",
   "sled",
   "flat_markers",
+  "partner",
 ] as const;
 export function normalizeMethodPreferences(raw: unknown): TrainingMethodPreferences {
   if (!raw || typeof raw !== "object") return {};
   const r = raw as Record<string, unknown>,
     out: TrainingMethodPreferences = {};
   if (
-    ["auto", "acceleration", "max_velocity", "curve", "braking", "planned_cod"].includes(
+    ["auto", "acceleration", "max_velocity", "curve", "braking", "planned_cod", "reactive"].includes(
       String(r.sprintFocus),
     )
   )
@@ -54,6 +55,6 @@ export function normalizeMethodPreferences(raw: unknown): TrainingMethodPreferen
             typeof v === "string" && (METHOD_SPECIAL_EQUIPMENT as readonly string[]).includes(v),
         ),
       ),
-    ].slice(0, 6);
+    ].slice(0, 7);
   return out;
 }

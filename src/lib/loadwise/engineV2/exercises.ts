@@ -1,4 +1,6 @@
 import { buildSprintSession } from "./sprintSession";
+import type { SprintHistory } from "./sprintCatalog";
+import type { SprintVariantRef } from "./model";
 import { buildAthleteTrainingProfile } from "../athleteProfile";
 import {
   getExerciseDefinition,
@@ -405,8 +407,10 @@ export function buildRunning(
   p: Profile,
   role: "speed" | "endurance",
   phase: EngineSession["phase"],
+  sprint: { history?: SprintHistory; force?: SprintVariantRef } = {},
 ): EngineSession | null {
-  if (role === "speed") return buildSprintSession(p, phase, (id) => eligibleExercise(id, p));
+  if (role === "speed")
+    return buildSprintSession(p, phase, (id) => eligibleExercise(id, p), sprint);
   const id = pick("endurance", p, "A", new Set());
   if (!id) return null;
   const tier = trainingTier(p);
