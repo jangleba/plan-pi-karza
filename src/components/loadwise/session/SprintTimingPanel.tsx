@@ -26,7 +26,16 @@ export function SprintTimingPanel({
     [open, setOpen] = useState(false);
   const [videos, setVideos] = useState<ReturnType<typeof loadBrowserResults>>([]);
   const saved = Object.values(logs.current).filter((r) => r.metricKind?.startsWith("sprint_"));
-  const next = () => Math.max(0, ...Object.keys(logs.current).map(Number)) + 1;
+  // The time belongs to a chosen planned repetition. Skipping one never renumbers the others,
+  // and saving the same repetition again corrects it instead of adding a duplicate.
+  const planned = Math.min(
+    20,
+    Math.max(1, Math.round(Number(exercise.engineDose?.sets ?? exercise.sets) || 1)),
+  );
+  const [rep, setRep] = useState<number | null>(null);
+  const savedReps = new Set(saved.map((r) => r.setNumber));
+  const firstFree = Array.from({ length: planned }, (_, i) => i + 1).find((n) => !savedReps.has(n));
+  const chosen = rep ?? firstFree ?? planned;
   async function save(seconds: number, source: string) {
     if (busy || !Number.isFinite(seconds) || seconds <= 0 || seconds > 120) {
       setError("Wpisz czas odcinka w sekundach.");
@@ -40,7 +49,7 @@ export function SprintTimingPanel({
     setError(null);
     try {
       const ok = await logs.saveSet({
-        setNumber: next(),
+        setNumber: chosen,
         weightKg: null,
         reps: null,
         rir: null,
@@ -49,6 +58,7 @@ export function SprintTimingPanel({
       });
       if (!ok) throw new Error();
       setTime("");
+      setRep(null);
       onRepeat();
     } catch {
       setError("Nie zapisano czasu. Zachowano wpis do ponowienia.");
@@ -61,7 +71,24 @@ export function SprintTimingPanel({
   );
   return (
     <div className="bw-sprint-result-entry">
-      <p className="bw-session-muted">Zapisane czasy: {saved.length}. Pomiar jest opcjonalny.</p>
+      <p className="bw-session-muted">
+        Zapisane czasy: {saved.length} z {planned}. Pomiar jest opcjonalny.
+      </p>
+      <label>
+        Powtórzenie
+        <select
+          aria-label="Powtórzenie sprintu"
+          value={chosen}
+          onChange={(e) => setRep(Number(e.target.value))}
+        >
+          {Array.from({ length: planned }, (_, i) => i + 1).map((n) => (
+            <option key={n} value={n}>
+              {n} z {planned}
+              {savedReps.has(n) ? " · zapisane (zapis poprawi wynik)" : ""}
+            </option>
+          ))}
+        </select>
+      </label>
       <div className="bw-sprint-time-input">
         <label>
           Czas odcinka
@@ -121,13 +148,14 @@ export function SprintTimingPanel({
       {saved.length > 0 && (
         <details>
           <summary>Zapisane powtórzenia</summary>
-          <ol>
+          <ul>
             {saved.map((r) => (
               <li key={r.setNumber}>
-                {r.setNumber}. {r.metricValue?.toFixed(3)} s · {timingSource(r.metricKind)}
+                Powtórzenie {r.setNumber}: {r.metricValue?.toFixed(3)} s ·{" "}
+                {timingSource(r.metricKind)}
               </li>
             ))}
-          </ol>
+          </ul>
         </details>
       )}
       {error && (
