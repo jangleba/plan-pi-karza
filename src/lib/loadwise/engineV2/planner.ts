@@ -680,6 +680,15 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
   if (plan[0]) {
     plan[0].enginePlanIssues = [...issues, ...violations];
     plan[0].engineTimeBudgetMin = options.minutesPerSession ?? 75;
+    plan[0].planInputs = {
+      matchDates: [...(p.matchDates ?? [])].sort(),
+      individualTrainingDays: [...p.individualTrainingDays].sort((a, b) => a - b),
+      unavailableDays: [...(p.unavailableDays ?? [])].sort((a, b) => a - b),
+      clubTrainingDays: [...p.clubTrainingDays].sort((a, b) => a - b),
+      unavailableEquipmentIds: [...(p.unavailableEquipmentIds ?? [])].sort(),
+      equipment: [...p.equipment].sort(),
+      minutesPerSession: options.minutesPerSession ?? 75,
+    };
   }
   return {
     version: ENGINE_VERSION,

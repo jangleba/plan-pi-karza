@@ -5,6 +5,8 @@ import { useLoadwise } from "@/lib/loadwise/store";
 import { ProfileAvatar } from "@/components/loadwise/ui";
 import { StartDashboard } from "@/components/loadwise/StartDashboard";
 import { FeedbackAdjustmentCard } from "@/components/loadwise/FeedbackAdjustmentCard";
+import { ScheduleChangeCard } from "@/components/loadwise/ScheduleChangeCard";
+import { describeScheduleChanges } from "@/lib/loadwise/scheduleChange";
 import {
   completeFieldTask,
   openFieldTask,
@@ -44,6 +46,15 @@ function StartScreen() {
     completions: state.completions,
   });
   const today = todayTrainingState(effectivePlan, state.completions, todayIso);
+  const scheduleChanges =
+    status.kind === "stale" && status.staleReason === "profile" && state.profile
+      ? describeScheduleChanges(
+          effectivePlan[0]?.planInputs,
+          state.profile,
+          effectivePlan[0]?.planInputs?.minutesPerSession ?? 75,
+          todayIso,
+        )
+      : [];
 
   return (
     <StartDashboard
@@ -58,7 +69,15 @@ function StartScreen() {
           search: { slot: today.slot },
         })
       }
-      adjustment={<FeedbackAdjustmentCard />}
+      adjustment={
+        <>
+          <ScheduleChangeCard
+            changes={scheduleChanges}
+            onOpen={() => void navigate({ to: "/plan" })}
+          />
+          <FeedbackAdjustmentCard />
+        </>
+      }
       onSummarize={() => void navigate({ to: "/postep" })}
       onSkipToday={
         today.session?.engineV2 &&

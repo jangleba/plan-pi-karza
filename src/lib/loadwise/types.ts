@@ -635,6 +635,8 @@ export interface SessionDay {
   cycleStart?: CycleStartRecord | null;
   executionProtected?: boolean;
   feedbackAdjustments?: FeedbackAdjustmentMark[];
+  /** On the first day of a generated plan: the inputs it was built from. */
+  planInputs?: PlanInputsSnapshot;
   externalGoalCredits?: ExternalGoalCredit[];
   dayDbId?: string; // id wiersza training_days (po zapisie do bazy)
   readinessAdjustedDate?: string | null;
@@ -715,6 +717,17 @@ export interface WeekMeta {
   planningStatus?: "complete" | "reduced" | "health_limited";
   planningNotes?: string[];
   finalPolicyVersion?: string;
+}
+
+/** Schedule-relevant inputs a plan was generated from; lets the app say what changed later. */
+export interface PlanInputsSnapshot {
+  matchDates: string[];
+  individualTrainingDays: number[];
+  unavailableDays: number[];
+  clubTrainingDays: number[];
+  unavailableEquipmentIds: string[];
+  equipment: string[];
+  minutesPerSession: number;
 }
 
 export type ActivityTag = "running_endurance" | "technical" | "tactical_game";

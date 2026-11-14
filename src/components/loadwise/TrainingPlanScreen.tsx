@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/loadwise/auth";
 import { cycleStartRecord, stampCycleStart } from "@/lib/loadwise/cycleReview";
 import { parseNextPlanIntent, type NextPlanIntent } from "@/lib/loadwise/nextPlanIntent";
 import { buildPlanSummary } from "@/lib/loadwise/planSummary";
+import { describeScheduleChanges, windowDiff } from "@/lib/loadwise/scheduleChange";
 import { trainingStorageKey } from "@/lib/loadwise/trainingDetails";
 import { useTrainingLocalState } from "@/lib/loadwise/useTrainingLocalState";
 import { buildTrainingHistory, mergeTrainingHistory } from "@/lib/progress/progress";
@@ -141,6 +142,21 @@ export function PlanScreen() {
     setRows,
   ]);
   const plan = preview?.result?.plan ?? effectivePlan;
+  // What changed since the saved plan was built, and what the next days would look like.
+  const scheduleChanges = state.profile
+    ? describeScheduleChanges(
+        effectivePlan[0]?.planInputs,
+        state.profile,
+        preview?.result
+          ? minutes
+          : (effectivePlan[0]?.planInputs?.minutesPerSession ?? savedBudget),
+        todayIso,
+      )
+    : [];
+  const nextDaysDiff =
+    preview?.result && state.plan.length
+      ? windowDiff(effectivePlan, preview.result.plan, todayIso)
+      : [];
   const issues = preview?.result?.issues ?? state.plan[0]?.enginePlanIssues ?? [];
   async function save() {
     if (!preview?.result || !activatePlanV2) return;
@@ -173,7 +189,11 @@ export function PlanScreen() {
               <select
                 aria-label="Czas na jednostkę"
                 value={minutes}
-                onChange={(e) => setTimeChoice({ planId, minutes: Number(e.target.value) })}
+                onChange={(e) => {
+                  setTimeChoice({ planId, minutes: Number(e.target.value) });
+                  // A new time budget is a proposal: show the preview, save only on request.
+                  if (state.plan.length && Number(e.target.value) !== savedBudget) setRebuild(true);
+                }}
               >
                 {[...new Set([30, 45, 60, 75, 90, 120, minutes])]
                   .sort((a, b) => a - b)
@@ -189,6 +209,13 @@ export function PlanScreen() {
         {!state.profile && hydrated ? <p>Uzupełnij profil, aby przygotować plan.</p> : null}
         {state.plan.length > 0 && !preview ? (
           <div className="space-y-2">
+            {scheduleChanges.length > 0 && status.kind === "stale" ? (
+              <ul className="text-sm">
+                {scheduleChanges.map((c) => (
+                  <li key={c.kind}>{c.line}</li>
+                ))}
+              </ul>
+            ) : null}
             {status.kind === "expired" ? (
               <p role="status">
                 Cykl zakończony{status.endDate ? ` · ${status.endDate}` : ""}. Przygotuj kolejne 4
@@ -213,6 +240,25 @@ export function PlanScreen() {
               Podgląd dopasowany do Twojego przygotowania siłowego i kalendarza. Zapisz go, aby
               rozpocząć treningi.
             </p>
+            {scheduleChanges.length > 0 ? (
+              <ul className="text-sm text-neutral-600">
+                {scheduleChanges.map((c) => (
+                  <li key={c.kind}>{c.line}</li>
+                ))}
+              </ul>
+            ) : null}
+            {nextDaysDiff.length > 0 ? (
+              <details className="text-sm">
+                <summary>Najbliższe 7 dni · zmiany ({nextDaysDiff.length})</summary>
+                <ul>
+                  {nextDaysDiff.map((d) => (
+                    <li key={d.date}>
+                      {d.date}: {d.before} → {d.after}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
             {state.plan.length > 0 ? (
               <p className="text-sm text-neutral-600">
                 Nowy plan rozpoczyna się {todayIso}. Zapisane wykonanie i historia treningów

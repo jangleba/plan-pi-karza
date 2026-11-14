@@ -237,3 +237,55 @@ it("'Wróć do zapisanego planu' drops the confirmed choices instead of reopenin
   expect(host.textContent).not.toContain("Twój plan · 4 tygodnie");
   expect(localStorage.getItem(key)).toBe("null");
 });
+
+it("proposes an update after a moved match: names the change, shows the next days, saves only on request", async () => {
+  const state = mock.store.state as LoadwiseState;
+  const profile = {
+    ...state.profile!,
+    individualTrainingDays: [1, 2, 3, 4, 5, 6, 7],
+    hasPitch: true,
+    hasSprintSpace: true,
+    matchDates: ["2026-11-06"],
+  };
+  const saved = generateTrainingPlan(profile, { startDate: "2026-11-02", weeks: 4 }).plan;
+  mock.store.state = {
+    ...state,
+    profile: { ...profile, matchDates: ["2026-11-04"] },
+    activePlanId: "saved",
+    plan: saved,
+  };
+  await act(async () => root.render(<PlanScreen />));
+  expect(host.textContent).toContain("Terminy meczów: 6.11 → 4.11");
+  expect(mock.activate).not.toHaveBeenCalled();
+  await act(async () =>
+    [...host.querySelectorAll("button")].find((b) => b.textContent === "Zaktualizuj plan")!.click(),
+  );
+  expect(host.textContent).toContain("Najbliższe 7 dni · zmiany");
+  expect(mock.activate).not.toHaveBeenCalled();
+});
+
+it("a new time budget opens a preview of the nearest sessions instead of changing the plan silently", async () => {
+  const state = mock.store.state as LoadwiseState;
+  const profile = {
+    ...state.profile!,
+    individualTrainingDays: [1, 2, 3, 4, 5, 6, 7],
+    hasPitch: true,
+    hasSprintSpace: true,
+  };
+  const saved = generateTrainingPlan(profile, {
+    startDate: "2026-11-02",
+    weeks: 4,
+    minutesPerSession: 75,
+  }).plan;
+  mock.store.state = { ...state, profile, activePlanId: "saved", plan: saved };
+  await act(async () => root.render(<PlanScreen />));
+  expect(host.textContent).not.toContain("Twój plan · 4 tygodnie");
+  const time = host.querySelector<HTMLSelectElement>('select[aria-label="Czas na jednostkę"]')!;
+  await act(async () => {
+    time.value = "30";
+    time.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  expect(host.textContent).toContain("Twój plan · 4 tygodnie");
+  expect(host.textContent).toContain("Czas na jednostkę: 75 → 30 min");
+  expect(mock.activate).not.toHaveBeenCalled();
+});
