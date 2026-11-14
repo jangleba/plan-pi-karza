@@ -15,6 +15,9 @@ const executionStarted = (completion?: SessionCompletion) =>
   !!completion?.completed || ["started", "completed"].includes(completion?.status ?? "");
 const completed = (completion?: SessionCompletion) =>
   !!completion?.completed || completion?.status === "completed";
+/** Finished or deliberately skipped: the day moves on to its next slot. */
+const handled = (completion?: SessionCompletion) =>
+  completed(completion) || completion?.status === "missed";
 const ownPrescription = (session: SessionDay) =>
   !!session.engineV2 ||
   (!session.externalCommitment && !["club", "match", "rest"].includes(session.dayType));
@@ -77,6 +80,8 @@ export function sessionStartIssue({
   completion?: SessionCompletion;
 }): string | null {
   if (executionStarted(completion)) return null;
+  if (completion?.status === "missed")
+    return "Ta sesja została opuszczona. Nie jest przekładana automatycznie.";
   if (todayIso && session.date !== todayIso)
     return "Nową sesję można rozpocząć tylko w dniu treningu.";
   if (session.isUnavailable || session.dayType === "rest")
@@ -118,7 +123,7 @@ export function todayTrainingState(
     .map((session, i) => ({ session, slot: (i + 1) as 1 | 2 }))
     .filter(({ session }) => session.dayType !== "rest" && !session.isUnavailable);
   const next = real.find(
-    ({ session }) => !completed(session.dbId ? completions[session.dbId] : undefined),
+    ({ session }) => !handled(session.dbId ? completions[session.dbId] : undefined),
   );
   return next
     ? { ...next, complete: false }

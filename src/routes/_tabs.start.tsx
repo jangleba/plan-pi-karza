@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_tabs/start")({
 
 function StartScreen() {
   const { user } = useAuth();
-  const { state, hydrated, todayIso } = useLoadwise();
+  const { state, hydrated, todayIso, skipSession } = useLoadwise();
   const navigate = useNavigate();
   const router = useRouter();
   const [iqTask, setIqTask] = useState<FieldTask | null>(null);
@@ -60,6 +60,14 @@ function StartScreen() {
       }
       adjustment={<FeedbackAdjustmentCard />}
       onSummarize={() => void navigate({ to: "/postep" })}
+      onSkipToday={
+        today.session?.engineV2 &&
+        today.session.dbId &&
+        !state.completions[today.session.dbId]?.status &&
+        !state.completions[today.session.dbId]?.completed
+          ? () => skipSession(today.session!)
+          : undefined
+      }
       avatar={<ProfileAvatar />}
       onPlan={() => void navigate({ to: "/plan" })}
       onLab={() => void navigate({ to: "/lab" })}

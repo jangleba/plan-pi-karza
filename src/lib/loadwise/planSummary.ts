@@ -165,7 +165,7 @@ export function buildPlanSummary(input: PlanSummaryInput): PlanSummary | null {
       if (completion?.completed) {
         row.done += 1;
         own.done += 1;
-      } else if (s.date < todayIso) {
+      } else if (completion?.status === "missed" || s.date < todayIso) {
         row.missed += 1;
         own.missed += 1;
       }

@@ -56,7 +56,11 @@ export function createSessionActions(
   context: StoreActionContext,
 ): Pick<
   LoadwiseContextValue,
-  "startSession" | "completeSession" | "saveRunningActivity" | "deleteRunningActivity"
+  | "startSession"
+  | "skipSession"
+  | "completeSession"
+  | "saveRunningActivity"
+  | "deleteRunningActivity"
 > {
   const { user, state, setState } = context;
   const latest = () => context.getState?.() ?? state;
@@ -163,6 +167,75 @@ export function createSessionActions(
       completion = mapCompletionRows([result.data as AnyRow])[sid] ?? completion;
     setState((s) =>
       s.completions[sid]?.completed
+        ? s
+        : { ...s, completions: { ...s.completions, [sid]: completion } },
+    );
+  }
+
+  /**
+   * Skipping is a recorded fact, not a reschedule: the session stays in the plan as skipped and no
+   * overdue work is moved to another day. A started or finished session cannot be skipped.
+   */
+  async function skipSession(session: SessionDay) {
+    const sid = session.dbId;
+    if (!user || !sid) throw new Error("Nie można opuścić tej sesji.");
+    await waitForPlanWrites(user.id);
+    const existing = latest().completions[sid];
+    if (existing?.completed || existing?.status === "started" || existing?.status === "missed")
+      return;
+    if (session.date !== context.todayIso) throw new Error("Opuścić można tylko dzisiejszą sesję.");
+    if (!session.engineV2) throw new Error("Opuścić można tylko własny trening z planu.");
+    const at = new Date().toISOString(),
+      operationId = crypto.randomUUID(),
+      expectedVersion = existing?.writeVersion ?? 0;
+    const snapshot = executionSnapshot(session, slotFor(session));
+    const payload = {
+      user_id: user.id,
+      session_id: sid,
+      completed: false,
+      completion_status: "missed",
+      rpe: null,
+      notes: null,
+      duration_minutes: null,
+      activity_type: null,
+      started_at: null,
+      ended_at: null,
+      updated_at: at,
+      execution_snapshot: snapshot as unknown as Json,
+    };
+    const result = await withDurableTrainingWrite(
+      user.id,
+      { kind: "session_log", dedupeKey: `session:${sid}`, payload, operationId, expectedVersion },
+      (entry) =>
+        supabase.rpc("save_training_log", {
+          p_operation_id: operationId,
+          p_session_id: sid,
+          p_expected_version: expectedVersion,
+          p_payload: {
+            ...payload,
+            _predecessor_operation_ids: entry.predecessors ?? [],
+          } as unknown as Json,
+        }),
+    );
+    let completion: SessionCompletion = {
+      completed: false,
+      status: "missed",
+      rpe: null,
+      notes: "",
+      durationMin: null,
+      startedAt: null,
+      endedAt: null,
+      executionSnapshot: snapshot,
+      writeVersion: expectedVersion,
+    };
+    if (result.error) {
+      if (!isRetryableWriteError(result.error))
+        assertNoSupabaseError("save_training_log.skip", result.error);
+      toast.info("Brak internetu — opuszczenie zapisano na tym telefonie.");
+    } else if (result.data)
+      completion = mapCompletionRows([result.data as AnyRow])[sid] ?? completion;
+    setState((s) =>
+      s.completions[sid]?.completed || s.completions[sid]?.status === "started"
         ? s
         : { ...s, completions: { ...s.completions, [sid]: completion } },
     );
@@ -376,5 +449,5 @@ export function createSessionActions(
     });
     requestRefresh();
   }
-  return { startSession, completeSession, saveRunningActivity, deleteRunningActivity };
+  return { startSession, skipSession, completeSession, saveRunningActivity, deleteRunningActivity };
 }

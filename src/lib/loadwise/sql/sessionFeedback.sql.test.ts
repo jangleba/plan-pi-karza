@@ -140,6 +140,25 @@ describe.sequential("session feedback v1 in the database", () => {
     await expect(save(foreign, 0, done({ feedback_version: 1 }))).rejects.toThrow();
   });
 
+  it("records a skipped session ('Dziś nie mogę') without completing it and moves nothing", async () => {
+    const sid = await seedSession(clubDay);
+    const row = await save(sid, 0, {
+      completed: false,
+      completion_status: "missed",
+      rpe: null,
+      notes: null,
+      duration_minutes: null,
+      started_at: null,
+      ended_at: null,
+      updated_at: "2026-11-12T08:00:00Z",
+      feedback_version: null,
+    });
+    expect(row).toMatchObject({ completion_status: "missed", completed: false, rpe: null });
+    // a skipped session is still the same row: it can later be completed with the version it has
+    const later = await save(sid, Number(row.write_version), done({ feedback_version: 1 }));
+    expect(later.completion_status).toBe("completed");
+  });
+
   it("the read-only readiness script for the target database is valid and all checks pass on the full chain", async () => {
     const sql = readFileSync(
       "supabase/verification/engine_v24_session_feedback_readiness.sql",

@@ -103,7 +103,9 @@ const hash = (text: string) => {
 };
 const executed = (s: SessionDay, c: Record<string, SessionCompletion>) => {
   const x = s.dbId ? c[s.dbId] : undefined;
-  return !!x?.completed || x?.status === "started" || x?.status === "completed";
+  return (
+    !!x?.completed || x?.status === "started" || x?.status === "completed" || x?.status === "missed"
+  );
 };
 
 /** Everything that identifies the feedback; storing the same value again keeps the same id. */
