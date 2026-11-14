@@ -301,11 +301,11 @@ describe("weekly planner end-to-end contracts", () => {
     expect(validateTrainingPlan(r.plan, p, options)).toEqual([]);
   });
 
-  it("uses legitimate second slots to fulfil the four targets on only two available dates", () => {
+  it("keeps strength and sprint on separate days and reports an impossible two-date week", () => {
     const p = { ...base, individualTrainingDays: [2, 4] };
     const r = generateTrainingPlan(p, options);
-    expect(targets(r.plan).sort()).toEqual([...targetRoles].sort());
-    expect(r.issues.filter((issue) => issue.code === "UNMET_WEEKLY_TARGET")).toEqual([]);
+    expect(targets(r.plan).sort()).toEqual(["endurance", "strengthA", "strengthB"]);
+    expect(r.issues.filter((issue) => issue.code === "UNMET_WEEKLY_TARGET")).toHaveLength(1);
     for (const day of r.plan) {
       if (ownSlots([day]).length) expect(["2026-11-03", "2026-11-05"]).toContain(day.date);
       expect(day.secondSession?.secondSession).toBeFalsy();
@@ -350,10 +350,10 @@ describe("weekly planner end-to-end contracts", () => {
     expect(validateTrainingPlan(r.plan, p, options)).toEqual([]);
   });
 
-  it("allows a qualified adult to consolidate required high days explicitly", () => {
+  it("never consolidates strength and sprint even for a qualified adult", () => {
     const p = { ...base, weeklyMatches: true, usualMatchDay: 7 };
     const r = generateTrainingPlan(p, options);
-    expect(targets(r.plan).sort()).toEqual([...targetRoles].sort());
+    expect(r.issues.some((issue) => issue.code === "UNMET_WEEKLY_TARGET")).toBe(true);
     expect(
       r.plan.some((day) => {
         const roles = targets([day]);
@@ -361,15 +361,15 @@ describe("weekly planner end-to-end contracts", () => {
           roles.includes("speed") && (roles.includes("strengthA") || roles.includes("strengthB"))
         );
       }),
-    ).toBe(true);
+    ).toBe(false);
     expect(validateTrainingPlan(r.plan, p, options)).toEqual([]);
   });
 
-  it("honours the thirty-minute session budget and honestly reports missing units", () => {
+  it("fits compact balanced sessions within thirty minutes when equipment permits", () => {
     const short = { ...options, minutesPerSession: 30 };
     const r = generateTrainingPlan(base, short);
     for (const slot of ownSlots(r.plan)) expect(slot.durationMin).toBeLessThanOrEqual(30);
-    expect(r.issues.some((issue) => issue.code === "UNMET_WEEKLY_TARGET")).toBe(true);
+    expect(targets(r.plan).sort()).toEqual([...targetRoles].sort());
     expect(validateTrainingPlan(r.plan, base, short)).toEqual([]);
   });
 

@@ -1,0 +1,2200 @@
+{
+  "as_of": "2026-11-14",
+  "primary_publications": 100,
+  "review_design": "Targeted critical evidence review, not a systematic review or meta-analysis",
+  "limitations_pl": [
+    "Sprawdzono metadane i abstrakty 100 publikacji pierwotnych. Nie deklarujemy przeczytania 100 pełnych tekstów ani pełnej oceny RoB2.",
+    "100 publikacji nie oznacza 100 niezależnych prób. Możliwe wspólne populacje BW-010/BW-013 i BW-055/BW-057; nie agregowano ich liczebności ani efektów.",
+    "W zbiorze są RCT, próby ostre, pilotaże i obserwacje o różnej wiarygodności. Indeksowanie PubMed i DOI nie oznaczają automatycznie wysokiej jakości.",
+    "Dobór celowy z Europe PMC/PubMed, ograniczone pokrycie starszej literatury; to podstawa projektu produktu, nie dowód walidacji algorytmu dla każdego zawodnika.",
+    "Mała próba lub nieistotna różnica nie dowodzą równoważności metod; test siły nie dowodzi mniejszej liczby urazów."
+  ],
+  "primary": [
+    {
+      "id": "BW-001",
+      "title": "Effects of Resistance Training on Isometric Force and Muscle Thickness in Prepubertal and Pubertal Boys: A Randomized Controlled Trial.",
+      "authors": "Komm YN, Held S, Gavanda S, Comfort P, Faigenbaum AD, Geisler S, Augste C.",
+      "journal": "Journal of strength and conditioning research",
+      "first_publication_date": "2026-10-05",
+      "pmid": "42831861",
+      "doi": "10.1519/jsc.0000000000005680",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42831861/",
+      "topics": [
+        "youth_strength"
+      ],
+      "population_and_design_pl": "68 chłopców; RCT, 9 tygodni",
+      "findings_and_limitations_pl": "Siła wzrosła bez jasnej przewagi dla grubości mięśni. Mała moc interakcji dojrzewania; nie wyznacza programu sam wiek.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-002",
+      "title": "Split-set resistance training in-season increases maximal vertical power without enhancing athletic performance: a comparison with failure training in youth handball players.",
+      "authors": "Buk Jørgensen T, Helge BW, Larsen RL, Lundbye-Jensen J, Nybo L.",
+      "journal": "The Journal of sports medicine and physical fitness",
+      "first_publication_date": "2026-09-29",
+      "pmid": "42808918",
+      "doi": "10.23736/s0022-4707.26.17961-4",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42808918/",
+      "topics": [
+        "youth_strength"
+      ],
+      "population_and_design_pl": "30 młodych piłkarzy ręcznych; 7 tygodni",
+      "findings_and_limitations_pl": "Split-set poprawiał prędkość, lecz nie ogólnie siłę i sprint. Inny sport; brak podstaw do obowiązkowych klastrów.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-003",
+      "title": "Elastic Band Training Across Competitive Levels in Female Soccer: A Randomized Controlled Trial With Follow-up.",
+      "authors": "Sousa H, Abade E, Costa JA, Barreira J, Miralles-Iborra A, Maia F, Marcelino R.",
+      "journal": "Sports health",
+      "first_publication_date": "2026-10-12",
+      "pmid": "42865090",
+      "doi": "10.1177/19417381261490002",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42865090/",
+      "topics": [
+        "youth_strength",
+        "detraining_maintenance"
+      ],
+      "population_and_design_pl": "74 piłkarki U15/U19/seniorki; RCT, 9 tygodni",
+      "findings_and_limitations_pl": "Gumy wspierały niektóre miary siły; ograniczone wyniki skoków i COD. Małe podgrupy wieku i spadki po przerwie.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-004",
+      "title": "Acute and Short-Term Neuromuscular and Perceptual Responses to Isometric vs. Dynamic Strength Training in Youth Soccer Players: A Randomized Crossover Trial.",
+      "authors": "Maia F, Sauce G, Ferreira JF, Batista J, Pimenta R, Tito S, Nakamura FY.",
+      "journal": "Research quarterly for exercise and sport",
+      "first_publication_date": "2026-07-28",
+      "pmid": "42520270",
+      "doi": "10.1080/02701367.2026.2709598",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42520270/",
+      "topics": [
+        "youth_strength",
+        "soccer_strength"
+      ],
+      "population_and_design_pl": "21 piłkarzy około 16,8 roku; losowa próba krzyżowa",
+      "findings_and_limitations_pl": "Po izometrii mniejsze niektóre krótkotrwałe deficyty. Jedna sesja nie dowodzi adaptacji sezonowej ani braku zmęczenia.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-005",
+      "title": "Effects of Ballistic and Traditional Half-Squat Training With Light Loads on Strength, Jump, and Sprint Performance in Young Rugby Players: A Randomized Controlled Trial.",
+      "authors": "Zabaloy S, Zmijewski P, Freitas TT, Botta SG, Maggiolo JF, Aparicio J, Vega F, Comyns T, Azevedo PHSM, Pereira LA, Loturco I.",
+      "journal": "International journal of sports physiology and performance",
+      "first_publication_date": "2026-10-29",
+      "pmid": "42956728",
+      "doi": "10.1123/ijspp.2026-0228",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42956728/",
+      "topics": [
+        "youth_strength"
+      ],
+      "population_and_design_pl": "25 młodych rugbystów; RCT, 6 tygodni",
+      "findings_and_limitations_pl": "Jump squat poprawiał część mocy, a sprint pogarszał się w obu grupach. Siła nie zastępuje własnej ekspozycji sprintu.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-006",
+      "title": "Effects of Combined Training on Physical Fitness According to Maturity in Male Youth Soccer Players.",
+      "authors": "Zghal F, Colson SS, Bouzid MA, Elloumi M, Laurencelle L, Behm DG, Granacher U, Chaouachi A.",
+      "journal": "Journal of strength and conditioning research",
+      "first_publication_date": "2026-05-28",
+      "pmid": "42213880",
+      "doi": "10.1519/jsc.0000000000005506",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42213880/",
+      "topics": [
+        "youth_strength"
+      ],
+      "population_and_design_pl": "35 młodych piłkarzy; program łączony, 7 tygodni",
+      "findings_and_limitations_pl": "Odpowiedź różniła się według grup dojrzewania. Kilka bodźców naraz; nie zgadujemy PHV z wieku.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-007",
+      "title": "The Effect of High-Velocity Elastic Band Training on Physical Performance in Youth Soccer Players.",
+      "authors": "Bartusevičius D, Stanislovaitienė J, Kamandulis S, Conte D.",
+      "journal": "Journal of strength and conditioning research",
+      "first_publication_date": "2026-05-29",
+      "pmid": "42213901",
+      "doi": "10.1519/jsc.0000000000005515",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42213901/",
+      "topics": [
+        "youth_strength"
+      ],
+      "population_and_design_pl": "18 piłkarzy około 15,5 roku; RCT, 20 tygodni",
+      "findings_and_limitations_pl": "Szybkie ruchy z gumą poprawiały część sprawności. Małe N; dołożono dawkę ponad piłkę, więc nie izoluje samej metody.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-008",
+      "title": "Effects of Contrast Training Using Holding Isometric and Ballistic Exercises on Physical Performance of Youth Male Soccer Players: A Randomized Controlled Study.",
+      "authors": "Ramchiary SK, Prasad S, Meto H, Dele G, Jarosz J, Thapa RK.",
+      "journal": "Journal of strength and conditioning research",
+      "first_publication_date": "2026-05-27",
+      "pmid": "42190152",
+      "doi": "10.1519/jsc.0000000000005510",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42190152/",
+      "topics": [
+        "youth_strength"
+      ],
+      "population_and_design_pl": "30 piłkarzy około 17,7 roku; RCT, 12 tygodni",
+      "findings_and_limitations_pl": "Kontrast utrzymań i balistyki poprawiał wybrane wyniki. Kontrola bez analogicznej siły; bez dowodu przewagi nad równą dawką tradycyjną.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-009",
+      "title": "Comparison of Functional and Traditional Strength and Power Training on U19 Soccer Players During Offseason in Norway: A Randomized Controlled Trial.",
+      "authors": "Engberg Treu Lassen L, Kersting UG, Pessoto Hirata R.",
+      "journal": "Journal of strength and conditioning research",
+      "first_publication_date": "2026-10-20",
+      "pmid": "42899830",
+      "doi": "10.1519/jsc.0000000000005676",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42899830/",
+      "topics": [
+        "soccer_strength"
+      ],
+      "population_and_design_pl": "33 piłkarzy U19; RCT, 8 tygodni",
+      "findings_and_limitations_pl": "Program funkcjonalny i tradycyjny podobnie poprawiał test strzelecki. Kontrola częściowo przestała trenować; metoda nie jest jedyną różnicą.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-010",
+      "title": "Physical fitness and hormonal responses to strength training in adolescent elite female soccer players.",
+      "authors": "Darragi M, Zouita ABM, Bousselmi M, Kerir A, Karamti HM, Saeidi A, Hackney AC, Granacher U, Zouhal H.",
+      "journal": "BMC sports science, medicine & rehabilitation",
+      "first_publication_date": "2026-07-06",
+      "pmid": "42410630",
+      "doi": "10.1186/s13102-026-01855-x",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42410630/",
+      "topics": [
+        "soccer_strength"
+      ],
+      "population_and_design_pl": "24 elitarne młode piłkarki; RCT, 12 tygodni",
+      "findings_and_limitations_pl": "Część siły i sprawności rosła bez zmian badanych hormonów. Mała próba, retrospektywna rejestracja; nie wnioskuj o hormonach użytkownika.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-011",
+      "title": "Implementing a Two-Season Traditional Strength Training Intervention: Chronic Adaptations in Physical Fitness and External Match Demands of High‑Performance Female Youth Soccer Players.",
+      "authors": "Bal SP, Raya-González J, Martínez-Aranda LM.",
+      "journal": "Research quarterly for exercise and sport",
+      "first_publication_date": "2026-04-27",
+      "pmid": "42044470",
+      "doi": "10.1080/02701367.2026.2659831",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42044470/",
+      "topics": [
+        "soccer_strength"
+      ],
+      "population_and_design_pl": "28 młodych piłkarek w dwóch zespołach; 2 sezony",
+      "findings_and_limitations_pl": "Regularna siła wiązała się z poprawą wyników. Przydział zespołowy i naturalny rozwój ograniczają przyczynowość; wspiera ciągłość.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-012",
+      "title": "French Contrast Training Can Improve Sprint Performance in Elite Male Youth Soccer Players Compared to Conventional Strength Training.",
+      "authors": "Thomsen JBS, Kilburn BA, Sørensen JW, Lundbye-Jensen J.",
+      "journal": "Research quarterly for exercise and sport",
+      "first_publication_date": "2026-04-20",
+      "pmid": "42007990",
+      "doi": "10.1080/02701367.2026.2649327",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42007990/",
+      "topics": [
+        "soccer_strength"
+      ],
+      "population_and_design_pl": "23 piłkarzy U19; porównanie 14 tygodni",
+      "findings_and_limitations_pl": "French contrast poprawiał część sprintu i RFD bardziej niż siła tradycyjna. Małe wyspecjalizowane N; brak przewagi we wszystkich testach.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-013",
+      "title": "Twelve Weeks of In-Season Strength Training at Moderate Intensities Improve Strength and Body Composition Without Increasing Muscle Damage or Inflammation in Elite Young Female Soccer Players.",
+      "authors": "Bousselmi M, Zouita ABM, Darragi M, Karamti HM, Zouita S, Del Coso J, Hmid AB, Hackney AC, Granacher U, Zouhal H.",
+      "journal": "Sports (Basel, Switzerland)",
+      "first_publication_date": "2026-04-01",
+      "pmid": "42043068",
+      "doi": "10.3390/sports14040136",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42043068/",
+      "topics": [
+        "soccer_strength"
+      ],
+      "population_and_design_pl": "24 młode piłkarki; RCT, 12 tygodni",
+      "findings_and_limitations_pl": "Siła rosła bez zmian spoczynkowych markerów po 48 godzinach. To nie dowód braku przeciążeń; możliwa wspólna próba z BW-010.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-014",
+      "title": "Acute effects of strength training interventions on subjective, neuromuscular, and biochemical fatigue parameters in elite youth soccer players.",
+      "authors": "Kadlubowski B, Keiner M, Wirth K, Csapo R.",
+      "journal": "Frontiers in sports and active living",
+      "first_publication_date": "2026-03-04",
+      "pmid": "41858994",
+      "doi": "10.3389/fspor.2026.1742295",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41858994/",
+      "topics": [
+        "soccer_strength",
+        "concurrent"
+      ],
+      "population_and_design_pl": "32 elitarni młodzi piłkarze; próba krzyżowa, 72 godziny",
+      "findings_and_limitations_pl": "Zmęczenie szczytowało po 24–48 godzinach. Nie ustala uniwersalnej przerwy 72 godzin; dawka i sąsiednie dni mają znaczenie.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-015",
+      "title": "A 3-day step taper enhances explosive power, repeated sprint, and small-sided game performance in soccer.",
+      "authors": "Fessi MS, Elloumi M, Bouzid MA, Ben Brahim M, Moalla W.",
+      "journal": "Frontiers in sports and active living",
+      "first_publication_date": "2026-05-13",
+      "pmid": "42211550",
+      "doi": "10.3389/fspor.2026.1811250",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42211550/",
+      "topics": [
+        "soccer_strength"
+      ],
+      "population_and_design_pl": "26 zawodowych piłkarzy jednego klubu; RCT",
+      "findings_and_limitations_pl": "Trzydniowy taper z mniejszym czasem poprawiał część wyników. To przygotowanie startowe po bloku, nie uniwersalny deload.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-016",
+      "title": "Effect of Low-Load and Low-Volume Squat Training Combined with Plyometrics During a Full Season on Physical Performance in Young Soccer Players.",
+      "authors": "Franco-Márquez F, Serrano-Cañadillas C, Yáñez-García JM, González-Badillo JJ, Rodríguez-Rosell D.",
+      "journal": "Sports (Basel, Switzerland)",
+      "first_publication_date": "2025-10-11",
+      "pmid": "41150495",
+      "doi": "10.3390/sports13100360",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41150495/",
+      "topics": [
+        "soccer_strength"
+      ],
+      "population_and_design_pl": "32 piłkarzy U15; porównanie przez 24 tygodnie",
+      "findings_and_limitations_pl": "Małoobjętościowa siła ze skokami wspierała wybrane testy. Program łączony; nie wyodrębnia jednej optymalnej dawki.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-017",
+      "title": "The effect of plyometric training on physical performance in youth soccer players: A randomized controlled trial with maturation status as a covariate.",
+      "authors": "Holík R, Krejčí J, De Ste Croix M, Lehnert M.",
+      "journal": "PloS one",
+      "first_publication_date": "2026-05-13",
+      "pmid": "42127087",
+      "doi": "10.1371/journal.pone.0349011",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42127087/",
+      "topics": [
+        "plyometric_maturation"
+      ],
+      "population_and_design_pl": "37 piłkarzy 10–18 lat; RCT z podgrupami PHV",
+      "findings_and_limitations_pl": "Skoki poprawiały część wyników bez istotnej potrójnej interakcji dojrzewania. Małe podgrupy; brak różnicy nie dowodzi identycznej odpowiedzi.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-018",
+      "title": "Effects of plyometric training on match running performance in elite U20 male soccer players at moderate altitude.",
+      "authors": "Feng L, Mcgarrigal LD, Bi X, Zhou X, Guan Y, Fan Z, Jin Y, Wu H, Liu H.",
+      "journal": "BMC sports science, medicine & rehabilitation",
+      "first_publication_date": "2026-09-24",
+      "pmid": "42786510",
+      "doi": "10.1186/s13102-026-01772-z",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42786510/",
+      "topics": [
+        "plyometric_maturation",
+        "taper"
+      ],
+      "population_and_design_pl": "18 piłkarzy U20 na wysokości; sekwencyjny program",
+      "findings_and_limitations_pl": "Po plyometrii rosły niektóre miary biegu w sparingach. Brak randomizacji i stała kolejność faz; nie gwarantuje transferu do meczu.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-019",
+      "title": "Comparison of Unilateral and Bilateral Jump Training on Physical Performance Adaptations in Prepubertal and Pubertal Youth Soccer Players.",
+      "authors": "Dardouri W, Hammami R, Mahmoudi A, van den Tillaar R.",
+      "journal": "Journal of functional morphology and kinesiology",
+      "first_publication_date": "2026-04-01",
+      "pmid": "42029514",
+      "doi": "10.3390/jfmk11020146",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42029514/",
+      "topics": [
+        "plyometric_maturation"
+      ],
+      "population_and_design_pl": "65 młodych piłkarzy; RCT, 8 tygodni",
+      "findings_and_limitations_pl": "Skoki jedno- i obunóż dawały różne zmiany zależne od testu. Bardzo młoda populacja; progresję wiąż z kontrolą ruchu.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-020",
+      "title": "Effect of Plyometric Training on Vertical Jump Height in Pre-Peak Height Velocity Boys and Girls Aged 9-11 Years.",
+      "authors": "McGarrigal LD, Feng L, Stebbings GK.",
+      "journal": "European journal of sport science",
+      "first_publication_date": "2026-04-01",
+      "pmid": "41904114",
+      "doi": "10.1002/ejsc.70159",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41904114/",
+      "topics": [
+        "plyometric_maturation"
+      ],
+      "population_and_design_pl": "40 dzieci 9–11 lat; program 6 tygodni",
+      "findings_and_limitations_pl": "Wzrosły CMJ i prędkość wybicia. Populacja poniżej wieku aplikacji; źródło pośrednie, bez kopiowania dawki.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-021",
+      "title": "Effects of plyometric jump training on measures of physical fitness and lower-limb asymmetries in male soccer players according to maturity: A randomized controlled trial.",
+      "authors": "Bouafif N, van den Tillaar R, Mahmoudi A, Chaouachi A, Hammami R.",
+      "journal": "PloS one",
+      "first_publication_date": "2026-01-15",
+      "pmid": "41538380",
+      "doi": "10.1371/journal.pone.0340863",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41538380/",
+      "topics": [
+        "plyometric_maturation",
+        "concurrent"
+      ],
+      "population_and_design_pl": "43 młodych piłkarzy; 8 tygodni",
+      "findings_and_limitations_pl": "Plyometria poprawiała część sprawności, ale nie konsekwentnie asymetrię. Nie obiecuj wyrównania kończyn i nie zwiększaj automatycznie objętości.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-022",
+      "title": "Effects of Resisted Versus Non-Resisted Sprint Training on Countermovement Jump and Sprint Force-Velocity Profile in Youth Footballers: A Randomised Controlled Trial.",
+      "authors": "Ulloa-Guerrero T, Ruiz JS, Rodríguez R, Tadeo-Herazo R, Lopez-Betancourt S, Palacio-Bedoya H, Gaviria-Alzate S, Rojas-Jaramillo A.",
+      "journal": "Sports (Basel, Switzerland)",
+      "first_publication_date": "2026-06-23",
+      "pmid": "42506801",
+      "doi": "10.3390/sports14070258",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42506801/",
+      "topics": [
+        "sprint_training"
+      ],
+      "population_and_design_pl": "44 piłkarzy dwóch kategorii; RCT, 6 tygodni",
+      "findings_and_limitations_pl": "Opór i bieg swobodny różnicowały profil adaptacji. Małe podgrupy, jeden klub, retrospektywna rejestracja; rozróżniaj akcelerację i MaxV.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-023",
+      "title": "Effects of Weighted Vest Sprint Training on Mid-Acceleration and Reactive Strength in Post-PHV Soccer Players.",
+      "authors": "Stojanović N, Majkić B, Vlašić J, Barišić V, Pekas D.",
+      "journal": "Sports (Basel, Switzerland)",
+      "first_publication_date": "2026-03-23",
+      "pmid": "41893615",
+      "doi": "10.3390/sports14030124",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41893615/",
+      "topics": [
+        "sprint_training"
+      ],
+      "population_and_design_pl": "50 piłkarzy po PHV; RCT, 11 tygodni",
+      "findings_and_limitations_pl": "Wybrane surowe korzyści kamizelki traciły istotność po korekcie wielu porównań. Bez podstaw do automatycznego dodawania obciążenia.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-024",
+      "title": "First Time Doing Resisted Sprint Training? Effects of Different Loads on the Force-Velocity Profile and Sprint Performance in Professional Male and Female Football Players and Referees: A Pilot Study.",
+      "authors": "Alonso-Callejo A, Garcia-Unanue J, Gallardo L, Felipe JL.",
+      "journal": "Sports health",
+      "first_publication_date": "2025-12-06",
+      "pmid": "41351337",
+      "doi": "10.1177/19417381251394722",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41351337/",
+      "topics": [
+        "sprint_training"
+      ],
+      "population_and_design_pl": "Zawodowi piłkarze, piłkarki i sędziowie; pilotaż",
+      "findings_and_limitations_pl": "Ciężki opór poprawiał wybrane miary sprintu. Mieszana próba, brak pełnego N w abstrakcie, zależność od tarcia; nie kopiuj procentów.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-025",
+      "title": "Resisted Sprint Training Improves Overground Sprint, Jump, and Isometric Mid-Thigh Pull Kinetics and Kinematics in Male Youth Ice Hockey Players: A Randomized Control Trial.",
+      "authors": "Dietze-Hermosa M, Montalvo S, Gonzalez MP, Briggs A, Dorgo S.",
+      "journal": "Journal of human kinetics",
+      "first_publication_date": "2025-05-29",
+      "pmid": "40837520",
+      "doi": "10.5114/jhk/200549",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/40837520/",
+      "topics": [
+        "sprint_training"
+      ],
+      "population_and_design_pl": "Młodzi hokeiści; RCT, 8 tygodni",
+      "findings_and_limitations_pl": "Większość efektów była podobna dla oporu i kontroli. Inna dyscyplina, brak pełnego N w abstrakcie; ograniczony transfer do piłki.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-026",
+      "title": "Volume-Equated High-Load Resisted Sprint Training: Determining the Longitudinal Effects of Varying Distance and Repetitions on Acceleration Performance in Rugby Players.",
+      "authors": "Botter A, Cross MR, Da Lozzo G, Floreani M, Samozino P, Samozino P, Morin JB, Rejc E.",
+      "journal": "Journal of strength and conditioning research",
+      "first_publication_date": "2025-05-16",
+      "pmid": "40441718",
+      "doi": "10.1519/jsc.0000000000005140",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/40441718/",
+      "topics": [
+        "sprint_training"
+      ],
+      "population_and_design_pl": "20 rugbystów U19; program 8 tygodni",
+      "findings_and_limitations_pl": "Przy wyrównanej objętości nie wykazano jasnej przewagi konfiguracji dystansów. Pilotaż bez kontroli bez treningu; nie jeden najlepszy układ odcinków.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-027",
+      "title": "The Effect of Cluster Sets and Accentuated Eccentric Loading on Vertical Jump Performance and Strategy During Lower-Body Complex Training.",
+      "authors": "Chae S, Jukic I, Merrigan JJ, Smith JC.",
+      "journal": "European journal of sport science",
+      "first_publication_date": "2026-05-01",
+      "pmid": "41927010",
+      "doi": "10.1002/ejsc.70166",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41927010/",
+      "topics": [
+        "cluster",
+        "contrast"
+      ],
+      "population_and_design_pl": "12 dorosłych obojga płci; losowa próba krzyżowa",
+      "findings_and_limitations_pl": "Klaster z akcentowaną ekscentryką pogarszał część późniejszych skoków. Zmieniano kilka elementów; nie łącz bezrefleksyjnie metod zaawansowanych.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-028",
+      "title": "Intra-set rest preserves barbell velocity during a free-weight back squat exercise by shifting energy system contribution.",
+      "authors": "Hobein E, Edel A, Jukic I, Ferrauti A, Wiewelhove T.",
+      "journal": "Experimental physiology",
+      "first_publication_date": "2026-03-19",
+      "pmid": "41853883",
+      "doi": "10.1113/ep093514",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41853883/",
+      "topics": [
+        "cluster"
+      ],
+      "population_and_design_pl": "6 trenujących osób; ostra próba krzyżowa",
+      "findings_and_limitations_pl": "Przerwy wewnątrz serii lepiej zachowywały prędkość. Bardzo małe N i model energetyczny; nie dowód przewagi sezonowej.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-029",
+      "title": "Performance and Perceptual Responses to Cluster Sets in Pneumatic-Resistance Exercises: Impact of Exercise Selection, Sex, and Strength.",
+      "authors": "Wang B, Halaki M, Tran DL, Xu B, Way KL, Davies TB, Davis GM, Fiatarone Singh MA, Hackett DA.",
+      "journal": "International journal of sports physiology and performance",
+      "first_publication_date": "2025-09-08",
+      "pmid": "40921430",
+      "doi": "10.1123/ijspp.2025-0042",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/40921430/",
+      "topics": [
+        "cluster"
+      ],
+      "population_and_design_pl": "47 trenujących dorosłych; losowa próba krzyżowa",
+      "findings_and_limitations_pl": "Klastry zachowywały część prędkości i obniżały wysiłek. Urządzenia pneumatyczne; część wyników zależała od ćwiczenia i siły.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-030",
+      "title": "Beyond traditional sets: A longitudinal comparison of cluster and superset strength training in male basketball players.",
+      "authors": "Janicijevic D, Cuevas-Aburto J, Zhang X, Gu Y, García-Ramos A.",
+      "journal": "Journal of sports sciences",
+      "first_publication_date": "2026-02-28",
+      "pmid": "41762201",
+      "doi": "10.1080/02640414.2026.2637204",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41762201/",
+      "topics": [
+        "cluster",
+        "superset"
+      ],
+      "population_and_design_pl": "30 koszykarzy amatorów; RCT, 6 tygodni",
+      "findings_and_limitations_pl": "Klastry i pary dawały podobne adaptacje; pary oszczędzały przerwy. Inna dyscyplina i krótki czas; brak uniwersalnej przewagi.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-031",
+      "title": "Effects of Cluster vs. Traditional Sets Complex Training on Physical Performance Adaptations of Trained Male Volleyball Players.",
+      "authors": "Rong B, Xiu C.",
+      "journal": "Journal of sports science & medicine",
+      "first_publication_date": "2024-12-01",
+      "pmid": "39649557",
+      "doi": "10.52082/jssm.2024.822",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/39649557/",
+      "topics": [
+        "cluster"
+      ],
+      "population_and_design_pl": "24 siatkarzy U19; RCT, grupy po 8",
+      "findings_and_limitations_pl": "Oba układy kompleksowe działały; część wyników sprzyjała klastrom. Małe podgrupy i wiele porównań; hormony nie walidują gotowości.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-032",
+      "title": "Cluster sets lead to better performance maintenance and minimize training-induced fatigue than traditional sets.",
+      "authors": "Páez-Maldonado JA, Cornejo-Daza PJ, Sánchez-Valdepeñas J, Sánchez-Moreno M, Piqueras-Sanchiz F, Ortega-Becerra M, Pareja-Blanco F.",
+      "journal": "Frontiers in sports and active living",
+      "first_publication_date": "2024-12-09",
+      "pmid": "39720156",
+      "doi": "10.3389/fspor.2024.1467348",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/39720156/",
+      "topics": [
+        "cluster"
+      ],
+      "population_and_design_pl": "22 mężczyzn; trzy ostre sesje przysiadów",
+      "findings_and_limitations_pl": "Częstsze przerwy zmniejszały część zmęczenia. Bez długoterminowych wyników urazów; doliczaj czas wewnątrz i pomiędzy seriami.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-033",
+      "title": "Countermovement jump and reactive strength index of artistic gymnasts improve more with cluster-based plyometric training than with traditional methods.",
+      "authors": "Feng D, Yang W, Li L.",
+      "journal": "Scientific reports",
+      "first_publication_date": "2024-10-21",
+      "pmid": "39433944",
+      "doi": "10.1038/s41598-024-76150-1",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/39433944/",
+      "topics": [
+        "cluster"
+      ],
+      "population_and_design_pl": "54 młode gimnastyczki; RCT, 8 tygodni",
+      "findings_and_limitations_pl": "Klastry poprawiały niektóre skoki bardziej niż tradycyjny układ. Specjalistyczny staż skoków; nie kopiuj do piłkarza nowicjusza.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-034",
+      "title": "Similar adaptive responses in the upper body physical performance of table tennis players following the traditional and cluster set resistance and plyometric training.",
+      "authors": "Zhu X, Suo P, Liu F.",
+      "journal": "Scientific reports",
+      "first_publication_date": "2024-11-14",
+      "pmid": "39543223",
+      "doi": "10.1038/s41598-024-78795-4",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/39543223/",
+      "topics": [
+        "cluster"
+      ],
+      "population_and_design_pl": "40 młodych tenisistów stołowych; pięć grup po 8",
+      "findings_and_limitations_pl": "Siła i plyometria dawały swoiste adaptacje bez jasnego dodatku samej struktury serii. Małe N i głównie góra ciała.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-035",
+      "title": "Cluster sets and traditional sets elicit similar muscular hypertrophy: a volume and effort-matched study in resistance-trained individuals.",
+      "authors": "Vargas-Molina S, García-Sillero M, Maroto-Izquierdo S, Baz-Valle E, Bautista-Mayorga B, Murri M, Schoenfeld BJ, Benítez-Porres J.",
+      "journal": "European journal of applied physiology",
+      "first_publication_date": "2025-02-11",
+      "pmid": "39932536",
+      "doi": "10.1007/s00421-025-05712-6",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/39932536/",
+      "topics": [
+        "cluster"
+      ],
+      "population_and_design_pl": "10 trenujących dorosłych; randomizacja kończyn, 8 tygodni",
+      "findings_and_limitations_pl": "Hipertrofia była zbliżona po wyrównaniu wysiłku i objętości. Małe N i maszyny; klaster nie uzasadnia podwyżki ciężaru.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-036",
+      "title": "Effects of Complex, Plyometric, and Traditional Resistance Training on Neuromuscular Performance in Highly Trained Male Soccer Players: A Randomized Controlled Trial.",
+      "authors": "El-Ashker S, Chaabene H, Chamari K, Saeterbakken AH, Behm DG, Prieske O.",
+      "journal": "Sports medicine - open",
+      "first_publication_date": "2026-03-16",
+      "pmid": "41838377",
+      "doi": "10.1186/s40798-026-01002-3",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41838377/",
+      "topics": [
+        "contrast",
+        "isometric"
+      ],
+      "population_and_design_pl": "113 wytrenowanych piłkarzy; RCT, 8 tygodni",
+      "findings_and_limitations_pl": "Różne programy poprawiały siłę, kompleksowy niektóre parametry bardziej. Testy laboratoryjne; nie dowód mniejszej urazowości i lepszej gry.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-037",
+      "title": "Tempo-specific complex training improves lower-limb strength and neuromuscular function in male collegiate soccer players: an experimental study.",
+      "authors": "Gao M, Li E.",
+      "journal": "BMC sports science, medicine & rehabilitation",
+      "first_publication_date": "2026-03-06",
+      "pmid": "41792800",
+      "doi": "10.1186/s13102-026-01631-x",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41792800/",
+      "topics": [
+        "contrast",
+        "isometric"
+      ],
+      "population_and_design_pl": "30 piłkarzy akademickich; trzy tempa, RCT",
+      "findings_and_limitations_pl": "Tempo różnicowało adaptacje; wolna ekscentryka nie poprawiała każdego skoku. Małe grupy; po zmianie tempa dawka nie jest porównywalna.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-038",
+      "title": "The Effects of In-Season Complex Contrast Training on Anaerobic Performance Metrics in Elite Female Soccer Players.",
+      "authors": "Gepfert M, Terbalyan A, Roczniok R, Gołaś A.",
+      "journal": "Journal of strength and conditioning research",
+      "first_publication_date": "2025-12-05",
+      "pmid": "41359895",
+      "doi": "10.1519/jsc.0000000000005371",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41359895/",
+      "topics": [
+        "contrast"
+      ],
+      "population_and_design_pl": "21 elitarnych piłkarek; obserwacja sezonu",
+      "findings_and_limitations_pl": "Część parametrów poprawiała się w środku sezonu. Brak grupy porównawczej; nie przypisuj efektu wyłącznie kontrastowi.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-039",
+      "title": "Effects of 6 weeks of complex training on athletic performance and post-activation performance enhancement effect magnitude in soccer players: a cross-sectional randomized study.",
+      "authors": "Krzysztofik M, Jarosz J, Urbański R, Aschenbrenner P, Stastny P.",
+      "journal": "Biology of sport",
+      "first_publication_date": "2024-08-08",
+      "pmid": "39758167",
+      "doi": "10.5114/biolsport.2025.139849",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/39758167/",
+      "topics": [
+        "contrast"
+      ],
+      "population_and_design_pl": "24 piłkarzy; dwie losowane intensywności, 6 tygodni",
+      "findings_and_limitations_pl": "Wyższa intensywność pomagała niektórym sprintom i skokom; reakcja PAPE inna. Małe grupy; PAPE nie jest gwarantowane.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-040",
+      "title": "Autoregulation by \"Repetitions in Reserve\" Leads to Greater Improvements in Strength Over a 12-Week Training Program Than Fixed Loading.",
+      "authors": "Graham T, Cleather DJ.",
+      "journal": "Journal of strength and conditioning research",
+      "first_publication_date": "2021-09-01",
+      "pmid": "31009432",
+      "doi": "10.1519/jsc.0000000000003164",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/31009432/",
+      "topics": [
+        "failure_rir",
+        "progression"
+      ],
+      "population_and_design_pl": "31 doświadczonych mężczyzn; dwa programy przysiadu, 12 tygodni",
+      "findings_and_limitations_pl": "Autoregulacja RIR dawała większy przyrost siły niż stałe procenty. Jedno badanie dorosłych; nie waliduje progu dwóch sesji i kroku 2,5%.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "official publisher abstract; Europe PMC had no abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-041",
+      "title": "Can In-Season Nordic Hamstring Exercise Microdosing Maintain Eccentric Hamstring Strength?",
+      "authors": "Franke RA, Tremea CEM, Rebolledo-Cobos RC, Nakamura FY, Baroni BM.",
+      "journal": "International journal of sports medicine",
+      "first_publication_date": "2026-10-30",
+      "pmid": "42887562",
+      "doi": "10.1055/a-2982-7578",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42887562/",
+      "topics": [
+        "nordic_eccentric"
+      ],
+      "population_and_design_pl": "34 sportowców po przygotowaniu; randomizacja fazy sezonu",
+      "findings_and_limitations_pl": "Jedna seria sześciu Nordiców tygodniowo nie utrzymała uzyskanej siły. To jeden protokół; mikrodawkowanie nie gwarantuje podtrzymania.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-042",
+      "title": "Dose-response characteristics of the Nordic hamstring exercise: Total impulse versus total repetitions.",
+      "authors": "Ema R, Suizu K, Soga T, Morikawa I, Akagi R.",
+      "journal": "Journal of sports sciences",
+      "first_publication_date": "2026-08-18",
+      "pmid": "42610665",
+      "doi": "10.1080/02640414.2026.2717029",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42610665/",
+      "topics": [
+        "nordic_eccentric"
+      ],
+      "population_and_design_pl": "21 zdrowych mężczyzn; trzy grupy, 6 tygodni",
+      "findings_and_limitations_pl": "Impuls lepiej niż same powtórzenia opisywał część adaptacji NHE. Małe N; telefon bez czujnika nie mierzy impulsu siły.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-043",
+      "title": "Low-volume Nordic hamstring training improves change-of-direction performance more than higher volumes in youth soccer players.",
+      "authors": "Hammami R, Gene-Morales J, Jiménez-Martínez P, Mahmoudi A, Rebai H, Alix-Fages C, García-Ramos A, Janicijevic D, Colado JC.",
+      "journal": "Frontiers in sports and active living",
+      "first_publication_date": "2026-07-03",
+      "pmid": "42491631",
+      "doi": "10.3389/fspor.2026.1818507",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42491631/",
+      "topics": [
+        "nordic_eccentric"
+      ],
+      "population_and_design_pl": "60 piłkarzy około 13,7 roku; RCT, 8 tygodni",
+      "findings_and_limitations_pl": "Mniejsze objętości NHE sprzyjały części COD i akceleracji. Bez kontroli bez NHE i bez pomiaru urazów; więcej nie zawsze lepiej.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-044",
+      "title": "Minimal Role of Hamstring Hypertrophy in Strength Transfer Between Nordic Hamstring and Stiff-Leg Deadlift: A Blinded Randomized Controlled Trial.",
+      "authors": "Morin T, Doguet V, Nordez A, Caillet A, Lacourpaille L.",
+      "journal": "Journal of strength and conditioning research",
+      "first_publication_date": "2025-07-09",
+      "pmid": "40644669",
+      "doi": "10.1519/jsc.0000000000005159",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/40644669/",
+      "topics": [
+        "nordic_eccentric"
+      ],
+      "population_and_design_pl": "36 dorosłych bez stażu; zaślepiony RCT, 9 tygodni",
+      "findings_and_limitations_pl": "NHE i martwy ciąg dawały swoiste efekty. Nie badano urazów; zgięcie kolana i wyprost biodra pozostają odrębnymi funkcjami.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-045",
+      "title": "Effects of Combined Nordic Hamstring and Speed Deceleration Training on Measures of Physical Fitness in Male Youth Soccer Players.",
+      "authors": "Negra Y, Sammoud S, Bouguezzi R, Hachana Y, Chaabene H.",
+      "journal": "Journal of functional morphology and kinesiology",
+      "first_publication_date": "2026-02-19",
+      "pmid": "41900491",
+      "doi": "10.3390/jfmk11010084",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41900491/",
+      "topics": [
+        "nordic_eccentric"
+      ],
+      "population_and_design_pl": "36 młodych piłkarzy; RCT, 8 tygodni",
+      "findings_and_limitations_pl": "NHE z hamowaniem poprawiały część sprawności. Interwencja wieloskładnikowa; nie przypisuj całości Nordicowi ani nie pomijaj dawki hamowania.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-046",
+      "title": "The effects of three hamstring programmes on strength and sprinting performance in female footballers: A randomised controlled trial.",
+      "authors": "Whyte E, O'Connor S, Connolly A, Hession E, Kennedy J, O'Boyle B, Thorp J, Timmons S, Burke A.",
+      "journal": "PloS one",
+      "first_publication_date": "2026-02-24",
+      "pmid": "41734153",
+      "doi": "10.1371/journal.pone.0342529",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41734153/",
+      "topics": [
+        "nordic_eccentric"
+      ],
+      "population_and_design_pl": "35 piłkarek około 20,9 roku; trzy programy, RCT",
+      "findings_and_limitations_pl": "Siła rosła bez wyraźnych różnic grup i poprawy sprintu. Cztery tygodnie; mostek nie zastępuje swoistego sprintu.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-047",
+      "title": "Exploring the effects of combined Nordic and reverse Nordic hamstring exercises on physical fitness in prepubertal male soccer players.",
+      "authors": "Sammoud S, Negra Y, Bouguezzi R, Uthoff A, Moran J, Chaabene H.",
+      "journal": "Frontiers in sports and active living",
+      "first_publication_date": "2026-02-27",
+      "pmid": "41835020",
+      "doi": "10.3389/fspor.2026.1717594",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41835020/",
+      "topics": [
+        "nordic_eccentric"
+      ],
+      "population_and_design_pl": "34 piłkarzy około 12,4 roku; randomizacja grupowa",
+      "findings_and_limitations_pl": "Program NHE z reverse Nordic poprawiał wybrane wyniki. Kilka bodźców; brak urazów w małej próbie nie ustala bezpieczeństwa populacji.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-048",
+      "title": "Less pain, same gain? A randomized controlled trial comparing assisted- versus non-assisted Nordic Hamstring exercise training in elite youth football players.",
+      "authors": "Ishøi L, Meincke S, Lund AP, Stenholm A, DeLang M, Thornton K, Thorborg K.",
+      "journal": "Physical therapy in sport : official journal of the Association of Chartered Physiotherapists in Sports Medicine",
+      "first_publication_date": "2025-03-03",
+      "pmid": "40056728",
+      "doi": "10.1016/j.ptsp.2025.02.007",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/40056728/",
+      "topics": [
+        "nordic_eccentric"
+      ],
+      "population_and_design_pl": "31 piłkarzy U14/U15; RCT z zaślepioną oceną",
+      "findings_and_limitations_pl": "Asysta dawała zbliżony przyrost siły z mniejszą bolesnością i wysiłkiem. Jedna akademia; zachowuj opis asysty i zakresu.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-049",
+      "title": "Eccentric Hamstring Torque Production and Muscle Activity in Unassisted Versus Assisted Nordic Hamstring Exercises.",
+      "authors": "Demeusoy P, Corcelle B, Bontemps B, Marchand F, Monjo F, Baize D, Da Silva F, Piponnier E.",
+      "journal": "Journal of sport rehabilitation",
+      "first_publication_date": "2025-07-10",
+      "pmid": "40639798",
+      "doi": "10.1123/jsr.2024-0251",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/40639798/",
+      "topics": [
+        "nordic_eccentric"
+      ],
+      "population_and_design_pl": "12 osób; losowo wykonywane warianty pojedynczych ruchów",
+      "findings_and_limitations_pl": "Asysta mogła zwiększać moment i zakres pracy. Ostra biomechanika; mniejsza pomoc nie zawsze oznacza lepszy bodziec treningowy.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-050",
+      "title": "Effects of Nordic Hamstring Exercise Set Configuration on Eccentric Hamstring Strength Changes in Youth Female Athletes.",
+      "authors": "Bounias T, Henry G, Goswami R, Moran J, Behm DG, Drury B.",
+      "journal": "Journal of strength and conditioning research",
+      "first_publication_date": "2025-06-10",
+      "pmid": "40489412",
+      "doi": "10.1519/jsc.0000000000005139",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/40489412/",
+      "topics": [
+        "nordic_eccentric"
+      ],
+      "population_and_design_pl": "35 młodych zawodniczek; RCT, 6 tygodni",
+      "findings_and_limitations_pl": "Dwa układy NHE poprawiały część siły, bez poprawy przy każdym kącie. Nie badano zapobiegania ACL; porównuj zgodne kąty.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-051",
+      "title": "Six weeks of isometric resistance training led to evidence of corticospinal but not reticulospinal adaptation in previously untrained adult males.",
+      "authors": "Walker S, Keogh KEJ, Tanel M, Baker ASW, Baker AME, Kidgell DJ, Baker SN.",
+      "journal": "Experimental brain research",
+      "first_publication_date": "2026-09-03",
+      "pmid": "42690424",
+      "doi": "10.1007/s00221-026-07391-x",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42690424/",
+      "topics": [
+        "isometric"
+      ],
+      "population_and_design_pl": "39 niewytrenowanych mężczyzn; RCT, 6 tygodni",
+      "findings_and_limitations_pl": "Izometria zwiększała siłę i RFD z różnymi markerami nerwowymi. Laboratoryjne, niejednoznaczne wskaźniki; aplikacja nie mierzy pobudzenia nerwowego.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-052",
+      "title": "Plyometrics with reactive agility or isometrics: divergent effects on change-of-direction ability, sprint, and strength adaptations in adolescent female handball players.",
+      "authors": "Rebhi S, Cherni Y, Hammami M, Oranchuk DJ, Schwesig R, Chelly MS.",
+      "journal": "Frontiers in bioengineering and biotechnology",
+      "first_publication_date": "2026-06-17",
+      "pmid": "42382673",
+      "doi": "10.3389/fbioe.2026.1765655",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42382673/",
+      "topics": [
+        "isometric"
+      ],
+      "population_and_design_pl": "36 piłkarek ręcznych około 14 lat; RCT",
+      "findings_and_limitations_pl": "Izometria sprzyjała sile izometrycznej, reaktywność innym testom COD. Brak poprawy każdego wyniku; metody mają odrębne cele.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-053",
+      "title": "Deceleration specific isometric exercises acutely enhance change of direction performance in male youth academy soccer players.",
+      "authors": "Smoliga JE, Oliva V, Novosád A, Suja M, Harper DJ.",
+      "journal": "Biology of sport",
+      "first_publication_date": "2026-01-01",
+      "pmid": "42422389",
+      "doi": "10.5114/biolsport.2026.159569",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42422389/",
+      "topics": [
+        "isometric"
+      ],
+      "population_and_design_pl": "16 piłkarzy U16/U17; powtarzane próby z przeciwną kolejnością",
+      "findings_and_limitations_pl": "Po izometrii poprawiał się COD w określonych minutach. Efekt ostry; nie gwarantuje powtarzalnego PAPE ani długotrwałej poprawy.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-054",
+      "title": "Acute Optimization of Squat Jump Performance in Trained Collegiate Sprinters through Knee Angle-Specific Isometric Training.",
+      "authors": "Fan P, Wang T, Kim Y, Zhao Z, Kim S.",
+      "journal": "Journal of human kinetics",
+      "first_publication_date": "2025-11-20",
+      "pmid": "42712818",
+      "doi": "10.5114/jhk/208832",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42712818/",
+      "topics": [
+        "isometric"
+      ],
+      "population_and_design_pl": "12 sprinterów akademickich; losowa próba krzyżowa",
+      "findings_and_limitations_pl": "Kąt izometrii różnicował prędkościowe wyniki skoku bez poprawy wszystkich miar mocy. Nie badano podnoszenia ciężaru; primer wymaga nadzoru.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-055",
+      "title": "Comparative Adaptations to Different Leg Extension Set-termination Strategies in Trained Men and Women: A Unilateral Within-Participant Study.",
+      "authors": "Vasconcelos T, Ruivo A, Refalo MC, Chaves Lucas G, Vasconcelos PR, Brito JP, Vilaça-Alves J, Oliveira R.",
+      "journal": "Journal of strength and conditioning research",
+      "first_publication_date": "2026-08-19",
+      "pmid": "42617172",
+      "doi": "10.1519/jsc.0000000000005494",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42617172/",
+      "topics": [
+        "failure_rir"
+      ],
+      "population_and_design_pl": "19 trenujących dorosłych; randomizacja kończyn, 8 tygodni",
+      "findings_and_limitations_pl": "Upadek i RIR dawały zbliżone efekty wyprostu kolana. Mała próba, możliwy wspólny zbiór z BW-057; nie niezależne potwierdzenia.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-056",
+      "title": "Velocity-Based Monitoring Lacks Both Accuracy and Applicability for Estimating Repetitions in Reserve During the Hexagonal Bar Deadlift.",
+      "authors": "Chen W, Zhang H, Li R, Chen Z, Zheng J, Zhang X, Li Z.",
+      "journal": "Journal of strength and conditioning research",
+      "first_publication_date": "2026-06-22",
+      "pmid": "42328880",
+      "doi": "10.1519/jsc.0000000000005549",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42328880/",
+      "topics": [
+        "failure_rir"
+      ],
+      "population_and_design_pl": "19 wytrenowanych mężczyzn; model prędkości i RIR",
+      "findings_and_limitations_pl": "Modele trap bar deadlift nie spełniały łącznie kryteriów dokładności i użyteczności. Jedno ćwiczenie; nie wyliczaj RIR z ogólnego wzoru.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-057",
+      "title": "Elbow Flexor Adaptations to Failure Versus Repetitions-in-Reserve Training: A Unilateral Within-Participant Study in Resistance-Trained Adults.",
+      "authors": "Vasconcelos T, Alves AR, Refalo MC, Lucas GC, Vasconcelos PR, Paulo Brito J, Casanova F, Vilaça-Alves J, Oliveira R.",
+      "journal": "Muscles (Basel, Switzerland)",
+      "first_publication_date": "2026-08-30",
+      "pmid": "42784046",
+      "doi": "10.3390/muscles5030061",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42784046/",
+      "topics": [
+        "failure_rir"
+      ],
+      "population_and_design_pl": "19 trenujących dorosłych; randomizacja kończyn, 8 tygodni",
+      "findings_and_limitations_pl": "Upadek i RIR bez jasnej przewagi dla zginaczy łokcia. Małe N, możliwa ta sama próba co BW-055; pośrednie dla nóg piłkarza.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-058",
+      "title": "Time course of muscle hypertrophy with and without progressive overload.",
+      "authors": "Ferrari O, Silva DG, Camargo JBB, Bergamasco JGA, Bittencourt D, Iasulaitis M, Pereira BKR, Melo ACC, Nacafucasaco ETA, Rebelatto M, Libardi CA.",
+      "journal": "International journal of sports medicine",
+      "first_publication_date": "2026-10-15",
+      "pmid": "42880344",
+      "doi": "10.1055/a-2980-6473",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42880344/",
+      "topics": [
+        "failure_rir"
+      ],
+      "population_and_design_pl": "31 nowicjuszy; randomizacja kończyn, 12 tygodni",
+      "findings_and_limitations_pl": "Rosnący ciężar pomagał utrzymać wysiłek i późną adaptację mięśnia. Wyprost kolana; różnice objętości i wysiłku ograniczają izolację progresji.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-059",
+      "title": "Effects of different resistance training loads, exercises, and volume-regulated proximities to failure on acute and short-term neuromuscular, perceptual, and metabolic responses.",
+      "authors": "Cowley N, Refalo M, Nicholson V, Timmins R, Munteanu G, Weakley J.",
+      "journal": "Journal of sports sciences",
+      "first_publication_date": "2026-07-15",
+      "pmid": "42458937",
+      "doi": "10.1080/02640414.2026.2703381",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42458937/",
+      "topics": [
+        "failure_rir"
+      ],
+      "population_and_design_pl": "18 osób; sześć sesji w losowej kolejności",
+      "findings_and_limitations_pl": "Bliżej upadku rosły wskaźniki zmęczenia zależnie od ćwiczenia i ciężaru. Efekty ostre; nie uzasadnia jednego RIR dla wszystkich ruchów.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-060",
+      "title": "Exercise type, training load, velocity loss threshold, and sets affect the relationship between lifting velocity and perceived repetitions in reserve in strength-trained individuals.",
+      "authors": "Paulsen G, Myrholt R, Mentzoni F, Solberg PA.",
+      "journal": "PeerJ",
+      "first_publication_date": "2025-08-15",
+      "pmid": "40832580",
+      "doi": "10.7717/peerj.19797",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/40832580/",
+      "topics": [
+        "failure_rir"
+      ],
+      "population_and_design_pl": "19 trenujących dorosłych; pomiary przez 6 tygodni",
+      "findings_and_limitations_pl": "Prędkość i RIR nie były zamienne, zależały od obciążenia i serii. Korelacje nie walidują automatu; nie zgaduj pomiaru z zegara.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-061",
+      "title": "Objective Accuracy in Estimating Repetitions in Reserve in the Back Squat: An Analysis between Experienced vs. Novice Subjects.",
+      "authors": "Droguett FAB, Festa RR, Quintana NAT, Gomez-Lopez J, Ojeda ÁH, Farias-Valenzuela C, Giakoni-Ramírez F, Jofré-Saldía E.",
+      "journal": "Journal of human kinetics",
+      "first_publication_date": "2025-11-19",
+      "pmid": "42211811",
+      "doi": "10.5114/jhk/205218",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42211811/",
+      "topics": [
+        "failure_rir"
+      ],
+      "population_and_design_pl": "16 dorosłych o różnym stażu; próba trafności",
+      "findings_and_limitations_pl": "Nie wykazano różnicy dokładności RIR między grupami. Małe N i Smith; brak różnicy nie dowodzi równoważności, RIR pozostaje deklaracją.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-062",
+      "title": "Without Fail: Muscular Adaptations in Single-Set Resistance Training Performed to Failure or with Repetitions-in-Reserve.",
+      "authors": "Hermann T, Mohan AE, Enes A, Sapuppo M, Piñero A, Zamanzadeh A, Roberts M, Coleman M, Korakakis PA, Wolf M, Refalo M, Swinton PA, Schoenfeld BJ.",
+      "journal": "Medicine and science in sports and exercise",
+      "first_publication_date": "2025-04-18",
+      "pmid": "40249908",
+      "doi": "10.1249/mss.0000000000003728",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/40249908/",
+      "topics": [
+        "failure_rir"
+      ],
+      "population_and_design_pl": "42 trenujących dorosłych; RCT, 8 tygodni",
+      "findings_and_limitations_pl": "Jednoseryjne programy dawały przyrost siły także z zapasem. Część hipertrofii sprzyjała upadkowi; nie dowód optimum dla piłkarza.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-063",
+      "title": "The Effects of Percentage-Based, Rating of Perceived Exertion, Repetitions in Reserve, and Velocity-Based Training on Performance and Fatigue Responses.",
+      "authors": "Cowley N, Nicholson V, Timmins R, Munteanu G, Wood T, García-Ramos A, Owen C, Weakley J.",
+      "journal": "Journal of strength and conditioning research",
+      "first_publication_date": "2025-01-07",
+      "pmid": "39787033",
+      "doi": "10.1519/jsc.0000000000005026",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/39787033/",
+      "topics": [
+        "failure_rir"
+      ],
+      "population_and_design_pl": "15 dorosłych; losowa próba krzyżowa czterech metod",
+      "findings_and_limitations_pl": "RIR i VBT zachowywały część bieżącej jakości bez przewagi każdego wskaźnika po 24 godzinach. Małe N; autoregulacja nie jest gwarancją.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-064",
+      "title": "Effects of Velocity Loss Programming in the Bench Press on Strength Gains and Hypertrophy.",
+      "authors": "Mariscal Campón G, Asín Izquierdo I, Cornejo Daza PJ, Ortega Becerra M, Pareja Blanco F.",
+      "journal": "International journal of sports medicine",
+      "first_publication_date": "2026-05-20",
+      "pmid": "42161253",
+      "doi": "10.1055/a-2860-6331",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42161253/",
+      "topics": [
+        "velocity_loss"
+      ],
+      "population_and_design_pl": "24 trenujących mężczyzn; RCT, 8 tygodni",
+      "findings_and_limitations_pl": "Stały i rosnący próg utraty prędkości dawały poprawę bez jasnej interakcji. Nie eskaluj utraty jakości tylko dlatego, że mija tydzień.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-065",
+      "title": "Comparative effects of four back squat prescription models on explosive performance and sprint outcomes in resistance-trained men.",
+      "authors": "Wang J, Guo H, Zhang L, Dong Q.",
+      "journal": "Frontiers in physiology",
+      "first_publication_date": "2026-06-11",
+      "pmid": "42369605",
+      "doi": "10.3389/fphys.2026.1871525",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42369605/",
+      "topics": [
+        "velocity_loss"
+      ],
+      "population_and_design_pl": "52 trenujących mężczyzn; RCT, 4 tygodnie",
+      "findings_and_limitations_pl": "Niektóre pakiety prędkościowe dawały lepsze wybrane testy. Różne składowe i brak pełnej rzeczywistej dawki; nie efekt jednego progu.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-066",
+      "title": "Effect of different velocity loss thresholds during a resistance training program on jump and sprint performances in trained female athletes.",
+      "authors": "Kambara H, Sakamoto K, Watanabe Y, Neya M.",
+      "journal": "PloS one",
+      "first_publication_date": "2026-04-13",
+      "pmid": "41973744",
+      "doi": "10.1371/journal.pone.0347298",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41973744/",
+      "topics": [
+        "velocity_loss"
+      ],
+      "population_and_design_pl": "15 koszykarek; RCT, 8 tygodni",
+      "findings_and_limitations_pl": "Oba małe progi utraty prędkości pomagały bez istotnych różnic grup. Małe N; trendy nie ustalają przewagi 10% nad 20%.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-067",
+      "title": "Impact of Prior Fatigue on Velocity Loss as a Set-Termination Criterion in the Bench Press Exercise.",
+      "authors": "Rodiles-Guerrero L, Bachero-Mena B, Miguel Sánchez- M.",
+      "journal": "Journal of human kinetics",
+      "first_publication_date": "2026-02-01",
+      "pmid": "42051618",
+      "doi": "10.5114/jhk/214212",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42051618/",
+      "topics": [
+        "velocity_loss"
+      ],
+      "population_and_design_pl": "14 mężczyzn; ostre sesje wyciskania",
+      "findings_and_limitations_pl": "Wstępne zmęczenie zmieniało trafność relacji prędkości i wykorzystanych powtórzeń. Jedno ćwiczenie; uwzględniaj wcześniejszą pracę i kontekst.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-068",
+      "title": "Optimizing Strength and Hypertrophy: The Combined Effect of Intensity and Velocity Loss Thresholds in Bench Press Training.",
+      "authors": "Pareja-Blanco F, Sánchez-Valdepeñas J, Cornejo-Daza PJ, Rodiles-Guerrero L.",
+      "journal": "Medicine and science in sports and exercise",
+      "first_publication_date": "2026-03-24",
+      "pmid": "41872733",
+      "doi": "10.1249/mss.0000000000003988",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41872733/",
+      "topics": [
+        "velocity_loss"
+      ],
+      "population_and_design_pl": "158 trenujących mężczyzn; RCT, 12 grup",
+      "findings_and_limitations_pl": "Obciążenie i utrata prędkości różnicowały siłę, masę i wytrzymałość. Wyciskanie dorosłych; nie przenoś jednego progu na młode nogi.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-069",
+      "title": "A Comparison of Traditional and Autoregulated Periodized Strength Training in Resistance-Trained Men: A Randomized, Crossover Study.",
+      "authors": "Barnes MJ, Fraser J, Pritchard H, Cochrane DJ.",
+      "journal": "Journal of strength and conditioning research",
+      "first_publication_date": "2026-07-24",
+      "pmid": "42497844",
+      "doi": "10.1519/jsc.0000000000005617",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42497844/",
+      "topics": [
+        "periodization"
+      ],
+      "population_and_design_pl": "8 trenujących mężczyzn; losowa próba krzyżowa bloków",
+      "findings_and_limitations_pl": "Autoregulacja na maksymalnej serii nie miała jednolitej przewagi. Małe N, możliwy carry-over; nie wymagaj testu do upadku przed treningiem.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-070",
+      "title": "Scheduling Repeated-Sprint Training on Different Microcycle Days in Professional Soccer Players: A Randomized Crossover Study.",
+      "authors": "García-Santamaría A, Padrón-Cabo A, Fernández-Penedo D, Costa PB, Rey E.",
+      "journal": "Journal of strength and conditioning research",
+      "first_publication_date": "2026-06-22",
+      "pmid": "42329031",
+      "doi": "10.1519/jsc.0000000000005572",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42329031/",
+      "topics": [
+        "periodization"
+      ],
+      "population_and_design_pl": "17 zawodowych piłkarzy; losowa próba krzyżowa mikrocykli",
+      "findings_and_limitations_pl": "Duża dawka RSA bliżej meczu zwiększała część bolesności. 900 metrów pracy; nie utożsamiaj z jakościowym sprintem z pełną przerwą.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-071",
+      "title": "Progressively Increased Range of Motion Confers Similar Strength Improvements but Not Bar Kinematics as Full Range of Motion Bench Press.",
+      "authors": "Landram MJ, Manturi P, Zipagan M, Gerstle EE.",
+      "journal": "Journal of functional morphology and kinesiology",
+      "first_publication_date": "2026-02-11",
+      "pmid": "41718200",
+      "doi": "10.3390/jfmk11010072",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41718200/",
+      "topics": [
+        "periodization"
+      ],
+      "population_and_design_pl": "16 doświadczonych mężczyzn; RCT, 4 tygodnie",
+      "findings_and_limitations_pl": "Rosnący zakres i pełny zakres poprawiały siłę z innymi zmianami mechaniki. Specjalistyczne wyciskanie; zakres musi być zgodny przy porównaniu.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-072",
+      "title": "Comparative Effects of 2 Different Frequencies of Resistance Training in an Integral Periodization Approach on High-Intensity Actions and Noncontact Injuries in Young Trained Soccer Players.",
+      "authors": "Jimenez-Iglesias J, Castro-Piñero J, Landi-Fernández M, Perez-Bey A, de la Pascua-Roca E, Gonzalo-Skok O.",
+      "journal": "International journal of sports physiology and performance",
+      "first_publication_date": "2025-08-23",
+      "pmid": "40840554",
+      "doi": "10.1123/ijspp.2024-0518",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/40840554/",
+      "topics": [
+        "periodization"
+      ],
+      "population_and_design_pl": "40 piłkarzy około 16,6 roku; RCT przez sezon",
+      "findings_and_limitations_pl": "Dwie sesje poprawiały część wyników bardziej niż jedna. Małe N; nie dowodzi obowiązku dwóch dodatkowych siłowni ponad trening klubowy.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-073",
+      "title": "Effects of deload periods in resistance training on muscle hypertrophy and strength endurance in untrained young men using a randomized within subject design.",
+      "authors": "Pancar Z, Ilhan MT, Darendeli MK, Karaca B, Ikidag MA, Tasdogan AM, Ulema MS, Alkhamees NH, Al-Mhanna SB, Batrakoulis A.",
+      "journal": "Scientific reports",
+      "first_publication_date": "2026-02-24",
+      "pmid": "41730991",
+      "doi": "10.1038/s41598-026-40612-5",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41730991/",
+      "topics": [
+        "taper_deload"
+      ],
+      "population_and_design_pl": "19 niewytrenowanych mężczyzn; randomizacja kończyn",
+      "findings_and_limitations_pl": "Ograniczona objętość i częstotliwość w dwóch tygodniach nie pogorszyły istotnie efektów. Izolowane ruchy; nie dowód uniwersalnego cyklu 3:1.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-074",
+      "title": "Gaining more from doing less? The effects of a one-week deload period during supervised resistance training on muscular adaptations.",
+      "authors": "Coleman M, Burke R, Augustin F, Piñero A, Maldonado J, Fisher JP, Israetel M, Androulakis Korakakis P, Swinton P, Oberlin D, Schoenfeld BJ.",
+      "journal": "PeerJ",
+      "first_publication_date": "2024-01-22",
+      "pmid": "38274324",
+      "doi": "10.7717/peerj.16777",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/38274324/",
+      "topics": [
+        "taper_deload"
+      ],
+      "population_and_design_pl": "39 trenujących dorosłych; RCT, 9 tygodni",
+      "findings_and_limitations_pl": "Tydzień pełnej przerwy nie poprawiał hipertrofii, ciągły trening sprzyjał sile. Nie badano każdej wersji deloadu; nie wymuszaj kalendarzowej przerwy.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-075",
+      "title": "The effects of resistance training to near failure on strength, hypertrophy, and motor unit adaptations in previously trained adults.",
+      "authors": "Ruple BA, Plotkin DL, Smith MA, Godwin JS, Sexton CL, McIntosh MC, Kontos NJ, Beausejour JP, Pagan JI, Rodriguez JP, Sheldon D, Knowles KS, Libardi CA, Young KC, Stock MS, Roberts MD.",
+      "journal": "Physiological reports",
+      "first_publication_date": "2023-05-01",
+      "pmid": "37144554",
+      "doi": "10.14814/phy2.15679",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/37144554/",
+      "topics": [
+        "taper_deload"
+      ],
+      "population_and_design_pl": "19 trenujących dorosłych; RCT, 5 tygodni plus redukcja",
+      "findings_and_limitations_pl": "Siła rosła bez jasnych różnic dla skrajnych zapasów. Małe N; zmiany jednostek motorycznych nie są pomiarem gotowości telefonu.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-076",
+      "title": "Effects of a 7-day step taper, training cessation, and retraining on lower body physical and morphological aspects in elite female ice hockey players.",
+      "authors": "Nishiumi D, Yamashita D, Kurokawa T, Hirase N, Wakamiya K, Mujika I, Hirose N.",
+      "journal": "Frontiers in sports and active living",
+      "first_publication_date": "2025-07-01",
+      "pmid": "40666310",
+      "doi": "10.3389/fspor.2025.1541765",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/40666310/",
+      "topics": [
+        "taper"
+      ],
+      "population_and_design_pl": "7 elitarnych hokeistek; obserwacja taperu i powrotu",
+      "findings_and_limitations_pl": "Część spadków po przerwie szybko wracała, taper bez wyraźnego efektu. Bardzo małe N, bez kontroli; nie zakładaj stałej utraty siły.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-077",
+      "title": "Strength and Power Responses to a Power-Oriented Resistance Training Model across an Entire Soccer Competitive Season.",
+      "authors": "Nunes RFH, Pereira LA, Fiorenza JP, Paes CA, Grazioli R, Bryk P, Loturco I.",
+      "journal": "Journal of human kinetics",
+      "first_publication_date": "2026-02-01",
+      "pmid": "42051623",
+      "doi": "10.5114/jhk/218820",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/42051623/",
+      "topics": [
+        "concurrent"
+      ],
+      "population_and_design_pl": "23 zawodowych piłkarzy; obserwacja 7 miesięcy",
+      "findings_and_limitations_pl": "Wyniki rosły bez dużego wzrostu absolutnego ciężaru. Bez randomizacji i z monitoringiem sprzętowym; postęp nie musi oznaczać kolejnych kilogramów.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-078",
+      "title": "Sequencing Effects of Concurrent Strength and Endurance Training on Selected Measures of Physical Fitness in Young Male Soccer Players: A Randomized Matched-Pairs Trial.",
+      "authors": "Blechschmied R, Hermse M, Gäbler M, Elferink-Gemser M, Hortobágyi T, Granacher U.",
+      "journal": "Sports medicine - open",
+      "first_publication_date": "2024-05-23",
+      "pmid": "38782805",
+      "doi": "10.1186/s40798-024-00726-4",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/38782805/",
+      "topics": [
+        "concurrent"
+      ],
+      "population_and_design_pl": "38 analizowanych z 50 wylosowanych piłkarzy; 12 tygodni",
+      "findings_and_limitations_pl": "Obie kolejności programu łączonego poprawiały część testów. Odpływ próby i plyometria jako siła; nie dowodzi zakazu łączenia bodźców.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-079",
+      "title": "Effects of Varying Antagonist Exercise Volume in Upper-Body Supersets on Mechanical, Metabolic, and Perceptual Responses in Resistance-Trained Men.",
+      "authors": "Márquez G, Coutado-Sánchez E, Villaraviz-Ferro A, Marcos-Frutos D, García-Ramos A, Colomer-Poveda D.",
+      "journal": "Journal of functional morphology and kinesiology",
+      "first_publication_date": "2025-10-23",
+      "pmid": "41283526",
+      "doi": "10.3390/jfmk10040419",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41283526/",
+      "topics": [
+        "superset"
+      ],
+      "population_and_design_pl": "14 trenujących mężczyzn; losowa próba krzyżowa",
+      "findings_and_limitations_pl": "Większa dawka drugiego ćwiczenia w parze zwiększała koszt metaboliczny. Ostra praca góry ciała; ogranicz podobne grupy i zbędną gęstość.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-080",
+      "title": "A comparison of acute affective responses, physiological measures and training volume between superset and traditional resistance training in untrained adults.",
+      "authors": "Myraunet PA, Saeterbakken AH, Andersen V.",
+      "journal": "Frontiers in sports and active living",
+      "first_publication_date": "2025-01-17",
+      "pmid": "39896990",
+      "doi": "10.3389/fspor.2025.1536747",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/39896990/",
+      "topics": [
+        "superset"
+      ],
+      "population_and_design_pl": "30 niewytrenowanych dorosłych; losowa próba krzyżowa",
+      "findings_and_limitations_pl": "Superserie oszczędzały czas, zwiększały wysiłek i zmniejszały nieco powtórzenia. Preferencja nie dowodzi przewagi sportowej; serie tradycyjne pozostają podstawą.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-081",
+      "title": "Efficacy of Supersets Versus Traditional Sets in Whole-Body Multiple-Joint Resistance Training: A Randomized Controlled Trial.",
+      "authors": "Iversen VM, Eide VB, Unhjem BJ, Fimland MS.",
+      "journal": "Journal of strength and conditioning research",
+      "first_publication_date": "2024-08-01",
+      "pmid": "39072654",
+      "doi": "10.1519/jsc.0000000000004819",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/39072654/",
+      "topics": [
+        "superset"
+      ],
+      "population_and_design_pl": "Dorośli po fazie wprowadzającej; RCT, 10 tygodni",
+      "findings_and_limitations_pl": "Obie organizacje działały, ale część siły przyciągania bardziej rosła tradycyjnie. Brak pełnego N w abstrakcie; nie sama oszczędność czasu.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-082",
+      "title": "Fitness Adaptations to a Combined Strength and Aerobic Training Program During the Transition Period in Young Soccer Players.",
+      "authors": "Michailidis Y, Stafylidis A, Mandroukas A, Georgiadis K, Karamousalidis G, Antoniou G, Kyranoudis AE, Semaltianou E, Mittas V, Metaxas TI.",
+      "journal": "Sports (Basel, Switzerland)",
+      "first_publication_date": "2026-02-26",
+      "pmid": "41893579",
+      "doi": "10.3390/sports14030088",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41893579/",
+      "topics": [
+        "detraining_maintenance"
+      ],
+      "population_and_design_pl": "23 piłkarzy U17; pre/post po przerwie",
+      "findings_and_limitations_pl": "Krótki program zmieniał wybrane parametry wydolności. Bez kontroli i bez poprawy wszystkich testów; nie odrabiaj zaległych treningów.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-083",
+      "title": "Short-term detraining in semi-professional male football players: impact of a 5-day mid-season break on performance - an observational study.",
+      "authors": "Saldanha JG, Santos F, Martinho DV, Sarmento H, Marques A, Campos P, Przednowek K, Gouveia ÉR.",
+      "journal": "BMC sports science, medicine & rehabilitation",
+      "first_publication_date": "2026-04-09",
+      "pmid": "41957875",
+      "doi": "10.1186/s13102-026-01654-4",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41957875/",
+      "topics": [
+        "detraining_maintenance"
+      ],
+      "population_and_design_pl": "17–21 półprofesjonalnych piłkarzy zależnie od testu; obserwacja",
+      "findings_and_limitations_pl": "Po 5 dniach część RSA pogorszyła się, siła niekoniecznie. Brak kontroli; nie ustala uniwersalnej prędkości utraty sprawności.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-084",
+      "title": "Effects of a Combined Plyometric and Resistance Training Programme on Adolescent Rugby Union Players.",
+      "authors": "Walsh CM, Esformes JI, Moody JA, Byrne PJ.",
+      "journal": "Muscles (Basel, Switzerland)",
+      "first_publication_date": "2025-06-02",
+      "pmid": "40757560",
+      "doi": "10.3390/muscles4020017",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/40757560/",
+      "topics": [
+        "detraining_maintenance"
+      ],
+      "population_and_design_pl": "15 młodych rugbystów; sekwencyjny program",
+      "findings_and_limitations_pl": "Po wycofaniu skoków część efektów utrzymała się lub wzrosła. Bez równoległej kontroli; przerwa jednego bodźca nie oznacza utraty całej formy.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-085",
+      "title": "Comparison of Architectural and Performance Adaptations of Hip Extension Exercise Under Gravitational or Inertial Loading Conditions: A Randomized Controlled Trial.",
+      "authors": "Martín-San Agustín R, Castillo-Ballesta L, Esbri-Navarro R, Garvín JH.",
+      "journal": "European journal of sport science",
+      "first_publication_date": "2025-10-01",
+      "pmid": "40960470",
+      "doi": "10.1002/ejsc.70048",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/40960470/",
+      "topics": [
+        "detraining_maintenance"
+      ],
+      "population_and_design_pl": "32 trenujących mężczyzn; RCT, 6 tygodni plus przerwa",
+      "findings_and_limitations_pl": "Rodzaj obciążania biodra różnicował architekturę i część siły. Specjalny sprzęt; nie mierzono urazów, inercja nie jest kilogramami.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-086",
+      "title": "Effects of a Short-Term Detraining Period on the Physical Fitness in Elite Youth Soccer Players: A Comparison Between Chronological Age Groups.",
+      "authors": "Padrón-Cabo A, Lorenzo-Martínez M, De Dios-Álvarez V, Rey E, Solleiro-Durán D.",
+      "journal": "Journal of strength and conditioning research",
+      "first_publication_date": "2024-10-29",
+      "pmid": "39471049",
+      "doi": "10.1519/jsc.0000000000004975",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/39471049/",
+      "topics": [
+        "detraining_maintenance"
+      ],
+      "population_and_design_pl": "30 piłkarzy U15/U17; obserwacja dwutygodniowej przerwy",
+      "findings_and_limitations_pl": "Część skoków, sprintu i wydolności pogarszała się. Bez aktywnej kontroli; próg 14 dni w produkcie nie diagnozuje utraty siły.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-087",
+      "title": "The Effect of a High-Frequency Exercise Program During the Transition Period in Young Football Players.",
+      "authors": "Michailidis Y, Stafylidis A, Mandroukas A, Semaltianou E, Karamousalidis G, Antoniou G, Leftheroudis V, Mittas V, Metaxas TI.",
+      "journal": "Sports (Basel, Switzerland)",
+      "first_publication_date": "2025-09-01",
+      "pmid": "41003602",
+      "doi": "10.3390/sports13090297",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41003602/",
+      "topics": [
+        "detraining_maintenance"
+      ],
+      "population_and_design_pl": "13 piłkarzy około 17,8 roku; pre/post fazy przejściowej",
+      "findings_and_limitations_pl": "Część wydolności poprawiała się, ale skok i część momentów siły nie. Bez kontroli; większa częstotliwość nie rozwiązuje wszystkiego.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-088",
+      "title": "Effects of Plyometric Training on Lower-Limb Explosive Power and Its Retention After Detraining in Sprinters.",
+      "authors": "Shuai C, Xiangyu W, Zihao L, Xinqi J, Li G.",
+      "journal": "American journal of men's health",
+      "first_publication_date": "2025-07-01",
+      "pmid": "40801377",
+      "doi": "10.1177/15579883251363089",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/40801377/",
+      "topics": [
+        "detraining_maintenance"
+      ],
+      "population_and_design_pl": "40 sprinterów około 20 lat; RCT z przerwą",
+      "findings_and_limitations_pl": "Plyometria wspierała część mocy i utrzymania efektów. Inny sport i dorośli; progresję mocy oddziel od ciężaru.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-089",
+      "title": "Microdosing Plyometric Training Enhances Jumping Performance, Reactive Strength Index, and Acceleration among Youth Soccer Players: A Randomized Controlled Study Design.",
+      "authors": "Liu G, Wang X, Xu Q.",
+      "journal": "Journal of sports science & medicine",
+      "first_publication_date": "2024-06-01",
+      "pmid": "38841635",
+      "doi": "10.52082/jssm.2024.342",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/38841635/",
+      "topics": [
+        "landmark_primary"
+      ],
+      "population_and_design_pl": "52 piłkarzy U17; RCT, 8 tygodni",
+      "findings_and_limitations_pl": "Obie dawki skoków pomagały bez jasnej przewagi między nimi. Jednoczesna zmiana objętości i częstotliwości; nie izoluje mikrodawkowania.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-090",
+      "title": "The effect of a six-week plyometric training performed with different set configurations on explosive performance: cluster vs. traditional set configurations.",
+      "authors": "Yilmaz N, Alemdaroğlu U, Köklü Y, Türkdoğan H, Aşçi A.",
+      "journal": "The Journal of sports medicine and physical fitness",
+      "first_publication_date": "2021-07-01",
+      "pmid": "34296838",
+      "doi": "10.23736/s0022-4707.20.11543-3",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/34296838/",
+      "topics": [
+        "landmark_primary"
+      ],
+      "population_and_design_pl": "25 piłkarzy U16; przydział według pretestu",
+      "findings_and_limitations_pl": "Oba układy plyometrii poprawiały część wyników. Nie pełna randomizacja; wniosku o mniejszym ryzyku urazu nie potwierdza pomiar urazów.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-092",
+      "title": "Effects of plyometric jump training on the physical fitness of young male soccer players: Modulation of response by inter-set recovery interval and maturation status.",
+      "authors": "Ramirez-Campillo R, Alvarez C, Sanchez-Sanchez J, Slimani M, Gentil P, Chelly MS, Shephard RJ.",
+      "journal": "Journal of sports sciences",
+      "first_publication_date": "2019-06-03",
+      "pmid": "31159655",
+      "doi": "10.1080/02640414.2019.1626049",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/31159655/",
+      "topics": [
+        "landmark_primary"
+      ],
+      "population_and_design_pl": "Piłkarze 10–17 lat; losowa próba krzyżowa bloków",
+      "findings_and_limitations_pl": "Dłuższy odpoczynek sprzyjał części adaptacji starszej grupy. Brak pełnego N w abstrakcie; nie skracaj przerw dla zmieszczenia treningu.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-093",
+      "title": "The Trainability of Adolescent Soccer Players to Brief Periodized Complex Training.",
+      "authors": "Chatzinikolaou A, Michaloglou K, Avloniti A, Leontsini D, Deli CK, Vlachopoulos D, Gracia-Marco L, Arsenis S, Athanailidis I, Draganidis D, Jamurtas AZ, Williams CA, Fatouros IG.",
+      "journal": "International journal of sports physiology and performance",
+      "first_publication_date": "2018-05-26",
+      "pmid": "29431546",
+      "doi": "10.1123/ijspp.2017-0763",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/29431546/",
+      "topics": [
+        "landmark_primary"
+      ],
+      "population_and_design_pl": "22 piłkarzy 14–15 lat; RCT, 5 tygodni",
+      "findings_and_limitations_pl": "Wieloskładnikowy program poprawiał część siły wobec całkowitej przerwy. Nie dowodzi przewagi kontrastu nad dobrą siłą tradycyjną ani bezpieczeństwa populacji.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-094",
+      "title": "The effects of maturation on jumping ability and sprint adaptations to plyometric training in youth soccer players.",
+      "authors": "Asadi A, Ramirez-Campillo R, Arazi H, Sáez de Villarreal E.",
+      "journal": "Journal of sports sciences",
+      "first_publication_date": "2018-04-03",
+      "pmid": "29611771",
+      "doi": "10.1080/02640414.2018.1459151",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/29611771/",
+      "topics": [
+        "landmark_primary"
+      ],
+      "population_and_design_pl": "60 młodych piłkarzy; RCT w podgrupach PHV",
+      "findings_and_limitations_pl": "Skoki poprawiały część sprintu i mocy przy różnych etapach dojrzewania. Małe podgrupy; konkretna dawka nie jest uniwersalnym optimum.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-095",
+      "title": "Volume Load and Neuromuscular Fatigue During an Acute Bout of Agonist-Antagonist Paired-Set vs. Traditional-Set Training.",
+      "authors": "Paz GA, Robbins DW, de Oliveira CG, Bottaro M, Miranda H.",
+      "journal": "Journal of strength and conditioning research",
+      "first_publication_date": "2017-10-01",
+      "pmid": "28933712",
+      "doi": "10.1519/jsc.0000000000001059",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/28933712/",
+      "topics": [
+        "landmark_primary"
+      ],
+      "population_and_design_pl": "15 trenujących mężczyzn; ostra próba par ćwiczeń",
+      "findings_and_limitations_pl": "Pary pozwalały wykonać większą objętość szybciej, ale zwiększały część zmęczenia. Jedna sesja góry; nie dowód przewagi sezonowej.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-096",
+      "title": "Crescent pyramid and drop-set systems do not promote greater strength gains, muscle hypertrophy, and changes on muscle architecture compared with traditional resistance training in well-trained men.",
+      "authors": "Angleri V, Ugrinowitsch C, Libardi CA.",
+      "journal": "European journal of applied physiology",
+      "first_publication_date": "2017-01-27",
+      "pmid": "28130627",
+      "doi": "10.1007/s00421-016-3529-1",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/28130627/",
+      "topics": [
+        "landmark_primary"
+      ],
+      "population_and_design_pl": "32 wytrenowanych mężczyzn; randomizacja kończyn, 12 tygodni",
+      "findings_and_limitations_pl": "Dropset i piramida nie dawały przewagi przy wyrównanej objętości. Hipertrofia dorosłych; nie obowiązkowy poziom dla młodych piłkarzy.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-097",
+      "title": "Effects of Velocity Loss During Resistance Training on Performance in Professional Soccer Players.",
+      "authors": "Pareja-Blanco F, Sánchez-Medina L, Suárez-Arrones L, González-Badillo JJ.",
+      "journal": "International journal of sports physiology and performance",
+      "first_publication_date": "2016-09-06",
+      "pmid": "27618386",
+      "doi": "10.1123/ijspp.2016-0170",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/27618386/",
+      "topics": [
+        "landmark_primary"
+      ],
+      "population_and_design_pl": "16 zawodowych piłkarzy; RCT, 6 tygodni",
+      "findings_and_limitations_pl": "Mniejsza utrata prędkości sprzyjała CMJ bez przewagi każdego testu. Po 8 osób i analizy MBI; bez jednego magicznego progu.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-098",
+      "title": "Effects of velocity loss during resistance training on athletic performance, strength gains and muscle adaptations.",
+      "authors": "Pareja-Blanco F, Rodríguez-Rosell D, Sánchez-Medina L, Sanchis-Moysi J, Dorado C, Mora-Custodio R, Yáñez-García JM, Morales-Alamo D, Pérez-Suárez I, Calbet JAL, González-Badillo JJ.",
+      "journal": "Scandinavian journal of medicine & science in sports",
+      "first_publication_date": "2016-03-31",
+      "pmid": "27038416",
+      "doi": "10.1111/sms.12678",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/27038416/",
+      "topics": [
+        "landmark_primary"
+      ],
+      "population_and_design_pl": "22 młodych mężczyzn; RCT, 8 tygodni",
+      "findings_and_limitations_pl": "Mniejsza utrata prędkości dawała podobną siłę i większą poprawę CMJ przy mniejszej pracy. Nie piłkarze; inne cele hipertrofii.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-099",
+      "title": "The preventive effect of the nordic hamstring exercise on hamstring injuries in amateur soccer players: a randomized controlled trial.",
+      "authors": "van der Horst N, Smits DW, Petersen J, Goedhart EA, Backx FJ.",
+      "journal": "The American journal of sports medicine",
+      "first_publication_date": "2015-03-20",
+      "pmid": "25794868",
+      "doi": "10.1177/0363546515574057",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/25794868/",
+      "topics": [
+        "landmark_primary"
+      ],
+      "population_and_design_pl": "579 dorosłych amatorów, 40 zespołów; klastrowy RCT",
+      "findings_and_limitations_pl": "Cały program NHE zmniejszał częstość urazów, bez wyraźnej zmiany ich ciężkości. To nie dowód ochrony po dowolnych dwóch seriach.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-100",
+      "title": "Maximal and explosive strength training elicit distinct neuromuscular adaptations, specific to the training stimulus.",
+      "authors": "Tillin NA, Folland JP.",
+      "journal": "European journal of applied physiology",
+      "first_publication_date": "2013-12-01",
+      "pmid": "24292019",
+      "doi": "10.1007/s00421-013-2781-x",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/24292019/",
+      "topics": [
+        "landmark_primary"
+      ],
+      "population_and_design_pl": "19 dorosłych mężczyzn; dwa rodzaje izometrii, 4 tygodnie",
+      "findings_and_limitations_pl": "Intencja maksymalna i eksplozywna dawały swoiste adaptacje. Laboratoryjna próba; nie zamieniaj maksymalnego naporu na długie utrzymanie.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    },
+    {
+      "id": "BW-101",
+      "title": "Preventive effect of eccentric training on acute hamstring injuries in men's soccer: a cluster-randomized controlled trial.",
+      "authors": "Petersen J, Thorborg K, Nielsen MB, Budtz-Jørgensen E, Hölmich P.",
+      "journal": "The American journal of sports medicine",
+      "first_publication_date": "2011-08-08",
+      "pmid": "21825112",
+      "doi": "10.1177/0363546511419277",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/21825112/",
+      "topics": [
+        "landmark_primary"
+      ],
+      "population_and_design_pl": "942 piłkarzy, 50 zespołów; klastrowy RCT",
+      "findings_and_limitations_pl": "Progresywny NHE z podtrzymaniem zmniejszał częstość nowych i ponownych urazów. Efekt całego programu męskiej piłki, bez gwarancji ochrony jednostki.",
+      "review_depth": "metadata and abstract appraised; not a full-text RoB2 assessment",
+      "evidence_role": "Supporting empirical source; exact numerical app thresholds are not clinically validated by this paper",
+      "metadata_source": "Europe PMC core / PubMed",
+      "reviewed_abstract_source": "Europe PMC core abstract",
+      "retraction_check": "No retraction label detected in the retrieved title/publication types; not a complete Crossmark audit"
+    }
+  ],
+  "secondary": [
+    {
+      "title": "Effects of subjective and objective autoregulation methods for intensity and volume on enhancing maximal strength during resistance-training interventions: a systematic review.",
+      "pmid": "33520457",
+      "doi": "10.7717/peerj.10663",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/33520457/",
+      "role": "review or consensus; not counted again as an experiment"
+    },
+    {
+      "title": "Superset Versus Traditional Resistance Training Prescriptions: A Systematic Review and Meta-analysis Exploring Acute and Chronic Effects on Mechanical, Metabolic, and Perceptual Variables.",
+      "pmid": "39903375",
+      "doi": "10.1007/s40279-025-02176-8",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/39903375/",
+      "role": "review or consensus; not counted again as an experiment"
+    },
+    {
+      "title": "Optimal Training Sequences to Develop Lower Body Force, Velocity, Power, and Jump Height: A Systematic Review with Meta-Analysis.",
+      "pmid": "33666895",
+      "doi": "10.1007/s40279-021-01430-z",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/33666895/",
+      "role": "review or consensus; not counted again as an experiment"
+    },
+    {
+      "title": "Effects of Complex Training on Sprint, Jump, and Change of Direction Ability of Soccer Players: A Systematic Review and Meta-Analysis.",
+      "pmid": "33551937",
+      "doi": "10.3389/fpsyg.2020.627869",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/33551937/",
+      "role": "review or consensus; not counted again as an experiment"
+    },
+    {
+      "title": "Isometric training and long-term adaptations: Effects of muscle length, intensity, and intent: A systematic review.",
+      "pmid": "30580468",
+      "doi": "10.1111/sms.13375",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/30580468/",
+      "role": "review or consensus; not counted again as an experiment"
+    },
+    {
+      "title": "Position statement on youth resistance training: the 2014 International Consensus.",
+      "pmid": "24055781",
+      "doi": "10.1136/bjsports-2013-092952",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/24055781/",
+      "role": "review or consensus; not counted again as an experiment"
+    },
+    {
+      "title": "American College of Sports Medicine Position Stand. Resistance Training Prescription for Muscle Function, Hypertrophy, and Physical Performance in Healthy Adults: An Overview of Reviews.",
+      "pmid": "41843416",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/41843416/",
+      "role": "2026 overview of 137 systematic reviews; healthy adults >=18, not counted as another experiment",
+      "appraisal_pl": "Wspiera progresywną siłę i rozróżnianie celów siły, mocy i hipertrofii. Nie wykazuje stałej przewagi komplikowania serii ani treningu do upadku. Nie przenosimy progów dla dorosłych wprost na młodzież."
+    },
+    {
+      "title": "Resistance Training for Children and Adolescents",
+      "doi": "10.1542/peds.2020-1011",
+      "source_url": "https://publications.aap.org/pediatrics/article/145/6/e20201011/76942/",
+      "role": "AAP clinical report 2020, reaffirmed November 2024; guidance, not counted as another experiment",
+      "appraisal_pl": "Progresja kierowana kompetencją, nauką techniki i odpowiednim nadzorem. Nie ma automatycznego awansu do trudnych ćwiczeń po urodzinach."
+    },
+    {
+      "title": "International Olympic Committee consensus statement on youth athletic development",
+      "doi": "10.1136/bjsports-2015-094962",
+      "source_url": "https://doi.org/10.1136/bjsports-2015-094962",
+      "role": "IOC consensus; not counted as another experiment",
+      "appraisal_pl": "Zróżnicowany rozwój, regeneracja i kontekst wieku rozwojowego, szkoły oraz sportu. Nie gwarantuje braku urazów i nie diagnozuje dojrzałości w aplikacji."
+    },
+    {
+      "title": "How much is too much? (Part 1) International Olympic Committee consensus statement on load in sport and risk of injury",
+      "doi": "10.1136/bjsports-2016-096581",
+      "source_url": "https://doi.org/10.1136/bjsports-2016-096581",
+      "role": "IOC consensus; no individual fatigue diagnosis or universal load ratio threshold",
+      "appraisal_pl": "Jeden marker nie wystarcza do oceny nieprawidłowej adaptacji. Potrzebna łączna ocena obciążeń i kontekstu. Nie wdrażamy sztywnego ACWR ani procentowego progu jako automatycznej diagnozy urazu."
+    }
+  ],
+  "search_log": [
+    {
+      "topic": "youth_strength",
+      "query": "\"resistance training\" AND youth",
+      "retrieved_at": "2026-11-14T07:18:48.694368+00:00",
+      "hit_count": 3633
+    },
+    {
+      "topic": "soccer_strength",
+      "query": "soccer AND \"strength training\"",
+      "retrieved_at": "2026-11-14T07:18:48.694493+00:00",
+      "hit_count": 3877
+    },
+    {
+      "topic": "plyometric_maturation",
+      "query": "plyometric AND maturation",
+      "retrieved_at": "2026-11-14T07:18:48.694578+00:00",
+      "hit_count": 737
+    },
+    {
+      "topic": "sprint_training",
+      "query": "\"resisted sprint\"",
+      "retrieved_at": "2026-11-14T07:18:48.694644+00:00",
+      "hit_count": 237
+    },
+    {
+      "topic": "cluster",
+      "query": "\"cluster sets\"",
+      "retrieved_at": "2026-11-14T07:18:57.288482+00:00",
+      "hit_count": 718
+    },
+    {
+      "topic": "contrast",
+      "query": "\"complex training\" AND soccer",
+      "retrieved_at": "2026-11-14T07:18:58.193281+00:00",
+      "hit_count": 216
+    },
+    {
+      "topic": "nordic_eccentric",
+      "query": "\"Nordic hamstring\" AND randomized",
+      "retrieved_at": "2026-11-14T07:18:58.193404+00:00",
+      "hit_count": 376
+    },
+    {
+      "topic": "isometric",
+      "query": "\"isometric training\" AND explosive",
+      "retrieved_at": "2026-11-14T07:18:58.193514+00:00",
+      "hit_count": 100
+    },
+    {
+      "topic": "failure_rir",
+      "query": "\"repetitions in reserve\"",
+      "retrieved_at": "2026-11-14T07:19:03.619402+00:00",
+      "hit_count": 389
+    },
+    {
+      "topic": "velocity_loss",
+      "query": "\"velocity loss\" AND training",
+      "retrieved_at": "2026-11-14T07:19:03.991824+00:00",
+      "hit_count": 563
+    },
+    {
+      "topic": "periodization",
+      "query": "periodization AND strength AND randomized",
+      "retrieved_at": "2026-11-14T07:19:03.991954+00:00",
+      "hit_count": 1072
+    },
+    {
+      "topic": "taper_deload",
+      "query": "deload",
+      "retrieved_at": "2026-11-14T07:19:03.992069+00:00",
+      "hit_count": 111
+    },
+    {
+      "topic": "taper",
+      "query": "taper AND strength AND athletes",
+      "retrieved_at": "2026-11-14T07:19:08.784584+00:00",
+      "hit_count": 566
+    },
+    {
+      "topic": "concurrent",
+      "query": "\"concurrent training\" AND soccer",
+      "retrieved_at": "2026-11-14T07:19:08.784709+00:00",
+      "hit_count": 237
+    },
+    {
+      "topic": "volume_frequency",
+      "query": "\"resistance training\" AND frequency AND randomized",
+      "retrieved_at": "2026-11-14T07:19:08.889183+00:00",
+      "hit_count": 15345
+    },
+    {
+      "topic": "superset",
+      "query": "superset AND training",
+      "retrieved_at": "2026-11-14T07:19:08.949173+00:00",
+      "hit_count": 1381
+    },
+    {
+      "topic": "detraining_maintenance",
+      "query": "detraining AND strength AND soccer",
+      "retrieved_at": "2026-11-14T07:19:16.470464+00:00",
+      "hit_count": 514
+    }
+  ]
+}

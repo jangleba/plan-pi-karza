@@ -107,7 +107,7 @@ export function solveWeeklySchedule<State, Recipe>(
   return { ...chosen, covered, unmet, rejections, exploredNodes };
 }
 
-export type PlacementMode = "new" | "club_second" | "append_second" | "merge_strength_speed";
+export type PlacementMode = "new" | "club_second" | "append_second";
 export type PlacementAssessment =
   | { allowed: true; mode: PlacementMode; slot: 0 | 1; minutes: number }
   | { allowed: false; code: string; message: string };
@@ -230,33 +230,17 @@ export function assessPlacement(input: PlacementConstraintInput): PlacementAsses
       "Nie są spełnione warunki dwóch ciężkich bodźców jednego dnia.",
     );
 
-  const mergeIndex = sessions(current).findIndex((session) => {
-    const old = session.engineV2;
-    return (
-      old &&
-      qualifiedDoubleHigh &&
-      old.tier !== "foundation" &&
-      ((recipe.roles.length === 1 &&
-        recipe.roles[0] === "speed" &&
-        old.roles.length === 1 &&
-        old.roles[0].startsWith("strength")) ||
-        (old.roles.length === 1 &&
-          old.roles[0] === "speed" &&
-          recipe.roles.length === 1 &&
-          recipe.roles[0].startsWith("strength")))
-    );
-  });
-  if (mergeIndex >= 0) {
-    const minutes = input.combinedMinutes(sessions(current)[mergeIndex].engineV2!, recipe);
-    if (!Number.isFinite(minutes) || minutes <= 0)
-      return block("INVALID_RECIPE", "Nie można potwierdzić czasu połączonej sesji.");
-    if (minutes <= budget)
-      return { allowed: true, mode: "merge_strength_speed", slot: mergeIndex as 0 | 1, minutes };
-    if (hasClub || current.secondSession)
-      return block("TIME_BUDGET", "Połączona jednostka sprintu i siły przekracza dostępny czas.");
-    // Without club, two separately timed sessions are legal for a qualified
-    // athlete. A per-session limit is not an invented daily total-time limit.
-  }
+  const strength = (r: EngineSession) => r.roles.some((role) => role.startsWith("strength"));
+  if (own.some((s) => strength(s.engineV2!) && strength(recipe)))
+    return block("TWO_STRENGTH_SAME_DAY", "Siła A i B wymagają osobnych dni.");
+  if (
+    own.some(
+      (s) =>
+        (strength(s.engineV2!) && recipe.roles.includes("speed")) ||
+        (s.engineV2!.roles.includes("speed") && strength(recipe)),
+    )
+  )
+    return block("STRENGTH_SPEED_SEPARATE", "Sprint i siłownia mają osobne dni w tym programie.");
   if (recipe.minutes > budget) return block("TIME_BUDGET", "Sesja przekracza dostępny czas.");
   if (!own.length && !external(current) && current.dayType !== "training")
     return { allowed: true, mode: "new", slot: 0, minutes: recipe.minutes };
@@ -268,7 +252,7 @@ export function assessPlacement(input: PlacementConstraintInput): PlacementAsses
   if (doubles === "no")
     return block("DOUBLE_SESSION_DISABLED", "Nie wybrano dwóch sesji jednego dnia.");
   const anotherHigh = own.some((session) => session.engineV2!.highLower);
-  if (anotherHigh && recipe.highLower && !qualifiedDoubleHigh)
+  if (anotherHigh && recipe.highLower)
     return block(
       "DOUBLE_HIGH_NOT_ELIGIBLE",
       "Nie są spełnione warunki dwóch ciężkich bodźców jednego dnia.",

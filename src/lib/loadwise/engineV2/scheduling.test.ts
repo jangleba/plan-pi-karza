@@ -292,20 +292,19 @@ describe("shared calendar and load constraints", () => {
       code: "MAX_DAILY_SESSIONS",
     });
     expect(assess({ days: [current], recipe: recipe("speed") })).toMatchObject({
-      allowed: true,
-      mode: "merge_strength_speed",
-      slot: 1,
+      allowed: false,
+      code: "STRENGTH_SPEED_SEPARATE",
     });
     expect(
       assess({ days: [current], recipe: recipe("speed"), combinedMinutes: () => 76 }),
-    ).toMatchObject({ allowed: false, code: "TIME_BUDGET" });
+    ).toMatchObject({ allowed: false, code: "STRENGTH_SPEED_SEPARATE" });
   });
 
   it("distinguishes per-session time from daily time when two sessions are allowed", () => {
     const current = day("2026-11-05", { dayType: "training", engineV2: recipe("strengthA") });
     expect(
       assess({ days: [current], recipe: recipe("speed"), combinedMinutes: () => 80 }),
-    ).toMatchObject({ allowed: true, mode: "append_second", slot: 1 });
+    ).toMatchObject({ allowed: false, code: "STRENGTH_SPEED_SEPARATE" });
     expect(assess({ days: [current], recipe: recipe("endurance") })).toMatchObject({
       allowed: true,
       mode: "append_second",
@@ -324,7 +323,7 @@ describe("shared calendar and load constraints", () => {
         profile: { ...athlete, age: 16 },
         recipe: recipe("speed", { tier: "development" }),
       }),
-    ).toMatchObject({ allowed: false, code: "DOUBLE_HIGH_NOT_ELIGIBLE" });
+    ).toMatchObject({ allowed: false, code: "STRENGTH_SPEED_SEPARATE" });
     const foundation = day("2026-11-05", {
       dayType: "training",
       engineV2: recipe("strengthA", { tier: "foundation", highLower: false }),
@@ -335,7 +334,7 @@ describe("shared calendar and load constraints", () => {
         profile: { ...athlete, age: 13 },
         recipe: recipe("speed", { tier: "foundation" }),
       }),
-    ).toMatchObject({ allowed: true, mode: "append_second" });
+    ).toMatchObject({ allowed: false, code: "STRENGTH_SPEED_SEPARATE" });
   });
 
   it("does not modify a protected second slot or schedule on an unavailable weekday", () => {

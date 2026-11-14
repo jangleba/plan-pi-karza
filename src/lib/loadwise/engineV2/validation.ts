@@ -5,7 +5,7 @@ import type { Profile, SessionDay } from "../types";
 import { trainingTier, type Dose, type EngineSession, type Issue } from "./model";
 import { FUNCTIONAL_CATALOGUE } from "./taxonomy";
 import { hasDeclaredFootball, hasDeclaredWall, requiresDeclaredWall } from "./support";
-import { coachedPrimerEligible, coachedPrimerDose } from "./strengthProtocols";
+import { coachedPrimerEligible, coachedPrimerDose, clusterEligible } from "./strengthProtocols";
 import { hasCurrentVerifiedMas } from "./endurance";
 import { hasVerifiedAdvancedStrength } from "./preparation";
 import { resolveGoalPolicy } from "./goalPolicy";
@@ -130,6 +130,9 @@ export function deriveEngineSessionLoad(
       (d.distanceM ? 8 * repetitions : repetitions * (d.intent === "explosive" ? 3 : 4));
     seconds +=
       d.sets * work * sides +
+      d.sets *
+        Math.max(0, (d.cluster?.repGroups.length ?? 1) - 1) *
+        (d.cluster?.intraRestSeconds ?? 0) +
       Math.max(0, d.sets - 1) * d.restSeconds +
       (d.postRestSeconds ?? (index < recipe.exercises.length - 1 ? d.restSeconds : 0)) +
       45;
@@ -153,7 +156,7 @@ export function deriveEngineSessionLoad(
           ) /
             60 +
           10
-        : Math.ceil(seconds / 60) + (gym || support ? 8 : 10);
+        : Math.ceil(seconds / 60) + (gym || support ? 8 : recipe.roles.includes("speed") ? 2 : 10);
   const highLower =
     !!run?.hard ||
     recipe.exercises.some((e) => e.role === "speed" || e.role === "iso_primer") ||
@@ -244,6 +247,46 @@ export function validateEngineSession(
     fail("EMPTY_ENGINE_SESSION", "Trening własny nie zawiera ćwiczeń.");
     return issues;
   }
+  const strength = recipe.roles.some((role) => role.startsWith("strength"));
+  if (strength && recipe.roles.includes("speed"))
+    fail("MIXED_STRENGTH_SPEED", "Siłownia i sprint wymagają osobnych jednostek.");
+  if (recipe.roles.includes("strengthA") && recipe.roles.includes("strengthB"))
+    fail("MIXED_STRENGTH_AB", "Siła A i B wymagają osobnych dni.");
+  if (strength) {
+    const roles = new Set(recipe.exercises.map((e) => e.role));
+    const tasks = recipe.exercises.filter((e) => e.role !== "warmup").map((e) => e.role);
+    if (new Set(tasks).size !== tasks.length)
+      fail(
+        "DUPLICATE_STRENGTH_FUNCTION",
+        "Powtórzone zadanie siłowe wymaga przeglądu; nie kumuluj różnych ćwiczeń o tej samej funkcji.",
+      );
+    // Template guardrail, not an equation treating a hold as a dynamic working set.
+    if (
+      tasks.filter((r) => ["hip_strength", "knee_flexion", "hamstring_iso"].includes(r)).length >
+        2 ||
+      tasks.filter((r) => ["knee_strength", "unilateral_strength", "quad_iso"].includes(r)).length >
+        2
+    )
+      fail(
+        "REGIONAL_TASK_OVERLAP",
+        "Zbyt wiele zadań jednej strony nóg w tej jednostce A/B; rozłóż akcenty w tygodniu.",
+      );
+    if (
+      !(roles.has("knee_strength") || roles.has("unilateral_strength")) ||
+      !(roles.has("hip_strength") || roles.has("knee_flexion"))
+    )
+      fail(
+        "UNBALANCED_STRENGTH",
+        "Siłownia wymaga dynamicznej pracy przodu i tyłu nóg; sama izometria nie zastępuje brakującego wzorca.",
+      );
+    // Missing equipment is reported truthfully; never invent an equipment-free row.
+    if (
+      !roles.has("push") &&
+      !roles.has("pull") &&
+      !recipe.missing.some((r) => r === "push" || r === "pull")
+    )
+      fail("MISSING_UPPER_TASK", "Brak zadania góry ciała lub informacji o brakującym sprzęcie.");
+  }
   const athlete = buildAthleteTrainingProfile(profile);
   const ids = new Set<string>();
   let validArithmetic = true;
@@ -255,6 +298,25 @@ export function validateEngineSession(
     }
     const d = exercise.dose as NumericDose;
     const definition = getExerciseDefinition(exercise.exerciseId);
+    if (d.cluster) {
+      if (
+        !clusterEligible(profile, recipe.phase) ||
+        !["knee_strength", "hip_strength"].includes(exercise.role) ||
+        !["external", "axial"].includes(definition?.loadingType ?? "") ||
+        !Array.isArray(d.cluster.repGroups) ||
+        d.cluster.repGroups.length < 2 ||
+        d.cluster.repGroups.some((r) => !Number.isInteger(r) || r !== 2) ||
+        d.cluster.repGroups.reduce((a, b) => a + b, 0) !== d.reps ||
+        d.cluster.intraRestSeconds !== 20 ||
+        d.restSeconds < 120
+      ) {
+        fail(
+          "INVALID_CLUSTER",
+          "Klaster wymaga kwalifikacji, zgodnej liczby powtórzeń i obu rodzajów przerw.",
+        );
+        validArithmetic = false;
+      }
+    }
     if (
       !definition ||
       definition.approved === false ||
@@ -269,8 +331,12 @@ export function validateEngineSession(
         (definition.requiresBall && !hasDeclaredFootball(profile)) ||
         (requiresDeclaredWall(definition.id) && !hasDeclaredWall(profile)) ||
         (/^football_gk_/.test(definition.id) && profile.position !== "goalkeeper") ||
-        (["pitch", "open_field"].includes(definition.spaceRequirement) && !profile.hasPitch) ||
-        (definition.spaceRequirement === "sprint_lane" && !profile.hasSprintSpace))
+        (definition.spaceRequirement === "pitch" && !profile.hasPitch) ||
+        (definition.spaceRequirement === "open_field" &&
+          !profile.hasPitch &&
+          !(exercise.role === "warmup" && profile.hasSprintSpace)) ||
+        (definition.spaceRequirement === "sprint_lane" && !profile.hasSprintSpace) ||
+        (definition.spaceRequirement === "indoor_gym" && !profile.hasGym))
     )
       fail(
         "MISSING_SESSION_REQUIREMENT",

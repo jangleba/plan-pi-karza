@@ -1506,6 +1506,12 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
     displayNamePl: "Wiosłowanie z masą ciała",
     aliases: ["Bodyweight row", "Wiosłowanie z masą ciała", "Wiosłowanie australijskie"],
     movementPattern: "pull",
+    equipmentRequired: ["rack"],
+    instructionsPl: [
+      "Ustaw nieruchomą sztangę w stabilnym stojaku. Sprawdź mocowanie; drążek nie może się zsunąć ani obrócić.",
+      "Chwyć drążek i ustaw ciało w prostej linii. Ugnij kolana, jeśli potrzebujesz lżejszego wariantu.",
+      "Przyciągnij klatkę do drążka bez wypychania bioder, a potem spokojnie wyprostuj ramiona.",
+    ],
     allowedSessionCategories: ["strength_gym"],
     spaceRequirement: "indoor_gym",
   }),

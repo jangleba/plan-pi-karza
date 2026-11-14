@@ -1,0 +1,423 @@
+BallWise V2.5 — rejestr 100 publikacji pierwotnych, stan 14.11.2026
+
+- Sprawdzono metadane i abstrakty 100 publikacji pierwotnych. Nie deklarujemy przeczytania 100 pełnych tekstów ani pełnej oceny RoB2.
+- 100 publikacji nie oznacza 100 niezależnych prób. Możliwe wspólne populacje BW-010/BW-013 i BW-055/BW-057; nie agregowano ich liczebności ani efektów.
+- W zbiorze są RCT, próby ostre, pilotaże i obserwacje o różnej wiarygodności. Indeksowanie PubMed i DOI nie oznaczają automatycznie wysokiej jakości.
+- Dobór celowy z Europe PMC/PubMed, ograniczone pokrycie starszej literatury; to podstawa projektu produktu, nie dowód walidacji algorytmu dla każdego zawodnika.
+- Mała próba lub nieistotna różnica nie dowodzą równoważności metod; test siły nie dowodzi mniejszej liczby urazów.
+
+- BW-001 — Effects of Resistance Training on Isometric Force and Muscle Thickness in Prepubertal and Pubertal Boys: A Randomized Controlled Trial.
+  68 chłopców; RCT, 9 tygodni. Siła wzrosła bez jasnej przewagi dla grubości mięśni. Mała moc interakcji dojrzewania; nie wyznacza programu sam wiek.
+  PMID 42831861; DOI 10.1519/jsc.0000000000005680; https://pubmed.ncbi.nlm.nih.gov/42831861/
+
+- BW-002 — Split-set resistance training in-season increases maximal vertical power without enhancing athletic performance: a comparison with failure training in youth handball players.
+  30 młodych piłkarzy ręcznych; 7 tygodni. Split-set poprawiał prędkość, lecz nie ogólnie siłę i sprint. Inny sport; brak podstaw do obowiązkowych klastrów.
+  PMID 42808918; DOI 10.23736/s0022-4707.26.17961-4; https://pubmed.ncbi.nlm.nih.gov/42808918/
+
+- BW-003 — Elastic Band Training Across Competitive Levels in Female Soccer: A Randomized Controlled Trial With Follow-up.
+  74 piłkarki U15/U19/seniorki; RCT, 9 tygodni. Gumy wspierały niektóre miary siły; ograniczone wyniki skoków i COD. Małe podgrupy wieku i spadki po przerwie.
+  PMID 42865090; DOI 10.1177/19417381261490002; https://pubmed.ncbi.nlm.nih.gov/42865090/
+
+- BW-004 — Acute and Short-Term Neuromuscular and Perceptual Responses to Isometric vs. Dynamic Strength Training in Youth Soccer Players: A Randomized Crossover Trial.
+  21 piłkarzy około 16,8 roku; losowa próba krzyżowa. Po izometrii mniejsze niektóre krótkotrwałe deficyty. Jedna sesja nie dowodzi adaptacji sezonowej ani braku zmęczenia.
+  PMID 42520270; DOI 10.1080/02701367.2026.2709598; https://pubmed.ncbi.nlm.nih.gov/42520270/
+
+- BW-005 — Effects of Ballistic and Traditional Half-Squat Training With Light Loads on Strength, Jump, and Sprint Performance in Young Rugby Players: A Randomized Controlled Trial.
+  25 młodych rugbystów; RCT, 6 tygodni. Jump squat poprawiał część mocy, a sprint pogarszał się w obu grupach. Siła nie zastępuje własnej ekspozycji sprintu.
+  PMID 42956728; DOI 10.1123/ijspp.2026-0228; https://pubmed.ncbi.nlm.nih.gov/42956728/
+
+- BW-006 — Effects of Combined Training on Physical Fitness According to Maturity in Male Youth Soccer Players.
+  35 młodych piłkarzy; program łączony, 7 tygodni. Odpowiedź różniła się według grup dojrzewania. Kilka bodźców naraz; nie zgadujemy PHV z wieku.
+  PMID 42213880; DOI 10.1519/jsc.0000000000005506; https://pubmed.ncbi.nlm.nih.gov/42213880/
+
+- BW-007 — The Effect of High-Velocity Elastic Band Training on Physical Performance in Youth Soccer Players.
+  18 piłkarzy około 15,5 roku; RCT, 20 tygodni. Szybkie ruchy z gumą poprawiały część sprawności. Małe N; dołożono dawkę ponad piłkę, więc nie izoluje samej metody.
+  PMID 42213901; DOI 10.1519/jsc.0000000000005515; https://pubmed.ncbi.nlm.nih.gov/42213901/
+
+- BW-008 — Effects of Contrast Training Using Holding Isometric and Ballistic Exercises on Physical Performance of Youth Male Soccer Players: A Randomized Controlled Study.
+  30 piłkarzy około 17,7 roku; RCT, 12 tygodni. Kontrast utrzymań i balistyki poprawiał wybrane wyniki. Kontrola bez analogicznej siły; bez dowodu przewagi nad równą dawką tradycyjną.
+  PMID 42190152; DOI 10.1519/jsc.0000000000005510; https://pubmed.ncbi.nlm.nih.gov/42190152/
+
+- BW-009 — Comparison of Functional and Traditional Strength and Power Training on U19 Soccer Players During Offseason in Norway: A Randomized Controlled Trial.
+  33 piłkarzy U19; RCT, 8 tygodni. Program funkcjonalny i tradycyjny podobnie poprawiał test strzelecki. Kontrola częściowo przestała trenować; metoda nie jest jedyną różnicą.
+  PMID 42899830; DOI 10.1519/jsc.0000000000005676; https://pubmed.ncbi.nlm.nih.gov/42899830/
+
+- BW-010 — Physical fitness and hormonal responses to strength training in adolescent elite female soccer players.
+  24 elitarne młode piłkarki; RCT, 12 tygodni. Część siły i sprawności rosła bez zmian badanych hormonów. Mała próba, retrospektywna rejestracja; nie wnioskuj o hormonach użytkownika.
+  PMID 42410630; DOI 10.1186/s13102-026-01855-x; https://pubmed.ncbi.nlm.nih.gov/42410630/
+
+- BW-011 — Implementing a Two-Season Traditional Strength Training Intervention: Chronic Adaptations in Physical Fitness and External Match Demands of High‑Performance Female Youth Soccer Players.
+  28 młodych piłkarek w dwóch zespołach; 2 sezony. Regularna siła wiązała się z poprawą wyników. Przydział zespołowy i naturalny rozwój ograniczają przyczynowość; wspiera ciągłość.
+  PMID 42044470; DOI 10.1080/02701367.2026.2659831; https://pubmed.ncbi.nlm.nih.gov/42044470/
+
+- BW-012 — French Contrast Training Can Improve Sprint Performance in Elite Male Youth Soccer Players Compared to Conventional Strength Training.
+  23 piłkarzy U19; porównanie 14 tygodni. French contrast poprawiał część sprintu i RFD bardziej niż siła tradycyjna. Małe wyspecjalizowane N; brak przewagi we wszystkich testach.
+  PMID 42007990; DOI 10.1080/02701367.2026.2649327; https://pubmed.ncbi.nlm.nih.gov/42007990/
+
+- BW-013 — Twelve Weeks of In-Season Strength Training at Moderate Intensities Improve Strength and Body Composition Without Increasing Muscle Damage or Inflammation in Elite Young Female Soccer Players.
+  24 młode piłkarki; RCT, 12 tygodni. Siła rosła bez zmian spoczynkowych markerów po 48 godzinach. To nie dowód braku przeciążeń; możliwa wspólna próba z BW-010.
+  PMID 42043068; DOI 10.3390/sports14040136; https://pubmed.ncbi.nlm.nih.gov/42043068/
+
+- BW-014 — Acute effects of strength training interventions on subjective, neuromuscular, and biochemical fatigue parameters in elite youth soccer players.
+  32 elitarni młodzi piłkarze; próba krzyżowa, 72 godziny. Zmęczenie szczytowało po 24–48 godzinach. Nie ustala uniwersalnej przerwy 72 godzin; dawka i sąsiednie dni mają znaczenie.
+  PMID 41858994; DOI 10.3389/fspor.2026.1742295; https://pubmed.ncbi.nlm.nih.gov/41858994/
+
+- BW-015 — A 3-day step taper enhances explosive power, repeated sprint, and small-sided game performance in soccer.
+  26 zawodowych piłkarzy jednego klubu; RCT. Trzydniowy taper z mniejszym czasem poprawiał część wyników. To przygotowanie startowe po bloku, nie uniwersalny deload.
+  PMID 42211550; DOI 10.3389/fspor.2026.1811250; https://pubmed.ncbi.nlm.nih.gov/42211550/
+
+- BW-016 — Effect of Low-Load and Low-Volume Squat Training Combined with Plyometrics During a Full Season on Physical Performance in Young Soccer Players.
+  32 piłkarzy U15; porównanie przez 24 tygodnie. Małoobjętościowa siła ze skokami wspierała wybrane testy. Program łączony; nie wyodrębnia jednej optymalnej dawki.
+  PMID 41150495; DOI 10.3390/sports13100360; https://pubmed.ncbi.nlm.nih.gov/41150495/
+
+- BW-017 — The effect of plyometric training on physical performance in youth soccer players: A randomized controlled trial with maturation status as a covariate.
+  37 piłkarzy 10–18 lat; RCT z podgrupami PHV. Skoki poprawiały część wyników bez istotnej potrójnej interakcji dojrzewania. Małe podgrupy; brak różnicy nie dowodzi identycznej odpowiedzi.
+  PMID 42127087; DOI 10.1371/journal.pone.0349011; https://pubmed.ncbi.nlm.nih.gov/42127087/
+
+- BW-018 — Effects of plyometric training on match running performance in elite U20 male soccer players at moderate altitude.
+  18 piłkarzy U20 na wysokości; sekwencyjny program. Po plyometrii rosły niektóre miary biegu w sparingach. Brak randomizacji i stała kolejność faz; nie gwarantuje transferu do meczu.
+  PMID 42786510; DOI 10.1186/s13102-026-01772-z; https://pubmed.ncbi.nlm.nih.gov/42786510/
+
+- BW-019 — Comparison of Unilateral and Bilateral Jump Training on Physical Performance Adaptations in Prepubertal and Pubertal Youth Soccer Players.
+  65 młodych piłkarzy; RCT, 8 tygodni. Skoki jedno- i obunóż dawały różne zmiany zależne od testu. Bardzo młoda populacja; progresję wiąż z kontrolą ruchu.
+  PMID 42029514; DOI 10.3390/jfmk11020146; https://pubmed.ncbi.nlm.nih.gov/42029514/
+
+- BW-020 — Effect of Plyometric Training on Vertical Jump Height in Pre-Peak Height Velocity Boys and Girls Aged 9-11 Years.
+  40 dzieci 9–11 lat; program 6 tygodni. Wzrosły CMJ i prędkość wybicia. Populacja poniżej wieku aplikacji; źródło pośrednie, bez kopiowania dawki.
+  PMID 41904114; DOI 10.1002/ejsc.70159; https://pubmed.ncbi.nlm.nih.gov/41904114/
+
+- BW-021 — Effects of plyometric jump training on measures of physical fitness and lower-limb asymmetries in male soccer players according to maturity: A randomized controlled trial.
+  43 młodych piłkarzy; 8 tygodni. Plyometria poprawiała część sprawności, ale nie konsekwentnie asymetrię. Nie obiecuj wyrównania kończyn i nie zwiększaj automatycznie objętości.
+  PMID 41538380; DOI 10.1371/journal.pone.0340863; https://pubmed.ncbi.nlm.nih.gov/41538380/
+
+- BW-022 — Effects of Resisted Versus Non-Resisted Sprint Training on Countermovement Jump and Sprint Force-Velocity Profile in Youth Footballers: A Randomised Controlled Trial.
+  44 piłkarzy dwóch kategorii; RCT, 6 tygodni. Opór i bieg swobodny różnicowały profil adaptacji. Małe podgrupy, jeden klub, retrospektywna rejestracja; rozróżniaj akcelerację i MaxV.
+  PMID 42506801; DOI 10.3390/sports14070258; https://pubmed.ncbi.nlm.nih.gov/42506801/
+
+- BW-023 — Effects of Weighted Vest Sprint Training on Mid-Acceleration and Reactive Strength in Post-PHV Soccer Players.
+  50 piłkarzy po PHV; RCT, 11 tygodni. Wybrane surowe korzyści kamizelki traciły istotność po korekcie wielu porównań. Bez podstaw do automatycznego dodawania obciążenia.
+  PMID 41893615; DOI 10.3390/sports14030124; https://pubmed.ncbi.nlm.nih.gov/41893615/
+
+- BW-024 — First Time Doing Resisted Sprint Training? Effects of Different Loads on the Force-Velocity Profile and Sprint Performance in Professional Male and Female Football Players and Referees: A Pilot Study.
+  Zawodowi piłkarze, piłkarki i sędziowie; pilotaż. Ciężki opór poprawiał wybrane miary sprintu. Mieszana próba, brak pełnego N w abstrakcie, zależność od tarcia; nie kopiuj procentów.
+  PMID 41351337; DOI 10.1177/19417381251394722; https://pubmed.ncbi.nlm.nih.gov/41351337/
+
+- BW-025 — Resisted Sprint Training Improves Overground Sprint, Jump, and Isometric Mid-Thigh Pull Kinetics and Kinematics in Male Youth Ice Hockey Players: A Randomized Control Trial.
+  Młodzi hokeiści; RCT, 8 tygodni. Większość efektów była podobna dla oporu i kontroli. Inna dyscyplina, brak pełnego N w abstrakcie; ograniczony transfer do piłki.
+  PMID 40837520; DOI 10.5114/jhk/200549; https://pubmed.ncbi.nlm.nih.gov/40837520/
+
+- BW-026 — Volume-Equated High-Load Resisted Sprint Training: Determining the Longitudinal Effects of Varying Distance and Repetitions on Acceleration Performance in Rugby Players.
+  20 rugbystów U19; program 8 tygodni. Przy wyrównanej objętości nie wykazano jasnej przewagi konfiguracji dystansów. Pilotaż bez kontroli bez treningu; nie jeden najlepszy układ odcinków.
+  PMID 40441718; DOI 10.1519/jsc.0000000000005140; https://pubmed.ncbi.nlm.nih.gov/40441718/
+
+- BW-027 — The Effect of Cluster Sets and Accentuated Eccentric Loading on Vertical Jump Performance and Strategy During Lower-Body Complex Training.
+  12 dorosłych obojga płci; losowa próba krzyżowa. Klaster z akcentowaną ekscentryką pogarszał część późniejszych skoków. Zmieniano kilka elementów; nie łącz bezrefleksyjnie metod zaawansowanych.
+  PMID 41927010; DOI 10.1002/ejsc.70166; https://pubmed.ncbi.nlm.nih.gov/41927010/
+
+- BW-028 — Intra-set rest preserves barbell velocity during a free-weight back squat exercise by shifting energy system contribution.
+  6 trenujących osób; ostra próba krzyżowa. Przerwy wewnątrz serii lepiej zachowywały prędkość. Bardzo małe N i model energetyczny; nie dowód przewagi sezonowej.
+  PMID 41853883; DOI 10.1113/ep093514; https://pubmed.ncbi.nlm.nih.gov/41853883/
+
+- BW-029 — Performance and Perceptual Responses to Cluster Sets in Pneumatic-Resistance Exercises: Impact of Exercise Selection, Sex, and Strength.
+  47 trenujących dorosłych; losowa próba krzyżowa. Klastry zachowywały część prędkości i obniżały wysiłek. Urządzenia pneumatyczne; część wyników zależała od ćwiczenia i siły.
+  PMID 40921430; DOI 10.1123/ijspp.2025-0042; https://pubmed.ncbi.nlm.nih.gov/40921430/
+
+- BW-030 — Beyond traditional sets: A longitudinal comparison of cluster and superset strength training in male basketball players.
+  30 koszykarzy amatorów; RCT, 6 tygodni. Klastry i pary dawały podobne adaptacje; pary oszczędzały przerwy. Inna dyscyplina i krótki czas; brak uniwersalnej przewagi.
+  PMID 41762201; DOI 10.1080/02640414.2026.2637204; https://pubmed.ncbi.nlm.nih.gov/41762201/
+
+- BW-031 — Effects of Cluster vs. Traditional Sets Complex Training on Physical Performance Adaptations of Trained Male Volleyball Players.
+  24 siatkarzy U19; RCT, grupy po 8. Oba układy kompleksowe działały; część wyników sprzyjała klastrom. Małe podgrupy i wiele porównań; hormony nie walidują gotowości.
+  PMID 39649557; DOI 10.52082/jssm.2024.822; https://pubmed.ncbi.nlm.nih.gov/39649557/
+
+- BW-032 — Cluster sets lead to better performance maintenance and minimize training-induced fatigue than traditional sets.
+  22 mężczyzn; trzy ostre sesje przysiadów. Częstsze przerwy zmniejszały część zmęczenia. Bez długoterminowych wyników urazów; doliczaj czas wewnątrz i pomiędzy seriami.
+  PMID 39720156; DOI 10.3389/fspor.2024.1467348; https://pubmed.ncbi.nlm.nih.gov/39720156/
+
+- BW-033 — Countermovement jump and reactive strength index of artistic gymnasts improve more with cluster-based plyometric training than with traditional methods.
+  54 młode gimnastyczki; RCT, 8 tygodni. Klastry poprawiały niektóre skoki bardziej niż tradycyjny układ. Specjalistyczny staż skoków; nie kopiuj do piłkarza nowicjusza.
+  PMID 39433944; DOI 10.1038/s41598-024-76150-1; https://pubmed.ncbi.nlm.nih.gov/39433944/
+
+- BW-034 — Similar adaptive responses in the upper body physical performance of table tennis players following the traditional and cluster set resistance and plyometric training.
+  40 młodych tenisistów stołowych; pięć grup po 8. Siła i plyometria dawały swoiste adaptacje bez jasnego dodatku samej struktury serii. Małe N i głównie góra ciała.
+  PMID 39543223; DOI 10.1038/s41598-024-78795-4; https://pubmed.ncbi.nlm.nih.gov/39543223/
+
+- BW-035 — Cluster sets and traditional sets elicit similar muscular hypertrophy: a volume and effort-matched study in resistance-trained individuals.
+  10 trenujących dorosłych; randomizacja kończyn, 8 tygodni. Hipertrofia była zbliżona po wyrównaniu wysiłku i objętości. Małe N i maszyny; klaster nie uzasadnia podwyżki ciężaru.
+  PMID 39932536; DOI 10.1007/s00421-025-05712-6; https://pubmed.ncbi.nlm.nih.gov/39932536/
+
+- BW-036 — Effects of Complex, Plyometric, and Traditional Resistance Training on Neuromuscular Performance in Highly Trained Male Soccer Players: A Randomized Controlled Trial.
+  113 wytrenowanych piłkarzy; RCT, 8 tygodni. Różne programy poprawiały siłę, kompleksowy niektóre parametry bardziej. Testy laboratoryjne; nie dowód mniejszej urazowości i lepszej gry.
+  PMID 41838377; DOI 10.1186/s40798-026-01002-3; https://pubmed.ncbi.nlm.nih.gov/41838377/
+
+- BW-037 — Tempo-specific complex training improves lower-limb strength and neuromuscular function in male collegiate soccer players: an experimental study.
+  30 piłkarzy akademickich; trzy tempa, RCT. Tempo różnicowało adaptacje; wolna ekscentryka nie poprawiała każdego skoku. Małe grupy; po zmianie tempa dawka nie jest porównywalna.
+  PMID 41792800; DOI 10.1186/s13102-026-01631-x; https://pubmed.ncbi.nlm.nih.gov/41792800/
+
+- BW-038 — The Effects of In-Season Complex Contrast Training on Anaerobic Performance Metrics in Elite Female Soccer Players.
+  21 elitarnych piłkarek; obserwacja sezonu. Część parametrów poprawiała się w środku sezonu. Brak grupy porównawczej; nie przypisuj efektu wyłącznie kontrastowi.
+  PMID 41359895; DOI 10.1519/jsc.0000000000005371; https://pubmed.ncbi.nlm.nih.gov/41359895/
+
+- BW-039 — Effects of 6 weeks of complex training on athletic performance and post-activation performance enhancement effect magnitude in soccer players: a cross-sectional randomized study.
+  24 piłkarzy; dwie losowane intensywności, 6 tygodni. Wyższa intensywność pomagała niektórym sprintom i skokom; reakcja PAPE inna. Małe grupy; PAPE nie jest gwarantowane.
+  PMID 39758167; DOI 10.5114/biolsport.2025.139849; https://pubmed.ncbi.nlm.nih.gov/39758167/
+
+- BW-040 — Autoregulation by "Repetitions in Reserve" Leads to Greater Improvements in Strength Over a 12-Week Training Program Than Fixed Loading.
+  31 doświadczonych mężczyzn; dwa programy przysiadu, 12 tygodni. Autoregulacja RIR dawała większy przyrost siły niż stałe procenty. Jedno badanie dorosłych; nie waliduje progu dwóch sesji i kroku 2,5%.
+  PMID 31009432; DOI 10.1519/jsc.0000000000003164; https://pubmed.ncbi.nlm.nih.gov/31009432/
+
+- BW-041 — Can In-Season Nordic Hamstring Exercise Microdosing Maintain Eccentric Hamstring Strength?
+  34 sportowców po przygotowaniu; randomizacja fazy sezonu. Jedna seria sześciu Nordiców tygodniowo nie utrzymała uzyskanej siły. To jeden protokół; mikrodawkowanie nie gwarantuje podtrzymania.
+  PMID 42887562; DOI 10.1055/a-2982-7578; https://pubmed.ncbi.nlm.nih.gov/42887562/
+
+- BW-042 — Dose-response characteristics of the Nordic hamstring exercise: Total impulse versus total repetitions.
+  21 zdrowych mężczyzn; trzy grupy, 6 tygodni. Impuls lepiej niż same powtórzenia opisywał część adaptacji NHE. Małe N; telefon bez czujnika nie mierzy impulsu siły.
+  PMID 42610665; DOI 10.1080/02640414.2026.2717029; https://pubmed.ncbi.nlm.nih.gov/42610665/
+
+- BW-043 — Low-volume Nordic hamstring training improves change-of-direction performance more than higher volumes in youth soccer players.
+  60 piłkarzy około 13,7 roku; RCT, 8 tygodni. Mniejsze objętości NHE sprzyjały części COD i akceleracji. Bez kontroli bez NHE i bez pomiaru urazów; więcej nie zawsze lepiej.
+  PMID 42491631; DOI 10.3389/fspor.2026.1818507; https://pubmed.ncbi.nlm.nih.gov/42491631/
+
+- BW-044 — Minimal Role of Hamstring Hypertrophy in Strength Transfer Between Nordic Hamstring and Stiff-Leg Deadlift: A Blinded Randomized Controlled Trial.
+  36 dorosłych bez stażu; zaślepiony RCT, 9 tygodni. NHE i martwy ciąg dawały swoiste efekty. Nie badano urazów; zgięcie kolana i wyprost biodra pozostają odrębnymi funkcjami.
+  PMID 40644669; DOI 10.1519/jsc.0000000000005159; https://pubmed.ncbi.nlm.nih.gov/40644669/
+
+- BW-045 — Effects of Combined Nordic Hamstring and Speed Deceleration Training on Measures of Physical Fitness in Male Youth Soccer Players.
+  36 młodych piłkarzy; RCT, 8 tygodni. NHE z hamowaniem poprawiały część sprawności. Interwencja wieloskładnikowa; nie przypisuj całości Nordicowi ani nie pomijaj dawki hamowania.
+  PMID 41900491; DOI 10.3390/jfmk11010084; https://pubmed.ncbi.nlm.nih.gov/41900491/
+
+- BW-046 — The effects of three hamstring programmes on strength and sprinting performance in female footballers: A randomised controlled trial.
+  35 piłkarek około 20,9 roku; trzy programy, RCT. Siła rosła bez wyraźnych różnic grup i poprawy sprintu. Cztery tygodnie; mostek nie zastępuje swoistego sprintu.
+  PMID 41734153; DOI 10.1371/journal.pone.0342529; https://pubmed.ncbi.nlm.nih.gov/41734153/
+
+- BW-047 — Exploring the effects of combined Nordic and reverse Nordic hamstring exercises on physical fitness in prepubertal male soccer players.
+  34 piłkarzy około 12,4 roku; randomizacja grupowa. Program NHE z reverse Nordic poprawiał wybrane wyniki. Kilka bodźców; brak urazów w małej próbie nie ustala bezpieczeństwa populacji.
+  PMID 41835020; DOI 10.3389/fspor.2026.1717594; https://pubmed.ncbi.nlm.nih.gov/41835020/
+
+- BW-048 — Less pain, same gain? A randomized controlled trial comparing assisted- versus non-assisted Nordic Hamstring exercise training in elite youth football players.
+  31 piłkarzy U14/U15; RCT z zaślepioną oceną. Asysta dawała zbliżony przyrost siły z mniejszą bolesnością i wysiłkiem. Jedna akademia; zachowuj opis asysty i zakresu.
+  PMID 40056728; DOI 10.1016/j.ptsp.2025.02.007; https://pubmed.ncbi.nlm.nih.gov/40056728/
+
+- BW-049 — Eccentric Hamstring Torque Production and Muscle Activity in Unassisted Versus Assisted Nordic Hamstring Exercises.
+  12 osób; losowo wykonywane warianty pojedynczych ruchów. Asysta mogła zwiększać moment i zakres pracy. Ostra biomechanika; mniejsza pomoc nie zawsze oznacza lepszy bodziec treningowy.
+  PMID 40639798; DOI 10.1123/jsr.2024-0251; https://pubmed.ncbi.nlm.nih.gov/40639798/
+
+- BW-050 — Effects of Nordic Hamstring Exercise Set Configuration on Eccentric Hamstring Strength Changes in Youth Female Athletes.
+  35 młodych zawodniczek; RCT, 6 tygodni. Dwa układy NHE poprawiały część siły, bez poprawy przy każdym kącie. Nie badano zapobiegania ACL; porównuj zgodne kąty.
+  PMID 40489412; DOI 10.1519/jsc.0000000000005139; https://pubmed.ncbi.nlm.nih.gov/40489412/
+
+- BW-051 — Six weeks of isometric resistance training led to evidence of corticospinal but not reticulospinal adaptation in previously untrained adult males.
+  39 niewytrenowanych mężczyzn; RCT, 6 tygodni. Izometria zwiększała siłę i RFD z różnymi markerami nerwowymi. Laboratoryjne, niejednoznaczne wskaźniki; aplikacja nie mierzy pobudzenia nerwowego.
+  PMID 42690424; DOI 10.1007/s00221-026-07391-x; https://pubmed.ncbi.nlm.nih.gov/42690424/
+
+- BW-052 — Plyometrics with reactive agility or isometrics: divergent effects on change-of-direction ability, sprint, and strength adaptations in adolescent female handball players.
+  36 piłkarek ręcznych około 14 lat; RCT. Izometria sprzyjała sile izometrycznej, reaktywność innym testom COD. Brak poprawy każdego wyniku; metody mają odrębne cele.
+  PMID 42382673; DOI 10.3389/fbioe.2026.1765655; https://pubmed.ncbi.nlm.nih.gov/42382673/
+
+- BW-053 — Deceleration specific isometric exercises acutely enhance change of direction performance in male youth academy soccer players.
+  16 piłkarzy U16/U17; powtarzane próby z przeciwną kolejnością. Po izometrii poprawiał się COD w określonych minutach. Efekt ostry; nie gwarantuje powtarzalnego PAPE ani długotrwałej poprawy.
+  PMID 42422389; DOI 10.5114/biolsport.2026.159569; https://pubmed.ncbi.nlm.nih.gov/42422389/
+
+- BW-054 — Acute Optimization of Squat Jump Performance in Trained Collegiate Sprinters through Knee Angle-Specific Isometric Training.
+  12 sprinterów akademickich; losowa próba krzyżowa. Kąt izometrii różnicował prędkościowe wyniki skoku bez poprawy wszystkich miar mocy. Nie badano podnoszenia ciężaru; primer wymaga nadzoru.
+  PMID 42712818; DOI 10.5114/jhk/208832; https://pubmed.ncbi.nlm.nih.gov/42712818/
+
+- BW-055 — Comparative Adaptations to Different Leg Extension Set-termination Strategies in Trained Men and Women: A Unilateral Within-Participant Study.
+  19 trenujących dorosłych; randomizacja kończyn, 8 tygodni. Upadek i RIR dawały zbliżone efekty wyprostu kolana. Mała próba, możliwy wspólny zbiór z BW-057; nie niezależne potwierdzenia.
+  PMID 42617172; DOI 10.1519/jsc.0000000000005494; https://pubmed.ncbi.nlm.nih.gov/42617172/
+
+- BW-056 — Velocity-Based Monitoring Lacks Both Accuracy and Applicability for Estimating Repetitions in Reserve During the Hexagonal Bar Deadlift.
+  19 wytrenowanych mężczyzn; model prędkości i RIR. Modele trap bar deadlift nie spełniały łącznie kryteriów dokładności i użyteczności. Jedno ćwiczenie; nie wyliczaj RIR z ogólnego wzoru.
+  PMID 42328880; DOI 10.1519/jsc.0000000000005549; https://pubmed.ncbi.nlm.nih.gov/42328880/
+
+- BW-057 — Elbow Flexor Adaptations to Failure Versus Repetitions-in-Reserve Training: A Unilateral Within-Participant Study in Resistance-Trained Adults.
+  19 trenujących dorosłych; randomizacja kończyn, 8 tygodni. Upadek i RIR bez jasnej przewagi dla zginaczy łokcia. Małe N, możliwa ta sama próba co BW-055; pośrednie dla nóg piłkarza.
+  PMID 42784046; DOI 10.3390/muscles5030061; https://pubmed.ncbi.nlm.nih.gov/42784046/
+
+- BW-058 — Time course of muscle hypertrophy with and without progressive overload.
+  31 nowicjuszy; randomizacja kończyn, 12 tygodni. Rosnący ciężar pomagał utrzymać wysiłek i późną adaptację mięśnia. Wyprost kolana; różnice objętości i wysiłku ograniczają izolację progresji.
+  PMID 42880344; DOI 10.1055/a-2980-6473; https://pubmed.ncbi.nlm.nih.gov/42880344/
+
+- BW-059 — Effects of different resistance training loads, exercises, and volume-regulated proximities to failure on acute and short-term neuromuscular, perceptual, and metabolic responses.
+  18 osób; sześć sesji w losowej kolejności. Bliżej upadku rosły wskaźniki zmęczenia zależnie od ćwiczenia i ciężaru. Efekty ostre; nie uzasadnia jednego RIR dla wszystkich ruchów.
+  PMID 42458937; DOI 10.1080/02640414.2026.2703381; https://pubmed.ncbi.nlm.nih.gov/42458937/
+
+- BW-060 — Exercise type, training load, velocity loss threshold, and sets affect the relationship between lifting velocity and perceived repetitions in reserve in strength-trained individuals.
+  19 trenujących dorosłych; pomiary przez 6 tygodni. Prędkość i RIR nie były zamienne, zależały od obciążenia i serii. Korelacje nie walidują automatu; nie zgaduj pomiaru z zegara.
+  PMID 40832580; DOI 10.7717/peerj.19797; https://pubmed.ncbi.nlm.nih.gov/40832580/
+
+- BW-061 — Objective Accuracy in Estimating Repetitions in Reserve in the Back Squat: An Analysis between Experienced vs. Novice Subjects.
+  16 dorosłych o różnym stażu; próba trafności. Nie wykazano różnicy dokładności RIR między grupami. Małe N i Smith; brak różnicy nie dowodzi równoważności, RIR pozostaje deklaracją.
+  PMID 42211811; DOI 10.5114/jhk/205218; https://pubmed.ncbi.nlm.nih.gov/42211811/
+
+- BW-062 — Without Fail: Muscular Adaptations in Single-Set Resistance Training Performed to Failure or with Repetitions-in-Reserve.
+  42 trenujących dorosłych; RCT, 8 tygodni. Jednoseryjne programy dawały przyrost siły także z zapasem. Część hipertrofii sprzyjała upadkowi; nie dowód optimum dla piłkarza.
+  PMID 40249908; DOI 10.1249/mss.0000000000003728; https://pubmed.ncbi.nlm.nih.gov/40249908/
+
+- BW-063 — The Effects of Percentage-Based, Rating of Perceived Exertion, Repetitions in Reserve, and Velocity-Based Training on Performance and Fatigue Responses.
+  15 dorosłych; losowa próba krzyżowa czterech metod. RIR i VBT zachowywały część bieżącej jakości bez przewagi każdego wskaźnika po 24 godzinach. Małe N; autoregulacja nie jest gwarancją.
+  PMID 39787033; DOI 10.1519/jsc.0000000000005026; https://pubmed.ncbi.nlm.nih.gov/39787033/
+
+- BW-064 — Effects of Velocity Loss Programming in the Bench Press on Strength Gains and Hypertrophy.
+  24 trenujących mężczyzn; RCT, 8 tygodni. Stały i rosnący próg utraty prędkości dawały poprawę bez jasnej interakcji. Nie eskaluj utraty jakości tylko dlatego, że mija tydzień.
+  PMID 42161253; DOI 10.1055/a-2860-6331; https://pubmed.ncbi.nlm.nih.gov/42161253/
+
+- BW-065 — Comparative effects of four back squat prescription models on explosive performance and sprint outcomes in resistance-trained men.
+  52 trenujących mężczyzn; RCT, 4 tygodnie. Niektóre pakiety prędkościowe dawały lepsze wybrane testy. Różne składowe i brak pełnej rzeczywistej dawki; nie efekt jednego progu.
+  PMID 42369605; DOI 10.3389/fphys.2026.1871525; https://pubmed.ncbi.nlm.nih.gov/42369605/
+
+- BW-066 — Effect of different velocity loss thresholds during a resistance training program on jump and sprint performances in trained female athletes.
+  15 koszykarek; RCT, 8 tygodni. Oba małe progi utraty prędkości pomagały bez istotnych różnic grup. Małe N; trendy nie ustalają przewagi 10% nad 20%.
+  PMID 41973744; DOI 10.1371/journal.pone.0347298; https://pubmed.ncbi.nlm.nih.gov/41973744/
+
+- BW-067 — Impact of Prior Fatigue on Velocity Loss as a Set-Termination Criterion in the Bench Press Exercise.
+  14 mężczyzn; ostre sesje wyciskania. Wstępne zmęczenie zmieniało trafność relacji prędkości i wykorzystanych powtórzeń. Jedno ćwiczenie; uwzględniaj wcześniejszą pracę i kontekst.
+  PMID 42051618; DOI 10.5114/jhk/214212; https://pubmed.ncbi.nlm.nih.gov/42051618/
+
+- BW-068 — Optimizing Strength and Hypertrophy: The Combined Effect of Intensity and Velocity Loss Thresholds in Bench Press Training.
+  158 trenujących mężczyzn; RCT, 12 grup. Obciążenie i utrata prędkości różnicowały siłę, masę i wytrzymałość. Wyciskanie dorosłych; nie przenoś jednego progu na młode nogi.
+  PMID 41872733; DOI 10.1249/mss.0000000000003988; https://pubmed.ncbi.nlm.nih.gov/41872733/
+
+- BW-069 — A Comparison of Traditional and Autoregulated Periodized Strength Training in Resistance-Trained Men: A Randomized, Crossover Study.
+  8 trenujących mężczyzn; losowa próba krzyżowa bloków. Autoregulacja na maksymalnej serii nie miała jednolitej przewagi. Małe N, możliwy carry-over; nie wymagaj testu do upadku przed treningiem.
+  PMID 42497844; DOI 10.1519/jsc.0000000000005617; https://pubmed.ncbi.nlm.nih.gov/42497844/
+
+- BW-070 — Scheduling Repeated-Sprint Training on Different Microcycle Days in Professional Soccer Players: A Randomized Crossover Study.
+  17 zawodowych piłkarzy; losowa próba krzyżowa mikrocykli. Duża dawka RSA bliżej meczu zwiększała część bolesności. 900 metrów pracy; nie utożsamiaj z jakościowym sprintem z pełną przerwą.
+  PMID 42329031; DOI 10.1519/jsc.0000000000005572; https://pubmed.ncbi.nlm.nih.gov/42329031/
+
+- BW-071 — Progressively Increased Range of Motion Confers Similar Strength Improvements but Not Bar Kinematics as Full Range of Motion Bench Press.
+  16 doświadczonych mężczyzn; RCT, 4 tygodnie. Rosnący zakres i pełny zakres poprawiały siłę z innymi zmianami mechaniki. Specjalistyczne wyciskanie; zakres musi być zgodny przy porównaniu.
+  PMID 41718200; DOI 10.3390/jfmk11010072; https://pubmed.ncbi.nlm.nih.gov/41718200/
+
+- BW-072 — Comparative Effects of 2 Different Frequencies of Resistance Training in an Integral Periodization Approach on High-Intensity Actions and Noncontact Injuries in Young Trained Soccer Players.
+  40 piłkarzy około 16,6 roku; RCT przez sezon. Dwie sesje poprawiały część wyników bardziej niż jedna. Małe N; nie dowodzi obowiązku dwóch dodatkowych siłowni ponad trening klubowy.
+  PMID 40840554; DOI 10.1123/ijspp.2024-0518; https://pubmed.ncbi.nlm.nih.gov/40840554/
+
+- BW-073 — Effects of deload periods in resistance training on muscle hypertrophy and strength endurance in untrained young men using a randomized within subject design.
+  19 niewytrenowanych mężczyzn; randomizacja kończyn. Ograniczona objętość i częstotliwość w dwóch tygodniach nie pogorszyły istotnie efektów. Izolowane ruchy; nie dowód uniwersalnego cyklu 3:1.
+  PMID 41730991; DOI 10.1038/s41598-026-40612-5; https://pubmed.ncbi.nlm.nih.gov/41730991/
+
+- BW-074 — Gaining more from doing less? The effects of a one-week deload period during supervised resistance training on muscular adaptations.
+  39 trenujących dorosłych; RCT, 9 tygodni. Tydzień pełnej przerwy nie poprawiał hipertrofii, ciągły trening sprzyjał sile. Nie badano każdej wersji deloadu; nie wymuszaj kalendarzowej przerwy.
+  PMID 38274324; DOI 10.7717/peerj.16777; https://pubmed.ncbi.nlm.nih.gov/38274324/
+
+- BW-075 — The effects of resistance training to near failure on strength, hypertrophy, and motor unit adaptations in previously trained adults.
+  19 trenujących dorosłych; RCT, 5 tygodni plus redukcja. Siła rosła bez jasnych różnic dla skrajnych zapasów. Małe N; zmiany jednostek motorycznych nie są pomiarem gotowości telefonu.
+  PMID 37144554; DOI 10.14814/phy2.15679; https://pubmed.ncbi.nlm.nih.gov/37144554/
+
+- BW-076 — Effects of a 7-day step taper, training cessation, and retraining on lower body physical and morphological aspects in elite female ice hockey players.
+  7 elitarnych hokeistek; obserwacja taperu i powrotu. Część spadków po przerwie szybko wracała, taper bez wyraźnego efektu. Bardzo małe N, bez kontroli; nie zakładaj stałej utraty siły.
+  PMID 40666310; DOI 10.3389/fspor.2025.1541765; https://pubmed.ncbi.nlm.nih.gov/40666310/
+
+- BW-077 — Strength and Power Responses to a Power-Oriented Resistance Training Model across an Entire Soccer Competitive Season.
+  23 zawodowych piłkarzy; obserwacja 7 miesięcy. Wyniki rosły bez dużego wzrostu absolutnego ciężaru. Bez randomizacji i z monitoringiem sprzętowym; postęp nie musi oznaczać kolejnych kilogramów.
+  PMID 42051623; DOI 10.5114/jhk/218820; https://pubmed.ncbi.nlm.nih.gov/42051623/
+
+- BW-078 — Sequencing Effects of Concurrent Strength and Endurance Training on Selected Measures of Physical Fitness in Young Male Soccer Players: A Randomized Matched-Pairs Trial.
+  38 analizowanych z 50 wylosowanych piłkarzy; 12 tygodni. Obie kolejności programu łączonego poprawiały część testów. Odpływ próby i plyometria jako siła; nie dowodzi zakazu łączenia bodźców.
+  PMID 38782805; DOI 10.1186/s40798-024-00726-4; https://pubmed.ncbi.nlm.nih.gov/38782805/
+
+- BW-079 — Effects of Varying Antagonist Exercise Volume in Upper-Body Supersets on Mechanical, Metabolic, and Perceptual Responses in Resistance-Trained Men.
+  14 trenujących mężczyzn; losowa próba krzyżowa. Większa dawka drugiego ćwiczenia w parze zwiększała koszt metaboliczny. Ostra praca góry ciała; ogranicz podobne grupy i zbędną gęstość.
+  PMID 41283526; DOI 10.3390/jfmk10040419; https://pubmed.ncbi.nlm.nih.gov/41283526/
+
+- BW-080 — A comparison of acute affective responses, physiological measures and training volume between superset and traditional resistance training in untrained adults.
+  30 niewytrenowanych dorosłych; losowa próba krzyżowa. Superserie oszczędzały czas, zwiększały wysiłek i zmniejszały nieco powtórzenia. Preferencja nie dowodzi przewagi sportowej; serie tradycyjne pozostają podstawą.
+  PMID 39896990; DOI 10.3389/fspor.2025.1536747; https://pubmed.ncbi.nlm.nih.gov/39896990/
+
+- BW-081 — Efficacy of Supersets Versus Traditional Sets in Whole-Body Multiple-Joint Resistance Training: A Randomized Controlled Trial.
+  Dorośli po fazie wprowadzającej; RCT, 10 tygodni. Obie organizacje działały, ale część siły przyciągania bardziej rosła tradycyjnie. Brak pełnego N w abstrakcie; nie sama oszczędność czasu.
+  PMID 39072654; DOI 10.1519/jsc.0000000000004819; https://pubmed.ncbi.nlm.nih.gov/39072654/
+
+- BW-082 — Fitness Adaptations to a Combined Strength and Aerobic Training Program During the Transition Period in Young Soccer Players.
+  23 piłkarzy U17; pre/post po przerwie. Krótki program zmieniał wybrane parametry wydolności. Bez kontroli i bez poprawy wszystkich testów; nie odrabiaj zaległych treningów.
+  PMID 41893579; DOI 10.3390/sports14030088; https://pubmed.ncbi.nlm.nih.gov/41893579/
+
+- BW-083 — Short-term detraining in semi-professional male football players: impact of a 5-day mid-season break on performance - an observational study.
+  17–21 półprofesjonalnych piłkarzy zależnie od testu; obserwacja. Po 5 dniach część RSA pogorszyła się, siła niekoniecznie. Brak kontroli; nie ustala uniwersalnej prędkości utraty sprawności.
+  PMID 41957875; DOI 10.1186/s13102-026-01654-4; https://pubmed.ncbi.nlm.nih.gov/41957875/
+
+- BW-084 — Effects of a Combined Plyometric and Resistance Training Programme on Adolescent Rugby Union Players.
+  15 młodych rugbystów; sekwencyjny program. Po wycofaniu skoków część efektów utrzymała się lub wzrosła. Bez równoległej kontroli; przerwa jednego bodźca nie oznacza utraty całej formy.
+  PMID 40757560; DOI 10.3390/muscles4020017; https://pubmed.ncbi.nlm.nih.gov/40757560/
+
+- BW-085 — Comparison of Architectural and Performance Adaptations of Hip Extension Exercise Under Gravitational or Inertial Loading Conditions: A Randomized Controlled Trial.
+  32 trenujących mężczyzn; RCT, 6 tygodni plus przerwa. Rodzaj obciążania biodra różnicował architekturę i część siły. Specjalny sprzęt; nie mierzono urazów, inercja nie jest kilogramami.
+  PMID 40960470; DOI 10.1002/ejsc.70048; https://pubmed.ncbi.nlm.nih.gov/40960470/
+
+- BW-086 — Effects of a Short-Term Detraining Period on the Physical Fitness in Elite Youth Soccer Players: A Comparison Between Chronological Age Groups.
+  30 piłkarzy U15/U17; obserwacja dwutygodniowej przerwy. Część skoków, sprintu i wydolności pogarszała się. Bez aktywnej kontroli; próg 14 dni w produkcie nie diagnozuje utraty siły.
+  PMID 39471049; DOI 10.1519/jsc.0000000000004975; https://pubmed.ncbi.nlm.nih.gov/39471049/
+
+- BW-087 — The Effect of a High-Frequency Exercise Program During the Transition Period in Young Football Players.
+  13 piłkarzy około 17,8 roku; pre/post fazy przejściowej. Część wydolności poprawiała się, ale skok i część momentów siły nie. Bez kontroli; większa częstotliwość nie rozwiązuje wszystkiego.
+  PMID 41003602; DOI 10.3390/sports13090297; https://pubmed.ncbi.nlm.nih.gov/41003602/
+
+- BW-088 — Effects of Plyometric Training on Lower-Limb Explosive Power and Its Retention After Detraining in Sprinters.
+  40 sprinterów około 20 lat; RCT z przerwą. Plyometria wspierała część mocy i utrzymania efektów. Inny sport i dorośli; progresję mocy oddziel od ciężaru.
+  PMID 40801377; DOI 10.1177/15579883251363089; https://pubmed.ncbi.nlm.nih.gov/40801377/
+
+- BW-089 — Microdosing Plyometric Training Enhances Jumping Performance, Reactive Strength Index, and Acceleration among Youth Soccer Players: A Randomized Controlled Study Design.
+  52 piłkarzy U17; RCT, 8 tygodni. Obie dawki skoków pomagały bez jasnej przewagi między nimi. Jednoczesna zmiana objętości i częstotliwości; nie izoluje mikrodawkowania.
+  PMID 38841635; DOI 10.52082/jssm.2024.342; https://pubmed.ncbi.nlm.nih.gov/38841635/
+
+- BW-090 — The effect of a six-week plyometric training performed with different set configurations on explosive performance: cluster vs. traditional set configurations.
+  25 piłkarzy U16; przydział według pretestu. Oba układy plyometrii poprawiały część wyników. Nie pełna randomizacja; wniosku o mniejszym ryzyku urazu nie potwierdza pomiar urazów.
+  PMID 34296838; DOI 10.23736/s0022-4707.20.11543-3; https://pubmed.ncbi.nlm.nih.gov/34296838/
+
+- BW-092 — Effects of plyometric jump training on the physical fitness of young male soccer players: Modulation of response by inter-set recovery interval and maturation status.
+  Piłkarze 10–17 lat; losowa próba krzyżowa bloków. Dłuższy odpoczynek sprzyjał części adaptacji starszej grupy. Brak pełnego N w abstrakcie; nie skracaj przerw dla zmieszczenia treningu.
+  PMID 31159655; DOI 10.1080/02640414.2019.1626049; https://pubmed.ncbi.nlm.nih.gov/31159655/
+
+- BW-093 — The Trainability of Adolescent Soccer Players to Brief Periodized Complex Training.
+  22 piłkarzy 14–15 lat; RCT, 5 tygodni. Wieloskładnikowy program poprawiał część siły wobec całkowitej przerwy. Nie dowodzi przewagi kontrastu nad dobrą siłą tradycyjną ani bezpieczeństwa populacji.
+  PMID 29431546; DOI 10.1123/ijspp.2017-0763; https://pubmed.ncbi.nlm.nih.gov/29431546/
+
+- BW-094 — The effects of maturation on jumping ability and sprint adaptations to plyometric training in youth soccer players.
+  60 młodych piłkarzy; RCT w podgrupach PHV. Skoki poprawiały część sprintu i mocy przy różnych etapach dojrzewania. Małe podgrupy; konkretna dawka nie jest uniwersalnym optimum.
+  PMID 29611771; DOI 10.1080/02640414.2018.1459151; https://pubmed.ncbi.nlm.nih.gov/29611771/
+
+- BW-095 — Volume Load and Neuromuscular Fatigue During an Acute Bout of Agonist-Antagonist Paired-Set vs. Traditional-Set Training.
+  15 trenujących mężczyzn; ostra próba par ćwiczeń. Pary pozwalały wykonać większą objętość szybciej, ale zwiększały część zmęczenia. Jedna sesja góry; nie dowód przewagi sezonowej.
+  PMID 28933712; DOI 10.1519/jsc.0000000000001059; https://pubmed.ncbi.nlm.nih.gov/28933712/
+
+- BW-096 — Crescent pyramid and drop-set systems do not promote greater strength gains, muscle hypertrophy, and changes on muscle architecture compared with traditional resistance training in well-trained men.
+  32 wytrenowanych mężczyzn; randomizacja kończyn, 12 tygodni. Dropset i piramida nie dawały przewagi przy wyrównanej objętości. Hipertrofia dorosłych; nie obowiązkowy poziom dla młodych piłkarzy.
+  PMID 28130627; DOI 10.1007/s00421-016-3529-1; https://pubmed.ncbi.nlm.nih.gov/28130627/
+
+- BW-097 — Effects of Velocity Loss During Resistance Training on Performance in Professional Soccer Players.
+  16 zawodowych piłkarzy; RCT, 6 tygodni. Mniejsza utrata prędkości sprzyjała CMJ bez przewagi każdego testu. Po 8 osób i analizy MBI; bez jednego magicznego progu.
+  PMID 27618386; DOI 10.1123/ijspp.2016-0170; https://pubmed.ncbi.nlm.nih.gov/27618386/
+
+- BW-098 — Effects of velocity loss during resistance training on athletic performance, strength gains and muscle adaptations.
+  22 młodych mężczyzn; RCT, 8 tygodni. Mniejsza utrata prędkości dawała podobną siłę i większą poprawę CMJ przy mniejszej pracy. Nie piłkarze; inne cele hipertrofii.
+  PMID 27038416; DOI 10.1111/sms.12678; https://pubmed.ncbi.nlm.nih.gov/27038416/
+
+- BW-099 — The preventive effect of the nordic hamstring exercise on hamstring injuries in amateur soccer players: a randomized controlled trial.
+  579 dorosłych amatorów, 40 zespołów; klastrowy RCT. Cały program NHE zmniejszał częstość urazów, bez wyraźnej zmiany ich ciężkości. To nie dowód ochrony po dowolnych dwóch seriach.
+  PMID 25794868; DOI 10.1177/0363546515574057; https://pubmed.ncbi.nlm.nih.gov/25794868/
+
+- BW-100 — Maximal and explosive strength training elicit distinct neuromuscular adaptations, specific to the training stimulus.
+  19 dorosłych mężczyzn; dwa rodzaje izometrii, 4 tygodnie. Intencja maksymalna i eksplozywna dawały swoiste adaptacje. Laboratoryjna próba; nie zamieniaj maksymalnego naporu na długie utrzymanie.
+  PMID 24292019; DOI 10.1007/s00421-013-2781-x; https://pubmed.ncbi.nlm.nih.gov/24292019/
+
+- BW-101 — Preventive effect of eccentric training on acute hamstring injuries in men's soccer: a cluster-randomized controlled trial.
+  942 piłkarzy, 50 zespołów; klastrowy RCT. Progresywny NHE z podtrzymaniem zmniejszał częstość nowych i ponownych urazów. Efekt całego programu męskiej piłki, bez gwarancji ochrony jednostki.
+  PMID 21825112; DOI 10.1177/0363546511419277; https://pubmed.ncbi.nlm.nih.gov/21825112/
+
+Przeglądy i konsensusy — dodatkowo, poza liczbą 100:
+- Effects of subjective and objective autoregulation methods for intensity and volume on enhancing maximal strength during resistance-training interventions: a systematic review. https://pubmed.ncbi.nlm.nih.gov/33520457/
+- Superset Versus Traditional Resistance Training Prescriptions: A Systematic Review and Meta-analysis Exploring Acute and Chronic Effects on Mechanical, Metabolic, and Perceptual Variables. https://pubmed.ncbi.nlm.nih.gov/39903375/
+- Optimal Training Sequences to Develop Lower Body Force, Velocity, Power, and Jump Height: A Systematic Review with Meta-Analysis. https://pubmed.ncbi.nlm.nih.gov/33666895/
+- Effects of Complex Training on Sprint, Jump, and Change of Direction Ability of Soccer Players: A Systematic Review and Meta-Analysis. https://pubmed.ncbi.nlm.nih.gov/33551937/
+- Isometric training and long-term adaptations: Effects of muscle length, intensity, and intent: A systematic review. https://pubmed.ncbi.nlm.nih.gov/30580468/
+- Position statement on youth resistance training: the 2014 International Consensus. https://pubmed.ncbi.nlm.nih.gov/24055781/
+- American College of Sports Medicine Position Stand. Resistance Training Prescription for Muscle Function, Hypertrophy, and Physical Performance in Healthy Adults: An Overview of Reviews. https://pubmed.ncbi.nlm.nih.gov/41843416/
+  Wspiera progresywną siłę i rozróżnianie celów siły, mocy i hipertrofii. Nie wykazuje stałej przewagi komplikowania serii ani treningu do upadku. Nie przenosimy progów dla dorosłych wprost na młodzież.
+- Resistance Training for Children and Adolescents https://publications.aap.org/pediatrics/article/145/6/e20201011/76942/
+  Progresja kierowana kompetencją, nauką techniki i odpowiednim nadzorem. Nie ma automatycznego awansu do trudnych ćwiczeń po urodzinach.
+- International Olympic Committee consensus statement on youth athletic development https://doi.org/10.1136/bjsports-2015-094962
+  Zróżnicowany rozwój, regeneracja i kontekst wieku rozwojowego, szkoły oraz sportu. Nie gwarantuje braku urazów i nie diagnozuje dojrzałości w aplikacji.
+- How much is too much? (Part 1) International Olympic Committee consensus statement on load in sport and risk of injury https://doi.org/10.1136/bjsports-2016-096581
+  Jeden marker nie wystarcza do oceny nieprawidłowej adaptacji. Potrzebna łączna ocena obciążeń i kontekstu. Nie wdrażamy sztywnego ACWR ani procentowego progu jako automatycznej diagnozy urazu.

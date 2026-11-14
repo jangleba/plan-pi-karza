@@ -18,6 +18,7 @@ import {
   coachedPrimerEligible,
   controlledKneeFlexionDose,
   quadricepsHoldingDose,
+  clusterEligible,
 } from "./strengthProtocols";
 
 /** Roles describe function, independently of the legacy family/hinge labels. */
@@ -76,7 +77,7 @@ export const CANDIDATES: Record<Role, readonly string[]> = {
   landing: ["snap_down", "drop_landing"],
   speed: ["free_acceleration_sprint"],
   endurance: ["easy_aerobic_run"],
-  warmup: ["a_march", "bodyweight_squat", "glute_bridge"],
+  warmup: ["hip_mobility_flow", "a_march", "bodyweight_squat", "glute_bridge"],
   mobility: [],
   breathing: [],
   ball_skill: [],
@@ -91,6 +92,20 @@ export function eligibleExercise(id: string, p: Profile): boolean {
     !!d &&
     d.approved !== false &&
     !d.draft &&
+    (d.spaceRequirement !== "indoor_gym" || p.hasGym) &&
+    d.equipmentRequired
+      .filter((e) =>
+        [
+          "trap_bar",
+          "nordic_setup",
+          "machine",
+          "fixed_pins",
+          "sliders",
+          "med_ball",
+          "sled",
+        ].includes(e),
+      )
+      .every((e) => equipment.some((value) => (resolveEquipmentId(value) ?? value) === e)) &&
     isExerciseAllowedForProfile(d, buildAthleteTrainingProfile({ ...p, equipment })).ok
   );
 }
@@ -99,7 +114,10 @@ function pick(role: Role, p: Profile, variant: "A" | "B", used: Set<string>): st
   let ids = [...CANDIDATES[role]];
   const tier = trainingTier(p);
   if (role === "knee_strength" && tier !== "performance")
-    ids = ["goblet_squat", "bodyweight_squat", "leg_press"];
+    ids =
+      tier === "foundation"
+        ? ["goblet_squat", "bodyweight_squat", "leg_press"]
+        : ["goblet_squat", "leg_press", "bodyweight_squat"];
   if (role === "hip_strength" && tier !== "performance")
     ids = ["romanian_deadlift_db", "glute_bridge", "hip_thrust"];
   if (role === "knee_flexion" && tier !== "performance")
@@ -138,6 +156,9 @@ export function estimateSeconds(e: ExerciseDecision, hasNext = false): number {
   const work = d.seconds ?? (d.distanceM ? 8 : (d.reps ?? 1) * (d.intent === "explosive" ? 3 : 4));
   return (
     d.sets * work * (d.perSide ? 2 : 1) +
+    d.sets *
+      Math.max(0, (d.cluster?.repGroups.length ?? 1) - 1) *
+      (d.cluster?.intraRestSeconds ?? 0) +
     Math.max(0, d.sets - 1) * d.restSeconds +
     (d.postRestSeconds ?? (hasNext ? d.restSeconds : 0)) +
     45
@@ -169,7 +190,7 @@ export function buildStrength(
   const exercises: ExerciseDecision[] = [],
     missing: Role[] = [];
   // Stable work in weeks 1–3 allows two genuinely comparable exposures before load advice.
-  const sets = deload || tier === "foundation" ? 2 : 3;
+  const sets = deload ? (tier === "foundation" ? 1 : 2) : tier === "foundation" ? 2 : 3;
   const add = (role: Role, dose: Dose) => {
     const id = pick(role, p, variant, used);
     if (!id) {
@@ -183,7 +204,10 @@ export function buildStrength(
       !["external", "axial"].includes(getExerciseDefinition(id)!.loadingType)
     )
       dose = { ...dose, reps: deload ? 6 : 8, rir: deload ? 4 : 3, restSeconds: 90 };
-    if (role === "knee_flexion") dose = controlledKneeFlexionDose(id, dose.sets, tier);
+    if (role === "knee_flexion") {
+      dose = controlledKneeFlexionDose(id, dose.sets, tier);
+      if (deload) dose = { ...dose, rir: 4 };
+    }
     if (FUNCTIONAL_CATALOGUE[id]?.unilateral) dose = { ...dose, perSide: true };
     if (id.endsWith("_30")) dose = { ...dose, jointAngleDegrees: 30 };
     if (id.endsWith("_90")) dose = { ...dose, jointAngleDegrees: 90 };
@@ -206,12 +230,12 @@ export function buildStrength(
           : ""
       }${
         ["knee_strength", "hip_strength"].includes(role)
-          ? " W pierwszych trzech tygodniach zachowaj tę samą dawkę; ciężar dobieraj do zapasu i porównywalnych wykonanych serii. Faza opisuje kontekst bloku."
+          ? " Zachowaj ćwiczenie i dawkę; ciężar dobieraj do zapasu i porównywalnych wykonanych serii. Sam kolejny tydzień nie wymusza podwyżki."
           : ""
       }`,
     });
   };
-  add("warmup", { sets: 1, seconds: 120, restSeconds: 0, intent: "easy" });
+  add("warmup", { sets: 1, seconds: 60, perSide: true, restSeconds: 0, intent: "easy" });
   if (coachedPrimerEligible(p, phase)) add("iso_primer", coachedPrimerDose());
   else if (
     p.trainingMethodPreferences?.strength === "M14" &&
@@ -226,7 +250,7 @@ export function buildStrength(
   add(powerRole, {
     sets: deload ? 2 : 3,
     reps: 3,
-    restSeconds: 90,
+    restSeconds: powerRole === "power" && tier !== "foundation" ? 120 : 90,
     intent: powerRole === "landing" ? "controlled" : "explosive",
   });
   add(variant === "A" ? "knee_strength" : "hip_strength", {
@@ -236,7 +260,7 @@ export function buildStrength(
     restSeconds: tier === "performance" && !preparation.provisional ? 180 : 120,
     intent: "controlled",
   });
-  if (variant === "A")
+  if (variant === "A") {
     add("knee_flexion", {
       sets: deload ? 1 : 2,
       reps: tier === "performance" ? 4 : 6,
@@ -244,7 +268,15 @@ export function buildStrength(
       restSeconds: 120,
       intent: "controlled",
     });
-  else {
+    if (!exercises.some((e) => e.role === "knee_flexion"))
+      add("hip_strength", {
+        sets: deload ? 1 : 2,
+        reps: 8,
+        rir: deload ? 4 : 3,
+        restSeconds: 90,
+        intent: "controlled",
+      });
+  } else {
     add("unilateral_strength", {
       sets: deload ? 1 : 2,
       reps: 5,
@@ -256,7 +288,7 @@ export function buildStrength(
     add("hamstring_iso", { sets: deload ? 1 : 2, seconds: 15, restSeconds: 60, intent: "hold" });
   }
   add(variant === "A" ? "push" : "pull", {
-    sets: 2,
+    sets: deload ? 1 : 2,
     reps: 8,
     rir: 3,
     restSeconds: 75,
@@ -282,6 +314,23 @@ export function buildStrength(
   const power = exercises.find((e) => e.role === "power");
   const primaryDefinition = primary ? getExerciseDefinition(primary.exerciseId) : undefined;
   if (
+    primary &&
+    primaryDefinition &&
+    clusterEligible(p, phase) &&
+    ["external", "axial"].includes(primaryDefinition.loadingType)
+  ) {
+    const reps = primary.dose.reps!;
+    primary.dose = {
+      ...primary.dose,
+      cluster: {
+        repGroups: reps === 4 ? [2, 2] : [2, 2, 2],
+        intraRestSeconds: 20,
+      },
+    };
+    primary.reason +=
+      " Klaster: 20 s między grupami po 2 powtórzenia. Łączna liczba powtórzeń i zwykła przerwa między seriami pozostają zapisane osobno; nie dodawaj ciężaru za samą zmianę metody.";
+  }
+  if (
     p.trainingMethodPreferences?.strength === "M09" &&
     hasVerifiedAdvancedStrength(p) &&
     !p.painInjury &&
@@ -306,6 +355,7 @@ export function buildStrength(
     }
   }
   return {
+    variant: "full",
     roles: [variant === "A" ? "strengthA" : "strengthB"],
     tier,
     phase,
@@ -316,6 +366,42 @@ export function buildStrength(
     sprintMetres: 0,
     minutes: Math.ceil(estimateSessionSeconds(exercises) / 60) + 8,
   };
+}
+
+/** Keep front/back legs and one upper-body task. Never shorten rests or erase
+ * warm-up to pretend a complete session fits a small time budget. */
+export function fitStrengthToBudget(recipe: EngineSession, budget: number): EngineSession {
+  if (recipe.minutes <= budget) return recipe;
+  const essential = recipe.roles.includes("strengthA")
+    ? ["warmup", "knee_strength", "knee_flexion", "hip_strength", "push"]
+    : ["warmup", "hip_strength", "unilateral_strength", "pull"];
+  const compact = structuredClone(recipe);
+  compact.variant = "compact";
+  compact.organization = "straight";
+  const primary = (role: string) => role === "knee_strength" || role === "hip_strength";
+  compact.exercises = compact.exercises
+    .filter((e) => essential.includes(e.role))
+    .map((e) => ({
+      ...e,
+      dose: {
+        ...e.dose,
+        cluster: undefined,
+        sets: e.role === "warmup" ? 1 : primary(e.role) ? Math.min(2, e.dose.sets) : 1,
+      },
+      reason: `Cel ćwiczenia: ${ROLE_NAMES[e.role]}. Krótszy wariant: zwykłe serie, podstawowe zadania i pełne przerwy. Nie jest to wykonanie metody specjalistycznej.`,
+    }));
+  const extras = recipe.exercises.filter(
+    (e) => !essential.includes(e.role) && e.role !== "iso_primer",
+  );
+  const minutes = () => Math.ceil(estimateSessionSeconds(compact.exercises) / 60) + 8;
+  compact.minutes = minutes();
+  for (const e of extras) {
+    const index = e.role === "power" || e.role === "landing" ? 1 : compact.exercises.length;
+    compact.exercises.splice(index, 0, { ...e, dose: { ...e.dose, sets: 1 } });
+    if (minutes() > budget) compact.exercises.splice(index, 1);
+  }
+  compact.minutes = minutes();
+  return compact;
 }
 
 export function buildRunning(
@@ -392,6 +478,34 @@ export function buildRunning(
           : "Tempo konwersacyjne; bez zgadywania MAS i tempa z GPS.",
     },
   ];
+  if (role === "speed") {
+    const prep: ExerciseDecision[] = [];
+    if (eligibleExercise("easy_aerobic_run", p))
+      prep.push({
+        exerciseId: "easy_aerobic_run",
+        role: "warmup",
+        dose: { sets: 1, seconds: 180, restSeconds: 30, intent: "easy" },
+        reason:
+          "3 min swobodnego truchtu; następnie ćwiczenia dynamiczne i stopniowe rozpędzanie. To przygotowanie, nie trening wydolnościowy.",
+      });
+    if (eligibleExercise("a_march", p))
+      prep.push({
+        exerciseId: "a_march",
+        role: "warmup",
+        dose: { sets: 2, seconds: 20, restSeconds: 30, intent: "controlled" },
+        reason:
+          "Dwa krótkie odcinki marszu A. Kontroluj rytm i ustawienie tułowia; nie jest to sprint maksymalny.",
+      });
+    if (eligibleExercise("progressive_build_up_sprint", p))
+      prep.push({
+        exerciseId: "progressive_build_up_sprint",
+        role: "warmup",
+        dose: { sets: 2, reps: 1, distanceM: 10, restSeconds: 45, intent: "controlled" },
+        reason:
+          "Dwie przebieżki po 10 m, od swobodnej do wyraźnie szybszej, nadal submaksymalnej. Zachowaj wolną strefę hamowania; gotowość do głównych prób oceń po rozgrzewce.",
+      });
+    exercises.unshift(...prep);
+  }
   if (
     role === "speed" &&
     p.goal === "agility" &&
@@ -419,9 +533,11 @@ export function buildRunning(
     minutes:
       role === "endurance"
         ? dose.seconds! / 60 + 10
-        : Math.ceil(estimateSessionSeconds(exercises) / 60) + 10,
+        : Math.ceil(estimateSessionSeconds(exercises) / 60) + 2,
     sprintMetres: exercises.reduce(
-      (s, e) => s + ((e.dose.distanceM ?? 0) + (e.dose.runInM ?? 0)) * e.dose.sets,
+      (s, e) =>
+        s +
+        (e.role === "warmup" ? 0 : ((e.dose.distanceM ?? 0) + (e.dose.runInM ?? 0)) * e.dose.sets),
       0,
     ),
   };

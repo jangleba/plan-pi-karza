@@ -37,8 +37,14 @@ describe("sport-specific speed preparation", () => {
   it("gives a prepared footballer a suitable acceleration dose despite no gym experience", () => {
     const s = buildRunning(athlete, "speed", "development")!;
     expect(s.tier).toBe("foundation");
-    expect(s.exercises[0].exerciseId).toBe("free_acceleration_sprint");
-    expect(s.exercises[0].dose).toMatchObject({ sets: 6, distanceM: 20, restSeconds: 90 });
+    expect(s.exercises.find((e) => e.role === "speed")!.exerciseId).toBe(
+      "free_acceleration_sprint",
+    );
+    expect(s.exercises.find((e) => e.role === "speed")!.dose).toMatchObject({
+      sets: 6,
+      distanceM: 20,
+      restSeconds: 90,
+    });
     expect(s.sprintMetres).toBe(120);
   });
   it("does not turn advanced gym experience into advanced sport preparation", () => {
@@ -55,8 +61,13 @@ describe("sport-specific speed preparation", () => {
       "development",
     )!;
     expect(s.tier).toBe("performance");
-    expect(s.exercises[0].exerciseId).toBe("free_acceleration_sprint");
-    expect(s.exercises[0].dose).toMatchObject({ sets: 4, distanceM: 10 });
+    expect(s.exercises.find((e) => e.role === "speed")!.exerciseId).toBe(
+      "free_acceleration_sprint",
+    );
+    expect(s.exercises.find((e) => e.role === "speed")!.dose).toMatchObject({
+      sets: 4,
+      distanceM: 10,
+    });
   });
   it("uses explicit space and the onboarding declaration of thirty metres plus a braking area", () => {
     for (const spaceLengthM of [20, 25, 39])
@@ -65,11 +76,14 @@ describe("sport-specific speed preparation", () => {
           { ...athlete, trainingMethodPreferences: { spaceLengthM } },
           "speed",
           "development",
-        )?.exercises[0].dose.distanceM,
+        )?.exercises.find((e) => e.role === "speed")!.dose.distanceM,
       ).toBe(10);
     expect(
-      buildRunning({ ...athlete, trainingMethodPreferences: {} }, "speed", "development")
-        ?.exercises[0].dose.distanceM,
+      buildRunning(
+        { ...athlete, trainingMethodPreferences: {} },
+        "speed",
+        "development",
+      )?.exercises.find((e) => e.role === "speed")!.dose.distanceM,
     ).toBe(20);
     for (const spaceLengthM of [0, 10, 19, NaN, Infinity])
       expect(
@@ -84,8 +98,8 @@ describe("sport-specific speed preparation", () => {
     const p = { ...athlete, trainingMethodPreferences: { spaceLengthM: 50 } };
     const s = buildRunning(p, "speed", "development")!;
     expect(s.tier).toBe("foundation");
-    expect(s.exercises[0].exerciseId).toBe("flying_sprint");
-    expect(s.exercises[0].dose).toMatchObject({
+    expect(s.exercises.find((e) => e.role === "speed")!.exerciseId).toBe("flying_sprint");
+    expect(s.exercises.find((e) => e.role === "speed")!.dose).toMatchObject({
       sets: 4,
       distanceM: 10,
       runInM: 20,
@@ -101,13 +115,17 @@ describe("sport-specific speed preparation", () => {
       { trainingMethodPreferences: {} },
     ])
       expect(
-        buildRunning({ ...p, ...patch }, "speed", "development")?.exercises[0].exerciseId,
+        buildRunning({ ...p, ...patch }, "speed", "development")?.exercises.find(
+          (e) => e.role === "speed",
+        )!.exerciseId,
       ).toBe("free_acceleration_sprint");
   });
   it("reduces volume for youth, fatigue, return goals, transition and deload", () => {
     const normal = buildRunning(athlete, "speed", "development")!;
     expect(
-      buildRunning({ ...athlete, age: 14 }, "speed", "development")?.exercises[0].dose,
+      buildRunning({ ...athlete, age: 14 }, "speed", "development")?.exercises.find(
+        (e) => e.role === "speed",
+      )!.dose,
     ).toMatchObject({ sets: 4, distanceM: 10 });
     for (const patch of [
       { secondaryLimiter: "fatigue" as const },
@@ -119,7 +137,9 @@ describe("sport-specific speed preparation", () => {
         "speed",
         "development",
       )!;
-      expect(s.exercises[0].exerciseId).toBe("free_acceleration_sprint");
+      expect(s.exercises.find((e) => e.role === "speed")!.exerciseId).toBe(
+        "free_acceleration_sprint",
+      );
       expect(s.sprintMetres).toBeLessThan(normal.sprintMetres);
     }
     expect(buildRunning(athlete, "speed", "deload")!.sprintMetres).toBeLessThan(

@@ -13,7 +13,13 @@ export async function loadV2Plan(userId: string, signal?: AbortSignal) {
   const result = await query.maybeSingle();
   assertNoSupabaseError("training_plans.load_v2", result.error);
   const value = result.data?.plan_json;
-  const supportedVersions = ["ballwise-v2.1", "ballwise-v2.2", "ballwise-v2.3", ENGINE_VERSION];
+  const supportedVersions = [
+    "ballwise-v2.1",
+    "ballwise-v2.2",
+    "ballwise-v2.3",
+    "ballwise-v2.4",
+    ENGINE_VERSION,
+  ];
   if (
     Array.isArray(value) &&
     value.some(
