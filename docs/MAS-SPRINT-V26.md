@@ -69,3 +69,14 @@ Kolejny etap wizualny wymaga osobnej kontroli każdej tożsamości ruchu: kamera
 - Haugen i wsp. (2019), *The Training and Development of Elite Sprint Performance*: https://pmc.ncbi.nlm.nih.gov/articles/PMC6872694/ — specyficzność bodźca, pełne przerwy, drille jako przygotowanie, indywidualizacja; literatura i praktyka elitarnych sprinterów wymagają ostrożnego przenoszenia na młodych piłkarzy.
 
 Dokładnie trzy rundy po trzy ćwiczenia, limit 240 m, czasy przygotowania oraz techniczne progi jakości GPS są decyzjami produktu. Nie przypisywać im nieistniejącego dowodu na uniwersalną optymalność.
+
+## Rotacja zestawów drilli i wariantów sprintu (implementacja)
+
+Moduł `engineV2/sprintCatalog.ts` zawiera kwalifikowane szablony: 6 wariantów przyspieszenia (swobodny, z półklęku, z upadku, z pozycji wykrocznej, z truchtu, boczny), 2 prędkości maksymalnej (20+10 m oraz 30+10 m przy co najmniej 60 m prostej), 2 łuku (10 i 15 m), 4 hamowania (5+5 ponowny start, progresywne 5/10/15, dwa kroki z utrzymaniem, wyjście boczne), 3 zaplanowanej zmiany kierunku (cięcie, cięcie z ponownym startem, 5-0-5) i 2 reaktywne (tylko z zadeklarowanym partnerem dającym sygnał w trakcie biegu), oraz 8 zestawów trzech drilli (ściana tylko przy zadeklarowanej ścianie). Każdy wariant ma własną dawkę (serie, metry, nabieg/wybieg, strony, przerwa), instrukcję z regułą przerwania i warunki dopuszczenia (wiek, poziom, miejsce, kontrola ruchu, partner).
+
+Dobór jest deterministyczny w chwili generowania: kwalifikacja → rotacja według historii sesji sprintu (omija ostatnio użyty wariant i zestaw, potem najrzadziej używany, potem kolejność katalogu). Wybrane identyfikatory i krótkie uzasadnienie są zapisane w recepturze (`engineV2.sprintVariant`), więc otwarcie, odświeżenie ani synchronizacja nie zmieniają sesji; walidator odrzuca zapis, w którym wariant lub trójka drilli nie zgadza się z recepturą (`SPRINT_VARIANT_MISMATCH`). W jednej sesji zawodnik wykonuje A/B/C ×(2–3 rundy) tych samych trzech drilli. Lżejszy tydzień, młodsi i początkujący dostają tylko proste warianty. Małe uzupełnienie (np. trzykrokowe hamowanie) nie występuje w dwóch kolejnych sesjach. Reaktywność wymaga partnera (opcja w ustawieniach); znany wcześniej kierunek nie jest liczony jako trening reakcji.
+
+Ograniczenia: katalog korzysta z istniejących ćwiczeń biblioteki (instrukcje per wariant są w recepturze, nie jako osobne animacje); brak osobnych demonstracji graficznych dla nowych wariantów; wybór nie uczy się z jakości wykonania; skip B i skoki kontaktowe nie są częścią rotacji.
+
+## Problem pełnego CI (kontrola)
+`scripts/prepare-iq-clips.mjs --check` przechodzi na Node 22 (wersja CI), także test `mixamo.test.ts`; zgłoszona niezgodność `running.glb` dotyczy generowania na Node 24 (inny eksport). CI używa Node 22.
