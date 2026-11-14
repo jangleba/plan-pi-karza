@@ -165,7 +165,7 @@ describe.sequential("session feedback v1 in the database", () => {
       "utf8",
     );
     const result = await db.query<{ n: number; check_name: string; ok: boolean }>(sql);
-    expect(result.rows).toHaveLength(11);
+    expect(result.rows).toHaveLength(13);
     expect(result.rows.filter((r) => !r.ok).map((r) => r.check_name)).toEqual([]);
   });
 });
