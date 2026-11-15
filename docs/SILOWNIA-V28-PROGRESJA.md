@@ -1,5 +1,7 @@
 # V2.8: progresja jakościowa i pełne sesje A/B
 
+> Dokument etapu GP1. Zbieranie obserwacji i kalibracji, ich zapis na koncie oraz tryb jawnej propozycji dla przyszłych sesji dodaje [GP2](GYM-FEEDBACK-GP2.md). Sekcja o braku interfejsu/migracji poniżej opisuje historyczny zakres GP1, a nie całość po GP2.
+
 Stan analizy: 15 listopada 2026. Baza: `d8e8d19f2a570ea8797b1bf7afba86e5e0b5d019`.
 PR [#157](https://github.com/jangleba/plan-pi-karza/pull/157) został scalony 15 listopada o 06:25:47 UTC (07:25:47 w Polsce). Ta poprawka została przygotowana osobno i nie jest scalona ani opublikowana.
 

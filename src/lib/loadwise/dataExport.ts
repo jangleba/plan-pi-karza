@@ -16,6 +16,8 @@ export const USER_DATA_SOURCES = [
   "session_exercises",
   "session_logs",
   "exercise_set_logs",
+  "gym_records",
+  "gym_record_receipts",
   "session_modifications",
   "weekly_transitions",
   "exercise_replacements",
@@ -28,6 +30,8 @@ export const USER_DATA_SOURCES = [
   "training_write_receipts",
 ] as const;
 const OPTIONAL_SOURCES = new Set([
+  "gym_records",
+  "gym_record_receipts",
   "lab_test_results",
   "billing_entitlements",
   "module_backups",
@@ -72,9 +76,13 @@ const defaultPage: ExportPageLoader = (source, userId, from, to) => {
     query = query.order(
       source === "billing_entitlements"
         ? "user_id"
-        : source === "training_write_receipts"
-          ? "operation_id"
-          : "id",
+        : source === "gym_records"
+          ? "record_key"
+          : source === "gym_record_receipts"
+            ? "operation_id"
+            : source === "training_write_receipts"
+              ? "operation_id"
+              : "id",
       { ascending: true },
     );
   return query.range(from, to) as unknown as PromiseLike<DataExportPage>;

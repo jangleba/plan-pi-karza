@@ -10,7 +10,19 @@ export function FeedbackAdjustmentCard() {
         <small>{proposal.reason}</small>
         <ul>
           {proposal.changes.map((c) => (
-            <li key={`${c.kind}:${c.sessionId}`}>{c.line}</li>
+            <li key={`${c.kind}:${c.sessionId}`}>
+              {c.line}
+              {c.details?.length ? (
+                <details>
+                  <summary>Zmiany ćwiczeń ({c.details.length})</summary>
+                  <ul>
+                    {c.details.map((line, i) => (
+                      <li key={i}>{line}</li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
+            </li>
           ))}
         </ul>
         <small>

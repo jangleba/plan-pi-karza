@@ -14,6 +14,12 @@ export type Database = {
   }
   public: {
     Tables: {
+      gym_records: {
+        Row: { user_id: string; record_key: string; payload: Json; revision: number; updated_at: string; last_operation_id: string }
+        Insert: { user_id: string; record_key: string; payload: Json; revision?: number; updated_at?: string; last_operation_id: string }
+        Update: { payload?: Json; revision?: number; updated_at?: string; last_operation_id?: string }
+        Relationships: []
+      }
       athlete_profiles: {
         Row: {
           account_owner_type: string
@@ -1138,6 +1144,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      save_gym_record: {
+        Args: { p_operation_id: string; p_expected_version: number; p_payload: Json }
+        Returns: Json
+      }
       apply_plan_modification: {
         Args: {
           p_exercises: Json

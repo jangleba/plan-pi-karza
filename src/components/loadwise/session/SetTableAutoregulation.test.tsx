@@ -7,6 +7,8 @@ import { sectionFixture, sessionFixture } from "./testFixtures";
 import type { Profile, SessionCompletion, TrainingExercise } from "@/lib/loadwise/types";
 import type { Readiness } from "@/lib/loadwise/types";
 import { buildReadiness } from "@/lib/loadwise/readinessModel";
+import type { GymRecord, GymEquipment } from "@/lib/loadwise/gymEvidence";
+import { exercisePrescriptionKey } from "@/lib/loadwise/setLogHistory";
 import type { ExerciseSessionLog, HistorySetLog } from "@/lib/loadwise/setLogHistory";
 
 const m = vi.hoisted(() => ({
@@ -15,6 +17,18 @@ const m = vi.hoisted(() => ({
   completions: {} as Record<string, SessionCompletion>,
   readiness: {} as Record<string, Readiness>,
   healthEnabled: false,
+  gymRecords: [] as GymRecord[],
+  saveGym: vi.fn(),
+  saveSet: vi.fn(async () => true),
+}));
+vi.mock("@/lib/loadwise/useGymEvidence", () => ({
+  useGymEvidence: () => ({
+    records: m.gymRecords,
+    available: true,
+    loading: false,
+    error: null,
+    save: m.saveGym,
+  }),
 }));
 vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: "athlete" } }) }));
 vi.mock("@/lib/loadwise/setLogs", async (load) => ({
@@ -24,7 +38,7 @@ vi.mock("@/lib/loadwise/setLogs", async (load) => ({
     previous: {},
     recentSessions: m.history,
     loading: false,
-    saveSet: vi.fn(async () => true),
+    saveSet: m.saveSet,
   }),
 }));
 vi.mock("@/lib/loadwise/store", () => ({
@@ -76,6 +90,23 @@ const e: TrainingExercise = {
   rir: "2",
   engineDose: { sets: 3, reps: 4, rir: 2, restSeconds: 180, intent: "controlled" },
 };
+const gear: GymEquipment = {
+  kind: "equipment",
+  version: 1,
+  exerciseId: "goblet_squat",
+  id: "10000000-0000-4000-8000-000000000001",
+  label: "Sztanga",
+  convention: "total",
+  incrementKg: 2.5,
+};
+const record = (key: string, payload: GymRecord["payload"]): GymRecord => ({
+  user_id: "athlete",
+  record_key: key,
+  payload,
+  revision: 1,
+  last_operation_id: "op",
+  updated_at: "2026-11-14T10:00:00Z",
+});
 let host: HTMLDivElement, root: Root;
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -85,6 +116,9 @@ beforeEach(() => {
   m.completions = {};
   m.readiness = {};
   m.healthEnabled = false;
+  m.gymRecords = [record("equipment:goblet_squat", gear)];
+  m.saveGym.mockReset().mockResolvedValue({});
+  m.saveSet.mockClear();
   for (const [i, date] of ["2026-11-12", "2026-11-08"].entries()) {
     const sessionId = `s${i}`,
       sets = [1, 2, 3].map((setNumber) => ({ setNumber, weightKg: 80, reps: 4, rir: 3 }));
@@ -100,6 +134,20 @@ beforeEach(() => {
         structuredSections: [sectionFixture("main", [e])],
       }),
     };
+    m.gymRecords.push(
+      record(`response:${sessionId}:goblet_squat`, {
+        kind: "response",
+        version: 1,
+        sessionId,
+        exerciseId: "goblet_squat",
+        decision: "accept",
+        chosenKg: 80,
+        suggestedKg: 80,
+        equipment: gear,
+        prescriptionKey: exercisePrescriptionKey(e),
+        suggestionKey: "past",
+      }),
+    );
   }
   host = document.createElement("div");
   document.body.append(host);
@@ -136,6 +184,18 @@ it("shows a real recommendation and a mobile-accessible explanation without auto
   expect(host.querySelector<HTMLInputElement>('[aria-label="Seria 1: ciężar w kg"]')?.value).toBe(
     "80",
   );
+});
+it("preserves the actual set when the optional load-response write cannot be confirmed", async () => {
+  m.saveGym.mockRejectedValueOnce(new Error("Version conflict"));
+  await render();
+  await act(async () =>
+    [...host.querySelectorAll("button")].find((b) => b.textContent === "Spróbuję")!.click(),
+  );
+  await act(async () =>
+    host.querySelector<HTMLButtonElement>('[aria-label="Zatwierdź serię 1"]')!.click(),
+  );
+  expect(m.saveSet).toHaveBeenCalledWith(expect.objectContaining({ weightKg: 82.5, reps: 4 }));
+  expect(host.querySelector('[role="alert"]')?.textContent).toContain("Seria zapisana");
 });
 it("lets today's real check-in override the positive recommendation and re-evaluates it on state change", async () => {
   m.healthEnabled = true;
@@ -189,4 +249,43 @@ it("does not copy last set's RIR into an unperformed set", async () => {
   expect(host.querySelector('[aria-label="Seria 2: zapas 3"]')?.getAttribute("aria-pressed")).toBe(
     "false",
   );
+});
+it("only fills the proposed higher load after explicit acceptance", async () => {
+  await render();
+  expect(host.querySelector<HTMLInputElement>('[aria-label="Seria 1: ciężar w kg"]')?.value).toBe(
+    "80",
+  );
+  await act(async () =>
+    [...host.querySelectorAll("button")].find((b) => b.textContent === "Spróbuję")!.click(),
+  );
+  expect(host.querySelector<HTMLInputElement>('[aria-label="Seria 1: ciężar w kg"]')?.value).toBe(
+    "82.5",
+  );
+  expect(m.saveGym).not.toHaveBeenCalled();
+});
+it("persists a voluntary refusal separately from actual performance", async () => {
+  await render();
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((b) => b.textContent === "Zostaję przy swoim")!
+      .click(),
+  );
+  await act(async () =>
+    [...host.querySelectorAll("button")].find((b) => b.textContent === "Zapisz serię")!.click(),
+  );
+  expect(m.saveGym).toHaveBeenCalledWith(
+    expect.objectContaining({ decision: "hold", chosenKg: 80, suggestedKg: 82.5 }),
+  );
+  expect(m.saveSet).toHaveBeenCalledWith(
+    expect.objectContaining({ weightKg: 80, reps: 4, rir: null }),
+  );
+});
+it("keeps manual entry available when equipment and its kg convention are unknown", async () => {
+  m.gymRecords = [];
+  await render();
+  expect(host.textContent).not.toContain("Propozycja: 82.5 kg");
+  expect(
+    host.querySelector<HTMLInputElement>('[aria-label="Seria 1: ciężar w kg"]')?.disabled,
+  ).toBe(false);
+  expect(host.textContent).toContain("Ustaw dostępne ciężary");
 });

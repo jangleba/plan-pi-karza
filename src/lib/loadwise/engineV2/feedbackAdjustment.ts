@@ -49,6 +49,7 @@ export const DEFAULT_FEEDBACK_POLICY: FeedbackPolicy = {
 
 export type AdjustmentKind = FeedbackAdjustmentMark["kind"];
 export interface AdjustmentChange {
+  details?: string[];
   kind: AdjustmentKind;
   /** Session that is replaced or removed (its identity is retired in the saved plan). */
   sessionId: string;
@@ -63,9 +64,9 @@ export interface AdjustmentProposal {
   policyVersion: string;
   sourceSessionId: string;
   sourceDate: string;
-  sourceKind: "club" | "match" | "voluntary";
+  sourceKind: "club" | "match" | "voluntary" | "strength";
   feedback: {
-    rpe: number;
+    rpe: number | null;
     tags: ActivityTag[];
     matchMinutesPlayed: number | null;
     feedbackVersion: number | null;

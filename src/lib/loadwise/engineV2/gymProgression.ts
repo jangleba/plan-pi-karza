@@ -47,12 +47,19 @@ export interface GymSetObservation {
   };
 }
 export interface GymObservation {
+  /** Explicit interruption report; no made-up repetitions are stored for an unfinished set. */
+  controlLossReported?: true;
+  /** Explicitly reported minimum across ALL working sets, not a copied per-set result. */
+  minimumMetric?: NonNullable<GymSetObservation["metric"]>;
   sessionId: string;
   exerciseId: string;
   source: "athlete_observed" | "video_reviewed";
   sets: GymSetObservation[];
 }
 export interface GymProgressionInput {
+  selectedBandSetups?: Record<string, string | null>;
+  /** Only for an explicit, reviewable plan proposal. It never manufactures a readiness score. */
+  proposalOnly?: boolean;
   /** Must be scoped to the authenticated athlete, like EngineOptions.completions. */
   observations: GymObservation[];
   bandSetups?: GymBandSetup[];
@@ -162,7 +169,7 @@ function exposures(
         !s?.engineV2 ||
         s.dbId !== sessionId ||
         !validDate(s.date) ||
-        s.date >= ctx.asOfDate ||
+        s.date > ctx.asOfDate ||
         s.date >= ctx.date ||
         !s.engineV2.roles.includes(variant) ||
         seen.has(`${s.date}:${variant}`)
@@ -208,7 +215,7 @@ function observationStatus(e: Exposure): "stable" | "lost" | "unknown" {
   if (!o || !["athlete_observed", "video_reviewed"].includes(o.source) || !Array.isArray(o.sets))
     return "unknown";
   // A reported loss stops progression even if the athlete stopped before all sets were done.
-  if (o.sets.some((s) => s.control === "lost")) return "lost";
+  if (o.controlLossReported || o.sets.some((s) => s.control === "lost")) return "lost";
   if (
     o.sets.some(
       (s) =>
@@ -231,6 +238,23 @@ function observationStatus(e: Exposure): "stable" | "lost" | "unknown" {
 }
 
 function performance(e: Exposure): { value: number; method: string; kind: string } | null {
+  if (
+    !["gym_cmj", "gym_cmj_assisted", "gym_cmj_resisted", "gym_fast_band_curl"].includes(
+      e.row.exerciseId,
+    )
+  )
+    return null;
+  const minimum = e.observation?.minimumMetric;
+  if (minimum) {
+    const expected =
+      e.row.exerciseId === "gym_fast_band_curl" ? "cycles_per_second" : "jump_height_cm";
+    return observationStatus(e) === "stable" &&
+      finitePositive(minimum.value) &&
+      minimum.kind === expected &&
+      ["video_reviewed", "device"].includes(minimum.method)
+      ? minimum
+      : null;
+  }
   const metrics = e.observation?.sets.map((s) => s.metric);
   if (
     !metrics?.length ||
@@ -345,7 +369,11 @@ export function decideGymProgression(
       : requested.exerciseId;
   const usable =
     latest?.row.exerciseId === historyId &&
-    gymDoseWithinBounds(historyId, latest.row.dose, p, ctx.phase);
+    gymDoseWithinBounds(historyId, latest.row.dose, p, ctx.phase) &&
+    (!input?.selectedBandSetups ||
+      !Object.hasOwn(input.selectedBandSetups, requested.exerciseId) ||
+      latest.row.exerciseId !== requested.exerciseId ||
+      (latest.row.dose.gymBandSelectionId ?? null) === (requested.dose.gymBandSelectionId ?? null));
   const current = { ...(usable ? latest.row.dose : requested.dose) };
   const id = usable ? historyId : requested.exerciseId;
   const timed = !!GYM_EXERCISE_RULES[id]?.timedDynamic;
@@ -426,11 +454,11 @@ export function decideGymProgression(
   if (
     ctx.phase === "adaptation" ||
     ctx.phase === "peak" ||
-    ctx.date !== ctx.asOfDate ||
+    (ctx.date !== ctx.asOfDate && !input?.proposalOnly) ||
     ctx.unknownExternalLoad ||
     ctx.demandingDays7d >= GYM_PROGRESSION_POLICY.congestedDemandingDays ||
-    readinessScore === undefined ||
-    readinessScore < 7
+    (readinessScore === undefined && !input?.proposalOnly) ||
+    (readinessScore !== undefined && readinessScore < 7)
   )
     return hold(
       current,
@@ -646,8 +674,15 @@ export function applyGymProgression(
   copy.gymProgressionDecisions = [];
   copy.exercises = copy.exercises.flatMap((row) => {
     if (!GYM_EXERCISE_RULES[row.exerciseId] || row.role === "landing") return [row];
+    const selectedId = options.gymProgression?.selectedBandSetups?.[row.exerciseId];
+    const setup = options.gymProgression?.bandSetups?.find(
+      (s) => s.id === selectedId && setupValid(s, row.exerciseId, date),
+    );
+    const request = setup
+      ? { ...row, dose: { ...row.dose, gymBandSetup: setup, gymBandSelectionId: setup.id } }
+      : row;
     const decision = decideGymProgression(
-      row,
+      request,
       p,
       variant,
       ctx,
@@ -656,13 +691,13 @@ export function applyGymProgression(
     );
     copy.gymProgressionDecisions!.push(decision);
     if (!decision.dose || !eligibleExercise(decision.exerciseId, p)) return [];
-    const setup = decision.dose.gymBandSetup;
+    const appliedSetup = decision.dose.gymBandSetup;
     return [
       {
         ...row,
         exerciseId: decision.exerciseId,
         dose: decision.dose,
-        reason: `${row.reason}${decision.action === "hold" ? "" : ` ${decision.reason}`}${setup ? ` Ustawienie gumy: ${setup.id}; pozycje ${setup.positions.join(" / ")}, długości ${setup.lengthsCm.join(" / ")} cm, siły ${setup.forceNewtons.join(" / ")} N.` : ""}`,
+        reason: `${row.reason}${decision.action === "hold" ? "" : ` ${decision.reason}`}${appliedSetup ? ` Ustawienie gumy: ${appliedSetup.id}; pozycje ${appliedSetup.positions.join(" / ")}, długości ${appliedSetup.lengthsCm.join(" / ")} cm, siły ${appliedSetup.forceNewtons.join(" / ")} N.` : ""}`,
       },
     ];
   });

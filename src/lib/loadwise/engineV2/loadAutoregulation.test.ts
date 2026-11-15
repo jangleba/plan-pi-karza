@@ -54,6 +54,18 @@ const run = (h = history(), patch: Partial<StrengthLoadContext> = {}, exercise =
   contextualStrengthAdvice(exercise, h, { ...ctx, ...patch });
 
 describe("SP1 numeric load recommendations", () => {
+  it("does not interpret declining an increase as failure and uses the actual equipment step", () => {
+    expect(run(history(), { declinedIncrease: true, incrementKg: 0.5 })).toMatchObject({
+      action: "hold",
+      weightKg: 80,
+    });
+    expect(run(history(), { incrementKg: 0.5, equipmentConfigured: true })).toMatchObject({
+      action: "increase",
+      weightKg: 80.5,
+    });
+    expect(run(history(), { equipmentConfigured: false })?.action).not.toBe("increase");
+    expect(run(history(), { availableWeightsKg: [70, 75, 85] })?.weightKg).toBeUndefined();
+  });
   it("honours today's explicit lighter choice despite earlier successful sessions", () => {
     expect(run(history(), { loadPreference: "lighter" })).toMatchObject({
       action: "reduce",

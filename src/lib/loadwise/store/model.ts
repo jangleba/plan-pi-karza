@@ -472,7 +472,10 @@ export type CompletionDetails = Partial<
 >;
 
 export interface LoadwiseContextValue {
-  activatePlanV2?: (result: import("../engineV2/model").EngineResult) => Promise<void>;
+  activatePlanV2?: (
+    result: import("../engineV2/model").EngineResult,
+    isEvidenceCurrent?: () => boolean,
+  ) => Promise<void>;
   profileSaveStage?: import("../profileSave").ProfileSaveStage | null;
   state: LoadwiseState;
   hydrated: boolean;

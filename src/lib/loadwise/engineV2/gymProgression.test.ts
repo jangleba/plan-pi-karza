@@ -153,6 +153,62 @@ const setup = (patch: Partial<GymBandSetup> = {}): GymBandSetup => ({
 });
 
 describe("GP1 verified progression", () => {
+  it("preserves a progressed physical setup while its original selection is unchanged", () => {
+    const original = setup(),
+      advanced = setup({ id: "advanced-position", forceNewtons: [52, 104] });
+    const request = row("gym_cmj_resisted", {
+      gymBandSetup: original,
+      gymBandSelectionId: original.id,
+    });
+    const h = history(
+      row("gym_cmj_resisted", { gymBandSetup: advanced, gymBandSelectionId: original.id }),
+    );
+    h.input.selectedBandSetups = { gym_cmj_resisted: original.id };
+    const result = decide(request, h);
+    expect(result.action).toBe("hold");
+    expect(result.dose?.gymBandSetup?.id).toBe(advanced.id);
+  });
+  it("rebaselines an explicitly changed physical setup without reusing old successes", () => {
+    const original = setup(),
+      changed = setup({ id: "other-station", stationId: "rack-2" });
+    const request = row("gym_cmj_resisted", {
+      gymBandSetup: changed,
+      gymBandSelectionId: changed.id,
+    });
+    const h = history(
+      row("gym_cmj_resisted", {
+        sets: 2,
+        reps: 2,
+        gymBandSetup: original,
+        gymBandSelectionId: original.id,
+      }),
+    );
+    h.input.selectedBandSetups = { gym_cmj_resisted: changed.id };
+    const result = decide(request, h);
+    expect(result.action).toBe("hold");
+    expect(result.dose?.gymBandSetup?.stationId).toBe("rack-2");
+    expect(result.evidenceSessionIds).toEqual([]);
+  });
+  it("allows a review-only proposal without pretending a missing readiness score is high", () => {
+    const h = history(row("gym_cmj", { sets: 2, reps: 2 }));
+    expect(decide(row(), h, { readiness: undefined, date: "2026-11-18" }).action).toBe("hold");
+    h.input.proposalOnly = true;
+    expect(decide(row(), h, { readiness: undefined, date: "2026-11-18" }).action).toBe("progress");
+    expect(decide(row(), h, { readiness: { ...ready, overall: 3 } }).action).toBe("deload");
+  });
+  it("regresses from an explicit interrupted-control report without inventing repetitions", () => {
+    const h = history(row());
+    h.input.observations[0].sets = [];
+    h.input.observations[0].controlLossReported = true;
+    expect(decide(row(), h).action).toBe("regress");
+  });
+  it("accepts an explicitly measured whole-exercise minimum without duplicating it into every set", () => {
+    const h = history(row("gym_cmj", { sets: 2, reps: 2 }));
+    h.input.observations.forEach(
+      (o) => (o.minimumMetric = { kind: "jump_height_cm", method: "device", value: 30 }),
+    );
+    expect(decide(row(), h).action).toBe("progress");
+  });
   it("progresses only one volume dimension after two comparable adult exposures", () => {
     const d = decide();
     expect(d.action).toBe("progress");

@@ -23,6 +23,8 @@ function summary(row: Record<string, unknown>) {
     "reps",
     "rir",
     "running_progression_level",
+    "record_key",
+    "payload",
   ];
   return JSON.stringify(
     Object.fromEntries(keys.filter((key) => key in row).map((key) => [key, row[key]])),
@@ -69,16 +71,21 @@ export function TrainingConflictReview({ userId }: { userId: string }) {
           ? "session_logs"
           : entry.kind === "running_activity"
             ? "running_activities"
-            : "exercise_set_logs";
+            : entry.kind === "gym_record"
+              ? "gym_records"
+              : "exercise_set_logs";
       type Query = {
         eq(key: string, value: unknown): Query;
         is(key: string, value: null): Query;
         maybeSingle(): PromiseLike<{ data: Record<string, unknown> | null; error: unknown }>;
       };
       let query = (supabase.from(table).select("*") as unknown as Query).eq("user_id", userId);
-      query = entry.payload.session_id
-        ? query.eq("session_id", entry.payload.session_id)
-        : query.is("session_id", null);
+      query =
+        entry.kind === "gym_record"
+          ? query.eq("record_key", entry.payload.record_key)
+          : entry.payload.session_id
+            ? query.eq("session_id", entry.payload.session_id)
+            : query.is("session_id", null);
       if (entry.kind === "exercise_set_log")
         query = query
           .eq("exercise_key", entry.payload.exercise_key)
@@ -101,7 +108,7 @@ export function TrainingConflictReview({ userId }: { userId: string }) {
         userId,
         selected.entry.operationId,
         choice,
-        Number(selected.remote?.write_version ?? 0),
+        Number(selected.remote?.write_version ?? selected.remote?.revision ?? 0),
       );
       if (!saved) throw new Error("Changed");
       setSelected(null);
@@ -138,7 +145,9 @@ export function TrainingConflictReview({ userId }: { userId: string }) {
               ? "Wynik biegu"
               : row.kind === "exercise_set_log"
                 ? "Seria ćwiczenia"
-                : "Starsza progresja biegu"}
+                : row.kind === "gym_record"
+                  ? "Sprzęt / jakość / wybór ciężaru"
+                  : "Starsza progresja biegu"}
           : {new Date(row.queuedAt).toLocaleString("pl-PL")}
         </button>
       ))}

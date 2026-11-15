@@ -30,9 +30,18 @@ type ProgressionWrite = {
     "running_progression_level" | "running_progression_updated_at"
   >;
 };
+type GymRecordWrite = {
+  kind: "gym_record";
+  dedupeKey: string;
+  payload: {
+    user_id: string;
+    record_key: string;
+    payload: import("@/integrations/supabase/types").Json;
+  };
+};
 
 export type PendingTrainingWrite = (
-  SessionLogWrite | SetLogWrite | RunningActivityWrite | ProgressionWrite
+  SessionLogWrite | SetLogWrite | RunningActivityWrite | ProgressionWrite | GymRecordWrite
 ) & {
   operationId?: string;
   expectedVersion?: number;
@@ -86,9 +95,13 @@ function validWrite(item: unknown, userId: string): item is StoredTrainingWrite 
   if (!item || typeof item !== "object") return false;
   const row = item as StoredTrainingWrite;
   return (
-    ["session_log", "exercise_set_log", "running_activity", "running_progression"].includes(
-      row.kind,
-    ) &&
+    [
+      "session_log",
+      "exercise_set_log",
+      "running_activity",
+      "running_progression",
+      "gym_record",
+    ].includes(row.kind) &&
     typeof row.dedupeKey === "string" &&
     !!row.dedupeKey &&
     typeof row.payload === "object" &&
@@ -399,7 +412,11 @@ export async function flushPendingTrainingWrites(
 ): Promise<{ synced: number; remaining: number }> {
   const durable = storage === browserStorage() && typeof indexedDB !== "undefined";
   if (durable) await recoverTrainingQueue(userId);
-  const queued = readPendingTrainingWrites(userId, storage);
+  // Gym evidence refers to a pinned execution. A compacted offline completion may
+  // have moved the session log behind it; replay parent writes before these children.
+  const queued = readPendingTrainingWrites(userId, storage).sort(
+    (a, b) => Number(a.kind === "gym_record") - Number(b.kind === "gym_record"),
+  );
   let synced = 0;
   for (const item of queued) {
     if (purgedUsers.has(userId) && durable) break;
@@ -413,6 +430,18 @@ export async function flushPendingTrainingWrites(
       JSON.stringify(stillPending?.payload) !== JSON.stringify(item.payload)
     )
       continue;
+    if (item.kind === "gym_record") {
+      const data = item.payload.payload;
+      const sid =
+        data && typeof data === "object" && !Array.isArray(data) ? data.sessionId : undefined;
+      if (
+        typeof sid === "string" &&
+        readPendingTrainingWrites(userId, storage).some(
+          (w) => w.kind === "session_log" && w.payload.session_id === sid,
+        )
+      )
+        continue;
+    }
     let saved = false,
       failure: unknown;
     try {

@@ -13,6 +13,7 @@ export interface ActivationSnapshot {
   readiness: Record<string, Readiness>;
 }
 interface ActivationServices {
+  isEvidenceCurrent?: () => boolean;
   current: () => ActivationSnapshot | null;
   load: () => Promise<{ id?: string; plan: SessionDay[] }>;
   persist: (ownerId: string, profile: Profile, plan: SessionDay[]) => Promise<SessionDay[]>;
@@ -32,6 +33,10 @@ export async function activateTrainingPlan(
   )
     throw new Error("Podgląd planu jest nieaktualny. Przygotuj go ponownie.");
   const assertCurrent = () => {
+    if (services.isEvidenceCurrent && !services.isEvidenceCurrent())
+      throw new Error(
+        "Zapisy treningu zmieniły się. Sprawdź nową propozycję; nie zapisano starej.",
+      );
     const now = services.current();
     if (
       !now ||
