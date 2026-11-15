@@ -11,7 +11,7 @@ import { trainingStorageKey } from "./trainingDetails";
 import { useTrainingLocalState } from "./useTrainingLocalState";
 import { useGymEvidence } from "./useGymEvidence";
 import { proposeGymAdjustment } from "./engineV2/gymAdjustment";
-import { readPendingTrainingWrites } from "./offlineTrainingQueue";
+import { hasUnresolvedTrainingWrites } from "./offlineTrainingQueue";
 
 const parseIds = (value: unknown): string[] | undefined =>
   Array.isArray(value) && value.every((v) => typeof v === "string") && value.length <= 200
@@ -39,40 +39,37 @@ export function useFeedbackAdjustment() {
 
   const build = useCallback((): AdjustmentProposal | null => {
     if (!hydrated || syncing || !state.profile || !state.plan.length) return null;
+    const effective = resolveEffectivePlan(state.plan, state.modifications, {
+      completions: state.completions,
+    });
+    // One confirmation check for every source: club, match and gym share it.
+    const hasUnconfirmedWrites = !!userId && hasUnresolvedTrainingWrites(userId);
+    const modifiedDates = new Set(
+      Object.entries(state.modifications)
+        .filter(([, items]) => items.length > 0)
+        .map(([date]) => date),
+    );
     return (
       proposeFeedbackAdjustment({
         profile: state.profile,
-        plan: resolveEffectivePlan(state.plan, state.modifications, {
-          completions: state.completions,
-        }),
+        plan: effective,
         completions: state.completions,
         todayIso,
         planId: state.activePlanId ?? null,
         readiness: state.readiness,
-        hasModificationsInWindow: Object.entries(state.modifications).some(
-          ([date, items]) => date >= todayIso && items.length > 0,
-        ),
+        modifiedDates,
+        hasUnconfirmedWrites,
       }) ??
       proposeGymAdjustment({
-        hasUnconfirmedWrites:
-          !!userId &&
-          readPendingTrainingWrites(userId).some((w) =>
-            ["session_log", "exercise_set_log", "gym_record"].includes(w.kind),
-          ),
+        hasUnconfirmedWrites,
         profile: state.profile,
-        plan: resolveEffectivePlan(state.plan, state.modifications, {
-          completions: state.completions,
-        }),
+        plan: effective,
         completions: state.completions,
         records: gym.records,
         todayIso,
         planId: state.activePlanId ?? null,
         readiness: state.readiness,
-        modifiedDates: new Set(
-          Object.entries(state.modifications)
-            .filter(([, items]) => items.length > 0)
-            .map(([date]) => date),
-        ),
+        modifiedDates,
       })
     );
   }, [hydrated, syncing, state, todayIso, gym.records, userId]);

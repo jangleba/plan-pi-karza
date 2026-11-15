@@ -64,6 +64,7 @@ describe("plan → start → resume → finish → feedback → correction → p
     const completions: Record<string, SessionCompletion> = {
       "s-2026-11-02-0": {
         completed: true,
+        writeVersion: 1,
         status: "completed",
         rpe: 8,
         notes: "",

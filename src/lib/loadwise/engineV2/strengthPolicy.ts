@@ -5,6 +5,7 @@ import { preparationProfile, hasVerifiedAdvancedStrength } from "./preparation";
 import { resolveGoalPolicy } from "./goalPolicy";
 import { getExerciseDefinition } from "../exerciseLibrary";
 import { estimateSessionSeconds } from "./exercises";
+import { cycleStartEffect } from "./cycle";
 import { strengthLandingCount } from "./gymPower";
 import { isStrengthSession, strengthPreference } from "../strengthCheckIn";
 import { dayDistance, plusDays, type EngineOptions, type EngineSession } from "./model";
@@ -39,6 +40,8 @@ export interface StrengthWeekContext {
   readinessScore?: number;
   /** Explicit preferences in the last three completed strength sessions, within 14 days. */
   lighterRequests?: number;
+  /** The cycle recommendation "consistency"/"maintain" is in force: hold the dose, no strength emphasis. */
+  cycleHold?: boolean;
 }
 const validDate = (s: string) =>
   /^\d{4}-\d{2}-\d{2}$/.test(s) && Number.isFinite(Date.parse(s)) && plusDays(s, 0) === s;
@@ -163,6 +166,7 @@ export function strengthWeekContext(
       ).size >= 2,
     strengthGapDays: strengthDates[0] ? dayDistance(asOfDate, strengthDates[0]) : null,
     readinessScore,
+    cycleHold: cycleStartEffect(options).hold,
     lighterRequests: strengthRecent.filter(
       (c) =>
         strengthPreference(c.executionSnapshot!) === "lighter" ||
@@ -235,15 +239,18 @@ export function chooseStrengthFocus(
     ctx.nearestMatchDays <= 2 ||
     (p.clubStrengthDays?.length ?? 0) >= 2 ||
     ctx.hardDays7d >= 4 ||
-    (ctx.lighterRequests ?? 0) >= 2
+    (ctx.lighterRequests ?? 0) >= 2 ||
+    ctx.cycleHold
   )
     return result(
       "maintenance",
       "maintenance",
       "Utrzymanie siły",
-      (ctx.lighterRequests ?? 0) >= 2
-        ? "W co najmniej dwóch z trzech ostatnich siłowni wybrano mniejszy ciężar: utrzymaj mniejszą dawkę i sprawdź wykonanie. Sama preferencja nie rozpoznaje zmęczenia ani utraty siły."
-        : "Kalendarz lub faza przemawiają za mniejszą liczbą serii. Nie obniżaj ciężaru tylko dlatego, że celem jest utrzymanie; zachowaj wymagany zapas.",
+      ctx.cycleHold && (ctx.lighterRequests ?? 0) < 2
+        ? "Podsumowanie poprzedniego cyklu zaleciło utrzymanie: główne ćwiczenie w dawce utrzymaniowej (do 2 serii, zapas co najmniej 3), bez akcentu siły maksymalnej. Kolejny tydzień sam nie zwiększa dawki."
+        : (ctx.lighterRequests ?? 0) >= 2
+          ? "W co najmniej dwóch z trzech ostatnich siłowni wybrano mniejszy ciężar: utrzymaj mniejszą dawkę i sprawdź wykonanie. Sama preferencja nie rozpoznaje zmęczenia ani utraty siły."
+          : "Kalendarz lub faza przemawiają za mniejszą liczbą serii. Nie obniżaj ciężaru tylko dlatego, że celem jest utrzymanie; zachowaj wymagany zapas.",
       "calendar_and_execution",
     );
   const priority =

@@ -186,3 +186,16 @@ export function gymProgressionInput(records: GymRecord[], propose = false): GymP
 export function gymStrengthResponses(records: GymRecord[]): GymLoadResponse[] {
   return records.flatMap((r) => (!r.pending && r.payload.kind === "response" ? [r.payload] : []));
 }
+
+/**
+ * One shared evidence context for every rebuild of the plan (new plan, running calibration,
+ * proposals). `confirmed` is false while any record is still waiting for the server, so callers can
+ * defer instead of rebuilding against an incomplete picture.
+ */
+export function gymPlanContext(records: GymRecord[], propose = false) {
+  return {
+    gymProgression: gymProgressionInput(records, propose),
+    strengthLoadResponses: gymStrengthResponses(records),
+    confirmed: !records.some((r) => r.pending),
+  };
+}

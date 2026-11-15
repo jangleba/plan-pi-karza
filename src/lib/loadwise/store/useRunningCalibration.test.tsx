@@ -7,6 +7,7 @@ import { initialState } from "./model";
 import { generateTrainingPlan } from "../engineV2/planner";
 import { resetPlanWriteGuard } from "./planWriteGuard";
 import type { LoadwiseState, Profile, SessionDay } from "../types";
+import type { GymRecord } from "../gymEvidence";
 const m = vi.hoisted(() => ({ load: vi.fn(), persist: vi.fn(), success: vi.fn(), error: vi.fn() }));
 vi.mock("../engineV2/persistence", () => ({ loadV2Plan: m.load }));
 vi.mock("../persist", () => ({ persistMonthlyPlan: m.persist }));
@@ -46,6 +47,7 @@ const athlete: Profile = {
 };
 
 let state: LoadwiseState, root: Root, host: HTMLDivElement;
+let gym: { records: GymRecord[]; loading: boolean; available: boolean };
 function Probe() {
   useRunningCalibration({
     ownerId: "owner",
@@ -53,6 +55,7 @@ function Probe() {
     state,
     getState: () => state,
     todayIso: "2026-11-02",
+    gym,
     setState: (update) => {
       state = typeof update === "function" ? update(state) : update;
       root.render(<Probe />);
@@ -62,6 +65,7 @@ function Probe() {
 }
 beforeEach(() => {
   resetPlanWriteGuard();
+  gym = { records: [], loading: false, available: true };
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   localStorage.clear();
   Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
@@ -159,4 +163,22 @@ it("retries once against refreshed execution locks when another device starts a 
   } finally {
     window.removeEventListener("ballwise:server-state-changed", refresh);
   }
+});
+
+it("waits for gym evidence instead of rebuilding without the gym decisions", async () => {
+  gym = { records: [], loading: true, available: false };
+  await act(async () => root.render(<Probe />));
+  expect(m.persist).not.toHaveBeenCalled();
+  gym = { records: [], loading: false, available: true };
+  await act(async () => root.render(<Probe />));
+  expect(m.persist).toHaveBeenCalledOnce();
+});
+it("defers while a gym record is still waiting for the server", async () => {
+  gym = {
+    records: [{ record_key: "x", pending: true, revision: 0, payload: {} } as unknown as GymRecord],
+    loading: false,
+    available: true,
+  };
+  await act(async () => root.render(<Probe />));
+  expect(m.persist).not.toHaveBeenCalled();
 });

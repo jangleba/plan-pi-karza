@@ -19,6 +19,7 @@ import {
   strengthLandingCount,
 } from "./gymPower";
 import { hasVerifiedAdvancedStrength, preparationProfile } from "./preparation";
+import { meetsSessionRequirements } from "./placeRequirements";
 import { arrangeStrengthPairs } from "./strengthPairs";
 import {
   coachedPrimerDose,
@@ -91,7 +92,7 @@ export const CANDIDATES: Record<Role, readonly string[]> = {
   ball_skill: [],
 };
 
-export function eligibleExercise(id: string, p: Profile): boolean {
+export function eligibleExercise(id: string, p: Profile, role?: Role): boolean {
   const d = getExerciseDefinition(id);
   const equipment = [
     ...new Set([...p.equipment, ...(p.trainingMethodPreferences?.declaredEquipment ?? [])]),
@@ -100,7 +101,7 @@ export function eligibleExercise(id: string, p: Profile): boolean {
     !!d &&
     d.approved !== false &&
     !d.draft &&
-    (d.spaceRequirement !== "indoor_gym" || p.hasGym) &&
+    meetsSessionRequirements(d, p, role) &&
     d.equipmentRequired
       .filter((e) =>
         [
@@ -121,7 +122,19 @@ export function eligibleExercise(id: string, p: Profile): boolean {
   );
 }
 
-function pick(role: Role, p: Profile, variant: "A" | "B", used: Set<string>): string | undefined {
+const ROTATING_ROLES: readonly Role[] = [
+  "knee_strength",
+  "hip_strength",
+  "unilateral_strength",
+  "knee_flexion",
+];
+function pick(
+  role: Role,
+  p: Profile,
+  variant: "A" | "B",
+  used: Set<string>,
+  rotation = 0,
+): string | undefined {
   let ids = [...CANDIDATES[role]];
   const tier = trainingTier(p);
   if (role === "knee_strength" && tier !== "performance")
@@ -159,7 +172,11 @@ function pick(role: Role, p: Profile, variant: "A" | "B", used: Set<string>): st
       ];
     }
   }
-  return ids.find((id) => !used.has(id) && eligibleExercise(id, p));
+  const eligible = ids.filter((id) => !used.has(id) && eligibleExercise(id, p, role));
+  // A new stimulus picks another equivalent, eligible exercise of the same group; never an ineligible one.
+  return rotation > 0 && ROTATING_ROLES.includes(role) && eligible.length > 1
+    ? eligible[rotation % eligible.length]
+    : eligible[0];
 }
 
 export function estimateSeconds(e: ExerciseDecision, hasNext = false): number {
@@ -189,6 +206,7 @@ export function buildStrength(
   p: Profile,
   variant: "A" | "B",
   phase: EngineSession["phase"],
+  rotation = 0,
 ): EngineSession {
   const preparation = preparationProfile(p),
     tier = preparation.tier,
@@ -209,7 +227,8 @@ export function buildStrength(
         : role === "hamstring_dynamic_support"
           ? gymHamstringSupportCandidates(p, phase)
           : [];
-    const legacy = role === "hamstring_dynamic_support" ? undefined : pick(role, p, variant, used);
+    const legacy =
+      role === "hamstring_dynamic_support" ? undefined : pick(role, p, variant, used, rotation);
     const preferredId = preferred
       .filter((id) => id !== "gym_cmj")
       .find((candidate) => !used.has(candidate) && eligibleExercise(candidate, p));
@@ -446,6 +465,7 @@ export function buildStrength(
     fullPreparedSession,
   );
   recipe.minutes = Math.ceil(estimateSessionSeconds(recipe.exercises) / 60) + 8;
+  if (rotation > 0) recipe.exerciseRotation = rotation;
   return recipe;
 }
 

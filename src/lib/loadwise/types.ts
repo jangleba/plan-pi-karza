@@ -798,6 +798,8 @@ export type SessionHistoryCategory =
 /** Ukończona jednostka niezależna od aktualnie aktywnego planu. */
 export interface SessionHistoryRecord {
   durationEstimated?: boolean;
+  /** Where durationMin came from; "club_default" is the product's 90 min assumption, not a measurement. */
+  durationSource?: DurationSource;
   matchMinutesPlayed?: number | null;
   key: string;
   date: string;

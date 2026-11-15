@@ -58,6 +58,7 @@ function plan() {
 }
 const done = (rpe: number | null, extra: Partial<SessionCompletion> = {}): SessionCompletion => ({
   completed: true,
+  writeVersion: 1,
   status: "completed",
   rpe,
   notes: "",

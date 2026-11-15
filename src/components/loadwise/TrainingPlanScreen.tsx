@@ -21,7 +21,7 @@ import { FeedbackAdjustmentCard } from "./FeedbackAdjustmentCard";
 import { MasTestAction } from "./MasTestAction";
 import { GymBandSetupPanel } from "./session/GymBandSetupPanel";
 import { useGymEvidence } from "@/lib/loadwise/useGymEvidence";
-import { gymProgressionInput, gymStrengthResponses } from "@/lib/loadwise/gymEvidence";
+import { gymPlanContext } from "@/lib/loadwise/gymEvidence";
 import "@/styles/ballwise-plan.css";
 
 /** Preview, explicit activation and execution of the versioned training plan. */
@@ -101,6 +101,7 @@ export function PlanScreen() {
       const record = summary?.review
         ? cycleStartRecord(summary.review, state.plan[0]?.cycleId ?? null)
         : null;
+      const gymContext = gymPlanContext(gymEvidence.records);
       const generated = generateTrainingPlan(state.profile, {
         cycleStart: record,
         startDate: todayIso,
@@ -118,8 +119,8 @@ export function PlanScreen() {
           completions: state.completions,
         }).filter((d) => d.date < todayIso),
         readiness: state.profile.healthPersonalizationEnabled ? state.readiness : undefined,
-        gymProgression: gymProgressionInput(gymEvidence.records),
-        strengthLoadResponses: gymStrengthResponses(gymEvidence.records),
+        gymProgression: gymContext.gymProgression,
+        strengthLoadResponses: gymContext.strengthLoadResponses,
       });
       // The same record travels with the new plan, so it stays in Progress and survives rebuilds.
       const result = record

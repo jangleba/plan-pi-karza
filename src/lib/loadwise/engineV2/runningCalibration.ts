@@ -3,6 +3,7 @@ import { sessionPrescription, trainingSetupRevision } from "../planIdentity";
 import { ENGINE_VERSION } from "./model";
 import { runningCalibrationKey } from "./runningCalibrationKey";
 import { generateTrainingPlan, validateTrainingPlan } from "./planner";
+import type { EngineOptions } from "./model";
 
 const slots = (d: SessionDay) => [d, ...(d.secondSession ? [d.secondSession] : [])];
 const handled = (s: SessionDay, c: Record<string, SessionCompletion>) => {
@@ -13,6 +14,31 @@ const handled = (s: SessionDay, c: Record<string, SessionCompletion>) => {
     ["started", "completed", "missed"].includes(log?.status ?? "")
   );
 };
+
+/** What a non-running slot prescribes. Used only to detect a change outside the running domain. */
+const domainSignature = (s: SessionDay) =>
+  JSON.stringify([
+    s.engineV2?.roles,
+    s.engineV2?.exercises.map((e) => [e.exerciseId, e.role, e.dose]),
+    s.engineV2?.organization,
+    s.engineV2?.strengthPairs,
+    s.engineV2?.sprintVariant,
+  ]);
+const isStrength = (s: SessionDay) =>
+  !!s.engineV2?.roles.some((r) => r === "strengthA" || r === "strengthB");
+const strengthSignatures = (days: SessionDay[], from: string) =>
+  days
+    .filter((d) => d.date >= from)
+    .flatMap((d) => slots(d).filter(isStrength).map(domainSignature))
+    .sort();
+/**
+ * A running update may move gym sessions between days, but it must not quietly rewrite or drop them:
+ * the gym prescriptions already in force (including accepted reductions) stay exactly as they are.
+ * A real gym change belongs in the visible plan preview, not in an automatic write. Other
+ * non-running sessions (sprint, mobility) may still be re-solved by the scheduler as before.
+ */
+const changesGymPrescriptions = (old: SessionDay[], next: SessionDay[], from: string) =>
+  JSON.stringify(strengthSignatures(old, from)) !== JSON.stringify(strengthSignatures(next, from));
 
 /**
  * A confirmed test/level re-solves pending weeks through the normal goal-aware scheduler.
@@ -26,6 +52,12 @@ export function calibratePendingRunningPlan(input: {
   todayIso: string;
   readiness?: Record<string, Readiness>;
   modifiedDates?: ReadonlySet<string>;
+  /**
+   * The same athlete-scoped gym evidence every other rebuild uses. Without it a rebuild would
+   * silently undo a reduction the athlete accepted (e.g. return a banded jump after a loss of control).
+   */
+  gymProgression?: EngineOptions["gymProgression"];
+  strengthLoadResponses?: EngineOptions["strengthLoadResponses"];
 }): SessionDay[] | null {
   const { profile, completions, todayIso, plan } = input;
   const key = runningCalibrationKey(profile),
@@ -63,9 +95,12 @@ export function calibratePendingRunningPlan(input: {
     completions,
     lockedDays,
     readiness: input.readiness,
+    gymProgression: input.gymProgression,
+    strengthLoadResponses: input.strengthLoadResponses,
   };
   const generated = generateTrainingPlan(profile, options).plan.slice(0, plan.length);
   if (validateTrainingPlan(generated, profile, options).length) return null;
+  if (changesGymPrescriptions(plan, generated, todayIso)) return null;
   for (const d of generated) {
     const old = plan.find((day) => day.date === d.date);
     if (!old) continue;

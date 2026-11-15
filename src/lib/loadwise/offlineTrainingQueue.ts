@@ -319,6 +319,13 @@ export function isRetryableWriteError(error: unknown): boolean {
   );
 }
 
+/** Session, set or gym writes not yet confirmed by the server, including failed and conflicting ones. */
+export function hasUnresolvedTrainingWrites(userId: string): boolean {
+  return readPendingTrainingWrites(userId).some((w) =>
+    ["session_log", "exercise_set_log", "gym_record"].includes(w.kind),
+  );
+}
+
 export function readPendingTrainingWrites(
   userId: string,
   storage: StorageLike | null = browserStorage(),

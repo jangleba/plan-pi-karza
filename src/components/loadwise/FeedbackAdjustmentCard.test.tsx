@@ -1,4 +1,8 @@
 // @vitest-environment jsdom
+import {
+  enqueueTrainingWrite,
+  readPendingTrainingWrites,
+} from "@/lib/loadwise/offlineTrainingQueue";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -69,6 +73,7 @@ function plan() {
 const club = (patch: Partial<SessionCompletion> = {}): Record<string, SessionCompletion> => ({
   "s-2026-11-02-0": {
     completed: true,
+    writeVersion: 1,
     status: "completed",
     rpe: 8,
     notes: "",
@@ -131,6 +136,27 @@ describe("feedback adjustment card", () => {
     (mock.store as { hydrated: boolean }).hydrated = false;
     await render();
     expect(host.textContent).toBe("");
+  });
+
+  it("an unconfirmed club entry (writeVersion 0) or a pending write shows no changed plan", async () => {
+    setStore(club({ writeVersion: 0 }));
+    await render();
+    expect(host.textContent).toBe("");
+    // A queued, unresolved training write blocks every source until it is confirmed.
+    setStore();
+    expect(
+      enqueueTrainingWrite("card-test", {
+        kind: "gym_record",
+        dedupeKey: "gym:equipment:x",
+        payload: { user_id: "card-test", record_key: "equipment:x", payload: {} },
+      }),
+    ).toBe(true);
+    expect(readPendingTrainingWrites("card-test").length).toBe(1);
+    await render();
+    expect(host.textContent).toBe("");
+    localStorage.clear();
+    await render();
+    expect(host.textContent).toContain("Po ciężkim treningu klubowym");
   });
 
   it("'Zostaw plan' hides the card and leaves the saved plan untouched", async () => {

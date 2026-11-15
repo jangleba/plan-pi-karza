@@ -1,5 +1,4 @@
-import { getExerciseDefinition, resolveEquipmentId } from "../exerciseLibrary";
-import { INDIVIDUAL_FOOTBALL_DRILLS } from "../individualFootballDrills";
+import { getExerciseDefinition } from "../exerciseLibrary";
 import type { Profile } from "../types";
 import { eligibleExercise, estimateSessionSeconds } from "./exercises";
 import type { Dose, EngineSession, ExerciseDecision, Role } from "./model";
@@ -10,53 +9,12 @@ type SupportPreferences = {
   activationLocation?: "field" | "gym";
   mobilityFocus?: "general" | "hip" | "ankle" | "thoracic";
 };
-const normal = (v: string) =>
-  v
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/ł/g, "l");
-const football = (v: string) =>
-  /^(?:pilka(?: noz?na)?|football(?:_ball)?|soccer(?:_ball)?|ball)$/.test(normal(v));
-const wall = (v: string) =>
-  /^(?:rebounder|wall|sciana|odbojnik|sciana\s*\/\s*odbojnik|wall\s*\/\s*rebounder)$/.test(
-    normal(resolveEquipmentId(v) ?? v),
-  );
-
-/** Pitch or gym access does not prove ownership of a football. */
-export function hasDeclaredFootball(profile: Profile): boolean {
-  return (
-    [...profile.equipment, ...(profile.homeEquipment ?? [])].some(football) &&
-    !(profile.unavailableEquipmentIds ?? []).some(football)
-  );
-}
-
-/** The existing wall checkbox is stored as rebounder; ownership is never inferred from venue. */
-export function hasDeclaredWall(profile: Profile): boolean {
-  return (
-    [...profile.equipment, ...(profile.homeEquipment ?? [])].some(wall) &&
-    !(profile.unavailableEquipmentIds ?? []).some(wall)
-  );
-}
-
-/** Wall requirements live in the canonical solo-drill metadata, including goalkeeper tasks. */
-export function requiresDeclaredWall(exerciseId: string): boolean {
-  const drill = INDIVIDUAL_FOOTBALL_DRILLS.find((entry) => entry.id === exerciseId);
-  return !!drill && "wall" in drill && drill.wall === true;
-}
+export { hasDeclaredFootball, hasDeclaredWall, requiresDeclaredWall } from "./placeRequirements";
+import { meetsSessionRequirements, hasDeclaredFootball } from "./placeRequirements";
 
 function usable(id: string, p: Profile): boolean {
   const def = getExerciseDefinition(id);
-  if (!def || !eligibleExercise(id, p) || def.minParticipants > 1 || def.requiresPartner)
-    return false;
-  if (def.requiresBall && !hasDeclaredFootball(p)) return false;
-  if (requiresDeclaredWall(id) && !hasDeclaredWall(p)) return false;
-  if (/^football_gk_/.test(id) && p.position !== "goalkeeper") return false;
-  if (["pitch", "open_field"].includes(def.spaceRequirement) && !p.hasPitch) return false;
-  if (def.spaceRequirement === "indoor_gym" && !p.hasGym) return false;
-  if (def.spaceRequirement === "sprint_lane" && !p.hasSprintSpace) return false;
-  return true;
+  return !!def && eligibleExercise(id, p) && meetsSessionRequirements(def, p);
 }
 
 function decision(

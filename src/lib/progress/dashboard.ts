@@ -1,6 +1,7 @@
 import { addIsoDays } from "@/lib/isoDate";
 import type { Profile, SessionDay } from "@/lib/loadwise/types";
 import { GOAL_LABELS, SECONDARY_LIMITER_LABELS } from "@/lib/loadwise/labels";
+import { historyLoad, isValidMatchMinutes } from "@/lib/loadwise/sessionFeedback";
 import {
   TRAINING_CATEGORY_LABELS,
   uniqueTrainingHistory,
@@ -90,6 +91,10 @@ export interface LoadReport {
   recordedCount: number;
   missingRpeCount: number;
   missingDurationCount: number;
+  /** Minutes actually played in matches of the period; not whole-session time and not an assumption. */
+  matchMinutesPlayed: number;
+  /** Entries whose time is the product's assumption (club 90 min); counted, but flagged. */
+  assumedMinutesCount: number;
   previousCount: number;
   comparable: boolean;
 }
@@ -114,14 +119,27 @@ export function buildLoadReport(
     match: 0,
     recovery: 0,
   };
-  const usable = (item: CompletedSessionEntry) =>
-    item.rpe != null && item.durationMin > 0 && !item.durationEstimated;
-  const loadOf = (item: CompletedSessionEntry) => (usable(item) ? item.durationMin * item.rpe! : 0);
+  // One load rule for every surface: a match counts minutes played (0 is a known value, not a gap).
+  const usable = (item: CompletedSessionEntry) => historyLoad(item).value !== null;
+  const loadOf = (item: CompletedSessionEntry) => historyLoad(item).value ?? 0;
+  const timeMissing = (item: CompletedSessionEntry) =>
+    item.category === "match"
+      ? !isValidMatchMinutes(item.matchMinutesPlayed)
+      : item.durationMin <= 0 ||
+        (!!item.durationEstimated && item.durationSource !== "club_default");
   const current = history.filter((item) => item.date >= dates[0] && item.date <= todayIso);
   const recordedCount = current.filter(usable).length;
   const missingRpeCount = current.filter((item) => item.rpe == null).length;
-  const missingDurationCount = current.filter(
-    (item) => item.durationMin <= 0 || item.durationEstimated,
+  const missingDurationCount = current.filter(timeMissing).length;
+  const matchMinutesPlayed = current.reduce(
+    (sum, item) =>
+      item.category === "match" && isValidMatchMinutes(item.matchMinutesPlayed)
+        ? sum + item.matchMinutesPlayed
+        : sum,
+    0,
+  );
+  const assumedMinutesCount = current.filter(
+    (item) => usable(item) && historyLoad(item).minutesAssumed,
   ).length;
 
   const days: LoadDay[] = dates.map((date) => {
@@ -184,6 +202,8 @@ export function buildLoadReport(
     recordedCount,
     missingRpeCount,
     missingDurationCount,
+    matchMinutesPlayed,
+    assumedMinutesCount,
     previousCount: previous.length,
     comparable,
   };
@@ -219,6 +239,9 @@ export function buildTimeline(history: CompletedSessionEntry[]): TimelineEvent[]
         item.durationMin
           ? `${item.durationEstimated ? "ok. " : ""}${item.durationMin} min`
           : "czas nieuzupełniony",
+        item.category === "match" && isValidMatchMinutes(item.matchMinutesPlayed)
+          ? `${item.matchMinutesPlayed} min gry`
+          : null,
         item.rpe != null ? `RPE ${item.rpe}` : null,
       ]
         .filter(Boolean)

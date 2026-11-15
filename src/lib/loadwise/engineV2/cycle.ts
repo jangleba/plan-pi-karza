@@ -1,4 +1,5 @@
 import type { Profile, SessionCompletion, SessionDay } from "../types";
+import { cycleStartEffectOf } from "../cyclePolicy";
 import {
   dayDistance,
   plusDays,
@@ -73,6 +74,11 @@ export function startRecommendation(options: EngineOptions) {
     .filter((d) => d.cycleStart?.review && validDate(d.date))
     .sort((a, b) => a.date.localeCompare(b.date))[0];
   return stamped ? { kind: stamped.cycleStart!.kind, appliesFrom: stamped.date } : null;
+}
+
+/** What the recommendation in force does to this plan's recipes (see cyclePolicy.ts). */
+export function cycleStartEffect(options: EngineOptions) {
+  return cycleStartEffectOf(startRecommendation(options)?.kind);
 }
 
 function strengthCompletions(options: EngineOptions): SessionCompletion[] {
