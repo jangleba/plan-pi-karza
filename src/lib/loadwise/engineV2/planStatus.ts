@@ -85,6 +85,13 @@ export function hasReadinessStop(readiness?: Readiness): boolean {
   );
 }
 
+/** The time budget the plan was generated with; never a silent default when the plan records one. */
+export function planTimeBudget(plan: readonly SessionDay[], fallback = 75): number {
+  const first = plan.find((d) => d.engineTimeBudgetMin || d.planInputs?.minutesPerSession);
+  const value = first?.engineTimeBudgetMin ?? first?.planInputs?.minutesPerSession;
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
 /** Only new starts are gated; a pinned execution and its historical logging stay intact. */
 export function sessionStartIssue({
   session,
@@ -92,12 +99,15 @@ export function sessionStartIssue({
   readiness,
   todayIso,
   completion,
+  minutesPerSession,
 }: {
   session: SessionDay;
   profile: Profile | null;
   readiness?: Readiness;
   todayIso?: string;
   completion?: SessionCompletion;
+  /** The budget the plan was generated with (planTimeBudget); not a fixed default. */
+  minutesPerSession?: number;
 }): string | null {
   if (executionStarted(completion)) return null;
   if (completion?.status === "missed")
@@ -128,7 +138,7 @@ export function sessionStartIssue({
     if (readiness.overall <= 4 && (!supportOnly || jump))
       return "Bieżący check-in wymaga lżejszego planu. Przygotuj go ponownie przed startem.";
   }
-  const recipeIssue = validateEngineSession(session, profile)[0];
+  const recipeIssue = validateEngineSession(session, profile, { minutesPerSession })[0];
   if (recipeIssue)
     return `Receptura wymaga poprawy przed startem: ${recipeIssue.message} Przygotuj aktualny plan.`;
   return null;

@@ -64,7 +64,7 @@ export interface AdjustmentProposal {
   policyVersion: string;
   sourceSessionId: string;
   sourceDate: string;
-  sourceKind: "club" | "match" | "voluntary" | "strength";
+  sourceKind: "club" | "match" | "voluntary" | "strength" | "running";
   feedback: {
     rpe: number | null;
     tags: ActivityTag[];

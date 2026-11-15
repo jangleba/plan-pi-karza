@@ -34,5 +34,5 @@ export function runningCalibrationMessage(input: {
   if (!input.online) return `${lead} Aktualizacja czeka na połączenie z internetem.`;
   const issue = planEvidenceIssue(input.gym, input.unresolvedWrites);
   if (issue) return `${lead} ${issue}`;
-  return `${lead} Jeśli aktualizacja nie zakończy się automatycznie, wybierz „Zaktualizuj plan” i sprawdź podgląd.`;
+  return `${lead} Sprawdź propozycję zmian i wybierz „Zastosuj” albo „Zostaw plan”; nic nie zmienia się automatycznie.`;
 }

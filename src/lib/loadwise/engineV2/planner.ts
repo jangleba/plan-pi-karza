@@ -372,6 +372,69 @@ function plannedEndurance(
   return recipe;
 }
 
+/**
+ * One rule for every strength recipe (new plan, week finalisation, proposals and corrections):
+ * settle the final dose first (focus, then verified progression), only then fit the time budget.
+ * When the full session does not fit, the existing compact variant is tried; otherwise null.
+ */
+export function finalizeStrengthRecipe(
+  base: EngineSession,
+  p: Profile,
+  date: string,
+  options: EngineOptions,
+  days: SessionDay[],
+  budget: number,
+): EngineSession | null {
+  const settle = (r: EngineSession) =>
+    applyGymProgression(applyStrengthFocus(r, p, date, options, days), p, date, options, days);
+  const full = settle(base);
+  if (full.minutes <= budget) return full;
+  const compact = settle(fitStrengthToBudget(base, budget));
+  return compact.minutes <= budget ? compact : null;
+}
+const isStrengthRecipe = (r: EngineSession) =>
+  r.roles.some((role) => role === "strengthA" || role === "strengthB");
+
+
+const strengthSignature = (s: SessionDay) =>
+  JSON.stringify([
+    s.engineV2?.exercises.map((e) => [e.exerciseId, e.role, e.dose]),
+    s.engineV2?.strengthFocus?.mode,
+    s.engineV2?.organization,
+    s.durationMin,
+  ]);
+
+/**
+ * Re-evaluates each strength session once the whole week is known, with the same function the
+ * proposals use. A change is kept only if the week stays as valid as it was.
+ */
+function finalizeStrengthWeek(
+  week: SessionDay[],
+  p: Profile,
+  options: EngineOptions,
+  before: SessionDay[],
+): SessionDay[] {
+  const context = [...before, ...week];
+  let changed = false;
+  const fix = (s: SessionDay): SessionDay => {
+    if (s.executionProtected || !s.engineV2 || !isStrengthRecipe(s.engineV2)) return s;
+    const fresh = refreshStrengthSession(s, p, options, context);
+    if (!fresh || strengthSignature(fresh) === strengthSignature(s)) return s;
+    changed = true;
+    return { ...fresh, dbId: s.dbId };
+  };
+  const next = week.map((d) => {
+    if (d.executionProtected) return d;
+    const first = fix(d);
+    return { ...first, secondSession: d.secondSession ? fix(d.secondSession) : null };
+  });
+  if (!changed) return week;
+  const check = { ...options, startDate: week[0].date, precedingDays: before };
+  const key = (i: Issue) => `${i.code}|${i.date ?? ""}|${i.message}`;
+  const baseline = new Set(validateTrainingPlan(week, p, check).map(key));
+  return validateTrainingPlan(next, p, check).every((i) => baseline.has(key(i))) ? next : week;
+}
+
 function place(
   days: SessionDay[],
   index: number,
@@ -383,8 +446,27 @@ function place(
   forceEnduranceLight = false,
 ): PlacementAttempt<SessionDay[]> {
   const current = days[index];
-  recipe = applyStrengthFocus(recipe, p, current.date, options, [...preceding, ...days]);
-  recipe = applyGymProgression(recipe, p, current.date, options, [...preceding, ...days]);
+  if (isStrengthRecipe(recipe)) {
+    const final = finalizeStrengthRecipe(
+      recipe,
+      p,
+      current.date,
+      options,
+      [...preceding, ...days],
+      options.minutesPerSession ?? 75,
+    );
+    if (!final)
+      return {
+        blocked: {
+          code: "TIME_LIMIT",
+          message: "Ostateczna dawka siły, także w krótszym wariancie, nie mieści się w czasie.",
+        },
+      };
+    recipe = final;
+  } else {
+    recipe = applyStrengthFocus(recipe, p, current.date, options, [...preceding, ...days]);
+    recipe = applyGymProgression(recipe, p, current.date, options, [...preceding, ...days]);
+  }
   const distance = Math.min(99, ...[...matches].map((m) => Math.abs(dayDistance(current.date, m))));
   // Resolve measured running pace against the actual candidate date, including test expiry.
   // A prepared MAS test keeps its own recipe; only calm runs are re-resolved for the date.
@@ -599,16 +681,11 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
     // The mobility goal makes the mobility session a weekly task of its own (second slot);
     // strength B is then tried afterwards as a supplement, not placed instead of mobility.
     const mobilityRecipe = policy.primary === "mobility" ? buildMobility(p, phase) : null;
+    // Full base recipes: the time budget is fitted only after the final dose (place()).
     const strengthB = () =>
-      fitStrengthToBudget(
-        buildStrength(routedProfile(p, policy.strengthGoal), "B", phase, rotation),
-        options.minutesPerSession ?? 75,
-      );
+      buildStrength(routedProfile(p, policy.strengthGoal), "B", phase, rotation);
     const tasks = [
-      fitStrengthToBudget(
-        buildStrength(routedProfile(p, policy.strengthGoal), "A", phase, rotation),
-        options.minutesPerSession ?? 75,
-      ),
+      buildStrength(routedProfile(p, policy.strengthGoal), "A", phase, rotation),
       mobilityRecipe ?? strengthB(),
       fitSprintToBudget(
         buildRunning(routedProfile(p, policy.speedGoal), "speed", phase, {
@@ -830,6 +907,8 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
               : "Nie znaleziono miejsca na dodatkową mobilność bez naruszania pozostałych ograniczeń.",
         });
     }
+    // Strength is judged on the complete week: sprint, runs, club and matches placed later count too.
+    best = finalizeStrengthWeek(best, p, options, [...(options.precedingDays ?? []), ...plan]);
     attachCycle(best, cycle);
     best.forEach((d) => {
       if (!d.executionProtected)
@@ -978,21 +1057,19 @@ export function refreshStrengthSession(
   const old = session.engineV2;
   if (!old || !old.roles.some((r) => r === "strengthA" || r === "strengthB")) return null;
   const cycle = cycleForWeek(p, options, session.date);
-  let recipe = buildStrength(
-    p,
+  const budget = options.minutesPerSession ?? 75;
+  let base = buildStrength(
+    routedProfile(p, resolveGoalPolicy(p).strengthGoal),
     old.roles.includes("strengthA") ? "A" : "B",
     cycle.phase,
     cycleStartEffect(options).rotate ? 1 : 0,
   );
-  if (old.variant === "compact")
-    recipe = fitStrengthToBudget(
-      recipe,
-      Math.min(options.minutesPerSession ?? 75, session.durationMin),
-    );
-  recipe = applyStrengthFocus(recipe, p, session.date, options, days);
-  recipe = applyGymProgression(recipe, p, session.date, options, days);
+  // An accepted shorter variant (feedback correction) stays short; otherwise the generator's rule.
+  if (old.variant === "compact" && session.feedbackAdjustments?.length)
+    base = fitStrengthToBudget(base, Math.min(budget, session.durationMin));
+  const recipe = finalizeStrengthRecipe(base, p, session.date, options, days, budget);
+  if (!recipe) return null;
   recipe.cycle = cycle.cycle;
-  if (recipe.minutes > (options.minutesPerSession ?? 75)) return null;
   const fresh = render(session.date, recipe, p);
   return {
     ...session,

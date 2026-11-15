@@ -11,10 +11,9 @@ import type { LoadwiseState } from "./types";
 import type { EngineResult } from "./engineV2/model";
 
 import { loadV2Plan } from "./engineV2/persistence";
-import { useRunningCalibration } from "./store/useRunningCalibration";
 
 import { resolveEffectivePlan } from "./effectivePlan";
-import { GymEvidenceProvider, useGymEvidence } from "./useGymEvidence";
+import { GymEvidenceProvider } from "./useGymEvidence";
 
 export { applyExerciseReplacements } from "./store/model";
 
@@ -142,28 +141,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         ownerId={user?.id}
         ready={hydrated && !syncing}
       >
-        <RunningCalibrationEffect
-          ownerId={user?.id}
-          ready={hydrated && !syncing && !profileSaveStage}
-          state={state}
-          getState={() => stateRef.current}
-          setState={guardedSetState}
-          todayIso={todayIso}
-        />
         {children}
       </GymEvidenceProvider>
     </LoadwiseContext.Provider>
   );
-}
-
-/** Mounted inside the gym evidence provider so every plan rebuild reads the same gym decisions. */
-function RunningCalibrationEffect(props: Omit<Parameters<typeof useRunningCalibration>[0], "gym">) {
-  const gym = useGymEvidence();
-  useRunningCalibration({
-    ...props,
-    gym: { records: gym.records, loading: gym.loading, available: gym.available },
-  });
-  return null;
 }
 
 export function useLoadwise() {

@@ -1,7 +1,9 @@
 import { sessionPrescription } from "../planIdentity";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
+import { activateTrainingPlan } from "./activation";
+import { proposalToEngineResult } from "./feedbackAdjustment";
 import { generateTrainingPlan, validateTrainingPlan } from "./planner";
-import { calibratePendingRunningPlan } from "./runningCalibration";
+import { calibratePendingRunningPlan, proposeRunningCalibration } from "./runningCalibration";
 import { runningCalibrationKey } from "./runningCalibrationKey";
 import { cycleForWeek } from "./cycle";
 import type { Profile, SessionDay, SessionCompletion } from "../types";
@@ -254,3 +256,102 @@ it.each(["protected", "started", "completed"] as const)(
     expect(preserved.dbId).toBe(first.dbId);
   },
 );
+
+it("after MAS the new paces are a reviewable proposal listing every changed session", () => {
+  const { profile, plan } = beforeTest();
+  const ready = afterTest(profile);
+  const started = plan.find((d) => d.date === "2026-11-03")!;
+  const completions = {
+    [started.dbId!]: { completed: false, status: "started", rpe: null, notes: "" },
+  } as Record<string, SessionCompletion>;
+  const proposal = proposeRunningCalibration({
+    profile: ready,
+    plan,
+    completions,
+    todayIso: options.startDate,
+    planId: "active-plan",
+  })!;
+  expect(proposal).not.toBeNull();
+  expect(proposal.sourceKind).toBe("running");
+  expect(proposal.changes.length).toBeGreaterThan(0);
+  // The card lists every future session that differs; nothing else changes.
+  const changedDates = new Set(proposal.changes.map((c) => c.before.date));
+  const own = (days: SessionDay[], date: string) =>
+    JSON.stringify(
+      days
+        .filter((d) => d.date === date)
+        .flatMap((d) => [d, ...(d.secondSession ? [d.secondSession] : [])])
+        .filter((s) => s.engineV2)
+        .map((s) => [
+          s.engineV2!.exercises.map((e) => [e.exerciseId, e.dose]),
+          s.runningRecipe,
+          s.durationMin,
+        ]),
+    );
+  for (const d of proposal.candidatePlan.filter((x) => x.date >= options.startDate))
+    if (!changedDates.has(d.date))
+      expect(own(proposal.candidatePlan, d.date)).toBe(own(plan, d.date));
+  // A started session is pinned.
+  expect(
+    JSON.stringify(proposal.candidatePlan.find((d) => d.date === "2026-11-03")!.engineV2),
+  ).toBe(JSON.stringify(started.engineV2));
+  expect(validateTrainingPlan(proposal.candidatePlan, ready, options)).toEqual([]);
+  // A pending write elsewhere cannot authorise the change.
+  expect(
+    proposeRunningCalibration({
+      profile: ready,
+      plan,
+      completions,
+      todayIso: options.startDate,
+      planId: "active-plan",
+      hasUnconfirmedWrites: true,
+    }),
+  ).toBeNull();
+  // Without a new calibration there is nothing to propose.
+  expect(
+    proposeRunningCalibration({
+      profile,
+      plan,
+      completions: {},
+      todayIso: options.startDate,
+      planId: "active-plan",
+    }),
+  ).toBeNull();
+});
+
+it("'Zastosuj' writes the MAS proposal once, through the version-checked activation", async () => {
+  const { profile, plan } = beforeTest();
+  const ready = afterTest(profile);
+  const proposal = proposeRunningCalibration({
+    profile: ready,
+    plan,
+    completions: {},
+    todayIso: options.startDate,
+    planId: "active-plan",
+  })!;
+  const persist = vi.fn(async (_o: string, _p: Profile, next: SessionDay[]) => next);
+  const snapshot = {
+    ownerId: "owner",
+    profile: ready,
+    observedPlanId: "active-plan",
+    plan,
+    completions: {},
+    readiness: {},
+  };
+  const saved = await activateTrainingPlan(proposalToEngineResult(proposal, ready), {
+    current: () => snapshot,
+    load: async () => ({ id: "active-plan", plan }),
+    persist,
+  });
+  expect(persist).toHaveBeenCalledOnce();
+  expect(saved.length).toBe(proposal.candidatePlan.length);
+  // A plan replaced on another device is never overwritten by an old proposal.
+  await expect(
+    activateTrainingPlan(proposalToEngineResult(proposal, ready), {
+      current: () => snapshot,
+      load: async () => ({ id: "other-plan", plan }),
+      persist,
+    }),
+  ).rejects.toThrow(/innym urządzeniu/);
+  expect(persist).toHaveBeenCalledOnce();
+});
