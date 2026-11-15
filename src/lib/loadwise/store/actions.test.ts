@@ -186,7 +186,7 @@ describe("store action contracts", () => {
 
   it("rejects a stale view before starting and persists the current role-preserving prescription", async () => {
     const planned = currentV2Session();
-    state.plan = [{ ...planned, durationMin: planned.durationMin + 1 }];
+    state.plan = [{ ...planned, title: `${planned.title} · aktualny opis` }];
     await expect(createSessionActions(context()).startSession(planned)).rejects.toThrow(
       "Plan zmienił się",
     );
@@ -194,9 +194,20 @@ describe("store action contracts", () => {
     const current = state.plan[0];
     await createSessionActions(context()).startSession(current);
     expect(state.completions.session.executionSnapshot).toMatchObject({
+      title: current.title,
       durationMin: current.durationMin,
       engineV2: current.engineV2,
     });
+  });
+
+  it("does not start a current view whose saved numeric prescription is invalid", async () => {
+    const planned = currentV2Session();
+    const invalid = { ...planned, durationMin: planned.durationMin + 1 };
+    state.plan = [invalid];
+    await expect(createSessionActions(context()).startSession(invalid)).rejects.toThrow(
+      "Czas sesji nie odpowiada",
+    );
+    expect(mocks.events).not.toContain("save_training_log");
   });
 
   it("rechecks the current profile and date for new starts but keeps a started snapshot immutable", async () => {

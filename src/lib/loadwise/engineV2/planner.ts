@@ -117,6 +117,7 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
       "calf_straight",
       "calf_bent",
       "hamstring_iso",
+      "hamstring_dynamic_support",
       "quad_iso",
     ].includes(e.role);
     const type =
@@ -981,7 +982,7 @@ export function lighterRecipes(
     reduced = plannedEndurance(p, session.date, r.phase, true);
   if (reduced && reduced.minutes <= r.minutes && doseWeight(reduced) < doseWeight(r))
     out.push({ kind: "lighter", recipe: reduced });
-  if (strength && r.minutes > 30) {
+  if (strength && r.variant !== "compact") {
     const compact = fitStrengthToBudget(r, Math.floor(r.minutes * 0.75));
     if (compact.variant === "compact" && compact.minutes < r.minutes)
       out.push({ kind: "compact", recipe: compact });

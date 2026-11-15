@@ -526,5 +526,41 @@
   {
     "id": "trap_bar_jump",
     "title": "Wyskoki z trap barem"
+  },
+  {
+    "id": "gym_cmj",
+    "title": "CMJ — skok pionowy na siłowni"
+  },
+  {
+    "id": "gym_cmj_assisted",
+    "title": "CMJ z asystą gum z góry"
+  },
+  {
+    "id": "gym_cmj_resisted",
+    "title": "CMJ z oporem gum od dołu"
+  },
+  {
+    "id": "gym_broad_jump",
+    "title": "Skok w dal z zatrzymaniem — siłownia"
+  },
+  {
+    "id": "gym_lateral_jump",
+    "title": "Skok w bok obunóż z zatrzymaniem"
+  },
+  {
+    "id": "gym_lateral_bound",
+    "title": "Skok w bok jednonóż z zatrzymaniem — siłownia"
+  },
+  {
+    "id": "gym_step_brake",
+    "title": "Krok i zatrzymanie — przygotowanie hamowania"
+  },
+  {
+    "id": "gym_fast_band_curl",
+    "title": "Szybkie uginanie kolan z gumą"
+  },
+  {
+    "id": "gym_bridge_pulses",
+    "title": "Krótkie oscylacje mostu na tył uda"
   }
 ]

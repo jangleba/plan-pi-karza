@@ -69,6 +69,15 @@ group(
 );
 group("single_leg_long_lever_hamstring_iso", ["hip_extension", "knee_flexion"], "isometric", true);
 group("oscillatory_long_lever_bridge", ["hip_extension", "knee_flexion"], "mixed");
+group("gym_bridge_pulses", ["hip_extension", "knee_flexion"], "mixed");
+group("gym_fast_band_curl", ["knee_flexion"]);
+group(
+  "gym_cmj gym_cmj_assisted gym_cmj_resisted gym_broad_jump gym_lateral_jump",
+  ["jump", "landing"],
+  "ballistic",
+);
+group("gym_lateral_bound", ["jump", "landing"], "ballistic", true);
+group("gym_step_brake", ["landing"], "dynamic", true);
 group("overcoming_pin_squat", ["knee_extension", "hip_extension"], "isometric");
 group("overcoming_pin_squat_primer", ["knee_extension", "hip_extension"], "isometric");
 group("split_squat_iso_hold", ["knee_extension", "hip_extension"], "isometric", true);

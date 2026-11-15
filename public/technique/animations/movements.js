@@ -1538,7 +1538,128 @@
     );
     return s;
   }
+  // Preserve the reviewed source poses before catalog registration replaces aliases.
+  const gymBroadSource = A.models.broad_jump;
+  const gymLateralSource = A.models.lateral_bound_to_stick;
+  function gymJump(c, p) {
+    let s;
+    if (c.variant === "broad") {
+      s = gymBroadSource.sample(Math.min(p * 1.5, 0.75));
+      s.props = { back: s.extras ?? "", front: "", points: [] };
+      if (p >= 0.5) s.phase = "Lądowanie obunóż · utrzymaj pozycję 2 sekundy";
+    } else if (c.variant === "lateral_single") {
+      s = gymLateralSource.sample(Math.min(p * 0.9, 0.75));
+      s.props = { back: s.extras ?? "", front: "", points: [] };
+    } else if (c.variant === "lateral_bilateral") {
+      const travel = p < 0.2 ? 0 : p < 0.42 ? smooth((p - 0.2) / 0.22) : 1;
+      const lift = p >= 0.2 && p < 0.42 ? 23 * Math.sin(((p - 0.2) / 0.22) * Math.PI) : 0;
+      const x = 112 + 95 * travel;
+      const bend = p < 0.2 ? 9 * smooth(p / 0.2) : p < 0.42 ? 0 : 10;
+      const hip = [x, 155 + bend - lift];
+      const a = foot(x + 10, F - lift),
+        b = foot(x - 10, F - lift);
+      s = pose(p, hip, a, b, 0, "front");
+      s.projection = "frontal";
+      const projected = (ankle) => ({
+        knee: v(hip, ankle, 0.505),
+        ankle,
+        contact: lift === 0,
+        footAngle: 0,
+      });
+      s.right = projected(a);
+      s.left = projected(b);
+      s.phase =
+        p < 0.2
+          ? "Przygotuj skok w bok obunóż"
+          : p < 0.42
+            ? "Obie stopy w locie"
+            : "Obunóż · zatrzymaj lądowanie na 2 sekundy";
+    } else {
+      s = jump({ ...c, variant: "countermovement_jump" }, Math.min((p / 0.6) * 0.78, 0.78));
+      if (p >= 0.6) s.phase = "Lądowanie obunóż · utrzymaj pozycję 2 sekundy";
+      if (c.equipment === "resist_band_belt") {
+        const left = [s.hip[0] - 11, s.hip[1] + 3],
+          right = [s.hip[0] + 11, s.hip[1] + 3];
+        line(s, [105, F], left, "#b58d5d", 2);
+        line(s, [215, F], right, "#b58d5d", 2);
+        line(s, left, right, "#566f83", 5, true);
+      }
+    }
+    s.opacity = p > 0.95 ? 1 - smooth((p - 0.95) / 0.05) : 1;
+    return s;
+  }
+  function gymBraking(c, p) {
+    let hip, a, b;
+    if (p < 0.2) {
+      const t = smooth(p / 0.2);
+      hip = [90 + 23 * t, 151];
+      a = foot(85 + 35 * t, F - 9 * Math.sin((p / 0.2) * Math.PI));
+      b = foot(85);
+    } else if (p < 0.4) {
+      const t = smooth((p - 0.2) / 0.2);
+      hip = [113 + 33 * t, 151];
+      a = foot(120);
+      b = foot(85 + 75 * t, F - 9 * Math.sin(((p - 0.2) / 0.2) * Math.PI));
+    } else {
+      hip = [146, 151 + 15 * smooth(clamp((p - 0.4) / 0.08))];
+      a = foot(120);
+      b = foot(160);
+    }
+    const s = pose(p, hip, a, b, p >= 0.4 ? 12 : 0);
+    s.right.contact = p >= 0.2;
+    s.left.contact = p < 0.2 || p >= 0.4;
+    s.phase =
+      p < 0.4
+        ? "Dwa spokojne kroki · to nie bieg"
+        : "Ugnij biodro i kolano · zatrzymaj się na 2 sekundy";
+    s.opacity = p > 0.95 ? 1 - smooth((p - 0.95) / 0.05) : 1;
+    return s;
+  }
+  function gymFastCurl(c, p) {
+    const hip = [207, 248],
+      knee = [150, 248],
+      r = (1 - Math.cos(p * Math.PI * 2)) / 2;
+    const ankle = (value) => {
+      const angle = ((10 + 70 * value) * Math.PI) / 180;
+      return [knee[0] - 56 * Math.cos(angle), knee[1] - 56 * Math.sin(angle)];
+    };
+    const right = ankle(r),
+      left = ankle(1 - r),
+      s = pose(p, hip, right, left, 90);
+    s.right = { knee: [...knee], ankle: right, contact: false, footAngle: -70 * r };
+    s.left = { knee: [...knee], ankle: left, contact: false, footAngle: -70 * (1 - r) };
+    hands(s, [287, 260], [281, 260]);
+    prop(s, rect(65, 263, 251, 1, "#e4ebf1"), [
+      [65, 263],
+      [316, F],
+    ]);
+    line(s, [55, 258], right, "#b58d5d", 2, true);
+    line(s, [60, 258], left, "#b58d5d", 2);
+    s.phase = "Naprzemienne uginanie kolan · lekki opór · biodra na macie";
+    return s;
+  }
+  function gymBridgePulses(c, p) {
+    const theta = -105,
+      shoulder = [112, 238];
+    const hip = [
+      shoulder[0] - 64 * Math.sin((theta * Math.PI) / 180),
+      shoulder[1] + 64 * Math.cos((theta * Math.PI) / 180) + 2 * Math.sin(p * Math.PI * 8),
+    ];
+    const s = pose(p, hip, foot(270), foot(262), theta);
+    const near = point(s, 2, -61),
+      far = point(s, -4, -61);
+    s.arms = {
+      right: { shoulder: near, elbow: [near[0] + 27, 253], wrist: [near[0] + 58, 253] },
+      left: { shoulder: far, elbow: [far[0] + 24, 253], wrist: [far[0] + 55, 253] },
+    };
+    s.phase = "Małe pulsacje bioder · miednica pod kontrolą · nie pełne ruchy mostu";
+    return s;
+  }
   const families = {
+    gym_jump: gymJump,
+    gym_braking: gymBraking,
+    gym_fast_curl: gymFastCurl,
+    gym_bridge_pulses: gymBridgePulses,
     squat,
     split,
     lateral_lunge: lateralLunge,
@@ -1743,17 +1864,19 @@
       A.register(record.id, {
         id: record.id,
         title: record.title,
-        durationMs: c.isometric
-          ? 7000
-          : c.family === "walk" || c.family === "carry"
-            ? 3200
-            : c.family === "run" || c.family === "resisted_run"
-              ? 1600
-              : c.family === "cycle"
-                ? 2400
-                : c.family === "mobility_sequence"
-                  ? 12000
-                  : 6000,
+        durationMs: Number.isFinite(c.cycleMs)
+          ? Math.max(300, Math.min(12000, c.cycleMs))
+          : c.isometric
+            ? 7000
+            : c.family === "walk" || c.family === "carry"
+              ? 3200
+              : c.family === "run" || c.family === "resisted_run"
+                ? 1600
+                : c.family === "cycle"
+                  ? 2400
+                  : c.family === "mobility_sequence"
+                    ? 12000
+                    : 6000,
         sourceVerified: false,
         motionFamily: c.family,
         tempoProfile: tempoProfile(c),

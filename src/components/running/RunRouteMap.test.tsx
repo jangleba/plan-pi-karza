@@ -60,6 +60,11 @@ it("shows a real single fix, updates the live route without rebuilding Leaflet, 
   expect(mocks.create).not.toHaveBeenCalled();
   expect(host.textContent).toContain("Włącz lokalizację");
   await act(async () => root.render(<RunRouteMap route={[point(0)]} />));
+  // Effects start lazy Leaflet/CSS imports after the render callback. Await
+  // those imports before asserting initialization, without assuming one tick.
+  await act(async () => {
+    await vi.dynamicImportSettled();
+  });
   expect(mocks.create).toHaveBeenCalledOnce();
   expect(mocks.setView).toHaveBeenCalled();
   await act(async () => root.render(<RunRouteMap route={[point(0), point(1), point(2)]} />));

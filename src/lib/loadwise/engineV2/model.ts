@@ -1,7 +1,7 @@
 import type { Profile, Readiness, SessionDay } from "../types";
 import { preparationProfile } from "./preparation";
 
-export const ENGINE_VERSION = "ballwise-v2.7";
+export const ENGINE_VERSION = "ballwise-v2.8";
 export type Tier = "foundation" | "development" | "performance";
 export type Role =
   | "knee_strength"
@@ -9,6 +9,7 @@ export type Role =
   | "unilateral_strength"
   | "knee_flexion"
   | "hamstring_iso"
+  | "hamstring_dynamic_support"
   | "quad_iso"
   | "iso_primer"
   | "adductor"
@@ -62,6 +63,7 @@ export const ROLE_NAMES: Record<Role, string> = {
   unilateral_strength: "siła jednonóż",
   knee_flexion: "siła zgięcia kolana",
   hamstring_iso: "izometria tyłu uda",
+  hamstring_dynamic_support: "krótka dynamiczna praca tyłu uda",
   quad_iso: "izometria przodu uda",
   iso_primer: "nadzorowany blok izometryczny przed częścią główną",
   adductor: "siła przywodzicieli",

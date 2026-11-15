@@ -12,6 +12,14 @@ import { hasVerifiedAdvancedStrength } from "./preparation";
 import { drillSetById, variantById } from "./sprintCatalog";
 import { MAS_TEST_SECONDS, isMasTestRecipe, masTestIneligibility } from "./masTestRecipe";
 import { resolveGoalPolicy } from "./goalPolicy";
+import {
+  strengthLandingCount,
+  gymSpecialWorkAllowed,
+  gymPowerDose,
+  gymHamstringSupportDose,
+} from "./gymPower";
+import { GYM_EXERCISE_RULES } from "../gymStrengthExercises";
+import { parseRestDuration } from "../restTimer";
 
 const TARGETS = new Set([
   "strengthA",
@@ -29,6 +37,7 @@ const FUNCTIONS = new Set([
   "unilateral_strength",
   "knee_flexion",
   "hamstring_iso",
+  "hamstring_dynamic_support",
   "quad_iso",
   "iso_primer",
   "adductor",
@@ -205,6 +214,11 @@ function compatibleFunction(id: string, role: string): boolean {
       return has("knee_flexion") && metadata.contraction !== "isometric";
     case "hamstring_iso":
       return metadata.contraction === "isometric" && (has("knee_flexion") || has("hip_extension"));
+    case "hamstring_dynamic_support":
+      return (
+        ["dynamic", "mixed"].includes(metadata.contraction) &&
+        (has("knee_flexion") || has("hip_extension"))
+      );
     case "quad_iso":
     case "iso_primer":
       return metadata.contraction === "isometric" && has("knee_extension");
@@ -257,6 +271,11 @@ export function validateEngineSession(
     return issues;
   }
   const strength = recipe.roles.some((role) => role.startsWith("strength"));
+  if (!strength && recipe.exercises.some((e) => e.role === "iso_primer"))
+    fail(
+      "ISOMETRIC_PRIMER_ORDER",
+      "Nadzorowany nacisk na piny należy do opracowanej sesji siłowej; nie dodawaj go do regeneracji, mobilności ani biegania.",
+    );
   if (strength && recipe.roles.includes("speed"))
     fail("MIXED_STRENGTH_SPEED", "Siłownia i sprint wymagają osobnych jednostek.");
   if (recipe.roles.includes("strengthA") && recipe.roles.includes("strengthB"))
@@ -264,6 +283,40 @@ export function validateEngineSession(
   if (strength) {
     const roles = new Set(recipe.exercises.map((e) => e.role));
     const tasks = recipe.exercises.filter((e) => e.role !== "warmup").map((e) => e.role);
+    const primerIndex = recipe.exercises.findIndex((e) => e.role === "iso_primer");
+    if (
+      primerIndex >= 0 &&
+      (primerIndex === 0 ||
+        recipe.exercises.findIndex((e) => e.role !== "warmup") !== primerIndex ||
+        recipe.exercises.slice(primerIndex + 1).some((e) => e.role === "warmup") ||
+        !["power", "landing", "knee_strength", "hip_strength"].includes(
+          recipe.exercises[primerIndex + 1]?.role ?? "",
+        ))
+    )
+      fail(
+        "ISOMETRIC_PRIMER_ORDER",
+        "Krótki nacisk na piny wymaga rozgrzewki przed blokiem oraz zaplanowanej części głównej po pełnym odpoczynku.",
+      );
+    // These roles describe accessory holding work, not a general ban on brief
+    // preparatory holds. The latter must have a separate reviewed prescription.
+    const lastPriorityIndex = recipe.exercises.reduce(
+      (last, e, index) =>
+        ["power", "landing", "knee_strength", "hip_strength", "unilateral_strength"].includes(
+          e.role,
+        )
+          ? index
+          : last,
+      -1,
+    );
+    if (
+      recipe.exercises.some(
+        (e, index) => ["hamstring_iso", "quad_iso"].includes(e.role) && index < lastPriorityIndex,
+      )
+    )
+      fail(
+        "ISOMETRIC_SUPPORT_ORDER",
+        "Uzupełniające utrzymania izometryczne wykonuj po zaplanowanej mocy i głównych ćwiczeniach siłowych; nie zastępują krótkiego nacisku przygotowawczego.",
+      );
     if (new Set(tasks).size !== tasks.length)
       fail(
         "DUPLICATE_STRENGTH_FUNCTION",
@@ -271,8 +324,9 @@ export function validateEngineSession(
       );
     // Template guardrail, not an equation treating a hold as a dynamic working set.
     if (
-      tasks.filter((r) => ["hip_strength", "knee_flexion", "hamstring_iso"].includes(r)).length >
-        2 ||
+      tasks.filter((r) =>
+        ["hip_strength", "knee_flexion", "hamstring_iso", "hamstring_dynamic_support"].includes(r),
+      ).length > 2 ||
       tasks.filter((r) => ["knee_strength", "unilateral_strength", "quad_iso"].includes(r)).length >
         2
     )
@@ -307,6 +361,98 @@ export function validateEngineSession(
     }
     const d = exercise.dose as NumericDose;
     const definition = getExerciseDefinition(exercise.exerciseId);
+    if (GYM_EXERCISE_RULES[exercise.exerciseId]) {
+      const expectedRole =
+        exercise.exerciseId === "gym_step_brake"
+          ? "landing"
+          : GYM_EXERCISE_RULES[exercise.exerciseId].timedDynamic
+            ? "hamstring_dynamic_support"
+            : "power";
+      if (exercise.role !== expectedRole)
+        fail(
+          "GYM_FUNCTION_MISMATCH",
+          "Wariant siłowni ma inne zadanie i sposób zapisu niż zaplanowana rola.",
+        );
+      const actual =
+        session.structuredSections
+          ?.flatMap((section) => section.blocks.flatMap((block) => block.exercises))
+          .filter((row) => row.exerciseId === exercise.exerciseId) ?? [];
+      const doseText = d.seconds
+        ? `${d.seconds} s${d.perSide ? " / stronę" : ""}`
+        : `${d.reps}${d.perSide ? " / stronę" : ""}`;
+      if (
+        actual.length !== 1 ||
+        stableJson(actual[0].engineDose) !== stableJson(d) ||
+        actual[0].sets !== String(d.sets) ||
+        actual[0].displayPrescription !== `${d.sets} × ${doseText}` ||
+        (d.seconds ? actual[0].duration !== doseText : actual[0].reps !== doseText) ||
+        parseRestDuration(actual[0]?.restAfterExercise ?? "") !== d.restSeconds
+      )
+        fail(
+          "GYM_RENDERED_DOSE_MISMATCH",
+          "Ekran ćwiczenia siłowni nie odpowiada zapisanej dawce silnika.",
+        );
+      if (exercise.role === "power") {
+        const expected = gymPowerDose(exercise.exerciseId, profile, recipe.phase);
+        if (
+          d.seconds !== undefined ||
+          d.distanceM !== undefined ||
+          d.rir !== undefined ||
+          d.intent !== "explosive" ||
+          !Number.isInteger(d.reps) ||
+          d.reps! < 2 ||
+          d.reps! > expected.reps! ||
+          d.sets > expected.sets ||
+          Boolean(d.perSide) !== Boolean(expected.perSide) ||
+          d.contactsPerRep !== 1 ||
+          d.restSeconds < expected.restSeconds
+        )
+          fail(
+            "GYM_POWER_DOSE",
+            "Skoki wymagają małej zapisanej dawki, właściwych stron i pełnych przerw; nie dodawaj obciążenia przez samą zmianę tygodnia.",
+          );
+      }
+      if (exercise.role === "hamstring_dynamic_support") {
+        const expected = gymHamstringSupportDose(exercise.exerciseId, recipe.phase);
+        if (
+          d.seconds !== expected.seconds ||
+          d.sets > expected.sets ||
+          d.restSeconds < expected.restSeconds ||
+          d.perSide
+        )
+          fail(
+            "GYM_DYNAMIC_SUPPORT_DOSE",
+            "Czas, liczba prób lub odpoczynek nie odpowiadają krótkiej pracy dynamicznej tyłu uda.",
+          );
+      }
+    }
+    if (GYM_EXERCISE_RULES[exercise.exerciseId] && !strength)
+      fail(
+        "GYM_TASK_OUTSIDE_STRENGTH",
+        "Te warianty siłowni należą do sesji A/B, nie do biegania ani osobnej sesji mocy.",
+      );
+    if (
+      [
+        "gym_cmj_assisted",
+        "gym_cmj_resisted",
+        "gym_fast_band_curl",
+        "gym_bridge_pulses",
+        "gym_lateral_bound",
+      ].includes(exercise.exerciseId) &&
+      !gymSpecialWorkAllowed(profile, recipe.phase)
+    )
+      fail(
+        "GYM_SPECIAL_WORK_ELIGIBILITY",
+        "Zaawansowany wariant nie odpowiada poziomowi, fazie lub bieżącemu zakresowi planu.",
+      );
+    if (
+      exercise.role === "hamstring_dynamic_support" &&
+      (!d.seconds || d.reps !== undefined || d.intent !== "controlled" || d.rir !== undefined)
+    )
+      fail(
+        "GYM_DYNAMIC_SUPPORT_DOSE",
+        "Krótka praca dynamiczna tyłu uda wymaga czasu i kontroli; nie jest utrzymaniem, serią do upadku ani pomiarem siły.",
+      );
     if (d.cluster) {
       if (
         !clusterEligible(profile, recipe.phase) ||
@@ -386,9 +532,26 @@ export function validateEngineSession(
     }
     if (
       ["hamstring_iso", "quad_iso", "iso_primer"].includes(exercise.role) &&
-      (!d.seconds || d.reps !== undefined)
+      (!d.seconds ||
+        d.reps !== undefined ||
+        d.distanceM !== undefined ||
+        d.cluster !== undefined ||
+        (["hamstring_iso", "quad_iso"].includes(exercise.role) && d.intent !== "hold"))
     )
-      fail("ISOMETRIC_DOSE_MISMATCH", "Izometria wymaga czasu utrzymania zamiast liczby ruchów.");
+      fail(
+        "ISOMETRIC_DOSE_MISMATCH",
+        "Izometria wymaga czasu bez powtórzeń ruchu, dystansu i klastrów. Utrzymanie pozycji wymaga intencji hold; nacisk na piny ma osobny protokół.",
+      );
+    const isometricAngle = FUNCTIONAL_CATALOGUE[exercise.exerciseId]?.jointAngleDegrees;
+    if (
+      FUNCTIONAL_CATALOGUE[exercise.exerciseId]?.contraction === "isometric" &&
+      isometricAngle !== undefined &&
+      d.jointAngleDegrees !== isometricAngle
+    )
+      fail(
+        "ISOMETRIC_ANGLE_MISMATCH",
+        "Kąt w dawce izometrii nie odpowiada konkretnemu wariantowi ćwiczenia. Nie zamieniaj ustawienia 30° na 90° ani nie usuwaj go z receptury.",
+      );
     if (exercise.role === "iso_primer") {
       const protocol = coachedPrimerDose();
       if (
@@ -410,6 +573,15 @@ export function validateEngineSession(
       fail("INCOMPLETE_DISTANCE", "Nabieg wymaga zapisanego odcinka biegu.");
   }
   if (!validArithmetic) return issues;
+  if (
+    strength &&
+    recipe.plyometricContacts !== undefined &&
+    recipe.plyometricContacts !== strengthLandingCount(recipe.exercises)
+  )
+    fail(
+      "STALE_STRENGTH_CONTACTS",
+      "Suma lądowań skocznościowych nie odpowiada rzeczywistej liczbie prób i stron.",
+    );
   if (recipe.organization === "contrast") {
     if (
       !hasVerifiedAdvancedStrength(profile) ||
