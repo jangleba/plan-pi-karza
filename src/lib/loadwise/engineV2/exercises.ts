@@ -19,6 +19,7 @@ import {
   strengthLandingCount,
 } from "./gymPower";
 import { hasVerifiedAdvancedStrength, preparationProfile } from "./preparation";
+import { arrangeStrengthPairs } from "./strengthPairs";
 import {
   coachedPrimerDose,
   coachedPrimerEligible,
@@ -352,10 +353,26 @@ export function buildStrength(
     restSeconds: 75,
     intent: "controlled",
   });
+  // A fuller prepared-athlete session covers both upper-body directions.
+  // General football level still never unlocks technical loaded lifts.
+  const fullPreparedSession = p.hasGym && tier !== "foundation" && !deload && phase !== "peak";
+  if (fullPreparedSession)
+    add(variant === "A" ? "pull" : "push", {
+      sets: 2,
+      reps: 8,
+      rir: 3,
+      restSeconds: 75,
+      intent: "controlled",
+    });
   if (variant === "A")
     add("adductor", { sets: deload ? 1 : 2, seconds: 15, restSeconds: 60, intent: "hold" });
   else
     add("trunk", { sets: deload ? 1 : 2, reps: 8, rir: 3, restSeconds: 60, intent: "controlled" });
+  if (fullPreparedSession) {
+    if (variant === "A")
+      add("trunk", { sets: 2, reps: 8, rir: 3, restSeconds: 60, intent: "controlled" });
+    else add("adductor", { sets: 2, seconds: 15, restSeconds: 60, intent: "hold" });
+  }
   if (variant === "A" && p.trainingMethodPreferences?.strength === "M13")
     add("quad_iso", quadricepsHoldingDose(deload));
   add(variant === "A" ? "calf_straight" : "calf_bent", {
@@ -412,19 +429,24 @@ export function buildStrength(
       exercises.splice(powerIndex, 0, primary);
     }
   }
-  return {
-    variant: "full",
-    roles: [variant === "A" ? "strengthA" : "strengthB"],
-    tier,
-    phase,
-    organization,
-    highLower: tier !== "foundation",
-    exercises,
-    missing,
-    sprintMetres: 0,
-    plyometricContacts: strengthLandingCount(exercises),
-    minutes: Math.ceil(estimateSessionSeconds(exercises) / 60) + 8,
-  };
+  const recipe = arrangeStrengthPairs(
+    {
+      variant: "full",
+      roles: [variant === "A" ? "strengthA" : "strengthB"],
+      tier,
+      phase,
+      organization,
+      highLower: tier !== "foundation",
+      exercises,
+      missing,
+      sprintMetres: 0,
+      plyometricContacts: strengthLandingCount(exercises),
+      minutes: Math.ceil(estimateSessionSeconds(exercises) / 60) + 8,
+    },
+    fullPreparedSession,
+  );
+  recipe.minutes = Math.ceil(estimateSessionSeconds(recipe.exercises) / 60) + 8;
+  return recipe;
 }
 
 /** Keep front/back legs and one upper-body task. Never shorten rests or erase
@@ -435,10 +457,20 @@ export function fitStrengthToBudget(recipe: EngineSession, budget: number): Engi
     ? ["warmup", "knee_strength", "knee_flexion", "hip_strength", "push"]
     : ["warmup", "hip_strength", "unilateral_strength", "pull"];
   const compact = structuredClone(recipe);
+  const restoreSingleRest = (e: ExerciseDecision): ExerciseDecision => ({
+    ...e,
+    dose: {
+      ...e.dose,
+      restSeconds: recipe.strengthPairs?.some((pair) => pair.roles.includes(e.role))
+        ? Math.max(e.dose.restSeconds, ["push", "pull"].includes(e.role) ? 75 : 60)
+        : e.dose.restSeconds,
+    },
+  });
   compact.variant = "compact";
   compact.organization = "straight";
   const primary = (role: string) => role === "knee_strength" || role === "hip_strength";
   compact.exercises = compact.exercises
+    .map(restoreSingleRest)
     .filter((e) => essential.includes(e.role))
     .map((e) => ({
       ...e,
@@ -449,9 +481,9 @@ export function fitStrengthToBudget(recipe: EngineSession, budget: number): Engi
       },
       reason: `Cel ćwiczenia: ${ROLE_NAMES[e.role]}. Krótszy wariant: zwykłe serie, podstawowe zadania i pełne przerwy. Nie jest to wykonanie metody specjalistycznej.`,
     }));
-  const extras = recipe.exercises.filter(
-    (e) => !essential.includes(e.role) && e.role !== "iso_primer",
-  );
+  const extras = recipe.exercises
+    .map(restoreSingleRest)
+    .filter((e) => !essential.includes(e.role) && e.role !== "iso_primer");
   const minutes = () => Math.ceil(estimateSessionSeconds(compact.exercises) / 60) + 8;
   compact.minutes = minutes();
   for (const e of extras) {
@@ -461,6 +493,8 @@ export function fitStrengthToBudget(recipe: EngineSession, budget: number): Engi
   }
   compact.minutes = minutes();
   compact.plyometricContacts = strengthLandingCount(compact.exercises);
+  // Compact work keeps independent sets; a dropped partner must not survive as pair metadata.
+  delete compact.strengthPairs;
   return compact;
 }
 

@@ -357,7 +357,7 @@ export interface TrainingExercise {
 }
 
 export interface TrainingBlock {
-  executionProtocol?: "contrast-rounds-v1";
+  executionProtocol?: "contrast-rounds-v1" | "superset-rounds-v1";
   id: string;
   title: string;
   blockType: BlockType;

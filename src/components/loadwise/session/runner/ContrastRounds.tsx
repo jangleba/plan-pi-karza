@@ -32,6 +32,7 @@ export function ContrastRounds({
   onNext: () => void;
 }) {
   const { user } = useAuth();
+  const superset = step.rows[0]?.block.executionProtocol === "superset-rounds-v1";
   const rounds = Math.min(...step.rows.map((r) => plannedSets(r.exercise)));
   const total = rounds * step.rows.length;
   const cursor = useTrainingLocalState(
@@ -64,7 +65,9 @@ export function ContrastRounds({
         restSecondsAfter(row.block, row.exercise, true, partner, next >= total),
         next < total
           ? `Następnie: ${canonicalExerciseName(nextRow.exercise)} · runda ${Math.floor(next / step.rows.length) + 1}`
-          : "Koniec bloku siły i mocy",
+          : superset
+            ? "Koniec superserii"
+            : "Koniec bloku siły i mocy",
         next >= total,
       );
       if (next >= total) onNext();
@@ -77,7 +80,10 @@ export function ContrastRounds({
     }
   }
   return (
-    <section className="bw-runner-linked" aria-label="Kontrast prowadzony rundami">
+    <section
+      className="bw-runner-linked"
+      aria-label={superset ? "Superseria prowadzona rundami" : "Kontrast prowadzony rundami"}
+    >
       <p className="bw-runner-position">
         Runda {round} z {rounds} · {row.exercise.label ?? `ćwiczenie ${position + 1}`}
       </p>
