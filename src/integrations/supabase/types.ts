@@ -14,12 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      gym_records: {
-        Row: { user_id: string; record_key: string; payload: Json; revision: number; updated_at: string; last_operation_id: string }
-        Insert: { user_id: string; record_key: string; payload: Json; revision?: number; updated_at?: string; last_operation_id: string }
-        Update: { payload?: Json; revision?: number; updated_at?: string; last_operation_id?: string }
-        Relationships: []
-      }
       athlete_profiles: {
         Row: {
           account_owner_type: string
@@ -676,6 +670,8 @@ export type Database = {
           id: string
           interval_results: Json
           is_field_mas_test: boolean
+          mas_test_attempt: boolean
+          mas_test_evidence: Json | null
           progression_applied: boolean
           server_updated_at: string
           session_id: string
@@ -694,6 +690,8 @@ export type Database = {
           id?: string
           interval_results?: Json
           is_field_mas_test?: boolean
+          mas_test_attempt?: boolean
+          mas_test_evidence?: Json | null
           progression_applied?: boolean
           server_updated_at?: string
           session_id: string
@@ -712,6 +710,8 @@ export type Database = {
           id?: string
           interval_results?: Json
           is_field_mas_test?: boolean
+          mas_test_attempt?: boolean
+          mas_test_evidence?: Json | null
           progression_applied?: boolean
           server_updated_at?: string
           session_id?: string
@@ -1144,10 +1144,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      save_gym_record: {
-        Args: { p_operation_id: string; p_expected_version: number; p_payload: Json }
-        Returns: Json
-      }
       apply_plan_modification: {
         Args: {
           p_exercises: Json
@@ -1183,6 +1179,7 @@ export type Database = {
         Args: { p_consent_type: string; p_user_id: string; p_version: string }
         Returns: boolean
       }
+      legacy_mas_interval_kmh: { Args: { t: Json }; Returns: number }
       merge_own_profile_row: {
         Args: { p_patch: Json; p_table: string }
         Returns: Json
@@ -1326,6 +1323,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      valid_mas_gps_evidence: { Args: { e: Json; t: Json }; Returns: boolean }
       valid_training_list: {
         Args: { maximum: number; value: Json }
         Returns: boolean
