@@ -2,7 +2,7 @@ import { isMasTestRecipe } from "../engineV2/masTestRecipe";
 import { measureMasEvidence } from "@/lib/running/masQuality";
 import { sessionPrescription, trainingProfileRevision } from "../planIdentity";
 import { resolveEffectivePlan } from "../effectivePlan";
-import { sessionStartIssue } from "../engineV2/planStatus";
+import { planTimeBudget, sessionStartIssue } from "../engineV2/planStatus";
 import { supabase } from "@/integrations/supabase/client";
 import { assertNoSupabaseError } from "@/integrations/supabase/errors";
 import type { Json } from "@/integrations/supabase/types";
@@ -116,6 +116,7 @@ export function createSessionActions(
       readiness: before.readiness[currentSession.date],
       todayIso: context.todayIso,
       completion: existing,
+      minutesPerSession: planTimeBudget(before.plan),
     });
     if (issue) throw new Error(issue);
     const startedAt = new Date().toISOString(),

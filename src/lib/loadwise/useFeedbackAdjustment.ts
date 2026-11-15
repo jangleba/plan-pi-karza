@@ -11,6 +11,8 @@ import { trainingStorageKey } from "./trainingDetails";
 import { useTrainingLocalState } from "./useTrainingLocalState";
 import { useGymEvidence } from "./useGymEvidence";
 import { proposeGymAdjustment } from "./engineV2/gymAdjustment";
+import { proposeRunningCalibration } from "./engineV2/runningCalibration";
+import { gymPlanContext } from "./gymEvidence";
 import { hasUnresolvedTrainingWrites } from "./offlineTrainingQueue";
 
 import { planEvidenceIssue } from "./planEvidence";
@@ -76,6 +78,21 @@ export function useFeedbackAdjustment() {
       hasUnconfirmedWrites,
     });
     if (external && !excluded.has(external.id)) return external;
+    // New paces after a confirmed MAS: a proposal with a preview, never an automatic write.
+    const gymContext = gymPlanContext(gym.records);
+    const running = proposeRunningCalibration({
+      profile: state.profile,
+      plan: state.plan,
+      completions: state.completions,
+      todayIso,
+      planId: state.activePlanId ?? null,
+      readiness: state.profile.healthPersonalizationEnabled ? state.readiness : undefined,
+      modifiedDates,
+      gymProgression: gymContext.gymProgression,
+      strengthLoadResponses: gymContext.strengthLoadResponses,
+      hasUnconfirmedWrites,
+    });
+    if (running && !excluded.has(running.id)) return running;
     const strength = proposeGymAdjustment({
       hasUnconfirmedWrites,
       profile: state.profile,

@@ -747,7 +747,8 @@ export interface FeedbackAdjustmentMark {
     | "skip"
     | "external_credit"
     | "mas_test"
-    | "strength_update";
+    | "strength_update"
+    | "running_calibration";
   appliedAt: string;
 }
 /** Cel wydolności pokryty zgłoszoną pracą w klubie: osobno od wykonanej sesji własnej. */
