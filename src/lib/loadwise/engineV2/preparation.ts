@@ -18,18 +18,21 @@ type PreparationInput = Pick<
   | "supervisionLevel"
 >;
 
-function hasValidMonths(p: PreparationInput, minimum: number): boolean {
+export function hasValidStrengthMonths(p: PreparationInput, minimum = 0): boolean {
   return (
     typeof p.strengthTrainingMonths === "number" &&
     Number.isFinite(p.strengthTrainingMonths) &&
     p.strengthTrainingMonths >= minimum &&
-    p.strengthTrainingMonths <= 720
+    Number.isInteger(p.strengthTrainingMonths) &&
+    Number.isFinite(p.age) &&
+    p.strengthTrainingMonths <= Math.min(720, Math.max(0, p.age * 12)) &&
+    !(p.gymExperienceLevel === "none" && p.strengthTrainingMonths !== 0)
   );
 }
 
 function explicitAdvancedStrength(p: PreparationInput): boolean {
   return (
-    p.gymExperienceLevel === "advanced" && hasValidMonths(p, 24) && p.movementCompetence === "high"
+    p.gymExperienceLevel === "advanced" && hasValidStrengthMonths(p, 24) && p.movementCompetence === "high" && p.supervisionLevel !== undefined
   );
 }
 
@@ -46,14 +49,16 @@ export function preparationProfile(p: PreparationInput): ProgrammingPreparation 
     p.supervisionLevel,
   ].some((value) => value !== undefined && value !== null);
   if (explicit) {
-    const tier: Tier = explicitAdvancedStrength(p)
+    const complete = p.gymExperienceLevel !== undefined && hasValidStrengthMonths(p) &&
+      p.movementCompetence !== undefined && p.supervisionLevel !== undefined;
+    const tier: Tier = complete && explicitAdvancedStrength(p)
       ? "performance"
-      : ["intermediate", "advanced"].includes(p.gymExperienceLevel ?? "") &&
-          hasValidMonths(p, 6) &&
+      : complete && ["intermediate", "advanced"].includes(p.gymExperienceLevel ?? "") &&
+          hasValidStrengthMonths(p, 6) &&
           (p.movementCompetence === "medium" || p.movementCompetence === "high")
         ? "development"
         : "foundation";
-    return { tier, source: "explicit_strength", provisional: false };
+    return { tier, source: "explicit_strength", provisional: !complete };
   }
   // Existing onboarding asks about training experience, including strength/sprint.
   // This categorises programming volume only; canonical eligibility still receives p unchanged.

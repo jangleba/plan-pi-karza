@@ -13,10 +13,10 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
   const profile = state.profile;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<StrengthExperience>(() => ({
-    gymExperienceLevel: profile?.gymExperienceLevel ?? "beginner",
+    gymExperienceLevel: profile?.gymExperienceLevel,
     strengthTrainingMonths: profile?.strengthTrainingMonths,
-    movementCompetence: profile?.movementCompetence ?? "low",
-    supervisionLevel: profile?.supervisionLevel ?? "none",
+    movementCompetence: profile?.movementCompetence,
+    supervisionLevel: profile?.supervisionLevel,
     clubStrengthDays: profile?.clubStrengthDays ?? [],
     trainingMethodPreferences: profile?.trainingMethodPreferences ?? {},
   }));
@@ -27,6 +27,10 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
   const clubDays = [...(profile.clubTrainingDays ?? [])].sort((a, b) => a - b);
   const clubStrength = draft.clubStrengthDays ?? [];
   async function save() {
+    if (draft.strengthTrainingMonths !== undefined && (!Number.isInteger(draft.strengthTrainingMonths) || draft.strengthTrainingMonths < 0 || draft.strengthTrainingMonths > profile.age * 12 || (draft.gymExperienceLevel === "none" && draft.strengthTrainingMonths !== 0))) {
+      setError("Staż musi być zgodny z wiekiem i odpowiedzią o doświadczeniu.");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -47,10 +51,10 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
         aria-label={known ? "Doświadczenie siłowe" : "Dopasuj trening siłowy"}
         onClick={() => {
           setDraft({
-            gymExperienceLevel: profile.gymExperienceLevel ?? "beginner",
+            gymExperienceLevel: profile.gymExperienceLevel,
             strengthTrainingMonths: profile.strengthTrainingMonths,
-            movementCompetence: profile.movementCompetence ?? "low",
-            supervisionLevel: profile.supervisionLevel ?? "none",
+            movementCompetence: profile.movementCompetence,
+            supervisionLevel: profile.supervisionLevel,
             clubStrengthDays: profile.clubStrengthDays ?? [],
             trainingMethodPreferences: profile.trainingMethodPreferences ?? {},
           });
@@ -81,16 +85,17 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
             <label>
               Trening siłowy
               <select
-                value={draft.gymExperienceLevel}
+                value={draft.gymExperienceLevel ?? ""}
                 disabled={saving}
                 onChange={(e) =>
                   setDraft((d) => ({
                     ...d,
-                    gymExperienceLevel: e.target.value as StrengthExperience["gymExperienceLevel"],
+                    gymExperienceLevel: (e.target.value || undefined) as StrengthExperience["gymExperienceLevel"],
                     ...(e.target.value === "none" ? { strengthTrainingMonths: 0 } : {}),
                   }))
                 }
               >
+                <option value="">Nie wiem / brak odpowiedzi</option>
                 <option value="none">Jeszcze nie trenowałem</option>
                 <option value="beginner">Uczę się podstaw</option>
                 <option value="intermediate">Regularny trening, znam podstawy</option>
@@ -149,15 +154,16 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
             <label>
               Technika podstawowych ćwiczeń
               <select
-                value={draft.movementCompetence}
+                value={draft.movementCompetence ?? ""}
                 disabled={saving}
                 onChange={(e) =>
                   setDraft((d) => ({
                     ...d,
-                    movementCompetence: e.target.value as StrengthExperience["movementCompetence"],
+                    movementCompetence: (e.target.value || undefined) as StrengthExperience["movementCompetence"],
                   }))
                 }
               >
+                <option value="">Nie wiem / brak odpowiedzi</option>
                 <option value="low">Dopiero się uczę</option>
                 <option value="medium">Kontroluję podstawowe ruchy</option>
                 <option value="high">Kontroluję też trudniejsze warianty</option>
@@ -166,15 +172,16 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
             <label>
               Nadzór na treningu
               <select
-                value={draft.supervisionLevel}
+                value={draft.supervisionLevel ?? ""}
                 disabled={saving}
                 onChange={(e) =>
                   setDraft((d) => ({
                     ...d,
-                    supervisionLevel: e.target.value as StrengthExperience["supervisionLevel"],
+                    supervisionLevel: (e.target.value || undefined) as StrengthExperience["supervisionLevel"],
                   }))
                 }
               >
+                <option value="">Nie wiem / brak odpowiedzi</option>
                 <option value="none">Trenuję sam</option>
                 <option value="some">Trener sprawdza część ćwiczeń</option>
                 <option value="full">Trener prowadzi i nadzoruje sesję</option>

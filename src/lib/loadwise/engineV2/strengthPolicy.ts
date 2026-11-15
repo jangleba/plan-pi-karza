@@ -1,7 +1,7 @@
 import type { Profile, Readiness, SessionCompletion, SessionDay } from "../types";
 import { calculateOverallReadiness } from "../readinessModel";
 import { scheduledMatchDates } from "../matchSchedule";
-import { preparationProfile, hasVerifiedAdvancedStrength } from "./preparation";
+import { preparationProfile, hasVerifiedAdvancedStrength, hasValidStrengthMonths } from "./preparation";
 import { resolveGoalPolicy } from "./goalPolicy";
 import { getExerciseDefinition } from "../exerciseLibrary";
 import { estimateSessionSeconds } from "./exercises";
@@ -189,11 +189,8 @@ export function maximalStrengthEligible(p: Profile): boolean {
   if (hasVerifiedAdvancedStrength(p)) return true;
   return (
     p.age >= 16 &&
-    p.age < 18 &&
     ["intermediate", "advanced"].includes(p.gymExperienceLevel ?? "") &&
-    typeof p.strengthTrainingMonths === "number" &&
-    p.strengthTrainingMonths >= 12 &&
-    p.strengthTrainingMonths <= 720 &&
+    hasValidStrengthMonths(p, 12) &&
     p.movementCompetence === "high" &&
     p.supervisionLevel === "full"
   );
@@ -361,8 +358,8 @@ export function applyStrengthFocus(
     primary.dose = {
       ...base,
       sets: variant === "A" ? 3 : 2,
-      reps: p.age < 18 ? 5 : 4,
-      rir: p.age < 18 ? 3 : 2,
+      reps: hasVerifiedAdvancedStrength(p) ? 4 : 5,
+      rir: hasVerifiedAdvancedStrength(p) ? 2 : 3,
       restSeconds: Math.max(180, base.restSeconds),
     };
   else if (focus.mode === "strength_build")

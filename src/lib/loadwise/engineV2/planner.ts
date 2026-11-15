@@ -137,7 +137,7 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
         ? "cooldown"
         : e.role === "warmup"
           ? "warmup"
-          : e.role === "iso_primer"
+          : e.role === "iso_primer" || e.role === "quad_iso"
             ? "prep"
             : accessory
               ? "accessory"
@@ -262,14 +262,14 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
     if (main && primary && power) {
       primary.exercises[0].label = "A1";
       power.exercises[0].label = "A2";
-      power.exercises[0].restAfterPair = `${primary.exercises[0].engineDose!.restSeconds} s`;
+      power.exercises[0].restAfterPair = "180 s";
       const pair = {
         ...primary,
         title: "Siła i moc",
         blockType: "contrast" as const,
         executionProtocol: "contrast-rounds-v1" as const,
         exercises: [...primary.exercises, ...power.exercises],
-        restAfterBlock: primary.exercises[0].restAfterExercise,
+        restAfterBlock: "180 s",
       };
       const remaining = main.blocks.filter((b) => b !== primary && b !== power);
       const speed = remaining.filter((b) =>
@@ -389,7 +389,7 @@ export function finalizeStrengthRecipe(
     applyGymProgression(applyStrengthFocus(r, p, date, options, days), p, date, options, days);
   const full = settle(base);
   if (full.minutes <= budget) return full;
-  const compact = settle(fitStrengthToBudget(base, budget));
+  const compact = fitStrengthToBudget(full, budget);
   return compact.minutes <= budget ? compact : null;
 }
 const isStrengthRecipe = (r: EngineSession) =>

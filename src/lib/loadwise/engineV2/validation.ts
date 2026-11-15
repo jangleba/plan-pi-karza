@@ -319,14 +319,13 @@ export function validateEngineSession(
       ["adductor", "trunk"],
     ];
     const rows = pair.roles?.map((role) => recipe.exercises.filter((e) => e.role === role));
-    const upper = pair.roles?.includes("push");
     if (
       !strength ||
       !allowed.some((roles) => stableJson(roles) === stableJson(pair.roles)) ||
       !["B", "C"].includes(pair.label) ||
       pairLabels.has(pair.label) ||
       pair.transitionSeconds !== 30 ||
-      pair.roundRestSeconds !== (upper ? 90 : 60) ||
+      pair.roundRestSeconds !== 180 ||
       !rows ||
       rows.some((group) => group.length !== 1) ||
       rows[0]?.[0]?.dose.sets !== rows[1]?.[0]?.dose.sets ||
@@ -700,8 +699,8 @@ export function validateEngineSession(
         getExerciseDefinition(primary.exerciseId)?.loadingType ?? "",
       ) ||
       primary.dose.sets !== power.dose.sets ||
-      primary.dose.restSeconds < 180 ||
-      power.dose.restSeconds < 180 ||
+      primary.dose.restSeconds !== 30 ||
+      power.dose.restSeconds !== 180 ||
       !FUNCTIONAL_CATALOGUE[power.exerciseId]?.actions.includes("jump")
     )
       fail(

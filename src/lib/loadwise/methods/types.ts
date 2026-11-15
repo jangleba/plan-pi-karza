@@ -14,6 +14,7 @@ export type MethodDomain =
 export type MethodClockMode =
   "none" | "continuous" | "intervals" | "cluster" | "hold" | "reactive" | "velocity";
 export interface TrainingMethodPreferences {
+  gymEquipmentMode?: "full" | "selected";
   /** Explicit supervised primer option; never inferred from strength level. */
   coachedIsometricPrimer?: boolean;
   activationLocation?: "field" | "gym";

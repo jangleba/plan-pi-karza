@@ -1,7 +1,7 @@
-# MAS and sprint release
+# Ballwise gym stage 1
 
-- [ ] Sprint recipe, library gates, circuit runner and instruction consistency.
-- [ ] MAS stages, live map and test-only GPS quality evidence.
-- [ ] Atomic MAS validation, retry, deletion restoration and offer budget migration.
-- [ ] Targeted rules tests, runner/recovery checks and preview verification.
-- [ ] Record architecture decisions and commit scoped changes.
+- [ ] Correct explicit preparation, age/tenure validity and monotonic supervised strength qualification.
+- [ ] Respect explicit equipment and exercise-specific competence; restore novice push regressions.
+- [ ] Complete A/B upper finishers, pair timing, final dose budget fitting and week validation.
+- [ ] Guide preparation and ramp sets in the existing runner without duplicate time.
+- [ ] Run focused regression tests and available checks, record architecture and commit.

@@ -375,7 +375,8 @@ export function buildStrength(
   // A fuller prepared-athlete session covers both upper-body directions.
   // General football level still never unlocks technical loaded lifts.
   const fullPreparedSession = p.hasGym && tier !== "foundation" && !deload && phase !== "peak";
-  if (fullPreparedSession)
+  const upperFinale = p.hasGym && !deload && phase !== "peak";
+  if (upperFinale)
     add(variant === "A" ? "pull" : "push", {
       sets: 2,
       reps: 8,
@@ -400,6 +401,16 @@ export function buildStrength(
     restSeconds: 60,
     intent: "controlled",
   });
+  // One moderate upper pair at the end, not additional lower-body volume.
+  if (upperFinale && (tier === "foundation" || p.age < 18)) {
+    const upper = exercises.filter((e) => e.role === "push" || e.role === "pull");
+    for (const e of upper) { e.dose.sets = 2; e.dose.reps = 10; e.dose.rir = 3; }
+    const rest = exercises.filter((e) => e.role !== "push" && e.role !== "pull");
+    exercises.splice(0, exercises.length, ...rest, ...upper);
+  }
+  // Holding belongs to preparation, before power or strength, not a late accessory.
+  const holdingIndex = exercises.findIndex((e) => e.role === "quad_iso");
+  if (holdingIndex >= 0) { const [holding] = exercises.splice(holdingIndex, 1); exercises.splice(1, 0, holding); }
   let organization: EngineSession["organization"] =
     powerRole === "power" ? "power_first" : "straight";
   const primary = exercises.find(
@@ -439,8 +450,8 @@ export function buildStrength(
   ) {
     organization = "contrast";
     const pairSets = Math.min(primary.dose.sets, power.dose.sets);
-    primary.dose = { ...primary.dose, sets: pairSets, restSeconds: 180 };
-    power.dose = { ...power.dose, sets: pairSets, restSeconds: 180 };
+    primary.dose = { ...primary.dose, sets: pairSets, restSeconds: 30 };
+    power.dose = { ...power.dose, sets: pairSets, restSeconds: 180, postRestSeconds: 180 };
     const primaryIndex = exercises.indexOf(primary),
       powerIndex = exercises.indexOf(power);
     if (primaryIndex > powerIndex) {
@@ -462,7 +473,7 @@ export function buildStrength(
       plyometricContacts: strengthLandingCount(exercises),
       minutes: Math.ceil(estimateSessionSeconds(exercises) / 60) + 8,
     },
-    fullPreparedSession,
+    upperFinale,
   );
   recipe.minutes = Math.ceil(estimateSessionSeconds(recipe.exercises) / 60) + 8;
   if (rotation > 0) recipe.exerciseRotation = rotation;

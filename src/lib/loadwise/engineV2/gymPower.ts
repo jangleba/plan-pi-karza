@@ -3,13 +3,16 @@ import type { Dose, EngineSession, ExerciseDecision } from "./model";
 import { trainingTier } from "./model";
 import { resolveGoalPolicy } from "./goalPolicy";
 import { FUNCTIONAL_CATALOGUE } from "./taxonomy";
+import { hasValidStrengthMonths } from "./preparation";
 
 /** Small starting prescriptions are product choices, not universal optimal doses. */
 export function gymSpecialWorkAllowed(p: Profile, phase: EngineSession["phase"]): boolean {
   return (
     p.hasGym &&
     p.age >= 16 &&
-    ["advanced", "elite"].includes(p.level) &&
+    ["intermediate", "advanced"].includes(p.gymExperienceLevel ?? "") &&
+    hasValidStrengthMonths(p, 12) &&
+    p.movementCompetence === "high" && p.supervisionLevel === "full" && !p.painInjury &&
     !resolveGoalPolicy(p).reduced &&
     !["adaptation", "deload"].includes(phase) &&
     !["transition", "return_injury"].includes(p.seasonPhase)

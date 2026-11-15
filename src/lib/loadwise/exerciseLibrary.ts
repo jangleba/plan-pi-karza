@@ -897,7 +897,7 @@ const LIBRARY: ExerciseDefinition[] = [
   {
     id: "depth_jump",
     name: "Depth jump (skok w głąb)",
-    displayNamePl: "Drop jump",
+    displayNamePl: "Depth jump — zeskok, amortyzacja i skok",
     aliases: ["Skok w głąb", "Depth jumps", "Drop jump"],
     requiresBall: false,
     allowedSessionCategories: ["power_plyo"],
@@ -934,7 +934,8 @@ const LIBRARY: ExerciseDefinition[] = [
     regressionIds: ["snap_down"],
     safeAlternativeIds: [],
     replacementIds: ["snap_down"],
-    coachingCues: ["Miękkie, ciche lądowanie", "Krótki kontakt z podłożem", "Kolana stabilne"],
+    instructionsPl: ["Zejdź ze skrzyni bez wyskakiwania w górę.", "Amortyzuj lądowanie ugięciem bioder, kolan i stawów skokowych, zachowując kontrolę całej kończyny.", "Po wyraźnej amortyzacji wybij się w górę i ustabilizuj końcowe lądowanie. Nie wymuszaj najkrótszego kontaktu samą kostką."],
+    coachingCues: ["Amortyzacja całej kończyny", "Skok po amortyzacji", "Kolana stabilne"],
     commonErrors: ["Głośne lądowanie", "Kolana do środka", "Za wysoka skrzynia"],
   },
   {
@@ -2629,6 +2630,9 @@ const STRENGTH_DOMAIN_EXPANSIONS: ExerciseDefinition[] = [
   strengthDomainExercise({
     id: "incline_push_up",
     name: "Incline push-up",
+    minAge: 8,
+    recommendedDevelopmentStage: "child_foundation",
+    requiredGymExperienceLevel: "none",
     equipmentRequired: ["bench"],
     displayNamePl: "Pompka z dłońmi na podwyższeniu",
     aliases: ["Incline push-up", "Pompka na podwyższeniu"],
@@ -5355,7 +5359,7 @@ function hasEquipment(def: ExerciseDefinition, a: AthleteTrainingProfile): boole
   const owned = [
     ...a.equipmentAccess,
     ...a.homeEquipment,
-    ...(a.gymAccess
+    ...(a.gymAccess && a.gymEquipmentMode !== "selected"
       ? [
           "barbell",
           "trap_bar",
@@ -5421,9 +5425,8 @@ export function isExerciseAllowedForProfile(
   const gymRule = GYM_EXERCISE_RULES[def.id];
   if (gymRule) {
     if (!a.gymAccess) reasons.push("To ćwiczenie wymaga dostępu do siłowni.");
-    const levels = { beginner: 0, intermediate: 1, advanced: 2, elite: 3 };
-    if ((levels[a.trainingLevel] ?? -1) < levels[gymRule.minLevel])
-      reasons.push("Poziom treningowy zbyt niski dla tego wariantu siłowni.");
+    if (gymRule.minLevel === "advanced" && (a.movementCompetenceLevel !== "high" || !["intermediate", "advanced"].includes(a.gymExperienceLevel) || (a.strengthTrainingAge ?? 0) < 12 || a.supervisionLevel !== "full"))
+      reasons.push("Wariant specjalistyczny wymaga jawnej wysokiej kompetencji, co najmniej 12 miesięcy stażu i pełnego nadzoru.");
   }
   if (def.draft === true || def.approved === false)
     reasons.push("Ćwiczenie nie jest zatwierdzone do sesji zawodnika.");
@@ -5440,12 +5443,11 @@ export function isExerciseAllowedForProfile(
   // Ćwiczenia siłowe z masą ciała bez sprzętu (pompki, przysiady, mostki) też ocenia gra.
   // Biegi i testy maksymalne nadal wymagają jawnej kompetencji.
   const bodyweightOnly =
-    !!gymRule ||
-    bodyweightJump ||
+    (!gymRule && bodyweightJump) ||
     (def.equipmentRequired.length === 0 &&
       def.loadingType === "bodyweight" &&
       ["strength", "core", "prehab", "mobility"].includes(def.category));
-  const competence = bodyweightOnly
+  const competence = bodyweightOnly && !gymRule
     ? (a.bodyweightCompetenceLevel ?? a.movementCompetenceLevel)
     : a.movementCompetenceLevel;
   const youth = isYouthProfile(a);

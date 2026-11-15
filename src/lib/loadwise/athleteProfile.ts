@@ -109,6 +109,7 @@ export interface AthleteTrainingProfile {
   availableTimePerSession: number; // minuty (heurystyka)
   equipmentAccess: string[];
   gymAccess: boolean;
+  gymEquipmentMode?: "full" | "selected";
   homeEquipment: string[];
   unavailableEquipmentIds?: string[];
   injuryHistory: PainLocation[];
@@ -199,7 +200,7 @@ export function getCoordinationLevel(p: Partial<Profile>): CompetenceLevel {
 
 function strengthTrainingMonths(p: Partial<Profile>): number | null {
   const months = p.strengthTrainingMonths;
-  return typeof months === "number" && Number.isFinite(months) && months >= 0 && months <= 720
+  return typeof months === "number" && Number.isInteger(months) && months >= 0 && months <= Math.min(720, (p.age ?? 0) * 12) && !(p.gymExperienceLevel === "none" && months !== 0)
     ? Math.floor(months) : p.gymExperienceLevel === "none" ? 0 : null;
 }
 
@@ -504,6 +505,7 @@ export function buildAthleteTrainingProfile(
     readiness,
     currentPain: injuryConstraints.painLocations,
     gymAccess,
+    gymEquipmentMode: p.trainingMethodPreferences?.gymEquipmentMode ?? ((p.equipment?.length ?? 0) > 0 ? "selected" : "full"),
   };
   const exerciseSafetyProfile = getExerciseSafetyProfile(partialForSafety);
 

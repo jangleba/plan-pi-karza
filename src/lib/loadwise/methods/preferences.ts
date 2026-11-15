@@ -20,6 +20,8 @@ export function normalizeMethodPreferences(raw: unknown): TrainingMethodPreferen
   if (!raw || typeof raw !== "object") return {};
   const r = raw as Record<string, unknown>,
     out: TrainingMethodPreferences = {};
+  if (r.gymEquipmentMode === "full" || r.gymEquipmentMode === "selected")
+    out.gymEquipmentMode = r.gymEquipmentMode;
   if (
     [
       "auto",

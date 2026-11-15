@@ -12,11 +12,12 @@ export function arrangeStrengthPairs(recipe: EngineSession, enabled: boolean): E
     const transitionSeconds = 30;
     rows[0].dose.restSeconds = transitionSeconds;
     rows[1].dose.restSeconds = roundRestSeconds;
+    rows[1].dose.postRestSeconds = roundRestSeconds;
     pairs.push({ roles, label, transitionSeconds, roundRestSeconds });
   };
   // Follow the existing A/B order, so the numeric timeline and screen remain identical.
-  add(recipe.roles.includes("strengthA") ? ["push", "pull"] : ["pull", "push"], "B", 90);
-  add(recipe.roles.includes("strengthA") ? ["adductor", "trunk"] : ["trunk", "adductor"], "C", 60);
+  add(recipe.roles.includes("strengthA") ? ["push", "pull"] : ["pull", "push"], "B", 180);
+  add(recipe.roles.includes("strengthA") ? ["adductor", "trunk"] : ["trunk", "adductor"], "C", 180);
   if (pairs.length) recipe.strengthPairs = pairs;
   // The builder recalculates the numeric time after pairing; it never adds volume to fill it.
   return recipe;
