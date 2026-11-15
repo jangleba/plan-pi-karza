@@ -11,7 +11,7 @@ import {
   SlidersHorizontal,
   Utensils,
 } from "lucide-react";
-import { fuelDayGuide } from "@/lib/fuel/guidance";
+import { fuelDayGuide, fuelDayPriority } from "@/lib/fuel/guidance";
 import type { FuelContext, FuelDeviceData, FuelTiming } from "@/lib/fuel/experience";
 
 /**
@@ -70,10 +70,19 @@ export function FuelNextSteps({
   const [added, setAdded] = useState<number | null>(null);
   const [kind, setKind] = useState<"water" | "sports">("water");
   const guide = fuelDayGuide(context, timing, now, data, nextSession);
+  const dayPriority = fuelDayPriority(
+    { ...context, tomorrowMatch: tomorrowMatch || context.tomorrowMatch },
+    timing,
+    !!nextSession,
+  );
   const valid =
     ml.trim() !== "" && Number.isFinite(Number(ml)) && Number(ml) >= 1 && Number(ml) <= 2000;
   return (
     <>
+      <section className="soft-card p-4" aria-label="Fuel a plan treningowy">
+        <h3 className="text-sm font-semibold">{dayPriority.title}</h3>
+        <p className="mt-2 text-sm text-muted-foreground">{dayPriority.text}</p>
+      </section>
       <section className="fuel-water" aria-label="Woda">
         <Droplet size={24} aria-hidden="true" className="fuel-water-icon" />
         <div className="fuel-water-body">

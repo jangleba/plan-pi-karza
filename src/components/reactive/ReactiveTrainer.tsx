@@ -1,3 +1,4 @@
+import { FIELD_COLORS as COLOR_HEX } from "@/lib/reactive-training/fieldSignals";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
@@ -99,13 +100,6 @@ const COLOR_LABELS: Record<ReactiveColor, string> = {
   green: "Zielony",
   yellow: "Żółty",
   red: "Czerwony",
-};
-
-const COLOR_HEX: Record<ReactiveColor, string> = {
-  blue: "#1877f2",
-  green: "#16a34a",
-  yellow: "#facc15",
-  red: "#ef4444",
 };
 
 const COLOR_TEXT: Record<ReactiveColor, string> = {

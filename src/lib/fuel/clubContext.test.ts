@@ -66,7 +66,10 @@ describe("Fuel context for club and corrected plans", () => {
   it("a planned match gets no invented minutes", () => {
     const p = { ...profile, matchDates: ["2026-11-07"], clubTrainingDays: [] } as Profile;
     const days = generateTrainingPlan(p, { startDate: "2026-11-02", weeks: 1 }).plan;
-    expect(planFuelContexts(days, "2026-11-07", {}).some((c) => c.kind === "match")).toBe(false);
+    expect(planFuelContexts(days, "2026-11-07", {}).find((c) => c.kind === "match")).toMatchObject({
+      kind: "match",
+      durationMin: null,
+    });
   });
   it("after an accepted correction the day context follows the new plan (skipped run disappears)", () => {
     const p = plan();

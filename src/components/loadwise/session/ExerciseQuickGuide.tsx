@@ -8,6 +8,8 @@ import { techniqueHint } from "@/lib/trainingCoach/coach";
 import { resolveTechniqueLesson } from "@/lib/trainingCoach/biomechanics";
 import { TechniqueJointGuide } from "./TechniqueJointGuide";
 import { ExerciseAnimationPreview } from "./ExerciseAnimationPreview";
+import { FootballDrillBoard } from "@/components/football/FootballDrillBoard";
+import { drillBoard } from "@/lib/football/drillBoard";
 import "./training-coach.css";
 import "./sprint-session.css";
 
@@ -49,6 +51,7 @@ function GuideContent({
   const lesson = resolveTechniqueLesson(exercise);
   const skip = getSkipGuide(exercise.exerciseId);
   const guide = resolveQuickGuide(exercise, resolveDefinitionForExercise(exercise));
+  const football = drillBoard(exercise.exerciseId);
   const reminder = guide.focus ?? lesson?.reminder ?? hint.intent;
   return (
     <section
@@ -60,7 +63,10 @@ function GuideContent({
         <span>Wskazówka na teraz</span>
       </div>
       <p className="bw-technique-reminder">{reminder}</p>
-      {showAnimation && <ExerciseAnimationPreview exercise={exercise} autoOpen={autoAnimation} />}
+      {football && <FootballDrillBoard exerciseId={exercise.exerciseId} />}
+      {!football && showAnimation && (
+        <ExerciseAnimationPreview exercise={exercise} autoOpen={autoAnimation} />
+      )}
 
       <button
         type="button"
