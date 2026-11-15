@@ -38,7 +38,7 @@ const athlete: Profile = {
 
 /** Actual engine recipe: 6 x 60s work / 60s recovery, planned work RPE 8-9. */
 export function hardHiitExecution() {
-  const engineV2 = buildEnduranceForDate(athlete, "2026-10-17", "peak")!;
+  const engineV2 = buildEnduranceForDate(athlete, "2026-10-20", "development")!; // a short-interval week;
   const runningRecipe = engineV2.runningRecipe!;
   return { engineV2, runningRecipe };
 }

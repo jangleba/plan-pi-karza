@@ -1,17 +1,11 @@
 import { measureMasEvidence, verifiedMasKmh, masTrial } from "./masQuality";
 import type { RunningActivity, RunningIntervalResult } from "./types";
 import type { RunningRecipe } from "./recipe";
+import { MAS_ZONES, paceRangeFromMas, type PaceRange } from "./masZones";
+export { formatPaceTarget, paceRangeFromMas, type PaceRange } from "./masZones";
 
 export const FIELD_MAS_TEST_DURATION_SEC = 5 * 60;
 export const FIELD_MAS_RETEST_DAYS = 28;
-
-export interface PaceRange {
-  /** Szybsza granica zakresu (mniej sekund na kilometr). */
-  fastestSecPerKm: number;
-  /** Wolniejsza granica zakresu (więcej sekund na kilometr). */
-  slowestSecPerKm: number;
-  label: string;
-}
 
 export type RunningSessionMethod =
   "field_mas_test" | "easy_aerobic" | "extensive_intervals" | "tempo_intervals" | "short_hiit";
@@ -48,28 +42,6 @@ export function calculateFieldMasKmh(
   return Math.round(kmh * 100) / 100;
 }
 
-export function formatPaceTarget(secondsPerKm: number): string {
-  const rounded = Math.round(secondsPerKm);
-  return `${Math.floor(rounded / 60)}:${String(rounded % 60).padStart(2, "0")}/km`;
-}
-
-export function paceRangeFromMas(
-  fieldMasKmh: number,
-  minPercent: number,
-  maxPercent: number,
-): PaceRange | null {
-  if (!Number.isFinite(fieldMasKmh) || fieldMasKmh <= 0) return null;
-  const low = clamp(Math.min(minPercent, maxPercent), 40, 130) / 100;
-  const high = clamp(Math.max(minPercent, maxPercent), 40, 130) / 100;
-  const fastestSecPerKm = Math.round(3600 / (fieldMasKmh * high));
-  const slowestSecPerKm = Math.round(3600 / (fieldMasKmh * low));
-  return {
-    fastestSecPerKm,
-    slowestSecPerKm,
-    label: `${formatPaceTarget(fastestSecPerKm).replace("/km", "")}–${formatPaceTarget(slowestSecPerKm)}`,
-  };
-}
-
 export function isFieldMasCurrent(testedAt: string | null | undefined, todayIso: string): boolean {
   if (!testedAt) return false;
   const tested = Date.parse(`${testedAt.slice(0, 10)}T12:00:00Z`);
@@ -101,7 +73,9 @@ export function buildRunningSessionPrescription(input: {
     typeof input.fieldMasKmh === "number" && isFieldMasCurrent(input.fieldMasTestedAt, input.date);
 
   if (input.forceLight) {
-    const range = hasCurrentMas ? paceRangeFromMas(input.fieldMasKmh!, 65, 75) : null;
+    const range = hasCurrentMas
+      ? paceRangeFromMas(input.fieldMasKmh!, ...MAS_ZONES.easy.percent)
+      : null;
     return {
       method: "easy_aerobic",
       title: "Spokojny bieg tlenowy",
@@ -165,7 +139,7 @@ export function buildRunningSessionPrescription(input: {
   const slot = Math.max(0, input.sessionIndex) % 3;
 
   if (slot === 1) {
-    const range = paceRangeFromMas(mas, 80, 86);
+    const range = paceRangeFromMas(mas, ...MAS_ZONES.tempo.percent);
     const reps = level >= 2 ? 4 : 3;
     return {
       method: "tempo_intervals",
@@ -187,8 +161,9 @@ export function buildRunningSessionPrescription(input: {
   }
 
   if (slot === 2) {
-    const range = paceRangeFromMas(mas, 100, 105);
-    const reps = level >= 2 ? 8 : 6;
+    const range = paceRangeFromMas(mas, ...MAS_ZONES.shortHiit.percent);
+    // No automatic HIIT increase: progression of other methods never adds HIIT repetitions.
+    const reps = 6;
     return {
       method: "short_hiit",
       title: "Krótkie interwały 1/1",
@@ -208,7 +183,7 @@ export function buildRunningSessionPrescription(input: {
     };
   }
 
-  const range = paceRangeFromMas(mas, 90, 95);
+  const range = paceRangeFromMas(mas, ...MAS_ZONES.aerobicIntervals.percent);
   // Stała liczba powtórzeń; zwiększamy wyłącznie czas pracy.
   const workMin = [3, 3.5, 4, 4.5][level];
   const reps = 4;

@@ -5,6 +5,7 @@ import {
   type RunningSessionMethod,
 } from "@/lib/running/engine";
 import { recipeTotalSeconds, type RunningRecipe, type RunIntensity } from "@/lib/running/recipe";
+import { MAS_ZONES } from "@/lib/running/masZones";
 import type { Profile } from "../types";
 import { eligibleExercise } from "./exercises";
 import { trainingTier, type EngineSession } from "./model";
@@ -56,6 +57,21 @@ type NumericInterval = {
   rpe: [number, number];
 };
 
+const ROTATION_ANCHOR = "2026-01-05"; // a Monday; only the week number matters
+/** Slot of the running-engine method for this calendar week: 1 tempo, 0 aerobic intervals, 2 short. */
+export function methodSlotForWeek(date: string): number {
+  const week = Math.floor(
+    (Date.parse(`${date}T12:00:00Z`) - Date.parse(`${ROTATION_ANCHOR}T12:00:00Z`)) /
+      (7 * 86_400_000),
+  );
+  return [1, 0, 2][((week % 3) + 3) % 3];
+}
+const METHOD_NAMES: Record<string, string> = {
+  tempo: "tempo tlenowe",
+  aerobic_intervals: "interwały tlenowe",
+  short_hiit: "krótkie interwały",
+};
+
 /** Numeric counterparts of the existing running-engine methods; never parse its display text. */
 function intervalFor(method: RunningSessionMethod, level: number, youth: boolean): NumericInterval {
   if (method === "tempo_intervals")
@@ -63,17 +79,18 @@ function intervalFor(method: RunningSessionMethod, level: number, youth: boolean
       sets: youth ? 3 : level >= 2 ? 4 : 3,
       workSeconds: youth ? 180 : 360,
       restSeconds: 120,
-      mas: [80, 86],
+      mas: [MAS_ZONES.tempo.percent[0], MAS_ZONES.tempo.percent[1]],
       method: "tempo",
       zone: "threshold",
       rpe: [6, 7],
     };
   if (method === "short_hiit")
     return {
-      sets: youth ? 4 : level >= 2 ? 8 : 6,
+      // No automatic HIIT increase: a successful tempo or interval week never adds HIIT repetitions.
+      sets: youth ? 4 : 6,
       workSeconds: 60,
       restSeconds: 60,
-      mas: [100, 105],
+      mas: [MAS_ZONES.shortHiit.percent[0], MAS_ZONES.shortHiit.percent[1]],
       method: "short_hiit",
       zone: "hiit",
       rpe: [8, 9],
@@ -82,7 +99,7 @@ function intervalFor(method: RunningSessionMethod, level: number, youth: boolean
     sets: youth ? 3 : 4,
     workSeconds: youth ? 120 : [180, 210, 240, 270][level],
     restSeconds: 120,
-    mas: [90, 95],
+    mas: [MAS_ZONES.aerobicIntervals.percent[0], MAS_ZONES.aerobicIntervals.percent[1]],
     method: "aerobic_intervals",
     zone: "vo2",
     rpe: [7, 8],
@@ -122,7 +139,9 @@ export function buildEnduranceForDate(
     fieldMasKmh: verified ? p.fieldMasKmh : null,
     fieldMasTestedAt: verified ? p.fieldMasTestedAt : null,
     date,
-    sessionIndex: phase === "development" ? 1 : phase === "peak" ? 2 : 0,
+    // The method rotates by calendar week (tempo → aerobic intervals → short intervals), not by a
+    // cycle phase: V2 never reaches "peak", which made short intervals unreachable before.
+    sessionIndex: methodSlotForWeek(date),
     progressionLevel: level,
     scheduleFieldMasTest: false,
     forceLight: light,
@@ -186,6 +205,9 @@ export function buildEnduranceForDate(
         "Równo w zadanym zakresie, bez maksymalnego sprintu; zakończ odcinek przy utracie kontroli.",
     };
     recipe.method = d.method;
+    recipe.reasons.push(
+      `Metoda w tym tygodniu: ${METHOD_NAMES[d.method] ?? d.method} (${d.mas[0]}–${d.mas[1]}% MAS). Metody zmieniają się co tydzień: tempo → interwały tlenowe → krótkie interwały; dawka krótkich interwałów nie rośnie automatycznie.`,
+    );
     recipe.blocks = [
       {
         id: "interval",

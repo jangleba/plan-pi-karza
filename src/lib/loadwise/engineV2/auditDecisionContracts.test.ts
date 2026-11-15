@@ -271,7 +271,8 @@ describe("key endurance session is not silently replaced by calm runs", () => {
       .flatMap(slotsOf)
       .filter((s) => s.engineV2?.roles.includes("endurance"))
       .map((s) => s.runningRecipe?.method);
-    expect(runs).toContain("tempo"); // the key unit stays
+    // the key unit (this week's method from the rotation) stays, not only calm runs
+    expect(runs.some((m) => m && m !== "easy_continuous")).toBe(true);
     expect(r.issues.some((i) => i.code === "UNMET_WEEKLY_TARGET")).toBe(true); // what was limited is named
   });
 });

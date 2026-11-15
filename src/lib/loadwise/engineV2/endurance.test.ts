@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildEnduranceForDate, hasCurrentVerifiedMas } from "./endurance";
+import { buildEnduranceForDate, hasCurrentVerifiedMas, methodSlotForWeek } from "./endurance";
 import { recipeTotalSeconds } from "@/lib/running/recipe";
 import { recipeSections, recipeToProtocol } from "@/lib/running/recipeSession";
 import type { Profile } from "../types";
@@ -115,7 +115,8 @@ describe("date-aware endurance recipes", () => {
     ).toBe(240);
   });
   it("renders the actual V2 one-minute HIIT dose consistently with its counter", () => {
-    const result = buildEnduranceForDate(athlete, "2026-11-16", "peak")!;
+    // 2026-11-09 is a short-interval week of the rotation; the phase no longer decides the method.
+    const result = buildEnduranceForDate(athlete, "2026-11-09", "development")!;
     const recipe = result.runningRecipe!;
     expect(recipe.method).toBe("short_hiit");
     const main = recipeSections(recipe).main[0];
@@ -126,5 +127,30 @@ describe("date-aware endurance recipes", () => {
     expect(steps.every((step) => step.target.value === 60)).toBe(true);
     expect(steps.filter((step) => step.kind === "work")).toHaveLength(6);
     expect(steps.filter((step) => step.kind === "recovery")).toHaveLength(5);
+  });
+  it("rotates tempo → aerobic intervals → short intervals by week, independent of the cycle phase", () => {
+    const methods = ["2026-11-16", "2026-11-23", "2026-11-09"].map(
+      (date) => buildEnduranceForDate(athlete, date, "development")!.runningRecipe!.method,
+    );
+    expect(methods).toEqual(["tempo", "aerobic_intervals", "short_hiit"]);
+    for (const date of ["2026-11-16", "2026-11-23", "2026-11-09"]) {
+      expect(methodSlotForWeek(date)).toBe(methodSlotForWeek(date)); // deterministic
+      const recipe = buildEnduranceForDate(athlete, date, "development")!.runningRecipe!;
+      expect(recipe.reasons.some((r) => r.startsWith("Metoda w tym tygodniu"))).toBe(true);
+    }
+    // The phase alone no longer changes the method of the same week.
+    expect(buildEnduranceForDate(athlete, "2026-11-09", "adaptation")!.runningRecipe!.method).toBe(
+      buildEnduranceForDate(athlete, "2026-11-09", "development")!.runningRecipe!.method,
+    );
+  });
+  it("never raises short intervals automatically: the HIIT dose does not grow with the running level", () => {
+    const reps = (level: number) =>
+      buildEnduranceForDate(
+        { ...athlete, runningProgressionLevel: level },
+        "2026-11-09",
+        "development",
+      )!.runningRecipe!.blocks[0].repsPerSet;
+    expect(reps(0)).toBe(6);
+    expect(reps(3)).toBe(6);
   });
 });
