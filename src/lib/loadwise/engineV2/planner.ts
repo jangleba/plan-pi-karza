@@ -21,6 +21,7 @@ import { preparationProfile, hasVerifiedAdvancedStrength } from "./preparation";
 import { recipeTotalSeconds } from "@/lib/running/recipe";
 import { applyGymProgression } from "./gymProgression";
 import { renderStrengthPairs } from "./strengthPairs";
+import { applyStrengthFocus } from "./strengthPolicy";
 
 const names = ["Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota"];
 const slots = (d: SessionDay) => [d, ...(d.secondSession ? [d.secondSession] : [])];
@@ -177,7 +178,14 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
           ? `Runda ${d.sequenceStep.round}/${d.sequenceStep.rounds} · odcinek ${d.sequenceStep.attempt}/${d.sequenceStep.attempts}`
           : undefined,
       engineDose: d,
-      progressionPhase: recipe.phase === "deload" ? "reduced" : "normal",
+      strengthFocus: ["knee_strength", "hip_strength"].includes(e.role)
+        ? recipe.strengthFocus
+        : undefined,
+      progressionPhase:
+        recipe.phase === "deload" ||
+        ["deload", "reentry"].includes(recipe.strengthFocus?.mode ?? "")
+          ? "reduced"
+          : "normal",
       methodExecution: d.cluster
         ? {
             methodId: "M08",
@@ -325,7 +333,7 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
         : undefined),
     reason: `${preparationProfile(p).source === "onboarding" ? "Wariant programu na podstawie doświadczenia z onboardingu" : "Wariant programu na podstawie zadeklarowanego przygotowania siłowego"}. Miejsce wybrane po sprawdzeniu meczu, klubu, dostępności i obciążeń.`,
     whyToday: "Wybrany dopuszczony termin w tygodniu",
-    goalOfSession: title,
+    goalOfSession: recipe.strengthFocus?.label ?? title,
     blockPhaseLabel: recipe.phase,
     safetyNote: support
       ? "Spokojne wykonanie bez wymuszania zakresu; czas sesji jest orientacyjny."
@@ -378,6 +386,7 @@ function place(
   forceEnduranceLight = false,
 ): PlacementAttempt<SessionDay[]> {
   const current = days[index];
+  recipe = applyStrengthFocus(recipe, p, current.date, options, [...preceding, ...days]);
   recipe = applyGymProgression(recipe, p, current.date, options, [...preceding, ...days]);
   const distance = Math.min(99, ...[...matches].map((m) => Math.abs(dayDistance(current.date, m))));
   // Resolve measured running pace against the actual candidate date, including test expiry.

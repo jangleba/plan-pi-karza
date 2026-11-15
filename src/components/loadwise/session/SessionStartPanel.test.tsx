@@ -23,6 +23,31 @@ afterEach(async () => {
   container.remove();
 });
 describe("explicit workout start", () => {
+  it("records an explicit lighter choice with start and never when only previewing", async () => {
+    const session = sessionFixture({
+      engineV2: { roles: ["strengthA"] } as NonNullable<
+        import("@/lib/loadwise/types").SessionDay["engineV2"]
+      >,
+    });
+    await act(async () => root.render(<SessionStartPanel session={session} canStart />));
+    expect(container.querySelectorAll<HTMLInputElement>("input:checked")).toHaveLength(0);
+    await act(async () =>
+      container.querySelector<HTMLInputElement>('input[value="lighter"]')!.click(),
+    );
+    expect(mock.start).not.toHaveBeenCalled();
+    await act(async () => container.querySelector("button")!.click());
+    expect(mock.start).toHaveBeenCalledWith(session, "lighter");
+  });
+  it("does not invent a preference from an unanswered strength check-in", async () => {
+    const session = sessionFixture({
+      engineV2: { roles: ["strengthB"] } as NonNullable<
+        import("@/lib/loadwise/types").SessionDay["engineV2"]
+      >,
+    });
+    await act(async () => root.render(<SessionStartPanel session={session} canStart />));
+    await act(async () => container.querySelector("button")!.click());
+    expect(mock.start).toHaveBeenCalledWith(session);
+  });
   it("pins a workout only after an explicit start, rather than opening its preview", async () => {
     const session = sessionFixture();
     await act(async () => root.render(<SessionStartPanel session={session} canStart />));

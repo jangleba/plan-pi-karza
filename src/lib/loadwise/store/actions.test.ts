@@ -172,6 +172,35 @@ beforeEach(() => {
 });
 
 describe("store action contracts", () => {
+  it("saves the explicit strength preference in the actual RPC and preserves it through completion", async () => {
+    const s = currentV2Session();
+    expect(s.engineV2?.roles.some((r) => r.startsWith("strength"))).toBe(true);
+    await createSessionActions(context()).startSession(s, "lighter");
+    const snap = state.completions.session.executionSnapshot!;
+    expect(snap.strengthCheckIn).toMatchObject({
+      version: 1,
+      date: s.date,
+      loadPreference: "lighter",
+    });
+    expect(mocks.writes.find((w) => w.table === "save_training_log")?.payload).toMatchObject({
+      p_payload: { execution_snapshot: { strengthCheckIn: snap.strengthCheckIn } },
+    });
+    await createSessionActions(context()).startSession(s, "as_planned");
+    expect(state.completions.session.executionSnapshot).toEqual(snap);
+    await createSessionActions(context()).completeSession(s, 6, "", { durationMin: 35 });
+    expect(state.completions.session.executionSnapshot).toEqual(snap);
+  });
+  it("keeps absent preference unknown and does not trust preference metadata on a preview", async () => {
+    const s = currentV2Session();
+    s.strengthCheckIn = {
+      version: 1,
+      date: s.date,
+      loadPreference: "lighter",
+      recordedAt: "2026-09-29T10:00:00Z",
+    };
+    await createSessionActions(context()).startSession(s);
+    expect(state.completions.session.executionSnapshot!.strengthCheckIn).toBeUndefined();
+  });
   it("starts a session only after the plan shown at login has reached the server", async () => {
     resetPlanWriteGuard();
     let land!: () => void;

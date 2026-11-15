@@ -297,6 +297,7 @@ export type SectionType = "warmup" | "prep" | "main" | "accessory" | "cooldown" 
 export type AgeSafetyLevel = "all" | "youth_ok" | "advanced_only";
 
 export interface TrainingExercise {
+  strengthFocus?: import("./engineV2/strengthPolicy").StrengthFocus;
   progressionPhase?: "normal" | "reduced";
   engineDose?: import("./engineV2/model").Dose;
   methodExecution?: MethodExecution;
@@ -599,6 +600,8 @@ export interface SessionClassification {
 }
 
 export interface SessionDay {
+  /** Explicit training preference pinned at start; absent means no answer. */
+  strengthCheckIn?: import("./strengthCheckIn").StrengthCheckIn;
   engineTimeBudgetMin?: number;
   enginePlanIssues?: import("./engineV2/model").Issue[];
   engineV2?: import("./engineV2/model").EngineSession;

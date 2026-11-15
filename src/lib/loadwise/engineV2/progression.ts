@@ -4,8 +4,10 @@ import {
   type ExerciseSessionLog,
 } from "../setLogHistory";
 import type { TrainingExercise } from "../types";
+import { contextualStrengthAdvice, type StrengthLoadContext } from "./loadAutoregulation";
 
 export interface ProgressionAdvice {
+  action?: "increase" | "hold" | "reduce" | "deload" | "resume" | "calibrate";
   kind: "load" | "resume" | "repetitions" | "review";
   weightKg?: number;
   reps?: number;
@@ -27,7 +29,9 @@ export function recommendStrengthProgression(
   exercise: TrainingExercise,
   history: ExerciseSessionLog[],
   asOf?: string,
+  context?: StrengthLoadContext,
 ): ProgressionAdvice | null {
+  if (context) return contextualStrengthAdvice(exercise, history, context);
   if (
     exercise.progressionPhase === "reduced" ||
     exercise.duration ||
