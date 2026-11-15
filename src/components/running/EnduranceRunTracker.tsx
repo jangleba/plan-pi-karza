@@ -67,6 +67,7 @@ import type {
 } from "@/lib/running/types";
 import type { SessionDay } from "@/lib/loadwise/types";
 import { RunActivitySummary } from "./RunActivitySummary";
+import { MasResultCard } from "./MasResultCard";
 import {
   nativeRecorder,
   nativeRunningAvailable,
@@ -1090,6 +1091,13 @@ function RunTracker({
   const masEvidence =
     isFieldMasTest && pending ? resolveMasEvidence(pending, masInterruptedRef.current) : null;
   const masProblem = isFieldMasTest && pending ? masEvidenceProblem(masEvidence) : null;
+  // The real 5-minute result: before saving from the verified evidence, afterwards from the saved run.
+  const shownMasEvidence = pending ? (masProblem ? null : masEvidence) : activity?.masTestEvidence;
+  const shownMasKmh = verifiedMasKmh(shownMasEvidence ?? null);
+  const shownMas =
+    shownMasEvidence && shownMasKmh
+      ? { distanceM: shownMasEvidence.distanceM, kmh: shownMasKmh }
+      : null;
   const isTracking = phase === "recording" || phase === "paused";
   const currentIntervalStep =
     intervalProtocol && guideStarted && !guideComplete
@@ -1285,8 +1293,11 @@ function RunTracker({
         <p role="status" className="rounded-xl bg-muted/40 p-3 text-sm">
           {masProblem
             ? `${masProblem} Bieg zapiszesz w historii; dotychczasowy MAS pozostanie bez zmian.`
-            : `Próba spełnia warunki zapisu. Wynik MAS: ${verifiedMasKmh(masEvidence)?.toLocaleString("pl-PL")} km/h. Po zapisie aplikacja automatycznie dobierze przyszłe jednostki biegowe do wyniku, przygotowania i kalendarza.`}
+            : `Próba spełnia warunki zapisu. Wynik MAS: ${verifiedMasKmh(masEvidence)?.toLocaleString("pl-PL")} km/h.`}
         </p>
+      )}
+      {isFieldMasTest && !isTracking && shownMas && (
+        <MasResultCard distanceM={shownMas.distanceM} masKmh={shownMas.kmh} saved={!pending} />
       )}
 
       {isTracking && (

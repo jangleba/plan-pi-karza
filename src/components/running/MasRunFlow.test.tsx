@@ -132,8 +132,28 @@ it("prepares GPS before starting; runs warm-up, explicit ready/countdown and a n
   );
   await travel(302);
   await travel(300);
+  // The map is shown during the trial and receives the live route.
+  expect(host.querySelector('[aria-label="Mapa trasy biegu"]')?.textContent).toMatch(
+    /Punkty: [1-9]/,
+  );
   await act(async () => button("Zakończ bieg").click());
   expect(host.textContent).toContain("Próba spełnia warunki zapisu");
+  // Real result: ~1200 m in 5 minutes → 14.4 km/h → 4:10/km, and every training pace from it.
+  const card = host.querySelector('[aria-label="Wynik testu MAS"]')!;
+  expect(card).toBeTruthy();
+  expect(card.querySelector('[aria-label="MAS"]')?.textContent).toBe("14,4 km/h");
+  expect(card.querySelector('[aria-label="Tempo MAS"]')?.textContent).toContain("4:10");
+  expect(card.querySelector('[aria-label="Dystans w 5 minut"]')?.textContent).toMatch(
+    /1[.,]?2|1200/,
+  );
+  const zone = (id: string) => card.querySelector(`[data-zone="${id}"]`)?.textContent;
+  expect(zone("easy")).toBe("5:33–6:25/km");
+  expect(zone("tempo")).toBe("4:51–5:12/km");
+  expect(zone("aerobicIntervals")).toBe("4:23–4:38/km");
+  expect(zone("shortHiit")).toBe("3:58–4:10/km");
+  expect(card.textContent).toContain("plan nie zmienia się sam");
+  // The summary keeps the route map of the real run.
+  expect(host.querySelector('[aria-label="Mapa trasy biegu"]')).toBeTruthy();
   await act(async () => button("Zapisz bieg").click());
   expect(save).toHaveBeenCalledOnce();
   expect(save.mock.calls[0][0].masTestEvidence).toMatchObject({
