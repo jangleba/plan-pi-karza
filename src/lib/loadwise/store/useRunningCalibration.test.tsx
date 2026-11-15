@@ -182,3 +182,35 @@ it("defers while a gym record is still waiting for the server", async () => {
   await act(async () => root.render(<Probe />));
   expect(m.persist).not.toHaveBeenCalled();
 });
+
+it("does not persist a calibration built before the gym evidence changed during the server read", async () => {
+  let release!: (value: { id: string; plan: SessionDay[] }) => void;
+  m.load.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+  );
+  await act(async () => root.render(<Probe />));
+  expect(m.persist).not.toHaveBeenCalled();
+  gym = {
+    loading: false,
+    available: true,
+    records: [
+      {
+        record_key: "band_selection:gym_cmj_assisted",
+        revision: 1,
+        payload: {
+          kind: "band_selection",
+          version: 1,
+          exerciseId: "gym_cmj_assisted",
+          setupId: null,
+        },
+      } as GymRecord,
+    ],
+  };
+  await act(async () => root.render(<Probe />));
+  await act(async () => release({ id: "plan1", plan: state.plan }));
+  expect(m.load).toHaveBeenCalledTimes(2);
+  expect(m.persist).toHaveBeenCalledOnce();
+});

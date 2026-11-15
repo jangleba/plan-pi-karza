@@ -1,3 +1,4 @@
+import { INDIVIDUAL_FOOTBALL_DRILLS, type FootballDrill } from "../individualFootballDrills";
 import { getExerciseDefinition } from "../exerciseLibrary";
 import type { Profile } from "../types";
 import { eligibleExercise, estimateSessionSeconds } from "./exercises";
@@ -197,6 +198,7 @@ export function buildRecovery(
 export function buildSkills(
   p: Profile,
   phase: EngineSession["phase"] = "adaptation",
+  context: { rotation?: number } = {},
 ): EngineSession | null {
   if (!hasDeclaredFootball(p)) return null;
   const firstTouch = usable("football_wall_first_touch", p)
@@ -205,10 +207,27 @@ export function buildSkills(
   const passing = usable("football_wall_one_touch", p)
     ? "football_wall_one_touch"
     : "football_turn_control";
-  const ids =
-    p.position === "goalkeeper"
-      ? ["football_gk_distribution", "football_ball_mastery", firstTouch]
-      : ["football_ball_mastery", firstTouch, passing];
+  // Stable foundations repeat; only one complementary task rotates between weeks.
+  // Rotation exposes other skills, never manufactures evidence of mastery or increases volume.
+  const drillEligible = (d: FootballDrill) =>
+    !d.intense &&
+    d.space !== "pitch" &&
+    !d.roles.every((role) => role === "cooldown") &&
+    (!d.positions || d.positions.includes(p.position)) &&
+    usable(d.id, p);
+  const keeper = p.position === "goalkeeper";
+  const fixed = keeper
+    ? ["football_gk_distribution", firstTouch]
+    : ["football_ball_mastery", firstTouch];
+  const first = keeper ? "football_ball_mastery" : passing;
+  const pool = [first, ...INDIVIDUAL_FOOTBALL_DRILLS.filter(drillEligible).map((d) => d.id)].filter(
+    (id, index, all) => !fixed.includes(id) && all.indexOf(id) === index && usable(id, p),
+  );
+  const rotation =
+    Number.isInteger(context.rotation) && context.rotation! >= 0 ? context.rotation! : 0;
+  const extra = pool.length ? pool[rotation % pool.length] : null;
+  const ids = [...fixed, ...(extra ? [extra] : [])];
+  const beginner = p.age < 16 || p.level === "beginner";
   return recipe(
     "skills",
     p,
@@ -219,12 +238,12 @@ export function buildSkills(
         id,
         "ball_skill",
         {
-          sets: phase === "deload" ? 1 : 2,
-          seconds: 45,
+          sets: phase === "deload" || beginner ? 1 : 2,
+          seconds: beginner ? 30 : 45,
           restSeconds: 30,
           intent: "controlled",
         },
-        "Spokojna technika z piłką: dokładność i kontrola, bez zaliczania tego jako sprintu.",
+        `Cel: ${INDIVIDUAL_FOOTBALL_DRILLS.find((d) => d.id === id)?.quality ?? "Kontrola piłki"} Pracuj spokojnie obiema nogami. Najpierw powtarzalna dokładność, dopiero potem trudniejsza noga lub zmiana kierunku; zegar nie potwierdza opanowania umiejętności.`,
       ),
     ),
   );

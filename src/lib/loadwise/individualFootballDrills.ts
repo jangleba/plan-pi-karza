@@ -2,8 +2,8 @@ import type { Profile } from "./types";
 
 /**
  * Biblioteka indywidualnych zadań z piłką (w pojedynkę, jedna piłka, znaczniki
- * z tego, co jest pod ręką). Same definicje ćwiczeń — układanie sesji z nich
- * zostało usunięte razem z silnikiem. Skill-learning evidence:
+ * z tego, co jest pod ręką). Definicje wspólne dla generatora i instrukcji.
+ * Skill-learning evidence:
  * https://doi.org/10.3389/fpsyg.2021.772201
  */
 
@@ -37,7 +37,8 @@ export const INDIVIDUAL_FOOTBALL_DRILLS = [
       "Przetaczaj piłkę podeszwą i dotykaj ją wewnętrzną stroną stóp. Pracuj naprzemiennie obiema nogami.",
       "Piłka zostaje w zasięgu jednego kroku. Co kilka kontaktów krótko spójrz przed siebie.",
     ],
-    quality: "W ostatnich 10 kontaktach policz utraty kontroli; porównuj wynik przy tej samej prędkości wykonania.",
+    quality:
+      "W ostatnich 10 kontaktach policz utraty kontroli; porównuj wynik przy tej samej prędkości wykonania.",
     mistake: "Przyspieszanie pracy stóp kosztem kontroli piłki.",
   },
   {
@@ -50,7 +51,8 @@ export const INDIVIDUAL_FOOTBALL_DRILLS = [
       "Powtarzaj całą sekwencję w równym rytmie, na przodostopiu, z lekko ugiętymi kolanami.",
       "Gdy rytm jest równy, co drugą sekwencję podnieś wzrok i nazwij na głos jeden przedmiot przed sobą.",
     ],
-    quality: "Policz pełne sekwencje bez utraty piłki w 30 s; zapisz wynik i bij go w kolejnych seriach.",
+    quality:
+      "Policz pełne sekwencje bez utraty piłki w 30 s; zapisz wynik i bij go w kolejnych seriach.",
     mistake: "Patrzenie cały czas w piłkę i sztywne, wyprostowane nogi.",
   },
   {
@@ -63,7 +65,8 @@ export const INDIVIDUAL_FOOTBALL_DRILLS = [
       "Lekko przetocz piłkę od siebie, podejdź i pierwszym kontaktem skieruj ją do wybranej strefy.",
       "Zatrzymaj piłkę kolejnym kontaktem. Po pięciu próbach zmień nogę; porównuj te same odległości.",
     ],
-    quality: "Policz udane przyjęcia na 10 prób, po 5 każdą nogą: właściwa strefa i piłka nadal w zasięgu jednego kroku.",
+    quality:
+      "Policz udane przyjęcia na 10 prób, po 5 każdą nogą: właściwa strefa i piłka nadal w zasięgu jednego kroku.",
     mistake: "Pierwszy kontakt tak daleko, że trzeba gonić piłkę.",
   },
   {
@@ -76,7 +79,8 @@ export const INDIVIDUAL_FOOTBALL_DRILLS = [
       "Licz kolejne podbicia. Gdy piłka spadnie, zacznij liczyć od nowa. Na początku możesz pozwolić piłce odbić się raz od ziemi między podbiciami.",
       "Co serię zmieniaj zasadę: tylko prawa, tylko lewa, naprzemiennie, albo stopa–udo–stopa.",
     ],
-    quality: "Zapisz najlepszy wynik z każdej zasady. Rekord bijesz tylko przy podbiciach nie wyżej niż do pasa.",
+    quality:
+      "Zapisz najlepszy wynik z każdej zasady. Rekord bijesz tylko przy podbiciach nie wyżej niż do pasa.",
     mistake: "Kopanie piłki wysoko nad głowę i bieganie za nią.",
   },
   {
@@ -89,7 +93,8 @@ export const INDIVIDUAL_FOOTBALL_DRILLS = [
       "Prowadź piłkę krótkimi kontaktami i przeprowadź ją przez jak najwięcej bramek. Nie możesz przejść przez tę samą bramkę dwa razy z rzędu.",
       "Po każdej bramce zmień kierunek: zatrzymanie podeszwą, przeciągnięcie albo obrót wewnętrzną stroną stopy.",
     ],
-    quality: "Policz bramki przejęte z kontrolą w 45 s; bramka liczy się tylko, gdy piłka nie dotknęła znacznika.",
+    quality:
+      "Policz bramki przejęte z kontrolą w 45 s; bramka liczy się tylko, gdy piłka nie dotknęła znacznika.",
     mistake: "Długie kontakty, po których piłka ucieka poza kwadrat.",
   },
   {
@@ -103,7 +108,8 @@ export const INDIVIDUAL_FOOTBALL_DRILLS = [
       "Podprowadź piłkę, około 1 m przed znacznikiem wykonaj zwód (przekładanka, zwód ciałem albo przeciągnięcie podeszwą) i wyjdź z piłką drugą stroną.",
       "Po wyjściu przyspiesz przez 2 kroki z piłką i zatrzymaj ją. Zmieniaj strony i zwody co 5 prób.",
     ],
-    quality: "Na 10 prób policz zwody z wyjściem na drugą stronę bez dotknięcia znacznika i z piłką blisko nogi.",
+    quality:
+      "Na 10 prób policz zwody z wyjściem na drugą stronę bez dotknięcia znacznika i z piłką blisko nogi.",
     mistake: "Zwód wykonany za blisko znacznika albo bez zmiany tempa po wyjściu.",
   },
   {
@@ -117,7 +123,8 @@ export const INDIVIDUAL_FOOTBALL_DRILLS = [
       "Spójrz na wybrany punkt zanim przetoczysz piłkę. Następnie skieruj ją pierwszym kontaktem do odpowiadającej mu strefy.",
       "Wróć do początku i zmieniaj strony oraz nogi. To ćwiczenie orientacji przy piłce; nie symuluje presji przeciwnika.",
     ],
-    quality: "Na 10 prób policz kontakt do właściwej strefy po spojrzeniu przed siebie, bez utraty piłki.",
+    quality:
+      "Na 10 prób policz kontakt do właściwej strefy po spojrzeniu przed siebie, bez utraty piłki.",
     mistake: "Patrzenie w górę dopiero po wykonaniu kontaktu z piłką.",
   },
   {
@@ -131,7 +138,8 @@ export const INDIVIDUAL_FOOTBALL_DRILLS = [
       "Prowadź piłkę krótkimi kontaktami, zatrzymaj podeszwą i obróć się z nią do drugiej strony.",
       "Wróć spokojnie drugą nogą. Obrót wykonuj płynnie, bez gwałtownego skręcania na zablokowanej stopie.",
     ],
-    quality: "Policz kontrolowane obroty na 10 prób; piłka po obrocie pozostaje blisko, a ruch jest bezbolesny.",
+    quality:
+      "Policz kontrolowane obroty na 10 prób; piłka po obrocie pozostaje blisko, a ruch jest bezbolesny.",
     mistake: "Gwałtowny zwrot ciała przy stopie nieruchomo wciśniętej w podłoże.",
   },
   {
@@ -145,7 +153,8 @@ export const INDIVIDUAL_FOOTBALL_DRILLS = [
       "Ustaw stopę postawną obok piłki i zagraj po ziemi wewnętrzną stroną stopy do celu.",
       "Podejdź spokojnie po piłkę i powtórz. Po pięciu próbach zmień nogę; nie potrzebujesz bramki ani partnera.",
     ],
-    quality: "W notatce zapisz trafienia na 10 prób, po 5 każdą nogą, oraz odległość i szerokość celu.",
+    quality:
+      "W notatce zapisz trafienia na 10 prób, po 5 każdą nogą, oraz odległość i szerokość celu.",
     mistake: "Zmiana dystansu między próbami, przez co wyników nie da się porównać.",
   },
   {
@@ -159,7 +168,8 @@ export const INDIVIDUAL_FOOTBALL_DRILLS = [
       "Przetocz piłkę od siebie, podejdź małymi krokami i przyjmij ją do boku w kierunku wybranej strefy.",
       "Zagraj krótkie podanie po ziemi do strefy, podejdź po piłkę i zmień stronę. Po pięciu próbach zmień nogę.",
     ],
-    quality: "Na 10 prób policz kontrolowane przyjęcie i celne podanie jako jedną udaną akcję; po 5 prób na nogę.",
+    quality:
+      "Na 10 prób policz kontrolowane przyjęcie i celne podanie jako jedną udaną akcję; po 5 prób na nogę.",
     mistake: "Mocne wybicie zamiast kontrolowanego, celnego krótkiego podania.",
   },
   {
@@ -187,7 +197,8 @@ export const INDIVIDUAL_FOOTBALL_DRILLS = [
       "Odgrywaj każdą wracającą piłkę od razu, bez przyjęcia, naprzemiennie prawą i lewą nogą.",
       "Gdy seria jest płynna, cofnij się o pół kroku albo odgrywaj tylko słabszą nogą.",
     ],
-    quality: "Policz celne odegrania z pierwszej piłki w 30 s; zapisz rekord i odległość od ściany.",
+    quality:
+      "Policz celne odegrania z pierwszej piłki w 30 s; zapisz rekord i odległość od ściany.",
     mistake: "Mocne, niecelne uderzenia, po których piłka wraca w bok.",
   },
   {
@@ -231,7 +242,8 @@ export const INDIVIDUAL_FOOTBALL_DRILLS = [
       "Prowadź piłkę dłuższymi kontaktami co 2–3 kroki, ze wzrostem prędkości, i zatrzymaj ją podeszwą dokładnie na linii.",
       "Wróć spokojnym marszem z piłką przy nodze. Co drugą próbę prowadź słabszą nogą.",
     ],
-    quality: "Na 6 prób policz zatrzymania piłki na linii (do 1 m) bez zwalniania wcześniej niż 2 m przed linią.",
+    quality:
+      "Na 6 prób policz zatrzymania piłki na linii (do 1 m) bez zwalniania wcześniej niż 2 m przed linią.",
     mistake: "Zbyt długie kontakty, przez które piłka ucieka przed linią.",
   },
   {
@@ -245,7 +257,8 @@ export const INDIVIDUAL_FOOTBALL_DRILLS = [
       "Przeprowadź piłkę slalomem tam i z powrotem: w jedną stronę zewnętrzną i wewnętrzną częścią prawej stopy, z powrotem lewej.",
       "Zmierz czas telefonem i odpocznij do pełnego oddechu przed kolejną próbą.",
     ],
-    quality: "Zapisz najlepszy czas; próba liczy się tylko bez potrącenia znacznika i bez ominięcia żadnego z nich.",
+    quality:
+      "Zapisz najlepszy czas; próba liczy się tylko bez potrącenia znacznika i bez ominięcia żadnego z nich.",
     mistake: "Bieganie szybciej, niż pozwala kontrola, i ścinanie slalomu.",
   },
   {
@@ -275,7 +288,8 @@ export const INDIVIDUAL_FOOTBALL_DRILLS = [
       "Poprowadź piłkę 2–3 kontaktami do przodu i uderz wewnętrzną stroną albo podbiciem w jeden z rogów.",
       "Po 5 strzałach zmień nogę. Po piłkę chodź spokojnie i dopiero wtedy ustaw kolejną próbę.",
     ],
-    quality: "Na 10 strzałów policz trafienia w strefę przy słupku; strzał obok bramki liczy się jako pudło.",
+    quality:
+      "Na 10 strzałów policz trafienia w strefę przy słupku; strzał obok bramki liczy się jako pudło.",
     mistake: "Strzał „na siłę” z odchylonym tułowiem zamiast celnego uderzenia.",
   },
   {
@@ -307,3 +321,28 @@ export const INDIVIDUAL_FOOTBALL_DRILLS = [
   },
 ] as const satisfies readonly FootballDrill[];
 
+export const FOOTBALL_DRILL_NAMES_EN: Record<
+  (typeof INDIVIDUAL_FOOTBALL_DRILLS)[number]["id"],
+  string
+> = {
+  football_ball_mastery: "Ball Mastery",
+  football_fast_feet_sequence: "Four-Touch Ball Mastery",
+  football_self_feed_first_touch: "Self-Fed Directional First Touch",
+  football_juggling_record: "Controlled Juggling",
+  football_gate_dribble: "Gate Dribbling",
+  football_cone_feints: "Cone Feint and Exit",
+  football_scan_control: "Scan and Directional Control",
+  football_turn_control: "Dribble and Turn",
+  football_target_pass: "Target Passing",
+  football_gk_distribution: "Goalkeeper Distribution",
+  football_wall_first_touch: "Wall Passing and First Touch",
+  football_wall_one_touch: "One-Touch Wall Passing",
+  football_wall_receive_turn: "Wall Reception and Turn",
+  football_gk_wall_handling: "Goalkeeper Wall Handling",
+  football_speed_dribble: "Speed Dribbling and Deceleration",
+  football_slalom_time: "Timed Slalom Dribbling",
+  football_long_pass_zone: "Long Passing to a Target Zone",
+  football_finishing_corners: "Directional Finishing",
+  football_gk_kick_zone: "Goalkeeper Distribution from Hand",
+  football_easy_contacts: "Low-Intensity Ball Contacts",
+};

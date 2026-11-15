@@ -1,10 +1,11 @@
+import { hasOutdatedPendingEngineWork } from "./planStatus";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex } from "@noble/hashes/utils";
 import type { Profile, Readiness, SessionCompletion, SessionDay } from "../types";
 import { isStrengthSession } from "../strengthCheckIn";
 import { gymProgressionInput, gymStrengthResponses, type GymRecord } from "../gymEvidence";
 import { trainingSetupRevision } from "../planIdentity";
-import { plusDays, ENGINE_VERSION, type EngineOptions } from "./model";
+import { plusDays, type EngineOptions } from "./model";
 import { refreshStrengthSession, validateTrainingPlan } from "./planner";
 import type { AdjustmentProposal, AdjustmentChange } from "./feedbackAdjustment";
 import { getExerciseDefinition } from "../exerciseLibrary";
@@ -58,7 +59,7 @@ export function proposeGymAdjustment(input: {
     !plan.length ||
     input.hasUnconfirmedWrites ||
     input.records.some((r) => r.pending) ||
-    plan.some((d) => d.generatorVersion !== ENGINE_VERSION) ||
+    hasOutdatedPendingEngineWork(plan, completions, todayIso) ||
     p.painInjury ||
     p.seasonPhase === "return_injury"
   )

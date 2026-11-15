@@ -14,7 +14,7 @@ export function canGuideRecoverySession(session: SessionDay): boolean {
     (session.dayType === "recovery" ||
       session.classification?.isRecovery === true ||
       session.classification?.isMobility === true ||
-      /^(regeneracja|mobilność)/i.test(session.sessionType))
+      /^(regeneracja|mobilność|mobility|active recovery)/i.test(session.sessionType))
   );
 }
 export type PreparationKind =

@@ -5,6 +5,7 @@ import {
   resolveExerciseByName,
 } from "./exerciseLibrary";
 import { skipRoundLabel } from "./skipRounds";
+import { exerciseName } from "./engineV2/sessionNames";
 
 const EQUIPMENT_DEFINITIONS = getAllEquipmentDefinitions();
 
@@ -138,7 +139,10 @@ export function resolveDefinitionForExercise(e: TrainingExercise) {
 
 export function canonicalExerciseName(e: TrainingExercise): string {
   const definition = resolveDefinitionForExercise(e);
-  const name = definition?.displayNamePl?.trim() || e.name;
+  const name =
+    (definition && e.engineDose
+      ? exerciseName(definition.id, definition.name)
+      : definition?.displayNamePl?.trim()) || e.name;
   // Dwie rundy tego samego skipu muszą różnić się na ekranie rundą i rytmem.
   const round = skipRoundLabel(definition?.id ?? e.exerciseId, e.animationVariant);
   return round ? `${name} — ${round}` : name;

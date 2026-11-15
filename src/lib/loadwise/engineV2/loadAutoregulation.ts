@@ -296,9 +296,17 @@ export function contextualStrengthAdvice(
       return review(
         "Po lżejszym okresie wróć przez serie wprowadzające; brak porównywalnej zwykłej bazy.",
       );
+    const reference = prior.sets[0].weightKg!;
+    if (
+      ctx.equipmentConfigured === false ||
+      (ctx.availableWeightsKg && !ctx.availableWeightsKg.includes(reference))
+    )
+      return review(
+        "Ciężar sprzed lżejszego okresu nie jest dostępny na aktualnym stanowisku. Dobierz dostępne obciążenie w seriach wprowadzających.",
+      );
     return advice(
       "resume",
-      `Po redukcji: punkt odniesienia ${prior.sets[0].weightKg} kg`,
+      `Po redukcji: punkt odniesienia ${reference} kg`,
       "Powrót do potwierdzonej zwykłej bazy; lżejszy tydzień nie upoważnia do nowego rekordu.",
       prior.sets[0].weightKg!,
       "resume",

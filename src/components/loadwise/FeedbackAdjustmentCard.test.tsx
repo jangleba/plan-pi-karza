@@ -15,6 +15,9 @@ const mock = vi.hoisted(() => ({
   store: null as unknown as Record<string, unknown>,
   activate: vi.fn(),
 }));
+vi.mock("@/lib/loadwise/useGymEvidence", () => ({
+  useGymEvidence: () => ({ records: [], loading: false, available: true }),
+}));
 vi.mock("@/lib/loadwise/store", () => ({ useLoadwise: () => mock.store }));
 vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: "card-test" } }) }));
 

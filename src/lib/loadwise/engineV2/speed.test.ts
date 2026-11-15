@@ -43,7 +43,7 @@ describe("sport-specific speed preparation", () => {
     expect(s.exercises.find((e) => e.role === "speed")!.dose).toMatchObject({
       sets: 6,
       distanceM: 20,
-      restSeconds: 90,
+      restSeconds: 150,
     });
     expect(s.sprintMetres).toBe(180); // includes 40 m of build-ups and 20 m of braking approaches
   });
@@ -103,7 +103,7 @@ describe("sport-specific speed preparation", () => {
       sets: 4,
       distanceM: 10,
       runInM: 20,
-      restSeconds: 150,
+      restSeconds: 240,
     });
     expect(s.sprintMetres).toBe(180); // includes 40 m of build-ups and 20 m of braking approaches
     for (const patch of [

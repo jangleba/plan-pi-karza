@@ -60,7 +60,8 @@ function plan() {
 describe("Fuel context for club and corrected plans", () => {
   it("a future club session is planned as an estimated 90 minutes and is not a completed activity", () => {
     const contexts = planFuelContexts(plan(), "2026-11-09", {});
-    const club = contexts.find((c) => c.title.toLowerCase().includes("klub"))!;
+    const club = contexts.find((c) => c.kind === "football" && c.durationEstimated)!;
+    expect(club.title).toBe("Team Training");
     expect(club).toMatchObject({ durationMin: 90, durationEstimated: true, completed: false });
   });
   it("a planned match gets no invented minutes", () => {

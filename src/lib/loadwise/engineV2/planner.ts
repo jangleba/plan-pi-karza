@@ -1,3 +1,4 @@
+import { sessionName, EXTERNAL_SESSION_NAMES } from "./sessionNames";
 import { sprintChronology, fitSprintToBudget } from "./sprintRecipe";
 import { attachCycle, cycleForWeek, cycleStartEffect } from "./cycle";
 import { scheduledMatchDates } from "../matchSchedule";
@@ -50,7 +51,11 @@ function day(date: string, p: Profile, matches: Set<string>): SessionDay {
     dayName: names[weekday(date) % 7],
     dayType: match ? "match" : club ? "club" : "rest",
     type: match ? "match" : club ? "club_training" : "rest",
-    title: match ? "Mecz" : club ? "Trening klubowy" : "Wolne",
+    title: match
+      ? EXTERNAL_SESSION_NAMES.match
+      : club
+        ? EXTERNAL_SESSION_NAMES.club
+        : EXTERNAL_SESSION_NAMES.rest,
     intensity: match ? "wysoka" : club ? "umiarkowana" : "niska",
     durationMin: 0, // External duration is unknown; never fabricate minutes played.
     reason:
@@ -59,7 +64,11 @@ function day(date: string, p: Profile, matches: Set<string>): SessionDay {
         : "Brak przydzielonego treningu własnego.",
     whyToday: "Kalendarz zawodnika",
     goalLabel: "",
-    sessionType: match ? "Mecz" : club ? "Klub" : "Wolne",
+    sessionType: match
+      ? EXTERNAL_SESSION_NAMES.match
+      : club
+        ? EXTERNAL_SESSION_NAMES.club
+        : EXTERNAL_SESSION_NAMES.rest,
     goalOfSession: "",
     riskManaged: "",
     avoidToday: "",
@@ -276,27 +285,7 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
   const support = recipe.roles.find((r) =>
     ["activation", "recovery", "mobility", "skills"].includes(r),
   );
-  const title = support
-    ? (
-        {
-          activation: "Aktywacja przed meczem",
-          recovery: "Spokojny ruch i oddech",
-          mobility: "Mobilność",
-          skills: "Technika z piłką",
-        } as Record<string, string>
-      )[support]
-    : gym
-      ? `Siła ${recipe.roles.includes("strengthA") ? "A" : "B"} · ${recipe.tier === "foundation" ? "podstawy" : recipe.tier === "development" ? "rozwój" : "performance"}`
-      : speed
-        ? {
-            acceleration: "Przyspieszenie",
-            max_velocity: "Sprint lotny",
-            curve: "Sprint po łuku",
-            braking: "Hamowanie i ponowny start",
-            planned_cod: "Zaplanowana zmiana kierunku",
-            reactive: "Reaktywna zmiana kierunku (z partnerem)",
-          }[recipe.sprintGoal ?? "acceleration"]
-        : (recipe.runningRecipe?.title ?? "Bieg tlenowy");
+  const title = sessionName(recipe);
   return {
     ...day(date, p, new Set()),
     dayType: support === "activation" ? "md-1" : support === "recovery" ? "recovery" : "training",
@@ -316,7 +305,15 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
                   : "endurance_running",
     title,
     sessionType: title,
-    goalLabel: gym ? "Siła i moc" : speed ? "Szybkość" : "Wydolność",
+    goalLabel: gym
+      ? recipe.exercises.some((e) => e.role === "power")
+        ? "Strength & Power"
+        : "Strength Development"
+      : speed
+        ? "Speed Development"
+        : support
+          ? title
+          : "Aerobic Development",
     durationMin: recipe.minutes,
     intensity: recipe.highLower ? "wysoka" : support ? "niska" : "umiarkowana",
     isOwnSession: true,
@@ -810,7 +807,9 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
     const supportKind = mobilityRecipe ? null : policy.support;
     if (supportKind) {
       const supportRecipe =
-        supportKind === "skills" ? buildSkills(p, phase) : buildMobility(p, phase);
+        supportKind === "skills"
+          ? buildSkills(p, phase, { rotation: cycle.weekIndex })
+          : buildMobility(p, phase);
       let fitted = false;
       for (let i = 0; i < 7; i++) {
         if ([...matches].some((m) => Math.abs(dayDistance(best[i].date, m)) <= 1)) continue;

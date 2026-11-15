@@ -12,6 +12,8 @@
  * them); only the presentation is unified here, so old plans read the same.
  */
 
+import { isProfessionalSessionName } from "./engineV2/sessionNames";
+
 type Rule = readonly [RegExp, string | ((title: string) => string)];
 
 /** Status titles that tell the athlete something happened; keep them. */
@@ -71,6 +73,7 @@ export function unifiedSessionTitle(title: string): string {
   if (STATUS.test(raw)) return raw;
   const lighter = LIGHTER.test(raw);
   const base = raw.replace(LIGHTER, "");
+  if (isProfessionalSessionName(base)) return lighter ? `${base} (Reduced)` : base;
   for (const [pattern, name] of RULES) {
     if (pattern.test(base)) {
       const unified = typeof name === "string" ? name : name(base);

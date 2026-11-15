@@ -1,3 +1,4 @@
+import { sessionPrescription } from "../planIdentity";
 import { expect, it } from "vitest";
 import { generateTrainingPlan, validateTrainingPlan } from "./planner";
 import { calibratePendingRunningPlan } from "./runningCalibration";
@@ -219,3 +220,37 @@ it("uses recent execution feedback at recalibration time without resetting the p
     ).phase,
   ).toBe("development");
 });
+
+it.each(["protected", "started", "completed"] as const)(
+  "calibrates new pending work while preserving a %s execution from v2.8",
+  (status) => {
+    const { profile, plan } = beforeTest();
+    const first = plan.find((d) => d.engineV2)!;
+    first.generatorVersion = "ballwise-v2.8";
+    first.executionProtected = status === "protected";
+    const completions: Record<string, SessionCompletion> =
+      status === "protected"
+        ? {}
+        : {
+            [first.dbId!]: {
+              completed: status === "completed",
+              status,
+              rpe: null,
+              notes: "",
+              executionSnapshot: structuredClone(first),
+            },
+          };
+    const before = sessionPrescription(first);
+    const calibrated = calibratePendingRunningPlan({
+      profile: afterTest(profile),
+      plan,
+      completions,
+      todayIso: options.startDate,
+    });
+    expect(calibrated).not.toBeNull();
+    const preserved = calibrated!.find((d) => d.date === first.date)!;
+    expect(sessionPrescription(preserved)).toBe(before);
+    expect(preserved.generatorVersion).toBe("ballwise-v2.8");
+    expect(preserved.dbId).toBe(first.dbId);
+  },
+);

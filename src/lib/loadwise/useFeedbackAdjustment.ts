@@ -13,6 +13,9 @@ import { useGymEvidence } from "./useGymEvidence";
 import { proposeGymAdjustment } from "./engineV2/gymAdjustment";
 import { hasUnresolvedTrainingWrites } from "./offlineTrainingQueue";
 
+import { planEvidenceIssue } from "./planEvidence";
+import { useTrainingWriteStatus } from "./useTrainingWriteStatus";
+
 const parseIds = (value: unknown): string[] | undefined =>
   Array.isArray(value) && value.every((v) => typeof v === "string") && value.length <= 200
     ? (value as string[])
@@ -29,6 +32,7 @@ export function useFeedbackAdjustment() {
   const { state, hydrated, syncing, todayIso, activatePlanV2 } = useLoadwise();
   const { user } = useAuth();
   const userId = user?.id;
+  const unresolvedWrites = useTrainingWriteStatus(userId);
   const dismissed = useTrainingLocalState(
     trainingStorageKey("feedback-adjustment", user?.id, "dismissed"),
     [] as string[],
@@ -38,7 +42,17 @@ export function useFeedbackAdjustment() {
   const [error, setError] = useState<string | null>(null);
 
   const build = useCallback((): AdjustmentProposal | null => {
-    if (!hydrated || syncing || !state.profile || !state.plan.length) return null;
+    if (
+      !hydrated ||
+      syncing ||
+      !state.profile ||
+      !state.plan.length ||
+      planEvidenceIssue(
+        { records: gym.records, available: gym.available, loading: gym.loading },
+        unresolvedWrites || (!!userId && hasUnresolvedTrainingWrites(userId)),
+      )
+    )
+      return null;
     const effective = resolveEffectivePlan(state.plan, state.modifications, {
       completions: state.completions,
     });
@@ -49,30 +63,43 @@ export function useFeedbackAdjustment() {
         .filter(([, items]) => items.length > 0)
         .map(([date]) => date),
     );
-    return (
-      proposeFeedbackAdjustment({
-        profile: state.profile,
-        plan: effective,
-        completions: state.completions,
-        todayIso,
-        planId: state.activePlanId ?? null,
-        readiness: state.readiness,
-        modifiedDates,
-        hasUnconfirmedWrites,
-      }) ??
-      proposeGymAdjustment({
-        hasUnconfirmedWrites,
-        profile: state.profile,
-        plan: effective,
-        completions: state.completions,
-        records: gym.records,
-        todayIso,
-        planId: state.activePlanId ?? null,
-        readiness: state.readiness,
-        modifiedDates,
-      })
-    );
-  }, [hydrated, syncing, state, todayIso, gym.records, userId]);
+    const excluded = new Set(dismissed.value ?? []);
+    const external = proposeFeedbackAdjustment({
+      excludedProposalIds: excluded,
+      profile: state.profile,
+      plan: effective,
+      completions: state.completions,
+      todayIso,
+      planId: state.activePlanId ?? null,
+      readiness: state.readiness,
+      modifiedDates,
+      hasUnconfirmedWrites,
+    });
+    if (external && !excluded.has(external.id)) return external;
+    const strength = proposeGymAdjustment({
+      hasUnconfirmedWrites,
+      profile: state.profile,
+      plan: effective,
+      completions: state.completions,
+      records: gym.records,
+      todayIso,
+      planId: state.activePlanId ?? null,
+      readiness: state.readiness,
+      modifiedDates,
+    });
+    return strength && !excluded.has(strength.id) ? strength : null;
+  }, [
+    hydrated,
+    syncing,
+    state,
+    todayIso,
+    gym.records,
+    gym.loading,
+    gym.available,
+    userId,
+    unresolvedWrites,
+    dismissed.value,
+  ]);
   const liveBuild = useRef(build);
   liveBuild.current = build;
 

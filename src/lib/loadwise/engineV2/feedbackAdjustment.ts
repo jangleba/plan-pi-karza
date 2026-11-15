@@ -83,6 +83,8 @@ export interface AdjustmentProposal {
   fingerprint: string;
 }
 export interface AdjustmentInput {
+  /** A dismissed event must not hide another source of feedback. */
+  excludedProposalIds?: ReadonlySet<string>;
   profile: Profile;
   /** Effective plan (saved plan with modifications resolved). */
   plan: SessionDay[];
@@ -236,7 +238,7 @@ export function proposeFeedbackAdjustment(input: AdjustmentInput): AdjustmentPro
 
   for (const event of collectEvents(input.plan, input.completions)) {
     const id = proposalIdFor(event.session.dbId!, event.completion);
-    if (done.has(id)) continue;
+    if (done.has(id) || input.excludedProposalIds?.has(id)) continue;
     const rpe = event.completion.rpe!;
     const tags = effectiveActivityTags(event.completion);
     const minutesPlayed = event.completion.matchMinutesPlayed ?? null;

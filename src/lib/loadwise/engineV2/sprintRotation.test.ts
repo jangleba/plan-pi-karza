@@ -154,7 +154,8 @@ describe("variants are qualified by level, age, space, equipment and partner", (
     expect(withPartner.length).toBeGreaterThan(0);
     for (const s of withPartner) {
       expect(s.engineV2!.sprintGoal).toBe("reactive");
-      expect(s.title).toContain("z partnerem");
+      expect(s.title).toBe("Reactive Agility");
+      expect(s.engineV2!.exercises.some((e) => e.reason.includes("Partner"))).toBe(true);
     }
   });
 
