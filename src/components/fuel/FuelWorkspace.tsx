@@ -139,20 +139,21 @@ export function FuelWorkspace({
   const requestRevision = useRef(0);
   const lastTap = useRef(0);
   const date = localDate(now);
-  const context = useMemo(() => {
+  const context = useMemo<FuelContext>(() => {
     const selection = data.selection?.date === date ? data.selection : null;
     const selected = selection?.contextKey;
     const planned = selected === null ? null : chooseFuelContext(contexts, selected ?? null, date);
-    return (
-      planned ??
-      manualFuelContext(
-        date,
-        selection?.manualKind ?? "football",
-        selection?.manualDurationMin ?? null,
-        selection?.manualLoad ?? "moderate",
-      )
-    );
-  }, [contexts, data.selection, date]);
+    return {
+      ...(planned ??
+        manualFuelContext(
+          date,
+          selection?.manualKind ?? "football",
+          selection?.manualDurationMin ?? null,
+          selection?.manualLoad ?? "moderate",
+        )),
+      tomorrowMatch: tomorrowMatch || !!tomorrowContext,
+    };
+  }, [contexts, data.selection, date, tomorrowMatch, tomorrowContext]);
   const todaySelection = data.selection?.date === date ? data.selection : null;
   const fit: FuelFit | null = todaySelection?.fit ?? null;
   const pantry = useMemo(
@@ -215,7 +216,8 @@ export function FuelWorkspace({
   const tomorrowDate = new Date(now);
   tomorrowDate.setDate(tomorrowDate.getDate() + 1);
   const packContext = packingTomorrow
-    ? (tomorrowContext ?? manualFuelContext(localDate(tomorrowDate.getTime()), "match", 90, "high"))
+    ? (tomorrowContext ??
+      manualFuelContext(localDate(tomorrowDate.getTime()), "match", null, "high"))
     : context;
   const packEntry =
     data.entries.find((e) => e.contextKey === packContext.key && e.status === "selected") ?? null;

@@ -61,6 +61,11 @@ export function sessionRecipeScore(
       lines.every((l) => ["carb", "fruit", "fluid"].includes(FOOD_BY_ID[l.foodId]?.role))
       ? 4
       : 0;
+  if (context.tomorrowMatch) {
+    // Rank carbohydrate-containing options without changing athlete-edited portions.
+    // Immediate pre-session tolerance rules in practicalRecipes still apply.
+    return lines.some((l) => ["carb", "fruit"].includes(FOOD_BY_ID[l.foodId]?.role)) ? 2 : 0;
+  }
   if (sustained && timing.phase === "before") return n.carbs >= 60 ? 3 : 0;
   return context.kind === "strength" && timing.phase === "ordinary" && n.protein >= 15 ? 1 : 0;
 }
@@ -125,5 +130,41 @@ export function fuelDayGuide(
       },
     ],
     moment: fuelMoment(timing),
+  };
+}
+
+/** Priority of today's advice; no adult elite g/kg targets applied to youth profiles. */
+export function fuelDayPriority(context: FuelContext, timing: FuelTiming, twoSessions = false) {
+  if (timing.phase === "training")
+    return {
+      title: "W trakcie wysiłku",
+      text: "Korzystaj z dogodnych przerw na picie. Wybieraj tylko sprawdzone produkty.",
+    };
+  if (context.tomorrowMatch)
+    return {
+      title: "Jutro mecz — przygotowanie zaczyna się dziś",
+      text: `${timing.phase === "after" ? "Po dzisiejszej sesji uzupełnij energię i dodaj białko. " : ""}W kolejnych posiłkach uwzględnij więcej węglowodanów niż w lekkim dniu: ryż, makaron, ziemniaki, pieczywo lub owoce. Rozłóż je na cały dzień, pij regularnie i wybieraj znane produkty. Porcję dopasuj do apetytu i obciążenia.`,
+    };
+  if (timing.phase === "after")
+    return {
+      title: twoSessions ? "Regeneracja przed kolejną sesją" : "Regeneracja po wysiłku",
+      text: "Wybierz posiłek z węglowodanami i białkiem oraz uzupełniaj płyny. Uwzględnij to, co już zjadłeś.",
+    };
+  if (context.kind === "match")
+    return {
+      title: "Dziś mecz",
+      text: "Zaplanuj znany posiłek z węglowodanami przed meczem. Im bliżej startu, tym mniejsza i lżej strawna porcja; ustaw godzinę, żeby dopasować propozycję.",
+    };
+  if (twoSessions)
+    return {
+      title: "Dwie sesje dzisiaj",
+      text: "Zaplanuj jedzenie i picie między jednostkami. Po pierwszej uwzględnij węglowodany i białko, a przed drugą czas na trawienie.",
+    };
+  return {
+    title:
+      context.kind === "none" || context.kind === "recovery"
+        ? "Lżejszy dzień"
+        : "Paliwo na dzisiejszą sesję",
+    text: "Dopasuj porcje do wysiłku i apetytu. Zachowaj regularne posiłki, białko i picie także w dni bez treningu.",
   };
 }

@@ -15,6 +15,8 @@ export interface FuelContext {
   durationMin: number | null;
   load: FuelLoadBand;
   fromPlan: boolean;
+  /** Preparation for a confirmed next-day fixture, independent of today's load. */
+  tomorrowMatch?: boolean;
   completed?: boolean;
   /** True when the duration is the planning assumption (club: 90 min), not a measurement. */
   durationEstimated?: boolean;
@@ -148,7 +150,7 @@ export function planFuelContexts(
           const clubEstimate =
             session.dayType === "club" && !session.engineV2 && !session.durationMin;
           const durationMin = clubEstimate ? CLUB_DEFAULT_MINUTES : session.durationMin;
-          if (kind === "none" || !durationMin) return [];
+          if (kind === "none" || (!durationMin && kind !== "match")) return [];
           const engineLoad = session.engineV2 ? classifySession(session).loadLevel : null;
           return [
             {
@@ -156,7 +158,7 @@ export function planFuelContexts(
               date,
               kind,
               title: session.title || SESSION_LABELS[kind],
-              durationMin,
+              durationMin: durationMin || null,
               durationEstimated: clubEstimate || undefined,
               load: (engineLoad && engineLoad !== "none"
                 ? engineLoad

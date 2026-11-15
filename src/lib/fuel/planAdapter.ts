@@ -22,6 +22,7 @@ export const EMPTY_SESSION: FuelSessionInput = {
 
 export function sessionKindFrom(session: SessionDay | null): SessionKind {
   if (!session) return "none";
+  if (session.dayType === "match") return "match";
   if (session.engineV2) {
     const classification = classifySession(session);
     if (classification.countsAsStrength) return "strength";
@@ -35,7 +36,6 @@ export function sessionKindFrom(session: SessionDay | null): SessionKind {
       return "recovery";
     return classification.subcategory === "ball_technical" ? "football" : "none";
   }
-  if (session.dayType === "match") return "match";
   if (session.dayType === "rest") return "none";
   if (session.dayType === "recovery") return "recovery";
   const text =
