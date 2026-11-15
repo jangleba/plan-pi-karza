@@ -21,6 +21,7 @@ import {
 import { GYM_EXERCISE_RULES } from "../gymStrengthExercises";
 import { maximalStrengthEligible } from "./strengthPolicy";
 import { gymDoseWithinBounds } from "./gymProgression";
+import { ADVANCED_CONTACT_LIMIT, advancedSessionsEligible } from "./advancedSessions";
 import { parseRestDuration } from "../restTimer";
 
 const TARGETS = new Set([
@@ -370,6 +371,50 @@ export function validateEngineSession(
     fail("MIXED_STRENGTH_SPEED", "Siłownia i sprint wymagają osobnych jednostek.");
   if (recipe.roles.includes("strengthA") && recipe.roles.includes("strengthB"))
     fail("MIXED_STRENGTH_AB", "Siła A i B wymagają osobnych dni.");
+  const complex = recipe.organization === "complex";
+  if (complex) {
+    if (!strength || !recipe.advancedTemplate || !advancedSessionsEligible(profile, recipe.phase))
+      fail(
+        "ADVANCED_SESSION_ELIGIBILITY",
+        "Zaawansowane pary są dla zawodników od 16 lat z przygotowaniem zaawansowanym, w zwykłym tygodniu rozwoju.",
+      );
+    if ((recipe.plyometricContacts ?? 0) > ADVANCED_CONTACT_LIMIT(profile.age))
+      fail("ADVANCED_CONTACT_LIMIT", "Za dużo lądowań w jednej sesji zaawansowanej.");
+    const labels = new Set<string>();
+    for (const pair of recipe.complexPairs ?? []) {
+      const at = pair.exerciseIds.map((id) =>
+        recipe.exercises.findIndex((e) => e.exerciseId === id),
+      );
+      const [a, b] = at.map((i) => recipe.exercises[i]);
+      if (
+        labels.has(pair.label) ||
+        at.some((i) => i < 0) ||
+        at[1] !== at[0] + 1 ||
+        a.dose.sets !== b.dose.sets ||
+        pair.transitionSeconds !== 30 ||
+        a.dose.restSeconds !== pair.transitionSeconds ||
+        b.dose.restSeconds !== pair.roundRestSeconds ||
+        pair.roundRestSeconds < 60 ||
+        (["power", "landing"].includes(b.role) && pair.roundRestSeconds < 90)
+      ) {
+        fail(
+          "ADVANCED_PAIR_DOSE",
+          "Para wymaga dwóch kolejnych ćwiczeń z równą liczbą rund, 30 s przejścia i pełną przerwą po rundzie.",
+        );
+        continue;
+      }
+      labels.add(pair.label);
+      const rendered = session.structuredSections
+        ?.flatMap((sec) => sec.blocks)
+        .find((block) => block.exercises.some((e) => e.label === `${pair.label}1`));
+      if (
+        !rendered ||
+        rendered.executionProtocol !== "superset-rounds-v1" ||
+        rendered.exercises.map((e) => e.exerciseId).join() !== pair.exerciseIds.join()
+      )
+        fail("ADVANCED_PAIR_RENDER", "Ekran nie prowadzi pary tak, jak zapisano ją w recepturze.");
+    }
+  }
   if (strength) {
     const roles = new Set(recipe.exercises.map((e) => e.role));
     const tasks = recipe.exercises.filter((e) => e.role !== "warmup").map((e) => e.role);
@@ -398,7 +443,9 @@ export function validateEngineSession(
           : last,
       -1,
     );
+    // Advanced pairs deliberately open with a hold before the reactive jump (the coaching notes).
     if (
+      !complex &&
       recipe.exercises.some(
         (e, index) => ["hamstring_iso", "quad_iso"].includes(e.role) && index < lastPriorityIndex,
       )
@@ -407,26 +454,31 @@ export function validateEngineSession(
         "ISOMETRIC_SUPPORT_ORDER",
         "Uzupełniające utrzymania izometryczne wykonuj po zaplanowanej mocy i głównych ćwiczeniach siłowych; nie zastępują krótkiego nacisku przygotowawczego.",
       );
-    if (new Set(tasks).size !== tasks.length)
+    if (!complex && new Set(tasks).size !== tasks.length)
       fail(
         "DUPLICATE_STRENGTH_FUNCTION",
         "Powtórzone zadanie siłowe wymaga przeglądu; nie kumuluj różnych ćwiczeń o tej samej funkcji.",
       );
     // Template guardrail, not an equation treating a hold as a dynamic working set.
     if (
-      tasks.filter((r) =>
+      !complex &&
+      (tasks.filter((r) =>
         ["hip_strength", "knee_flexion", "hamstring_iso", "hamstring_dynamic_support"].includes(r),
       ).length > 2 ||
-      tasks.filter((r) => ["knee_strength", "unilateral_strength", "quad_iso"].includes(r)).length >
-        2
+        tasks.filter((r) => ["knee_strength", "unilateral_strength", "quad_iso"].includes(r))
+          .length > 2)
     )
       fail(
         "REGIONAL_TASK_OVERLAP",
         "Zbyt wiele zadań jednej strony nóg w tej jednostce A/B; rozłóż akcenty w tygodniu.",
       );
     if (
-      !(roles.has("knee_strength") || roles.has("unilateral_strength")) ||
-      !(roles.has("hip_strength") || roles.has("knee_flexion"))
+      complex
+        ? !["knee_strength", "unilateral_strength", "hip_strength", "knee_flexion"].some((r) =>
+            roles.has(r as never),
+          )
+        : !(roles.has("knee_strength") || roles.has("unilateral_strength")) ||
+          !(roles.has("hip_strength") || roles.has("knee_flexion"))
     )
       fail(
         "UNBALANCED_STRENGTH",

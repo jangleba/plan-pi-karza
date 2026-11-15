@@ -179,7 +179,11 @@ function exposures(
       )
         return [];
       seen.add(`${s.date}:${variant}`);
-      const rows = s.engineV2.exercises.filter((r) => r.role === role);
+      // GP1 manages its own gym variants; other jumps of the same role (pogo, depth jump in the
+      // advanced pairs) are not its evidence. Sessions without a gym variant keep the old rule.
+      const all = s.engineV2.exercises.filter((r) => r.role === role);
+      const gym = all.filter((r) => GYM_EXERCISE_RULES[r.exerciseId]);
+      const rows = gym.length ? gym : all;
       // An omitted/ambiguous task interrupts evidence; do not reach behind it for successes.
       if (rows.length !== 1)
         return [

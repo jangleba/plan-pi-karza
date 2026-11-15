@@ -22,6 +22,9 @@ import { preparationProfile, hasVerifiedAdvancedStrength } from "./preparation";
 import { recipeTotalSeconds } from "@/lib/running/recipe";
 import { applyGymProgression } from "./gymProgression";
 import { renderStrengthPairs } from "./strengthPairs";
+import { buildAdvancedStrength, withoutAdvancedRows } from "./advancedSessions";
+import { advancedSectionType, renderComplexPairs } from "./advancedRender";
+import { chooseStrengthFocus, strengthWeekContext } from "./strengthPolicy";
 import { applyStrengthFocus } from "./strengthPolicy";
 
 const names = ["Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota"];
@@ -133,7 +136,8 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
       "quad_iso",
     ].includes(e.role);
     const type =
-      d.speedStage === "cooldown"
+      advancedSectionType(recipe, e.role) ??
+      (d.speedStage === "cooldown"
         ? "cooldown"
         : e.role === "warmup"
           ? "warmup"
@@ -141,7 +145,7 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
             ? "prep"
             : accessory
               ? "accessory"
-              : "main";
+              : "main");
     let section = sections.find((s) => s.type === type);
     if (!section) {
       section = {
@@ -245,6 +249,7 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
   const priority = { warmup: 0, prep: 1, main: 2, accessory: 3, cooldown: 4, log: 5 };
   sections.sort((a, b) => priority[a.type] - priority[b.type]);
   renderStrengthPairs(sections, recipe);
+  renderComplexPairs(sections, recipe);
   if (recipe.organization === "contrast") {
     const main = sections.find((s) => s.type === "main");
     const primary = main?.blocks.find((b) =>
@@ -385,6 +390,17 @@ export function finalizeStrengthRecipe(
   days: SessionDay[],
   budget: number,
 ): EngineSession | null {
+  if (base.organization === "complex") {
+    const advanced = finalizeAdvanced(base, p, date, options, days, budget);
+    if (advanced) return advanced;
+    // The week, the calendar or the time does not allow the advanced pairs: the usual A/B session.
+    base = buildStrength(
+      routedProfile(p, resolveGoalPolicy(p).strengthGoal),
+      base.roles.includes("strengthA") ? "A" : "B",
+      base.phase,
+      base.exerciseRotation ?? 0,
+    );
+  }
   const settle = (r: EngineSession) =>
     applyGymProgression(applyStrengthFocus(r, p, date, options, days), p, date, options, days);
   const full = settle(base);
@@ -392,9 +408,48 @@ export function finalizeStrengthRecipe(
   const compact = fitStrengthToBudget(full, budget);
   return compact.minutes <= budget ? compact : null;
 }
+/** The strength recipe of a week: the advanced note-based session when it applies, else A/B. */
+function strengthBase(
+  p: Profile,
+  variant: "A" | "B",
+  phase: EngineSession["phase"],
+  rotation: number,
+  week: number,
+): EngineSession {
+  return (
+    buildAdvancedStrength(p, variant, phase, week) ??
+    buildStrength(routedProfile(p, resolveGoalPolicy(p).strengthGoal), variant, phase, rotation)
+  );
+}
+
+/**
+ * Advanced pairs keep their prescribed doses. A lighter, maintenance or re-entry week, a match
+ * within two days (for rows marked so) and the time budget are applied here; null means "use A/B".
+ */
+function finalizeAdvanced(
+  base: EngineSession,
+  p: Profile,
+  date: string,
+  options: EngineOptions,
+  days: SessionDay[],
+  budget: number,
+): EngineSession | null {
+  const focus = chooseStrengthFocus(p, base.phase, strengthWeekContext(p, date, options, days));
+  if (["maintenance", "deload", "reentry"].includes(focus.mode)) return null;
+  let r = base;
+  // "Jeśli nie ma meczu": within three days of a match (closer, the week is already maintenance).
+  const nearMatch = scheduledMatchDates(p, plusDays(date, -3), 7).some(
+    (m) => Math.abs(dayDistance(date, m)) <= 3,
+  );
+  if (nearMatch && r.skipNearMatch?.length) r = withoutAdvancedRows(r, new Set(r.skipNearMatch));
+  r = applyGymProgression(r, p, date, options, days);
+  if (r.minutes > budget && r.optionalExercises?.length)
+    r = withoutAdvancedRows(r, new Set(r.optionalExercises));
+  return r.minutes <= budget ? r : null;
+}
+
 const isStrengthRecipe = (r: EngineSession) =>
   r.roles.some((role) => role === "strengthA" || role === "strengthB");
-
 
 const strengthSignature = (s: SessionDay) =>
   JSON.stringify([
@@ -682,10 +737,9 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
     // strength B is then tried afterwards as a supplement, not placed instead of mobility.
     const mobilityRecipe = policy.primary === "mobility" ? buildMobility(p, phase) : null;
     // Full base recipes: the time budget is fitted only after the final dose (place()).
-    const strengthB = () =>
-      buildStrength(routedProfile(p, policy.strengthGoal), "B", phase, rotation);
+    const strengthB = () => strengthBase(p, "B", phase, rotation, cycle.weekIndex);
     const tasks = [
-      buildStrength(routedProfile(p, policy.strengthGoal), "A", phase, rotation),
+      strengthBase(p, "A", phase, rotation, cycle.weekIndex),
       mobilityRecipe ?? strengthB(),
       fitSprintToBudget(
         buildRunning(routedProfile(p, policy.speedGoal), "speed", phase, {
@@ -997,7 +1051,8 @@ export function validateTrainingPlan(
       if (r.sprintMetres > 240) fail("SPRINT_LIMIT", d.date, "Ponad 240 m sprintu.");
       const ids = new Set<string>();
       for (const e of r.exercises) {
-        if (!eligibleExercise(e.exerciseId, p)) fail("INELIGIBLE_EXERCISE", d.date, e.exerciseId);
+        if (!eligibleExercise(e.exerciseId, p, e.role))
+          fail("INELIGIBLE_EXERCISE", d.date, e.exerciseId);
         if (ids.has(e.exerciseId)) fail("DUPLICATE_EXERCISE", d.date, e.exerciseId);
         ids.add(e.exerciseId);
         if (
@@ -1058,11 +1113,12 @@ export function refreshStrengthSession(
   if (!old || !old.roles.some((r) => r === "strengthA" || r === "strengthB")) return null;
   const cycle = cycleForWeek(p, options, session.date);
   const budget = options.minutesPerSession ?? 75;
-  let base = buildStrength(
-    routedProfile(p, resolveGoalPolicy(p).strengthGoal),
+  let base = strengthBase(
+    p,
     old.roles.includes("strengthA") ? "A" : "B",
     cycle.phase,
     cycleStartEffect(options).rotate ? 1 : 0,
+    cycle.cycle.weekIndex,
   );
   // An accepted shorter variant (feedback correction) stays short; otherwise the generator's rule.
   if (old.variant === "compact" && session.feedbackAdjustments?.length)

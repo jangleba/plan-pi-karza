@@ -40,6 +40,18 @@ export function requiresDeclaredWall(exerciseId: string): boolean {
   return !!drill && "wall" in drill && drill.wall === true;
 }
 
+/** Jumps and landings need open floor, not a pitch: the declared gym jump zone (6 × 3 m) is enough. */
+const GYM_LANE_ROLES = new Set<string>(["power", "landing"]);
+export function hasGymJumpLane(profile: Profile): boolean {
+  return (
+    profile.hasGym &&
+    [...profile.equipment, ...(profile.trainingMethodPreferences?.declaredEquipment ?? [])].some(
+      (v) => (resolveEquipmentId(v) ?? v) === "gym_jump_lane",
+    ) &&
+    !(profile.unavailableEquipmentIds ?? []).includes("gym_jump_lane")
+  );
+}
+
 export type RequirementIssue =
   | "partner"
   | "ball"
@@ -71,7 +83,8 @@ export function sessionRequirementIssue(
   if (
     def.spaceRequirement === "open_field" &&
     !profile.hasPitch &&
-    !(role === "warmup" && profile.hasSprintSpace)
+    !(role === "warmup" && profile.hasSprintSpace) &&
+    !(role !== undefined && GYM_LANE_ROLES.has(role) && hasGymJumpLane(profile))
   )
     return "open_field";
   if (def.spaceRequirement === "sprint_lane" && !profile.hasSprintSpace) return "sprint_lane";
