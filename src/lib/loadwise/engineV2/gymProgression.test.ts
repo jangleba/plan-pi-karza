@@ -41,6 +41,11 @@ const player: Profile = {
   hasGym: true,
   hasPitch: false,
   hasSprintSpace: false,
+  // Specialist jump/band work requires a declared qualification (exercise library bar).
+  gymExperienceLevel: "advanced",
+  strengthTrainingMonths: 24,
+  movementCompetence: "high",
+  supervisionLevel: "full",
 };
 const ready: Readiness = {
   date: "2026-11-15",
@@ -531,7 +536,10 @@ describe("GP1 whole-week and integration contracts", () => {
       .filter((s) => s.engineV2);
     const a = own.find((s) => s.engineV2!.roles.includes("strengthA"))!;
     expect(a).toBeDefined();
-    const jump = a.engineV2!.exercises.find((e) => e.role === "power")!;
+    // The reviewed gym jump (advanced sessions also open with pogo/depth-jump pairs).
+    const jump = a.engineV2!.exercises.find(
+      (e) => e.role === "power" && e.exerciseId.startsWith("gym_"),
+    )!;
     expect(jump.dose).toMatchObject({ sets: 2, reps: 3 });
     const rendered = a
       .structuredSections!.flatMap((s) => s.blocks.flatMap((b) => b.exercises))

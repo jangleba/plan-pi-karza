@@ -15,11 +15,14 @@ const power = (plan: SessionDay[], date: string) =>
     .filter((d) => d.date === date)
     .flatMap(slots)
     .find((s) => s.engineV2?.roles.includes("strengthA"))
-    ?.engineV2?.exercises.find((e) => e.role === "power");
+    // The reviewed gym jump; advanced A sessions also contain pogo and depth-jump pairs.
+    ?.engineV2?.exercises.find((e) => e.role === "power" && e.exerciseId.startsWith("gym_cmj"));
 
 function lostControlHistory(plan: SessionDay[]) {
   const done = plan.find((d) => d.engineV2?.roles.includes("strengthA"))!;
-  const jump = done.engineV2!.exercises.find((e) => e.role === "power")!;
+  const jump = done.engineV2!.exercises.find(
+    (e) => e.role === "power" && e.exerciseId.startsWith("gym_cmj"),
+  )!;
   const observation: GymObservation = {
     sessionId: "done-a",
     exerciseId: jump.exerciseId,
@@ -57,9 +60,11 @@ function lostControlHistory(plan: SessionDay[]) {
 
 describe("running recalibration keeps the gym decisions in force", () => {
   it("loss of control → accepted reduction → new MAS does not bring the banded jump back", () => {
-    const start = { startDate: "2026-11-16", weeks: 2, minutesPerSession: 75 };
+    // Advanced A alternates its two note sessions; the banded jump belongs to the 11.09 one,
+    // so the next exposure is two weeks later.
+    const start = { startDate: "2026-11-16", weeks: 3, minutesPerSession: 75 };
     const first = generateTrainingPlan(gymAthlete, { ...start, asOfDate: "2026-11-16" }).plan;
-    expect(power(first, "2026-11-23")?.exerciseId).toBe("gym_cmj_resisted");
+    expect(power(first, "2026-11-30")?.exerciseId).toBe("gym_cmj_resisted");
     const { jump, completions, records } = lostControlHistory(first);
     expect(jump.exerciseId).toBe("gym_cmj_resisted");
     const ctx = gymPlanContext(records);
@@ -71,7 +76,7 @@ describe("running recalibration keeps the gym decisions in force", () => {
       gymProgression: ctx.gymProgression,
       strengthLoadResponses: ctx.strengthLoadResponses,
     }).plan;
-    const afterLoss = power(reduced, "2026-11-23")!;
+    const afterLoss = power(reduced, "2026-11-30")!;
     expect(afterLoss.exerciseId).toBe("gym_cmj");
     expect(afterLoss.dose).toMatchObject({ sets: 1, reps: 2 });
     for (const [i, d] of reduced.entries()) {
@@ -103,7 +108,7 @@ describe("running recalibration keeps the gym decisions in force", () => {
     expect(
       pending.every((s) => s.engineV2?.runningCalibrationKey === runningCalibrationKey(measured)),
     ).toBe(true);
-    const kept = power(calibrated!, "2026-11-23") ?? power(calibrated!, "2026-11-24");
+    const kept = power(calibrated!, "2026-11-30") ?? power(calibrated!, "2026-12-01");
     expect(kept?.exerciseId).toBe("gym_cmj");
     expect(kept?.dose).toMatchObject({ sets: 1, reps: 2 });
     // Without the shared context the old behaviour would have restored the banded 3x3 jump;

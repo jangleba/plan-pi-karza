@@ -228,8 +228,10 @@ describe("reviewed strength and isometric protocols", () => {
       )!;
       const power = s.exercises.find((e) => e.role === "power")!;
       expect(primary.dose.sets).toBe(power.dose.sets);
-      expect(primary.dose.restSeconds).toBe(180);
+      // A1 heavy lift → 30 s transition → A2 jump → 180 s before the next round.
+      expect(primary.dose.restSeconds).toBe(30);
       expect(power.dose.restSeconds).toBe(180);
+      expect(power.dose.postRestSeconds).toBe(180);
       expect(s.exercises.indexOf(primary)).toBeLessThan(s.exercises.indexOf(power));
       expect(s.minutes).toBe(Math.ceil(estimateSessionSeconds(s.exercises) / 60) + 8);
       expect(getExerciseDefinition(power.exerciseId)?.movementPattern).toBe("jump");

@@ -125,7 +125,27 @@ export interface EngineSession {
   variant?: "full" | "compact";
   runningRecipe?: import("@/lib/running/recipe").RunningRecipe;
   roles: ("strengthA" | "strengthB" | "speed" | "endurance" | SupportRole)[];
-  organization?: "straight" | "power_first" | "contrast";
+  organization?: "straight" | "power_first" | "contrast" | "complex";
+  /** Advanced 16+ session following the athlete's coaching notes (advancedSessions.ts). */
+  advancedTemplate?: "A_power" | "A_squat" | "B_hinge";
+  /** Pairs of an advanced session: first exercise, 30 s transition, second, then the round rest. */
+  complexPairs?: {
+    label: string;
+    kind:
+      | "iso_reactive"
+      | "landing_reactive"
+      | "strength_power"
+      | "hinge_brake"
+      | "upper_trunk"
+      | "trunk";
+    exerciseIds: [string, string];
+    transitionSeconds: number;
+    roundRestSeconds: number;
+  }[];
+  /** Exercises left out within two days of a match. */
+  skipNearMatch?: string[];
+  /** Exercises that may be left out to fit a shorter time budget. */
+  optionalExercises?: string[];
   tier: Tier;
   highLower: boolean;
   exercises: ExerciseDecision[];

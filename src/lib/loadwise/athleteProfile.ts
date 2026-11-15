@@ -163,8 +163,17 @@ export function getTrainingAge(_p: Partial<Profile>): number | null {
  * Wyżej (ciężkie boje, „intermediate” i „advanced”) nigdy nie zgadujemy: to wymaga
  * jawnej odpowiedzi, bo poziom piłkarski nie jest stażem ze sztangą.
  */
+/** BallWise jest od 16 lat: zaawansowany zawodnik 16+ bez odpowiedzi nie jest traktowany jak nowicjusz. */
+const advancedAdultDefault = (p: Partial<Profile>) =>
+  typeof p.age === "number" &&
+  Number.isFinite(p.age) &&
+  p.age >= 16 &&
+  (p.level === "advanced" || p.level === "elite");
+
 export function getStrengthExperienceLevel(p: Partial<Profile>): GymExperienceLevel {
   if (p.gymExperienceLevel) return p.gymExperienceLevel;
+  // Domyślnie zaawansowany 16+: brak odpowiedzi to regularny trening, nie początki.
+  if (advancedAdultDefault(p)) return "intermediate";
   const playsRegularly =
     p.level === "intermediate" || p.level === "advanced" || p.level === "elite";
   return p.hasGym || playsRegularly ? "beginner" : "none";
@@ -172,7 +181,10 @@ export function getStrengthExperienceLevel(p: Partial<Profile>): GymExperienceLe
 
 export function getMovementCompetenceLevel(p: Partial<Profile>): CompetenceLevel {
   if (p.movementCompetence) return p.movementCompetence;
-  // Ogólna sprawność piłkarska nie potwierdza kontroli ćwiczeń siłowych.
+  // Domyślnie zaawansowany 16+: kontrola podstawowych ruchów („medium”), nigdy „high”
+  // bez odpowiedzi — warianty specjalistyczne nadal wymagają jawnej deklaracji.
+  if (advancedAdultDefault(p)) return "medium";
+  // Młodsi lub mniej zaawansowani: ogólna sprawność piłkarska nie potwierdza kontroli ćwiczeń siłowych.
   return "low";
 }
 
@@ -200,8 +212,15 @@ export function getCoordinationLevel(p: Partial<Profile>): CompetenceLevel {
 
 function strengthTrainingMonths(p: Partial<Profile>): number | null {
   const months = p.strengthTrainingMonths;
-  return typeof months === "number" && Number.isInteger(months) && months >= 0 && months <= Math.min(720, (p.age ?? 0) * 12) && !(p.gymExperienceLevel === "none" && months !== 0)
-    ? Math.floor(months) : p.gymExperienceLevel === "none" ? 0 : null;
+  return typeof months === "number" &&
+    Number.isInteger(months) &&
+    months >= 0 &&
+    months <= Math.min(720, (p.age ?? 0) * 12) &&
+    !(p.gymExperienceLevel === "none" && months !== 0)
+    ? Math.floor(months)
+    : p.gymExperienceLevel === "none"
+      ? 0
+      : null;
 }
 
 function supervisionOf(p: Partial<Profile>): SupervisionLevel {
@@ -422,7 +441,9 @@ export function getInjuryConstraints(p: Partial<Profile>): InjuryConstraints {
   }
   if (all.has("hamstring")) {
     avoidPatterns.push("max_velocity", "aggressive_eccentric");
-    contraindications.push("Historia dwugłowego — ostrożnie z max velocity, progresuj posterior chain.");
+    contraindications.push(
+      "Historia dwugłowego — ostrożnie z max velocity, progresuj posterior chain.",
+    );
   }
   if (all.has("groin")) {
     avoidPatterns.push("aggressive_cod", "wide_adduction");
@@ -462,7 +483,8 @@ export function buildAthleteTrainingProfile(
   const warnings: string[] = [];
 
   const age = typeof p.age === "number" && !Number.isNaN(p.age) ? p.age : null;
-  if (age == null) warnings.push("Brak wieku — przyjęto profil młodzieżowy (bez skrajnych ćwiczeń).");
+  if (age == null)
+    warnings.push("Brak wieku — przyjęto profil młodzieżowy (bez skrajnych ćwiczeń).");
 
   const developmentStage = getDevelopmentStage(age);
   const gymExperienceLevel = getStrengthExperienceLevel(p);
@@ -475,7 +497,8 @@ export function buildAthleteTrainingProfile(
   const supervisionLevel = supervisionOf(p);
 
   const gymAccess = p.hasGym ?? false;
-  if (p.hasGym == null) warnings.push("Brak informacji o siłowni — nie zakładamy dostępu do sztangi.");
+  if (p.hasGym == null)
+    warnings.push("Brak informacji o siłowni — nie zakładamy dostępu do sztangi.");
 
   // Brak pola w starszych, czysto wewnętrznych profilach zachowuje dotychczasowe
   // zachowanie. Profile zapisane po migracji zawsze mają jawne true/false.
@@ -505,7 +528,9 @@ export function buildAthleteTrainingProfile(
     readiness,
     currentPain: injuryConstraints.painLocations,
     gymAccess,
-    gymEquipmentMode: p.trainingMethodPreferences?.gymEquipmentMode ?? ((p.equipment?.length ?? 0) > 0 ? "selected" : "full"),
+    gymEquipmentMode:
+      p.trainingMethodPreferences?.gymEquipmentMode ??
+      ((p.equipment?.length ?? 0) > 0 ? "selected" : "full"),
   };
   const exerciseSafetyProfile = getExerciseSafetyProfile(partialForSafety);
 
@@ -520,7 +545,8 @@ export function buildAthleteTrainingProfile(
         : "low";
 
   const preferredTrainingStyle: AthleteTrainingProfile["preferredTrainingStyle"] =
-    developmentStage === "adult" && (gymExperienceLevel === "intermediate" || gymExperienceLevel === "advanced")
+    developmentStage === "adult" &&
+    (gymExperienceLevel === "intermediate" || gymExperienceLevel === "advanced")
       ? "performance"
       : gymExperienceLevel === "none" || developmentStage === "child_foundation"
         ? "foundation"
@@ -533,8 +559,12 @@ export function buildAthleteTrainingProfile(
     trainingAge: getTrainingAge(p),
     strengthTrainingAge,
     gymExperienceLevel,
-    sportExperienceLevel: p.level === "elite" || p.level === "advanced"
-      ? "advanced" : p.level === "intermediate" ? "intermediate" : "beginner",
+    sportExperienceLevel:
+      p.level === "elite" || p.level === "advanced"
+        ? "advanced"
+        : p.level === "intermediate"
+          ? "intermediate"
+          : "beginner",
     movementCompetenceLevel,
     bodyweightCompetenceLevel: getBodyweightCompetenceLevel(p),
     coordinationLevel,
@@ -550,7 +580,10 @@ export function buildAthleteTrainingProfile(
     maxSessionsPerDay: 2,
     availableTrainingDays: p.individualTrainingDays ?? [],
     availableTimePerSession: developmentStage === "child_foundation" ? 40 : 60,
-    equipmentAccess: [...(p.equipment ?? []), ...(p.trainingMethodPreferences?.declaredEquipment ?? [])],
+    equipmentAccess: [
+      ...(p.equipment ?? []),
+      ...(p.trainingMethodPreferences?.declaredEquipment ?? []),
+    ],
     gymAccess,
     homeEquipment: p.homeEquipment ?? [],
     unavailableEquipmentIds: p.unavailableEquipmentIds ?? [],
@@ -598,7 +631,9 @@ export function classifyExerciseTypes(name: string): ExerciseType[] {
   const out = new Set<ExerciseType>();
 
   const isBarbell = /(sztang|barbell|back squat|front squat|bench press)/i.test(n);
-  const isDeadlift = /(martwy ciąg|martwy ciag|deadlift)/i.test(n) && !/(trap|romanian|rdl|hantl|kettle|dumbbell|db )/i.test(n);
+  const isDeadlift =
+    /(martwy ciąg|martwy ciag|deadlift)/i.test(n) &&
+    !/(trap|romanian|rdl|hantl|kettle|dumbbell|db )/i.test(n);
   const isRDL = /(romanian|rdl)/i.test(n);
   const heavy = HEAVY_WORD.test(n);
 
@@ -610,7 +645,10 @@ export function classifyExerciseTypes(name: string): ExerciseType[] {
     out.add("barbell_deadlift");
     if (heavy) out.add("heavy_barbell_deadlift");
   }
-  if (/(back squat|przysiad ze sztang|przysiad -? ?sztang|barbell squat)/i.test(n) && (heavy || isBarbell))
+  if (
+    /(back squat|przysiad ze sztang|przysiad -? ?sztang|barbell squat)/i.test(n) &&
+    (heavy || isBarbell)
+  )
     out.add("heavy_back_squat");
   if (/(front squat|przysiad przedni)/i.test(n)) out.add("heavy_front_squat");
   if (/(bench press|wyciskanie.*ławce|wyciskanie sztangi)/i.test(n)) out.add("heavy_bench");
@@ -622,7 +660,8 @@ export function classifyExerciseTypes(name: string): ExerciseType[] {
     out.add("depth_jump");
     out.add("advanced_plyometrics");
   }
-  if (/(reaktywn|reactive|bounding|wieloskok|drop jump|shock)/i.test(n)) out.add("advanced_plyometrics");
+  if (/(reaktywn|reactive|bounding|wieloskok|drop jump|shock)/i.test(n))
+    out.add("advanced_plyometrics");
   if (/(ballistic|balistyczn)/i.test(n)) out.add("ballistic_advanced");
 
   return [...out];
@@ -662,8 +701,7 @@ function blockReasonFor(types: ExerciseType[], a: AthleteTrainingProfile): strin
       : !a.gymAccess
         ? "brak dostępu do siłowni"
         : "profil zawodnika";
-  if (types.includes("olympic_lift"))
-    return `Zablokowano podnoszenie olimpijskie — ${who}.`;
+  if (types.includes("olympic_lift")) return `Zablokowano podnoszenie olimpijskie — ${who}.`;
   if (types.includes("max_effort")) return `Zablokowano próby maksymalne (1RM/3RM/5RM) — ${who}.`;
   if (types.includes("heavy_barbell_deadlift") || types.includes("barbell_deadlift"))
     return `Zamieniono ciężki martwy ciąg — ${who}.`;
@@ -849,10 +887,7 @@ function injuryReplacement(a: AthleteTrainingProfile): Replacement {
   };
 }
 
-export function getSafeExerciseAlternatives(
-  name: string,
-  a: AthleteTrainingProfile,
-): Replacement {
+export function getSafeExerciseAlternatives(name: string, a: AthleteTrainingProfile): Replacement {
   const inj = validateExerciseAgainstInjuries(name, a);
   if (!inj.ok) return injuryReplacement(a);
   const v = validateExerciseForAthleteProfile(name, a);

@@ -26,8 +26,9 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
   const known = hasStrengthExperience(profile);
   const clubDays = [...(profile.clubTrainingDays ?? [])].sort((a, b) => a - b);
   const clubStrength = draft.clubStrengthDays ?? [];
+  const ageMonths = profile.age * 12;
   async function save() {
-    if (draft.strengthTrainingMonths !== undefined && (!Number.isInteger(draft.strengthTrainingMonths) || draft.strengthTrainingMonths < 0 || draft.strengthTrainingMonths > profile.age * 12 || (draft.gymExperienceLevel === "none" && draft.strengthTrainingMonths !== 0))) {
+    if (draft.strengthTrainingMonths !== undefined && (!Number.isInteger(draft.strengthTrainingMonths) || draft.strengthTrainingMonths < 0 || draft.strengthTrainingMonths > ageMonths || (draft.gymExperienceLevel === "none" && draft.strengthTrainingMonths !== 0))) {
       setError("Staż musi być zgodny z wiekiem i odpowiedzią o doświadczeniu.");
       return;
     }

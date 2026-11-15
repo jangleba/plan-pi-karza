@@ -3,6 +3,8 @@ import {
   accountSetupIsAllowed,
   ageOnDate,
   birthDateForApproximateAge,
+  NEW_ACCOUNT_MIN_AGE,
+  onboardingMinimumAge,
   policyForAge,
 } from "./agePolicy";
 
@@ -97,5 +99,13 @@ describe("age policy", () => {
         guardianDeclarationAccepted: false,
       }),
     ).toBe(true);
+  });
+});
+
+describe("BallWise od 16 lat", () => {
+  it("nowe konto wymaga 16 lat, istniejące konto zachowuje dotychczasowy próg", () => {
+    expect(NEW_ACCOUNT_MIN_AGE).toBe(16);
+    expect(onboardingMinimumAge(false)).toBe(16);
+    expect(onboardingMinimumAge(true)).toBe(13);
   });
 });

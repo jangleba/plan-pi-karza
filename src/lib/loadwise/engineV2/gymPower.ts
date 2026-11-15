@@ -3,16 +3,29 @@ import type { Dose, EngineSession, ExerciseDecision } from "./model";
 import { trainingTier } from "./model";
 import { resolveGoalPolicy } from "./goalPolicy";
 import { FUNCTIONAL_CATALOGUE } from "./taxonomy";
-import { hasValidStrengthMonths } from "./preparation";
+import { APP_MINIMUM_AGE, hasValidStrengthMonths } from "./preparation";
+
+/**
+ * Specialist jump/band work keeps the explicit bar of the exercise library: declared intermediate or
+ * advanced gym experience, 12+ months, high technique and a coach running the session. 16+ being
+ * "advanced by default" never assumes a coach that was not declared.
+ */
+function qualifiedByDeclaration(p: Profile): boolean {
+  return (
+    ["intermediate", "advanced"].includes(p.gymExperienceLevel ?? "") &&
+    hasValidStrengthMonths(p, 12) &&
+    p.movementCompetence === "high" &&
+    p.supervisionLevel === "full"
+  );
+}
 
 /** Small starting prescriptions are product choices, not universal optimal doses. */
 export function gymSpecialWorkAllowed(p: Profile, phase: EngineSession["phase"]): boolean {
   return (
     p.hasGym &&
-    p.age >= 16 &&
-    ["intermediate", "advanced"].includes(p.gymExperienceLevel ?? "") &&
-    hasValidStrengthMonths(p, 12) &&
-    p.movementCompetence === "high" && p.supervisionLevel === "full" && !p.painInjury &&
+    p.age >= APP_MINIMUM_AGE &&
+    qualifiedByDeclaration(p) &&
+    !p.painInjury &&
     !resolveGoalPolicy(p).reduced &&
     !["adaptation", "deload"].includes(phase) &&
     !["transition", "return_injury"].includes(p.seasonPhase)
