@@ -77,6 +77,7 @@ const clubId = `s-${CLUB_DATE}-0`;
 const clubDone = (patch: Partial<SessionCompletion> = {}): Record<string, SessionCompletion> => ({
   [clubId]: {
     completed: true,
+    writeVersion: 1,
     status: "completed",
     rpe: 8,
     notes: "",
@@ -307,6 +308,7 @@ describe("feedback-based adjustment proposals", () => {
     const done = (minutes: number | null): Record<string, SessionCompletion> => ({
       m1: {
         completed: true,
+        writeVersion: 1,
         status: "completed",
         rpe: 9,
         notes: "",
@@ -327,6 +329,7 @@ describe("feedback-based adjustment proposals", () => {
     const done = (rpe: number, minutes: number): Record<string, SessionCompletion> => ({
       m1: {
         completed: true,
+        writeVersion: 1,
         status: "completed",
         rpe,
         notes: "",
@@ -358,7 +361,40 @@ describe("feedback-based adjustment proposals", () => {
       ),
     ).toBeNull();
     expect(propose({ ...base, level: "beginner" } as Profile, plan, clubDone())).toBeNull();
-    expect(propose(base, plan, clubDone(), { hasModificationsInWindow: true })).toBeNull();
+  });
+
+  it("does not let an unconfirmed write authorise a changed plan, whatever its source", () => {
+    const plan = savedPlan(base);
+    // writeVersion 0: the entry is visible locally but the server has not confirmed it
+    expect(propose(base, plan, clubDone({ writeVersion: 0 }))).toBeNull();
+    expect(propose(base, plan, clubDone({ writeVersion: undefined }))).toBeNull();
+    // any unresolved training write (pending, failed or conflicting) blocks all sources
+    expect(propose(base, plan, clubDone(), { hasUnconfirmedWrites: true })).toBeNull();
+    // confirmed and nothing pending: the same feedback proposes a change
+    expect(propose(base, plan, clubDone(), { hasUnconfirmedWrites: false })).not.toBeNull();
+  });
+
+  it("a manual change protects only its own date, not the whole mechanism", () => {
+    const plan = savedPlan(base);
+    const open = propose(base, plan, clubDone())!;
+    expect(open.changes.length).toBeGreaterThan(0);
+    // a manual change 11 days ahead is outside the proposal's horizon
+    const far = new Set(["2026-11-14"]);
+    const withFar = propose(base, plan, clubDone(), { modifiedDates: far })!;
+    expect(withFar).toBeTruthy();
+    expect(withFar.changes.map((c) => c.sessionId)).toEqual(open.changes.map((c) => c.sessionId));
+    // a manual change on the very date a session would be adjusted leaves that date untouched
+    const touched = new Set(open.changes.map((c) => c.before.date));
+    const guarded = propose(base, plan, clubDone(), { modifiedDates: touched });
+    for (const c of guarded?.changes ?? []) {
+      expect(touched.has(c.before.date)).toBe(false);
+      expect(c.after === null || !touched.has(c.after.date)).toBe(true);
+    }
+    if (guarded)
+      for (const date of touched)
+        expect(guarded.candidatePlan.find((d) => d.date === date)).toEqual(
+          plan.find((d) => d.date === date),
+        );
   });
 
   it("uses the ladder in order: reschedule, then a lighter or compact variant, only then a skip", () => {

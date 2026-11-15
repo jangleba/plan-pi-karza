@@ -101,15 +101,33 @@ describe("cycle review — adherence", () => {
     expect(plannedOwnSessions(plan).map((s) => s.category)).toEqual(["gym", "endurance"]);
   });
 
-  it("matches by session id first, then a swapped session on the same day", () => {
+  it("matches by session id first, then a replacement of the same goal on the same day", () => {
     const items = planned(3);
     const history: SessionHistoryRecord[] = [
       ...done([items[0]]),
-      { ...done([items[1]])[0], key: "swapped", category: "ball" },
+      // Ta sama kategoria celu tego samego dnia pod innym id — zamiennik tego celu.
+      { ...done([items[1]])[0], key: "swapped" },
       // Poza cyklem — nie liczy się.
       { ...done([items[2]])[0], key: "late", date: "2026-11-20" },
     ];
     expect(countDone(items, history, START, END)).toBe(2);
+  });
+
+  it("another activity on the same day does not count a goal that was not done", () => {
+    const items = planned(4);
+    const gym = items[0];
+    const history: SessionHistoryRecord[] = [
+      // Planowana siłownia nie została wykonana; tego dnia był tylko trening z piłką.
+      { ...done([gym])[0], key: "ball-only", category: "ball" },
+    ];
+    expect(countDone([gym], history, START, END)).toBe(0);
+    // Ten sam trening z piłką zalicza za to zaplanowany trening z piłką.
+    const ball = { ...items[3], date: gym.date };
+    expect(countDone([ball], history, START, END)).toBe(1);
+    // Obciążenie nie znika: trening z piłką liczy się w RPE tygodnia i w Postępie.
+    const review = buildCycleReview(input({ planned: [gym], history }))!;
+    expect(review.done).toBe(0);
+    expect(review.adherencePct).toBe(0);
   });
 
   it("caps adherence at 100% when extra sessions were added", () => {
@@ -133,8 +151,10 @@ describe("cycle review — recommendation rules", () => {
     const review = buildCycleReview(input({ age: 16 }))!;
     expect(review.youth).toBe(true);
     const copy = cycleReviewCopy(review);
-    expect(copy.recommendationTitle).toBe("Mały krok wyżej");
-    expect(copy.recommendationText).toMatch(/jednym tygodniem przeciążenia/);
+    expect(copy.recommendationTitle).toBe("Dalej według planu");
+    // No promised "overload week": time alone never raises the dose in V2.
+    expect(copy.recommendationText).toMatch(/bez zmiany dawki/);
+    expect(copy.recommendationText).not.toMatch(/przeciążenia/);
   });
 
   it("in season with good adherence → maintain (not progress)", () => {
@@ -297,5 +317,109 @@ describe("cycle review — copy", () => {
       "Następny cykl: przygotowania do sezonu",
     ]);
     expect(copy.button).toBe("Zaczynam nowy cykl");
+  });
+});
+
+describe("cycle review — club and matches are load, not goals", () => {
+  const items = planned(16);
+  const own = () => done(items, 6);
+  const club = (n: number, rpe: number | null, patch: Partial<SessionHistoryRecord> = {}) =>
+    Array.from({ length: n }, (_, i) => ({
+      key: `club-${i}`,
+      date: dateAt(i * 4 + 1),
+      title: "Klub",
+      category: "club" as const,
+      durationMin: 90,
+      durationEstimated: true,
+      durationSource: "club_default" as const,
+      rpe,
+      notes: "",
+      ...patch,
+    }));
+  const matches = (rows: Array<[number, number | null]>) =>
+    rows.map(([minutes, rpe], i) => ({
+      key: `match-${i}`,
+      date: dateAt(i * 6 + 2),
+      title: "Mecz",
+      category: "match" as const,
+      durationMin: 0,
+      matchMinutesPlayed: minutes,
+      rpe,
+      notes: "",
+    }));
+
+  it("six hard club sessions change the recommendation instead of staying 'progress'", () => {
+    const base = buildCycleReview(input({ planned: items, history: own() }))!;
+    expect(base.recommendation).toBe("progress");
+    // Own work was easy (RPE 6); on top of it the athlete did six 90-min club sessions at RPE 9.
+    const withClub = buildCycleReview(
+      input({ planned: items, history: [...own(), ...club(6, 9)] }),
+    )!;
+    expect(withClub.recommendation).not.toBe("progress");
+    // Own execution is reported separately from the whole week's load.
+    expect(withClub.done).toBe(16);
+    expect(withClub.adherencePct).toBe(100);
+    expect(withClub.external!.clubDone).toBe(6);
+    expect(withClub.external!.loadAu).toBe(6 * 90 * 9);
+    expect(withClub.external!.loadUsesAssumedMinutes).toBe(true);
+    expect(withClub.weekAvgRpe).toBeGreaterThan(base.avgRpe!);
+  });
+
+  it("does not diagnose fatigue from a single hard club session", () => {
+    const one = buildCycleReview(input({ planned: items, history: [...own(), ...club(1, 10)] }))!;
+    expect(one.recommendation).toBe("progress");
+  });
+
+  it("done club or match work without RPE or minutes is unknown load: hold, not progress", () => {
+    const noRpe = buildCycleReview(
+      input({ planned: items, history: [...own(), ...club(2, null)] }),
+    )!;
+    expect(noRpe.external!.withoutLoad).toBe(2);
+    expect(noRpe.recommendation).toBe("maintain");
+    const noMinutes = buildCycleReview(
+      input({
+        planned: items,
+        history: [...own(), ...matches([[90, 7]]).map((m) => ({ ...m, matchMinutesPlayed: null }))],
+      }),
+    )!;
+    expect(noMinutes.external!.withoutLoad).toBe(1);
+    expect(noMinutes.recommendation).toBe("maintain");
+  });
+
+  it("a match uses minutes played; 0 minutes is a known value and a bench RPE is not load", () => {
+    const review = buildCycleReview(
+      input({
+        planned: items,
+        plannedExternal: [
+          { key: "match-0", date: dateAt(2), kind: "match" },
+          { key: "match-1", date: dateAt(8), kind: "match" },
+        ],
+        history: [
+          ...own(),
+          ...matches([
+            [30, 8],
+            [0, 9],
+          ]),
+        ],
+      }),
+    )!;
+    expect(review.external).toMatchObject({
+      matchPlanned: 2,
+      matchDone: 2,
+      matchMinutesPlayed: 30,
+      loadAu: 240,
+      withoutLoad: 0,
+    });
+    // Zero minutes played with RPE 9 does not feed the week's RPE.
+    expect(review.weekAvgRpe).toBeCloseTo((16 * 6 + 8) / 17, 1);
+    const copy = cycleReviewCopy(review);
+    expect(copy.facts.some((f) => /mecze 2 z 2 \(30 min gry\)/.test(f))).toBe(true);
+    expect(copy.facts.some((f) => /240 j\./.test(f))).toBe(true);
+  });
+
+  it("keeps the 90-minute club assumption marked as an assumption in the facts", () => {
+    const review = buildCycleReview(input({ planned: items, history: [...own(), ...club(2, 6)] }))!;
+    const copy = cycleReviewCopy(review);
+    expect(copy.facts.join(" ")).toMatch(/czas klubu 90 min to założenie/);
   });
 });

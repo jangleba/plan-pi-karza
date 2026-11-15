@@ -1,4 +1,5 @@
 import { historyCategoryOf } from "./store/model";
+import { historyLoad, isValidMatchMinutes } from "./sessionFeedback";
 import type { CycleRecommendationKind } from "./cyclePolicy";
 import type {
   CycleStartRecord,
@@ -34,6 +35,29 @@ export interface PlannedOwnSession {
   category: string;
 }
 
+/** Club and match slots of the plan: not the athlete's own goals, but part of the week's load. */
+export interface PlannedExternalSession {
+  key: string | null;
+  date: string;
+  kind: "club" | "match";
+}
+
+/** Club and matches of the cycle, kept apart from the athlete's own goals. */
+export interface ExternalLoadSummary {
+  clubPlanned: number;
+  clubDone: number;
+  matchPlanned: number;
+  matchDone: number;
+  /** Minutes actually played (matches only); 0 is a known value. */
+  matchMinutesPlayed: number;
+  /** Sum of minutes × RPE of the completed club/match entries that have a usable load. */
+  loadAu: number;
+  /** True when part of that sum uses the 90-minute club assumption, not a recorded time. */
+  loadUsesAssumedMinutes: boolean;
+  /** Completed club/match entries without a usable load (no RPE, or no minutes played). */
+  withoutLoad: number;
+}
+
 export interface StrengthSetEntry {
   exerciseKey: string;
   /** Proven by the completed execution snapshot; unknown legacy rows cannot prove a trend. */
@@ -53,6 +77,8 @@ export interface CycleReviewInput {
   startDate: string;
   endDate: string;
   planned: PlannedOwnSession[];
+  /** Planned club and match slots; optional for callers that only know the athlete's own goals. */
+  plannedExternal?: PlannedExternalSession[];
   /** Ukończone sesje (dowolny zakres dat — filtrujemy do cyklu). */
   history: SessionHistoryRecord[];
   /** Check-iny z okresu cyklu (tylko gdy zawodnik włączył dane zdrowotne). */
@@ -84,6 +110,11 @@ export interface CycleReview {
   youth: boolean;
   phaseNext: SeasonPhase;
   recommendation: CycleRecommendationKind;
+  /** Execution of the athlete's own goals is `planned`/`done`; this is the rest of the week's load. */
+  /** Absent in reviews saved before club and matches were included. */
+  external?: ExternalLoadSummary;
+  /** Mean RPE over the whole week's recorded sessions (own, club, matches actually played). */
+  weekAvgRpe?: number | null;
 }
 
 /** Progi reguł — jedno miejsce, opisane źródłami w CYCLE_REVIEW_SOURCES. */
@@ -142,7 +173,30 @@ export function plannedOwnSessions(plan: readonly SessionDay[]): PlannedOwnSessi
   return out;
 }
 
-/** Ile zaplanowanych sesji zostało zrobionych: po id, a gdy go brak — ten sam dzień. */
+/** Club and match slots in the plan (not the athlete's own goals; they count as load, not as goals). */
+export function plannedExternalSessions(plan: readonly SessionDay[]): PlannedExternalSession[] {
+  const out: PlannedExternalSession[] = [];
+  for (const day of plan) {
+    if (day.isUnavailable) continue;
+    for (const session of [day, day.secondSession]) {
+      if (!session || session.isUnavailable) continue;
+      const kind =
+        session.dayType === "match"
+          ? "match"
+          : session.dayType === "club" || session.isClubSession
+            ? "club"
+            : null;
+      if (kind) out.push({ key: session.dbId ?? null, date: session.date ?? day.date, kind });
+    }
+  }
+  return out;
+}
+
+/**
+ * Ile zaplanowanych sesji zostało zrobionych: po id, a gdy go brak — ten sam dzień i ta sama
+ * kategoria celu. Inna aktywność (np. trening z piłką zamiast siłowni) nadal jest obciążeniem,
+ * ale nie zalicza celu, którego nie wykonano.
+ */
 export function countDone(
   planned: readonly PlannedOwnSession[],
   history: readonly SessionHistoryRecord[],
@@ -154,7 +208,6 @@ export function countDone(
   );
   const used = new Set<string>();
   let done = 0;
-  // Najpierw dokładne dopasowania po id, potem zamiany/dodatki tego samego dnia.
   const pending: PlannedOwnSession[] = [];
   for (const item of planned) {
     const exact = item.key ? own.find((row) => row.key === item.key && !used.has(row.key)) : null;
@@ -164,12 +217,11 @@ export function countDone(
     } else pending.push(item);
   }
   for (const item of pending) {
-    const sameDay =
-      own.find(
-        (row) => !used.has(row.key) && row.date === item.date && row.category === item.category,
-      ) ?? own.find((row) => !used.has(row.key) && row.date === item.date);
-    if (sameDay) {
-      used.add(sameDay.key);
+    const sameGoal = own.find(
+      (row) => !used.has(row.key) && row.date === item.date && row.category === item.category,
+    );
+    if (sameGoal) {
+      used.add(sameGoal.key);
       done += 1;
     }
   }
@@ -223,18 +275,24 @@ function feelingOf(readiness: readonly Readiness[]): { feeling: Feeling; healthF
   return { feeling, healthFlag };
 }
 
+/** Whole-week load: own sessions, club, and matches the athlete actually played. */
+const countsForWeek = (row: SessionHistoryRecord) =>
+  OWN_CATEGORIES.has(row.category) ||
+  row.category === "club" ||
+  (row.category === "match" &&
+    isValidMatchMinutes(row.matchMinutesPlayed) &&
+    row.matchMinutesPlayed > 0);
+
 function rpeStats(
   history: readonly SessionHistoryRecord[],
   start: string,
   end: string,
+  counts: (row: SessionHistoryRecord) => boolean = (row) => OWN_CATEGORIES.has(row.category),
 ): { avg: number | null; rise: number | null; late: number | null } {
   const rows = history
     .filter(
       (row) =>
-        inRange(row.date, start, end) &&
-        OWN_CATEGORIES.has(row.category) &&
-        typeof row.rpe === "number" &&
-        row.rpe > 0,
+        inRange(row.date, start, end) && counts(row) && typeof row.rpe === "number" && row.rpe > 0,
     )
     .sort((a, b) => a.date.localeCompare(b.date));
   if (rows.length < CYCLE_RULES.minRpeSamples) return { avg: null, rise: null, late: null };
@@ -249,6 +307,44 @@ function rpeStats(
   };
 }
 
+function summariseExternal(
+  planned: readonly PlannedExternalSession[],
+  history: readonly SessionHistoryRecord[],
+  start: string,
+  end: string,
+): ExternalLoadSummary {
+  const out: ExternalLoadSummary = {
+    clubPlanned: planned.filter((p) => p.kind === "club" && inRange(p.date, start, end)).length,
+    clubDone: 0,
+    matchPlanned: planned.filter((p) => p.kind === "match" && inRange(p.date, start, end)).length,
+    matchDone: 0,
+    matchMinutesPlayed: 0,
+    loadAu: 0,
+    loadUsesAssumedMinutes: false,
+    withoutLoad: 0,
+  };
+  for (const row of history) {
+    if (!inRange(row.date, start, end) || (row.category !== "club" && row.category !== "match"))
+      continue;
+    if (row.category === "club") out.clubDone += 1;
+    else {
+      out.matchDone += 1;
+      if (isValidMatchMinutes(row.matchMinutesPlayed))
+        out.matchMinutesPlayed += row.matchMinutesPlayed;
+    }
+    const load = historyLoad(row);
+    if (load.value === null) out.withoutLoad += 1;
+    else {
+      out.loadAu += load.value;
+      out.loadUsesAssumedMinutes ||= load.minutesAssumed;
+    }
+  }
+  // A done entry never exceeds what was planned in the numbers shown to the athlete.
+  out.clubPlanned = Math.max(out.clubPlanned, out.clubDone);
+  out.matchPlanned = Math.max(out.matchPlanned, out.matchDone);
+  return out;
+}
+
 export function buildCycleReview(input: CycleReviewInput): CycleReview | null {
   const { startDate, endDate } = input;
   const planned = input.planned.filter((item) => inRange(item.date, startDate, endDate));
@@ -256,6 +352,19 @@ export function buildCycleReview(input: CycleReviewInput): CycleReview | null {
   const done = countDone(planned, input.history, startDate, endDate);
   const adherence = Math.min(1, done / planned.length);
   const rpe = rpeStats(input.history, startDate, endDate);
+  const week = rpeStats(input.history, startDate, endDate, countsForWeek);
+  const externalRpe = rpeStats(
+    input.history,
+    startDate,
+    endDate,
+    (row) => countsForWeek(row) && !OWN_CATEGORIES.has(row.category),
+  );
+  const external = summariseExternal(
+    input.plannedExternal ?? [],
+    input.history,
+    startDate,
+    endDate,
+  );
   const readiness = input.readiness.filter((r) => inRange(r.date, startDate, endDate));
   const { feeling, healthFlag } = feelingOf(readiness);
   const strength = strengthChanges(input.strengthSets, startDate, endDate);
@@ -264,13 +373,16 @@ export function buildCycleReview(input: CycleReviewInput): CycleReview | null {
   const measured = improved + declined + strength.flat + input.tests.flat;
   const progress: ProgressVerdict =
     measured === 0 ? "unknown" : improved > declined ? "up" : declined > improved ? "down" : "flat";
-  const heavy =
-    (rpe.avg !== null && rpe.avg >= CYCLE_RULES.heavyRpe) ||
-    (rpe.rise !== null &&
-      rpe.rise >= CYCLE_RULES.rpeRise &&
-      rpe.late !== null &&
-      rpe.late >= CYCLE_RULES.rpeRiseFloor) ||
-    feeling === "heavy";
+  // The same published thresholds, read over the whole week: club and matches are load too.
+  // One RPE does not diagnose fatigue; only the mean/rise over the cycle does, as before.
+  const heavyIn = (s: { avg: number | null; rise: number | null; late: number | null }) =>
+    (s.avg !== null && s.avg >= CYCLE_RULES.heavyRpe) ||
+    (s.rise !== null &&
+      s.rise >= CYCLE_RULES.rpeRise &&
+      s.late !== null &&
+      s.late >= CYCLE_RULES.rpeRiseFloor);
+  // Easy own sessions must not dilute a hard club/match stream: the same rule reads it on its own.
+  const heavy = heavyIn(rpe) || heavyIn(week) || heavyIn(externalRpe) || feeling === "heavy";
 
   let recommendation: CycleRecommendationKind;
   if (healthFlag) recommendation = "health";
@@ -281,6 +393,8 @@ export function buildCycleReview(input: CycleReviewInput): CycleReview | null {
   else if (adherence < CYCLE_RULES.goodAdherence) recommendation = "maintain";
   else if ((progress === "flat" || progress === "down") && measured >= 2) recommendation = "vary";
   else if (input.phaseNext === "inseason") recommendation = "maintain";
+  // Club or match work that was done but has no usable load is unknown load, not zero: hold.
+  else if (external.withoutLoad > 0) recommendation = "maintain";
   else recommendation = "progress";
 
   return {
@@ -299,6 +413,8 @@ export function buildCycleReview(input: CycleReviewInput): CycleReview | null {
     youth: input.age < CYCLE_RULES.adultAge,
     phaseNext: input.phaseNext,
     recommendation,
+    external,
+    weekAvgRpe: week.avg,
   };
 }
 
@@ -323,6 +439,29 @@ export interface CycleReviewCopy {
 function rpeFact(review: CycleReview): string | null {
   if (review.avgRpe === null) return null;
   return `Wysiłek: średnio ${String(review.avgRpe).replace(".", ",")}/10`;
+}
+
+/** Club and matches are shown next to, never inside, the execution of the athlete's own goals. */
+function externalFact(review: CycleReview): string | null {
+  const e = review.external;
+  if (!e || e.clubPlanned + e.matchPlanned + e.clubDone + e.matchDone === 0) return null;
+  const parts = [
+    e.clubPlanned > 0 ? `klub ${e.clubDone} z ${e.clubPlanned}` : null,
+    e.matchPlanned > 0
+      ? `mecze ${e.matchDone} z ${e.matchPlanned}${e.matchDone > 0 ? ` (${e.matchMinutesPlayed} min gry)` : ""}`
+      : null,
+  ].filter(Boolean);
+  return parts.length ? `Poza własnymi celami: ${parts.join(", ")}` : null;
+}
+function externalLoadFact(review: CycleReview): string | null {
+  const e = review.external;
+  if (!e || (e.loadAu === 0 && e.withoutLoad === 0)) return null;
+  const load = e.loadAu > 0 ? `${e.loadAu} j.` : null;
+  const note = [
+    e.loadUsesAssumedMinutes ? "czas klubu 90 min to założenie" : null,
+    e.withoutLoad > 0 ? `brak RPE lub minut w ${e.withoutLoad} wpisach` : null,
+  ].filter(Boolean);
+  return `Obciążenie klubu i meczów: ${[load, ...note].filter(Boolean).join("; ")}`;
 }
 
 function feelingFact(review: CycleReview): string | null {
@@ -364,6 +503,8 @@ function trainingsLabel(count: number): string {
 export function cycleReviewCopy(review: CycleReview): CycleReviewCopy {
   const facts = [
     `Treningi: ${review.done} z ${review.planned} (${review.adherencePct}%)`,
+    externalFact(review),
+    externalLoadFact(review),
     rpeFact(review),
     feelingFact(review),
     progressFact(review),
@@ -371,38 +512,38 @@ export function cycleReviewCopy(review: CycleReview): CycleReviewCopy {
   const next = PHASE_LABEL[review.phaseNext];
   const weeks = Math.max(1, Math.round((daysBetween(review.startDate, review.endDate) + 1) / 7));
   const weeklyTarget = Math.max(1, Math.ceil((review.planned / weeks) * CYCLE_RULES.goodAdherence));
-  // Opis tego, co silnik zrobił z nowym cyklem (cyclePolicy.ts) — bez uzasadnienia.
+  // Opis tego, co silnik naprawdę robi z nowym cyklem (cyclePolicy.ts, engineV2/cycleEffects.test.ts).
+  const unknownExternal = (review.external?.withoutLoad ?? 0) > 0;
   const copy: Record<CycleRecommendationKind, [string, string]> = {
     health: [
       "Najpierw zdrowie",
-      "Nowy plan: 2 lżejsze tygodnie na start, bez tygodni przeciążenia. Zgłoś ból trenerowi lub fizjoterapeucie.",
+      "Nowy plan: 2 lżejsze tygodnie na start (mniej serii). Zgłoś ból trenerowi lub fizjoterapeucie.",
     ],
-    transition: [
-      "Roztrenowanie",
-      "Nowy plan: lżejszy pierwszy tydzień i cykl bez tygodni przeciążenia.",
-    ],
+    transition: ["Roztrenowanie", "Nowy plan: lżejszy pierwszy tydzień (mniej serii)."],
     deload: [
       "Lżejszy start",
-      "Nowy plan: pierwszy tydzień lżejszy, potem wprowadzenie i normalny blok.",
+      "Nowy plan: pierwszy tydzień lżejszy (mniej serii), potem zwykła dawka.",
     ],
     consistency: [
       "Najpierw regularność",
-      `Nowy plan nie zwiększa obciążenia. Celuj w ${trainingsLabel(weeklyTarget)} w tygodniu.`,
+      `Nowy plan: główne ćwiczenie siłowe w dawce utrzymaniowej (do 2 serii, zapas co najmniej 3), bez akcentu siły maksymalnej. Celuj w ${trainingsLabel(weeklyTarget)} w tygodniu.`,
     ],
     maintain: [
       review.phaseNext === "inseason" ? "Utrzymanie formy w sezonie" : "Utrzymanie poziomu",
-      "Nowy plan utrzymuje obciążenie: bez tygodni przeciążenia.",
+      `Nowy plan utrzymuje dawkę: główne ćwiczenie siłowe w dawce utrzymaniowej, bez akcentu siły maksymalnej i bez podwyżki skoków z siłowni.${
+        unknownExternal
+          ? " Brakuje RPE lub minut z klubu lub meczu; uzupełnij je, żeby ocena cyklu była pełna."
+          : ""
+      }`,
     ],
     vary: [
       "Zmiana bodźca",
-      "Nowy plan zmienia kolejność tygodni: mocniejszy bodziec wcześniej, potem budowanie.",
+      "Nowy plan: inne ćwiczenia siłowe z tych samych grup (zmiana bodźca, nie większa dawka). Ciężary porównujemy od nowa.",
     ],
-    progress: review.youth
-      ? ["Mały krok wyżej", "Nowy plan: pełny blok z jednym tygodniem przeciążenia."]
-      : [
-          "Krok wyżej",
-          "Nowy plan: pełny blok z tygodniami przeciążenia. Dokładaj ciężar, gdy zrobisz wszystkie powtórzenia z zapasem.",
-        ],
+    progress: [
+      "Dalej według planu",
+      "Nowy plan: zwykły blok, bez zmiany dawki. Dawka rośnie tylko po potwierdzonych zapisach serii; sam upływ czasu jej nie zwiększa.",
+    ],
   };
   const [recommendationTitle, recommendationText] = copy[review.recommendation];
   return {

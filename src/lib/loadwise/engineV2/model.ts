@@ -102,6 +102,8 @@ export interface ExerciseDecision {
   reason: string;
 }
 export interface EngineSession {
+  /** Stable within a cycle: which equivalent eligible strength exercises were chosen (cycle recommendation "vary"). */
+  exerciseRotation?: number;
   gymFeedbackRevision?: string;
   strengthFocus?: import("./strengthPolicy").StrengthFocus;
   /** Noncompeting accessory pairs; distinct from a heavy strength/power contrast. */

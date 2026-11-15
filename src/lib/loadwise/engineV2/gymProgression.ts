@@ -6,6 +6,7 @@ import { dayDistance, plusDays, trainingTier, weekday } from "./model";
 import type { Dose, EngineOptions, EngineSession, ExerciseDecision } from "./model";
 import { gymPowerDose, strengthLandingCount } from "./gymPower";
 import { eligibleExercise, estimateSessionSeconds } from "./exercises";
+import { cycleStartEffect } from "./cycle";
 
 /** GP1 thresholds are conservative PRODUCT policy, not validated physiological cut-offs.
  * Evidence and limitations: docs/SILOWNIA-V28-PROGRESJA.md. */
@@ -83,6 +84,8 @@ export interface GymWeekContext {
   unknownExternalLoad: boolean;
   repeatedHard: boolean;
   phase: EngineSession["phase"];
+  /** Cycle recommendation "consistency"/"maintain": no positive progression in this cycle. */
+  cycleHold?: boolean;
 }
 interface Exposure {
   sessionId: string;
@@ -454,6 +457,7 @@ export function decideGymProgression(
   if (
     ctx.phase === "adaptation" ||
     ctx.phase === "peak" ||
+    ctx.cycleHold ||
     (ctx.date !== ctx.asOfDate && !input?.proposalOnly) ||
     ctx.unknownExternalLoad ||
     ctx.demandingDays7d >= GYM_PROGRESSION_POLICY.congestedDemandingDays ||
@@ -637,6 +641,7 @@ export function gymWeekContext(
     asOfDate,
     date,
     phase,
+    cycleHold: cycleStartEffect(options).hold,
     readiness: options.readiness?.[date],
     nearestMatchDays: Math.min(
       99,

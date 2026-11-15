@@ -1,6 +1,7 @@
 import {
   buildCycleReview,
   plannedOwnSessions,
+  plannedExternalSessions,
   strengthChanges,
   type CycleReview,
   type StrengthSetEntry,
@@ -194,6 +195,7 @@ export function buildPlanSummary(input: PlanSummaryInput): PlanSummary | null {
         startDate,
         endDate,
         planned: plannedOwnSessions(plan),
+        plannedExternal: plannedExternalSessions(plan),
         history: [...input.history],
         readiness: consent ? Object.values(input.readiness) : [],
         strengthSets: [...(input.strengthSets ?? [])],

@@ -92,8 +92,19 @@ export interface AdjustmentInput {
   readiness?: Record<string, Readiness>;
   minutesPerSession?: number;
   policy?: FeedbackPolicy;
-  /** True when plan modifications touch the horizon; their overlay is not rewritten here. */
+  /** Only the MAS-test proposal still blocks on any change in the window; feedback uses `modifiedDates`. */
   hasModificationsInWindow?: boolean;
+  /**
+   * Dates the athlete changed by hand. Those exact days are left as they are (never a source, a
+   * target or a credit); the rest of the horizon can still be adjusted.
+   */
+  modifiedDates?: ReadonlySet<string>;
+  /**
+   * True while any training write (session, set or gym record) is still waiting for the server or
+   * unresolved after a conflict/failure. A pending entry may be shown, but it can not authorise a
+   * changed plan, whichever source (club, match, gym) it came from.
+   */
+  hasUnconfirmedWrites?: boolean;
 }
 
 const slotsOf = (d: SessionDay) => [d, ...(d.secondSession ? [d.secondSession] : [])];
@@ -171,6 +182,8 @@ function collectEvents(
       // Only saved, completed execution counts. A future club or a start is not a load.
       if (!kind || !s.dbId || !completion?.completed || completion.status === "missed") continue;
       if (typeof completion.rpe !== "number") continue;
+      // writeVersion 0 is a local entry the server has not confirmed: visible, but not evidence.
+      if ((completion.writeVersion ?? 0) <= 0) continue;
       events.push({ session: s, completion, kind });
     }
   return events.sort((a, b) =>
@@ -185,7 +198,8 @@ function collectEvents(
 export function proposeFeedbackAdjustment(input: AdjustmentInput): AdjustmentProposal | null {
   const policy = input.policy ?? DEFAULT_FEEDBACK_POLICY;
   const { profile: p, todayIso } = input;
-  if (input.hasModificationsInWindow) return null;
+  if (input.hasUnconfirmedWrites) return null;
+  const modified = input.modifiedDates ?? new Set<string>();
   const upcoming = input.plan.filter((d) => d.date >= todayIso);
   if (!upcoming.length || upcoming[0].date !== todayIso) return null;
   const revision = trainingProfileRevision(p);
@@ -283,6 +297,7 @@ export function proposeFeedbackAdjustment(input: AdjustmentInput): AdjustmentPro
           .filter(
             (date) =>
               date !== source.date &&
+              !modified.has(date) &&
               date > lastDate &&
               date <= horizonEnd &&
               block(date) === block(source.date),
@@ -339,6 +354,7 @@ export function proposeFeedbackAdjustment(input: AdjustmentInput): AdjustmentPro
           (s) =>
             s.dbId &&
             demanding(s) &&
+            !modified.has(s.date) &&
             !s.executionProtected &&
             !executed(s, input.completions) &&
             s.date >= event.session.date &&
@@ -382,6 +398,7 @@ export function proposeFeedbackAdjustment(input: AdjustmentInput): AdjustmentPro
               (s.runningRecipe ?? s.engineV2.runningRecipe)?.method === "easy_continuous" &&
               !s.engineV2.highLower &&
               !s.executionProtected &&
+              !modified.has(s.date) &&
               !executed(s, input.completions) &&
               !(s.feedbackAdjustments?.length ?? 0) &&
               s.date >= todayIso &&

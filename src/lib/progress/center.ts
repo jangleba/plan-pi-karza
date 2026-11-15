@@ -1,5 +1,6 @@
 import { addIsoDays } from "@/lib/isoDate";
 import type { Profile, SessionDay, SessionCompletion } from "@/lib/loadwise/types";
+import { isValidMatchMinutes } from "@/lib/loadwise/sessionFeedback";
 import { categoryOf, uniqueTrainingHistory, validProgressDate } from "@/lib/progress/progress";
 import type {
   CompletedSessionEntry,
@@ -25,6 +26,8 @@ export interface MicrocycleReport {
   completedCount: number;
   executionPct: number | null;
   totalMinutes: number;
+  /** Minutes actually played in matches; separate from whole-session time. */
+  matchMinutesPlayed: number;
   avgRpe: number | null;
   byCategory: Record<TrainingCategoryKey, number>;
   nextWeekDirection: string;
@@ -105,6 +108,13 @@ export function buildMicrocycle(
   const executionPct =
     plannedCount > 0 ? Math.min(100, Math.round((completedCount / plannedCount) * 100)) : null;
   const totalMinutes = recentHistory.reduce((sum, item) => sum + item.durationMin, 0);
+  const matchMinutesPlayed = recentHistory.reduce(
+    (sum, item) =>
+      item.category === "match" && isValidMatchMinutes(item.matchMinutesPlayed)
+        ? sum + item.matchMinutesPlayed
+        : sum,
+    0,
+  );
 
   let nextWeekDirection: string;
   if (plannedCount === 0) {
@@ -134,6 +144,7 @@ export function buildMicrocycle(
     completedCount,
     executionPct,
     totalMinutes,
+    matchMinutesPlayed,
     avgRpe,
     byCategory,
     nextWeekDirection,
@@ -188,8 +199,10 @@ export function buildDirection(
     loadSignal:
       micro.loggedCount > 0
         ? `${micro.totalMinutes} min pracy${
-            micro.avgRpe != null ? ` · średnie RPE ${micro.avgRpe.toFixed(1)}` : ""
-          }`
+            micro.matchMinutesPlayed > 0
+              ? ` (w tym ${micro.matchMinutesPlayed} min gry w meczu)`
+              : ""
+          }${micro.avgRpe != null ? ` · średnie RPE ${micro.avgRpe.toFixed(1)}` : ""}`
         : `Brak zapisanych jednostek w ostatnich ${micro.periodDays} dniach`,
     limiter,
     nextStep: micro.nextWeekDirection,

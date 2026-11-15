@@ -10,6 +10,7 @@ import { persistMonthlyPlan } from "../persist";
 import { guardedPlanWrite, trackPlanWrite } from "./planWriteGuard";
 import { resolveEffectivePlan } from "../effectivePlan";
 import { validateTrainingPlan } from "../engineV2/planner";
+import { gymPlanContext, type GymRecord } from "../gymEvidence";
 
 /** Server-confirmed MAS/progression updates future runs without a manual plan preview. */
 export function useRunningCalibration({
@@ -19,6 +20,7 @@ export function useRunningCalibration({
   getState,
   setState,
   todayIso,
+  gym,
 }: {
   ownerId?: string;
   ready: boolean;
@@ -26,6 +28,8 @@ export function useRunningCalibration({
   getState: () => LoadwiseState;
   setState: StateSetter;
   todayIso: string;
+  /** Gym evidence from the same source as every other rebuild; calibration waits until it is known. */
+  gym: { records: GymRecord[]; loading: boolean; available: boolean };
 }) {
   const flight = useRef<string | null>(null);
   const attempted = useRef<string | null>(null);
@@ -43,12 +47,16 @@ export function useRunningCalibration({
   useEffect(() => {
     const profile = state.profile;
     if (!ready || !ownerId || !profile || !state.activePlanId || navigator.onLine === false) return;
+    // Rebuilding without the gym decisions would undo them; wait for confirmed evidence.
+    if (gym.loading || !gym.available) return;
+    const gymContext = gymPlanContext(gym.records);
+    if (!gymContext.confirmed) return;
     const executionLease = JSON.stringify(
       Object.entries(state.completions)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([id, c]) => [id, c.status, c.completed, c.writeVersion ?? 0]),
     );
-    const key = `run-calibration:${ownerId}:${state.activePlanId}:${runningCalibrationKey(profile)}:${todayIso}:${executionLease}`;
+    const key = `run-calibration:${ownerId}:${state.activePlanId}:${runningCalibrationKey(profile)}:${todayIso}:${executionLease}:${JSON.stringify(gym.records.map((r) => [r.record_key, r.revision]))}`;
     if (flight.current || attempted.current === key) return;
     const plan = calibratePendingRunningPlan({
       profile,
@@ -56,6 +64,8 @@ export function useRunningCalibration({
       completions: state.completions,
       todayIso,
       readiness: profile.healthPersonalizationEnabled ? state.readiness : undefined,
+      gymProgression: gymContext.gymProgression,
+      strengthLoadResponses: gymContext.strengthLoadResponses,
       modifiedDates: new Set(
         Object.keys(state.modifications).filter((d) => state.modifications[d]?.length),
       ),
@@ -69,6 +79,8 @@ export function useRunningCalibration({
           startDate: plan[0].date,
           minutesPerSession: plan[0].engineTimeBudgetMin ?? 75,
           readiness: profile.healthPersonalizationEnabled ? state.readiness : undefined,
+          gymProgression: gymContext.gymProgression,
+          strengthLoadResponses: gymContext.strengthLoadResponses,
         },
       ).length
     )
@@ -126,5 +138,5 @@ export function useRunningCalibration({
         flight.current = null;
         if (rerun) retry((n) => n + 1);
       });
-  }, [ownerId, ready, state, todayIso, retryRevision]);
+  }, [ownerId, ready, state, todayIso, retryRevision, gym.records, gym.loading, gym.available]);
 }

@@ -5,7 +5,7 @@ import type { RunningRecipe } from "@/lib/running/recipe";
 import type { Profile, SessionDay } from "../types";
 import { trainingTier, type Dose, type EngineSession, type Issue } from "./model";
 import { FUNCTIONAL_CATALOGUE } from "./taxonomy";
-import { hasDeclaredFootball, hasDeclaredWall, requiresDeclaredWall } from "./support";
+import { sessionRequirementIssue } from "./placeRequirements";
 import { coachedPrimerEligible, coachedPrimerDose, clusterEligible } from "./strengthProtocols";
 import { hasCurrentVerifiedMas } from "./endurance";
 import { hasVerifiedAdvancedStrength } from "./preparation";
@@ -583,20 +583,7 @@ export function validateEngineSession(
       !isExerciseAllowedForProfile(definition, athlete).ok
     )
       fail("INELIGIBLE_EXERCISE", `Ćwiczenie nie przechodzi wymagań: ${exercise.exerciseId}.`);
-    if (
-      definition &&
-      (definition.minParticipants > 1 ||
-        definition.requiresPartner ||
-        (definition.requiresBall && !hasDeclaredFootball(profile)) ||
-        (requiresDeclaredWall(definition.id) && !hasDeclaredWall(profile)) ||
-        (/^football_gk_/.test(definition.id) && profile.position !== "goalkeeper") ||
-        (definition.spaceRequirement === "pitch" && !profile.hasPitch) ||
-        (definition.spaceRequirement === "open_field" &&
-          !profile.hasPitch &&
-          !(exercise.role === "warmup" && profile.hasSprintSpace)) ||
-        (definition.spaceRequirement === "sprint_lane" && !profile.hasSprintSpace) ||
-        (definition.spaceRequirement === "indoor_gym" && !profile.hasGym))
-    )
+    if (definition && sessionRequirementIssue(definition, profile, exercise.role))
       fail(
         "MISSING_SESSION_REQUIREMENT",
         `Brak wymaganego partnera, piłki lub miejsca: ${exercise.exerciseId}.`,

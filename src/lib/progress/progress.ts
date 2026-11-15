@@ -113,7 +113,10 @@ export function buildTrainingHistory(
       title: session.title,
       category,
       durationMin: completion.durationMin ?? session.durationMin ?? 0,
-      durationEstimated: completion.durationMin == null,
+      durationEstimated:
+        completion.durationMin == null || completion.durationSource === "club_default",
+      durationSource: completion.durationSource ?? undefined,
+      matchMinutesPlayed: completion.matchMinutesPlayed ?? null,
       rpe: completion.rpe,
       notes: completion.notes ?? "",
     });
@@ -139,8 +142,13 @@ export function mergeTrainingHistory(
           ...item,
           rpe: log.rpe,
           notes: log.notes,
+          matchMinutesPlayed: log.matchMinutesPlayed ?? item.matchMinutesPlayed ?? null,
+          durationSource: log.durationSource ?? item.durationSource,
           ...(log.durationMin != null
-            ? { durationMin: log.durationMin, durationEstimated: false }
+            ? {
+                durationMin: log.durationMin,
+                durationEstimated: log.durationSource === "club_default",
+              }
             : {}),
         },
       ];

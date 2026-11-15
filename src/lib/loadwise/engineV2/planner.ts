@@ -1,5 +1,5 @@
 import { sprintChronology, fitSprintToBudget } from "./sprintRecipe";
-import { attachCycle, cycleForWeek } from "./cycle";
+import { attachCycle, cycleForWeek, cycleStartEffect } from "./cycle";
 import { scheduledMatchDates } from "../matchSchedule";
 import { trainingProfileRevision, trainingSetupRevision } from "../planIdentity";
 import { hydrateTrainingExerciseFromDefinition, getExerciseDefinition } from "../exerciseLibrary";
@@ -597,17 +597,19 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
       return kept;
     });
     const policy = resolveGoalPolicy(p);
+    // "vary" chooses other equivalent strength exercises; the rotation is constant for the whole cycle.
+    const rotation = cycleStartEffect(options).rotate ? 1 : 0;
     // The mobility goal makes the mobility session a weekly task of its own (second slot);
     // strength B is then tried afterwards as a supplement, not placed instead of mobility.
     const mobilityRecipe = policy.primary === "mobility" ? buildMobility(p, phase) : null;
     const strengthB = () =>
       fitStrengthToBudget(
-        buildStrength(routedProfile(p, policy.strengthGoal), "B", phase),
+        buildStrength(routedProfile(p, policy.strengthGoal), "B", phase, rotation),
         options.minutesPerSession ?? 75,
       );
     const tasks = [
       fitStrengthToBudget(
-        buildStrength(routedProfile(p, policy.strengthGoal), "A", phase),
+        buildStrength(routedProfile(p, policy.strengthGoal), "A", phase, rotation),
         options.minutesPerSession ?? 75,
       ),
       mobilityRecipe ?? strengthB(),
@@ -977,7 +979,12 @@ export function refreshStrengthSession(
   const old = session.engineV2;
   if (!old || !old.roles.some((r) => r === "strengthA" || r === "strengthB")) return null;
   const cycle = cycleForWeek(p, options, session.date);
-  let recipe = buildStrength(p, old.roles.includes("strengthA") ? "A" : "B", cycle.phase);
+  let recipe = buildStrength(
+    p,
+    old.roles.includes("strengthA") ? "A" : "B",
+    cycle.phase,
+    cycleStartEffect(options).rotate ? 1 : 0,
+  );
   if (old.variant === "compact")
     recipe = fitStrengthToBudget(
       recipe,
@@ -1020,7 +1027,12 @@ export function lighterRecipes(
   let reduced: EngineSession | null = null;
   if (strength)
     reduced = fitStrengthToBudget(
-      buildStrength(light, r.roles.includes("strengthA") ? "A" : "B", r.phase),
+      buildStrength(
+        light,
+        r.roles.includes("strengthA") ? "A" : "B",
+        r.phase,
+        r.exerciseRotation ?? 0,
+      ),
       minutesPerSession,
     );
   else if (r.roles.includes("speed"))

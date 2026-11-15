@@ -80,6 +80,10 @@ export async function loadSessionHistory(
             : 0,
       durationEstimated:
         typeof log.duration_minutes !== "number" || log.duration_source === "club_default",
+      durationSource:
+        log.duration_source === "club_default" || log.duration_source === "user" || log.duration_source === "measured"
+          ? log.duration_source
+          : undefined,
       matchMinutesPlayed:
         typeof log.match_minutes_played === "number" ? log.match_minutes_played : null,
       rpe: typeof log.rpe === "number" ? log.rpe : null,

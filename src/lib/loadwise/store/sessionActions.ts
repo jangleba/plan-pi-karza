@@ -342,6 +342,7 @@ export function createSessionActions(
           durationMin: completion.durationMin ?? 0,
           durationEstimated:
             completion.durationMin == null || completion.durationSource === "club_default",
+          durationSource: completion.durationSource ?? undefined,
           matchMinutesPlayed: completion.matchMinutesPlayed ?? null,
           rpe: completion.rpe,
           notes: completion.notes,

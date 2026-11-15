@@ -1,4 +1,4 @@
-import type { ActivityTag, DurationSource, SessionCompletion } from "./types";
+import type { ActivityTag, DurationSource, SessionCompletion, SessionHistoryRecord } from "./types";
 
 /** Wersja formularza feedbacku po sesji (RPE 1–10, tagi, minuty meczu). */
 export const FEEDBACK_VERSION = 1;
@@ -54,10 +54,7 @@ export function hasRunningWork(source: TagSource): boolean {
 
 export function isValidMatchMinutes(value: unknown): value is number {
   return (
-    typeof value === "number" &&
-    Number.isInteger(value) &&
-    value >= 0 &&
-    value <= MATCH_MINUTES_MAX
+    typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= MATCH_MINUTES_MAX
   );
 }
 
@@ -122,4 +119,36 @@ export function clubDuration(
       durationSource: existing.durationSource ?? "user",
     };
   return { durationMin: CLUB_DEFAULT_MINUTES, durationSource: "club_default" };
+}
+
+/**
+ * The same load rule for a history row as for a completion (Progress, plan summary, adaptation):
+ *  - a match counts the minutes actually played (0 is a known value, not missing data);
+ *  - other sessions count their own recorded time; a club's 90 min is an explicit assumption;
+ *  - a row without RPE, or without any usable time, has no load (null), never a silent 0.
+ * Minutes played, whole-session time and assumed time stay separate (`basis`, `minutesAssumed`).
+ */
+export function historyLoad(
+  row: Pick<
+    SessionHistoryRecord,
+    | "category"
+    | "rpe"
+    | "durationMin"
+    | "durationEstimated"
+    | "durationSource"
+    | "matchMinutesPlayed"
+  >,
+): EstimatedLoad {
+  const assumed = row.durationSource === "club_default";
+  return estimatedSessionLoad(
+    {
+      completed: true,
+      rpe: row.rpe,
+      // Time that was only estimated (no recorded duration) is no evidence; the club assumption is.
+      durationMin: row.durationEstimated && !assumed ? null : row.durationMin,
+      durationSource: row.durationSource,
+      matchMinutesPlayed: row.matchMinutesPlayed ?? null,
+    },
+    row.category === "match" ? "match" : undefined,
+  );
 }
