@@ -19,6 +19,7 @@ import {
   gymHamstringSupportDose,
 } from "./gymPower";
 import { GYM_EXERCISE_RULES } from "../gymStrengthExercises";
+import { gymDoseWithinBounds } from "./gymProgression";
 import { parseRestDuration } from "../restTimer";
 
 const TARGETS = new Set([
@@ -271,6 +272,58 @@ export function validateEngineSession(
     return issues;
   }
   const strength = recipe.roles.some((role) => role.startsWith("strength"));
+  const pairLabels = new Set<string>();
+  for (const pair of recipe.strengthPairs ?? []) {
+    const allowed = [
+      ["push", "pull"],
+      ["pull", "push"],
+      ["trunk", "adductor"],
+      ["adductor", "trunk"],
+    ];
+    const rows = pair.roles?.map((role) => recipe.exercises.filter((e) => e.role === role));
+    const upper = pair.roles?.includes("push");
+    if (
+      !strength ||
+      !allowed.some((roles) => stableJson(roles) === stableJson(pair.roles)) ||
+      !["B", "C"].includes(pair.label) ||
+      pairLabels.has(pair.label) ||
+      pair.transitionSeconds !== 30 ||
+      pair.roundRestSeconds !== (upper ? 90 : 60) ||
+      !rows ||
+      rows.some((group) => group.length !== 1) ||
+      rows[0]?.[0]?.dose.sets !== rows[1]?.[0]?.dose.sets ||
+      rows[0]?.[0]?.dose.restSeconds !== pair.transitionSeconds ||
+      rows[1]?.[0]?.dose.restSeconds !== pair.roundRestSeconds
+    ) {
+      fail(
+        "STRENGTH_PAIR_DOSE",
+        "Superseria wymaga dwóch różnych zgodnych zadań uzupełniających, równych rund i zapisanych przerw.",
+      );
+      continue;
+    }
+    pairLabels.add(pair.label);
+    const blocks =
+      session.structuredSections
+        ?.flatMap((s) => s.blocks)
+        .filter((b) => b.exercises.some((e) => e.label === `${pair.label}1`)) ?? [];
+    if (
+      blocks.length !== 1 ||
+      blocks[0].blockType !== "superset" ||
+      blocks[0].executionProtocol !== "superset-rounds-v1" ||
+      blocks[0].exercises.length !== 2 ||
+      blocks[0].exercises.some(
+        (e, i) =>
+          e.exerciseId !== rows[i][0].exerciseId ||
+          e.label !== `${pair.label}${i + 1}` ||
+          parseRestDuration(e.restAfterExercise ?? "") !== rows[i][0].dose.restSeconds,
+      ) ||
+      parseRestDuration(blocks[0].exercises[1].restAfterPair ?? "") !== pair.roundRestSeconds
+    )
+      fail(
+        "STRENGTH_PAIR_RENDER",
+        "Widok i wykonanie nie zachowują zapisanej superserii i jej przerw.",
+      );
+  }
   if (!strength && recipe.exercises.some((e) => e.role === "iso_primer"))
     fail(
       "ISOMETRIC_PRIMER_ORDER",
@@ -362,6 +415,19 @@ export function validateEngineSession(
     const d = exercise.dose as NumericDose;
     const definition = getExerciseDefinition(exercise.exerciseId);
     if (GYM_EXERCISE_RULES[exercise.exerciseId]) {
+      if (
+        !gymDoseWithinBounds(
+          exercise.exerciseId,
+          exercise.dose,
+          profile,
+          recipe.phase,
+          session.date,
+        )
+      )
+        fail(
+          "GYM_PROGRESSION_BOUNDS",
+          "Dawka lub zmierzone ustawienie gumy przekracza zakres reguł progresji.",
+        );
       const expectedRole =
         exercise.exerciseId === "gym_step_brake"
           ? "landing"

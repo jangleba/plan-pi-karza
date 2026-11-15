@@ -28,6 +28,8 @@ export type Role =
   | "ball_skill";
 export type SupportRole = "activation" | "recovery" | "mobility" | "skills";
 export interface Dose {
+  /** Measured setup identity; never a colour-derived or estimated band load. */
+  gymBandSetup?: import("./gymProgression").GymBandSetup;
   sequence?: { distanceM: number; runOutM: number; instruction: string }[];
   sequenceStep?: { round: number; rounds: number; attempt: number; attempts: number };
   speedStage?:
@@ -99,6 +101,14 @@ export interface ExerciseDecision {
   reason: string;
 }
 export interface EngineSession {
+  /** Noncompeting accessory pairs; distinct from a heavy strength/power contrast. */
+  strengthPairs?: {
+    roles: [Role, Role];
+    label: string;
+    transitionSeconds: number;
+    roundRestSeconds: number;
+  }[];
+  gymProgressionDecisions?: import("./gymProgression").GymProgressionDecision[];
   runningCalibrationKey?: string;
   sprintRecipeVersion?: 1;
   sprintGoal?: SprintGoal;
@@ -133,6 +143,9 @@ export interface Issue {
   target?: "strengthA" | "strengthB" | "speed" | "endurance" | "mobility";
 }
 export interface EngineOptions {
+  /** Optional observations from real execution, scoped to the current athlete.
+   * Legacy completions/timers alone never imply movement quality. */
+  gymProgression?: import("./gymProgression").GymProgressionInput;
   /**
    * Recommendation from the review of the cycle that just ended. It is decided before the plan is
    * generated and shapes its first weeks; when absent it is read from the saved plan's own record.

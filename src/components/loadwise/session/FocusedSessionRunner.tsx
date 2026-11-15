@@ -638,7 +638,9 @@ export function FocusedSessionRunner({
               />
             </article>
           ) : step.kind === "linked" &&
-            step.rows[0].block.executionProtocol === "contrast-rounds-v1" ? (
+            ["contrast-rounds-v1", "superset-rounds-v1"].includes(
+              step.rows[0].block.executionProtocol ?? "",
+            ) ? (
             <ContrastRounds
               step={step}
               scope={scope}

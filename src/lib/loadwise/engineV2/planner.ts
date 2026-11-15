@@ -19,6 +19,8 @@ import { resolveGoalPolicy, routedProfile, mainGoalTasks } from "./goalPolicy";
 import { hasReadinessStop } from "./planStatus";
 import { preparationProfile, hasVerifiedAdvancedStrength } from "./preparation";
 import { recipeTotalSeconds } from "@/lib/running/recipe";
+import { applyGymProgression } from "./gymProgression";
+import { renderStrengthPairs } from "./strengthPairs";
 
 const names = ["Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota"];
 const slots = (d: SessionDay) => [d, ...(d.secondSession ? [d.secondSession] : [])];
@@ -225,6 +227,7 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
   }
   const priority = { warmup: 0, prep: 1, main: 2, accessory: 3, cooldown: 4, log: 5 };
   sections.sort((a, b) => priority[a.type] - priority[b.type]);
+  renderStrengthPairs(sections, recipe);
   if (recipe.organization === "contrast") {
     const main = sections.find((s) => s.type === "main");
     const primary = main?.blocks.find((b) =>
@@ -375,6 +378,7 @@ function place(
   forceEnduranceLight = false,
 ): PlacementAttempt<SessionDay[]> {
   const current = days[index];
+  recipe = applyGymProgression(recipe, p, current.date, options, [...preceding, ...days]);
   const distance = Math.min(99, ...[...matches].map((m) => Math.abs(dayDistance(current.date, m))));
   // Resolve measured running pace against the actual candidate date, including test expiry.
   // A prepared MAS test keeps its own recipe; only calm runs are re-resolved for the date.

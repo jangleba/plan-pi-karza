@@ -80,7 +80,7 @@ describe("V2.5 coherent sessions, cycle and feedback", () => {
       );
       expect(short.exercises.some((e) => e.role === "push" || e.role === "pull")).toBe(true);
       for (const e of short.exercises)
-        expect(e.dose.restSeconds).toBe(
+        expect(e.dose.restSeconds).toBeGreaterThanOrEqual(
           full.exercises.find((a) => a.exerciseId === e.exerciseId)!.dose.restSeconds,
         );
     }
