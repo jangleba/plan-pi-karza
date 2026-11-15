@@ -41,6 +41,11 @@ const player: Profile = {
   hasGym: true,
   hasPitch: false,
   hasSprintSpace: false,
+  // Specialist jump/band work requires a declared qualification (exercise library bar).
+  gymExperienceLevel: "advanced",
+  strengthTrainingMonths: 24,
+  movementCompetence: "high",
+  supervisionLevel: "full",
 };
 const ready: Readiness = {
   date: "2026-11-15",

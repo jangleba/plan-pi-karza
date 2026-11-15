@@ -21,6 +21,7 @@ import {
   accountSetupIsAllowed,
   ageOnDate,
   birthDateForApproximateAge,
+  onboardingMinimumAge,
   policyForAge,
   type AccountOwnerType,
 } from "@/lib/loadwise/agePolicy";
@@ -290,6 +291,8 @@ function Onboarding() {
   const requiredConsentsOk = CONSENTS.filter((c) => c.required).every((c) => consents[c.type]);
 
   const ageNum = birthDate ? ageOnDate(birthDate) : null;
+  // New accounts start at 16; an account that already completed onboarding keeps the old floor.
+  const minimumAge = onboardingMinimumAge(existing?.onboardingComplete === true);
   const agePolicy = ageNum == null ? null : policyForAge(ageNum);
   const guardianEmailVerified = Boolean(user?.email_confirmed_at);
   const guardianDeclarationAccepted = accountOwnerType === "guardian" && consent;
@@ -337,7 +340,7 @@ function Onboarding() {
           answers.level !== null &&
           answers.competitionLevel !== null &&
           ageNum != null &&
-          ageNum >= 13 &&
+          ageNum >= minimumAge &&
           ageNum <= 80 &&
           (!agePolicy?.guardianMustOwnAccount || accountOwnerType === "guardian")
         );
@@ -385,7 +388,7 @@ function Onboarding() {
   }, [stepId]);
 
   function buildProfile(): Profile | null {
-    if (ageNum == null || ageNum < 13) return null;
+    if (ageNum == null || ageNum < minimumAge) return null;
     let training;
     try {
       training = trainingFieldsFromAnswers(answers, existing, today);
@@ -602,7 +605,11 @@ function Onboarding() {
           <>
             <StepTitle
               title="Zawodnik"
-              sub="Wiek ustala bezpieczne obciążenia i progi 13, 16 i 18 lat."
+              sub={
+                minimumAge >= 16
+                  ? "BallWise jest dla zawodników od 16 lat. Wiek ustala bezpieczne obciążenia."
+                  : "Wiek ustala bezpieczne obciążenia i progi 13, 16 i 18 lat."
+              }
               sketch="play"
             />
             <Group icon={UserRound} label="Dane">
@@ -622,14 +629,14 @@ function Onboarding() {
                 <Field
                   label="Data urodzenia"
                   htmlFor="birth-date"
-                  detail={ageNum != null && ageNum >= 13 ? `${ageNum} lat` : undefined}
+                  detail={ageNum != null && ageNum >= minimumAge ? `${ageNum} lat` : undefined}
                 >
                   <input
                     id="birth-date"
                     type="date"
                     className="ob-input"
                     min={birthDateForApproximateAge(80)}
-                    max={birthDateForApproximateAge(13)}
+                    max={birthDateForApproximateAge(minimumAge)}
                     value={birthDate}
                     onChange={(e) => setBirthDate(e.target.value)}
                   />
@@ -653,10 +660,11 @@ function Onboarding() {
                 </Field>
               </div>
             </Group>
-            {birthDate !== "" && (ageNum == null || ageNum < 13) && (
+            {birthDate !== "" && (ageNum == null || ageNum < minimumAge) && (
               <p className="ob-warn">
-                Konto jest dostępne od 13 lat. Młodszy zawodnik może użyć tylko demo bez zapisu
-                danych.
+                {minimumAge >= 16
+                  ? "BallWise jest dostępny od 16 lat. Młodszy zawodnik może użyć tylko demo bez zapisu danych."
+                  : "Konto jest dostępne od 13 lat. Młodszy zawodnik może użyć tylko demo bez zapisu danych."}
               </p>
             )}
             {agePolicy?.guardianMustOwnAccount && accountOwnerType !== "guardian" && (

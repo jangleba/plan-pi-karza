@@ -66,8 +66,12 @@ describe("complete A/B sessions with accessory pairs", () => {
       "development",
     );
     expect(recipe.tier).toBe("foundation");
-    expect(recipe.strengthPairs).toBeUndefined();
     expect(recipe.organization).not.toBe("contrast");
+    // A beginner gets one moderate upper-body pair at the end, never extra lower-body volume.
+    const upper = recipe.exercises.filter((e) => ["push", "pull"].includes(e.role));
+    expect(upper).toHaveLength(2);
+    for (const e of upper) expect(e.dose).toMatchObject({ sets: 2, reps: 10, rir: 3 });
+    expect(recipe.exercises.slice(-2).every((e) => ["push", "pull"].includes(e.role))).toBe(true);
   });
   it.each(["A", "B"] as const)("does not fill deload %s with new accessories", (variant) => {
     const recipe = buildStrength(player, variant, "deload");
@@ -99,16 +103,16 @@ describe("complete A/B sessions with accessory pairs", () => {
         (step) => step.kind === "linked",
       );
       expect(linked).toHaveLength(2);
+      // Under 18 the upper-body pair closes the session, so C1/C2 comes before B1/B2.
       expect(linked.map((step) => step.rows.map((r) => r.exercise.label))).toEqual([
-        ["B1", "B2"],
         ["C1", "C2"],
+        ["B1", "B2"],
       ]);
       for (const step of linked) {
         expect(step.rows[0].block.executionProtocol).toBe("superset-rounds-v1");
         expect(restSecondsAfter(step.rows[0].block, step.rows[0].exercise, true, true)).toBe(30);
-        expect(restSecondsAfter(step.rows[1].block, step.rows[1].exercise, true, false)).toBe(
-          step.rows[0].exercise.label?.startsWith("B") ? 90 : 60,
-        );
+        // 180 s after each round of a pair (product decision, both pairs).
+        expect(restSecondsAfter(step.rows[1].block, step.rows[1].exercise, true, false)).toBe(180);
       }
     }
   });

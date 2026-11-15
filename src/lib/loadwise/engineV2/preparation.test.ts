@@ -63,12 +63,9 @@ describe("preparation grounded in existing onboarding", () => {
   it.each<Partial<Profile>>([
     { gymExperienceLevel: "none" },
     { gymExperienceLevel: "beginner", strengthTrainingMonths: 36, movementCompetence: "high" },
-    { gymExperienceLevel: "advanced" },
     { strengthTrainingMonths: 0 },
-    { strengthTrainingMonths: NaN },
     { movementCompetence: "low" },
-    { supervisionLevel: "none" },
-  ])("lets explicit or incomplete strength settings override the generic level: %j", (patch) => {
+  ])("lets a declared limitation override the generic level: %j", (patch) => {
     const p = { ...athlete, level: "elite" as const, ...patch };
     expect(preparationProfile(p)).toEqual({
       tier: "foundation",
@@ -77,6 +74,25 @@ describe("preparation grounded in existing onboarding", () => {
     });
     expect(hasVerifiedAdvancedStrength(p)).toBe(false);
   });
+  it.each<Partial<Profile>>([
+    { gymExperienceLevel: "advanced" },
+    { strengthTrainingMonths: NaN },
+    { supervisionLevel: "none" },
+  ])(
+    "16+: an incomplete answer does not lower the athlete below the football level: %j",
+    (patch) => {
+      const p = { ...athlete, level: "elite" as const, ...patch };
+      expect(preparationProfile(p)).toEqual({
+        tier: "performance",
+        source: "explicit_strength",
+        provisional: true,
+      });
+      // Advanced methods still need the full declaration.
+      expect(hasVerifiedAdvancedStrength(p)).toBe(false);
+      // Under 16 (existing accounts only) the cautious rule stays.
+      expect(preparationProfile({ ...p, age: 15 }).tier).toBe("foundation");
+    },
+  );
   it("retains real intermediate and advanced strength classifications", () => {
     const intermediate: Profile = {
       ...athlete,
@@ -91,6 +107,8 @@ describe("preparation grounded in existing onboarding", () => {
       gymExperienceLevel: "advanced",
       strengthTrainingMonths: 24,
       movementCompetence: "high",
+      // A complete declaration (including supervision) is required for verified advanced strength.
+      supervisionLevel: "some",
     };
     expect(preparationProfile(advanced).tier).toBe("performance");
     expect(hasVerifiedAdvancedStrength(advanced)).toBe(true);

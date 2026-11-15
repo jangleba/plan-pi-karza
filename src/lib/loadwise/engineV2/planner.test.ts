@@ -1,3 +1,4 @@
+import { hasVerifiedAdvancedStrength } from "./preparation";
 import { describe, expect, it } from "vitest";
 import { generateTrainingPlan, validateTrainingPlan } from "./planner";
 import { buildStrength, buildRunning, CANDIDATES } from "./exercises";
@@ -101,16 +102,18 @@ describe("V2 final training contracts", () => {
     expect(() => assertPlanExerciseContract(r.plan)).not.toThrow();
     expect(r.plan).toHaveLength(28);
   });
-  it("does not infer gym preparation from elite football level", () => {
-    expect(
-      trainingTier({
-        ...athlete,
-        level: "elite",
-        gymExperienceLevel: undefined,
-        strengthTrainingMonths: undefined,
-        movementCompetence: undefined,
-      }),
-    ).toBe("foundation");
+  it("16+ elite without strength answers keeps the football level for volume, never advanced methods", () => {
+    const undeclared = {
+      ...athlete,
+      level: "elite" as const,
+      gymExperienceLevel: undefined,
+      strengthTrainingMonths: undefined,
+      movementCompetence: undefined,
+    };
+    expect(trainingTier(undeclared)).toBe("performance");
+    expect(hasVerifiedAdvancedStrength(undeclared)).toBe(false);
+    // A declared limitation still wins over the football level.
+    expect(trainingTier({ ...undeclared, movementCompetence: "low" })).toBe("foundation");
   });
   it("keeps hamstring knee flexion, hip extension and isometric tasks distinct", () => {
     expect(CANDIDATES.knee_flexion).not.toContain("romanian_deadlift_db");

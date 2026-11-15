@@ -12,7 +12,7 @@ import { OWN_EQUIPMENT_OPTIONS } from "../equipmentOptions";
 import { normalizeMethodPreferences } from "../methods/preferences";
 import type { Profile, TrainingExercise } from "../types";
 
-// Existing onboarding only: no lifting-technique interview or coach declaration.
+// Declared qualification for specialist work (see the unqualified case below).
 const player: Profile = {
   name: "Gym athlete",
   age: 20,
@@ -37,6 +37,11 @@ const player: Profile = {
   hasGym: true,
   hasPitch: false,
   hasSprintSpace: false,
+  // Specialist jump/band work requires a declared qualification (exercise library bar).
+  gymExperienceLevel: "advanced",
+  strengthTrainingMonths: 24,
+  movementCompetence: "high",
+  supervisionLevel: "full",
 };
 const power = (
   p = player,
@@ -45,14 +50,34 @@ const power = (
 ) => buildStrength(p, variant, phase).exercises.find((row) => row.role === "power");
 
 describe("gym power inside existing A/B sessions", () => {
-  it("uses different band directions according to the existing goal, without a coach or interview", () => {
+  it("uses different band directions according to the existing goal for a declared, supervised athlete", () => {
     expect(power()?.exerciseId).toBe("gym_cmj_resisted");
     expect(power({ ...player, goal: "speed" })?.exerciseId).toBe("gym_cmj_assisted");
     expect(power(player, "A", "peak")?.exerciseId).toBe("gym_cmj_assisted");
     const a = buildAthleteTrainingProfile(player);
-    expect(a.supervisionLevel).toBe("none");
+    expect(a.supervisionLevel).toBe("full");
     for (const id of ["gym_cmj_assisted", "gym_cmj_resisted", "gym_fast_band_curl"])
       expect(isExerciseAllowedForProfile(id, a), id).toEqual({ ok: true, reasons: [] });
+  });
+  it("16+ advanced by default never assumes a coach: specialist band work needs the declaration", () => {
+    const undeclared = {
+      ...player,
+      gymExperienceLevel: undefined,
+      strengthTrainingMonths: undefined,
+      movementCompetence: undefined,
+      supervisionLevel: undefined,
+    } as Profile;
+    expect(power(undeclared)?.exerciseId).toBe("gym_cmj");
+    const a = buildAthleteTrainingProfile(undeclared);
+    // Advanced 16+ without answers: regular gym training and basic movement control are assumed…
+    expect(a.gymExperienceLevel).toBe("intermediate");
+    expect(a.movementCompetenceLevel).toBe("medium");
+    // …but never a coach or high technique.
+    expect(a.supervisionLevel).toBe("none");
+    for (const id of ["gym_cmj_assisted", "gym_cmj_resisted", "gym_fast_band_curl"])
+      expect(isExerciseAllowedForProfile(id, a).ok, id).toBe(false);
+    // An explicit "trenuję sam" also keeps the specialist variants away.
+    expect(power({ ...player, supervisionLevel: "none" })?.exerciseId).toBe("gym_cmj");
   });
   it("does not infer band anchors or a jumping lane from generic gym access", () => {
     const plain = { ...player, equipment: [] };
