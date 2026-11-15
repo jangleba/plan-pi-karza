@@ -114,6 +114,34 @@ Object.assign(window, {
     }).label,
   },
 });
+// "day": the day model and match plan from a planned match 3 h ahead, body mass shared, one allergy.
+const kickoff = new Date(now + 3 * 3600_000);
+const matchSession = sessionFixture({
+  dbId: "qa-match",
+  date,
+  dayType: "match",
+  title: "Mecz ligowy",
+  durationMin: 0,
+  scheduledStartTime: `${String(kickoff.getHours()).padStart(2, "0")}:${String(kickoff.getMinutes()).padStart(2, "0")}`,
+});
+const day =
+  mode === "day"
+    ? {
+        plan: [matchSession],
+        completions: {},
+        age: 20,
+        weightKg: 70,
+        healthConsent: true,
+        foodSafety: {
+          status: "has_allergies" as const,
+          allergies: ["orzechy"],
+          intolerances: [],
+          exclusions: [],
+        },
+        onSaveFoodSafety: async () => {},
+        onSaveWeight: async () => {},
+      }
+    : null;
 function FuelView() {
   return (
     <>
@@ -124,6 +152,7 @@ function FuelView() {
           mode === "completed" ? { ...context, completed: true, endedAt: now - 60_000 } : context,
         ]}
         tomorrowContext={future}
+        day={day}
       />
     </>
   );

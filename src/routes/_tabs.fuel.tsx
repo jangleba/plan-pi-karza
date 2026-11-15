@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { FuelWorkspace } from "@/components/fuel/FuelWorkspace";
 import { planFuelContexts } from "@/lib/fuel/experience";
-import { legacyDislikedFoodIds } from "@/lib/fuel/practical";
+import type { FuelDaySource } from "@/components/fuel/FuelWorkspace";
 import { useAuth } from "@/lib/loadwise/auth";
 import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
 import { useLoadwise } from "@/lib/loadwise/store";
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_tabs/fuel")({
 });
 function FuelScreen() {
   const { user } = useAuth();
-  const { state, todayIso } = useLoadwise();
+  const { state, todayIso, saveFoodSafety, saveFuelPrecision } = useLoadwise();
   const effectivePlan = useMemo(
     () =>
       selectEffectivePlan(state.plan, state.modifications, {
@@ -45,14 +45,45 @@ function FuelScreen() {
     planFuelContexts(effectivePlan, tomorrowIso, state.completions).find(
       (c) => c.kind === "match",
     ) ?? null;
-  const legacyDislikes = useMemo(() => legacyDislikedFoodIds(state.profile), [state.profile]);
+  const profile = state.profile;
+  // Allergies and intolerances come from the profile (health-data consent); exclusions are
+  // preferences. They stay separate lists and are no longer copied into local dislikes.
+  const day = useMemo<FuelDaySource | null>(
+    () =>
+      profile
+        ? {
+            plan: effectivePlan,
+            completions: state.completions,
+            age: profile.age,
+            weightKg:
+              profile.fuelPrecisionEnabled && profile.age >= 16 ? (profile.weightKg ?? null) : null,
+            healthConsent: profile.healthPersonalizationEnabled === true,
+            foodSafety: {
+              status:
+                profile.healthPersonalizationEnabled === true
+                  ? (profile.fuelAllergyStatus ?? "unconfirmed")
+                  : "unconfirmed",
+              allergies:
+                profile.healthPersonalizationEnabled === true ? (profile.foodAllergies ?? []) : [],
+              intolerances:
+                profile.healthPersonalizationEnabled === true
+                  ? (profile.foodIntolerances ?? [])
+                  : [],
+              exclusions: profile.foodExclusions ?? [],
+            },
+            onSaveFoodSafety: saveFoodSafety,
+            onSaveWeight: profile.age >= 16 ? (kg) => saveFuelPrecision(true, kg) : undefined,
+          }
+        : null,
+    [profile, effectivePlan, state.completions, saveFoodSafety, saveFuelPrecision],
+  );
   return (
     <FuelWorkspace
       key={user?.id ?? "guest"}
       userId={user?.id ?? "guest"}
       contexts={contexts}
       tomorrowContext={tomorrowContext}
-      legacyDislikedFoodIds={legacyDislikes}
+      day={day}
     />
   );
 }

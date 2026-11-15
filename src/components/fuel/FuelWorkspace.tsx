@@ -17,6 +17,11 @@ import { FuelNextSteps } from "./FuelNextSteps";
 import { FuelFitSheet, type FuelFitOption } from "./FuelFitSheet";
 import { FuelPanels, downloadFuelFile, type FuelPanelName } from "./FuelPanels";
 import { StoreCheckSheet } from "./StoreCheckSheet";
+import { FuelDayDetails, FuelMatchPlan, FuelQuestions, type FuelQuestion } from "./FuelDayCard";
+import { FoodSafetySheet } from "./FoodSafetySheet";
+import { fuelDayTargets, fuelTargetInputFor } from "@/lib/fuel/dayTargets";
+import { kickoffFrom, matchFuelPlan } from "@/lib/fuel/matchPlan";
+import type { SessionCompletion, SessionDay } from "@/lib/loadwise/types";
 import { FOOD_BY_ID, findRecipe, parsePantry, type FuelRecipe } from "@/lib/fuel/catalog";
 import {
   emptyFuelData,
@@ -41,8 +46,10 @@ import {
 import {
   chooseFuelContext,
   createRecipeEntry,
-  foodPreferenceTerms,
+  fuelRestrictionTerms,
+  EMPTY_FOOD_SAFETY,
   householdPortion,
+  type FuelFoodSafety,
   practicalRecipes,
   relativeFuelTiming,
   fuelEntryAllowed,
@@ -71,12 +78,27 @@ import {
   fuelDuration,
   provenFuelSets,
   retimeFuelEntries,
+  fuelChoiceReason,
   type FuelFit,
   type ProvenFuelSet,
 } from "@/lib/fuel/now";
 import { PageHeader } from "@/components/loadwise/PageHeader";
 
 const EMPTY_FOOD_IDS: string[] = [];
+
+/** Plan, profile and consent facts the day model and the match plan read; nothing else. */
+export interface FuelDaySource {
+  plan: SessionDay[];
+  completions: Record<string, SessionCompletion>;
+  age: number;
+  /** Only under the Fuel Precision consent. */
+  weightKg: number | null;
+  healthConsent: boolean;
+  foodSafety: FuelFoodSafety;
+  onSaveFoodSafety(value: FuelFoodSafety): Promise<void>;
+  /** Absent under 16: no body-mass based numbers for younger athletes. */
+  onSaveWeight?: (kg: number) => Promise<void>;
+}
 
 type Speech = {
   lang: string;
@@ -95,6 +117,7 @@ export function FuelWorkspace({
   tomorrowMatch = false,
   tomorrowContext = null,
   legacyDislikedFoodIds = EMPTY_FOOD_IDS,
+  day = null,
 }: {
   userId: string;
   contexts: FuelContext[];
@@ -102,6 +125,7 @@ export function FuelWorkspace({
   tomorrowContext?: FuelContext | null;
   /** Catalogue food IDs from an old profile, moved once into "Czego nie lubię". */
   legacyDislikedFoodIds?: string[];
+  day?: FuelDaySource | null;
 }) {
   const [data, setData] = useState<FuelDeviceData>(emptyFuelData);
   const [loaded, setLoaded] = useState(false);
@@ -125,6 +149,7 @@ export function FuelWorkspace({
   });
   const [reminderBusy, setReminderBusy] = useState(false);
   const [storeOpen, setStoreOpen] = useState(false);
+  const [safetyOpen, setSafetyOpen] = useState(false);
   /** A quick fit waiting for the athlete's choice in its sheet. */
   const [fitSheet, setFitSheet] = useState<"quick" | "store" | null>(null);
   const [storeName, setStoreName] = useState("");
@@ -164,6 +189,11 @@ export function FuelWorkspace({
     () => resolveFuelTiming(context, data.timings[context.key]),
     [context, data.timings],
   );
+  const foodSafety = day?.foodSafety ?? EMPTY_FOOD_SAFETY;
+  const restrictions = useMemo(
+    () => fuelRestrictionTerms(data.preferences, foodSafety),
+    [data.preferences, foodSafety],
+  );
   const minutes = minutesToFuelStart(timing, now);
   const parsed = useMemo(() => parsePantry(text), [text]);
   const recipes = useMemo(
@@ -176,8 +206,9 @@ export function FuelWorkspace({
         pantry,
         quick: fit === "quick",
         store: fit === "store",
+        restrictions,
       }),
-    [context, timing, now, data, pantry, fit],
+    [context, timing, now, data, pantry, fit, restrictions],
   );
   // The sets a quick fit would show; the same list the card uses once the fit is applied.
   const fitOptions = useMemo<FuelFitOption[]>(
@@ -191,11 +222,12 @@ export function FuelWorkspace({
             pantry: [],
             quick: fitSheet === "quick",
             store: fitSheet === "store",
+            restrictions,
           })
             .slice(0, 3)
             .map((recipe, index) => ({ recipe, index }))
         : [],
-    [fitSheet, context, timing, now, data],
+    [fitSheet, context, timing, now, data, restrictions],
   );
   const selectedEntry = data.entries.find(
     (e) => e.contextKey === context.key && e.status === "selected",
@@ -205,7 +237,6 @@ export function FuelWorkspace({
     suggestedHero && selectedEntry?.recipeId === suggestedHero.id
       ? { ...suggestedHero, title: selectedEntry.title, lines: selectedEntry.lines }
       : suggestedHero;
-  const restrictions = useMemo(() => foodPreferenceTerms(data.preferences), [data.preferences]);
   const proven = useMemo(
     () => provenFuelSets(data.entries, data.preferences, restrictions),
     [data.entries, data.preferences, restrictions],
@@ -229,6 +260,7 @@ export function FuelWorkspace({
           timing: resolveFuelTiming(packContext),
           now,
           data: { ...data, preferences: { ...data.preferences, portable: true } },
+          restrictions,
         })[0] ?? null)
       : hero;
   const nextSession =
@@ -239,6 +271,130 @@ export function FuelWorkspace({
         (resolveFuelTiming(c, data.timings[c.key]).startsAt ?? Infinity) > (timing.startsAt ?? now),
     ) ?? null;
   const native = nativeFuelRemindersAvailable();
+  // Day model (fuel-targets-1) and the match plan: recomputed from the current plan on each
+  // render, so a moved match, a cancelled session or a new completion updates the advice.
+  const prefs = data.preferences;
+  const answers = data.dayAnswers?.[date] ?? {};
+  const targets = useMemo(
+    () =>
+      day
+        ? fuelDayTargets(
+            fuelTargetInputFor({
+              plan: day.plan,
+              completions: day.completions,
+              date,
+              age: day.age,
+              weightKg: day.weightKg,
+              nonTrainingActivity: prefs.nonTrainingActivity ?? null,
+            }),
+          )
+        : null,
+    [day, date, prefs.nonTrainingActivity],
+  );
+  const todayMatch = contexts.find((c) => c.kind === "match") ?? null;
+  const lastEatenToday = data.entries.find(
+    (e) => e.status === "eaten" && e.eatenAt !== null && localDate(e.eatenAt) === date,
+  );
+  const lastMealAt = lastEatenToday?.eatenAt ?? answers.lastMealAt ?? null;
+  const matchPlanFor = (c: FuelContext | null, participation: typeof answers.participation) =>
+    c && day
+      ? matchFuelPlan({
+          kickoff:
+            data.timings[c.key]?.startsAt ?? kickoffFrom(c.date, c.scheduledStartTime ?? null),
+          participation: participation ?? null,
+          lastMealAt: c.date === date ? lastMealAt : null,
+          tolerance: prefs.preExerciseTolerance ?? null,
+          now,
+          weightKg: day.weightKg,
+          age: day.age,
+          endedAt: c.endedAt ?? null,
+        })
+      : null;
+  const todayMatchPlan = matchPlanFor(todayMatch, answers.participation);
+  const tomorrowAnswers = tomorrowContext ? (data.dayAnswers?.[tomorrowContext.date] ?? {}) : {};
+  const tomorrowMatchPlan = todayMatch
+    ? null
+    : matchPlanFor(tomorrowContext, tomorrowAnswers.participation);
+  const setPreference = (patch: Partial<FuelPreferences>) =>
+    setData((d) => ({ ...d, preferences: { ...d.preferences, ...patch } }));
+  const setDayAnswer = (
+    target: string,
+    patch: Partial<NonNullable<FuelDeviceData["dayAnswers"]>[string]>,
+  ) =>
+    setData((d) => ({
+      ...d,
+      dayAnswers: { ...d.dayAnswers, [target]: { ...d.dayAnswers?.[target], ...patch } },
+    }));
+  const matchContext = todayMatch ?? tomorrowContext;
+  const effortSoon = Boolean(matchContext) || contexts.some((c) => !c.completed);
+  const questions: FuelQuestion[] = [];
+  if (day && !prefs.nonTrainingActivity)
+    questions.push({
+      id: "activity",
+      question: "Ile ruszasz się poza treningiem?",
+      why: "Praca, szkoła, dojazdy. Zmienia zakres na dziś najwyżej o jeden poziom.",
+      options: [
+        { value: "low", label: "Mało, głównie siedzę" },
+        { value: "moderate", label: "Średnio" },
+        { value: "high", label: "Dużo, praca na nogach" },
+      ],
+      value: null,
+      onAnswer: (v) => setPreference({ nonTrainingActivity: v as "low" | "moderate" | "high" }),
+    });
+  if (day && effortSoon && !prefs.preExerciseTolerance)
+    questions.push({
+      id: "tolerance",
+      question: "Jak znosisz jedzenie przed wysiłkiem?",
+      why: "Ustawia porę i wielkość posiłku przed startem.",
+      options: [
+        { value: "good", label: "Dobrze" },
+        { value: "sensitive", label: "Często ciężko w żołądku" },
+      ],
+      value: null,
+      onAnswer: (v) => setPreference({ preExerciseTolerance: v as "good" | "sensitive" }),
+    });
+  if (day && matchContext && !data.dayAnswers?.[matchContext.date]?.participation)
+    questions.push({
+      id: "participation",
+      question: todayMatch ? "Ile dziś zagrasz?" : "Ile jutro zagrasz?",
+      why: "Zmienia porcję w trakcie i po meczu. Przed meczem jesz tak samo.",
+      options: [
+        { value: "full", label: "Cały mecz" },
+        { value: "part", label: "Część" },
+        { value: "bench", label: "Raczej ławka" },
+      ],
+      value: null,
+      onAnswer: (v) =>
+        setDayAnswer(matchContext.date, { participation: v as "full" | "part" | "bench" }),
+    });
+  if (
+    day &&
+    todayMatchPlan?.kickoff &&
+    now < todayMatchPlan.kickoff &&
+    todayMatchPlan.kickoff - now <= 5 * 3_600_000 &&
+    lastMealAt === null
+  )
+    questions.push({
+      id: "last-meal",
+      question: "Kiedy był ostatni posiłek?",
+      why: "Decyduje, czy teraz pełny talerz, czy mała przekąska.",
+      options: [
+        { value: "1", label: "Do 2 h temu" },
+        { value: "3", label: "2–4 h temu" },
+        { value: "5", label: "Ponad 4 h temu" },
+      ],
+      value: null,
+      onAnswer: (v) => {
+        const at = Date.now();
+        setNow(at);
+        setDayAnswer(date, { lastMealAt: at - Number(v) * 3_600_000 });
+      },
+    });
+  const heroReason = hero
+    ? fuelChoiceReason({ context, timing, now, recipe: hero, nextSession: Boolean(nextSession) })
+    : null;
+  const heroSwap =
+    hero && recipes.length > 1 ? (recipes.find((r) => r.id !== hero.id) ?? null) : null;
 
   useEffect(() => {
     const reload = () => {
@@ -1053,9 +1209,24 @@ export function FuelWorkspace({
                   .join(", ") || "nic, masz wszystko"}
               </p>
             )}
+            {heroReason && <p className="fuel-now-reason">{heroReason}</p>}
+            {heroSwap && (
+              <p className="fuel-now-swap">
+                Zamiennik:{" "}
+                <button
+                  className="fuel-text-button"
+                  onClick={() => setRecipeIndex(recipes.findIndex((r) => r.id === heroSwap.id))}
+                >
+                  {heroSwap.title}
+                </button>
+              </p>
+            )}
             <p className="fuel-now-meta">
               <Clock3 size={18} aria-hidden="true" />
-              <span>Porcja orientacyjna · {hero.prepMin} min</span>
+              <span>
+                Porcja orientacyjna · {hero.prepMin} min
+                {targets?.precision === "portions" ? " · ograniczona precyzja" : ""}
+              </span>
             </p>
             <div className="fuel-v4-hero-actions">
               <button
@@ -1105,6 +1276,11 @@ export function FuelWorkspace({
             </button>
           </div>
         )}
+        {todayMatchPlan && <FuelMatchPlan plan={todayMatchPlan} title="Plan meczowy" />}
+        {tomorrowMatchPlan && (
+          <FuelMatchPlan plan={tomorrowMatchPlan} title="Jutro mecz: plan jedzenia" />
+        )}
+        <FuelQuestions questions={questions} />
         <section className="fuel-fit-section" aria-labelledby="fuel-fit-title">
           <h2 id="fuel-fit-title" className="fuel-section-title">
             Dopasuj do chwili
@@ -1206,10 +1382,30 @@ export function FuelWorkspace({
             };
           }}
         />
+        {day && targets && (
+          <FuelDayDetails
+            targets={targets}
+            safety={foodSafety}
+            onEditSafety={() => setSafetyOpen(true)}
+            canAddWeight={Boolean(day.onSaveWeight) && targets.precision === "portions"}
+            onAddWeight={async (kg) => {
+              await day.onSaveWeight?.(kg);
+            }}
+          />
+        )}
         <p className="fuel-v4-discreet">
-          Porcje są orientacyjne. Fuel nie liczy dawek z masy ciała.
+          Porcje są orientacyjne. Fuel nie prowadzi dziennika i nie odlicza kalorii.
         </p>
       </main>
+      {day && (
+        <FoodSafetySheet
+          open={safetyOpen}
+          value={foodSafety}
+          healthConsent={day.healthConsent}
+          onSave={day.onSaveFoodSafety}
+          onClose={() => setSafetyOpen(false)}
+        />
+      )}
       <FuelPanels
         userId={userId}
         panel={panel}

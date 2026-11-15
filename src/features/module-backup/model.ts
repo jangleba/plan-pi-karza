@@ -325,7 +325,12 @@ export function createModuleSnapshot(
       records.sets = null;
     }
     if (module === "fuel" && records.data) {
-      const data = records.data as { entries: Record<string, unknown>[] };
+      const data = records.data as {
+        entries: Record<string, unknown>[];
+        preferences?: Record<string, unknown>;
+      };
+      // How eating before effort feels is kept on the device only, never in a plain backup.
+      if (data.preferences) delete data.preferences.preExerciseTolerance;
       const before = data.entries.length;
       data.entries = data.entries
         .filter((entry) => !entry.product)

@@ -39,6 +39,15 @@ export interface FuelPreferences {
   favorites: string[];
   hidden: string[];
   excludedFoodIds: string[];
+  /** Everyday movement outside training (work, school, commuting); unanswered = undefined. */
+  nonTrainingActivity?: "low" | "moderate" | "high" | null;
+  /** How eating shortly before effort usually feels — a comfort preference, not a diagnosis. */
+  preExerciseTolerance?: "good" | "sensitive" | null;
+}
+/** Answers that only matter for one day (a match): expected minutes and the last meal. */
+export interface FuelDayAnswers {
+  participation?: "full" | "part" | "bench" | null;
+  lastMealAt?: number | null;
 }
 export interface MealLine {
   foodId: string;
@@ -69,6 +78,8 @@ export interface FuelDeviceData {
   entries: FuelEntry[];
   selection: FuelSelection | null;
   drinks?: FuelDrink[];
+  /** Keyed by local date; kept for the coming week only. */
+  dayAnswers?: Record<string, FuelDayAnswers>;
 }
 export interface FuelDrink {
   id: string;
@@ -357,6 +368,33 @@ export class CorruptFuelDataError extends Error {
     this.name = "CorruptFuelDataError";
   }
 }
+function isDayAnswers(value: unknown): value is FuelDayAnswers {
+  return (
+    isRecord(value) &&
+    (value.participation === undefined ||
+      value.participation === null ||
+      ["full", "part", "bench"].includes(String(value.participation))) &&
+    (value.lastMealAt === undefined ||
+      value.lastMealAt === null ||
+      (typeof value.lastMealAt === "number" && Number.isFinite(value.lastMealAt)))
+  );
+}
+/** Day answers from yesterday to a week ahead; older ones are dropped. */
+function retainedDayAnswers(value: unknown, now: number): Record<string, FuelDayAnswers> {
+  if (!isRecord(value)) return {};
+  const from = localDate(now - 86_400_000);
+  const to = localDate(now + 7 * 86_400_000);
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(
+        ([date, answers]) =>
+          /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= from && date <= to && isDayAnswers(answers),
+      )
+      .slice(-10),
+  ) as Record<string, FuelDayAnswers>;
+}
+const oneOf = <T extends string>(value: unknown, options: readonly T[]): T | null | undefined =>
+  value === null ? null : options.includes(value as T) ? (value as T) : undefined;
 function isDrink(value: unknown): value is FuelDrink {
   return (
     isRecord(value) &&
@@ -426,7 +464,10 @@ export function readFuelData(
         favorites: strings(p.favorites),
         hidden: strings(p.hidden),
         excludedFoodIds: strings(p.excludedFoodIds),
+        nonTrainingActivity: oneOf(p.nonTrainingActivity, ["low", "moderate", "high"] as const),
+        preExerciseTolerance: oneOf(p.preExerciseTolerance, ["good", "sensitive"] as const),
       },
+      dayAnswers: retainedDayAnswers(raw.dayAnswers, now),
       entries: Array.isArray(raw.entries)
         ? raw.entries
             .filter(isEntry)
@@ -453,6 +494,7 @@ export function writeFuelData(
         .filter((d) => d.at >= now - 30 * 86_400_000 && d.at <= now + 60_000)
         .slice(0, FUEL_HISTORY_LIMIT),
       selection: isSelection(data.selection, today) ? data.selection : null,
+      dayAnswers: retainedDayAnswers(data.dayAnswers, now),
       timings: Object.fromEntries(
         Object.entries(data.timings)
           .filter(([key, value]) => key.startsWith(today) && isTiming(value))

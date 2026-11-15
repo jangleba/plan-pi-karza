@@ -420,10 +420,24 @@ export function getPainConstraints(p: Partial<Profile>): PainLocation[] {
   return [];
 }
 
+const PAST_INJURY_LABEL: Partial<Record<PainLocation, string>> = {
+  knee: "kolano",
+  back: "plecy",
+  ankle: "kostka",
+  hamstring: "tył uda",
+  groin: "pachwina",
+  hip: "biodro",
+  shoulder: "bark",
+  other: "inne",
+};
+
 export function getInjuryConstraints(p: Partial<Profile>): InjuryConstraints {
   const painLocations = getPainConstraints(p);
   const injuryHistory = p.injuryHistory ?? [];
-  const all = new Set<PainLocation>([...painLocations, ...injuryHistory]);
+  // Only an active limitation (current pain) restricts exercises. A past injury is not a
+  // restriction: it is shown as context, the plan keeps progressive exposure, and nothing here
+  // decides about return to sport.
+  const all = new Set<PainLocation>(painLocations);
   const avoidPatterns: string[] = [];
   const contraindications: string[] = [];
 
@@ -442,7 +456,7 @@ export function getInjuryConstraints(p: Partial<Profile>): InjuryConstraints {
   if (all.has("hamstring")) {
     avoidPatterns.push("max_velocity", "aggressive_eccentric");
     contraindications.push(
-      "Historia dwugłowego — ostrożnie z max velocity, progresuj posterior chain.",
+      "Ból z tyłu uda — ostrożnie z maksymalną prędkością i mocnym ekscentrykiem.",
     );
   }
   if (all.has("groin")) {
@@ -460,6 +474,12 @@ export function getInjuryConstraints(p: Partial<Profile>): InjuryConstraints {
     avoidPatterns.push("heavy_axial_load");
     contraindications.push("Zgłoszony ogólny ból/uraz — wybrano bezpieczniejszy wariant.");
   }
+
+  const past = injuryHistory.filter((loc) => !all.has(loc));
+  if (past.length)
+    contraindications.push(
+      `Dawny uraz (${past.map((loc) => PAST_INJURY_LABEL[loc] ?? loc).join(", ")}) bez aktualnego bólu — bez ograniczeń w planie; zwiększaj obciążenie stopniowo.`,
+    );
 
   return {
     painLocations,
