@@ -101,6 +101,7 @@ export interface ExerciseDecision {
   reason: string;
 }
 export interface EngineSession {
+  strengthFocus?: import("./strengthPolicy").StrengthFocus;
   /** Noncompeting accessory pairs; distinct from a heavy strength/power contrast. */
   strengthPairs?: {
     roles: [Role, Role];

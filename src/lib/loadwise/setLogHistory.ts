@@ -34,11 +34,35 @@ export interface ExerciseSessionLog {
   sets: HistorySetLog[];
   /** Present only when the completed execution snapshot proves this prescription. */
   verification?: {
+    movementKey?: string;
+    targetReps?: { min: number; max: number };
+    targetRir?: number;
     expectedSets: number;
     prescriptionKey: string;
     phase?: "normal" | "reduced";
     sessionDate?: string;
   };
+}
+
+/** Mechanics identity for a conservative return after dose changes, not permission to increase. */
+export function strengthMovementKey(e: TrainingExercise): string {
+  const text = (v: unknown) =>
+    String(v ?? "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "");
+  return JSON.stringify([
+    e.exerciseId ?? text(e.name),
+    text(e.tempo),
+    e.engineDose?.jointAngleDegrees ?? null,
+    e.engineDose?.assistance ?? null,
+    !!e.engineDose?.perSide,
+    e.engineDose?.gymBandSetup ?? null,
+    e.methodExecution?.mode ?? null,
+    e.engineDose?.cluster ?? null,
+    e.engineDose?.restSeconds ?? text(e.restAfterExercise),
+    text(e.restAfterPair),
+  ]);
 }
 
 export function exerciseHistoryKey(e: Pick<TrainingExercise, "exerciseId" | "name">): string {
@@ -144,12 +168,31 @@ export function verifyExerciseHistory(
     if (candidates.length !== 1) return item;
     const expectedSets = plannedExerciseSets(candidates[0]);
     if (expectedSets < 1) return item;
+    const strengthCandidate = "id" in candidates[0] ? candidates[0] : undefined;
     return {
       ...item,
       verification: {
+        ...(strengthCandidate
+          ? {
+              movementKey: strengthMovementKey(strengthCandidate),
+              targetReps: {
+                min: Number(strengthCandidate.reps?.match(/^\d+/)?.[0]) || 0,
+                max:
+                  Number(
+                    strengthCandidate.reps?.match(/^\d+\s*[–-]\s*(\d+)/)?.[1] ??
+                      strengthCandidate.reps?.match(/^\d+/)?.[0],
+                  ) || 0,
+              },
+              targetRir: Number(strengthCandidate.rir?.match(/\d+/)?.[0]),
+            }
+          : {}),
         expectedSets,
         prescriptionKey: exercisePrescriptionKey(candidates[0]),
-        phase: snapshot.engineV2?.phase === "deload" ? "reduced" : "normal",
+        phase:
+          snapshot.engineV2?.phase === "deload" ||
+          ["deload", "reentry"].includes(snapshot.engineV2?.strengthFocus?.mode ?? "")
+            ? "reduced"
+            : "normal",
         sessionDate: snapshot.date,
       },
     };

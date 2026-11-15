@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { isRetryableWriteError, withDurableTrainingWrite } from "../offlineTrainingQueue";
 import { waitForPlanWrites } from "./planWriteGuard";
 import { FEEDBACK_VERSION } from "../sessionFeedback";
+import { isStrengthSession, type StrengthLoadPreference } from "../strengthCheckIn";
 import type { Profile, SessionCompletion, SessionDay, SessionHistoryRecord } from "../types";
 import {
   findSessionByDbId,
@@ -89,7 +90,7 @@ export function createSessionActions(
     setState((s) => (s.profile === before ? { ...s, profile } : s));
   }
 
-  async function startSession(session: SessionDay) {
+  async function startSession(session: SessionDay, preference?: StrengthLoadPreference) {
     const sid = session.dbId;
     if (!user || !sid) throw new Error("Nie można rozpocząć tej sesji.");
     // A plan shown right after login or onboarding may still be on its way to the server.
@@ -121,6 +122,19 @@ export function createSessionActions(
       operationId = crypto.randomUUID();
     const snapshot = executionSnapshot(currentSession, slotFor(currentSession)),
       expectedVersion = existing?.writeVersion ?? 0;
+    // Preference and prescription are saved atomically, including offline retries.
+    // Never trust preference metadata supplied by a preview or replace a pinned start.
+    delete snapshot.strengthCheckIn;
+    if (preference !== undefined) {
+      if (!isStrengthSession(currentSession) || !["as_planned", "lighter"].includes(preference))
+        throw new Error("Nieprawidłowy wybór obciążenia sesji.");
+      snapshot.strengthCheckIn = {
+        version: 1,
+        loadPreference: preference,
+        date: currentSession.date,
+        recordedAt: startedAt,
+      };
+    }
     const payload = {
       user_id: user.id,
       session_id: sid,

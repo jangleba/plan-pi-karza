@@ -482,7 +482,10 @@ export interface LoadwiseContextValue {
   updateProfile: (profile: Profile) => Promise<void>;
   saveStrengthExperience: (value: StrengthExperience) => Promise<void>;
   saveFuelPrecision: (enabled: boolean, weightKg: number | null) => Promise<void>;
-  startSession: (session: SessionDay) => Promise<void>;
+  startSession: (
+    session: SessionDay,
+    preference?: import("../strengthCheckIn").StrengthLoadPreference,
+  ) => Promise<void>;
   /** "Dziś nie mogę": marks today's unstarted own session as skipped; nothing is moved. */
   skipSession: (session: SessionDay) => Promise<void>;
   completeSession: (

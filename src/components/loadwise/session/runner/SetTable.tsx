@@ -1,8 +1,9 @@
-import { useCallback, useId, useRef, useState, type ReactNode } from "react";
+import { useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, Minus, Plus } from "lucide-react";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import { useExerciseSetLogs, type SetLog } from "@/lib/loadwise/setLogs";
 import { useLoadwise } from "@/lib/loadwise/store";
+import { strengthPreference } from "@/lib/loadwise/strengthCheckIn";
 import { verifyExerciseHistory } from "@/lib/loadwise/setLogHistory";
 import {
   comparablePreviousSets,
@@ -17,6 +18,11 @@ import { useTrainingLocalState } from "@/lib/loadwise/useTrainingLocalState";
 import { useAuth } from "@/lib/loadwise/auth";
 import type { Range } from "@/lib/loadwise/sessionRunner/presentation";
 import { Docked } from "./Dock";
+import { chooseStrengthFocus, strengthWeekContext } from "@/lib/loadwise/engineV2/strengthPolicy";
+import {
+  nextSetLoadAdvice,
+  type StrengthLoadContext,
+} from "@/lib/loadwise/engineV2/loadAutoregulation";
 
 export type SetTableKind = "load" | "bodyweight" | "hold";
 type Values = { weight: string; reps: string; rir: string; value: string };
@@ -131,8 +137,47 @@ export function SetTable({
     logKey,
     store.state?.completions ?? {},
   );
-  const recommendation =
-    kind !== "hold" ? recommendStrengthProgression(exercise, verifiedHistory, date) : null;
+  const profile = store.state?.profile;
+  const weekContext = useMemo(
+    () =>
+      kind === "load" && profile && Array.isArray(profile.clubTrainingDays)
+        ? strengthWeekContext(profile, date, {
+            startDate: store.todayIso ?? date,
+            asOfDate: store.todayIso ?? date,
+            completions: store.state.completions,
+            readiness: store.state.readiness,
+            previousPlan: store.state.plan,
+          })
+        : undefined,
+    [kind, profile, date, store.todayIso, store.state],
+  );
+  const liveFocus =
+    weekContext && profile
+      ? chooseStrengthFocus(
+          profile,
+          exercise.progressionPhase === "reduced" ? "deload" : "development",
+          weekContext,
+        )
+      : undefined;
+  const loadContext: StrengthLoadContext | undefined =
+    weekContext && profile
+      ? {
+          ...weekContext,
+          age: profile.age,
+          loadPreference:
+            sessionId && store.state.completions[sessionId]?.executionSnapshot
+              ? strengthPreference(store.state.completions[sessionId].executionSnapshot!)
+              : undefined,
+          mode:
+            liveFocus && ["deload", "reentry", "maintenance"].includes(liveFocus.mode)
+              ? liveFocus.mode
+              : (exercise.strengthFocus?.mode ?? liveFocus!.mode),
+        }
+      : undefined;
+  const sessionRecommendation =
+    kind !== "hold"
+      ? recommendStrengthProgression(exercise, verifiedHistory, date, loadContext)
+      : null;
   const previous = exercise.engineDose
     ? comparablePreviousSets(exercise, verifiedHistory)
     : logs.previous;
@@ -158,17 +203,33 @@ export function SetTable({
   const nextOpen = numbers.find((n) => !current[n]) ?? null;
   const metricKind = kind === "hold" ? "hold" : "load";
 
-  const valuesFor = useCallback(
-    (n: number): Values => {
-      const draft = drafts.value[String(n)];
-      if (draft) return draft;
-      if (current[n]) return fromLog(current[n]);
-      // Prefill with this session's previous set, else the same set last time (without its RIR).
-      if (current[n - 1]) return fromLog(current[n - 1]);
-      return previous[n] ? { ...fromLog(previous[n]), rir: "" } : EMPTY;
-    },
-    [drafts.value, current, previous],
-  );
+  const valuesFor = (n: number): Values => {
+    const draft = drafts.value[String(n)];
+    if (draft) return draft;
+    if (current[n]) return fromLog(current[n]);
+    // Prefill with this session's previous set, else the same set last time (without its RIR).
+    if (current[n - 1]) {
+      const within = loadContext ? nextSetLoadAdvice(exercise, current[n - 1], loadContext) : null;
+      return {
+        ...fromLog(current[n - 1]),
+        ...(within?.weightKg !== undefined ? { weight: String(within.weightKg) } : {}),
+        rir: "",
+      };
+    }
+    if (loadContext && sessionRecommendation?.action === "calibrate") return EMPTY;
+    if (
+      loadContext &&
+      sessionRecommendation?.weightKg !== undefined &&
+      sessionRecommendation.action !== "increase"
+    )
+      return {
+        ...EMPTY,
+        ...(previous[n] ? fromLog(previous[n]) : {}),
+        weight: String(sessionRecommendation.weightKg),
+        rir: "",
+      };
+    return previous[n] ? { ...fromLog(previous[n]), rir: "" } : EMPTY;
+  };
 
   function edit(n: number, field: keyof Values, value: string) {
     drafts.setValue((all) => ({ ...all, [String(n)]: { ...valuesFor(n), [field]: value } }));
@@ -223,6 +284,12 @@ export function SetTable({
 
   const missingKg = (n: number) => kind === "load" && !valuesFor(n).weight.trim();
   const active = editing ?? nextOpen;
+  const recommendation =
+    active === null || editing !== null
+      ? null
+      : loadContext
+        ? (nextSetLoadAdvice(exercise, current[active - 1], loadContext) ?? sessionRecommendation)
+        : sessionRecommendation;
   const activeValues = active !== null ? valuesFor(active) : EMPTY;
   const busy = !canRecord || saving !== null;
   // "Poprzednio": this session's previous set, else the same set last time.
@@ -245,6 +312,18 @@ export function SetTable({
     const ok = await save(n);
     if (!ok || !wasNew) return;
     const savedTotal = savedCount + 1;
+    const upcoming = loadContext
+      ? nextSetLoadAdvice(
+          exercise,
+          {
+            setNumber: n,
+            weightKg: parseTrainingNumber(values.weight),
+            reps: parseTrainingNumber(values.reps),
+            rir: parseTrainingNumber(values.rir),
+          },
+          loadContext,
+        )
+      : null;
     onSetSaved(
       n,
       savedTotal,
@@ -252,7 +331,13 @@ export function SetTable({
       following !== null && following <= sets.max
         ? {
             label: `Następnie: seria ${following} z ${sets.max}`,
-            detail: nextDetail(values, kind, unilateral),
+            detail: nextDetail(
+              upcoming?.weightKg !== undefined
+                ? { ...values, weight: String(upcoming.weightKg) }
+                : values,
+              kind,
+              unilateral,
+            ),
           }
         : undefined,
     );
@@ -301,9 +386,13 @@ export function SetTable({
         </header>
         {facts}
         {recommendation ? (
-          <p className="text-sm text-neutral-600" title={recommendation.reason}>
-            {recommendation.label}
-          </p>
+          <div className="text-sm text-neutral-600">
+            <p>{recommendation.label}</p>
+            <details>
+              <summary>Dlaczego taki ciężar?</summary>
+              <p>{recommendation.reason}</p>
+            </details>
+          </div>
         ) : null}
         {active !== null && (
           <div

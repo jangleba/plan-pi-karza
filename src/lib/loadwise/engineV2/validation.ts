@@ -19,6 +19,7 @@ import {
   gymHamstringSupportDose,
 } from "./gymPower";
 import { GYM_EXERCISE_RULES } from "../gymStrengthExercises";
+import { maximalStrengthEligible } from "./strengthPolicy";
 import { gymDoseWithinBounds } from "./gymProgression";
 import { parseRestDuration } from "../restTimer";
 
@@ -272,6 +273,43 @@ export function validateEngineSession(
     return issues;
   }
   const strength = recipe.roles.some((role) => role.startsWith("strength"));
+  if (recipe.strengthFocus) {
+    const focus = recipe.strengthFocus;
+    if (
+      !strength ||
+      focus.version !== "strength-policy-1" ||
+      ![
+        "foundation",
+        "strength_build",
+        "max_strength",
+        "power_support",
+        "maintenance",
+        "deload",
+        "reentry",
+      ].includes(focus.mode)
+    )
+      fail("STRENGTH_FOCUS_INVALID", "Nieprawidłowy zapis akcentu siły.");
+    if (focus.mode === "max_strength") {
+      const primary = recipe.exercises.find(
+        (e) => e.role === (recipe.roles.includes("strengthA") ? "knee_strength" : "hip_strength"),
+      );
+      if (
+        !maximalStrengthEligible(profile) ||
+        ["adaptation", "deload", "peak"].includes(recipe.phase) ||
+        !primary ||
+        !["external", "axial"].includes(
+          getExerciseDefinition(primary.exerciseId)?.loadingType ?? "",
+        ) ||
+        (primary.dose.reps ?? 0) < (profile.age < 18 ? 5 : 4) ||
+        (primary.dose.rir ?? 0) < (profile.age < 18 ? 3 : 2) ||
+        primary.dose.restSeconds < 180
+      )
+        fail(
+          "MAX_STRENGTH_ELIGIBILITY",
+          "Akcent ciężkiej siły wymaga przygotowania, odpowiedniego zapasu i pełnych przerw; nie jest próbą 1RM.",
+        );
+    }
+  }
   const pairLabels = new Set<string>();
   for (const pair of recipe.strengthPairs ?? []) {
     const allowed = [

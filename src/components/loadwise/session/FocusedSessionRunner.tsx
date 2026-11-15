@@ -37,6 +37,7 @@ import { ContrastRounds } from "./runner/ContrastRounds";
 import "./runner/session-runner.css";
 
 export interface StartAction {
+  checkIn?: ReactNode;
   label: string;
   busy: boolean;
   error: string | null;
@@ -316,6 +317,7 @@ export function FocusedSessionRunner({
   };
   const startAction = start && (
     <div className="bw-runner-start">
+      {start.checkIn}
       <button type="button" className="bw-runner-primary" disabled={start.busy} onClick={startHere}>
         {start.busy ? "Rozpoczynanie…" : start.label}
       </button>

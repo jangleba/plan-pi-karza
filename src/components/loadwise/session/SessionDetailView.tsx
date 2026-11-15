@@ -706,6 +706,7 @@ function SessionRunner({
               label: startLabel,
               busy: start.busy,
               error: start.error,
+              checkIn: start.checkIn,
               onStart: () => void start.start(),
             }
           : null
