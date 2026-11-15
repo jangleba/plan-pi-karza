@@ -29,6 +29,7 @@ import { ExerciseRunnerScreen } from "../../ExerciseRunnerScreen";
 import { SprintTimingPanel } from "../SprintTimingPanel";
 import { SetTable } from "./SetTable";
 import { BoutControls } from "./BoutControls";
+import { GymObservationPanel } from "../GymObservationPanel";
 
 export type RowStatus = "done" | "skipped" | "open";
 
@@ -213,6 +214,9 @@ export function RunnerCard({
         <p role="status" className="bw-runner-error">
           {blocked}
         </p>
+      )}
+      {!blocked && sessionKind === "strength" && status !== "skipped" && (
+        <GymObservationPanel exercise={exercise} sessionId={sessionId} />
       )}
 
       {status === "done" ? (

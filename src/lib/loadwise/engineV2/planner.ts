@@ -966,6 +966,40 @@ export interface AdjustmentRecipe {
   kind: "lighter" | "compact";
   recipe: EngineSession;
 }
+/** Rebuild an existing A/B slot on its saved date through the same builders and renderer.
+ * The caller protects executed/manual slots and validates the complete resulting week. */
+export function refreshStrengthSession(
+  session: SessionDay,
+  p: Profile,
+  options: EngineOptions,
+  days: SessionDay[],
+): SessionDay | null {
+  const old = session.engineV2;
+  if (!old || !old.roles.some((r) => r === "strengthA" || r === "strengthB")) return null;
+  const cycle = cycleForWeek(p, options, session.date);
+  let recipe = buildStrength(p, old.roles.includes("strengthA") ? "A" : "B", cycle.phase);
+  if (old.variant === "compact")
+    recipe = fitStrengthToBudget(
+      recipe,
+      Math.min(options.minutesPerSession ?? 75, session.durationMin),
+    );
+  recipe = applyStrengthFocus(recipe, p, session.date, options, days);
+  recipe = applyGymProgression(recipe, p, session.date, options, days);
+  recipe.cycle = cycle.cycle;
+  if (recipe.minutes > (options.minutesPerSession ?? 75)) return null;
+  const fresh = render(session.date, recipe, p);
+  return {
+    ...session,
+    ...fresh,
+    dbId: undefined,
+    dayDbId: session.dayDbId,
+    planDbId: session.planDbId,
+    cycleId: session.cycleId,
+    mdLabel: session.mdLabel,
+    slotLabel: session.slotLabel,
+    secondSession: session.secondSession,
+  };
+}
 const doseWeight = (r: EngineSession) =>
   r.exercises.reduce(
     (sum, e) => sum + e.dose.sets * (e.dose.reps ?? (e.dose.seconds ? e.dose.seconds / 10 : 1)),

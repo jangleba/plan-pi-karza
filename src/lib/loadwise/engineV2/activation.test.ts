@@ -80,6 +80,22 @@ function setup() {
 }
 
 describe("explicit training-plan activation", () => {
+  it("rejects evidence changed during the fresh server read before writing the preview", async () => {
+    const f = setup();
+    let currentEvidence = true;
+    f.services.load.mockImplementationOnce(async () => {
+      currentEvidence = false;
+      return { id: "observed-plan", plan: [] };
+    });
+    await expect(
+      activateTrainingPlan(f.result, {
+        ...f.services,
+        isEvidenceCurrent: () => currentEvidence,
+      }),
+    ).rejects.toThrow("Zapisy treningu zmieniły się");
+    expect(f.services.load).toHaveBeenCalledOnce();
+    expect(f.services.persist).not.toHaveBeenCalled();
+  });
   it("rejects a server header newer than the preview without rebasing its lease", async () => {
     const f = setup();
     f.services.load.mockResolvedValueOnce({ id: "other-device-plan", plan: [] });

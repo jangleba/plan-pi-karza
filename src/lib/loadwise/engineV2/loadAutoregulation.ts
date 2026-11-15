@@ -12,6 +12,9 @@ import type { StrengthMode, StrengthWeekContext } from "./strengthPolicy";
 import type { StrengthLoadPreference } from "../strengthCheckIn";
 
 export interface StrengthLoadContext extends StrengthWeekContext {
+  /** The UI supplies false when actual equipment has not been configured. */
+  equipmentConfigured?: boolean;
+  declinedIncrease?: boolean;
   age: number;
   mode: StrengthMode;
   /** Explicit equipment values win; 2.5 kg below is a displayed product default, not measured equipment. */
@@ -97,6 +100,7 @@ function weightStep(
   fraction: number,
   ctx: StrengthLoadContext,
 ): number | undefined {
+  if (ctx.equipmentConfigured === false) return undefined;
   if (ctx.availableWeightsKg) {
     if (!ctx.availableWeightsKg.length || ctx.availableWeightsKg.some((n) => !finite(n) || n <= 0))
       return undefined;
@@ -206,6 +210,10 @@ export function contextualStrengthAdvice(
       "Serie wykonano zmiennymi ciężarami. Nie traktujemy serii wprowadzających ani piramidy jako spadku siły.",
     );
   const weight = latest.sets.at(-1)!.weightKg!;
+  if (ctx.availableWeightsKg && !ctx.availableWeightsKg.includes(weight))
+    return review(
+      "Poprzedni ciężar nie występuje na aktualnej liście dostępnych obciążeń. Dobierz faktycznie dostępny ciężar w seriach wprowadzających.",
+    );
   if (age > 14 || ctx.mode === "reentry")
     return drop(
       weight,
@@ -335,6 +343,7 @@ export function contextualStrengthAdvice(
     reductions >= 2 ||
     (ctx.lighterRequests ?? 0) >= 2 ||
     ctx.mode === "maintenance" ||
+    ctx.declinedIncrease ||
     ctx.matches7d >= 2 ||
     ctx.nearestMatchDays <= 2 ||
     ctx.hardDays7d >= 4 ||
@@ -349,7 +358,9 @@ export function contextualStrengthAdvice(
           ? `Obniżenie ciężaru w ${reductions} z ostatnich trzech porównywalnych ekspozycji. Oprzyj kolejną sesję na ostatnim mniejszym ciężarze i odbuduj powtarzalne wykonanie; przyczyna obniżki nie jest znana.`
           : (ctx.lighterRequests ?? 0) >= 2
             ? `W ${ctx.lighterRequests} z ostatnich trzech siłowni wybrano mniejszy ciężar. Bez automatycznej podwyżki; oceń wymagany zapas.`
-            : "Utrzymanie lub obciążenie tygodnia ogranicza podwyżkę. Sama mniejsza liczba serii nie wymaga mniejszego ciężaru.",
+            : ctx.declinedIncrease
+              ? "Ostatnio wybrano pozostanie przy własnym ciężarze. To nie jest nieudana seria; podwyżkę możesz ponownie rozważyć samodzielnie."
+              : "Utrzymanie lub obciążenie tygodnia ogranicza podwyżkę. Sama mniejsza liczba serii nie wymaga mniejszego ciężaru.",
     );
   const required = ctx.age < 18 || ctx.mode === "foundation" ? 3 : 2;
   const recent = ordered.slice(0, required);

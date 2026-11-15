@@ -28,6 +28,7 @@ export type Role =
   | "ball_skill";
 export type SupportRole = "activation" | "recovery" | "mobility" | "skills";
 export interface Dose {
+  gymBandSelectionId?: string;
   /** Measured setup identity; never a colour-derived or estimated band load. */
   gymBandSetup?: import("./gymProgression").GymBandSetup;
   sequence?: { distanceM: number; runOutM: number; instruction: string }[];
@@ -101,6 +102,7 @@ export interface ExerciseDecision {
   reason: string;
 }
 export interface EngineSession {
+  gymFeedbackRevision?: string;
   strengthFocus?: import("./strengthPolicy").StrengthFocus;
   /** Noncompeting accessory pairs; distinct from a heavy strength/power contrast. */
   strengthPairs?: {
@@ -144,6 +146,7 @@ export interface Issue {
   target?: "strengthA" | "strengthB" | "speed" | "endurance" | "mobility";
 }
 export interface EngineOptions {
+  strengthLoadResponses?: import("../gymEvidence").GymLoadResponse[];
   /** Optional observations from real execution, scoped to the current athlete.
    * Legacy completions/timers alone never imply movement quality. */
   gymProgression?: import("./gymProgression").GymProgressionInput;

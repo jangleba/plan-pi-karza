@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useAuth } from "./auth";
 import { resolveEffectivePlan } from "./effectivePlan";
 import {
@@ -9,6 +9,9 @@ import {
 import { useLoadwise } from "./store";
 import { trainingStorageKey } from "./trainingDetails";
 import { useTrainingLocalState } from "./useTrainingLocalState";
+import { useGymEvidence } from "./useGymEvidence";
+import { proposeGymAdjustment } from "./engineV2/gymAdjustment";
+import { readPendingTrainingWrites } from "./offlineTrainingQueue";
 
 const parseIds = (value: unknown): string[] | undefined =>
   Array.isArray(value) && value.every((v) => typeof v === "string") && value.length <= 200
@@ -22,8 +25,10 @@ const parseIds = (value: unknown): string[] | undefined =>
  * on this device only; the saved plan is never changed by it.
  */
 export function useFeedbackAdjustment() {
+  const gym = useGymEvidence();
   const { state, hydrated, syncing, todayIso, activatePlanV2 } = useLoadwise();
   const { user } = useAuth();
+  const userId = user?.id;
   const dismissed = useTrainingLocalState(
     trainingStorageKey("feedback-adjustment", user?.id, "dismissed"),
     [] as string[],
@@ -34,20 +39,45 @@ export function useFeedbackAdjustment() {
 
   const build = useCallback((): AdjustmentProposal | null => {
     if (!hydrated || syncing || !state.profile || !state.plan.length) return null;
-    return proposeFeedbackAdjustment({
-      profile: state.profile,
-      plan: resolveEffectivePlan(state.plan, state.modifications, {
+    return (
+      proposeFeedbackAdjustment({
+        profile: state.profile,
+        plan: resolveEffectivePlan(state.plan, state.modifications, {
+          completions: state.completions,
+        }),
         completions: state.completions,
-      }),
-      completions: state.completions,
-      todayIso,
-      planId: state.activePlanId ?? null,
-      readiness: state.readiness,
-      hasModificationsInWindow: Object.entries(state.modifications).some(
-        ([date, items]) => date >= todayIso && items.length > 0,
-      ),
-    });
-  }, [hydrated, syncing, state, todayIso]);
+        todayIso,
+        planId: state.activePlanId ?? null,
+        readiness: state.readiness,
+        hasModificationsInWindow: Object.entries(state.modifications).some(
+          ([date, items]) => date >= todayIso && items.length > 0,
+        ),
+      }) ??
+      proposeGymAdjustment({
+        hasUnconfirmedWrites:
+          !!userId &&
+          readPendingTrainingWrites(userId).some((w) =>
+            ["session_log", "exercise_set_log", "gym_record"].includes(w.kind),
+          ),
+        profile: state.profile,
+        plan: resolveEffectivePlan(state.plan, state.modifications, {
+          completions: state.completions,
+        }),
+        completions: state.completions,
+        records: gym.records,
+        todayIso,
+        planId: state.activePlanId ?? null,
+        readiness: state.readiness,
+        modifiedDates: new Set(
+          Object.entries(state.modifications)
+            .filter(([, items]) => items.length > 0)
+            .map(([date]) => date),
+        ),
+      })
+    );
+  }, [hydrated, syncing, state, todayIso, gym.records, userId]);
+  const liveBuild = useRef(build);
+  liveBuild.current = build;
 
   const proposal = useMemo(() => {
     const built = build();
@@ -63,7 +93,10 @@ export function useFeedbackAdjustment() {
       const fresh = build();
       if (!fresh || fresh.id !== proposal.id || fresh.fingerprint !== proposal.fingerprint)
         throw new Error("Plan lub odpowiedzi po treningu zmieniły się. Sprawdź nową propozycję.");
-      await activatePlanV2(proposalToEngineResult(fresh, state.profile));
+      await activatePlanV2(
+        proposalToEngineResult(fresh, state.profile),
+        () => liveBuild.current()?.fingerprint === fresh.fingerprint,
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Nie udało się zapisać zmiany. Plan bez zmian.");
     } finally {

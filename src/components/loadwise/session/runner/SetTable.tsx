@@ -4,6 +4,16 @@ import type { TrainingExercise } from "@/lib/loadwise/types";
 import { useExerciseSetLogs, type SetLog } from "@/lib/loadwise/setLogs";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { strengthPreference } from "@/lib/loadwise/strengthCheckIn";
+import { useGymEvidence } from "@/lib/loadwise/useGymEvidence";
+import {
+  equipmentFor,
+  equipmentHistory,
+  equipmentKey,
+  gymStrengthResponses,
+  type GymLoadResponse,
+} from "@/lib/loadwise/gymEvidence";
+import { exercisePrescriptionKey } from "@/lib/loadwise/setLogHistory";
+import { GymEquipmentEditor } from "../GymEquipmentEditor";
 import { verifyExerciseHistory } from "@/lib/loadwise/setLogHistory";
 import {
   comparablePreviousSets,
@@ -28,6 +38,17 @@ export type SetTableKind = "load" | "bodyweight" | "hold";
 type Values = { weight: string; reps: string; rir: string; value: string };
 const EMPTY: Values = { weight: "", reps: "", rir: "", value: "" };
 type Drafts = Record<string, Values>;
+type LoadChoice = Pick<GymLoadResponse, "decision" | "reason">;
+const parseChoice = (v: unknown): LoadChoice | null | undefined =>
+  v === null
+    ? null
+    : v &&
+        typeof v === "object" &&
+        ["accept", "hold", "lighter"].includes((v as LoadChoice).decision) &&
+        ((v as LoadChoice).reason === undefined ||
+          ["preference", "not_ready", "unable"].includes((v as LoadChoice).reason!))
+      ? (v as LoadChoice)
+      : undefined;
 
 const parseDrafts = (value: unknown): Drafts | undefined => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
@@ -132,11 +153,56 @@ export function SetTable({
   const logs = useExerciseSetLogs(sessionId, logKey);
   const { current, loading, saveSet } = logs;
   const store = useLoadwise();
-  const verifiedHistory = verifyExerciseHistory(
+  const gym = useGymEvidence();
+  const choice = useTrainingLocalState<LoadChoice | null>(
+    trainingStorageKey("load-response", user?.id, sessionId ?? date, logKey),
+    null,
+    parseChoice,
+  );
+  const [reviewKey, setReviewKey] = useState<string | null>(null);
+  const scopeKey = `${sessionId}:${logKey}`;
+  const recordedResponse = gym.records.find(
+    (r) => r.record_key === `response:${sessionId}:${exercise.exerciseId}`,
+  )?.payload;
+  const equipment =
+    recordedResponse?.kind === "response"
+      ? recordedResponse.equipment
+      : exercise.exerciseId
+        ? equipmentFor(gym.records, exercise.exerciseId)
+        : undefined;
+  const checkedHistory = verifyExerciseHistory(
     logs.recentSessions ?? [],
     logKey,
     store.state?.completions ?? {},
   );
+  const verifiedHistory =
+    kind === "load"
+      ? equipment && exercise.exerciseId
+        ? equipmentHistory(checkedHistory, gym.records, exercise.exerciseId, equipment)
+        : checkedHistory.map((s) => ({ ...s, verification: undefined }))
+      : checkedHistory;
+  const lastResponse = gym.records
+    .filter((r) => {
+      const d = r.payload;
+      const c = d.kind === "response" ? store.state?.completions[d.sessionId] : undefined;
+      return (
+        d.kind === "response" &&
+        d.sessionId !== sessionId &&
+        d.exerciseId === exercise.exerciseId &&
+        equipment &&
+        equipmentKey(d.equipment) === equipmentKey(equipment) &&
+        c?.completed &&
+        c.executionSnapshot &&
+        c.executionSnapshot.date <= (store.todayIso ?? date)
+      );
+    })
+    .sort((a, b) => {
+      const da = a.payload as GymLoadResponse,
+        db = b.payload as GymLoadResponse;
+      return (store.state?.completions[db.sessionId]?.executionSnapshot?.date ?? "").localeCompare(
+        store.state?.completions[da.sessionId]?.executionSnapshot?.date ?? "",
+      );
+    })[0]?.payload;
   const profile = store.state?.profile;
   const weekContext = useMemo(
     () =>
@@ -147,9 +213,10 @@ export function SetTable({
             completions: store.state.completions,
             readiness: store.state.readiness,
             previousPlan: store.state.plan,
+            strengthLoadResponses: gymStrengthResponses(gym.records),
           })
         : undefined,
-    [kind, profile, date, store.todayIso, store.state],
+    [kind, profile, date, store.todayIso, store.state, gym.records],
   );
   const liveFocus =
     weekContext && profile
@@ -164,6 +231,16 @@ export function SetTable({
       ? {
           ...weekContext,
           age: profile.age,
+          equipmentConfigured: !!equipment,
+          ...(equipment?.incrementKg !== undefined ? { incrementKg: equipment.incrementKg } : {}),
+          ...(equipment?.availableWeightsKg
+            ? { availableWeightsKg: equipment.availableWeightsKg }
+            : {}),
+          declinedIncrease:
+            reviewKey !== scopeKey &&
+            lastResponse?.kind === "response" &&
+            ["hold", "lighter"].includes(lastResponse.decision) &&
+            (lastResponse.suggestedKg ?? 0) > lastResponse.chosenKg,
           loadPreference:
             sessionId && store.state.completions[sessionId]?.executionSnapshot
               ? strengthPreference(store.state.completions[sessionId].executionSnapshot!)
@@ -260,11 +337,55 @@ export function SetTable({
       metricValue: kind === "hold" ? num(values.value) : null,
     };
     try {
+      let responseSaveFailed = false;
+      if (
+        kind === "load" &&
+        equipment &&
+        exercise.exerciseId &&
+        sessionId &&
+        date === store.todayIso &&
+        editing === null &&
+        gym.available
+      ) {
+        const chosenKg = num(values.weight);
+        if (chosenKg !== null) {
+          try {
+            await gym.save({
+              kind: "response",
+              version: 1,
+              sessionId,
+              exerciseId: exercise.exerciseId,
+              prescriptionKey: exercisePrescriptionKey(exercise),
+              suggestionKey: JSON.stringify([
+                exercisePrescriptionKey(exercise),
+                recommendation?.action,
+                recommendation?.weightKg,
+              ]),
+              decision:
+                choice.value?.decision ??
+                (recordedResponse?.kind === "response" ? recordedResponse.decision : "unanswered"),
+              ...(choice.value?.reason ? { reason: choice.value.reason } : {}),
+              ...(recommendation?.weightKg !== undefined
+                ? { suggestedKg: recommendation.weightKg }
+                : {}),
+              chosenKg,
+              equipment,
+            });
+          } catch {
+            responseSaveFailed = true;
+          }
+        }
+      }
       const ok = await saveSet(log);
       if (!ok) {
         setError({ set: n, text: "Nie zapisano serii. Wpis został — spróbuj ponownie." });
         return false;
       }
+      if (responseSaveFailed)
+        setError({
+          set: n,
+          text: "Seria zapisana. Nie potwierdzono zapisu decyzji o ciężarze; sprawdź synchronizację.",
+        });
       drafts.setValue((all) => {
         const next = { ...all };
         delete next[String(n)];
@@ -291,6 +412,26 @@ export function SetTable({
         ? (nextSetLoadAdvice(exercise, current[active - 1], loadContext) ?? sessionRecommendation)
         : sessionRecommendation;
   const activeValues = active !== null ? valuesFor(active) : EMPTY;
+  function chooseLoad(decision: "accept" | "hold" | "lighter") {
+    if (active === null) return;
+    choice.setValue({ decision });
+    if (decision === "accept" && recommendation?.weightKg !== undefined)
+      edit(active, "weight", String(recommendation.weightKg));
+    if (decision === "lighter") {
+      const reference = parseTrainingNumber(activeValues.weight);
+      const lower =
+        reference !== null
+          ? equipment?.availableWeightsKg
+            ? [...equipment.availableWeightsKg]
+                .filter((n) => n < reference)
+                .sort((a, b) => b - a)[0]
+            : equipment?.incrementKg
+              ? Math.round((reference - equipment.incrementKg) * 100) / 100
+              : undefined
+          : undefined;
+      edit(active, "weight", lower !== undefined && lower > 0 ? String(lower) : "");
+    }
+  }
   const busy = !canRecord || saving !== null;
   // "Poprzednio": this session's previous set, else the same set last time.
   const earlier =
@@ -385,6 +526,23 @@ export function SetTable({
           </ol>
         </header>
         {facts}
+        {kind === "load" && (
+          <GymEquipmentEditor
+            exerciseId={exercise.exerciseId}
+            disabled={saving !== null || !canRecord}
+          />
+        )}
+        {kind === "load" && equipment && (
+          <p className="bw-runner-muted">
+            Kg:{" "}
+            {equipment.convention === "per_hand"
+              ? "jedna hantla / jedna ręka"
+              : equipment.convention === "total"
+                ? "cały ciężar"
+                : "wskazanie tego stanowiska"}
+            .
+          </p>
+        )}
         {recommendation ? (
           <div className="text-sm text-neutral-600">
             <p>{recommendation.label}</p>
@@ -392,6 +550,76 @@ export function SetTable({
               <summary>Dlaczego taki ciężar?</summary>
               <p>{recommendation.reason}</p>
             </details>
+            {canRecord &&
+              active !== null &&
+              editing === null &&
+              date === store.todayIso &&
+              recommendation.weightKg !== undefined && (
+                <>
+                  <p className="mt-2 text-xs">
+                    To sugestia. Wybierz ciężar, który chcesz sprawdzić; zawsze możesz wpisać inny.
+                  </p>
+                  <div
+                    role="group"
+                    aria-label="Twój wybór ciężaru"
+                    className="my-2 flex flex-wrap gap-2"
+                  >
+                    {(
+                      [
+                        ["accept", "Spróbuję"],
+                        ["hold", "Zostaję przy swoim"],
+                        ["lighter", "Dziś mniej"],
+                      ] as const
+                    ).map(([value, label]) => (
+                      <button
+                        type="button"
+                        key={value}
+                        className="min-h-11 rounded-lg border px-3"
+                        disabled={busy}
+                        aria-pressed={choice.value?.decision === value}
+                        onClick={() => chooseLoad(value)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {choice.value && choice.value.decision !== "accept" && (
+                    <label className="block text-xs">
+                      Powód · opcjonalnie
+                      <select
+                        className="ml-2 rounded-lg border p-2"
+                        value={choice.value.reason ?? ""}
+                        onChange={(e) =>
+                          choice.setValue({
+                            ...choice.value!,
+                            reason: e.target.value
+                              ? (e.target.value as LoadChoice["reason"])
+                              : undefined,
+                          })
+                        }
+                      >
+                        <option value="">Bez podawania powodu</option>
+                        <option value="preference">Wolę bez podwyżki</option>
+                        <option value="not_ready">Jeszcze nie czuję się gotowy</option>
+                        <option value="unable">Ten ciężar jest za duży</option>
+                      </select>
+                    </label>
+                  )}
+                  <p className="text-xs">
+                    Wybór zapisze się razem z serią. Nie zastępuje zapisu faktycznych powtórzeń i
+                    zapasu.
+                  </p>
+                </>
+              )}
+            {loadContext?.declinedIncrease && canRecord && (
+              <button
+                type="button"
+                className="min-h-11 underline"
+                onClick={() => setReviewKey(scopeKey)}
+              >
+                Sprawdź możliwość podwyżki
+              </button>
+            )}
           </div>
         ) : null}
         {active !== null && (
@@ -407,7 +635,7 @@ export function SetTable({
                   title="Ciężar"
                   label={`Seria ${active}: ciężar w kg`}
                   unit="kg"
-                  step={2.5}
+                  step={equipment?.incrementKg ?? 0.5}
                   value={activeValues.weight}
                   disabled={busy}
                   onChange={(v) => edit(active, "weight", v)}
@@ -478,7 +706,7 @@ export function SetTable({
                     ...all,
                     [String(active)]: {
                       ...fromLog(earlier.log),
-                      rir: earlier.rir ? fromLog(earlier.log).rir : "",
+                      rir: "",
                     },
                   }))
                 }

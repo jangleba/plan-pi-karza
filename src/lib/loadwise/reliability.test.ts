@@ -39,6 +39,44 @@ const write = (id: string, completed = false) => ({
 beforeEach(() => vi.unstubAllGlobals());
 
 describe("reliability regressions", () => {
+  it("replays a compacted session parent before its gym observations", async () => {
+    const storage = new MemoryStorage();
+    enqueueTrainingWrite(
+      "gym-owner",
+      {
+        kind: "gym_record",
+        dedupeKey: "gym:observation:s1:jump",
+        payload: {
+          user_id: "gym-owner",
+          record_key: "observation:s1:jump",
+          payload: { kind: "observation", sessionId: "s1" },
+        },
+      },
+      storage,
+      1,
+    );
+    enqueueTrainingWrite(
+      "gym-owner",
+      {
+        kind: "session_log",
+        dedupeKey: "session:s1",
+        payload: { user_id: "gym-owner", session_id: "s1", completed: true },
+      },
+      storage,
+      2,
+    );
+    const calls: string[] = [];
+    const result = await flushPendingTrainingWrites(
+      "gym-owner",
+      async (row) => {
+        calls.push(row.kind);
+        return true;
+      },
+      storage,
+    );
+    expect(calls).toEqual(["session_log", "gym_record"]);
+    expect(result).toEqual({ synced: 2, remaining: 0 });
+  });
   it("keeps another write and a newer same-key revision enqueued during a flush", async () => {
     const storage = new MemoryStorage();
     enqueueTrainingWrite("u", write("A"), storage, 1);
@@ -124,6 +162,7 @@ describe("reliability regressions", () => {
     const storage = new MemoryStorage();
     const keys = [
       "ballwise.browser-lab.v1:u",
+      "ballwise:gym-evidence:v1:u",
       "ballwise:iq:journeys:v1:u:draft",
       "loadwise:details:v1:note:u:squat",
       "ballwise:warmup:u:s1",

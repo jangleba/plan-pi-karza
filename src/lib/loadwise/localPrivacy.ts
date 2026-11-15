@@ -39,6 +39,7 @@ export function clearLocalUserData(
   storage = localPrivacyStorage(storage);
 
   const exactKeys = new Set([
+    `ballwise:gym-evidence:v1:${userId}`,
     `ballwise:offline-owner:v1:${userId}`,
     `ballwise:module-backup:device:v1:${userId}`,
     `ballwise:billing:v1:${userId}`,
@@ -185,6 +186,7 @@ export async function clearLocalHealthData(userId: string): Promise<void> {
 /** A registry of account-owned local data, also used by export. Never inspect other users' keys. */
 export function belongsToLocalUser(key: string, userId: string): boolean {
   const exact = [
+    `ballwise:gym-evidence:v1:${userId}`,
     `loadwise:v3:${userId}`,
     `loadwise:boot:v2:${userId}`,
     `loadwise:training-queue:v1:${userId}`,

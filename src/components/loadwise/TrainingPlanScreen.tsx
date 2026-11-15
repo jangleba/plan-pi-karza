@@ -19,10 +19,14 @@ import { rowsToStrengthSets, useStrengthSetRows } from "@/lib/loadwise/strengthS
 import { StrengthExperienceSetup } from "./session/StrengthExperienceSetup";
 import { FeedbackAdjustmentCard } from "./FeedbackAdjustmentCard";
 import { MasTestAction } from "./MasTestAction";
+import { GymBandSetupPanel } from "./session/GymBandSetupPanel";
+import { useGymEvidence } from "@/lib/loadwise/useGymEvidence";
+import { gymProgressionInput, gymStrengthResponses } from "@/lib/loadwise/gymEvidence";
 import "@/styles/ballwise-plan.css";
 
 /** Preview, explicit activation and execution of the versioned training plan. */
 export function PlanScreen() {
+  const gymEvidence = useGymEvidence();
   const { state, todayIso, hydrated, syncing, activatePlanV2 } = useLoadwise();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false),
@@ -114,6 +118,8 @@ export function PlanScreen() {
           completions: state.completions,
         }).filter((d) => d.date < todayIso),
         readiness: state.profile.healthPersonalizationEnabled ? state.readiness : undefined,
+        gymProgression: gymProgressionInput(gymEvidence.records),
+        strengthLoadResponses: gymStrengthResponses(gymEvidence.records),
       });
       // The same record travels with the new plan, so it stays in Progress and survives rebuilds.
       const result = record
@@ -140,6 +146,7 @@ export function PlanScreen() {
     effectivePlan,
     status.kind,
     setRows,
+    gymEvidence.records,
   ]);
   const plan = preview?.result?.plan ?? effectivePlan;
   // What changed since the saved plan was built, and what the next days would look like.
@@ -188,6 +195,13 @@ export function PlanScreen() {
         {!hydrated || syncing ? <p role="status">Wczytywanie profilu…</p> : null}
         {!preview ? <FeedbackAdjustmentCard /> : null}
         {!preview ? <MasTestAction /> : null}
+        {state.profile?.hasGym && (
+          <GymBandSetupPanel
+            date={todayIso}
+            profile={state.profile ?? undefined}
+            onChanged={() => setRebuild(true)}
+          />
+        )}
         {state.profile ? (
           <details className="rounded-2xl border border-black/10 p-4">
             <summary>Dopasowanie treningu</summary>

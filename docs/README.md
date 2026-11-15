@@ -22,6 +22,7 @@ potwierdzenia wdrożenia, odbioru prawnego ani testów na fizycznym urządzeniu.
 - [Jednorazowe czyszczenie wycofanego Vision Lab](VISION-LAB-CLEANUP.md)
 - [Grafiki ćwiczeń i materiały autorskie](exercise-artwork/README.md)
 - [Konwencje routingu](../src/routes/README.md)
+- [Siłownia GP2 — sugestie kg, sprzęt, obserwacje i aktualizacja A/B](GYM-FEEDBACK-GP2.md)
 
 - [Subskrypcje iOS — kod, konfiguracja i testy](apple/IAP-SUBSCRIPTION-SPEC.md)
 

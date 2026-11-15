@@ -1,5 +1,7 @@
 # SP1.1: połączona progresja siły, check-in i zapis obciążenia
 
+> Ten dokument opisuje etap SP1.1. Połączenie z rzeczywistym sprzętem, decyzją o kg i aktualizacją przyszłych sesji opisuje [GP2](GYM-FEEDBACK-GP2.md); wymaga nowej migracji. Historyczne ograniczenia poniżej nie opisują nowego interfejsu GP2.
+
 15 listopada 2026. Baza: `344421cffb858394d996244720009e1740b93ae2` — PR #158 zawierający poprzednią progresję skoków i pary A/B. SP1.1 zawiera SP1 i poprawki audytu integracji. To osobne, niewdrożone rozszerzenie. Zachowuje dwie sesje A/B, ich zadania i kwalifikacje ćwiczeń.
 
 ## Audyt przepływu i uzupełnione połączenia

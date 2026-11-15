@@ -113,11 +113,17 @@ export function useOfflineTrainingSync(
                       p_expected_version: expectedVersion,
                       p_payload: payload,
                     })
-                  : await supabase.rpc("save_running_result", {
-                      p_operation_id: operationId,
-                      p_expected_version: expectedVersion,
-                      p_payload: payload,
-                    });
+                  : write.kind === "gym_record"
+                    ? await supabase.rpc("save_gym_record", {
+                        p_operation_id: operationId,
+                        p_expected_version: expectedVersion,
+                        p_payload: payload,
+                      })
+                    : await supabase.rpc("save_running_result", {
+                        p_operation_id: operationId,
+                        p_expected_version: expectedVersion,
+                        p_payload: payload,
+                      });
             if (saved.error) throw saved.error;
             // Re-read canonical server/profile/plan together after the committed batch.
             return true;

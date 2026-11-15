@@ -59,7 +59,7 @@ export function strengthWeekContext(
       done(c) &&
       c.executionSnapshot &&
       validDate(c.executionSnapshot.date) &&
-      c.executionSnapshot.date < asOfDate,
+      c.executionSnapshot.date <= asOfDate,
   );
   const recent = completions.filter(
     (c) =>
@@ -122,7 +122,7 @@ export function strengthWeekContext(
         .filter(
           (c) =>
             isStrengthSession(c.executionSnapshot!) &&
-            dayDistance(asOfDate, c.executionSnapshot!.date) > 0 &&
+            dayDistance(asOfDate, c.executionSnapshot!.date) >= 0 &&
             dayDistance(asOfDate, c.executionSnapshot!.date) <= 14,
         )
         .sort((a, b) => b.executionSnapshot!.date.localeCompare(a.executionSnapshot!.date))
@@ -164,7 +164,17 @@ export function strengthWeekContext(
     strengthGapDays: strengthDates[0] ? dayDistance(asOfDate, strengthDates[0]) : null,
     readinessScore,
     lighterRequests: strengthRecent.filter(
-      (c) => strengthPreference(c.executionSnapshot!) === "lighter",
+      (c) =>
+        strengthPreference(c.executionSnapshot!) === "lighter" ||
+        options.strengthLoadResponses?.some(
+          (r) =>
+            r.sessionId === c.executionSnapshot!.dbId &&
+            r.decision === "lighter" &&
+            c.executionSnapshot!.engineV2?.exercises.some(
+              (e) =>
+                e.exerciseId === r.exerciseId && ["knee_strength", "hip_strength"].includes(e.role),
+            ),
+        ),
     ).length,
   };
 }

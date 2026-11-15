@@ -14,6 +14,7 @@ import { loadV2Plan } from "./engineV2/persistence";
 import { useRunningCalibration } from "./store/useRunningCalibration";
 
 import { resolveEffectivePlan } from "./effectivePlan";
+import { GymEvidenceProvider } from "./useGymEvidence";
 
 export { applyExerciseReplacements } from "./store/model";
 
@@ -85,7 +86,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   const planActions = createPlanActions({ ...context, replacementInFlightRef });
   const todaySession = state.plan.find((p) => p.date === todayIso) ?? null;
   const activatingV2 = useRef(false);
-  async function activatePlanV2(result: EngineResult) {
+  async function activatePlanV2(result: EngineResult, isEvidenceCurrent?: () => boolean) {
     if (activatingV2.current) return;
     if (!user || !hydrated || syncing || profileSaveStage)
       throw new Error("Poczekaj na wczytanie profilu.");
@@ -97,6 +98,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         import("./persist"),
       ]);
       const saved = await activateTrainingPlan(result, {
+        isEvidenceCurrent,
         current: () => {
           const value = stateRef.current;
           return activeUser.current === owner && value.profile
@@ -143,7 +145,13 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         ...planActions,
       }}
     >
-      {children}
+      <GymEvidenceProvider
+        key={user?.id ?? "anonymous"}
+        ownerId={user?.id}
+        ready={hydrated && !syncing}
+      >
+        {children}
+      </GymEvidenceProvider>
     </LoadwiseContext.Provider>
   );
 }
