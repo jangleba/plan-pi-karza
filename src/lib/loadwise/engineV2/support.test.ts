@@ -214,3 +214,44 @@ describe("support session programming", () => {
     expect(sum("deload")).toBeLessThan(sum("development"));
   });
 });
+
+it("keeps foundations stable and makes the direction/color tasks reachable without treating weekly rotation as improved ability", () => {
+  const p = {
+    ...profile,
+    position: "midfielder" as const,
+    equipment: ["football_ball"],
+    hasPitch: true,
+  };
+  const series = Array.from({ length: 20 }, (_, rotation) =>
+    buildSkills(p, "development", { rotation })!,
+  );
+  const ids = series.flatMap((s) => s.exercises.map((e) => e.exerciseId));
+  expect(ids).toContain("football_scan_control");
+  expect(ids).toContain("football_gate_dribble");
+  for (const s of series) {
+    expect(s.exercises[0].exerciseId).toBe("football_ball_mastery");
+    expect(s.exercises[1].exerciseId).toBe("football_self_feed_first_touch");
+    expect(new Set(s.exercises.map((e) => e.exerciseId)).size).toBe(s.exercises.length);
+    expect(s.highLower).toBe(false);
+    expect(
+      s.exercises.some((e) =>
+        ["football_speed_dribble", "football_slalom_time", "football_finishing_corners"].includes(
+          e.exerciseId,
+        ),
+      ),
+    ).toBe(false);
+  }
+  expect(buildSkills(p, "development", { rotation: 2 })).toEqual(
+    buildSkills(p, "development", { rotation: 2 }),
+  );
+});
+it("uses smaller starting doses for a young or novice player without guessing actual technical ability", () => {
+  const p = { ...profile, equipment: ["football_ball"] };
+  const young = buildSkills({ ...p, age: 13 }, "development")!;
+  expect(young.exercises.every((e) => e.dose.sets === 1 && e.dose.seconds === 30)).toBe(true);
+  expect(
+    buildSkills(p, "development")!.exercises.every(
+      (e) => e.dose.sets === 2 && e.dose.seconds === 45,
+    ),
+  ).toBe(true);
+});

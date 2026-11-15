@@ -27,6 +27,25 @@ const setupChanged = (session: SessionDay, profile: Profile) =>
     ? session.trainingSetupRevision !== trainingSetupRevision(profile)
     : session.canonicalRevision !== trainingProfileRevision(profile);
 
+/** Historical/pinned work can belong to a prior engine; only unhandled future work needs migration. */
+export function hasOutdatedPendingEngineWork(
+  plan: readonly SessionDay[],
+  completions: Record<string, SessionCompletion>,
+  todayIso: string,
+): boolean {
+  return plan
+    .filter((d) => d.date >= todayIso && !d.executionProtected)
+    .flatMap(slots)
+    .some(
+      (s) =>
+        ownPrescription(s) &&
+        !s.executionProtected &&
+        !executionStarted(s.dbId ? completions[s.dbId] : undefined) &&
+        !handled(s.dbId ? completions[s.dbId] : undefined) &&
+        s.generatorVersion !== ENGINE_VERSION,
+    );
+}
+
 /** Read-only lifecycle state; opening the app never creates or replaces a plan. */
 export function getPlanStatus({
   plan,

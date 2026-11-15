@@ -54,7 +54,7 @@ const startVariant = (
     reps: 1,
     distanceM: distanceM(env),
     runOutM: distanceM(env),
-    restSeconds: 90,
+    restSeconds: distanceM(env) >= 20 ? 150 : 90,
     intent: "explosive",
     speedStage: "main",
     ...(exerciseId === "dribble_to_sprint_transition"
@@ -137,12 +137,12 @@ export const MAIN_VARIANTS: readonly MainVariant[] = [
       distanceM: 10,
       runInM: 20,
       runOutM: 20,
-      restSeconds: 150,
+      restSeconds: 240,
       intent: "explosive",
       speedStage: "main",
     }),
     instruction: () =>
-      "20 m płynnego nabiegu, 10 m lotnego biegu i 20 m stopniowego wyhamowania. Pełny odpoczynek, bez wymuszania kroku.",
+      "20 m płynnego nabiegu, 10 m lotnego biegu i 20 m stopniowego wyhamowania. Co najmniej 4 min przerwy; wydłuż ją, jeśli nie jesteś gotowy. Nabieg 20 m to ekspozycja na szybki bieg, nie pomiar osiągniętej prędkości maksymalnej.",
   },
   {
     id: "mv_flying_30_10",
@@ -155,12 +155,12 @@ export const MAIN_VARIANTS: readonly MainVariant[] = [
       distanceM: 10,
       runInM: 30,
       runOutM: 20,
-      restSeconds: 180,
+      restSeconds: 240,
       intent: "explosive",
       speedStage: "main",
     }),
     instruction: () =>
-      "30 m płynnego nabiegu, 10 m lotnego biegu i 20 m wyhamowania; wymaga co najmniej 60 m wolnej prostej. Pełny odpoczynek.",
+      "30 m płynnego nabiegu, 10 m lotnego biegu i 20 m wyhamowania; wymaga co najmniej 60 m wolnej prostej. Co najmniej 4 min przerwy; wydłuż ją, jeśli nie jesteś gotowy. Osiągnięcie Vmax nie jest potwierdzane samą długością nabiegu.",
   },
   // Curve: both directions, wide and controlled.
   {

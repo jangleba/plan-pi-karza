@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AppHeader } from "@/components/loadwise/ui";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { generateTrainingPlan } from "@/lib/loadwise/engineV2/planner";
@@ -22,6 +22,10 @@ import { MasTestAction } from "./MasTestAction";
 import { GymBandSetupPanel } from "./session/GymBandSetupPanel";
 import { useGymEvidence } from "@/lib/loadwise/useGymEvidence";
 import { gymPlanContext } from "@/lib/loadwise/gymEvidence";
+import { planEvidenceIssue, planEvidenceKey } from "@/lib/loadwise/planEvidence";
+import { useTrainingWriteStatus } from "@/lib/loadwise/useTrainingWriteStatus";
+import { hasUnresolvedTrainingWrites } from "@/lib/loadwise/offlineTrainingQueue";
+import { runningCalibrationMessage } from "@/lib/loadwise/engineV2/runningCalibrationStatus";
 import "@/styles/ballwise-plan.css";
 
 /** Preview, explicit activation and execution of the versioned training plan. */
@@ -32,6 +36,11 @@ export function PlanScreen() {
   const [saving, setSaving] = useState(false),
     [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  const unresolvedWrites = useTrainingWriteStatus(user?.id);
+  const evidenceIssue = planEvidenceIssue(gymEvidence, unresolvedWrites);
+  const evidenceKey = planEvidenceKey(gymEvidence);
+  const liveEvidence = useRef({ gym: gymEvidence, ownerId: user?.id });
+  liveEvidence.current = { gym: gymEvidence, ownerId: user?.id };
   const [rebuildRequested, setRebuild] = useState(false);
   // Choices confirmed in Progress (time budget); a different saved plan voids them.
   const intentState = useTrainingLocalState<NextPlanIntent | null>(
@@ -79,7 +88,7 @@ export function PlanScreen() {
     effectivePlan[effectivePlan.length - 1]?.date,
   );
   const preview = useMemo(() => {
-    if (!state.profile || (state.plan.length && !rebuild)) return null;
+    if (!state.profile || (state.plan.length && !rebuild) || evidenceIssue) return null;
     try {
       // The recommendation is decided first, then handed to the one generator.
       const summary =
@@ -126,7 +135,7 @@ export function PlanScreen() {
       const result = record
         ? { ...generated, plan: stampCycleStart(generated.plan, record) }
         : generated;
-      return { result, error: null };
+      return { result, error: null, evidenceKey };
     } catch (e) {
       return {
         result: null,
@@ -148,6 +157,8 @@ export function PlanScreen() {
     status.kind,
     setRows,
     gymEvidence.records,
+    evidenceIssue,
+    evidenceKey,
   ]);
   const plan = preview?.result?.plan ?? effectivePlan;
   // What changed since the saved plan was built, and what the next days would look like.
@@ -172,13 +183,36 @@ export function PlanScreen() {
   const nearLimit = nearEnd.toISOString().slice(0, 10);
   const nextDaysDiff = allDiff.filter((d) => d.date <= nearLimit);
   const laterDiff = allDiff.filter((d) => d.date > nearLimit);
+  const runningMessage = runningCalibrationMessage({
+    profile: state.profile,
+    plan: effectivePlan,
+    completions: state.completions,
+    todayIso,
+    gym: gymEvidence,
+    unresolvedWrites,
+    online: typeof navigator === "undefined" || navigator.onLine !== false,
+  });
   const issues = preview?.result?.issues ?? state.plan[0]?.enginePlanIssues ?? [];
   async function save() {
     if (!preview?.result || !activatePlanV2) return;
     setSaving(true);
     setError(null);
     try {
-      await activatePlanV2(preview.result);
+      const owner = user?.id;
+      const capturedKey = preview.evidenceKey;
+      const currentEvidence = () => {
+        const live = liveEvidence.current;
+        return (
+          live.ownerId === owner &&
+          !planEvidenceIssue(live.gym, !!owner && hasUnresolvedTrainingWrites(owner)) &&
+          planEvidenceKey(live.gym) === capturedKey
+        );
+      };
+      if (!currentEvidence())
+        throw new Error(
+          "Zapisy treningu zmieniły się. Poczekaj na synchronizację i sprawdź nowy podgląd.",
+        );
+      await activatePlanV2(preview.result, currentEvidence);
       setRebuild(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Nie udało się zapisać planu. Spróbuj ponownie.");
@@ -194,8 +228,16 @@ export function PlanScreen() {
       <AppHeader title="Plan" sketch="pitch" />
       <div className="px-4 space-y-4">
         {!hydrated || syncing ? <p role="status">Wczytywanie profilu…</p> : null}
+        {(!state.plan.length || rebuild) && evidenceIssue ? (
+          <p role="status">{evidenceIssue}</p>
+        ) : null}
         {!preview ? <FeedbackAdjustmentCard /> : null}
         {!preview ? <MasTestAction /> : null}
+        {!preview && runningMessage ? (
+          <p role="status" aria-label="Aktualizacja biegania">
+            {runningMessage}
+          </p>
+        ) : null}
         {state.profile?.hasGym && (
           <GymBandSetupPanel
             date={todayIso}
@@ -252,7 +294,9 @@ export function PlanScreen() {
               </p>
             ) : null}
             <button className="text-sm underline py-2" onClick={() => setRebuild(true)}>
-              {status.kind === "stale" ? "Zaktualizuj plan" : "Przygotuj kolejny plan"}
+              {status.kind === "stale" || runningMessage
+                ? "Zaktualizuj plan"
+                : "Przygotuj kolejny plan"}
             </button>
           </div>
         ) : null}
@@ -325,7 +369,7 @@ export function PlanScreen() {
             <button
               type="button"
               className="rounded-xl bg-neutral-900 text-white px-4 py-3"
-              disabled={saving || !hydrated || syncing || !activatePlanV2}
+              disabled={saving || !hydrated || syncing || !!evidenceIssue || !activatePlanV2}
               onClick={() => void save()}
             >
               {saving

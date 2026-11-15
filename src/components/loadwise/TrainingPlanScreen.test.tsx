@@ -6,12 +6,16 @@ import { PlanScreen } from "./TrainingPlanScreen";
 import { buildProfile, initialState } from "@/lib/loadwise/store/model";
 import { generateTrainingPlan } from "@/lib/loadwise/engineV2/planner";
 import type { LoadwiseState, SessionDay } from "@/lib/loadwise/types";
+import type { PlanGymEvidence } from "@/lib/loadwise/planEvidence";
+import { enqueueTrainingWrite } from "@/lib/loadwise/offlineTrainingQueue";
 import { trainingStorageKey } from "@/lib/loadwise/trainingDetails";
 const mock = vi.hoisted(() => ({
   store: null as unknown as Record<string, unknown>,
   activate: vi.fn(),
   navigate: vi.fn(),
+  gym: { loading: false, available: true, records: [] } as PlanGymEvidence,
 }));
+vi.mock("@/lib/loadwise/useGymEvidence", () => ({ useGymEvidence: () => mock.gym }));
 vi.mock("@/lib/loadwise/store", () => ({ useLoadwise: () => mock.store }));
 vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: "plan-test" } }) }));
 vi.mock("@/components/loadwise/ui", () => ({ AppHeader: () => null }));
@@ -27,6 +31,7 @@ beforeEach(() => {
   document.body.append(host);
   root = createRoot(host);
   mock.activate.mockReset();
+  mock.gym = { loading: false, available: true, records: [] };
   mock.navigate.mockReset();
   mock.store = {
     state: {
@@ -315,5 +320,68 @@ it("a new time budget opens a preview of the nearest sessions instead of changin
   });
   expect(host.textContent).toContain("Twój plan · 4 tygodnie");
   expect(host.textContent).toContain("Czas na jednostkę: 75 → 30 min");
+  expect(mock.activate).not.toHaveBeenCalled();
+});
+
+it.each(["loading", "failed", "pending"])(
+  "blocks plan preparation with %s gym evidence",
+  async (status) => {
+    mock.gym = {
+      loading: status === "loading",
+      available: status !== "failed",
+      records:
+        status === "pending" ? [{ pending: true } as PlanGymEvidence["records"][number]] : [],
+    };
+    await act(async () => root.render(<PlanScreen />));
+    const save = [...host.querySelectorAll("button")].find((b) =>
+      b.textContent?.startsWith("Zapisz plan"),
+    );
+    expect(save == null || save.disabled).toBe(true);
+    expect(host.querySelector('[role="status"]')?.textContent).toBeTruthy();
+    expect(mock.activate).not.toHaveBeenCalled();
+  },
+);
+it("invalidates the evidence lease if gym records change after the preview", async () => {
+  await act(async () => root.render(<PlanScreen />));
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((b) => b.textContent?.startsWith("Zapisz plan"))!
+      .click(),
+  );
+  const isCurrent = mock.activate.mock.calls[0][1] as () => boolean;
+  expect(isCurrent()).toBe(true);
+  mock.gym = {
+    ...mock.gym,
+    records: [
+      {
+        record_key: "changed",
+        revision: 2,
+        payload: {
+          kind: "band_selection",
+          version: 1,
+          exerciseId: "gym_cmj_resisted",
+          setupId: null,
+        },
+      } as PlanGymEvidence["records"][number],
+    ],
+  };
+  await act(async () => root.render(<PlanScreen />));
+  expect(isCurrent()).toBe(false);
+});
+it("a new queued write blocks a preview without waiting for a profile reload", async () => {
+  await act(async () => root.render(<PlanScreen />));
+  expect(
+    [...host.querySelectorAll("button")].some((b) => b.textContent?.startsWith("Zapisz plan")),
+  ).toBe(true);
+  await act(async () => {
+    enqueueTrainingWrite("plan-test", {
+      kind: "gym_record",
+      dedupeKey: "gym:equipment:x",
+      payload: { user_id: "plan-test", record_key: "equipment:x", payload: {} },
+    });
+  });
+  expect(
+    [...host.querySelectorAll("button")].some((b) => b.textContent?.startsWith("Zapisz plan")),
+  ).toBe(false);
   expect(mock.activate).not.toHaveBeenCalled();
 });

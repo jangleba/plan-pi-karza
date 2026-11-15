@@ -71,4 +71,21 @@ describe("one short naming scheme for every training unit", () => {
     expect(unifiedSessionTitle("Spokojny bieg ciągły — lżej")).toBe("Bieg: spokojny (lżej)");
     expect(unifiedSessionTitle("Szybkość wstrzymana")).toBe("Szybkość wstrzymana");
   });
+
+  it("preserves current English training names and their specific purpose", () => {
+    for (const title of [
+      "Acceleration Development",
+      "Flying Sprint Development",
+      "Strength Deload · A",
+      "Aerobic Intervals",
+      "Tempo Intervals",
+      "Field MAS Test",
+      "Team Training",
+      "Rest Day",
+    ])
+      expect(unifiedSessionTitle(title)).toBe(title);
+    expect(unifiedSessionTitle("Acceleration Development — lżej")).toBe(
+      "Acceleration Development (Reduced)",
+    );
+  });
 });

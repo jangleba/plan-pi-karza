@@ -12,8 +12,9 @@
 
 import type { PainLocation } from "./types";
 import { functionalReplacementCompatible } from "./engineV2/taxonomy";
+import { exerciseName } from "./engineV2/sessionNames";
 import { SKIP_GUIDES, SKIP_LANDING } from "./skipGuides";
-import { INDIVIDUAL_FOOTBALL_DRILLS } from "./individualFootballDrills";
+import { INDIVIDUAL_FOOTBALL_DRILLS, FOOTBALL_DRILL_NAMES_EN } from "./individualFootballDrills";
 import { GYM_STRENGTH_EXERCISES, GYM_EXERCISE_RULES } from "./gymStrengthExercises";
 import type { ExerciseInstructionStep, ExerciseItem, SessionDay, TrainingExercise } from "./types";
 import type {
@@ -3022,7 +3023,7 @@ for (const drill of INDIVIDUAL_FOOTBALL_DRILLS) {
   LIBRARY.push({
     ...footballTechniqueBase,
     id: drill.id,
-    name: drill.name,
+    name: FOOTBALL_DRILL_NAMES_EN[drill.id],
     displayNamePl: drill.name,
     aliases: [],
     spaceRequirement:
@@ -5240,7 +5241,9 @@ export function hydrateTrainingExerciseFromDefinition(
   return {
     ...exercise,
     exerciseId: canonical.id,
-    name: canonical.displayNamePl,
+    name: exercise.engineDose
+      ? exerciseName(canonical.id, canonical.name)
+      : canonical.displayNamePl,
     purpose: exercise.purpose ?? fallbackPurpose(canonical),
     visualId: exercise.visualId ?? canonical.id,
     instructionSteps:

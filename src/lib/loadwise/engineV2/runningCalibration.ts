@@ -1,6 +1,6 @@
 import type { Profile, Readiness, SessionCompletion, SessionDay } from "../types";
 import { sessionPrescription, trainingSetupRevision } from "../planIdentity";
-import { ENGINE_VERSION } from "./model";
+import { hasOutdatedPendingEngineWork } from "./planStatus";
 import { runningCalibrationKey } from "./runningCalibrationKey";
 import { generateTrainingPlan, validateTrainingPlan } from "./planner";
 import type { EngineOptions } from "./model";
@@ -62,8 +62,17 @@ export function calibratePendingRunningPlan(input: {
   const { profile, completions, todayIso, plan } = input;
   const key = runningCalibrationKey(profile),
     setup = trainingSetupRevision(profile);
-  if (!plan.length || plan.some((d) => d.generatorVersion !== ENGINE_VERSION)) return null;
-  if (plan.some((d) => d.date >= todayIso && d.trainingSetupRevision !== setup)) return null;
+  if (!plan.length || hasOutdatedPendingEngineWork(plan, completions, todayIso)) return null;
+  if (
+    plan.some(
+      (d) =>
+        d.date >= todayIso &&
+        !d.executionProtected &&
+        !slots(d).some((s) => handled(s, completions)) &&
+        d.trainingSetupRevision !== setup,
+    )
+  )
+    return null;
   if (
     !plan
       .flatMap(slots)

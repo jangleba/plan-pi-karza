@@ -1,7 +1,7 @@
 import type { Profile, Readiness, SessionDay } from "../types";
 import { preparationProfile } from "./preparation";
 
-export const ENGINE_VERSION = "ballwise-v2.8";
+export const ENGINE_VERSION = "ballwise-v2.9";
 export type Tier = "foundation" | "development" | "performance";
 export type Role =
   | "knee_strength"

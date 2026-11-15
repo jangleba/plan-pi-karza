@@ -6,6 +6,8 @@ import type { TrainingExercise } from "@/lib/loadwise/types";
 import { SprintStructuredSections } from "./SprintRunner";
 import { StrengthStructuredSections } from "./StrengthRunner";
 import { sectionFixture, sessionFixture, sprintSectionsFixture } from "./testFixtures";
+import { generateTrainingPlan } from "@/lib/loadwise/engineV2/planner";
+import { gymAthlete } from "@/lib/loadwise/engineV2/testFixtures";
 
 const mocks = vi.hoisted(() => ({ unavailable: vi.fn() }));
 vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: "user-1" } }) }));
@@ -113,6 +115,28 @@ afterEach(async () => {
 });
 
 describe("session runners", () => {
+  it("renders the new engine's English exercise names in the actual strength preview", async () => {
+    const plan = generateTrainingPlan(gymAthlete, { startDate: "2026-11-16", weeks: 1 }).plan;
+    const session = plan
+      .flatMap((d) => [d, ...(d.secondSession ? [d.secondSession] : [])])
+      .find((s) => s.engineV2?.roles.some((r) => r.startsWith("strength")))!;
+    await act(async () =>
+      root.render(
+        <StrengthStructuredSections
+          sections={session.structuredSections!}
+          date={session.date}
+          sessionId="english-preview"
+          canRecord={false}
+          onFinish={finish}
+        />,
+      ),
+    );
+    const main = session
+      .structuredSections!.filter((s) => ["main", "accessory"].includes(s.type))
+      .flatMap((s) => s.blocks.flatMap((b) => b.exercises));
+    expect(main.length).toBeGreaterThan(0);
+    for (const e of main) expect(host.textContent).toContain(e.name);
+  });
   it("shows all stages and exercise rows immediately in preview without writing progress", async () => {
     await renderSprint("session-1", false, sprintSectionsFixture(), false);
     expect(host.querySelectorAll(".bw-stage-header")).toHaveLength(8);

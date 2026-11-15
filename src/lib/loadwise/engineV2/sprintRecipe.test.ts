@@ -61,7 +61,7 @@ describe("executable sprint recipe", () => {
     expect(sprintChronology(normal.exercises).filter((e) => e.dose.circuit)).toHaveLength(9);
     const fitted = fitSprintToBudget(normal, normal.minutes - 5)!;
     expect(fitted.minutes).toBeLessThanOrEqual(normal.minutes - 5);
-    expect(fitted.exercises.find((e) => e.dose.speedStage === "main")!.dose.restSeconds).toBe(150);
+    expect(fitted.exercises.find((e) => e.dose.speedStage === "main")!.dose.restSeconds).toBe(240);
     expect(fitSprintToBudget(normal, 5)).toBeNull();
   });
   it("counts build-ups and run-ins and allows no imaginary resistance", () => {

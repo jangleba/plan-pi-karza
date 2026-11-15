@@ -313,8 +313,10 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
                 const guided =
                   block.key === "ramp" &&
                   itemIndex === 0 &&
-                  block.exercises.some((row) =>
-                    /przygotowanie RAMP|dynamiczna rozgrzewka/i.test(row.exercise.name),
+                  block.exercises.some(
+                    (row) =>
+                      row.exercise.exerciseId === "sprint_ramp_warmup" ||
+                      /przygotowanie RAMP|dynamiczna rozgrzewka/i.test(row.exercise.name),
                   );
                 return (
                   <SprintExerciseRow

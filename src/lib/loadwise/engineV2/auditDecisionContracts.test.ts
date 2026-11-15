@@ -286,7 +286,7 @@ describe("sprint titles describe the actual dose", () => {
     expect(sprints.length).toBeGreaterThan(0);
     for (const s of sprints) {
       const fly = s.engineV2!.exercises.some((e) => e.role === "speed" && (e.dose.runInM ?? 0) > 0);
-      expect(s.title).toBe(fly ? "Prędkość maksymalna" : "Przyspieszenie");
+      expect(s.title).toBe(fly ? "Flying Sprint Development" : "Acceleration Development");
     }
     const plain = generateTrainingPlan(
       {
@@ -300,7 +300,7 @@ describe("sprint titles describe the actual dose", () => {
       { startDate: "2026-11-02", weeks: 1 },
     );
     for (const s of plain.plan.flatMap(slotsOf).filter((x) => x.engineV2?.roles.includes("speed")))
-      expect(s.title).toBe("Przyspieszenie");
+      expect(s.title).toBe("Acceleration Development");
   });
 });
 

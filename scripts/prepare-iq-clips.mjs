@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { glbEquivalent } from "./lib/glb-equivalence.mjs";
 import crypto from "node:crypto";
 import { BufferAttribute } from "three";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
@@ -100,7 +101,7 @@ const RUNNING_TRIANGLE_RATIO = 0.1;
     await new GLTFExporter().parseAsync(model, { binary: true, animations: model.animations }),
   );
   if (process.argv.includes("--check")) {
-    if (!fs.existsSync(destination) || !fs.readFileSync(destination).equals(data))
+    if (!fs.existsSync(destination) || !glbEquivalent(fs.readFileSync(destination), data))
       throw new Error("Regenerate running.glb with node scripts/prepare-iq-clips.mjs");
   } else fs.writeFileSync(destination, data);
   console.log(`running: ${bytes.length} -> ${data.length} bytes`);

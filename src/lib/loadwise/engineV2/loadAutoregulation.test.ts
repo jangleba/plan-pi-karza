@@ -278,3 +278,19 @@ describe("SP1 within-session corrections", () => {
     expect(nextSetLoadAdvice(e, { ...set, rir }, ctx)).toBeNull(),
   );
 });
+
+it("does not resume an unavailable pre-deload load after the equipment list changes", () => {
+  const h = history(3);
+  h[0].verification!.phase = "reduced";
+  h[0].sets.forEach((s) => {
+    s.weightKg = 70;
+    s.rir = 4;
+  });
+  const result = run(h, { equipmentConfigured: true, availableWeightsKg: [70, 72.5] });
+  expect(result).toMatchObject({ action: "calibrate" });
+  expect(result?.weightKg).toBeUndefined();
+  expect(run(h, { equipmentConfigured: true, availableWeightsKg: [70, 80] })).toMatchObject({
+    action: "resume",
+    weightKg: 80,
+  });
+});
