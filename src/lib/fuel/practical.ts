@@ -45,6 +45,57 @@ export function foodPreferenceTerms(preferences: FuelPreferences): string[] {
     .filter((label): label is string => Boolean(label));
 }
 
+/** The athlete's food lists from the profile, kept apart by kind. */
+export interface FuelFoodSafety {
+  status: "unconfirmed" | "confirmed_none" | "has_allergies";
+  allergies: string[];
+  intolerances: string[];
+  exclusions: string[];
+}
+export const EMPTY_FOOD_SAFETY: FuelFoodSafety = {
+  status: "unconfirmed",
+  allergies: [],
+  intolerances: [],
+  exclusions: [],
+};
+
+/** Every term a proposal must avoid: local dislikes plus the profile's three lists. */
+export function fuelRestrictionTerms(
+  preferences: FuelPreferences,
+  safety: FuelFoodSafety = EMPTY_FOOD_SAFETY,
+): string[] {
+  return [
+    ...new Set([
+      ...foodPreferenceTerms(preferences),
+      ...safety.allergies,
+      ...safety.intolerances,
+      ...safety.exclusions,
+    ]),
+  ].filter((term) => term.trim().length > 0);
+}
+
+/** What the athlete reads about allergy checking; absence of a conflict is never a guarantee. */
+export function foodSafetyNotice(safety: FuelFoodSafety): { title: string; detail: string } {
+  if (safety.status === "has_allergies")
+    return {
+      title: `Pomijam: ${safety.allergies.join(", ")}`,
+      detail:
+        "Sprawdzam nazwy i znane alergeny produktów. Brak wykrytego konfliktu nie gwarantuje bezpieczeństwa, a niepełny skład oznacza niepewność — czytaj etykietę.",
+    };
+  if (safety.status === "confirmed_none")
+    return {
+      title: "Potwierdzono brak zgłoszonych alergii",
+      detail: safety.intolerances.length
+        ? `Uwzględniam nietolerancje: ${safety.intolerances.join(", ")}.`
+        : "Możesz to zmienić w każdej chwili.",
+    };
+  return {
+    title: "Alergie: nie potwierdzono",
+    detail:
+      "Nie wiem, czy masz alergie. Sprawdzaj skład każdej propozycji albo uzupełnij informację.",
+  };
+}
+
 export function householdPortion(line: MealLine): string {
   const food = FOOD_BY_ID[line.foodId];
   if (!food) return `${Math.round(line.grams)} g`;
@@ -210,9 +261,9 @@ export function fuelEntryAllowed(
 }
 
 /**
- * Fuel no longer keeps allergy data. Older profiles may still carry free-text
- * allergy, intolerance or exclusion terms; they are turned once into the local
- * "Czego nie lubię" list (catalogue food IDs) and are not used in any other way.
+ * Former one-off migration of profile terms into the local "Czego nie lubię" list. The Fuel
+ * screen no longer calls it: allergies, intolerances and exclusions now stay separate profile
+ * lists (fuelRestrictionTerms) instead of being merged into ordinary dislikes.
  */
 export function legacyDislikedFoodIds(profile: Profile | null): string[] {
   const terms = [

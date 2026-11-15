@@ -1230,3 +1230,215 @@
     grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr);
   }
 }
+
+/* Day ranges, match plan and the few questions that change the advice. */
+.fuel-day-card {
+  background: var(--card);
+  border: 1px solid var(--fuel-border);
+  border-radius: var(--bw-card-radius);
+  padding: 14px 16px;
+  box-shadow: var(--bw-shadow-card);
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.fuel-now-reason,
+.fuel-now-swap {
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--fuel-muted);
+}
+.fuel-now-swap .fuel-text-button {
+  font-size: 14px;
+  text-align: left;
+}
+.fuel-match-steps {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.fuel-match-steps li {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--bw-control-radius);
+  border: 1px solid var(--fuel-border);
+  font-size: 13px;
+  line-height: 1.4;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.fuel-match-steps li[data-state="now"] {
+  border-color: var(--fuel-accent);
+  background: color-mix(in srgb, var(--fuel-accent) 6%, var(--card));
+}
+.fuel-match-steps li[data-state="past"] {
+  opacity: 0.6;
+}
+.fuel-match-steps strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+.fuel-match-when {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--fuel-muted);
+  font-size: 12px;
+}
+.fuel-match-when b {
+  grid-row: auto;
+  font-weight: 600;
+}
+.fuel-match-swap,
+.fuel-match-why,
+.fuel-day-reason,
+.fuel-day-fine,
+.fuel-question-why,
+.fuel-day-notes {
+  color: var(--fuel-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.fuel-day-notes {
+  margin: 0;
+  padding-left: 18px;
+}
+.fuel-question {
+  display: grid;
+  gap: 6px;
+}
+.fuel-question + .fuel-question {
+  border-top: 1px solid var(--fuel-border);
+  padding-top: 10px;
+}
+.fuel-question-text {
+  font-size: 15px;
+  font-weight: 600;
+}
+.fuel-question-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.fuel-question-options .fuel-chip-button,
+.fuel-safety-body .fuel-chip-button {
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: var(--bw-control-radius);
+  border: 1px solid var(--fuel-border);
+  font-size: 13px;
+}
+.fuel-question-options .fuel-chip-button[aria-pressed="true"] {
+  background: var(--bw-segment-selected);
+  color: var(--bw-segment-text);
+}
+.fuel-day-badge {
+  flex: 0 0 auto;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--fuel-border);
+  color: var(--fuel-muted);
+  font-size: 11px;
+}
+.fuel-day-ranges {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.fuel-day-ranges div {
+  padding: 8px 10px;
+  border-radius: var(--bw-control-radius);
+  background: var(--bw-segment-background, var(--muted));
+}
+.fuel-day-ranges dt {
+  font-size: 12px;
+  color: var(--fuel-muted);
+}
+.fuel-day-ranges dd {
+  margin: 2px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.fuel-day-ranges small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--fuel-muted);
+}
+.fuel-day-portions {
+  font-size: 14px;
+  line-height: 1.45;
+}
+.fuel-day-weight {
+  display: grid;
+  gap: 8px;
+}
+.fuel-day-weight label,
+.fuel-safety-body label {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+.fuel-day-weight input,
+.fuel-safety-body input:not([type="radio"]) {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--fuel-border);
+  border-radius: var(--bw-control-radius);
+  background: var(--background);
+  font-size: 16px;
+}
+.fuel-day-safety {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  text-align: left;
+  border-top: 1px solid var(--fuel-border);
+  padding-top: 10px;
+}
+.fuel-day-safety span {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.fuel-day-safety strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.fuel-day-safety small {
+  font-size: 12px;
+  color: var(--fuel-muted);
+  line-height: 1.4;
+}
+.fuel-safety-body {
+  display: grid;
+  gap: 12px;
+  padding: 4px 0 8px;
+}
+.fuel-safety-body fieldset {
+  display: grid;
+  gap: 6px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.fuel-safety-body legend {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.fuel-safety-option {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+}

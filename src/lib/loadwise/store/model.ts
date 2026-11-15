@@ -485,6 +485,7 @@ export interface LoadwiseContextValue {
   updateProfile: (profile: Profile) => Promise<void>;
   saveStrengthExperience: (value: StrengthExperience) => Promise<void>;
   saveFuelPrecision: (enabled: boolean, weightKg: number | null) => Promise<void>;
+  saveFoodSafety: (value: import("./profileActions").FoodSafetyInput) => Promise<void>;
   startSession: (
     session: SessionDay,
     preference?: import("../strengthCheckIn").StrengthLoadPreference,

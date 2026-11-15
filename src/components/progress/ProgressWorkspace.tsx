@@ -1,4 +1,6 @@
 import { lazy, Suspense, useId, useMemo, useState } from "react";
+import { WellbeingCard } from "./WellbeingCard";
+import { wellbeingTrends } from "@/lib/progress/wellbeing";
 import { AppHeader } from "@/components/loadwise/ui";
 import type { LoadwiseState } from "@/lib/loadwise/types";
 import {
@@ -218,6 +220,9 @@ export function ProgressWorkspace({
                     ))}
                   </div>
                 </div>
+                {state.profile?.healthPersonalizationEnabled === true && (
+                  <WellbeingCard report={wellbeingTrends(state.readiness, todayIso, period)} />
+                )}
                 <ProgressDashboard
                   cycle={cycle}
                   direction={direction}

@@ -30,6 +30,14 @@ import {
   type StoreActionContext,
 } from "./model";
 import { profileWritePayloads } from "./repository";
+import { foodSafetyRow } from "../foodSafety";
+
+export interface FoodSafetyInput {
+  status: "unconfirmed" | "confirmed_none" | "has_allergies";
+  allergies: string[];
+  intolerances: string[];
+  exclusions: string[];
+}
 
 export function createProfileActions(
   context: StoreActionContext & {
@@ -39,7 +47,11 @@ export function createProfileActions(
   },
 ): Pick<
   LoadwiseContextValue,
-  "completeOnboarding" | "updateProfile" | "saveStrengthExperience" | "saveFuelPrecision"
+  | "completeOnboarding"
+  | "updateProfile"
+  | "saveStrengthExperience"
+  | "saveFuelPrecision"
+  | "saveFoodSafety"
 > {
   const { user, state, setState, todayIso } = context;
 
@@ -283,6 +295,64 @@ export function createProfileActions(
     }));
   }
 
+  /**
+   * Allergies and intolerances (health data, need the health-data consent) and ordinary
+   * exclusions (a preference, no consent) are saved as three separate lists. The server row is
+   * read back: a value the server dropped is never shown as saved.
+   */
+  async function saveFoodSafety(value: FoodSafetyInput) {
+    if (!user || !state.profile) throw new Error("Zaloguj się ponownie.");
+    const health = state.profile.healthPersonalizationEnabled === true;
+    const wantsHealth =
+      value.status !== "unconfirmed" || value.allergies.length > 0 || value.intolerances.length > 0;
+    if (wantsHealth && !health)
+      throw new Error(
+        "Alergie i nietolerancje zapiszesz po włączeniu zgody na dane o zdrowiu w Profilu.",
+      );
+    if (value.status === "confirmed_none" && value.allergies.length > 0)
+      throw new Error("Wybierz: brak alergii albo lista alergii.");
+    const row = foodSafetyRow({
+      ...state.profile,
+      fuelAllergyStatus: value.status,
+      foodAllergies: value.status === "has_allergies" ? value.allergies : [],
+      foodIntolerances: value.intolerances,
+      foodExclusions: value.exclusions,
+    });
+    if (value.status === "has_allergies" && row.food_allergies.length === 0)
+      throw new Error("Dodaj co najmniej jedną alergię albo wybierz inną odpowiedź.");
+    const result = await supabase
+      .from("athlete_profiles")
+      .update(row)
+      .eq("user_id", user.id)
+      .select("updated_at,fuel_allergy_status,food_allergies,food_intolerances,food_exclusions")
+      .maybeSingle();
+    assertNoSupabaseError("athlete_profiles.food_safety", result.error);
+    if (!result.data) throw new Error("Nie zapisano. Spróbuj ponownie.");
+    const saved = result.data as Record<string, unknown>;
+    const list = (v: unknown) => (Array.isArray(v) ? v.filter((x) => typeof x === "string") : []);
+    const status =
+      saved.fuel_allergy_status === "confirmed_none" ||
+      saved.fuel_allergy_status === "has_allergies"
+        ? saved.fuel_allergy_status
+        : "unconfirmed";
+    setState((current) => ({
+      ...current,
+      profile: current.profile
+        ? {
+            ...current.profile,
+            fuelAllergyStatus: status,
+            foodAllergies: list(saved.food_allergies),
+            foodIntolerances: list(saved.food_intolerances),
+            foodExclusions: list(saved.food_exclusions),
+            serverProfileUpdatedAt:
+              (saved.updated_at as string) ?? current.profile.serverProfileUpdatedAt,
+          }
+        : null,
+    }));
+    if (status !== row.fuel_allergy_status)
+      throw new Error("Serwer nie przyjął danych o alergiach: sprawdź zgodę na dane o zdrowiu.");
+  }
+
   async function saveStrengthExperience(value: StrengthExperience) {
     if (!user || !state.profile) throw new Error("Zaloguj się ponownie.");
     const clean = normalizeStrengthExperience({
@@ -326,5 +396,6 @@ export function createProfileActions(
     updateProfile,
     saveStrengthExperience,
     saveFuelPrecision,
+    saveFoodSafety,
   };
 }

@@ -934,7 +934,11 @@ const LIBRARY: ExerciseDefinition[] = [
     regressionIds: ["snap_down"],
     safeAlternativeIds: [],
     replacementIds: ["snap_down"],
-    instructionsPl: ["Zejdź ze skrzyni bez wyskakiwania w górę.", "Amortyzuj lądowanie ugięciem bioder, kolan i stawów skokowych, zachowując kontrolę całej kończyny.", "Po wyraźnej amortyzacji wybij się w górę i ustabilizuj końcowe lądowanie. Nie wymuszaj najkrótszego kontaktu samą kostką."],
+    instructionsPl: [
+      "Zejdź ze skrzyni bez wyskakiwania w górę.",
+      "Amortyzuj lądowanie ugięciem bioder, kolan i stawów skokowych, zachowując kontrolę całej kończyny.",
+      "Po wyraźnej amortyzacji wybij się w górę i ustabilizuj końcowe lądowanie. Nie wymuszaj najkrótszego kontaktu samą kostką.",
+    ],
     coachingCues: ["Amortyzacja całej kończyny", "Skok po amortyzacji", "Kolana stabilne"],
     commonErrors: ["Głośne lądowanie", "Kolana do środka", "Za wysoka skrzynia"],
   },
@@ -5425,8 +5429,16 @@ export function isExerciseAllowedForProfile(
   const gymRule = GYM_EXERCISE_RULES[def.id];
   if (gymRule) {
     if (!a.gymAccess) reasons.push("To ćwiczenie wymaga dostępu do siłowni.");
-    if (gymRule.minLevel === "advanced" && (a.movementCompetenceLevel !== "high" || !["intermediate", "advanced"].includes(a.gymExperienceLevel) || (a.strengthTrainingAge ?? 0) < 12 || a.supervisionLevel !== "full"))
-      reasons.push("Wariant specjalistyczny wymaga jawnej wysokiej kompetencji, co najmniej 12 miesięcy stażu i pełnego nadzoru.");
+    if (
+      gymRule.minLevel === "advanced" &&
+      (a.movementCompetenceLevel !== "high" ||
+        !["intermediate", "advanced"].includes(a.gymExperienceLevel) ||
+        (a.strengthTrainingAge ?? 0) < 12 ||
+        a.supervisionLevel !== "full")
+    )
+      reasons.push(
+        "Wariant specjalistyczny wymaga jawnej wysokiej kompetencji, co najmniej 12 miesięcy stażu i pełnego nadzoru.",
+      );
   }
   if (def.draft === true || def.approved === false)
     reasons.push("Ćwiczenie nie jest zatwierdzone do sesji zawodnika.");
@@ -5447,9 +5459,10 @@ export function isExerciseAllowedForProfile(
     (def.equipmentRequired.length === 0 &&
       def.loadingType === "bodyweight" &&
       ["strength", "core", "prehab", "mobility"].includes(def.category));
-  const competence = bodyweightOnly && !gymRule
-    ? (a.bodyweightCompetenceLevel ?? a.movementCompetenceLevel)
-    : a.movementCompetenceLevel;
+  const competence =
+    bodyweightOnly && !gymRule
+      ? (a.bodyweightCompetenceLevel ?? a.movementCompetenceLevel)
+      : a.movementCompetenceLevel;
   const youth = isYouthProfile(a);
   const beginner = bodyweightJump ? competence === "low" : isBeginnerProfile(a);
 
@@ -5477,7 +5490,8 @@ export function isExerciseAllowedForProfile(
   if (!hasEquipment(def, a)) reasons.push("Brak wymaganego sprzętu.");
 
   // Kontuzje / ból
-  const painSet = new Set<PainLocation>([...a.currentPain, ...a.injuryHistory]);
+  // Active limitation only; a past injury without current pain does not exclude exercises.
+  const painSet = new Set<PainLocation>(a.currentPain);
   for (const c of def.contraindications) {
     if (painSet.has(c)) reasons.push(`Przeciwwskazanie kontuzyjne: ${c}.`);
   }

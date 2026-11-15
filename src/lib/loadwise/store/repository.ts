@@ -4,6 +4,7 @@ import type { Json } from "@/integrations/supabase/types";
 import { normalizeMatchDates } from "../matchSchedule";
 import { normalizeCurrentPitchFeelings, normalizeDesiredPitchFeelings } from "../playerDirection";
 import type { Profile, SessionHistoryRecord } from "../types";
+import { foodSafetyRow } from "../foodSafety";
 import { historyCategoryOf, type AnyRow } from "./model";
 
 export async function loadSessionHistory(
@@ -81,7 +82,9 @@ export async function loadSessionHistory(
       durationEstimated:
         typeof log.duration_minutes !== "number" || log.duration_source === "club_default",
       durationSource:
-        log.duration_source === "club_default" || log.duration_source === "user" || log.duration_source === "measured"
+        log.duration_source === "club_default" ||
+        log.duration_source === "user" ||
+        log.duration_source === "measured"
           ? log.duration_source
           : undefined,
       matchMinutesPlayed:
@@ -118,13 +121,13 @@ export function profileWritePayloads(userId: string, profile: Profile, completed
       ownership_transfer_requested_at: profile.ownershipTransferRequestedAt ?? null,
       ownership_transferred_at: profile.ownershipTransferredAt ?? null,
       health_personalization_enabled: Boolean(profile.healthPersonalizationEnabled),
-      fuel_precision_enabled: Boolean(profile.fuelPrecisionEnabled),
-      weight_optional: profile.fuelPrecisionEnabled ? (profile.weightKg ?? null) : null,
-      // Fuel keeps no allergy data; old values move to the local dislikes list.
-      fuel_allergy_status: "unconfirmed",
-      food_allergies: [],
-      food_intolerances: [],
-      food_exclusions: [],
+      // Under 16 Fuel works in portions only; the server enforces the same rule.
+      fuel_precision_enabled: Boolean(profile.fuelPrecisionEnabled) && profile.age >= 16,
+      weight_optional:
+        profile.fuelPrecisionEnabled && profile.age >= 16 ? (profile.weightKg ?? null) : null,
+      // Allergies and intolerances are health data: the server keeps them only under an active
+      // health-data consent (enforce_optional_health_profile_fields). Exclusions are preferences.
+      ...foodSafetyRow(profile),
       age: profile.age,
       position: profile.position,
       level: profile.level,

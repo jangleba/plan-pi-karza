@@ -167,9 +167,51 @@ export function stateWithoutHealthData(state: LoadwiseState): LoadwiseState {
   };
 }
 
+/**
+ * Fuel keeps no allergies on the device (they live in the profile), but the comfort answer about
+ * eating before effort and per-meal stomach feedback are removed with the health-data consent.
+ * Meals, portions and preferences stay.
+ */
+export function redactFuelHealthData(
+  userId: string,
+  storage: Pick<Storage, "getItem" | "setItem"> | null = typeof window === "undefined"
+    ? null
+    : window.localStorage,
+): boolean {
+  if (!storage || !userId) return false;
+  const key = `ballwise:fuel:v3:${userId}`;
+  const raw = storage.getItem(key);
+  if (!raw) return false;
+  let data: Record<string, unknown>;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return false;
+  }
+  if (!data || typeof data !== "object") return false;
+  const preferences = { ...(data.preferences as Record<string, unknown> | undefined) };
+  delete preferences.preExerciseTolerance;
+  const next = {
+    ...data,
+    preferences,
+    entries: Array.isArray(data.entries)
+      ? data.entries.map((e: Record<string, unknown>) => ({ ...e, feedback: null }))
+      : data.entries,
+  };
+  const value = JSON.stringify(next);
+  if (value === raw) return false;
+  storage.setItem(key, value);
+  if (typeof window !== "undefined")
+    window.dispatchEvent(
+      new CustomEvent("ballwise:module-data-applied", { detail: { userId, module: "fuel" } }),
+    );
+  return true;
+}
+
 export async function clearLocalHealthData(userId: string): Promise<void> {
   if (typeof window === "undefined") return;
   try {
+    redactFuelHealthData(userId);
     window.localStorage.removeItem(`loadwise:boot:v2:${userId}`);
     const prefixes = [
       `ballwise:daily-plan-checkin:v2:${userId}:`,

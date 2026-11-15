@@ -59,8 +59,10 @@ describe("Fuel: co zjeść teraz", () => {
     expect(host.querySelector('.fuel-timeline [aria-current="step"]')?.textContent).toContain(
       "Przed",
     );
-    // Only what to eat: no reason line under the meal.
-    expect(host.querySelector(".fuel-now-reason")).toBeNull();
+    // What to eat, with one short reason (fuel-targets-1 brief: proposal, portion, swap, why).
+    expect(host.querySelector(".fuel-now-reason")?.textContent).toBe(
+      "Do meczu 2 h: węglowodany na energię, mało tłuszczu i błonnika.",
+    );
     expect(host.querySelector(".fuel-now-meta")?.textContent).toContain("Porcja orientacyjna");
   });
 
