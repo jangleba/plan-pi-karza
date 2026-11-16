@@ -18,7 +18,7 @@ export function RunPlanPreview({ session }: { session: SessionDay }) {
         Część główna
         <small>{protocol.summary}</small>
       </h3>
-      <ul>
+      <ul className="bw-rplan-card">
         {(same ? [first] : work).map((step) => (
           <li key={step.id} className="bw-run-plan-row">
             <span className="bw-run-plan-kind">Praca</span>

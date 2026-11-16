@@ -53,7 +53,7 @@ it("shows the four-week preview and only saves after an explicit click", async (
   await act(async () => root.render(<PlanScreen />));
   expect(mock.activate).not.toHaveBeenCalled();
   expect(host.textContent).toContain("4 tygodnie");
-  expect(host.textContent).toContain("2026-11-29");
+  expect(host.textContent).toContain("29 listopada");
   const save = [...host.querySelectorAll("button")].find((b) =>
     b.textContent?.startsWith("Zapisz plan"),
   )!;
@@ -140,8 +140,8 @@ it("recognizes an expired cycle and prepares today's next window only on request
       .find((b) => b.textContent === "Przygotuj kolejny plan")!
       .click(),
   );
-  expect(host.textContent).toContain("Nowy plan rozpoczyna się 2026-11-02");
-  expect(host.textContent).toContain("2026-11-29");
+  expect(host.textContent).toContain("Nowy plan rozpoczyna się 2 listopada");
+  expect(host.textContent).toContain("29 listopada");
   expect((mock.store.state as LoadwiseState).plan).toBe(old);
   expect(mock.activate).not.toHaveBeenCalled();
 });
@@ -267,7 +267,7 @@ it("proposes an update after a moved match: names the change, shows the next day
   );
   expect(host.textContent).toContain("Najbliższe 7 dni · zmiany");
   // the scope of the write is named before saving, including changes beyond the nearest week
-  expect(host.textContent).toContain("Zapis zastąpi plan od 2026-11-02 do 2026-11-29");
+  expect(host.textContent).toContain("Zapis zastąpi plan od 2 listopada do 29 listopada");
   expect(host.textContent).toMatch(/Zmiany: \d+ w najbliższych 7 dniach/);
   expect(mock.activate).not.toHaveBeenCalled();
 });

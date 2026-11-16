@@ -3,10 +3,59 @@
 import { useSyncExternalStore } from "react";
 import cases from "./session-flow-cases.json";
 import { initialState, applyExerciseReplacements } from "@/lib/loadwise/store/model";
+import { generateTrainingPlan } from "@/lib/loadwise/engineV2/planner";
 export { applyExerciseReplacements };
 const q = new URLSearchParams(location.search),
   kind = q.get("kind") || "strength";
-const fixture = (cases as Record<string, any>)[kind];
+/** "advanced": a real 16+ note session (A1/A2 pairs) straight from the engine. */
+function advancedCase() {
+  const profile: any = {
+    ...(cases as Record<string, any>).strength.profile,
+    age: 20,
+    level: "advanced",
+    goal: "power",
+    clubTrainingDays: [2, 4],
+    individualTrainingDays: [1, 3, 5, 6, 7],
+    seasonPhase: "preseason",
+    hasGym: true,
+    gymExperienceLevel: "advanced",
+    strengthTrainingMonths: 24,
+    movementCompetence: "high",
+    supervisionLevel: "full",
+    trainingMethodPreferences: { gymTemplate: "paired_power" },
+    equipment: [
+      "barbell",
+      "rack",
+      "dumbbell",
+      "machine",
+      "band",
+      "bench",
+      "box",
+      "platform",
+      "med_ball",
+      "kettlebell",
+      "gym_jump_lane",
+    ],
+  };
+  const plan = generateTrainingPlan(profile, {
+    startDate: "2026-11-02",
+    weeks: 1,
+    minutesPerSession: 75,
+  }).plan;
+  const day = plan
+    .flatMap((d: any) => [d, ...(d.secondSession ? [d.secondSession] : [])])
+    .find((d: any) => d.engineV2?.organization === "complex");
+  return {
+    profile,
+    session: {
+      sections: { warmup: [], main: [], accessory: [], footballTransfer: [], cooldown: [] },
+      ...day,
+      date: "2026-11-02",
+      dbId: "qa-advanced",
+    },
+  };
+}
+const fixture = kind === "advanced" ? advancedCase() : (cases as Record<string, any>)[kind];
 const session = fixture.session,
   sid = session.dbId;
 const listeners = new Set<() => void>(),
