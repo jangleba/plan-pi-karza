@@ -3,6 +3,12 @@ import { assertNoSupabaseError } from "@/integrations/supabase/errors";
 import { ENGINE_VERSION } from "./model";
 import type { SessionDay } from "../types";
 
+/** Minor number of "ballwise-v2.N"; null for anything else. */
+export function generatorMinor(version: string): number | null {
+  const match = /^ballwise-v2\.(\d+)$/.exec(version);
+  return match ? Number(match[1]) : null;
+}
+
 export async function loadV2Plan(userId: string, signal?: AbortSignal) {
   let query = supabase
     .from("training_plans")
@@ -13,20 +19,12 @@ export async function loadV2Plan(userId: string, signal?: AbortSignal) {
   const result = await query.maybeSingle();
   assertNoSupabaseError("training_plans.load_v2", result.error);
   const value = result.data?.plan_json;
-  const supportedVersions = [
-    "ballwise-v2.1",
-    "ballwise-v2.2",
-    "ballwise-v2.3",
-    "ballwise-v2.4",
-    "ballwise-v2.5",
-    "ballwise-v2.6",
-    "ballwise-v2.7",
-    "ballwise-v2.8",
-    "ballwise-v2.9",
-    "ballwise-v2.10",
-    "ballwise-v2.11",
-    ENGINE_VERSION,
-  ];
+  // Every earlier v2 generator is readable; only a newer one (a stale app) is refused.
+  const supported = (version: string) => {
+    const n = generatorMinor(version);
+    const current = generatorMinor(ENGINE_VERSION);
+    return n !== null && current !== null && n <= current;
+  };
   if (
     Array.isArray(value) &&
     value.some(
@@ -36,7 +34,7 @@ export async function loadV2Plan(userId: string, signal?: AbortSignal) {
         !Array.isArray(d) &&
         typeof d.generatorVersion === "string" &&
         d.generatorVersion.startsWith("ballwise-v2") &&
-        !supportedVersions.includes(d.generatorVersion),
+        !supported(d.generatorVersion),
     )
   )
     throw new Error(
@@ -52,7 +50,7 @@ export async function loadV2Plan(userId: string, signal?: AbortSignal) {
         typeof d === "object" &&
         !Array.isArray(d) &&
         typeof d.generatorVersion === "string" &&
-        supportedVersions.includes(d.generatorVersion),
+        supported(d.generatorVersion),
     )
       ? (value as unknown as SessionDay[])
       : [];

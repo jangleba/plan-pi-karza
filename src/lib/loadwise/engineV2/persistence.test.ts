@@ -49,7 +49,8 @@ function savedWeek(version: string) {
 }
 
 describe("saved generator-version compatibility", () => {
-  it.each(Array.from({ length: 12 }, (_, index) => `ballwise-v2.${index + 1}`))(
+  const current = Number(ENGINE_VERSION.split(".").pop());
+  it.each(Array.from({ length: current }, (_, index) => `ballwise-v2.${index + 1}`))(
     "restores the complete saved week and both slots from %s without rebuilding it",
     async (version) => {
       const plan = savedWeek(version);
@@ -67,12 +68,16 @@ describe("saved generator-version compatibility", () => {
     },
   );
 
-  it("keeps the current generator covered by the explicit compatibility cases", () => {
-    expect(ENGINE_VERSION).toBe("ballwise-v2.12");
+  it("covers every generator up to the current one, whatever it is", () => {
+    expect(ENGINE_VERSION).toMatch(/^ballwise-v2\.\d+$/);
+    expect(current).toBeGreaterThanOrEqual(12);
   });
 
   it("rejects a future generator version rather than treating it as a supported old plan", async () => {
-    database.result.data = { id: "future-plan", plan_json: savedWeek("ballwise-v2.13") };
+    database.result.data = {
+      id: "future-plan",
+      plan_json: savedWeek(`ballwise-v2.${current + 1}`),
+    };
     await expect(loadV2Plan("owner")).rejects.toThrow("innej wersji silnika");
   });
 
