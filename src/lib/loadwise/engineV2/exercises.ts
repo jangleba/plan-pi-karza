@@ -1,4 +1,5 @@
 import { buildSprintSession } from "./sprintSession";
+import { excludedFromMainStrength } from "../mainStrengthExclusions";
 import { fitAthleticStrengthToBudget } from "./athleticFit";
 import type { SprintSessionContext } from "./sprintSession";
 import { buildAthleteTrainingProfile } from "../athleteProfile";
@@ -46,27 +47,15 @@ import {
 
 /** Roles describe function, independently of the legacy family/hinge labels. */
 export const CANDIDATES: Record<Role, readonly string[]> = {
-  knee_strength: [
-    "heavy_back_squat",
-    "front_squat",
-    "leg_press",
-    "goblet_squat",
-    "bodyweight_squat",
-  ],
+  knee_strength: ["heavy_back_squat", "front_squat", "leg_press", "goblet_squat"],
   hip_strength: [
     "trap_bar_deadlift",
     "barbell_deadlift",
     "barbell_romanian_deadlift",
     "romanian_deadlift_db",
     "hip_thrust",
-    "glute_bridge",
   ],
-  unilateral_strength: [
-    "bulgarian_split_squat",
-    "step_up",
-    "reverse_lunge",
-    "bodyweight_split_squat",
-  ],
+  unilateral_strength: ["bulgarian_split_squat", "step_up", "reverse_lunge"],
   knee_flexion: [
     "full_nordic_hamstring",
     "eccentric_nordic_hamstring",
@@ -88,13 +77,7 @@ export const CANDIDATES: Record<Role, readonly string[]> = {
   adductor: ["copenhagen_plank", "adductor_bridge_squeeze"],
   calf_straight: ["standing_calf_raise"],
   calf_bent: ["seated_soleus_raise", "soleus_iso_hold"],
-  push: [
-    "barbell_bench_press",
-    "dumbbell_bench_press",
-    "push_up",
-    "incline_push_up",
-    "wall_push_up",
-  ],
+  push: ["barbell_bench_press", "dumbbell_bench_press", "push_up", "wall_push_up"],
   pull: [
     "one_arm_dumbbell_row",
     "lat_pulldown",
@@ -122,6 +105,9 @@ export const CANDIDATES: Record<Role, readonly string[]> = {
 };
 
 export function eligibleExercise(id: string, p: Profile, role?: Role): boolean {
+  // 16+: no trivial movement as main strength work, whichever path asks (pool, manual choice,
+  // rotation, equipment rebuild). Warm-up and activation roles may still use them.
+  if (role && excludedFromMainStrength(id, role)) return false;
   const d = getExerciseDefinition(id);
   const equipment = [
     ...new Set([...p.equipment, ...(p.trainingMethodPreferences?.declaredEquipment ?? [])]),
@@ -237,12 +223,8 @@ function pick(
     hasValidStrengthMonths(p, 12) &&
     p.movementCompetence === "high";
   if (role === "knee_strength" && !preparedLoaded)
-    ids =
-      tier === "foundation"
-        ? ["goblet_squat", "bodyweight_squat", "leg_press"]
-        : ["goblet_squat", "leg_press", "bodyweight_squat"];
-  if (role === "hip_strength" && !preparedLoaded)
-    ids = ["romanian_deadlift_db", "glute_bridge", "hip_thrust"];
+    ids = tier === "foundation" ? ["goblet_squat", "leg_press"] : ["goblet_squat", "leg_press"];
+  if (role === "hip_strength" && !preparedLoaded) ids = ["romanian_deadlift_db", "hip_thrust"];
   if (role === "knee_flexion" && tier !== "performance")
     ids = [
       "seated_leg_curl",
@@ -259,8 +241,8 @@ function pick(
     ids = ["pull_up", "lat_pulldown", ...ids];
   if (variant === "A" && role === "hip_strength")
     ids = preparedLoaded
-      ? ["barbell_romanian_deadlift", "hip_thrust", "romanian_deadlift_db", "glute_bridge"]
-      : ["hip_thrust", "glute_bridge", ...ids];
+      ? ["barbell_romanian_deadlift", "hip_thrust", "romanian_deadlift_db"]
+      : ["hip_thrust", ...ids];
   if (variant === "B" && role === "trunk") ids = ["side_plank", "plank", ...ids];
   if (role === "push" && tier === "foundation")
     ids = ids.filter((id) => id !== "barbell_bench_press");
@@ -560,7 +542,29 @@ function buildStrengthBase(
     restSeconds: tier === "performance" && !preparation.provisional ? 180 : 120,
     intent: "controlled",
   });
+  // A loaded knee-dominant pattern must exist; without a squat variant a loaded split squat
+  // covers it (and the reverse in B), never a trivial bodyweight movement.
+  const coverKneePattern = (dose: Dose) => {
+    if (exercises.some((e) => e.role === "knee_strength" || e.role === "unilateral_strength"))
+      return;
+    const before = missing.length;
+    const role = variant === "A" ? "unilateral_strength" : "knee_strength";
+    add(role, role === "unilateral_strength" ? { ...dose, perSide: true } : dose);
+    if (exercises.some((e) => e.role === role)) {
+      missing.splice(before);
+      for (let i = missing.length - 1; i >= 0; i--)
+        if (missing[i] === "knee_strength" || missing[i] === "unilateral_strength")
+          missing.splice(i, 1);
+    } else missing.splice(before);
+  };
   if (variant === "A") {
+    coverKneePattern({
+      sets,
+      reps: 6,
+      rir: tier === "foundation" ? 4 : 3,
+      restSeconds: 120,
+      intent: "controlled",
+    });
     if (fullPreparedSession && !athletic)
       add("hip_strength", { sets: 2, reps: 8, rir: 3, restSeconds: 120, intent: "controlled" });
     add("knee_flexion", {
@@ -599,6 +603,13 @@ function buildStrengthBase(
       perSide: true,
       rir: 3,
       restSeconds: tier === "performance" ? 120 : 90,
+      intent: "controlled",
+    });
+    coverKneePattern({
+      sets: deload ? 1 : 2,
+      reps: 8,
+      rir: 3,
+      restSeconds: 90,
       intent: "controlled",
     });
     if (!athletic && gymHamstringSupportCandidates(p, phase).some((id) => eligibleExercise(id, p)))
@@ -718,7 +729,12 @@ function buildStrengthBase(
       tier,
       phase,
       organization,
-      highLower: tier !== "foundation",
+      // Heavy lower only when a main leg pattern is actually in the session.
+      highLower:
+        tier !== "foundation" &&
+        exercises.some((e) =>
+          ["knee_strength", "hip_strength", "unilateral_strength", "iso_primer"].includes(e.role),
+        ),
       exercises,
       missing,
       sprintMetres: 0,

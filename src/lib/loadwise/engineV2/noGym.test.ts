@@ -45,13 +45,22 @@ const gymIds = (plan: SessionDay[]) =>
     .flatMap((s) => s.engineV2!.exercises.map((e) => [e.role, e.exerciseId] as const));
 
 describe("strength without a gym", () => {
-  it("no equipment: pull and knee flexion come from bodyweight variants", () => {
+  it("no equipment: valuable bodyweight work stays, a missing loaded main lift is reported", () => {
     const p = athlete();
     const r = generateTrainingPlan(p, { startDate: START, weeks: 2, minutesPerSession: 60 });
     const rows = gymIds(r.plan);
-    expect(rows).toContainEqual(["pull", "prone_ytw_raise"]);
     expect(rows).toContainEqual(["knee_flexion", "bridge_walkout"]);
-    expect(r.issues.filter((i) => i.code === "UNMET_STIMULUS")).toEqual([]);
+    // 16+: no trivial bodyweight movement fills a main strength role.
+    for (const [role, id] of rows)
+      if (["knee_strength", "hip_strength", "unilateral_strength", "push"].includes(role))
+        expect([
+          "bodyweight_squat",
+          "glute_bridge",
+          "bodyweight_split_squat",
+          "incline_push_up",
+        ]).not.toContain(id);
+    const unmet = r.issues.filter((i) => i.code === "UNMET_STIMULUS").map((i) => i.message);
+    expect(unmet.some((m) => m.startsWith("Brak wariantu z obciążeniem"))).toBe(true);
     expect(validateTrainingPlan(r.plan, p, { startDate: START, minutesPerSession: 60 })).toEqual(
       [],
     );

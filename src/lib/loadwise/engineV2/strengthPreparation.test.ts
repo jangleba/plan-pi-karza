@@ -95,33 +95,43 @@ describe("explicit strength preparation", () => {
     expect(Math.abs(recipe.minutes - legacy.minutes)).toBeLessThanOrEqual(1);
   });
 
-  it("keeps bodyweight work distinct from the same warm-up movement and preserves its history key", () => {
+  it("keeps loaded work distinct from the same warm-up pattern and preserves its history key", () => {
+    // 16+: the main lift is a loaded variant (dumbbells); the bodyweight squat stays in the warm-up.
     const beginner: Profile = {
       ...athlete,
       level: "beginner",
-      gymExperienceLevel: "none",
-      strengthTrainingMonths: 0,
+      gymExperienceLevel: "beginner",
+      strengthTrainingMonths: 3,
       movementCompetence: "low",
-      supervisionLevel: "none",
-      hasGym: false,
+      supervisionLevel: "some",
+      hasGym: true,
       hasPitch: false,
       hasSprintSpace: false,
-      equipment: [],
+      equipment: ["dumbbell"],
     };
     const result = generateTrainingPlan(beginner, options);
     const sessions = strength(result.plan);
     expect(sessions).toHaveLength(2);
     for (const session of sessions) {
       const rows = buildRunnerSteps(session.structuredSections!).flatMap((step) => step.rows);
-      const work = rows.find(
-        (row) =>
-          row.section.type === "main" &&
-          ["bodyweight_squat", "glute_bridge"].includes(row.exercise.exerciseId ?? ""),
+      const main = rows.filter((row) => row.section.type === "main");
+      for (const row of main)
+        expect([
+          "bodyweight_squat",
+          "glute_bridge",
+          "bodyweight_split_squat",
+          "incline_push_up",
+        ]).not.toContain(row.exercise.exerciseId);
+      const work = main.find((row) =>
+        ["goblet_squat", "romanian_deadlift_db", "hip_thrust"].includes(
+          row.exercise.exerciseId ?? "",
+        ),
       )!;
       expect(work).toBeDefined();
       const warmup = rows.find(
         (row) =>
-          row.section.type === "warmup" && row.exercise.exerciseId === work.exercise.exerciseId,
+          row.section.type === "warmup" &&
+          ["bodyweight_squat", "glute_bridge"].includes(row.exercise.exerciseId ?? ""),
       )!;
       expect(warmup).toBeDefined();
       expect(warmup.key).not.toBe(work.key);

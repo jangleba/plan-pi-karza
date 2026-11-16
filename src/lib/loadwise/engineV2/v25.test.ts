@@ -129,12 +129,11 @@ describe("V2.5 coherent sessions, cycle and feedback", () => {
         (row) => getExerciseDefinition(row.exerciseId)?.spaceRequirement === "home_small",
       ),
     ).toBe(true);
-    const knees = recipe.exercises.filter((row) => row.role === "knee_strength");
-    const hips = recipe.exercises.filter((row) => row.role === "hip_strength");
-    expect(knees).toHaveLength(1);
-    expect(hips).toHaveLength(1);
-    expect(knees[0].exerciseId).toBe("bodyweight_squat");
-    expect(hips[0].exerciseId).toBe("glute_bridge");
+    // The warm-up keeps its bodyweight squat and bridge; without equipment the main lift is
+    // reported as missing instead of reusing them as work.
+    expect(recipe.exercises.filter((row) => row.role === "knee_strength")).toHaveLength(0);
+    expect(recipe.exercises.filter((row) => row.role === "hip_strength")).toHaveLength(0);
+    expect(recipe.missing).toContain("knee_strength");
     expect(recipe.exercises.slice(0, preparation.length)).toEqual(preparation);
   });
   it("does not infer special equipment or a safe pulling anchor from no equipment", () => {

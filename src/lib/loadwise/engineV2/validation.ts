@@ -355,7 +355,16 @@ export function validateEngineSession(
           "Główna praca góry ciała należy do części głównej sesji MD+1.",
         );
     } else if (
-      !recipe.exercises.some((row) => row.role === primaryRole && row.strengthStage === "main")
+      // The primary pattern, its loaded counterpart (squat ↔ split squat, hinge ↔ knee flexion),
+      // or an explicitly reported missing loaded variant.
+      !recipe.exercises.some(
+        (row) =>
+          row.strengthStage === "main" &&
+          (row.role === primaryRole ||
+            (primaryRole === "knee_strength" && row.role === "unilateral_strength") ||
+            (primaryRole === "hip_strength" && row.role === "knee_flexion")),
+      ) &&
+      !recipe.missing.includes(primaryRole)
     )
       fail("ATHLETIC_PRIMARY_STAGE", "Główny wzorzec siły A/B należy do części głównej sesji.");
   }
@@ -660,8 +669,12 @@ export function validateEngineSession(
         ? !["knee_strength", "unilateral_strength", "hip_strength", "knee_flexion"].some((r) =>
             roles.has(r as never),
           )
-        : !(roles.has("knee_strength") || roles.has("unilateral_strength")) ||
-          !(roles.has("hip_strength") || roles.has("knee_flexion"))
+        : (!(roles.has("knee_strength") || roles.has("unilateral_strength")) &&
+            // A pattern without a loaded variant is reported (UNMET_STIMULUS), never padded
+            // with a trivial bodyweight movement.
+            !recipe.missing.some((r) => r === "knee_strength" || r === "unilateral_strength")) ||
+          (!(roles.has("hip_strength") || roles.has("knee_flexion")) &&
+            !recipe.missing.some((r) => r === "hip_strength" || r === "knee_flexion"))
     )
       fail(
         "UNBALANCED_STRENGTH",
