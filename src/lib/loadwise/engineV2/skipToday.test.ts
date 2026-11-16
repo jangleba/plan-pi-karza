@@ -45,8 +45,8 @@ const profile = {
   supervisionLevel: "full",
 } as unknown as Profile;
 const slots = (d: SessionDay) => [d, ...(d.secondSession ? [d.secondSession] : [])];
-const plan = () => {
-  const days = generateTrainingPlan(profile, { startDate: "2026-11-02", weeks: 2 }).plan;
+const plan = (athlete: Profile = profile) => {
+  const days = generateTrainingPlan(athlete, { startDate: "2026-11-02", weeks: 2 }).plan;
   for (const d of days)
     slots(d).forEach((s, i) => {
       if (s.dayType !== "rest") s.dbId = `s-${s.date}-${i}`;
@@ -57,23 +57,25 @@ const missed: SessionCompletion = { completed: false, status: "missed", rpe: nul
 
 describe("'Dziś nie mogę'", () => {
   it("a skipped slot is handled: today moves on to the next slot and nothing is carried over", () => {
-    const p = plan();
-    const day = p.find((d) => d.date === "2026-11-03")!;
-    expect(slots(day).length).toBe(2);
+    // Two own days in the week make a day with two own slots (free days are used first otherwise).
+    const twoDays = { ...profile, individualTrainingDays: [2, 4] } as Profile;
+    const p = plan(twoDays);
+    const day = p.find((d) => slots(d).length === 2 && slots(d).every((s) => s.engineV2))!;
+    expect(day).toBeDefined();
     const first = slots(day)[0];
     const completions = { [first.dbId!]: missed };
-    const state = todayTrainingState(p, completions, "2026-11-03");
+    const state = todayTrainingState(p, completions, day.date);
     expect(state.session?.dbId).toBe(slots(day)[1].dbId);
     expect(state.slot).toBe(2);
     // both skipped: the day is done, and no other date got a session
     const all = { ...completions, [slots(day)[1].dbId!]: missed };
-    expect(todayTrainingState(p, all, "2026-11-03")).toMatchObject({
+    expect(todayTrainingState(p, all, day.date)).toMatchObject({
       session: null,
       complete: true,
     });
     const dates = (x: SessionDay[]) =>
       x.filter((d) => slots(d).some((s) => s.engineV2)).map((d) => d.date);
-    expect(dates(p)).toEqual(dates(plan()));
+    expect(dates(p)).toEqual(dates(plan(twoDays)));
   });
 
   it("a skipped session cannot be started by accident", () => {

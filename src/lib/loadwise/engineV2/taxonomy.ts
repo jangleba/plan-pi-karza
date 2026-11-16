@@ -87,10 +87,10 @@ group("soleus_iso_hold standing_calf_iso_hold", ["plantar_flexion"], "isometric"
 group("standing_calf_raise seated_soleus_raise", ["plantar_flexion"]);
 group("tibialis_raise", ["dorsiflexion"]);
 group(
-  "incline_push_up push_up dumbbell_bench_press barbell_bench_press pike_push_up dumbbell_overhead_press",
+  "wall_push_up incline_push_up push_up dumbbell_bench_press barbell_bench_press pike_push_up dumbbell_overhead_press",
   ["push"],
 );
-group("lat_pulldown face_pull_band bodyweight_row pull_up fast_band_row", ["pull"]);
+group("lat_pulldown face_pull_band bodyweight_row pull_up fast_band_row prone_ytw_raise", ["pull"]);
 group("one_arm_dumbbell_row", ["pull"], "dynamic", true);
 group("farmer_carry front_rack_carry overhead_carry", ["brace", "locomotion"], "mixed");
 group("suitcase_carry", ["brace", "locomotion"], "mixed", true);
