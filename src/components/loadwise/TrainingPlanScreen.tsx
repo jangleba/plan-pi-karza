@@ -447,12 +447,6 @@ export function PlanScreen() {
         {!state.profile && hydrated ? (
           <p className="bw-plan-quiet">Uzupełnij profil, aby przygotować plan.</p>
         ) : null}
-        {preview?.result || !rebuild ? (
-          <WeeklyPlanningCoverage
-            plan={plan}
-            preferences={preview?.result ? weeklyPreferences : savedWeeklyPreferences}
-          />
-        ) : null}
         {plan.length > 0 ? (
           <PlanWeek
             plan={plan}
