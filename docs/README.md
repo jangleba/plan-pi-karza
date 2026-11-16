@@ -5,6 +5,7 @@ potwierdzenia wdrożenia, odbioru prawnego ani testów na fizycznym urządzeniu.
 
 ## Utrzymywane instrukcje
 
+- [Rozkład tygodnia i progresja w bloku · silnik V2.15](ROZKLAD-I-PROGRESJA.md)
 - [Siła bez siłowni · silnik V2.14](SILA-BEZ-SILOWNI.md)
 - [Indywidualna sesja z piłką · silnik V2.13](SESJE-Z-PILKA.md)
 - [Tydzień meczowy: siłownia dzień po meczu · silnik V2.12](TYDZIEN-W-SEZONIE.md)
