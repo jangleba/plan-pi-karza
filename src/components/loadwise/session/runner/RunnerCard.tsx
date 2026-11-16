@@ -326,15 +326,21 @@ export function RunnerCard({
           onComplete={onComplete}
         >
           {mainSprint && (
-            <section className="bw-runner-optional" aria-label="Czas odcinka">
-              <h3>Czas odcinka (opcjonalnie)</h3>
+            <details
+              className="bw-runner-optional bw-sprint-timing"
+              aria-label="Stoper i czas odcinka"
+            >
+              <summary>
+                Stoper i czas odcinka <span>Opcjonalnie</span>
+              </summary>
               <SprintTimingPanel
                 exercise={exercise}
                 sessionId={sessionId}
                 logKey={logKey}
+                inlineStopwatch
                 onRepeat={() => undefined}
               />
-            </section>
+            </details>
           )}
         </BoutControls>
       )}

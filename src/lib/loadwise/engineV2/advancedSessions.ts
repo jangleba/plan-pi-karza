@@ -12,6 +12,7 @@ import {
 import { resolveGoalPolicy } from "./goalPolicy";
 import { FUNCTIONAL_CATALOGUE } from "./taxonomy";
 import { APP_MINIMUM_AGE, declaresLimitedStrength } from "./preparation";
+import { buildStrengthPreparation, strengthPreparationOverhead } from "./strengthPreparation";
 
 /**
  * Advanced 16+ gym sessions built the way the athlete's own coaching notes are organised:
@@ -56,7 +57,6 @@ interface Template {
   id: AdvancedTemplateId;
   variant: "A" | "B";
   title: string;
-  warmup: string;
   items: Item[];
   finish?: string;
 }
@@ -127,7 +127,6 @@ const A_POWER: Template = {
   id: "A_power",
   variant: "A",
   title: "Siła A — moc nóg w parach",
-  warmup: "hip_mobility_flow",
   items: [
     {
       kind: "iso_reactive",
@@ -218,7 +217,6 @@ const A_SQUAT: Template = {
   id: "A_squat",
   variant: "A",
   title: "Siła A — przysiad i skoki w parach",
-  warmup: "ankle_mobility_flow",
   items: [
     {
       kind: "strength_power",
@@ -295,7 +293,6 @@ const B_HINGE: Template = {
   id: "B_hinge",
   variant: "B",
   title: "Siła B — biodro, hamowanie i skoki w parach",
-  warmup: "hip_mobility_flow",
   items: [
     {
       kind: "iso_reactive",
@@ -479,16 +476,7 @@ export function buildAdvancedStrength(
   const pairs: NonNullable<EngineSession["complexPairs"]> = [];
   const skipNearMatch: string[] = [];
   const optional: string[] = [];
-  const warmup = eligibleExercise(template.warmup, p, "warmup")
-    ? template.warmup
-    : "hip_mobility_flow";
-  used.add(warmup);
-  exercises.push({
-    exerciseId: warmup,
-    role: "warmup",
-    dose: { sets: 1, seconds: 60, perSide: true, restSeconds: 0, intent: "easy" },
-    reason: "Rozgrzewka przed parami.",
-  });
+  exercises.push(...buildStrengthPreparation((id) => eligibleExercise(id, p, "warmup")));
   const labels = "ABCDEFG";
   for (const item of template.items) {
     const first = pick(item.first);
@@ -548,6 +536,7 @@ export function buildAdvancedStrength(
     return null;
   const recipe: EngineSession = {
     variant: "full",
+    strengthPreparationVersion: 1,
     roles: [variant === "A" ? "strengthA" : "strengthB"],
     tier: "performance",
     phase,
@@ -559,7 +548,7 @@ export function buildAdvancedStrength(
     missing: [],
     sprintMetres: 0,
     plyometricContacts: strengthLandingCount(exercises),
-    minutes: Math.ceil(estimateSessionSeconds(exercises) / 60) + 8,
+    minutes: Math.ceil(estimateSessionSeconds(exercises) / 60),
     ...(skipNearMatch.length ? { skipNearMatch } : {}),
     ...(optional.length ? { optionalExercises: optional } : {}),
   };
@@ -589,6 +578,7 @@ export function withoutAdvancedRows(
   copy.skipNearMatch = copy.skipNearMatch?.filter((id) => !ids.has(id));
   copy.optionalExercises = copy.optionalExercises?.filter((id) => !ids.has(id));
   copy.plyometricContacts = strengthLandingCount(copy.exercises);
-  copy.minutes = Math.ceil(estimateSessionSeconds(copy.exercises) / 60) + 8;
+  copy.minutes =
+    Math.ceil(estimateSessionSeconds(copy.exercises) / 60) + strengthPreparationOverhead(copy);
   return copy;
 }

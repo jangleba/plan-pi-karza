@@ -91,6 +91,7 @@ export function applyUpperContrast(
   r.exercises.splice(r.exercises.indexOf(push) + 1, 0, {
     exerciseId: "med_ball_throw",
     role: "upper_power",
+    ...(push.strengthStage ? { strengthStage: push.strengthStage } : {}),
     dose: {
       sets: UPPER_CONTRAST.rounds,
       reps: UPPER_CONTRAST.throwReps,
@@ -124,8 +125,16 @@ export function withoutUpperContrast(recipe: EngineSession, reason?: string): En
 }
 
 export function renderUpperContrast(sections: TrainingSection[], r: EngineSession): void {
-  const pair = r.upperContrast,
-    section = sections.find((s) => s.type === "accessory");
+  const pair = r.upperContrast;
+  const section =
+    pair &&
+    sections.find((s) =>
+      pair.exerciseIds.every((id) =>
+        s.blocks.some(
+          (block) => block.exercises.length === 1 && block.exercises[0].exerciseId === id,
+        ),
+      ),
+    );
   if (!pair || !section) return;
   const blocks = pair.exerciseIds.map((id) =>
     section.blocks.find((b) => b.exercises.length === 1 && b.exercises[0].exerciseId === id),

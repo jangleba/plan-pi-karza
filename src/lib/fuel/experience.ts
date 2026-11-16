@@ -527,6 +527,23 @@ export function localDate(now: number): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+/** Meal time, rather than entry/import order, determines today's last eaten meal. */
+export function latestEatenMeal(entries: FuelEntry[], now: number): FuelEntry | null {
+  const today = localDate(now);
+  let latest: FuelEntry | null = null;
+  for (const entry of entries) {
+    if (
+      entry.status === "eaten" &&
+      entry.eatenAt !== null &&
+      entry.eatenAt <= now &&
+      localDate(entry.eatenAt) === today &&
+      (latest === null || entry.eatenAt > latest.eatenAt!)
+    )
+      latest = entry;
+  }
+  return latest;
+}
+
 /** A backup includes preferences and exact edited portions, not just recipe IDs. */
 export function createFuelBackup(data: FuelDeviceData) {
   return { schema: "ballwise.fuel.backup.v1", exportedAt: new Date().toISOString(), data };

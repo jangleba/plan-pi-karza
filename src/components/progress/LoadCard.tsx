@@ -3,13 +3,13 @@ import { TRAINING_CATEGORY_LABELS, type TrainingCategoryKey } from "@/lib/progre
 import type { LoadReport } from "@/lib/progress/dashboard";
 
 const CAT_COLOR: Record<TrainingCategoryKey, string> = {
-  gym: "bg-primary",
-  speed: "bg-primary/70",
-  endurance: "bg-primary/50",
-  ball: "bg-accent-foreground/55",
-  club: "bg-muted-foreground/60",
-  match: "bg-foreground/70",
-  recovery: "bg-primary/25",
+  gym: "bg-[var(--bw-strength-line)]",
+  speed: "bg-[var(--bw-info-line)]",
+  endurance: "bg-[var(--bw-info-line)]/70",
+  ball: "bg-[var(--bw-carry-line)]",
+  club: "bg-[var(--bw-carry-line)]/70",
+  match: "bg-[var(--bw-warning-line)]",
+  recovery: "bg-[var(--bw-success-line)]",
 };
 
 /** Obciążenie treningowe: minuty × RPE z realnych logów. */

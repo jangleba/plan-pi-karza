@@ -50,10 +50,10 @@ select {
 }
 .soft-card,
 .premium-flow .soft-card {
-  border: var(--bw-hairline) solid var(--border);
+  border: 0;
   border-radius: var(--bw-card-radius);
   background: var(--card);
-  box-shadow: var(--bw-shadow-card);
+  box-shadow: none;
 }
 .soft-card .soft-card {
   box-shadow: none;
@@ -126,15 +126,15 @@ select {
   height: 44px;
   flex: 0 0 auto;
   border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--card);
+  border: 0;
+  background: var(--secondary);
   color: var(--foreground);
   font-size: 14px;
   font-weight: 600;
   text-decoration: none;
 }
 
-/* Neutral segmented controls reserve the navy fill for the main action. */
+/* Neutral segmented controls reserve colour for the selected action. */
 .bw-segmented {
   display: grid;
   grid-auto-flow: column;
@@ -600,10 +600,6 @@ select {
   padding-inline: 12px;
   min-width: 44px;
 }
-.bw-plan-screen .bw-page-header {
-  padding-bottom: 10px;
-}
-
 .premium-flow,
 .auth-premium,
 .onboarding-premium,
@@ -727,11 +723,11 @@ select {
   letter-spacing: 1.7px;
 }
 .bw-auth__panel {
-  border: 1px solid var(--border);
-  border-radius: 20px;
+  border: 0;
+  border-radius: var(--bw-card-radius);
   padding: 24px;
   background: var(--card);
-  box-shadow: 0 4px 24px oklch(0.23 0.018 255 / 0.025);
+  box-shadow: none;
 }
 .bw-auth__modes {
   display: grid;
@@ -752,7 +748,7 @@ select {
 .bw-auth__modes button[aria-pressed="true"] {
   color: var(--foreground);
   background: var(--card);
-  box-shadow: 0 1px 3px oklch(0.23 0.018 255 / 0.08);
+  box-shadow: none;
 }
 .bw-auth__intro {
   margin-bottom: 24px;
@@ -972,8 +968,8 @@ select {
   width: fit-content;
   max-width: 100%;
   padding: 3px 8px;
-  border: var(--bw-hairline) solid var(--bw-status-line);
-  border-radius: 6px;
+  border: 0;
+  border-radius: 7px;
   background: var(--bw-status-fill);
   color: var(--bw-status-ink);
   font-size: 11px;
@@ -1167,6 +1163,17 @@ select {
 .profile-premium .soft-card {
   overflow-wrap: anywhere;
 }
+@media (max-width: 359px) {
+  .bw-profile-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px;
+  }
+  .bw-profile-row > span:last-child {
+    max-width: none;
+    text-align: left;
+  }
+}
 
 /* Motion communicates navigation and touch, independently of decorative sketches. */
 .bw-tab-bar {
@@ -1286,4 +1293,139 @@ select {
   color: var(--muted-foreground);
   font-size: 12.5px;
   line-height: 1.4;
+}
+
+/* Apple Basic: one surface rhythm and labelled pastel accents across modules. */
+[data-tone="motion"] {
+  --bw-tone-ink: var(--bw-motion);
+  --bw-tone-fill: var(--bw-motion-soft);
+}
+[data-tone="strength"] {
+  --bw-tone-ink: var(--bw-strength);
+  --bw-tone-fill: var(--bw-strength-soft);
+}
+[data-tone="recovery"] {
+  --bw-tone-ink: var(--bw-recovery);
+  --bw-tone-fill: var(--bw-recovery-soft);
+}
+[data-tone="warning"] {
+  --bw-tone-ink: var(--bw-warning);
+  --bw-tone-fill: var(--bw-warning-soft);
+}
+[data-tone="carry"] {
+  --bw-tone-ink: var(--bw-carry);
+  --bw-tone-fill: var(--bw-carry-soft);
+}
+[data-tone="neutral"] {
+  --bw-tone-ink: var(--bw-neutral);
+  --bw-tone-fill: var(--bw-neutral-soft);
+}
+.bw-session-kind {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 3px 7px;
+  border-radius: 6px;
+  color: var(--bw-tone-ink, var(--bw-neutral));
+  background: var(--bw-tone-fill, var(--bw-neutral-soft));
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  vertical-align: middle;
+}
+.bw-tab-item.is-active .bw-tab-icon {
+  width: 42px;
+  border-radius: 8px;
+  background: var(--bw-motion-soft);
+}
+.bw-home-tools button,
+.bw-home-checks button,
+.bw-home-iq-task,
+.bw-home-compact .bw-plan-soon {
+  border: 0;
+  box-shadow: none;
+}
+.bw-home-tools button {
+  padding: 16px;
+  gap: 7px;
+}
+.bw-home-tools button > svg {
+  box-sizing: content-box;
+  padding: 8px;
+  border-radius: 10px;
+  color: var(--bw-tone-ink, var(--bw-motion));
+  background: var(--bw-tone-fill, var(--bw-motion-soft));
+}
+.bw-home-compact .bw-plan-soon {
+  width: 100%;
+  padding: 18px;
+  background: var(--card);
+  min-height: 104px;
+  align-items: center;
+  text-align: left;
+}
+.bw-home-compact .bw-plan-soon > svg {
+  box-sizing: content-box;
+  flex: none;
+  width: 21px;
+  height: 21px;
+  padding: 11px;
+  border-radius: 13px;
+  color: var(--bw-tone-ink, var(--bw-motion));
+  background: var(--bw-tone-fill, var(--bw-motion-soft));
+}
+.bw-home-kind {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--bw-tone-ink, var(--bw-motion));
+  font-size: 12px;
+  font-weight: 600;
+}
+.bw-plan-soon strong {
+  font-size: 17px;
+  letter-spacing: -0.015em;
+}
+.bw-home-section-line h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.bw-home-tools strong {
+  font-size: 14px;
+}
+.fuel-v4 .fuel-v4-time,
+.fuel-v4 .fuel-v4-hero,
+.fuel-v4 .fuel-v4-day,
+.fuel-v4 .fuel-v4-match,
+.browser-lab .bl-test-list {
+  border: 0;
+  border-radius: var(--bw-card-radius);
+  box-shadow: none;
+}
+.fuel-v4 .fuel-v4-time {
+  background: var(--card);
+}
+.fuel-v4 .fuel-v4-time-value > svg {
+  box-sizing: content-box;
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--bw-warning-soft);
+  color: var(--bw-warning);
+}
+.browser-lab .bl-timing-quality-reviewed {
+  background: var(--bw-recovery-soft);
+  color: var(--bw-recovery);
+}
+.browser-lab .bl-timing-quality-indicative {
+  background: var(--bw-warning-soft);
+  color: var(--bw-warning);
+}
+.browser-lab .bl-timing-quality-incomplete {
+  background: var(--bw-error-soft);
+  color: var(--bw-error);
+}
+.onboarding-premium .ob-group {
+  border: 0;
+  box-shadow: none;
 }

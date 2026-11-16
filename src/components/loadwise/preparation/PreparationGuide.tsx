@@ -123,6 +123,8 @@ function ExerciseOverview({ protocol }: { protocol: PreparationProtocol }) {
     </ol>
   );
 }
+type PreparationExecution = { sourceId?: string; name: string; completed: boolean };
+
 export function PreparationGuide({
   protocol,
   storageKey,
@@ -134,7 +136,7 @@ export function PreparationGuide({
   autoStart?: boolean;
   onFinish?: (
     allStepsCompleted: boolean,
-    execution?: { name: string; completed: boolean }[],
+    execution?: PreparationExecution[],
   ) => void | Promise<void>;
 }) {
   const steps = useMemo(() => expandPreparationSteps(protocol), [protocol]);
@@ -282,13 +284,9 @@ export function PreparationGuide({
                 await onFinish?.(
                   progress.skipped.length === 0,
                   protocol.exercises.map((e, i) => ({
+                    sourceId: e.sourceId,
                     name: e.name,
-                    completed: !steps.some(
-                      (step, index) =>
-                        step.exerciseIndex === i &&
-                        step.type === "work" &&
-                        progress.skipped.includes(index),
-                    ),
+                    completed: !progress.skipped.includes(i),
                   })),
                 );
                 setConfirmed(true);
@@ -634,7 +632,10 @@ export function CooldownCoach({
 }: {
   protocol: PreparationProtocol;
   storageKey: string;
-  onFinish?: (allStepsCompleted: boolean) => void | Promise<void>;
+  onFinish?: (
+    allStepsCompleted: boolean,
+    execution?: PreparationExecution[],
+  ) => void | Promise<void>;
 }) {
   return (
     <PreparationGuide

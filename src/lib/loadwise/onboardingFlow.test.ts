@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { rememberedMatchWeekday } from "./matchSchedule";
 import {
   answersFromProfile,
+  validOnboardingStrength,
   toggleFeeling,
   trainingFieldsFromAnswers,
   type OnboardingAnswers,
@@ -144,6 +145,36 @@ describe("answers → profile", () => {
 
   it("throws on missing answers", () => {
     expect(() => trainingFieldsFromAnswers(answers({ goal: null }), null, NOV)).toThrow();
+  });
+
+  it("preserves explicit strength preparation through answers and clears a withdrawn declaration", () => {
+    const a = answers({
+      gymExperienceLevel: "advanced",
+      strengthTrainingMonths: 48,
+      movementCompetence: "high",
+      supervisionLevel: "none",
+    });
+    const fields = trainingFieldsFromAnswers(a, null, NOV);
+    expect(fields).toMatchObject({
+      gymExperienceLevel: "advanced",
+      strengthTrainingMonths: 48,
+      movementCompetence: "high",
+      supervisionLevel: "none",
+    });
+    const restored = answersFromProfile(profileOf(a, 21, NOV));
+    expect(restored).toEqual(a);
+    const unknown = trainingFieldsFromAnswers(
+      { ...restored, movementCompetence: undefined },
+      null,
+      NOV,
+    );
+    expect(unknown).toHaveProperty("movementCompetence", undefined);
+    expect(validOnboardingStrength(a, 21)).toBe(true);
+    expect(validOnboardingStrength({ ...a, strengthTrainingMonths: 253 }, 21)).toBe(false);
+    expect(validOnboardingStrength({ ...a, gymExperienceLevel: "none" }, 21)).toBe(false);
+    expect(() =>
+      trainingFieldsFromAnswers({ ...a, strengthTrainingMonths: 1.5 }, null, NOV),
+    ).toThrow();
   });
 });
 

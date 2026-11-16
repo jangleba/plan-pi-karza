@@ -222,7 +222,7 @@ describe("weekly planner end-to-end contracts", () => {
     expect(physicalSlots(saturday).some((slot) => hasRole(slot, "activation"))).toBe(true);
     expect(physicalSlots(monday).some((slot) => hasRole(slot, "recovery"))).toBe(true);
     for (const slot of [...physicalSlots(saturday), ...physicalSlots(monday)].filter(
-      (slot) => slot.engineV2,
+      (slot) => hasRole(slot, "activation") || hasRole(slot, "recovery"),
     )) {
       expect(slot.engineV2!.highLower).toBe(false);
       expect(
@@ -347,14 +347,16 @@ describe("weekly planner end-to-end contracts", () => {
           ),
         ).toHaveLength(1);
     }
-    expect(r.issues.some((issue) => issue.code === "UNMET_WEEKLY_TARGET")).toBe(true);
+    expect(targets(r.plan).sort()).toEqual([...targetRoles].sort());
+    expect(ownSlots(r.plan).some((slot) => slot.engineV2!.postMatch)).toBe(true);
     expect(validateTrainingPlan(r.plan, p, options)).toEqual([]);
   });
 
   it("never consolidates strength and sprint even for a qualified adult", () => {
     const p = { ...base, weeklyMatches: true, usualMatchDay: 7 };
     const r = generateTrainingPlan(p, options);
-    expect(r.issues.some((issue) => issue.code === "UNMET_WEEKLY_TARGET")).toBe(true);
+    expect(targets(r.plan).sort()).toEqual([...targetRoles].sort());
+    expect(ownSlots(r.plan).some((slot) => slot.engineV2!.postMatch)).toBe(true);
     expect(
       r.plan.some((day) => {
         const roles = targets([day]);
@@ -368,10 +370,14 @@ describe("weekly planner end-to-end contracts", () => {
 
   it("fits compact balanced sessions within thirty minutes when equipment permits", () => {
     const short = { ...options, minutesPerSession: 30 };
-    const r = generateTrainingPlan(base, short);
+    const profile: Profile = {
+      ...base,
+      trainingMethodPreferences: { gymTemplate: "balanced" },
+    };
+    const r = generateTrainingPlan(profile, short);
     for (const slot of ownSlots(r.plan)) expect(slot.durationMin).toBeLessThanOrEqual(30);
     expect(targets(r.plan).sort()).toEqual([...targetRoles].sort());
-    expect(validateTrainingPlan(r.plan, base, short)).toEqual([]);
+    expect(validateTrainingPlan(r.plan, profile, short)).toEqual([]);
   });
 
   it("does not reduce a normal strength prescription merely because the sole available day is MD-3", () => {

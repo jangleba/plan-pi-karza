@@ -23,7 +23,11 @@ export function normalizeMethodPreferences(raw: unknown): TrainingMethodPreferen
   const r = raw as Record<string, unknown>,
     out: TrainingMethodPreferences = {};
   if (r.upperBodyContrast === true) out.upperBodyContrast = true;
-  if (r.gymTemplate === "balanced" || r.gymTemplate === "paired_power")
+  if (
+    r.gymTemplate === "athletic_ab" ||
+    r.gymTemplate === "balanced" ||
+    r.gymTemplate === "paired_power"
+  )
     out.gymTemplate = r.gymTemplate;
   const choices = normalizeGymExerciseChoices(r.gymExercises);
   if (Object.keys(choices).length) out.gymExercises = choices;

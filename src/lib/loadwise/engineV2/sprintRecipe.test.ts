@@ -5,6 +5,8 @@ import { sprintChronology, fitSprintToBudget, sprintDistance } from "./sprintRec
 import { buildRunnerSteps, occurrenceLogKey } from "../sessionRunner/steps";
 import { resolveHowTo } from "../sessionRunner/howTo";
 import { validateCanonicalReplacementChains, getExerciseDefinition } from "../exerciseLibrary";
+import { cooldownFromExercises, expandPreparationSteps } from "../preparation/protocols";
+import { effortLine, taskKind, workSeconds } from "../sessionRunner/presentation";
 import type { Profile } from "../types";
 const p: Profile = {
   name: "Sprint",
@@ -63,6 +65,84 @@ describe("executable sprint recipe", () => {
     expect(fitted.minutes).toBeLessThanOrEqual(normal.minutes - 5);
     expect(fitted.exercises.find((e) => e.dose.speedStage === "main")!.dose.restSeconds).toBe(240);
     expect(fitSprintToBudget(normal, 5)).toBeNull();
+  });
+  it.each([
+    { budget: 40, rounds: 2 },
+    { budget: 35, rounds: 1 },
+  ])(
+    "keeps drill instructions consistent after fitting to $budget minutes",
+    ({ budget, rounds }) => {
+      const normal = buildRunning(
+        { ...p, trainingMethodPreferences: { spaceLengthM: 40 } },
+        "speed",
+        "development",
+      )!;
+      const fitted = fitSprintToBudget(normal, budget)!;
+      const drills = fitted.exercises.filter((e) => e.dose.circuit);
+      expect(drills).toHaveLength(3);
+      for (const drill of drills) {
+        expect(drill.dose.sets).toBe(rounds);
+        expect(drill.reason.startsWith(`${rounds} ${rounds === 1 ? "runda" : "rundy"} `)).toBe(
+          true,
+        );
+        expect(drill.reason).not.toContain("3 rundy");
+        expect(drill.dose.restSeconds).toBe(30);
+        expect(drill.dose.circuit?.roundRestSeconds).toBe(60);
+      }
+      expect(normal.exercises.find((e) => e.dose.circuit)!.reason).toContain("3 rundy");
+    },
+  );
+  it("keeps the generated two-minute sprint cool-down as a guided timer", () => {
+    const result = generateTrainingPlan(p, { startDate: "2026-11-02", weeks: 1 });
+    const sprint = result.plan
+      .flatMap((d) => [d, d.secondSession])
+      .find((s) => s?.engineV2?.roles.includes("speed"))!;
+    const cooldown = sprint.structuredSections!.find((s) => s.type === "cooldown")!;
+    const exercises = cooldown.blocks.flatMap((b) => b.exercises);
+    expect(exercises[0]).toMatchObject({
+      sets: "1",
+      duration: "120 s",
+      displayPrescription: "1 × 120 s",
+      engineDose: { seconds: 120 },
+    });
+    const protocol = cooldownFromExercises(exercises)!;
+    expect(protocol.exercises[0]).toMatchObject({ sets: 1, seconds: 120 });
+    expect(protocol.exercises[0].reps).toBeUndefined();
+    expect(expandPreparationSteps(protocol)).toMatchObject([
+      { type: "work", seconds: 120, reps: undefined },
+    ]);
+  });
+  it("keeps generated timed preparation calm and the distance bouts as sprint tasks", () => {
+    const athlete: Profile = {
+      ...p,
+      age: 21,
+      goal: "endurance",
+      trainingMethodPreferences: { spaceLengthM: 40, declaredEquipment: ["sled"] },
+    };
+    const result = generateTrainingPlan(athlete, { startDate: "2026-11-02", weeks: 1 });
+    const sprint = result.plan
+      .flatMap((d) => [d, d.secondSession])
+      .find((s) => s?.engineV2?.roles.includes("speed"))!;
+    const rows = buildRunnerSteps(sprint.structuredSections!).flatMap((s) => s.rows);
+    const preparation = rows.filter((r) =>
+      ["preparation", "technical"].includes(r.exercise.engineDose?.speedStage ?? ""),
+    );
+    expect(preparation).toHaveLength(10);
+    for (const row of preparation) {
+      const kind = taskKind(row.exercise, row.section, "sprint");
+      expect(kind).toBe("general");
+      expect(effortLine(row.exercise, kind)).toBeNull();
+      expect(workSeconds(row.exercise)).toBe(
+        row.exercise.engineDose?.speedStage === "preparation" ? 360 : 12,
+      );
+    }
+    const bouts = rows.filter((r) =>
+      ["main", "buildup", "resisted"].includes(r.exercise.engineDose?.speedStage ?? ""),
+    );
+    expect(new Set(bouts.map((r) => r.exercise.engineDose?.speedStage))).toEqual(
+      new Set(["main", "buildup", "resisted"]),
+    );
+    for (const row of bouts) expect(taskKind(row.exercise, row.section, "sprint")).toBe("sprint");
   });
   it("counts build-ups and run-ins and allows no imaginary resistance", () => {
     const normal = buildRunning(

@@ -168,8 +168,8 @@ export interface Profile {
   currentPitchFeelings?: CurrentPitchFeeling[];
   /** „Jak chcesz się czuć na boisku” (maks. 2) — dodaje akcent planu (ma pierwszeństwo). */
   desiredPitchFeelings?: DesiredPitchFeeling[];
-  // --- Pola opcjonalne przygotowane pod rozszerzenie onboardingu ---
-  /** Doświadczenie na siłowni (jawnie z onboardingu, jeśli kiedyś dodane). */
+  // --- Jawne przygotowanie z onboardingu lub ustawień treningu ---
+  /** Doświadczenie na siłowni, niezależne od ogólnego poziomu treningowego. */
   gymExperienceLevel?: "none" | "beginner" | "intermediate" | "advanced";
   /** Staż treningu siłowego w miesiącach. */
   strengthTrainingMonths?: number;
@@ -297,6 +297,8 @@ export type SectionType = "warmup" | "prep" | "main" | "accessory" | "cooldown" 
 export type AgeSafetyLevel = "all" | "youth_ok" | "advanced_only";
 
 export interface TrainingExercise {
+  /** Canonical preparation occurrence; never occupies a working-set history key. */
+  preparationOnly?: true;
   strengthFocus?: import("./engineV2/strengthPolicy").StrengthFocus;
   progressionPhase?: "normal" | "reduced";
   engineDose?: import("./engineV2/model").Dose;
@@ -725,6 +727,9 @@ export interface WeekMeta {
 
 /** Schedule-relevant inputs a plan was generated from; lets the app say what changed later. */
 export interface PlanInputsSnapshot {
+  weeklyTargets?: import("./engineV2/model").WeeklyTargets;
+  fillRestDays?: boolean;
+  minFullRestDays?: 0 | 1 | 2;
   matchDates: string[];
   individualTrainingDays: number[];
   unavailableDays: number[];

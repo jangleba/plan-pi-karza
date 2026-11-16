@@ -222,16 +222,16 @@ try {
             await page.getByRole("button", { name: "Wyślij link", exact: true }).waitFor();
             await snap("auth-reset");
           }
-          if ((screen === "start" || screen === "plan") && width === 390) {
-            // The week engine was removed: both tabs show the "Plan wkrótce" state.
-            await page.getByRole("status", { name: "Plan wkrótce" }).waitFor();
-            ensure(
-              (await page
-                .getByRole("button", { name: /Samopoczucie|Oceń samopoczucie|Plan na dziś/ })
-                .count()) === 0,
-              screen + " still offers a daily plan check-in",
-            );
-            views.push(screen + "-plan-wkrotce");
+          if (screen === "start" && width === 390) {
+            await page.getByRole("heading", { name: "Dzisiaj", exact: true }).waitFor();
+            // Authored, unversioned sessions truthfully show the migration action.
+            await page.getByRole("button", { name: /Plan wymaga aktualizacji/ }).waitFor();
+            views.push("start-zapisany-plan-do-aktualizacji");
+          }
+          if (screen === "plan" && width === 390) {
+            await page.getByRole("region", { name: "Tydzień planu", exact: true }).waitFor();
+            await page.getByRole("button", { name: /Otwórz trening:.*2 listopada$/ }).waitFor();
+            views.push("plan-zapisany-tydzien");
           }
           if (screen === "lab" && width === 390) {
             const target = page.getByRole("button", { name: "Rozpocznij CMJ", exact: true });

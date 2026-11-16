@@ -60,15 +60,19 @@ function lostControlHistory(plan: SessionDay[]) {
 
 describe("running recalibration keeps the gym decisions in force", () => {
   it("loss of control → accepted reduction → new MAS does not bring the banded jump back", () => {
-    // Advanced A alternates its two note sessions; the banded jump belongs to the 11.09 one,
-    // so the next exposure is two weeks later.
+    // Keep the trained resistance variant explicit; a layout's default jump is
+    // not permission to transfer its execution evidence to another exercise.
+    const trained: Profile = {
+      ...gymAthlete,
+      trainingMethodPreferences: { gymExercises: { powerA: "gym_cmj_resisted" } },
+    };
     const start = { startDate: "2026-11-16", weeks: 3, minutesPerSession: 75 };
-    const first = generateTrainingPlan(gymAthlete, { ...start, asOfDate: "2026-11-16" }).plan;
+    const first = generateTrainingPlan(trained, { ...start, asOfDate: "2026-11-16" }).plan;
     expect(power(first, "2026-11-30")?.exerciseId).toBe("gym_cmj_resisted");
     const { jump, completions, records } = lostControlHistory(first);
     expect(jump.exerciseId).toBe("gym_cmj_resisted");
     const ctx = gymPlanContext(records);
-    const reduced = generateTrainingPlan(gymAthlete, {
+    const reduced = generateTrainingPlan(trained, {
       ...start,
       asOfDate: "2026-11-17",
       previousPlan: first,
@@ -85,7 +89,7 @@ describe("running recalibration keeps the gym decisions in force", () => {
       d.planDbId = "plan1";
     }
     const measured = {
-      ...gymAthlete,
+      ...trained,
       fieldMasKmh: 15.6,
       fieldMasTestedAt: "2026-11-17",
       fieldMasSourceSessionId: "verified-test",

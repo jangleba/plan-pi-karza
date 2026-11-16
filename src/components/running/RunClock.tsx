@@ -44,6 +44,7 @@ import {
 } from "@/lib/running/lockScreenCues";
 import type { RunningIntervalProtocol } from "@/lib/running/types";
 import { ManualRunClock } from "./ManualRunClock";
+import "./run-tools.css";
 import {
   durationLabel,
   goalOf,

@@ -231,24 +231,32 @@ describe("independent final-session validation", () => {
     (iso.dose as typeof iso.dose & { postRestSeconds: number }).postRestSeconds = 300;
     expect(deriveEngineSessionLoad(s.engineV2!, profile).minutes).toBe(before + 4);
   });
-  it("counts all five rests in a three-round final contrast pair, and the sixth before a following block", () => {
-    const s = session("strengthA"),
-      primary = s.engineV2!.exercises.find((e) => e.role === "knee_strength")!,
-      power = s.engineV2!.exercises.find((e) => e.role === "power")!;
-    primary.dose = { sets: 3, reps: 4, restSeconds: 180, intent: "controlled" };
-    power.dose = { sets: 3, reps: 3, restSeconds: 180, intent: "explosive" };
-    s.engineV2!.organization = "contrast";
-    s.engineV2!.exercises = [primary, power];
-    // 75 s work + five 180 s rests + two 45 s transitions, then eight-minute preparation.
-    expect(deriveEngineSessionLoad(s.engineV2!, profile).minutes).toBe(26);
-    s.engineV2!.exercises.push({
-      exerciseId: "full_nordic_hamstring",
-      role: "knee_flexion",
-      reason: "test",
-      dose: { sets: 1, reps: 1, restSeconds: 60, intent: "controlled" },
-    });
-    expect(deriveEngineSessionLoad(s.engineV2!, profile).minutes).toBe(30);
-  });
+  it.each([
+    { name: "legacy allowance", version: undefined, finalMinutes: 26, followedMinutes: 30 },
+    { name: "explicit preparation", version: 1 as const, finalMinutes: 18, followedMinutes: 22 },
+  ])(
+    "counts all contrast rests with $name, including the sixth before another block",
+    ({ version, finalMinutes, followedMinutes }) => {
+      const s = session("strengthA"),
+        primary = s.engineV2!.exercises.find((e) => e.role === "knee_strength")!,
+        power = s.engineV2!.exercises.find((e) => e.role === "power")!;
+      primary.dose = { sets: 3, reps: 4, restSeconds: 180, intent: "controlled" };
+      power.dose = { sets: 3, reps: 3, restSeconds: 180, intent: "explosive" };
+      s.engineV2!.organization = "contrast";
+      s.engineV2!.exercises = [primary, power];
+      s.engineV2!.strengthPreparationVersion = version;
+      // Isolate the pair: 75 s work + five 180 s rests + two 45 s transitions = ceil(17.75 min).
+      // Only the legacy version retains the separate eight-minute preparation allowance.
+      expect(deriveEngineSessionLoad(s.engineV2!, profile).minutes).toBe(finalMinutes);
+      s.engineV2!.exercises.push({
+        exerciseId: "full_nordic_hamstring",
+        role: "knee_flexion",
+        reason: "test",
+        dose: { sets: 1, reps: 1, restSeconds: 60, intent: "controlled" },
+      });
+      expect(deriveEngineSessionLoad(s.engineV2!, profile).minutes).toBe(followedMinutes);
+    },
+  );
   it("rejects duplicate or unknown target roles", () => {
     const s = session("speed");
     s.engineV2!.roles.push("speed");

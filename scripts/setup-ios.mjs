@@ -3,6 +3,7 @@ import { spawn, execFile } from "node:child_process";
 import { promisify } from "node:util";
 import process from "node:process";
 import { loadEnv } from "vite";
+import { configureIosAppEntitlements, validateIosAppIdentity } from "./lib/ios-project.mjs";
 
 const configured = { ...loadEnv("production", process.cwd(), ""), ...process.env };
 const bundleId = configured.BALLWISE_IOS_BUNDLE_ID?.trim() ?? "";
@@ -52,6 +53,18 @@ if (!bundleId || !bundleIdPattern.test(bundleId) || bundleId.includes("placehold
 }
 
 try {
+  const pbxPath = "ios/App/App.xcodeproj/project.pbxproj";
+  let iosExists = true;
+  try {
+    await access(pbxPath);
+  } catch {
+    iosExists = false;
+  }
+  if (syncOnly && !iosExists) {
+    fail("brakuje projektu ios/. Najpierw uruchom npm run ios:setup.");
+  }
+  if (iosExists) validateIosAppIdentity(await readFile(pbxPath, "utf8"), bundleId);
+
   await run("npm", ["run", "release:check"], configured);
   await run("npm", ["run", "build:mobile"], { BALLWISE_IOS_BUNDLE_ID: bundleId });
   await access("dist/client/index.html");
@@ -59,16 +72,6 @@ try {
   if (!entry.isFile() || entry.size === 0)
     fail("mobilny index.html nie został poprawnie zbudowany.");
 
-  let iosExists = true;
-  try {
-    await access("ios/App/App.xcodeproj");
-  } catch {
-    iosExists = false;
-  }
-
-  if (syncOnly && !iosExists) {
-    fail("brakuje projektu ios/. Najpierw uruchom npm run ios:setup.");
-  }
   if (!iosExists) await run("npx", ["cap", "add", "ios"], { BALLWISE_IOS_BUNDLE_ID: bundleId });
   await run("npx", ["cap", "sync", "ios"], { BALLWISE_IOS_BUNDLE_ID: bundleId });
 
@@ -82,7 +85,7 @@ try {
   await setPlistValue(
     infoPlist,
     "NSLocationWhenInUseUsageDescription",
-    "BallWise mierzy czas i dystans biegu po naciśnięciu Start. Podczas aktywnego biegu pomiar może działać przy zablokowanym ekranie. Współrzędne nie są zapisywane w historii.",
+    "BallWise mierzy czas, dystans i trasę biegu po naciśnięciu Start, także przy zablokowanym ekranie. Szkic trasy jest zapisywany lokalnie na tym urządzeniu do odzyskania biegu.",
   );
   // A capability is generated explicitly; no Always permission or microphone is requested.
   let modes = "";
@@ -117,18 +120,9 @@ try {
       `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict><key>com.apple.developer.associated-domains</key><array><string>applinks:${associatedDomain}</string></array></dict></plist>\n`,
     );
   }
-  const pbxPath = "ios/App/App.xcodeproj/project.pbxproj";
-  let project = await readFile(pbxPath, "utf8");
-  if (!project.includes("CODE_SIGN_ENTITLEMENTS = App/App.entitlements;")) {
-    const anchor = "INFOPLIST_FILE = App/Info.plist;";
-    if (!project.includes(anchor))
-      fail(
-        "Nie rozpoznano formatu projektu Xcode. Podepnij App.entitlements w target App i sprawdź konfigurację przed archiwizacją.",
-      );
-    project = project.replaceAll(
-      anchor,
-      `${anchor}\n\t\t\t\tCODE_SIGN_ENTITLEMENTS = App/App.entitlements;`,
-    );
+  const originalProject = await readFile(pbxPath, "utf8");
+  const project = configureIosAppEntitlements(originalProject, bundleId);
+  if (project !== originalProject) {
     await writeFile(pbxPath, project);
   }
   try {

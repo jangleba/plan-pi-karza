@@ -27,7 +27,7 @@ const FAQ_ITEMS = [
   {
     question: "Czy przed treningiem muszę zrobić check-in?",
     answer:
-      "Obecny ekran Start prowadzi do zapisanej sesji i nie zawiera dodatkowego formularza check-in. Wybierz sesję i rozpocznij trening. Jeśli zmieniła się Twoja dostępność lub czas, przygotuj nowy podgląd w Planie i sprawdź go przed zapisem.",
+      "Nie. Na ekranie Start możesz opcjonalnie zapisać sen, zmęczenie, ból mięśni i ból stawów. Wymaga to opcjonalnej zgody na przetwarzanie danych zdrowotnych, którą możesz włączyć w Profil → Edytuj profil i plan. Zapis check-inu nie rozpoczyna sesji ani nie przebudowuje 28-dniowego planu. Trening uruchamiasz osobno; zmianę planu sprawdzasz w podglądzie przed zapisem.",
   },
   {
     question: "Co zrobić, gdy czuję ból?",
@@ -52,7 +52,7 @@ const FAQ_ITEMS = [
   {
     question: "Co dzieje się bez internetu?",
     answer:
-      "Najważniejsze zmiany są najpierw zapisywane na urządzeniu i synchronizowane po odzyskaniu połączenia. Nie zamykaj aplikacji od razu po treningu, jeśli widzisz informację o oczekującej synchronizacji.",
+      "Zapisy treningów są najpierw zachowywane na urządzeniu i synchronizowane po odzyskaniu połączenia. Check-in wymaga internetu — bez połączenia nie można go zapisać. Nie zamykaj aplikacji od razu po treningu, jeśli widzisz informację o oczekującej synchronizacji.",
   },
   {
     question: "Czy wskazówki Fuel są dokładnym jadłospisem?",

@@ -20,6 +20,15 @@ describe("declared strength experience", () => {
       decodeStrengthExperience('{"schema":"ballwise-strength-v1","strengthTrainingMonths":-8}'),
     ).toEqual({});
   });
+  it("preserves the adaptive sports structure without inventing experience or loads", () => {
+    const value = { trainingMethodPreferences: { gymTemplate: "athletic_ab" as const } };
+    expect(decodeStrengthExperience(encodeStrengthExperience(value))).toEqual(value);
+    expect(
+      decodeStrengthExperience(
+        '{"schema":"ballwise-strength-v1","trainingMethodPreferences":{"gymTemplate":"unknown"}}',
+      ).trainingMethodPreferences,
+    ).toEqual({});
+  });
   it("16+ advanced by default: regular-training defaults, but no invented months, coach or heavy-lift clearance", () => {
     const athlete = buildAthleteTrainingProfile({ age: 25, level: "elite", hasGym: true });
     expect(athlete.trainingAge).toBeNull();

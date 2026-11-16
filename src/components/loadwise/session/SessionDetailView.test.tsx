@@ -179,6 +179,23 @@ async function render(session: SessionDay) {
 }
 
 describe("saved engine session execution", () => {
+  it("shows a missed prescription for review without offering to restart it", async () => {
+    const session = generated(profile, "mobility");
+    setSession(session);
+    mocks.state.completions[session.dbId!] = {
+      completed: false,
+      status: "missed",
+    } as LoadwiseState["completions"][string];
+    await render(session);
+    expect(mocks.runner.mock.lastCall?.[0]).toMatchObject({
+      start: null,
+      canRecord: false,
+      previewNote: expect.stringContaining("Sesja opuszczona"),
+      sections: session.structuredSections,
+    });
+    expect(host.querySelector("[data-saved-runner] button")).toBeNull();
+    expect(mocks.start).not.toHaveBeenCalled();
+  });
   it("offers explicit equipment replanning and hides an obsolete notice after a saved update", async () => {
     const p: Profile = {
       ...profile,
@@ -312,14 +329,54 @@ describe("saved engine session execution", () => {
       const gpsSession = mocks.gps.mock.lastCall?.[0].session;
       expect(gpsSession.runningRecipe).toEqual(saved.runningRecipe);
       expect(deriveRunningIntervalProtocol(gpsSession)).toEqual(protocol);
+      expect(host.querySelector('[aria-label="Plan biegu"]')!.textContent).toBe(previewText);
       const clock = [...host.querySelectorAll("button")].find((b) => b.textContent === "Bez GPS")!;
       await act(async () => clock.click());
       const clockSession = mocks.clock.mock.lastCall?.[0].session;
       expect(clockSession.runningRecipe).toEqual(saved.runningRecipe);
       expect(deriveRunningIntervalProtocol(clockSession)).toEqual(protocol);
       expect(clockSession.structuredSections).toEqual(saved.structuredSections);
+      expect(host.querySelector('[aria-label="Plan biegu"]')!.textContent).toBe(previewText);
       expect(session).toEqual(saved);
       expect(mocks.recovery).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["gps", "timer"] as const)(
+    "chooses %s before starting without mounting a recorder and retains the plan after activation",
+    async (mode) => {
+      const p = { ...profile, goal: "endurance" as const };
+      const session = generated(p, "endurance");
+      setSession(session, p);
+      await render(session);
+      const preview = host.querySelector('[aria-label="Plan biegu"]')!.textContent;
+      const choice = [...host.querySelectorAll("button")].find(
+        (button) => button.textContent === (mode === "gps" ? "Z GPS" : "Bez GPS"),
+      )!;
+      expect(choice).toBeDefined();
+      await act(async () => choice.click());
+      expect(choice.getAttribute("aria-pressed")).toBe("true");
+      expect(mocks.gps).not.toHaveBeenCalled();
+      expect(mocks.clock).not.toHaveBeenCalled();
+      expect(mocks.start).not.toHaveBeenCalled();
+      expect(host.querySelector('[aria-label="Rozgrzewka i zakończenie"]')).toBeNull();
+
+      const start = [...host.querySelectorAll("button")].find(
+        (button) => button.textContent === "Rozpocznij bieg",
+      )!;
+      await act(async () => start.click());
+      expect(mocks.start).toHaveBeenCalledOnce();
+      mocks.state.completions[session.dbId!] = {
+        status: "started",
+        completed: false,
+        executionSnapshot: session,
+      } as LoadwiseState["completions"][string];
+      await render(session);
+      expect(mode === "gps" ? mocks.gps : mocks.clock).toHaveBeenCalled();
+      expect(mode === "gps" ? mocks.clock : mocks.gps).not.toHaveBeenCalled();
+      expect(host.querySelector('[aria-label="Plan biegu"]')!.textContent).toBe(preview);
+      expect(host.querySelectorAll(".bw-run-setup")).toHaveLength(1);
+      expect(host.querySelector('[aria-label="Rozgrzewka i zakończenie"]')).toBeNull();
     },
   );
 });

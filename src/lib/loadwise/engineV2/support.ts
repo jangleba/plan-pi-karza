@@ -204,9 +204,13 @@ export function buildSkills(
   const firstTouch = usable("football_wall_first_touch", p)
     ? "football_wall_first_touch"
     : "football_self_feed_first_touch";
-  const passing = usable("football_wall_one_touch", p)
-    ? "football_wall_one_touch"
-    : "football_turn_control";
+  const soloFocus =
+    p.position === "midfielder"
+      ? "football_scan_control"
+      : p.position === "forward"
+        ? "football_turn_control"
+        : "football_target_pass";
+  const passing = usable("football_wall_one_touch", p) ? "football_wall_one_touch" : soloFocus;
   // Stable foundations repeat; only one complementary task rotates between weeks.
   // Rotation exposes other skills, never manufactures evidence of mastery or increases volume.
   const drillEligible = (d: FootballDrill) =>

@@ -157,6 +157,21 @@ describe("variants are qualified by level, age, space, equipment and partner", (
     }
   });
 
+  it("does not prescribe a partner stimulus when the declared partner is unavailable", () => {
+    const list = sprints(
+      withPrefs(
+        { sprintFocus: "reactive", declaredEquipment: ["partner"] },
+        { unavailableEquipmentIds: ["partner"] },
+      ),
+      1,
+    );
+    expect(list.length).toBeGreaterThan(0);
+    for (const session of list) {
+      expect(session.engineV2!.sprintGoal).toBe("acceleration");
+      expect(session.engineV2!.sprintVariant?.mainVariantId).not.toMatch(/^react_/);
+    }
+  });
+
   it("a long flying run needs 60 m; planned change of direction is separate from braking, curve and reactive", () => {
     const short = sprints(withPrefs({ sprintFocus: "max_velocity", spaceLengthM: 50 }));
     expect(short.every((s) => s.engineV2!.sprintVariant!.mainVariantId === "mv_flying_20_10")).toBe(

@@ -25,9 +25,10 @@ medycznym, nie diagnozuje, nie leczy i nie zastępuje konsultacji ze specjalist�
   wycofanym modułem.
 - **Trening reaktywny:** ćwiczenia reakcji i lokalnie zapisane własne zestawy.
 
-Konto spersonalizowane jest dostępne od 13 lat; dla wieku 13–15 właścicielem
-jest opiekun. Kod sprawdza potwierdzenie jego e-maila i oświadczenie, nie tożsamość
-ani prawny status opiekuna. Poniżej 13 lat dostępne jest publiczne demo.
+Nowe konto spersonalizowane jest dostępne od 16 lat. Istniejące konta zawodników
+13–15 zachowują dostęp i możliwość edycji; ich właścicielem jest opiekun. Kod
+sprawdza potwierdzenie jego e-maila i oświadczenie, nie tożsamość ani prawny status
+opiekuna. Młodsi zawodnicy mogą korzystać z publicznego demo.
 Kod [subskrypcji iOS](docs/apple/IAP-SUBSCRIPTION-SPEC.md) obejmuje RevenueCat,
 paywall, zakup/przywracanie i serwerowe potwierdzanie dostępu. Wymaga osobnej
 konfiguracji Apple/RevenueCat/backendu i testów sandbox; obecność kodu nie

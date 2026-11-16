@@ -1,7 +1,7 @@
 import type { Profile, Readiness, SessionDay } from "../types";
 import { preparationProfile } from "./preparation";
 
-export const ENGINE_VERSION = "ballwise-v2.12";
+export const ENGINE_VERSION = "ballwise-v2.14";
 export type Tier = "foundation" | "development" | "performance";
 export type Role =
   | "knee_strength"
@@ -104,8 +104,14 @@ export interface ExerciseDecision {
   role: Role;
   dose: Dose;
   reason: string;
+  /** Explicit stage for the adaptive sports days; never implies a superset. */
+  strengthStage?: "prep" | "main" | "accessory" | "cooldown";
 }
 export interface EngineSession {
+  /** Adaptive two-day sports structure; exercise eligibility and dose remain individual. */
+  strengthStructure?: "athletic_ab";
+  /** Optional rows omitted for time, distinct from functions unavailable with the declared equipment. */
+  strengthTimeOmissions?: { exerciseId: string; role: Role }[];
   /** Stable within a cycle: which equivalent eligible strength exercises were chosen (cycle recommendation "vary"). */
   exerciseRotation?: number;
   gymFeedbackRevision?: string;
@@ -129,6 +135,8 @@ export interface EngineSession {
   gymProgressionDecisions?: import("./gymProgression").GymProgressionDecision[];
   runningCalibrationKey?: string;
   sprintRecipeVersion?: 1;
+  /** Version 1 stores the existing strength preparation as explicit exercise rows. */
+  strengthPreparationVersion?: 1;
   sprintGoal?: SprintGoal;
   /** Which qualified variant and drill set were chosen when the plan was saved, and why. */
   sprintVariant?: SprintVariantRef;
@@ -184,8 +192,21 @@ export interface Issue {
   message: string;
   /** Weekly target a diagnostic refers to; absent for older saved plans. */
   target?: "strengthA" | "strengthB" | "speed" | "endurance" | "mobility";
+  /** Placement gates that prevented an explicitly requested extra session. */
+  reasonCodes?: string[];
+}
+/** Explicit weekly requests remain subject to calendar, preparation and load gates. */
+export interface WeeklyTargets {
+  strength: 2;
+  speed: 1 | 2;
+  endurance: 1 | 2;
 }
 export interface EngineOptions {
+  weeklyTargets?: WeeklyTargets;
+  /** Offer existing light technique/mobility recipes on otherwise unused days. */
+  fillRestDays?: boolean;
+  /** Whole physical days without training; assigned sessions never consume this reserve. */
+  minFullRestDays?: 0 | 1 | 2;
   strengthLoadResponses?: import("../gymEvidence").GymLoadResponse[];
   /** Optional observations from real execution, scoped to the current athlete.
    * Legacy completions/timers alone never imply movement quality. */

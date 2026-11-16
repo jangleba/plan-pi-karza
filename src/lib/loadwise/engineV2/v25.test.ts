@@ -6,6 +6,7 @@ import { cycleForWeek } from "./cycle";
 import { validateEngineSession } from "./validation";
 import { comparablePreviousSets, recommendStrengthProgression } from "./progression";
 import { exercisePrescriptionKey, type ExerciseSessionLog } from "../setLogHistory";
+import { getExerciseDefinition } from "../exerciseLibrary";
 
 const p: Profile = {
   name: "V25",
@@ -66,9 +67,13 @@ describe("V2.5 coherent sessions, cycle and feedback", () => {
     s.engineV2!.roles.push("speed");
     expect(validateEngineSession(s, p).map((x) => x.code)).toContain("MIXED_STRENGTH_SPEED");
   });
-  it("fits a compact prescription while preserving both leg functions, upper task and rests", () => {
+  it("fits a compact balanced prescription while preserving both leg functions, upper task and rests", () => {
+    const balanced: Profile = {
+      ...p,
+      trainingMethodPreferences: { ...p.trainingMethodPreferences, gymTemplate: "balanced" },
+    };
     for (const variant of ["A", "B"] as const) {
-      const full = buildStrength(p, variant, "development");
+      const full = buildStrength(balanced, variant, "development");
       const short = fitStrengthToBudget(full, 30);
       expect(short.variant).toBe("compact");
       expect(short.minutes).toBeLessThanOrEqual(30);
@@ -108,9 +113,29 @@ describe("V2.5 coherent sessions, cycle and feedback", () => {
       gymExperienceLevel: "none" as const,
     };
     const recipe = buildStrength(profile, "A", "development");
-    expect(recipe.exercises[0].exerciseId).toBe("hip_mobility_flow");
-    expect(recipe.exercises.some((e) => e.role === "knee_strength")).toBe(true);
-    expect(recipe.exercises.some((e) => e.role === "hip_strength")).toBe(true);
+    const preparation = recipe.exercises.filter((row) => row.role === "warmup");
+    expect(preparation.map((row) => row.exerciseId)).toEqual([
+      "warmup_walk",
+      "ankle_rock_forward",
+      "adductor_rockback",
+      "bodyweight_squat",
+      "glute_bridge",
+    ]);
+    expect(preparation.every((row) => eligibleExercise(row.exerciseId, profile, "warmup"))).toBe(
+      true,
+    );
+    expect(
+      preparation.every(
+        (row) => getExerciseDefinition(row.exerciseId)?.spaceRequirement === "home_small",
+      ),
+    ).toBe(true);
+    const knees = recipe.exercises.filter((row) => row.role === "knee_strength");
+    const hips = recipe.exercises.filter((row) => row.role === "hip_strength");
+    expect(knees).toHaveLength(1);
+    expect(hips).toHaveLength(1);
+    expect(knees[0].exerciseId).toBe("bodyweight_squat");
+    expect(hips[0].exerciseId).toBe("glute_bridge");
+    expect(recipe.exercises.slice(0, preparation.length)).toEqual(preparation);
   });
   it("does not infer special equipment or a safe pulling anchor from no equipment", () => {
     expect(eligibleExercise("full_nordic_hamstring", { ...p, equipment: [] })).toBe(false);

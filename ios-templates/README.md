@@ -5,6 +5,10 @@ tworzy/synchronizuje projekt Capacitor na macOS z Xcode. `npm run ios:sync`
 powtarza te kontrole dla istniejącego projektu. Oba polecenia wymagają tego
 samego `BALLWISE_IOS_BUNDLE_ID` oraz konfiguracji domeny/logowania opisanej w
 [instrukcji wdrożenia](../docs/INSTALLATION-2026-10.md).
+Przed synchronizacją setup porównuje ten identyfikator z konfiguracjami Debug
+i Release targetu App. Przy rozbieżności przerywa pracę, zachowując istniejący
+Bundle Identifier; uzgodnij go najpierw w Xcode. Plik entitlements jest przypinany
+do obu konfiguracji. Własny, inny plik entitlements wymaga ręcznego uzgodnienia.
 
 Aktualny setup dodaje opis kamery i lokalizacji, tryb lokalizacji w tle,
 Associated Domains oraz kopię pliku prywatności. Istniejące entitlements
@@ -27,6 +31,8 @@ alternatywa tekstowa pozostaje dostępna. Dodatkowe natywne API rozpoznawania
 mowy lub biblioteki zdjęć wymagałyby własnej konfiguracji uprawnień.
 
 Bieganie korzysta z natywnego runtime na iOS lub geolokalizacji przeglądarki.
+Natywny runtime zapisuje szkic z trasą lokalnie na urządzeniu, aby umożliwić
+odzyskanie biegu po zamknięciu procesu; trasa nie jest wysyłana do historii serwera.
 Testy zgody, odmowy, przerwania i aktywnego biegu przy zablokowanym ekranie
 muszą odbyć się na urządzeniu. Obecność `UIBackgroundModes` nie dowodzi
 poprawności pomiaru w tle ani spełnienia wymagań App Review.

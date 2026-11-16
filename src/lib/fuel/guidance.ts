@@ -1,6 +1,7 @@
 import { FOOD_BY_ID, mealNutrition } from "./catalog";
 import {
   fuelMoment,
+  latestEatenMeal,
   localDate,
   minutesToFuelStart,
   type FuelContext,
@@ -78,14 +79,7 @@ export function fuelDayGuide(
   nextSession?: FuelContext | null,
 ) {
   const minutes = minutesToFuelStart(timing, now);
-  const recent = data.entries.filter(
-    (e) =>
-      e.status === "eaten" &&
-      e.eatenAt !== null &&
-      localDate(e.eatenAt) === localDate(now) &&
-      e.eatenAt <= now,
-  );
-  const last = [...recent].sort((a, b) => (b.eatenAt ?? 0) - (a.eatenAt ?? 0))[0];
+  const last = latestEatenMeal(data.entries, now);
   const drinkMl = (data.drinks ?? [])
     .filter(
       (d) => d.contextKey === context.key && localDate(d.at) === localDate(now) && d.at <= now,

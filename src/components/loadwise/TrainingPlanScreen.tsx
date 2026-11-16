@@ -28,6 +28,11 @@ import { hasUnresolvedTrainingWrites } from "@/lib/loadwise/offlineTrainingQueue
 import { runningCalibrationMessage } from "@/lib/loadwise/engineV2/runningCalibrationStatus";
 import { ArrowRight, ChevronRight, SlidersHorizontal } from "lucide-react";
 import { PlanWeek, plDate } from "./PlanWeek";
+import { WeeklyPlanningSettings, WeeklyPlanningCoverage } from "./WeeklyPlanningSettings";
+import {
+  savedWeeklyPlanningPreferences,
+  type WeeklyPlanningPreferences,
+} from "@/lib/loadwise/weeklyPlanningPreferences";
 import "@/styles/ballwise-plan.css";
 
 /** Preview, explicit activation and execution of the versioned training plan. */
@@ -54,6 +59,22 @@ export function PlanScreen() {
     null,
   );
   const planId = state.activePlanId ?? null;
+  const savedWeeklyPreferences = useMemo(
+    () =>
+      state.profile
+        ? savedWeeklyPlanningPreferences(state.plan[0]?.planInputs, state.profile)
+        : null,
+    [state.profile, state.plan],
+  );
+  const [weeklyChoice, setWeeklyChoice] = useState<{
+    ownerId: string | undefined;
+    planId: string | null;
+    value: WeeklyPlanningPreferences | null;
+  } | null>(null);
+  const weeklyPreferences =
+    weeklyChoice?.ownerId === user?.id && weeklyChoice?.planId === planId
+      ? weeklyChoice.value
+      : savedWeeklyPreferences;
   const intent =
     intentState.value && intentState.value.planId === planId ? intentState.value : null;
   const rebuild = rebuildRequested || intent !== null;
@@ -120,6 +141,9 @@ export function PlanScreen() {
         completions: state.completions,
         expectedPlanId: state.activePlanId ?? null,
         minutesPerSession: minutes,
+        weeklyTargets: weeklyPreferences?.weeklyTargets,
+        fillRestDays: weeklyPreferences?.fillRestDays,
+        minFullRestDays: weeklyPreferences?.minFullRestDays,
         lockedDays: lockedExecutionDays(
           resolveEffectivePlan(state.plan, state.modifications, {
             completions: state.completions,
@@ -161,6 +185,7 @@ export function PlanScreen() {
     gymEvidence.records,
     evidenceIssue,
     evidenceKey,
+    weeklyPreferences,
   ]);
   const plan = preview?.result?.plan ?? effectivePlan;
   // What changed since the saved plan was built, and what the next days would look like.
@@ -255,97 +280,124 @@ export function PlanScreen() {
           </p>
         ) : null}
         {(!state.plan.length || rebuild) && evidenceIssue ? (
-          <p role="status" className="bw-plan-quiet">
+          <p role="status" className="bw-plan-quiet bw-plan-notice">
             {evidenceIssue}
           </p>
         ) : null}
         {!preview ? <FeedbackAdjustmentCard /> : null}
         {!preview ? <MasTestAction /> : null}
         {!preview && runningMessage ? (
-          <p role="status" aria-label="Aktualizacja biegania" className="bw-plan-quiet">
-            {runningMessage}
-          </p>
+          <details className="bw-plan-disclosure bw-plan-notice" aria-label="Aktualizacja biegania">
+            <summary>
+              Aktualizacja biegania
+              <ChevronRight aria-hidden="true" />
+            </summary>
+            <div className="bw-plan-notice-body">
+              <p>{runningMessage}</p>
+            </div>
+          </details>
         ) : null}
         {state.plan.length > 0 && !preview ? (
-          <div className="bw-plan-card bw-plan-status">
-            {scheduleChanges.length > 0 && status.kind === "stale" ? (
-              <ul>
-                {scheduleChanges.map((c) => (
-                  <li key={c.kind}>{c.line}</li>
-                ))}
-              </ul>
-            ) : null}
-            {status.kind === "expired" ? (
+          <section className="bw-plan-card bw-plan-status bw-plan-status--compact">
+            <div className="bw-plan-status-row">
               <p role="status">
-                Cykl zakończony{status.endDate ? ` · ${plDate(status.endDate, true)}` : ""}.
-                Przygotuj kolejne 4 tygodnie.
+                {status.kind === "expired"
+                  ? "Cykl zakończony"
+                  : status.kind === "stale"
+                    ? "Plan wymaga odświeżenia"
+                    : "Zapisany plan"}
               </p>
-            ) : status.kind === "stale" ? (
-              <p role="status">
-                {status.staleReason === "version"
-                  ? "Dostępna jest aktualna wersja silnika. Przygotuj plan ponownie."
-                  : "Profil zmienił się. Przygotuj aktualny plan przed rozpoczęciem nowej sesji."}
-              </p>
+              <button type="button" className="bw-plan-link" onClick={() => setRebuild(true)}>
+                {status.kind === "stale" || runningMessage
+                  ? "Zaktualizuj plan"
+                  : "Przygotuj kolejny plan"}
+              </button>
+            </div>
+            {status.kind === "expired" || status.kind === "stale" ? (
+              <details className="bw-plan-disclosure bw-plan-status-details">
+                <summary>
+                  Informacje o planie
+                  <ChevronRight aria-hidden="true" />
+                </summary>
+                <div className="bw-plan-notice-body">
+                  {status.kind === "expired" ? (
+                    <p>
+                      Cykl zakończony{status.endDate ? ` · ${plDate(status.endDate, true)}` : ""}.
+                      Przygotuj kolejne 4 tygodnie.
+                    </p>
+                  ) : (
+                    <p>
+                      {status.staleReason === "version"
+                        ? "Dostępna jest aktualna wersja silnika. Przygotuj plan ponownie."
+                        : "Profil zmienił się. Przygotuj aktualny plan przed rozpoczęciem nowej sesji."}
+                    </p>
+                  )}
+                  {scheduleChanges.length > 0 && status.kind === "stale" ? (
+                    <ul className="bw-plan-bullets">
+                      {scheduleChanges.map((change) => (
+                        <li key={change.kind}>{change.line}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              </details>
             ) : null}
-            <button
-              type="button"
-              className={
-                status.kind === "stale" || status.kind === "expired" || runningMessage
-                  ? "bw-plan-button"
-                  : "bw-plan-link"
-              }
-              onClick={() => setRebuild(true)}
-            >
-              {status.kind === "stale" || runningMessage
-                ? "Zaktualizuj plan"
-                : "Przygotuj kolejny plan"}
-            </button>
-          </div>
+          </section>
         ) : null}
         {preview?.result ? (
-          <section className="bw-plan-card bw-plan-preview">
-            <h2>Twój plan · 4 tygodnie</h2>
-            <p>
-              Podgląd dopasowany do Twojego przygotowania siłowego i kalendarza. Zapisz go, aby
-              rozpocząć treningi.
+          <section className="bw-plan-card bw-plan-preview bw-plan-preview--compact">
+            <header className="bw-plan-preview-head">
+              <h2>Twój plan · 4 tygodnie</h2>
+              <span>Podgląd</span>
+            </header>
+            <p className="bw-plan-preview-meta">
+              {plDate(plan[0]?.date ?? todayIso, true)} –{" "}
+              {plDate(plan.at(-1)?.date ?? todayIso, true)}
             </p>
-            {scheduleChanges.length > 0 ? (
-              <ul className="bw-plan-bullets">
-                {scheduleChanges.map((c) => (
-                  <li key={c.kind}>{c.line}</li>
-                ))}
-              </ul>
-            ) : null}
-            {intervalNote ? <p>{intervalNote}</p> : null}
-            {nextDaysDiff.length > 0 ? (
-              <details className="bw-plan-disclosure">
-                <summary>
-                  Najbliższe 7 dni · zmiany ({nextDaysDiff.length})
-                  <ChevronRight aria-hidden="true" />
-                </summary>
-                {diffList(nextDaysDiff)}
-              </details>
-            ) : null}
-            {laterDiff.length > 0 ? (
-              <details className="bw-plan-disclosure" open>
-                <summary>
-                  Dalsze tygodnie · zmiany ({laterDiff.length})
-                  <ChevronRight aria-hidden="true" />
-                </summary>
-                {diffList(laterDiff)}
-              </details>
-            ) : null}
-            {state.plan.length > 0 ? (
-              <p className="bw-plan-fine">
-                Nowy plan rozpoczyna się {plDate(todayIso, true)}. Zapisane wykonanie i historia
-                treningów pozostają zachowane.
-              </p>
-            ) : (
-              <p className="bw-plan-fine">
-                {plDate(plan[0]?.date ?? todayIso, true)} –{" "}
-                {plDate(plan.at(-1)?.date ?? todayIso, true)}
-              </p>
-            )}
+            <details className="bw-plan-disclosure bw-plan-preview-details">
+              <summary>
+                Szczegóły podglądu
+                <ChevronRight aria-hidden="true" />
+              </summary>
+              <div className="bw-plan-notice-body">
+                <p>
+                  Podgląd dopasowany do Twojego przygotowania siłowego i kalendarza. Zapisz go, aby
+                  rozpocząć treningi.
+                </p>
+                {scheduleChanges.length > 0 ? (
+                  <ul className="bw-plan-bullets">
+                    {scheduleChanges.map((change) => (
+                      <li key={change.kind}>{change.line}</li>
+                    ))}
+                  </ul>
+                ) : null}
+                {intervalNote ? <p>{intervalNote}</p> : null}
+                {nextDaysDiff.length > 0 ? (
+                  <details className="bw-plan-disclosure">
+                    <summary>
+                      Najbliższe 7 dni · zmiany ({nextDaysDiff.length})
+                      <ChevronRight aria-hidden="true" />
+                    </summary>
+                    {diffList(nextDaysDiff)}
+                  </details>
+                ) : null}
+                {laterDiff.length > 0 ? (
+                  <details className="bw-plan-disclosure">
+                    <summary>
+                      Dalsze tygodnie · zmiany ({laterDiff.length})
+                      <ChevronRight aria-hidden="true" />
+                    </summary>
+                    {diffList(laterDiff)}
+                  </details>
+                ) : null}
+                {state.plan.length > 0 ? (
+                  <p className="bw-plan-fine">
+                    Nowy plan rozpoczyna się {plDate(todayIso, true)}. Zapisane wykonanie i historia
+                    treningów pozostają zachowane.
+                  </p>
+                ) : null}
+              </div>
+            </details>
             <button
               type="button"
               className="bw-plan-button"
@@ -365,6 +417,8 @@ export function PlanScreen() {
                 onClick={() => {
                   setRebuild(false);
                   intentState.setValue(null);
+                  setWeeklyChoice(null);
+                  setTimeChoice(null);
                 }}
               >
                 Wróć do zapisanego planu
@@ -402,6 +456,12 @@ export function PlanScreen() {
             onOpen={open}
           />
         ) : null}
+        {preview?.result || !rebuild ? (
+          <WeeklyPlanningCoverage
+            plan={plan}
+            preferences={preview?.result ? weeklyPreferences : savedWeeklyPreferences}
+          />
+        ) : null}
         {state.profile?.hasGym && (
           <GymBandSetupPanel
             date={todayIso}
@@ -415,7 +475,7 @@ export function PlanScreen() {
               <SlidersHorizontal aria-hidden="true" className="bw-plan-settings-icon" />
               <span>
                 Dopasowanie treningu
-                <small>{minutes} min na jednostkę · doświadczenie i sprzęt</small>
+                <small>Cele tygodnia · {minutes} min · doświadczenie i sprzęt</small>
               </span>
               <ChevronRight aria-hidden="true" />
             </summary>
@@ -439,6 +499,14 @@ export function PlanScreen() {
                   ))}
               </select>
             </label>
+            <WeeklyPlanningSettings
+              profile={state.profile}
+              value={weeklyPreferences}
+              onChange={(value) => {
+                setWeeklyChoice({ ownerId: user?.id, planId, value });
+                if (state.plan.length) setRebuild(true);
+              }}
+            />
             <StrengthExperienceSetup />
           </details>
         ) : null}

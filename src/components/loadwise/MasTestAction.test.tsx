@@ -93,9 +93,15 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-it("offers the voluntary test only to eligible athletes and changes nothing by itself", async () => {
+it("starts with a compact row and offers the test only to eligible athletes", async () => {
   await render();
+  expect(host.querySelector(".bw-plan-mas-row")?.textContent).toBe("Test biegowy 5 minUstal tempo");
   expect(button("Ustal tempo")).toBeTruthy();
+  const details = host.querySelector<HTMLElement>(".bw-plan-mas-details")!;
+  expect(details.hidden).toBe(true);
+  expect(button("Ustal tempo")?.getAttribute("aria-controls")).toBe(details.id);
+  expect(host.textContent).not.toContain("Jest dobrowolny");
+  expect(host.textContent).not.toContain("GPS");
   expect(mock.activate).not.toHaveBeenCalled();
   set({ ...profile, age: 15 });
   await render();
@@ -111,8 +117,19 @@ it("offers the voluntary test only to eligible athletes and changes nothing by i
 });
 
 it("shows what it replaces, saves only on 'Zastosuj' and writes once through the plan activation", async () => {
+  let finishSave!: () => void;
+  mock.activate.mockImplementationOnce(
+    () => new Promise<void>((resolve) => (finishSave = resolve)),
+  );
   await render();
   await act(async () => button("Ustal tempo")!.click());
+  expect(host.querySelector<HTMLElement>(".bw-plan-mas-details")?.hidden).toBe(false);
+  expect(host.textContent).toContain(
+    "Test 5 minut ustala Twoje tempo do kolejnych biegów. Jest dobrowolny.",
+  );
+  expect(host.textContent).toContain(
+    "Ustal tempo: dobrowolny test 5-minutowy zamiast jednego spokojnego biegu.",
+  );
   expect(host.textContent).toContain("zastąpiony testem 5 min");
   expect(host.textContent).toContain("Bez dystansu nie ustalimy tempa");
   expect(mock.activate).not.toHaveBeenCalled();
@@ -125,6 +142,12 @@ it("shows what it replaces, saves only on 'Zastosuj' and writes once through the
       .flatMap(slots)
       .some((s: SessionDay) => s.runningRecipe?.method === "field_mas_test"),
   ).toBe(true);
+  expect(button("Zapisywanie…")?.disabled).toBe(true);
+  expect(button("Anuluj")?.disabled).toBe(true);
+  expect(host.querySelector<HTMLElement>(".bw-plan-mas-details")?.hidden).toBe(false);
+  await act(async () => finishSave());
+  expect(button("Ustal tempo")).toBeTruthy();
+  expect(host.querySelector<HTMLElement>(".bw-plan-mas-details")?.hidden).toBe(true);
 });
 
 it("'Anuluj' leaves the plan alone and a failed write is shown, not reported as saved", async () => {
@@ -132,9 +155,42 @@ it("'Anuluj' leaves the plan alone and a failed write is shown, not reported as 
   await act(async () => button("Ustal tempo")!.click());
   await act(async () => button("Anuluj")!.click());
   expect(button("Ustal tempo")).toBeTruthy();
+  expect(host.textContent).not.toContain("Jest dobrowolny");
+  expect(mock.activate).not.toHaveBeenCalled();
   mock.activate.mockRejectedValueOnce(new Error("Brak połączenia"));
   await act(async () => button("Ustal tempo")!.click());
   await act(async () => button("Zastosuj")!.click());
   expect(host.querySelector('[role="alert"]')?.textContent).toContain("Brak połączenia");
   expect(button("Zastosuj")).toBeTruthy();
+  expect(host.textContent).toContain("Bez dystansu nie ustalimy tempa");
+  expect(mock.activate).toHaveBeenCalledTimes(1);
+});
+
+it("reveals the full refusal reason and test details only after requesting the test", async () => {
+  mock.store = { ...mock.store, todayIso: "2026-11-16" };
+  await render();
+  expect(host.textContent).not.toContain("Plan nie obejmuje dzisiejszego dnia.");
+  await act(async () => button("Ustal tempo")!.click());
+  expect(host.textContent).toContain("Plan nie obejmuje dzisiejszego dnia.");
+  expect(host.textContent).toContain("Jest dobrowolny.");
+  expect(host.textContent).toContain("zapisanego dystansu (GPS) i czasu");
+  expect(button("Zastosuj")).toBeUndefined();
+  expect(mock.activate).not.toHaveBeenCalled();
+  await act(async () => button("Zamknij")!.click());
+  expect(host.textContent).not.toContain("Plan nie obejmuje dzisiejszego dnia.");
+  expect(button("Ustal tempo")).toBeTruthy();
+});
+
+it("keeps an outdated proposal open with an error instead of saving it", async () => {
+  await render();
+  await act(async () => button("Ustal tempo")!.click());
+  mock.store = { ...mock.store, todayIso: "2026-11-16" };
+  await render();
+  await act(async () => button("Zastosuj")!.click());
+  expect(host.querySelector('[role="alert"]')?.textContent).toBe(
+    "Plan zmienił się. Zacznij od nowa.",
+  );
+  expect(host.textContent).toContain("zastąpiony testem 5 min");
+  expect(button("Anuluj")?.disabled).toBe(false);
+  expect(mock.activate).not.toHaveBeenCalled();
 });

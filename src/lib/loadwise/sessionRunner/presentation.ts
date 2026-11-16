@@ -54,6 +54,11 @@ export function taskKind(
   const sets = plannedSets(exercise);
   const seconds = exercise.engineDose?.seconds;
   const numericDuration = typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0;
+  if (
+    numericDuration &&
+    ["preparation", "technical"].includes(exercise.engineDose?.speedStage ?? "")
+  )
+    return "general";
   if (GYM_EXERCISE_RULES[exercise.exerciseId ?? ""]?.timedDynamic) return "general";
   const isometric =
     definition?.movementPattern === "isometric" ||
@@ -242,6 +247,9 @@ export function formatRange(range: Range): string {
 
 /** Distance of one sprint repetition, as written in the plan ("15–20 m"). */
 export function sprintDistance(exercise: TrainingExercise): string | null {
+  const distance = exercise.engineDose?.distanceM;
+  if (distance !== undefined)
+    return Number.isFinite(distance) && distance > 0 ? `${distance} m` : null;
   const match = `${exercise.displayPrescription ?? ""} ${exercise.reps ?? ""}`.match(
     /(\d+(?:\s*[–-]\s*\d+)?)\s*m\b/,
   );

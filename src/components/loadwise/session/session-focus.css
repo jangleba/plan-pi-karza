@@ -74,8 +74,8 @@
   opacity: 0.35;
 }
 .bw-focus-card {
-  border: 1px solid var(--border);
-  border-radius: 22px;
+  border: 0;
+  border-radius: var(--bw-card-radius);
   background: var(--card);
   padding: 18px;
   min-width: 0;
@@ -207,7 +207,7 @@
 }
 .bw-run-mode [aria-pressed="true"] {
   background: var(--card);
-  box-shadow: 0 1px 3px #0000000a;
+  box-shadow: none;
 }
 .bw-run-readout {
   font-size: clamp(42px, 14vw, 64px);
@@ -473,7 +473,7 @@
 .bw-session-slots button[aria-pressed="true"] {
   background: var(--card);
   color: var(--foreground);
-  box-shadow: 0 1px 3px rgb(15 30 55 / 0.12);
+  box-shadow: none;
 }
 .bw-session-link {
   display: flex;
@@ -599,7 +599,7 @@
   padding: 18px 18px 22px;
 }
 .bw-run-clock[data-tone="rest"] {
-  --bw-run-accent: var(--muted-foreground);
+  --bw-run-accent: var(--bw-warning);
 }
 .bw-run-clock-head {
   width: 100%;
@@ -736,7 +736,7 @@
 .bw-run-phases li[data-current] {
   background: var(--card);
   color: var(--foreground);
-  box-shadow: 0 1px 4px rgb(15 30 55 / 0.12);
+  box-shadow: none;
 }
 .bw-run-now,
 .bw-run-next,
@@ -921,7 +921,8 @@
   padding: 14px 16px calc(10px + env(safe-area-inset-bottom));
   border-radius: 22px 22px 0 0;
   background: var(--card);
-  box-shadow: 0 -6px 18px rgb(15 30 55 / 0.06);
+  box-shadow: none;
+  border-top: 1px solid var(--border);
 }
 .bw-run-guide .bw-run-clock-main {
   width: 100%;
@@ -1017,4 +1018,23 @@
 .bw-unit-view:has(.bw-run-live) .bw-session-date,
 .bw-unit-view:has(.bw-run-live) .bw-session-meta-line {
   display: none;
+}
+
+.bw-session-meta-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 0;
+  font-size: 14px;
+}
+.bw-session-head .bw-session-kind {
+  font-size: 12px;
+}
+.bw-run-guide[data-tone="rest"] .bw-run-now,
+.bw-run-clock[data-tone="rest"] .bw-run-now {
+  background: var(--bw-warning-soft);
+}
+.bw-unit-info,
+.bw-session-link {
+  border: 0;
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
 import { proposalToEngineResult } from "@/lib/loadwise/engineV2/feedbackAdjustment";
 import { proposeMasTest, type MasTestOffer } from "@/lib/loadwise/engineV2/masTest";
@@ -11,6 +11,7 @@ import { useLoadwise } from "@/lib/loadwise/store";
  */
 export function MasTestAction() {
   const { state, hydrated, syncing, todayIso, activatePlanV2 } = useLoadwise();
+  const detailsId = useId();
   const [offer, setOffer] = useState<MasTestOffer | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,51 +50,64 @@ export function MasTestAction() {
     }
   }
   return (
-    <section className="rounded-2xl border border-black/10 p-4 text-sm" aria-label="Ustal tempo">
-      {!offer ? (
-        <>
-          <p>Test 5 minut ustala Twoje tempo do kolejnych biegów. Jest dobrowolny.</p>
-          <button type="button" className="mt-2 underline" onClick={() => setOffer(build())}>
+    <section className="bw-plan-mas" aria-label="Ustal tempo">
+      <div className="bw-plan-mas-row">
+        <span>Test biegowy 5 min</span>
+        {!offer && (
+          <button
+            type="button"
+            className="bw-plan-link"
+            aria-controls={detailsId}
+            aria-expanded={false}
+            onClick={() => setOffer(build())}
+          >
             Ustal tempo
           </button>
-        </>
-      ) : offer.ok ? (
-        <>
-          <p>{offer.proposal.reason}</p>
-          <ul>
-            {offer.proposal.changes.map((c) => (
-              <li key={c.sessionId}>{c.line}</li>
-            ))}
-          </ul>
-          <p className="text-xs text-neutral-600">
-            Wynik powstaje z zapisanego dystansu (GPS) i czasu. Bez dystansu nie ustalimy tempa.
-          </p>
-          {error ? <p role="alert">{error}</p> : null}
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void apply()}
-            className="mr-3 underline"
-          >
-            {busy ? "Zapisywanie…" : "Zastosuj"}
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => setOffer(null)}
-            className="underline"
-          >
-            Anuluj
-          </button>
-        </>
-      ) : (
-        <>
-          <p>{offer.reason}</p>
-          <button type="button" className="underline" onClick={() => setOffer(null)}>
-            Zamknij
-          </button>
-        </>
-      )}
+        )}
+      </div>
+      <div id={detailsId} className="bw-plan-mas-details" hidden={!offer}>
+        {offer && (
+          <>
+            <p>Test 5 minut ustala Twoje tempo do kolejnych biegów. Jest dobrowolny.</p>
+            {offer.ok ? (
+              <>
+                <p>{offer.proposal.reason}</p>
+                <ul>
+                  {offer.proposal.changes.map((c) => (
+                    <li key={c.sessionId}>{c.line}</li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p>{offer.reason}</p>
+            )}
+            <p className="text-xs text-neutral-600">
+              Wynik powstaje z zapisanego dystansu (GPS) i czasu. Bez dystansu nie ustalimy tempa.
+            </p>
+            {offer.ok && error ? <p role="alert">{error}</p> : null}
+            <div className="bw-plan-mas-actions">
+              {offer.ok && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void apply()}
+                  className="bw-plan-link"
+                >
+                  {busy ? "Zapisywanie…" : "Zastosuj"}
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setOffer(null)}
+                className="bw-plan-link"
+              >
+                {offer.ok ? "Anuluj" : "Zamknij"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </section>
   );
 }

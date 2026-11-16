@@ -8,6 +8,7 @@ import {
   recoveryContextForSession,
   canGuideRecoverySession,
   cooldownFromExercises,
+  warmupFromExercises,
 } from "./protocols";
 import { runningCooldown } from "../recoveryContent";
 import { flatToStructured } from "../sessionStructure";
@@ -112,6 +113,36 @@ describe("dobór rozgrzewki i regeneracji", () => {
       ["hamstring", 2, 30, true],
     ]);
   });
+  it.each(["2 × 30 s / stronę", "2 x 30 s / stronę", " 2 × 30 s / stronę ", undefined])(
+    "zachowuje dawkę prowadzonej rozgrzewki bez podwajania serii: %s",
+    (displayPrescription) => {
+      const protocol = warmupFromExercises(
+        [
+          {
+            id: "calf-prescribed",
+            exerciseId: "calf_wall_stretch",
+            name: "Łydka",
+            sets: "2",
+            duration: "30 s / stronę",
+            displayPrescription,
+          },
+        ],
+        "easy",
+      );
+      expect(protocol.exercises[0]).toMatchObject({ sets: 2, seconds: 30, sides: true });
+      expect(protocol.exercises[0].reps).toBeUndefined();
+      expect(
+        expandPreparationSteps(protocol)
+          .filter((s) => s.type === "work")
+          .map((s) => [s.set, s.side, s.seconds]),
+      ).toEqual([
+        [1, "left", 30],
+        [1, "right", 30],
+        [2, "left", 30],
+        [2, "right", 30],
+      ]);
+    },
+  );
   it("nie prowadzi minutnikiem wyciszenia z ćwiczeniem bez odpowiednika", () => {
     expect(
       cooldownFromExercises([

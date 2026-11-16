@@ -30,6 +30,7 @@ import { ADVANCED_CONTACT_LIMIT, advancedSessionsEligible } from "./advancedSess
 import { UPPER_CONTRAST, upperContrastIneligibility } from "./upperContrast";
 import { parseRestDuration } from "../restTimer";
 import { POST_MATCH_UPPER_ROLES, postMatchMode } from "./postMatch";
+import { isAthleticStrengthSelected } from "./athleticStrength";
 
 const TARGETS = new Set([
   "strengthA",
@@ -192,7 +193,16 @@ export function deriveEngineSessionLoad(
           ) /
             60 +
           10
-        : Math.ceil(seconds / 60) + (gym || support ? 8 : recipe.roles.includes("speed") ? 2 : 10);
+        : Math.ceil(seconds / 60) +
+          (gym
+            ? recipe.strengthPreparationVersion === 1
+              ? 0
+              : 8
+            : support
+              ? 8
+              : recipe.roles.includes("speed")
+                ? 2
+                : 10);
   const highLower =
     !!run?.hard ||
     recipe.exercises.some((e) => e.role === "speed" || e.role === "iso_primer") ||
@@ -297,6 +307,63 @@ export function validateEngineSession(
     return issues;
   }
   const strength = recipe.roles.some((role) => role.startsWith("strength"));
+  if (recipe.strengthStructure !== undefined && recipe.strengthStructure !== "athletic_ab")
+    fail("STRENGTH_STRUCTURE", "Nieznany układ treningu siłowego.");
+  if (recipe.strengthStructure === "athletic_ab") {
+    if (
+      !strength ||
+      !isAthleticStrengthSelected(profile) ||
+      recipe.strengthPreparationVersion !== 1
+    )
+      fail(
+        "STRENGTH_STRUCTURE",
+        "Sportowy układ A/B wymaga wybranego wariantu i jawnego przygotowania.",
+      );
+    if (
+      recipe.strengthPairs?.length ||
+      recipe.complexPairs?.length ||
+      recipe.organization === "complex"
+    )
+      fail(
+        "ATHLETIC_AUTOMATIC_PAIRS",
+        "Kolejność ćwiczeń w sportowym A/B nie oznacza automatycznych par.",
+      );
+    const stages = ["prep", "main", "accessory", "cooldown"];
+    let previousStage = -1;
+    for (const row of recipe.exercises) {
+      const stage = stages.indexOf(row?.strengthStage ?? "");
+      if (
+        stage < 0 ||
+        stage < previousStage ||
+        (row.role === "warmup" && row.strengthStage !== "prep")
+      )
+        fail(
+          "ATHLETIC_STAGE_ORDER",
+          "Każde zadanie sportowego A/B wymaga jawnej części i prawidłowej kolejności wykonania.",
+        );
+      previousStage = Math.max(previousStage, stage);
+    }
+    const primaryRole = recipe.roles.includes("strengthA") ? "knee_strength" : "hip_strength";
+    if (recipe.postMatch === "upper") {
+      if (
+        !recipe.exercises.some(
+          (row) => ["push", "pull"].includes(row.role) && row.strengthStage === "main",
+        )
+      )
+        fail(
+          "ATHLETIC_PRIMARY_STAGE",
+          "Główna praca góry ciała należy do części głównej sesji MD+1.",
+        );
+    } else if (
+      !recipe.exercises.some((row) => row.role === primaryRole && row.strengthStage === "main")
+    )
+      fail("ATHLETIC_PRIMARY_STAGE", "Główny wzorzec siły A/B należy do części głównej sesji.");
+  }
+  if (
+    recipe.strengthPreparationVersion !== undefined &&
+    (!strength || recipe.strengthPreparationVersion !== 1)
+  )
+    fail("STRENGTH_PREPARATION_VERSION", "Nieprawidłowy zapis przygotowania siłowego.");
   if (recipe.strengthFocus) {
     const focus = recipe.strengthFocus;
     if (
@@ -609,7 +676,7 @@ export function validateEngineSession(
       fail("MISSING_UPPER_TASK", "Brak zadania góry ciała lub informacji o brakującym sprzęcie.");
   }
   const athlete = buildAthleteTrainingProfile(profile);
-  const ids = new Set<string>();
+  const ids = new Map<string, string[]>();
   let validArithmetic = true;
   for (const exercise of recipe.exercises) {
     if (!exercise || typeof exercise.exerciseId !== "string" || !exercise.dose) {
@@ -755,9 +822,18 @@ export function validateEngineSession(
         "MISSING_SESSION_REQUIREMENT",
         `Brak wymaganego partnera, piłki lub miejsca: ${exercise.exerciseId}.`,
       );
-    if (ids.has(exercise.exerciseId))
+    const previousRoles = ids.get(exercise.exerciseId) ?? [];
+    const warmupWorkPair =
+      strength &&
+      recipe.strengthPreparationVersion === 1 &&
+      previousRoles.length === 1 &&
+      (previousRoles[0] === "warmup") !== (exercise.role === "warmup") &&
+      [previousRoles[0], exercise.role].some((role) =>
+        ["knee_strength", "hip_strength", "unilateral_strength", "push", "pull"].includes(role),
+      );
+    if (previousRoles.length && !warmupWorkPair)
       fail("DUPLICATE_EXERCISE", `Powtórzone ćwiczenie: ${exercise.exerciseId}.`);
-    ids.add(exercise.exerciseId);
+    ids.set(exercise.exerciseId, [...previousRoles, exercise.role]);
     if (!FUNCTIONS.has(exercise.role) || !compatibleFunction(exercise.exerciseId, exercise.role))
       fail(
         "FUNCTION_MISMATCH",

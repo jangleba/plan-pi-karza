@@ -1,0 +1,258 @@
+/* The same quiet tools in preview and the active exercise; colors name their purpose. */
+.bw-howto-plan-instruction {
+  border-top: 1px solid var(--border);
+}
+.bw-howto-plan-instruction > summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  list-style: none;
+}
+.bw-howto-plan-instruction > summary::after {
+  content: "+";
+  margin-left: auto;
+  font-size: 18px;
+}
+.bw-howto-plan-instruction[open] > summary::after {
+  content: "−";
+}
+.bw-howto-plan-instruction > summary::-webkit-details-marker {
+  display: none;
+}
+.bw-unit-exercise > .bw-course-setup {
+  margin-top: 12px;
+}
+.bw-course-setup {
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--bw-card-radius, 20px);
+  background: var(--card);
+}
+.bw-course-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 550;
+}
+.bw-course-summary::-webkit-details-marker,
+.bw-sprint-timing > summary::-webkit-details-marker,
+.bw-sprint-stopwatch > summary::-webkit-details-marker {
+  display: none;
+}
+.bw-course-summary > span {
+  flex: 1;
+}
+.bw-course-summary > small {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 400;
+  text-align: right;
+}
+.bw-course-summary > svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  color: var(--bw-motion, var(--primary));
+}
+.bw-course-summary > svg:last-child {
+  width: 15px;
+  height: 15px;
+  color: var(--muted-foreground);
+}
+.bw-course-setup[open] .bw-course-summary > svg:last-child {
+  transform: rotate(180deg);
+}
+.bw-course-content {
+  display: grid;
+  gap: 14px;
+  padding: 4px 0 16px;
+}
+.bw-course-content p {
+  margin: 0;
+}
+.bw-course-camera > summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--bw-motion, var(--primary));
+  font-size: 13px;
+}
+.bw-course-camera > div {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+.bw-course-content > label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.bw-course-content input {
+  border: 0;
+  background: var(--muted);
+  border-radius: 12px;
+}
+.bw-course-content button[aria-pressed] {
+  border: 0;
+  border-radius: 10px;
+  background: var(--muted);
+  color: var(--foreground);
+}
+.bw-course-content button[aria-pressed="true"] {
+  background: var(--bw-motion-soft, var(--accent));
+  color: var(--bw-motion, var(--primary));
+}
+.bw-runner-optional.bw-sprint-timing {
+  display: block;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+.bw-sprint-timing > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.bw-sprint-timing > summary > span {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 400;
+}
+.bw-sprint-result-entry {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+.bw-sprint-result-entry p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+.bw-sprint-result-entry label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.bw-sprint-result-entry input,
+.bw-sprint-result-entry select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 0;
+  border-radius: 12px;
+  padding: 9px 12px;
+  background: var(--muted);
+  color: var(--foreground);
+  font-size: 16px;
+}
+.bw-sprint-result-entry > label {
+  grid-template-columns: minmax(0, 1fr) minmax(100px, 1fr);
+  align-items: center;
+}
+.bw-sprint-time-input {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: end;
+  gap: 8px;
+}
+.bw-sprint-time-input > span {
+  align-self: center;
+  margin-top: 20px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.bw-sprint-result-entry button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--bw-motion-soft, var(--accent));
+  color: var(--bw-motion, var(--primary));
+  font-size: 13px;
+  font-weight: 550;
+}
+.bw-sprint-result-entry button:disabled {
+  opacity: 0.45;
+}
+.bw-sprint-result-entry summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--bw-motion, var(--primary));
+}
+.bw-sprint-stopwatch {
+  border-radius: 14px;
+  background: var(--muted);
+  padding: 0 12px;
+}
+.bw-sprint-stopwatch[open],
+.bw-sprint-stopwatch[data-inline] {
+  padding-bottom: 12px;
+}
+.bw-sprint-stopwatch-title {
+  margin: 0;
+  padding-top: 12px;
+  font-weight: 600;
+}
+.bw-sprint-stopwatch > output {
+  display: block;
+  margin: 12px 0;
+  color: var(--foreground);
+  font-size: 38px;
+  font-weight: 500;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+}
+.bw-sprint-stopwatch > output > small {
+  color: var(--muted-foreground);
+  font-size: 16px;
+  font-weight: 400;
+}
+.bw-sprint-stopwatch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.bw-sprint-stopwatch-actions > button:first-child {
+  background: var(--bw-motion, var(--primary));
+  color: #fff;
+}
+.bw-sprint-result-entry > details li {
+  padding-block: 6px;
+  font-size: 13px;
+}
+@media (max-width: 359px) {
+  .bw-course-summary {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .bw-course-summary > small {
+    max-width: 90px;
+  }
+  .bw-sprint-time-input {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .bw-sprint-time-input > button {
+    grid-column: 1 / -1;
+  }
+}

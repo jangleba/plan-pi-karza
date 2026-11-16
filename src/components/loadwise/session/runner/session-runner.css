@@ -1,7 +1,6 @@
 /*
- * One style for every session runner: light grey page, white surfaces, navy
- * accent, subtle borders, 16 px side margins, 44 px touch targets.
- * Colours come from the app tokens, so the dark theme follows automatically.
+ * One style for every runner: quiet surfaces, readable actions and pastel
+ * state markers. All colours follow the application semantics.
  */
 .bw-runner {
   display: grid;
@@ -89,8 +88,8 @@
   margin: 0 16px 6px;
   font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--muted-foreground);
 }
 .bw-rplan-group h3 small {
@@ -439,8 +438,8 @@
   min-height: 44px;
   padding: 0 12px;
   border-radius: 10px;
-  background: var(--primary);
-  color: var(--primary-foreground);
+  background: var(--bw-motion-soft);
+  color: var(--bw-motion);
   font-weight: 600;
 }
 .bw-runner-next {
@@ -800,11 +799,12 @@
 }
 .bw-stepper-buttons {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(44px, 1fr));
+  gap: 8px;
 }
 .bw-stepper-buttons button {
   display: inline-flex;
+  min-width: 44px;
   height: 44px;
   align-items: center;
   justify-content: center;
@@ -838,6 +838,7 @@
   background: var(--muted);
 }
 .bw-log-rir-pick button {
+  min-width: 44px;
   min-height: 44px;
   border-radius: 8px;
   font-size: 16px;
@@ -995,6 +996,9 @@
 }
 
 @media (max-width: 359px) {
+  .bw-log-rir-pick > div {
+    grid-template-columns: repeat(3, minmax(44px, 1fr));
+  }
   .bw-runner-card {
     padding: 14px 12px;
   }
@@ -1220,12 +1224,14 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--muted-foreground) 16%, var(--muted));
 }
-.bw-runner-segments li[data-state="done"],
+.bw-runner-segments li[data-state="done"] {
+  background: var(--bw-success-line);
+}
 .bw-runner-segments li[data-state="current"] {
-  background: color-mix(in srgb, var(--primary) 55%, var(--card));
+  background: var(--bw-info-line);
 }
 .bw-runner-segments li[data-state="skipped"] {
-  background: color-mix(in srgb, var(--muted-foreground) 35%, var(--muted));
+  background: var(--bw-warning-line);
 }
 
 .bw-set-card {
@@ -1306,18 +1312,19 @@
   inset: -7px;
 }
 .bw-set-dots li[data-state="done"] button {
-  border-color: var(--bw-success, #5f8f5a);
-  background: var(--bw-success, #5f8f5a);
-  color: #fff;
+  border-color: transparent;
+  background: var(--bw-recovery-soft);
+  color: var(--bw-recovery);
 }
 .bw-set-dots li[data-editing] button {
-  border-color: var(--primary);
-  background: var(--card);
-  color: var(--primary);
+  border-color: transparent;
+  background: var(--bw-strength-soft);
+  color: var(--bw-strength);
 }
 .bw-set-dots li[data-state="current"] span {
-  border-color: var(--primary);
-  color: var(--primary);
+  border-color: transparent;
+  background: var(--bw-strength-soft);
+  color: var(--bw-strength);
   font-weight: 600;
 }
 .bw-set-dots svg {
@@ -1383,7 +1390,8 @@
   padding: 14px 16px calc(10px + env(safe-area-inset-bottom));
   border-radius: 22px 22px 0 0;
   background: var(--card);
-  box-shadow: 0 -6px 18px rgb(15 30 55 / 0.06);
+  box-shadow: none;
+  border-top: 1px solid var(--border);
 }
 .bw-runner-dock:empty {
   display: none;
@@ -1603,4 +1611,42 @@
   .bw-load-segments label {
     transition: none;
   }
+}
+
+/* The active card is neutral; state is carried by the labelled marks. */
+.bw-runner-card[data-status="skipped"] {
+  background: var(--bw-warning-soft);
+}
+.bw-rplan-mark[data-state="done"] {
+  background: var(--bw-recovery-soft);
+  color: var(--bw-recovery);
+}
+.bw-rplan-mark[data-state="skipped"] {
+  background: var(--bw-warning-soft);
+  color: var(--bw-warning);
+}
+.bw-rplan-row[data-current] > button {
+  background: var(--bw-motion-soft);
+}
+.bw-rplan-now {
+  color: var(--bw-motion);
+}
+.bw-rplan-rest {
+  background: var(--bw-warning-soft);
+  color: var(--bw-warning);
+  padding-block: 8px;
+}
+.bw-runner-next,
+.bw-runner-note,
+.bw-runner-secondary {
+  border: 0;
+}
+.bw-runner-secondary {
+  background: var(--secondary);
+}
+.bw-howto-watch {
+  border: 0;
+  background: var(--bw-warning-soft);
+  border-radius: var(--bw-control-radius);
+  padding: 12px;
 }

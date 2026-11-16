@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { useAuth } from "@/lib/loadwise/auth";
 import { AppLaunchScreen } from "@/components/loadwise/AppLaunchScreen";
+import { AppDataError } from "@/components/loadwise/AppDataError";
 import type {
   Profile,
   Position,
@@ -26,7 +27,10 @@ import {
   type AccountOwnerType,
 } from "@/lib/loadwise/agePolicy";
 import { OWN_EQUIPMENT_OPTIONS } from "@/lib/loadwise/equipmentOptions";
-import { healthFieldsForOnboarding } from "@/lib/loadwise/onboardingHealth";
+import {
+  foodSafetyFieldsForOnboarding,
+  healthFieldsForOnboarding,
+} from "@/lib/loadwise/onboardingHealth";
 import {
   answersFromProfile,
   cleanUnavailableDays,
@@ -36,9 +40,11 @@ import {
   seasonCheck,
   suggestedSeasonPhase,
   trainingFieldsFromAnswers,
+  validOnboardingStrength,
   type OnboardingAnswers,
 } from "@/lib/loadwise/onboardingFlow";
 import { Button } from "@/components/ui/button";
+import { StrengthPreparationFields } from "@/components/onboarding/StrengthPreparationFields";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -209,6 +215,7 @@ const EQUIPMENT_LABEL: Record<string, string> = {
 };
 
 const STEP_ERROR: Partial<Record<StepId, string>> = {
+  conditions: "Sprawdź staż: pełne miesiące, zgodne z wiekiem i doświadczeniem.",
   consents: "Zaznacz wymagane zgody (*).",
   athlete: "Uzupełnij imię, datę urodzenia, pozycję, poziom i ligę.",
   guardian: "Uzupełnij dane opiekuna i potwierdź oświadczenie.",
@@ -225,6 +232,23 @@ const STEP_ERROR: Partial<Record<StepId, string>> = {
 let pendingRetry: { userId: string; consents: Record<string, boolean> } | null = null;
 
 function Onboarding() {
+  const { state, hydrated, hydrationError } = useLoadwise();
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && !user) navigate({ to: "/auth", replace: true });
+  }, [loading, user, navigate]);
+
+  if (loading || !user || !hydrated) return <AppLaunchScreen />;
+  if (hydrationError && !state.profile?.onboardingComplete) return <AppDataError />;
+
+  // Mount draft state only once the account data exists. Direct visits and
+  // refreshes otherwise initialize every field from the empty startup store.
+  return <OnboardingForm key={user.id} />;
+}
+
+function OnboardingForm() {
   const { state, hydrated, completeOnboarding, profileSaveStage } = useLoadwise();
   const { user, loading, resendSignupConfirmation } = useAuth();
   const navigate = useNavigate();
@@ -356,6 +380,8 @@ function Onboarding() {
           answers.seasonPhase !== null &&
           !seasonBlocks
         );
+      case "conditions":
+        return validOnboardingStrength(answers, ageNum ?? undefined);
       default:
         return true;
     }
@@ -422,10 +448,7 @@ function Onboarding() {
       healthPersonalizationEnabled: Boolean(consents.health_data),
       fuelPrecisionEnabled: existing?.fuelPrecisionEnabled ?? false,
       weightKg: existing?.fuelPrecisionEnabled ? (existing.weightKg ?? null) : null,
-      fuelAllergyStatus: "unconfirmed",
-      foodAllergies: [],
-      foodIntolerances: [],
-      foodExclusions: [],
+      ...foodSafetyFieldsForOnboarding(existing, Boolean(consents.health_data)),
       ...training,
       // General answers do not clear previously reported pain while health consent remains active.
       ...healthFieldsForOnboarding(existing, Boolean(consents.health_data)),
@@ -1073,6 +1096,17 @@ function Onboarding() {
                 }))}
                 value={answers.doubleSessionsAllowed}
                 onPick={(v) => pick("doubleSessionsAllowed", v)}
+              />
+            </Group>
+            <Group
+              icon={Dumbbell}
+              label="Przygotowanie siłowe"
+              note="Możesz uzupełnić teraz lub później w ustawieniach treningu."
+            >
+              <StrengthPreparationFields
+                value={answers}
+                age={ageNum ?? undefined}
+                onChange={(patch) => setAnswers((previous) => ({ ...previous, ...patch }))}
               />
             </Group>
           </>

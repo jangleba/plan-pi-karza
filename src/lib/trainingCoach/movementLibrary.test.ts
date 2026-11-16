@@ -51,7 +51,7 @@ const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 describe("complete shared exercise demonstrations", () => {
   it("resolves reviewed demonstrations and explicitly identifies new instruction-only drills", () => {
     const definitions = getApprovedExerciseDefinitions();
-    expect(definitions).toHaveLength(216 + INSTRUCTION_ONLY_GYM_IDS.length);
+    expect(definitions).toHaveLength(216 + INSTRUCTION_ONLY_GYM_IDS.length + 1); // explicit strength warm-up walk
     for (const definition of definitions) {
       const selection = resolveExerciseAnimation({
         id: definition.id,
@@ -66,6 +66,15 @@ describe("complete shared exercise demonstrations", () => {
       expect(selection, definition.id).not.toBeNull();
       expect(runtime.BWAnim.models[selection!.id], definition.id).toBeDefined();
     }
+    const warmupWalk = definitions.find((definition) => definition.id === "warmup_walk")!;
+    expect(warmupWalk.approved).toBe(true);
+    expect(
+      resolveExerciseAnimation({
+        id: "preparation-instance",
+        exerciseId: warmupWalk.id,
+        name: warmupWalk.displayNamePl,
+      })?.id,
+    ).toBe("bwprep:walk");
     for (const id of [
       "walk",
       "ankle",

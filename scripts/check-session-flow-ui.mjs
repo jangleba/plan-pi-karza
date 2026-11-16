@@ -122,6 +122,31 @@ const b = await chromium.launch({
 const reports = [],
   errors = [];
 
+if (process.argv.includes("--weekly-planning-only")) {
+  try {
+    const { checkWeeklyPlanningUI } = await import("./check-weekly-planning-ui.mjs");
+    const results = await checkWeeklyPlanningUI({ browser: b, base, work });
+    console.log(JSON.stringify({ passed: true, weeklyPlanningViews: results.length }));
+  } finally {
+    await b.close();
+    await new Promise((resolve) => server.close(resolve));
+  }
+  process.exit(0);
+}
+
+if (process.argv.includes("--field-only") || process.argv.includes("--page-field-only")) {
+  try {
+    const { checkTrainingFieldUI } = await import("./check-training-field-ui.mjs");
+    const presentation = process.argv.includes("--page-field-only") ? "page" : "sheet";
+    const results = await checkTrainingFieldUI({ browser: b, base, work, presentation });
+    console.log(JSON.stringify({ passed: true, presentation, fieldViews: results.length }));
+  } finally {
+    await b.close();
+    await new Promise((resolve) => server.close(resolve));
+  }
+  process.exit(0);
+}
+
 try {
   // BALLWISE_SHOT_SCALE=2 gives sharp screenshots for people; checks run at 1.
   const p = await b.newPage({

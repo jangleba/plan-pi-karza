@@ -1,8 +1,26 @@
 import { resolveEquipmentId } from "../exerciseLibrary";
 import type { Profile } from "../types";
-import type { Dose, EngineSession } from "./model";
+import type { Dose, EngineSession, ExerciseDecision } from "./model";
 import { resolveGoalPolicy } from "./goalPolicy";
 import { hasVerifiedAdvancedStrength, preparationProfile } from "./preparation";
+
+export const CLUSTER_INSTRUCTION =
+  "Klaster: 20 s między grupami po 2 powtórzenia. Łączna liczba powtórzeń i zwykła przerwa między seriami pozostają zapisane osobno; nie dodawaj ciężaru za samą zmianę metody.";
+const STRAIGHT_SETS_INSTRUCTION =
+  "Zwykłe serie: wykonaj zapisane powtórzenia bez dodatkowych przerw wewnątrz serii.";
+
+/** Keep execution instructions aligned when an owned recipe drops the cluster method. */
+export function removeClusterProtocol(exercise: ExerciseDecision): void {
+  const hadCluster = !!exercise.dose.cluster || exercise.reason.includes(CLUSTER_INSTRUCTION);
+  delete exercise.dose.cluster;
+  if (!hadCluster) return;
+  exercise.reason = exercise.reason
+    .replaceAll(CLUSTER_INSTRUCTION, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  if (!exercise.reason.includes(STRAIGHT_SETS_INSTRUCTION))
+    exercise.reason += ` ${STRAIGHT_SETS_INSTRUCTION}`;
+}
 
 /** Qualification is a product gate; studies do not establish a birthday threshold. */
 export function clusterEligible(p: Profile, phase: EngineSession["phase"]): boolean {

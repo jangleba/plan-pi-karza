@@ -85,4 +85,74 @@ describe("plan week", () => {
     );
     expect(host.querySelectorAll(".bw-wk-open")).toHaveLength(0);
   });
+
+  it("shows each prescribed intensity independently and leaves external load unassessed", async () => {
+    const double = day("2026-11-02", {
+      intensity: "niska",
+      secondSession: day("2026-11-02", { intensity: "wysoka" }),
+    });
+    const club = day("2026-11-04", {
+      dayType: "club",
+      externalCommitment: true,
+      intensity: "umiarkowana",
+    });
+    await act(async () =>
+      root.render(
+        <PlanWeek
+          plan={[double, day("2026-11-03", { intensity: "umiarkowana" }), club, rest("2026-11-05")]}
+          todayIso="2026-11-02"
+          completions={{}}
+          preview
+          onOpen={() => {}}
+        />,
+      ),
+    );
+    expect(
+      [...host.querySelectorAll('[role="img"]')].map((mark) => mark.getAttribute("aria-label")),
+    ).toEqual([
+      "Planowana intensywność: niska",
+      "Planowana intensywność: wysoka",
+      "Planowana intensywność: umiarkowana",
+      "Planowana intensywność nieokreślona",
+    ]);
+    expect(host.querySelectorAll('[data-rest] [role="img"]')).toHaveLength(0);
+  });
+
+  it("keeps zero-minute club commitments visible and does not call a second-session day full rest", async () => {
+    const club = day("2026-11-04", {
+      dayType: "club",
+      type: "club_training",
+      title: "Team Training",
+      durationMin: 0,
+      externalCommitment: true,
+    });
+    const shell = {
+      ...rest("2026-11-05"),
+      secondSession: day("2026-11-05"),
+    };
+    const onOpen = vi.fn();
+    await act(async () =>
+      root.render(
+        <PlanWeek
+          plan={[club, shell, rest("2026-11-06")]}
+          todayIso="2026-11-04"
+          completions={{}}
+          preview={false}
+          onOpen={onOpen}
+        />,
+      ),
+    );
+    const days = [...host.querySelectorAll(".bw-wk-days > li")];
+    expect(days[0].textContent).toContain("Team Training");
+    expect(days[0].textContent).toContain("Klub");
+    expect(days[0].textContent).not.toContain("Odpoczynek");
+    expect(days[0].hasAttribute("data-rest")).toBe(false);
+    expect(days[1].hasAttribute("data-rest")).toBe(false);
+    expect(days[2].hasAttribute("data-rest")).toBe(true);
+    expect(host.querySelectorAll(".bw-wk-strip [data-train]")).toHaveLength(2);
+    await act(async () => days[0].querySelector<HTMLButtonElement>("button")!.click());
+    expect(onOpen).toHaveBeenCalledWith(club, 1);
+    await act(async () => days[1].querySelector<HTMLButtonElement>("button")!.click());
+    expect(onOpen).toHaveBeenLastCalledWith(shell, 2);
+  });
 });
