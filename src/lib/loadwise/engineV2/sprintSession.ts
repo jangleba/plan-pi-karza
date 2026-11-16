@@ -145,7 +145,7 @@ export function buildSprintSession(
       );
   if (!chosenSet) return null;
   const drills = [...chosenSet.item.drills];
-  const rounds = reduced || p.age < 16 || p.level === "beginner" ? 2 : 3;
+  const rounds = reduced || p.level === "beginner" ? 2 : 3;
   for (const exerciseId of drills)
     add(
       exerciseId,

@@ -12,7 +12,7 @@ export function easyRunningRecipe(p: Profile, date: string, seconds: number): Ru
     id: `v2:easy:${date}`,
     method: "easy_continuous",
     title: "Bieg tlenowy",
-    population: p.age < 16 ? "early_youth" : p.age < 18 ? "late_youth" : "adult",
+    population: p.age < 18 ? "late_youth" : "adult",
     level: 0,
     paceSource: "effort",
     warmup: {

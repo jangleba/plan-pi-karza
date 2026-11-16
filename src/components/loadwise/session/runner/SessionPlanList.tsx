@@ -8,6 +8,12 @@ import type { RowStatus } from "./RunnerCard";
 type Item = { step: RunnerStep; index: number };
 type Group = { key: string; title: string; items: Item[] };
 
+/** Rest under a single exercise; a zero rest ("0 s") is not worth a line. */
+function restLabel(exercise: RunnerRow["exercise"]): string | null {
+  const text = singleRest(exercise);
+  return text && !/^Przerwa 0\s*s\b/.test(text) ? text : null;
+}
+
 /** "30 s", "2 min", "2 min 30 s". */
 function seconds(value: number): string {
   if (value < 60) return `${value} s`;
@@ -141,9 +147,9 @@ export function SessionPlanList({
                               <span className="bw-rplan-text">
                                 <strong>{canonicalExerciseName(row.exercise)}</strong>
                                 <small>{doseLine(row.exercise)}</small>
-                                {!linked && singleRest(row.exercise) ? (
+                                {!linked && restLabel(row.exercise) ? (
                                   <small className="bw-rplan-row-rest">
-                                    {singleRest(row.exercise)}
+                                    {restLabel(row.exercise)}
                                   </small>
                                 ) : null}
                               </span>

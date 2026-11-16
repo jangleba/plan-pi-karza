@@ -84,14 +84,13 @@ describe("date-aware endurance recipes", () => {
       false,
     );
   });
-  it("uses lower youth interval doses and never treats early-youth as an adult", () => {
+  it("uses lower interval doses for 16–17 than for adults", () => {
+    // Under 16 there is no plan at all (planUnavailableForAge); no separate youth branch exists.
     const adult = buildEnduranceForDate(athlete, "2026-11-02", "adaptation")!;
     const youth = buildEnduranceForDate({ ...athlete, age: 16 }, "2026-11-02", "adaptation")!;
     expect(youth.exercises[0].dose).toMatchObject({ sets: 3, seconds: 120 });
     expect(youth.minutes).toBeLessThan(adult.minutes);
-    expect(
-      buildEnduranceForDate({ ...athlete, age: 14 }, "2026-11-02", "adaptation")?.highLower,
-    ).toBe(false);
+    expect(youth.runningRecipe?.population).toBe("late_youth");
   });
   it("preserves all recoveries in numeric recipes and the run counter", () => {
     for (const phase of ["adaptation", "development", "peak", "deload"] as const) {

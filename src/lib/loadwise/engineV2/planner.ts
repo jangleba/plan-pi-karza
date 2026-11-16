@@ -432,7 +432,7 @@ function plannedEndurance(
   // Keep an explicit return/fatigue route lighter across all three main modules.
   const running = recipe.runningRecipe;
   for (const block of running.blocks) {
-    block.work.seconds = Math.min(block.work.seconds, (p.age < 16 ? 10 : 15) * 60);
+    block.work.seconds = Math.min(block.work.seconds, 15 * 60);
     block.work.label = `${block.work.seconds / 60} min spokojnie`;
   }
   for (const exercise of recipe.exercises) exercise.dose.seconds = running.blocks[0].work.seconds;

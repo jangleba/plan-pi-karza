@@ -18,6 +18,7 @@ import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
 import { getPlanStatus, todayTrainingState } from "@/lib/loadwise/engineV2/planStatus";
 import { sessionAppearance } from "@/lib/loadwise/sessionAppearance";
 import { sessionHeading } from "@/lib/loadwise/sessionRunner/heading";
+import { planUnavailableForAge } from "@/lib/loadwise/agePolicy";
 
 export const Route = createFileRoute("/_tabs/start")({
   component: StartScreen,
@@ -39,9 +40,13 @@ function StartScreen() {
   if (!hydrated) return <StartLoadingState />;
 
   const firstName = state.profile?.name?.trim().split(/\s+/)[0] || "Zawodniku";
-  const effectivePlan = selectEffectivePlan(state.plan, state.modifications, {
-    completions: state.completions,
-  });
+  // Under 16: the account stays, but no plan or session is offered.
+  const ageBlock = planUnavailableForAge(state.profile);
+  const effectivePlan = ageBlock
+    ? []
+    : selectEffectivePlan(state.plan, state.modifications, {
+        completions: state.completions,
+      });
   const status = getPlanStatus({
     plan: effectivePlan,
     profile: state.profile,
@@ -85,11 +90,16 @@ function StartScreen() {
       }
       adjustment={
         <>
+          {ageBlock ? (
+            <p role="status" className="bw-plan-age-notice">
+              {ageBlock}
+            </p>
+          ) : null}
           <ScheduleChangeCard
             changes={scheduleChanges}
             onOpen={() => void navigate({ to: "/plan" })}
           />
-          <FeedbackAdjustmentCard />
+          {ageBlock ? null : <FeedbackAdjustmentCard />}
         </>
       }
       onSummarize={() => void navigate({ to: "/postep" })}

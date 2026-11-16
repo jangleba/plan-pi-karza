@@ -242,7 +242,7 @@ export function buildSkills(
   if (!hasDeclaredFootball(p)) return null;
   const rotation =
     Number.isInteger(context.rotation) && context.rotation! >= 0 ? context.rotation! : 0;
-  const beginner = p.age < 16 || p.level === "beginner";
+  const beginner = p.level === "beginner";
   // Next to club training or another session: no fast or forceful drills and fewer sets.
   const light = beginner || phase === "deload" || !!context.secondSession;
   const drillById = new Map<string, FootballDrill>(

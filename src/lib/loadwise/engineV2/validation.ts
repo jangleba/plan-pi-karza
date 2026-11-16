@@ -1036,7 +1036,6 @@ export function validateEngineSession(
       timeline.hard &&
       !masTest &&
       (!hasCurrentVerifiedMas(profile, session.date) ||
-        profile.age < 16 ||
         !["intermediate", "advanced", "elite"].includes(profile.level))
     )
       fail(
