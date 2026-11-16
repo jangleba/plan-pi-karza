@@ -10,6 +10,7 @@
 // go zawodnikom młodym/początkującym.
 // ============================================================================
 
+import { excludedAsReplacement } from "./mainStrengthExclusions";
 import type { PainLocation } from "./types";
 import { functionalReplacementCompatible } from "./engineV2/taxonomy";
 import { exerciseName } from "./engineV2/sessionNames";
@@ -5592,6 +5593,7 @@ export function getExerciseRegression(
     if (visited.has(id)) continue;
     const cand = getExerciseDefinition(id);
     if (!cand) continue;
+    if (excludedAsReplacement(def.id, id)) continue;
     if (!isCanonicalReplacementCompatible(def, cand)) continue;
     if (isExerciseAllowedForProfile(cand, a).ok) return cand;
   }
@@ -5600,7 +5602,12 @@ export function getExerciseRegression(
   for (const id of deeperCandidates) {
     if (visited.has(id)) continue;
     const deeper = getExerciseRegression(id, a, visited);
-    if (deeper && isCanonicalReplacementCompatible(def, deeper)) return deeper;
+    if (
+      deeper &&
+      !excludedAsReplacement(def.id, deeper.id) &&
+      isCanonicalReplacementCompatible(def, deeper)
+    )
+      return deeper;
   }
   return undefined;
 }

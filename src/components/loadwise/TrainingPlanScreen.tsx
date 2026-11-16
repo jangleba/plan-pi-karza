@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppHeader } from "@/components/loadwise/ui";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { generateTrainingPlan } from "@/lib/loadwise/engineV2/planner";
@@ -18,7 +18,6 @@ import { buildTrainingHistory, mergeTrainingHistory } from "@/lib/progress/progr
 import { rowsToStrengthSets, useStrengthSetRows } from "@/lib/loadwise/strengthSets";
 import { StrengthExperienceSetup } from "./session/StrengthExperienceSetup";
 import { FeedbackAdjustmentCard } from "./FeedbackAdjustmentCard";
-import { MasTestAction } from "./MasTestAction";
 import { GymBandSetupPanel } from "./session/GymBandSetupPanel";
 import { useGymEvidence } from "@/lib/loadwise/useGymEvidence";
 import { gymPlanContext } from "@/lib/loadwise/gymEvidence";
@@ -26,7 +25,7 @@ import { planEvidenceIssue, planEvidenceKey } from "@/lib/loadwise/planEvidence"
 import { useTrainingWriteStatus } from "@/lib/loadwise/useTrainingWriteStatus";
 import { hasUnresolvedTrainingWrites } from "@/lib/loadwise/offlineTrainingQueue";
 import { runningCalibrationMessage } from "@/lib/loadwise/engineV2/runningCalibrationStatus";
-import { ArrowRight, ChevronRight, SlidersHorizontal } from "lucide-react";
+import { ArrowRight, ChevronRight, SlidersHorizontal, X } from "lucide-react";
 import { PlanWeek, plDate } from "./PlanWeek";
 import { WeeklyPlanningSettings, WeeklyPlanningCoverage } from "./WeeklyPlanningSettings";
 import {
@@ -49,6 +48,7 @@ export function PlanScreen() {
   const liveEvidence = useRef({ gym: gymEvidence, ownerId: user?.id });
   liveEvidence.current = { gym: gymEvidence, ownerId: user?.id };
   const [rebuildRequested, setRebuild] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // Choices confirmed in Progress (time budget); a different saved plan voids them.
   const intentState = useTrainingLocalState<NextPlanIntent | null>(
     trainingStorageKey("next-plan-intent", user?.id),
@@ -270,9 +270,42 @@ export function PlanScreen() {
       ))}
     </ul>
   );
+  // Everything that is not the week itself lives behind one settings button.
+  const attention =
+    status.kind === "stale" ||
+    status.kind === "expired" ||
+    Boolean(runningMessage) ||
+    issues.length > 0;
+  const statusTitle =
+    status.kind === "expired"
+      ? "Cykl zakończony"
+      : status.kind === "stale"
+        ? "Plan wymaga odświeżenia"
+        : "Zapisany plan";
+  const startRebuild = () => {
+    setRebuild(true);
+    setSettingsOpen(false);
+  };
   return (
     <div className="bw-plan-screen pb-6">
-      <AppHeader title="Plan" sketch="pitch" />
+      <AppHeader
+        title="Plan"
+        sketch="pitch"
+        right={
+          state.profile ? (
+            <button
+              type="button"
+              className="bw-plan-settings-button"
+              aria-label={attention ? "Ustawienia planu, wymagają uwagi" : "Ustawienia planu"}
+              aria-expanded={settingsOpen}
+              onClick={() => setSettingsOpen(true)}
+            >
+              <SlidersHorizontal aria-hidden="true" />
+              {attention ? <i aria-hidden="true" /> : null}
+            </button>
+          ) : undefined
+        }
+      />
       <div className="bw-plan-stack">
         {!hydrated || syncing ? (
           <p role="status" className="bw-plan-quiet">
@@ -284,65 +317,10 @@ export function PlanScreen() {
             {evidenceIssue}
           </p>
         ) : null}
-        {!preview ? <FeedbackAdjustmentCard /> : null}
-        {!preview ? <MasTestAction /> : null}
-        {!preview && runningMessage ? (
-          <details className="bw-plan-disclosure bw-plan-notice" aria-label="Aktualizacja biegania">
-            <summary>
-              Aktualizacja biegania
-              <ChevronRight aria-hidden="true" />
-            </summary>
-            <div className="bw-plan-notice-body">
-              <p>{runningMessage}</p>
-            </div>
-          </details>
-        ) : null}
-        {state.plan.length > 0 && !preview ? (
-          <section className="bw-plan-card bw-plan-status bw-plan-status--compact">
-            <div className="bw-plan-status-row">
-              <p role="status">
-                {status.kind === "expired"
-                  ? "Cykl zakończony"
-                  : status.kind === "stale"
-                    ? "Plan wymaga odświeżenia"
-                    : "Zapisany plan"}
-              </p>
-              <button type="button" className="bw-plan-link" onClick={() => setRebuild(true)}>
-                {status.kind === "stale" || runningMessage
-                  ? "Zaktualizuj plan"
-                  : "Przygotuj kolejny plan"}
-              </button>
-            </div>
-            {status.kind === "expired" || status.kind === "stale" ? (
-              <details className="bw-plan-disclosure bw-plan-status-details">
-                <summary>
-                  Informacje o planie
-                  <ChevronRight aria-hidden="true" />
-                </summary>
-                <div className="bw-plan-notice-body">
-                  {status.kind === "expired" ? (
-                    <p>
-                      Cykl zakończony{status.endDate ? ` · ${plDate(status.endDate, true)}` : ""}.
-                      Przygotuj kolejne 4 tygodnie.
-                    </p>
-                  ) : (
-                    <p>
-                      {status.staleReason === "version"
-                        ? "Dostępna jest aktualna wersja silnika. Przygotuj plan ponownie."
-                        : "Profil zmienił się. Przygotuj aktualny plan przed rozpoczęciem nowej sesji."}
-                    </p>
-                  )}
-                  {scheduleChanges.length > 0 && status.kind === "stale" ? (
-                    <ul className="bw-plan-bullets">
-                      {scheduleChanges.map((change) => (
-                        <li key={change.kind}>{change.line}</li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </div>
-              </details>
-            ) : null}
-          </section>
+        {error || preview?.error ? (
+          <p role="alert" className="bw-plan-alert">
+            {error || preview?.error}
+          </p>
         ) : null}
         {preview?.result ? (
           <section className="bw-plan-card bw-plan-preview bw-plan-preview--compact">
@@ -353,24 +331,93 @@ export function PlanScreen() {
             <p className="bw-plan-preview-meta">
               {plDate(plan[0]?.date ?? todayIso, true)} –{" "}
               {plDate(plan.at(-1)?.date ?? todayIso, true)}
+              {state.plan.length > 0 ? ` · zmiany w 7 dniach: ${nextDaysDiff.length}` : ""}
             </p>
-            <details className="bw-plan-disclosure bw-plan-preview-details">
-              <summary>
-                Szczegóły podglądu
-                <ChevronRight aria-hidden="true" />
-              </summary>
-              <div className="bw-plan-notice-body">
+            <button
+              type="button"
+              className="bw-plan-button"
+              disabled={saving || !hydrated || syncing || !!evidenceIssue || !activatePlanV2}
+              onClick={() => void save()}
+            >
+              {saving
+                ? "Zapisywanie…"
+                : issues.length
+                  ? "Zapisz plan z pokazanymi ograniczeniami"
+                  : "Zapisz plan"}
+            </button>
+            <div className="bw-plan-preview-links">
+              <button type="button" className="bw-plan-link" onClick={() => setSettingsOpen(true)}>
+                Szczegóły zmian
+              </button>
+              {state.plan.length > 0 ? (
+                <button
+                  type="button"
+                  className="bw-plan-link"
+                  onClick={() => {
+                    setRebuild(false);
+                    intentState.setValue(null);
+                    setWeeklyChoice(null);
+                    setTimeChoice(null);
+                  }}
+                >
+                  Wróć do zapisanego planu
+                </button>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
+        {!state.profile && hydrated ? (
+          <p className="bw-plan-quiet">Uzupełnij profil, aby przygotować plan.</p>
+        ) : null}
+        {plan.length > 0 ? (
+          <PlanWeek
+            plan={plan}
+            todayIso={todayIso}
+            completions={state.completions}
+            preview={Boolean(preview)}
+            onOpen={open}
+          />
+        ) : null}
+      </div>
+      {state.profile ? (
+        <PlanSettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)}>
+          <section className="bw-plan-card bw-plan-status" aria-label="Stan planu">
+            <div className="bw-plan-status-row">
+              <p role="status">{preview?.result ? "Podgląd nowego planu" : statusTitle}</p>
+              {!preview?.result && state.plan.length > 0 ? (
+                <button type="button" className="bw-plan-link" onClick={startRebuild}>
+                  {status.kind === "stale" || runningMessage
+                    ? "Zaktualizuj plan"
+                    : "Przygotuj kolejny plan"}
+                </button>
+              ) : null}
+            </div>
+            {!preview?.result && status.kind === "expired" ? (
+              <p>
+                Cykl zakończony{status.endDate ? ` · ${plDate(status.endDate, true)}` : ""}.
+                Przygotuj kolejne 4 tygodnie.
+              </p>
+            ) : null}
+            {!preview?.result && status.kind === "stale" ? (
+              <p>
+                {status.staleReason === "version"
+                  ? "Dostępna jest aktualna wersja silnika. Przygotuj plan ponownie."
+                  : "Profil zmienił się. Przygotuj aktualny plan przed rozpoczęciem nowej sesji."}
+              </p>
+            ) : null}
+            {scheduleChanges.length > 0 && (preview?.result || status.kind === "stale") ? (
+              <ul className="bw-plan-bullets">
+                {scheduleChanges.map((change) => (
+                  <li key={change.kind}>{change.line}</li>
+                ))}
+              </ul>
+            ) : null}
+            {preview?.result ? (
+              <>
                 <p>
                   Podgląd dopasowany do Twojego przygotowania siłowego i kalendarza. Zapisz go, aby
                   rozpocząć treningi.
                 </p>
-                {scheduleChanges.length > 0 ? (
-                  <ul className="bw-plan-bullets">
-                    {scheduleChanges.map((change) => (
-                      <li key={change.kind}>{change.line}</li>
-                    ))}
-                  </ul>
-                ) : null}
                 {intervalNote ? <p>{intervalNote}</p> : null}
                 {nextDaysDiff.length > 0 ? (
                   <details className="bw-plan-disclosure">
@@ -396,89 +443,31 @@ export function PlanScreen() {
                     treningów pozostają zachowane.
                   </p>
                 ) : null}
-              </div>
-            </details>
-            <button
-              type="button"
-              className="bw-plan-button"
-              disabled={saving || !hydrated || syncing || !!evidenceIssue || !activatePlanV2}
-              onClick={() => void save()}
-            >
-              {saving
-                ? "Zapisywanie…"
-                : issues.length
-                  ? "Zapisz plan z pokazanymi ograniczeniami"
-                  : "Zapisz plan"}
-            </button>
-            {state.plan.length > 0 ? (
-              <button
-                type="button"
-                className="bw-plan-link"
-                onClick={() => {
-                  setRebuild(false);
-                  intentState.setValue(null);
-                  setWeeklyChoice(null);
-                  setTimeChoice(null);
-                }}
-              >
-                Wróć do zapisanego planu
-              </button>
+              </>
+            ) : null}
+            {!preview && runningMessage ? (
+              <p aria-label="Aktualizacja biegania">{runningMessage}</p>
             ) : null}
           </section>
-        ) : null}
-        {error || preview?.error ? (
-          <p role="alert" className="bw-plan-alert">
-            {error || preview?.error}
-          </p>
-        ) : null}
-        {issues.length ? (
-          <details className="bw-plan-card bw-plan-disclosure">
-            <summary>
-              Ograniczenia planu · {issues.length}
-              <ChevronRight aria-hidden="true" />
-            </summary>
-            <ul className="bw-plan-bullets">
-              {issues.map((x, i) => (
-                <li key={i}>{x.message}</li>
-              ))}
-            </ul>
-          </details>
-        ) : null}
-        {!state.profile && hydrated ? (
-          <p className="bw-plan-quiet">Uzupełnij profil, aby przygotować plan.</p>
-        ) : null}
-        {plan.length > 0 ? (
-          <PlanWeek
-            plan={plan}
-            todayIso={todayIso}
-            completions={state.completions}
-            preview={Boolean(preview)}
-            onOpen={open}
-          />
-        ) : null}
-        {preview?.result || !rebuild ? (
-          <WeeklyPlanningCoverage
-            plan={plan}
-            preferences={preview?.result ? weeklyPreferences : savedWeeklyPreferences}
-          />
-        ) : null}
-        {state.profile?.hasGym && (
-          <GymBandSetupPanel
-            date={todayIso}
-            profile={state.profile ?? undefined}
-            onChanged={() => setRebuild(true)}
-          />
-        )}
-        {state.profile ? (
-          <details className="bw-plan-card bw-plan-disclosure bw-plan-settings">
-            <summary>
-              <SlidersHorizontal aria-hidden="true" className="bw-plan-settings-icon" />
-              <span>
-                Dopasowanie treningu
-                <small>Cele tygodnia · {minutes} min · doświadczenie i sprzęt</small>
-              </span>
-              <ChevronRight aria-hidden="true" />
-            </summary>
+          {!preview ? <FeedbackAdjustmentCard /> : null}
+          {issues.length ? (
+            <section className="bw-plan-card" aria-label="Ograniczenia planu">
+              <h3 className="bw-plan-settings-title">Ograniczenia planu · {issues.length}</h3>
+              <ul className="bw-plan-bullets">
+                {issues.map((x, i) => (
+                  <li key={i}>{x.message}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          {preview?.result || !rebuild ? (
+            <WeeklyPlanningCoverage
+              plan={plan}
+              preferences={preview?.result ? weeklyPreferences : savedWeeklyPreferences}
+            />
+          ) : null}
+          <section className="bw-plan-card bw-plan-settings" aria-label="Dopasowanie treningu">
+            <h3 className="bw-plan-settings-title">Dopasowanie treningu</h3>
             <label className="bw-plan-select">
               Czas na jednostkę
               <select
@@ -508,9 +497,59 @@ export function PlanScreen() {
               }}
             />
             <StrengthExperienceSetup />
-          </details>
-        ) : null}
-      </div>
+          </section>
+          {state.profile.hasGym && (
+            <GymBandSetupPanel
+              date={todayIso}
+              profile={state.profile ?? undefined}
+              onChanged={() => setRebuild(true)}
+            />
+          )}
+        </PlanSettingsPanel>
+      ) : null}
+    </div>
+  );
+}
+
+/** A full-screen settings panel in place (no portal), closed with "Gotowe" or Escape. */
+function PlanSettingsPanel({
+  open,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    heading.current?.focus();
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [open, onClose]);
+  return (
+    // Kept mounted while closed (like an iOS sheet), so unsaved choices survive closing it.
+    <div
+      className="bw-plan-settings-panel"
+      hidden={!open}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="bw-plan-settings-heading"
+    >
+      <header className="bw-plan-settings-head">
+        <h2 id="bw-plan-settings-heading" ref={heading} tabIndex={-1}>
+          Ustawienia planu
+        </h2>
+        <button type="button" className="bw-plan-settings-close" onClick={onClose}>
+          <X aria-hidden="true" />
+          Gotowe
+        </button>
+      </header>
+      <div className="bw-plan-settings-body">{children}</div>
     </div>
   );
 }

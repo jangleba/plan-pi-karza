@@ -13,6 +13,7 @@ import {
   eligibleExercise,
   estimateSessionSeconds,
 } from "./exercises";
+import { MAIN_STRENGTH_ROLES } from "../mainStrengthExclusions";
 import { ENGINE_VERSION, trainingTier, plusDays, weekday, dayDistance, ROLE_NAMES } from "./model";
 import type { EngineResult, EngineOptions, EngineSession, Issue } from "./model";
 import { FUNCTIONAL_CATALOGUE } from "./taxonomy";
@@ -951,7 +952,11 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
     const available = tasks.flatMap((recipe, t) =>
       recipe &&
       (!ids[t].startsWith("strength") ||
-        recipe.exercises.some((e) => ["knee_strength", "hip_strength"].includes(e.role)))
+        // Any dynamic leg pattern keeps the session (valuable bodyweight work such as Nordic,
+        // jumps and planks stays); a missing loaded main lift is reported, not padded.
+        recipe.exercises.some((e) =>
+          ["knee_strength", "hip_strength", "unilateral_strength", "knee_flexion"].includes(e.role),
+        ))
         ? [{ id: ids[t], recipe, priority: weights[t] }]
         : [],
     );
@@ -1152,7 +1157,9 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
           issues.push({
             code: "UNMET_STIMULUS",
             date: base[0].date,
-            message: `Nie znaleziono odpowiedniego ćwiczenia: ${ROLE_NAMES[role]}. Ten cel pozostaje niepokryty.`,
+            message: MAIN_STRENGTH_ROLES.has(role)
+              ? `Brak wariantu z obciążeniem: ${ROLE_NAMES[role]}. Dodaj sprzęt (np. hantle) albo uzupełnij staż i technikę w ustawieniach. Przysiad, most, wykrok z masą ciała ani pompka na podwyższeniu nie zastępują tej pracy.`
+              : `Nie znaleziono odpowiedniego ćwiczenia: ${ROLE_NAMES[role]}. Ten cel pozostaje niepokryty.`,
           });
     });
     // Explicit requests replace the automatic run count. Optional sessions never

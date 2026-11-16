@@ -25,7 +25,7 @@ export const GYM_EXERCISE_OPTIONS = {
   },
   unilateral: {
     label: "Siła jednonóż · B",
-    ids: ["bulgarian_split_squat", "loaded_step_up", "reverse_lunge", "bodyweight_split_squat"],
+    ids: ["bulgarian_split_squat", "loaded_step_up", "reverse_lunge"],
   },
   kneeFlexion: {
     label: "Zgięcie kolana · A",

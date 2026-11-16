@@ -481,40 +481,39 @@
 .bw-wk-load {
   display: inline-flex;
   flex: none;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 2px;
-  width: 16px;
-  height: 12px;
+  align-items: center;
+  gap: 5px;
   color: var(--muted-foreground);
+  font-size: 12px;
 }
-.bw-wk-load i {
+.bw-wk-load-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 11px;
+}
+.bw-wk-load-bars i {
   width: 3px;
   border-radius: 1px;
   background: var(--border);
 }
-.bw-wk-load i:nth-child(1) {
+.bw-wk-load-bars i:nth-child(1) {
   height: 4px;
 }
-.bw-wk-load i:nth-child(2) {
-  height: 8px;
+.bw-wk-load-bars i:nth-child(2) {
+  height: 7px;
 }
-.bw-wk-load i:nth-child(3) {
-  height: 12px;
+.bw-wk-load-bars i:nth-child(3) {
+  height: 11px;
 }
-.bw-wk-load i[data-filled] {
+.bw-wk-load-bars i[data-filled] {
   background: currentColor;
 }
-.bw-wk-load[data-level="unknown"] {
-  align-items: center;
-}
-.bw-wk-load[data-level="unknown"] i:first-child {
-  width: 10px;
-  height: 1px;
-  background: var(--muted-foreground);
-}
-.bw-wk-load[data-level="unknown"] i:not(:first-child) {
+.bw-wk-load[data-level="unknown"] .bw-wk-load-bars {
   display: none;
+}
+.bw-wk-copy small .bw-session-kind {
+  margin-right: 1px;
 }
 .bw-wk-load-note {
   margin: 0 4px;
@@ -639,4 +638,143 @@
 }
 .bw-plan-screen .bw-weekly-coverage h2 {
   font-size: 16px;
+}
+
+/* One settings entry point next to the title; a quiet dot when something needs a look. */
+.bw-plan-settings-button {
+  position: relative;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 1px 2px oklch(0.18 0.015 255 / 0.06);
+}
+.bw-plan-settings-button svg {
+  width: 19px;
+  height: 19px;
+}
+.bw-plan-settings-button i {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--bw-warning, #b45309);
+  box-shadow: 0 0 0 2px var(--card);
+}
+.bw-plan-preview-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 16px;
+}
+.bw-plan-settings-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: var(--background);
+  animation: bw-plan-sheet-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.bw-plan-settings-panel[hidden] {
+  display: none;
+}
+.bw-plan-settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: max(14px, env(safe-area-inset-top)) var(--bw-page-gutter, 16px) 10px;
+  border-bottom: 1px solid color-mix(in oklch, var(--foreground) 8%, transparent);
+  background: color-mix(in oklch, var(--background) 92%, transparent);
+  backdrop-filter: saturate(1.4) blur(12px);
+}
+.bw-plan-settings-head h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  outline: none;
+}
+.bw-plan-settings-close {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  color: var(--primary);
+  font-size: 16px;
+  font-weight: 600;
+}
+.bw-plan-settings-close svg {
+  display: none;
+}
+.bw-plan-settings-body {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  overflow-y: auto;
+  padding: 14px var(--bw-page-gutter, 16px) calc(28px + env(safe-area-inset-bottom));
+  -webkit-overflow-scrolling: touch;
+}
+.bw-plan-settings-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.bw-plan-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.bw-plan-status-row [role="status"] {
+  font-weight: 600;
+}
+@keyframes bw-plan-sheet-in {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bw-plan-settings-panel {
+    animation: none;
+  }
+}
+
+/* Postęp → Testy */
+.bw-progress-tests {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--card);
+}
+.bw-progress-tests h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+.bw-progress-tests p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.bw-progress-tests-note,
+.bw-progress-tests-fine {
+  color: var(--muted-foreground);
+  font-size: 13px !important;
+}
+
+/* One meta line: category chip, minutes and load (bars with text), wrapping as a unit. */
+.bw-wk-copy small:has(.bw-session-kind) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
 }

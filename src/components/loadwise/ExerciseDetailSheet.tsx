@@ -1,3 +1,4 @@
+import { excludedAsReplacement } from "@/lib/loadwise/mainStrengthExclusions";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import {
   getAllEquipmentDefinitions,
@@ -118,7 +119,11 @@ export function resolveExerciseSheetViewModel(raw: TrainingExercise) {
   );
   const noEquipmentReplacementId = definition?.replacementIds?.find((candidateId) => {
     const candidate = getExerciseDefinition(candidateId);
-    return candidate && specialistEquipmentForExercise(candidate).length === 0;
+    return (
+      candidate &&
+      !excludedAsReplacement(definition?.id, candidateId) &&
+      specialistEquipmentForExercise(candidate).length === 0
+    );
   });
   return {
     purpose:

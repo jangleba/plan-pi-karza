@@ -2,7 +2,7 @@ import { Check, ChevronRight, Minus } from "lucide-react";
 import { canonicalExerciseName } from "@/lib/loadwise/sessionPresentation";
 import { blockMethod, linkedLabel } from "@/lib/loadwise/blockMethod";
 import { sectionLabel, type RunnerRow, type RunnerStep } from "@/lib/loadwise/sessionRunner/steps";
-import { doseLine, restSecondsAfter } from "@/lib/loadwise/sessionRunner/presentation";
+import { doseLine, restSecondsAfter, singleRest } from "@/lib/loadwise/sessionRunner/presentation";
 import type { RowStatus } from "./RunnerCard";
 
 type Item = { step: RunnerStep; index: number };
@@ -141,6 +141,11 @@ export function SessionPlanList({
                               <span className="bw-rplan-text">
                                 <strong>{canonicalExerciseName(row.exercise)}</strong>
                                 <small>{doseLine(row.exercise)}</small>
+                                {!linked && singleRest(row.exercise) ? (
+                                  <small className="bw-rplan-row-rest">
+                                    {singleRest(row.exercise)}
+                                  </small>
+                                ) : null}
                               </span>
                               {current && state === "open" && (
                                 <span className="bw-rplan-now">Teraz</span>

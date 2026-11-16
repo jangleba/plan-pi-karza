@@ -115,22 +115,31 @@ describe("preparation grounded in existing onboarding", () => {
     expect(hasVerifiedAdvancedStrength({ ...advanced, age: 17 })).toBe(false);
     expect(hasVerifiedAdvancedStrength({ ...advanced, strengthTrainingMonths: 721 })).toBe(false);
   });
-  it("preserves canonical eligibility and gives a bodyweight main an honest controlled dose", () => {
+  it("never gives a trivial bodyweight squat as the main lift; reports the missing loaded variant", () => {
     const s = buildStrength(athlete, "A", "development");
     expect(s.tier).toBe("performance");
-    expect(s.highLower).toBe(true);
-    const main = s.exercises.find((exercise) => exercise.role === "knee_strength")!;
-    expect(main.exerciseId).toBe("bodyweight_squat");
-    expect(main.dose).toMatchObject({ sets: 3, reps: 8, rir: 3, restSeconds: 90 });
-    expect(main.reason).toContain("masą ciała");
-    const introductory = buildStrength({ ...athlete, level: "beginner" }, "A", "development");
+    expect(s.exercises.find((e) => e.role === "knee_strength")).toBeUndefined();
+    expect(s.missing).toContain("knee_strength");
+    // The warm-up still uses the bodyweight squat; it is not work.
     expect(
-      introductory.exercises.find((exercise) => exercise.role === "knee_strength")?.dose,
-    ).toMatchObject({ sets: 2, reps: 6, rir: 4 });
-    const deload = buildStrength(athlete, "A", "deload");
-    expect(
-      deload.exercises.find((exercise) => exercise.role === "knee_strength")?.dose,
-    ).toMatchObject({ sets: 2, reps: 6, rir: 4 });
+      s.exercises.some((e) => e.role === "warmup" && e.exerciseId === "bodyweight_squat"),
+    ).toBe(true);
+    const loaded = buildStrength(
+      { ...athlete, hasGym: true, equipment: ["dumbbell"] },
+      "A",
+      "development",
+    );
+    const main = loaded.exercises.find((e) => e.role === "knee_strength")!;
+    expect(main.exerciseId).toBe("goblet_squat");
+    expect(loaded.missing).not.toContain("knee_strength");
+    const deload = buildStrength(
+      { ...athlete, hasGym: true, equipment: ["dumbbell"] },
+      "A",
+      "deload",
+    );
+    expect(deload.exercises.find((e) => e.role === "knee_strength")?.dose.sets).toBeLessThan(
+      main.dose.sets,
+    );
   });
   it("uses existing general preparation for simple power without granting advanced methods", () => {
     const p: Profile = {
