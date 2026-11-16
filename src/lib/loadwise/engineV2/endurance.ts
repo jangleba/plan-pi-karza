@@ -115,6 +115,8 @@ export function buildEnduranceForDate(
   date: string,
   phase: EngineSession["phase"],
   forceLight = false,
+  /** Completed build weeks of the current block (0–2): the calm run grows by 10% per week. */
+  buildWeek = 0,
 ): EngineSession | null {
   if (
     !validDate(date) ||
@@ -222,7 +224,13 @@ export function buildEnduranceForDate(
       },
     ];
   } else {
-    const seconds = (phase === "deload" || p.age < 16 ? 15 : 20) * 60;
+    const base = phase === "deload" || p.age < 16 ? 15 : 20;
+    const step = phase === "deload" ? 0 : Math.min(2, Math.max(0, Math.floor(buildWeek)));
+    const seconds = Math.round(base * (1 + 0.1 * step)) * 60;
+    if (step > 0)
+      reasons.push(
+        `Tydzień ${step + 1} bloku: spokojny bieg dłuższy o ${seconds / 60 - base} min. W tygodniu przeglądu wraca do ${base} min.`,
+      );
     recipe.blocks = [
       {
         id: "easy",

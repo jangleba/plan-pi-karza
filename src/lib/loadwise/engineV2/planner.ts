@@ -378,11 +378,34 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
   };
 }
 
+/** Completed build weeks of the 4-week block on this date; 0 in a review, deload or re-entry week. */
+function buildWeekOf(p: Profile, options: EngineOptions, date: string): number {
+  const { cycle } = cycleForWeek(p, options, date);
+  return cycle.state === "build" ? cycle.weekIndex % 4 : 0;
+}
+
+/** The dated calm run with the block's progression, stepped back when it would not fit the time. */
+function progressedEndurance(
+  p: Profile,
+  options: EngineOptions,
+  date: string,
+  phase: EngineSession["phase"],
+  forceLight: boolean,
+): EngineSession | null {
+  const budget = options.minutesPerSession ?? 75;
+  for (let step = buildWeekOf(p, options, date); step > 0; step--) {
+    const recipe = plannedEndurance(p, date, phase, forceLight, step);
+    if (recipe && recipe.minutes <= budget) return recipe;
+  }
+  return plannedEndurance(p, date, phase, forceLight);
+}
+
 function plannedEndurance(
   p: Profile,
   date: string,
   phase: EngineSession["phase"],
   forceLight = false,
+  buildWeek = 0,
 ): EngineSession | null {
   const policy = resolveGoalPolicy(p);
   const recipe = buildEnduranceForDate(
@@ -390,6 +413,7 @@ function plannedEndurance(
     date,
     phase,
     forceLight || policy.reduced,
+    policy.reduced ? 0 : buildWeek,
   );
   if (!recipe || !policy.reduced || !recipe.runningRecipe) return recipe;
   // Keep an explicit return/fatigue route lighter across all three main modules.
@@ -645,8 +669,9 @@ function place(
     recipe.roles[0] === "endurance" &&
     recipe.runningRecipe?.method !== "field_mas_test"
   ) {
-    const dated = plannedEndurance(
+    const dated = progressedEndurance(
       p,
+      options,
       current.date,
       recipe.phase,
       distance <= 2 || forceEnduranceLight,
@@ -678,7 +703,7 @@ function place(
       recipe.highLower &&
       recipe.runningRecipe?.method !== "field_mas_test"
     ) {
-      const easy = plannedEndurance(p, current.date, recipe.phase, true);
+      const easy = progressedEndurance(p, options, current.date, recipe.phase, true);
       if (easy) {
         const light = placeResolvedEndurance(days, index, easy, p, options, matches, preceding);
         if (light) return { ...light, penalty: (light.penalty ?? 0) + 10 };
@@ -704,6 +729,8 @@ function place(
         ? 10
         : 0) +
       (current.dayType === "club" ? 2 : 0) +
+      // A second own session on a day is used only when no free day fits as well.
+      (gate.mode === "append_second" ? 1 : 0) +
       index * 0.001,
   };
 }
@@ -735,7 +762,10 @@ function placeResolvedEndurance(
   const replacement = gate.mode === "new" ? session : { ...current, secondSession: session };
   return {
     state: days.map((d, i) => (i === index ? replacement : d)),
-    penalty: (current.dayType === "club" ? 2 : 0) + index * 0.001,
+    penalty:
+      (current.dayType === "club" ? 2 : 0) +
+      (gate.mode === "append_second" ? 1 : 0) +
+      index * 0.001,
   };
 }
 
@@ -1160,18 +1190,28 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
     }
     const supportKind = mobilityRecipe ? null : policy.support;
     if (supportKind) {
-      const supportRecipe =
+      const supportRecipe = (secondSession: boolean) =>
         supportKind === "skills"
-          ? buildSkills(p, phase, { rotation: cycle.weekIndex })
+          ? buildSkills(p, phase, {
+              rotation: cycle.weekIndex,
+              budget: options.minutesPerSession ?? 75,
+              secondSession,
+            })
           : buildMobility(p, phase);
       let fitted = false;
-      for (let i = 0; i < 7; i++) {
-        if ([...matches].some((m) => Math.abs(dayDistance(best[i].date, m)) <= 1)) continue;
-        const attempt = placeSupport(best, i, supportRecipe, p, options, matches);
-        if (attempt) {
-          best = attempt;
-          fitted = true;
-          break;
+      // A day of its own first; only then next to club training or another own session.
+      const free = (d: SessionDay) => d.dayType !== "club" && own(d).length === 0;
+      for (const pass of [true, false]) {
+        if (fitted) break;
+        for (let i = 0; i < 7; i++) {
+          if ([...matches].some((m) => Math.abs(dayDistance(best[i].date, m)) <= 1)) continue;
+          if (free(best[i]) !== pass) continue;
+          const attempt = placeSupport(best, i, supportRecipe(!pass), p, options, matches);
+          if (attempt) {
+            best = attempt;
+            fitted = true;
+            break;
+          }
         }
       }
       if (!fitted)

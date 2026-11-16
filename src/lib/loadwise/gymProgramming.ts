@@ -105,6 +105,8 @@ export const INSTRUCTION_ONLY_GYM_IDS = [
   "standing_calf_iso_hold",
   "jump_shrug",
   "hang_power_snatch",
+  "wall_push_up",
+  "prone_ytw_raise",
 ] as const;
 
 export function normalizeGymExerciseChoices(value: unknown): GymExerciseChoices {
