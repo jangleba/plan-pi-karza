@@ -180,7 +180,13 @@ describe("goal completeness in a tight or repeated week", () => {
         .flatMap((s) => s.engineV2!.roles);
       expect(roles.filter((x) => x.startsWith("strength")).length).toBeLessThanOrEqual(1);
     }
-    expect(r.plan[0].enginePlanIssues?.some((i) => i.code === "UNMET_WEEKLY_TARGET")).toBe(true); // the limit stays visible
+    // User decision 2026-11-16: the day after the match is tried first; a match week that still
+    // has one strength session is complete for a non-strength goal (no warning).
+    expect(
+      r.plan[0].enginePlanIssues?.some(
+        (i) => i.code === "UNMET_WEEKLY_TARGET" && i.target?.startsWith("strength"),
+      ),
+    ).toBe(false);
   });
 });
 

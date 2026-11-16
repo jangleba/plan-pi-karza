@@ -14,6 +14,7 @@ const METHOD_NAMES = {
   cluster: "Cluster Strength",
   strength: "Full-Body Strength",
   noPower: "Strength for Football",
+  postMatchUpper: "Upper Body & Trunk",
 };
 const SPRINT_NAMES = {
   acceleration: "Acceleration Development",
@@ -56,6 +57,7 @@ export const isProfessionalSessionName = (title: string) =>
 export function sessionName(recipe: EngineSession): string {
   if (recipe.roles.includes("strengthA") || recipe.roles.includes("strengthB")) {
     const variant = recipe.roles.includes("strengthA") ? "A" : "B";
+    if (recipe.postMatch === "upper") return `${METHOD_NAMES.postMatchUpper} · ${variant}`;
     const method =
       recipe.organization === "contrast"
         ? METHOD_NAMES.contrast

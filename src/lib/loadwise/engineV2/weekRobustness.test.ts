@@ -97,7 +97,9 @@ describe("calendar robustness", () => {
           expect(
             own(d).filter(
               (s) =>
-                !["activation", "recovery"].some((r) => s.engineV2!.roles.includes(r as never)),
+                !["activation", "recovery"].some((r) => s.engineV2!.roles.includes(r as never)) &&
+                // The only exception: strength on the day after a match when the week has no other date.
+                !(offset === 1 && s.engineV2!.postMatch),
             ).length,
           ).toBe(0);
       }

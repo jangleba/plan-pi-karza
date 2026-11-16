@@ -24,7 +24,8 @@ import {
   hasKnownStrengthLoad,
   type PlacementAttempt,
 } from "./scheduling";
-import { validateEngineSession } from "./validation";
+import { deriveEngineSessionLoad, validateEngineSession } from "./validation";
+import { isPostMatchDate, postMatchMode, upperBodyOnly } from "./postMatch";
 import { buildActivation, buildRecovery, buildMobility, buildSkills } from "./support";
 import { buildEnduranceForDate, hasCurrentVerifiedMas } from "./endurance";
 import { resolveGoalPolicy, routedProfile, mainGoalTasks } from "./goalPolicy";
@@ -411,6 +412,44 @@ export function finalizeStrengthRecipe(
   days: SessionDay[],
   budget: number,
 ): EngineSession | null {
+  const postMatch = base.postMatch;
+  if (postMatch === "upper") {
+    // Upper body + trunk only: the advanced leg pairs never apply; settle the usual A/B session.
+    const usual =
+      base.organization === "complex"
+        ? buildStrength(
+            routedProfile(p, resolveGoalPolicy(p).strengthGoal),
+            base.roles.includes("strengthA") ? "A" : "B",
+            base.phase,
+            base.exerciseRotation ?? 0,
+          )
+        : base;
+    const full = finalizeStrengthRecipe(
+      { ...usual, postMatch: undefined },
+      p,
+      date,
+      options,
+      days,
+      Number.MAX_SAFE_INTEGER,
+    );
+    const upper = full && upperBodyOnly(full);
+    if (!upper) return null;
+    const load = deriveEngineSessionLoad(upper, p);
+    upper.minutes = load.minutes;
+    upper.highLower = load.highLower;
+    return upper.minutes <= budget ? upper : null;
+  }
+  if (postMatch === "full") {
+    const full = finalizeStrengthRecipe(
+      { ...base, postMatch: undefined },
+      p,
+      date,
+      options,
+      days,
+      budget,
+    );
+    return full && { ...full, postMatch };
+  }
   if (base.organization === "complex") {
     const advanced = finalizeAdvanced(base, p, date, options, days, budget);
     if (advanced) return advanced;
@@ -833,7 +872,12 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
         (d) => dayDistance(base[0].date, d.date) <= 28 && dayDistance(base[0].date, d.date) > 0,
       );
       const count = (id: string) =>
-        recent.flatMap(slots).filter((s) => s.engineV2?.roles.includes(id as never)).length;
+        recent
+          .flatMap(slots)
+          // An upper-body session after a match did not train that day's leg pattern.
+          .filter(
+            (s) => s.engineV2?.roles.includes(id as never) && s.engineV2.postMatch !== "upper",
+          ).length;
       const prefer = count("strengthA") > count("strengthB") ? "strengthB" : "strengthA";
       if (placedStrength[0] !== prefer) {
         const nudged = available.map((t) =>
@@ -845,20 +889,60 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
       }
     }
     let best = solved.state;
-    if (mobilityRecipe) {
-      // Strength B supplements the mobility goal where a day allows it (same gates as any session).
-      const supplement = strengthB();
+    // Tight match week: a strength target without a regular date may use the day after a match
+    // (MD+1): the full session for advanced/elite players, upper body + trunk for everyone else.
+    for (const id of strengthIds) {
+      const task = available.find((t) => t.id === id);
+      if (!task || best.some((d) => own(d).some((s) => s.engineV2!.roles.includes(id)))) continue;
       let extra: { state: SessionDay[]; penalty: number } | undefined;
       for (let i = 0; i < 7; i++) {
-        const attempt = place(best, i, supplement, p, options, matches, [
-          ...(options.precedingDays ?? []),
-          ...plan,
-        ]);
+        if (!isPostMatchDate(best[i].date, matches)) continue;
+        const attempt = place(
+          best,
+          i,
+          { ...task.recipe, postMatch: postMatchMode(p) },
+          p,
+          options,
+          matches,
+          [...(options.precedingDays ?? []), ...plan],
+        );
         if ("state" in attempt && (!extra || (attempt.penalty ?? 0) < extra.penalty))
           extra = { state: attempt.state, penalty: attempt.penalty ?? 0 };
       }
       if (extra) best = extra.state;
-      else
+    }
+    // A match week with one strength session is a complete in-season week (A and B alternate
+    // across weeks), unless strength itself is the main goal.
+    const strengthPlaced = strengthIds.filter((id) =>
+      best.some((d) => own(d).some((s) => s.engineV2!.roles.includes(id))),
+    );
+    const singleStrengthWeek =
+      strengthPlaced.length === 1 &&
+      base.some((d) => matches.has(d.date)) &&
+      !mainGoalTasks(p).includes("strengthB");
+    if (mobilityRecipe) {
+      // Strength B supplements the mobility goal where a day allows it (same gates as any session).
+      const supplement = strengthB();
+      let extra: { state: SessionDay[]; penalty: number } | undefined;
+      for (const postMatch of [false, true]) {
+        if (extra) break;
+        for (let i = 0; i < 7; i++) {
+          if (postMatch && !isPostMatchDate(best[i].date, matches)) continue;
+          const attempt = place(
+            best,
+            i,
+            postMatch ? { ...supplement, postMatch: postMatchMode(p) } : supplement,
+            p,
+            options,
+            matches,
+            [...(options.precedingDays ?? []), ...plan],
+          );
+          if ("state" in attempt && (!extra || (attempt.penalty ?? 0) < extra.penalty))
+            extra = { state: attempt.state, penalty: attempt.penalty ?? 0 };
+        }
+      }
+      if (extra) best = extra.state;
+      else if (!singleStrengthWeek)
         issues.push({
           code: "UNMET_WEEKLY_TARGET",
           target: "strengthB",
@@ -887,7 +971,10 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
       }
     tasks.forEach((recipe, t) => {
       const role = ids[t];
-      if (!best.some((d) => own(d).some((s) => s.engineV2!.roles.includes(role)))) {
+      if (
+        !best.some((d) => own(d).some((s) => s.engineV2!.roles.includes(role))) &&
+        !(singleStrengthWeek && role.startsWith("strength"))
+      ) {
         const reasons = [...new Set((solved.rejections[role] ?? []).map((r) => r.message))];
         issues.push({
           code: "UNMET_WEEKLY_TARGET",
@@ -1065,7 +1152,9 @@ export function validateTrainingPlan(
         fail("READINESS_CONFLICT", d.date, "Bieżący check-in wymaga ponownego ułożenia treningu.");
       if (
         matches.has(d.date) ||
-        (!supportOnly && [...matches].some((m) => Math.abs(dayDistance(d.date, m)) <= 1))
+        (!supportOnly &&
+          [...matches].some((m) => Math.abs(dayDistance(d.date, m)) <= 1) &&
+          !(r.postMatch && isPostMatchDate(d.date, matches)))
       )
         fail("MATCH_BUFFER", d.date, "Trening własny w buforze meczu.");
       if (
@@ -1103,6 +1192,7 @@ export function validateTrainingPlan(
         fail("CONSECUTIVE_HIGH_LOWER", d.date, "Ciężkie obciążenie nóg dzień po dniu.");
       if (
         isStrengthRecipe(r) &&
+        r.postMatch !== "upper" &&
         [...(options.precedingDays ?? []), ...plan].some(
           (prev) => Math.abs(dayDistance(d.date, prev.date)) === 1 && hasKnownStrengthLoad(prev, p),
         )
@@ -1153,6 +1243,8 @@ export function refreshStrengthSession(
     cycle.phase,
     cycleStartEffect(options).rotate ? 1 : 0,
   );
+  // A session on the day after a match keeps its post-match shape.
+  if (old.postMatch) base = { ...base, postMatch: old.postMatch };
   // An accepted shorter variant (feedback correction) stays short; otherwise the generator's rule.
   if (old.variant === "compact" && session.feedbackAdjustments?.length)
     base = fitStrengthToBudget(base, Math.min(budget, session.durationMin));
@@ -1204,6 +1296,7 @@ export function lighterRecipes(
     reduced = buildRunning(light, "speed", r.phase, { force: r.sprintVariant });
   else if (r.roles.includes("endurance"))
     reduced = plannedEndurance(p, session.date, r.phase, true);
+  if (reduced && strength && r.postMatch) reduced = { ...reduced, postMatch: r.postMatch };
   if (reduced && reduced.minutes <= r.minutes && doseWeight(reduced) < doseWeight(r))
     out.push({ kind: "lighter", recipe: reduced });
   if (strength && r.variant !== "compact") {
