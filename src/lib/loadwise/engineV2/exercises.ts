@@ -66,6 +66,7 @@ export const CANDIDATES: Record<Role, readonly string[]> = {
     "lying_leg_curl",
     "bilateral_slider_leg_curl",
     "prone_band_leg_curl",
+    "bridge_walkout",
   ],
   hamstring_iso: [
     "long_lever_hamstring_iso",
@@ -78,8 +79,20 @@ export const CANDIDATES: Record<Role, readonly string[]> = {
   adductor: ["copenhagen_plank", "adductor_bridge_squeeze"],
   calf_straight: ["standing_calf_raise"],
   calf_bent: ["seated_soleus_raise", "soleus_iso_hold"],
-  push: ["barbell_bench_press", "dumbbell_bench_press", "push_up", "incline_push_up"],
-  pull: ["one_arm_dumbbell_row", "lat_pulldown", "bodyweight_row", "face_pull_band"],
+  push: [
+    "barbell_bench_press",
+    "dumbbell_bench_press",
+    "push_up",
+    "incline_push_up",
+    "wall_push_up",
+  ],
+  pull: [
+    "one_arm_dumbbell_row",
+    "lat_pulldown",
+    "bodyweight_row",
+    "face_pull_band",
+    "prone_ytw_raise",
+  ],
   trunk: ["pallof_press", "dead_bug", "plank"],
   power: [
     "dumbbell_jump_squat",
@@ -227,6 +240,7 @@ function pick(
       "bilateral_slider_leg_curl",
       "prone_band_leg_curl",
       "assisted_nordic_hamstring",
+      "bridge_walkout",
     ];
   // A develops horizontal upper work; B complements it with vertical work where eligible.
   // A novice still uses the same supported, technically accessible alternatives.
