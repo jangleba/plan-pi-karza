@@ -2,7 +2,7 @@ import type { Profile, SessionCompletion, SessionDay } from "../types";
 import { runningCalibrationKey } from "./runningCalibrationKey";
 import { planEvidenceIssue, type PlanGymEvidence } from "../planEvidence";
 
-/** Status is derived from the saved prescription, not an optimistic success flag. */
+/** Explain blocked checks; the actual proposal card owns any available change and its actions. */
 export function runningCalibrationMessage(input: {
   profile: Profile | null;
   plan: SessionDay[];
@@ -29,10 +29,11 @@ export function runningCalibrationMessage(input: {
       );
     });
   if (!pending) return null;
-  const lead =
-    "Nowe tempo lub poziom biegania nie zostały jeszcze zastosowane do przyszłych sesji.";
-  if (!input.online) return `${lead} Aktualizacja czeka na połączenie z internetem.`;
+  const lead = "Nie można teraz sprawdzić wpływu nowych danych biegania na przyszłe sesje.";
+  if (!input.online) return `${lead} Sprawdzenie czeka na połączenie z internetem.`;
   const issue = planEvidenceIssue(input.gym, input.unresolvedWrites);
   if (issue) return `${lead} ${issue}`;
-  return `${lead} Sprawdź propozycję zmian i wybierz „Zastosuj” albo „Zostaw plan”; nic nie zmienia się automatycznie.`;
+  // A different measurement key alone need not change an effort-based recipe.
+  // Ready, dismissed and no-change proposals are handled by FeedbackAdjustmentCard.
+  return null;
 }

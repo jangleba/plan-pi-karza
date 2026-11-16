@@ -1,5 +1,9 @@
 import type { ExerciseDecision, EngineSession } from "./model";
 
+export function sprintDrillInstruction(rounds: number): string {
+  return `${rounds} ${rounds === 1 ? "runda" : "rundy"} tych samych trzech ćwiczeń w kolejności 1 → 2 → 3. Każde 12 s, 30 s na zmianę ćwiczenia i 60 s po rundzie. Kontrola przed tempem.`;
+}
+
 /** Product distance cap includes build-ups, resisted runs, flying run-in and fast additions.
  * Run-out is space, not another maximal effort. Technical marching is not sprint distance. */
 export function sprintDistance(exercises: readonly ExerciseDecision[]): number {
@@ -116,7 +120,11 @@ export function fitSprintToBudget(
     result.exercises.some((e) => e.dose.circuit && e.dose.sets > 1)
   ) {
     result.exercises.forEach((e) => {
-      if (e.dose.circuit) e.dose.sets--;
+      if (e.dose.circuit) {
+        e.dose.sets--;
+        if (e.dose.circuit.id === "sprint-technique-v1" && e.dose.seconds === 12)
+          e.reason = sprintDrillInstruction(e.dose.sets);
+      }
     });
     updateSprintTotals(result);
   }

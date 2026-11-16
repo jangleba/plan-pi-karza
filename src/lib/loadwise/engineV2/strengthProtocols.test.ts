@@ -11,6 +11,7 @@ import { functionalReplacementCompatible } from "./taxonomy";
 import type { Profile } from "../types";
 
 const athlete: Profile = {
+  trainingMethodPreferences: { gymTemplate: "balanced" },
   name: "Test",
   age: 27,
   position: "midfielder",
@@ -237,7 +238,7 @@ describe("reviewed strength and isometric protocols", () => {
       expect(power.dose.restSeconds).toBe(180);
       expect(power.dose.postRestSeconds).toBe(180);
       expect(s.exercises.indexOf(primary)).toBeLessThan(s.exercises.indexOf(power));
-      expect(s.minutes).toBe(Math.ceil(estimateSessionSeconds(s.exercises) / 60) + 8);
+      expect(s.minutes).toBe(Math.ceil(estimateSessionSeconds(s.exercises) / 60));
       expect(getExerciseDefinition(power.exerciseId)?.movementPattern).toBe("jump");
     }
     expect(buildStrength(p, "A", "adaptation").organization).not.toBe("contrast");

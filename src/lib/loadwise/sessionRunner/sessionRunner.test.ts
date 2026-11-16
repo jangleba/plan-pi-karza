@@ -166,6 +166,22 @@ describe("prezentacja dawki", () => {
     );
     expect(effortLine(ex({ rir: "2" }), "sprint")).toBeNull();
   });
+  it.each(["countermovement_jump", "broad_jump"])(
+    "zachowuje realne zadanie mocy %s",
+    (exerciseId) => {
+      const definition = getExerciseDefinition(exerciseId)!;
+      const exercise = ex({
+        exerciseId,
+        name: definition.displayNamePl,
+        sets: "2",
+        reps: "3",
+        engineDose: { sets: 2, reps: 3, restSeconds: 90, intent: "explosive" },
+      });
+      const kind = taskKind(exercise, sectionFixture("main", []), "sprint");
+      expect(kind).toBe("power");
+      expect(effortLine(exercise, kind)).toContain("Jakość:");
+    },
+  );
 
   it("odpoczynek formatowany w jednym miejscu, bez „Przerwa Przerwa”", () => {
     expect(restText("Przerwa 30 s")).toBe("Przerwa 30 s");

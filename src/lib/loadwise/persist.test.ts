@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { persistMonthlyPlan, prepareModifiedSession, prepareMonthlyPlan } from "./persist";
 import type { Profile, SessionDay } from "./types";
+import { ENGINE_VERSION } from "./engineV2/model";
 
 type SupabaseErrorLike = { message: string; details?: string; hint?: string; code?: string };
 
@@ -128,6 +129,40 @@ describe("persistMonthlyPlan", () => {
       p_sessions: expect.any(Array),
       p_exercises: expect.any(Array),
     });
+  });
+
+  it("preserves current metadata and a protected v2.12 slot in the RPC JSON snapshot", () => {
+    const day: SessionDay = {
+      ...makeDay("2026-11-16"),
+      generatorVersion: ENGINE_VERSION,
+      planInputs: {
+        matchDates: ["2026-11-22"],
+        individualTrainingDays: [1, 2, 3, 4, 5, 6, 7],
+        unavailableDays: [],
+        clubTrainingDays: [3, 5],
+        unavailableEquipmentIds: [],
+        equipment: [],
+        minutesPerSession: 75,
+        weeklyTargets: { strength: 2, speed: 2, endurance: 1 },
+        fillRestDays: true,
+        minFullRestDays: 1,
+      },
+      secondSession: {
+        ...makeDay("2026-11-16"),
+        generatorVersion: "ballwise-v2.12",
+        executionProtected: true,
+      },
+    };
+    const original = structuredClone(day);
+    const prepared = prepareMonthlyPlan("user-1", profile, [day]);
+    const snapshot = prepared.args.p_plan_json as unknown as SessionDay[];
+    expect(snapshot[0].generatorVersion).toBe(ENGINE_VERSION);
+    expect(snapshot[0].planInputs).toEqual(original.planInputs);
+    expect(snapshot[0].secondSession).toMatchObject({
+      generatorVersion: "ballwise-v2.12",
+      executionProtected: true,
+    });
+    expect(day).toEqual(original);
   });
 
   it("surfaces an atomic persistence failure without client-side cleanup", async () => {

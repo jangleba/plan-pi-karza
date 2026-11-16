@@ -27,6 +27,9 @@ const player: Profile = {
   goal: "strength",
   equipment: [...GYM_DECLARED_EQUIPMENT],
   trainingMethodPreferences: {
+    // These cases verify interaction with the original accessory-pair layout.
+    // The unpaired athletic path is covered by athleticIntegration.test.ts.
+    gymTemplate: "balanced",
     upperBodyContrast: true,
     gymExercises: { pushA: "barbell_bench_press", upperPower: "med_ball_throw" },
   },
@@ -45,7 +48,7 @@ const pairRecipe = () => {
   const r = applyUpperContrast(buildStrength(player, "A", "development"), player, (id) =>
     eligibleExercise(id, player, "upper_power"),
   );
-  r.minutes = Math.ceil(estimateSessionSeconds(r.exercises) / 60) + 8;
+  r.minutes = Math.ceil(estimateSessionSeconds(r.exercises) / 60);
   return r;
 };
 

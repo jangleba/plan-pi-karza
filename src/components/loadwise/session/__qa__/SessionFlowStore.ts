@@ -57,10 +57,65 @@ function advancedCase() {
     },
   };
 }
+/**
+ * Two separate sport days from the real generator. Age, goal and gym tenure
+ * match the reported example; high competence, full supervision and this
+ * equipment are explicit QA assumptions, never inferred from those facts.
+ * `day=B` selects the other day. The route date is fixed by this audit harness.
+ */
+function athleticCase() {
+  const profile: any = {
+    ...(cases as Record<string, any>).strength.profile,
+    age: 21,
+    goal: "endurance",
+    level: "advanced",
+    gymExperienceLevel: "advanced",
+    strengthTrainingMonths: 48,
+    movementCompetence: "high",
+    supervisionLevel: "full",
+    hasGym: true,
+    clubTrainingDays: [],
+    individualTrainingDays: [1, 2, 3, 4, 5, 6, 7],
+    usualMatchDay: null,
+    weeklyMatches: false,
+    matchDate: null,
+    matchDates: [],
+    seasonPhase: "preseason",
+    trainingMethodPreferences: { gymTemplate: "athletic_ab" },
+    equipment: [
+      "barbell",
+      "rack",
+      "trap_bar",
+      "dumbbell",
+      "bench",
+      "machine",
+      "band",
+      "nordic_setup",
+      "gym_jump_lane",
+      "overhead_band_station",
+      "low_band_station",
+    ],
+  };
+  const plan = generateTrainingPlan(profile, {
+    startDate: "2026-11-02",
+    weeks: 1,
+    minutesPerSession: 90,
+  }).plan;
+  const variant = q.get("day") === "B" ? "strengthB" : "strengthA";
+  const day = plan
+    .flatMap((entry) => [entry, ...(entry.secondSession ? [entry.secondSession] : [])])
+    .find((entry) => entry.engineV2?.roles.includes(variant));
+  if (!day) throw new Error(`QA sport day not generated: ${variant}`);
+  return {
+    profile,
+    session: { ...day, date: "2026-11-02", dbId: `qa-athletic-${variant}` },
+  };
+}
 /** The actual plan screen and generator, with an isolated save adapter below. */
 function planningCase() {
   const profile: any = {
     ...(cases as Record<string, any>).strength.profile,
+    healthPersonalizationEnabled: q.get("health") === "1",
     age: 21,
     goal: "endurance",
     level: "advanced",
@@ -97,9 +152,11 @@ function planningCase() {
 const fixture =
   kind === "advanced"
     ? advancedCase()
-    : kind === "planning"
-      ? planningCase()
-      : (cases as Record<string, any>)[kind];
+    : kind === "athletic"
+      ? athleticCase()
+      : kind === "planning"
+        ? planningCase()
+        : (cases as Record<string, any>)[kind];
 const selectedDrill =
   kind === "football"
     ? INDIVIDUAL_FOOTBALL_DRILLS.find((drill) => drill.id === q.get("drill"))
@@ -243,6 +300,14 @@ export function useLoadwise() {
             const persisted = { plan, activePlanId: "qa-planning-saved" };
             localStorage.setItem(planningStorageKey, JSON.stringify(persisted));
             update({ ...state, ...persisted });
+          },
+          saveReadiness: async (value: any) => {
+            if (!state.profile?.healthPersonalizationEnabled)
+              throw new Error("Readiness requires health consent");
+            if (q.get("readinessError") === "1")
+              throw new Error("Brak połączenia — check-in nie został zapisany");
+            receipts.push({ kind: "readiness", value });
+            update({ ...state, readiness: { ...state.readiness, [value.date]: value } });
           },
         }
       : {}),

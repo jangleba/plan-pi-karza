@@ -7,6 +7,7 @@ import {
   hasDeclaredFootball,
 } from "./support";
 import { getExerciseDefinition } from "../exerciseLibrary";
+import { INDIVIDUAL_FOOTBALL_DRILLS } from "../individualFootballDrills";
 import type { Profile } from "../types";
 import { OWN_EQUIPMENT_OPTIONS } from "../equipmentOptions";
 import { answersFromProfile, trainingFieldsFromAnswers } from "../onboardingFlow";
@@ -207,6 +208,20 @@ describe("support session programming", () => {
       outfield.exercises.every((e) => getExerciseDefinition(e.exerciseId)!.minParticipants === 1),
     ).toBe(true);
   });
+  it.each(["defender", "midfielder", "forward", "goalkeeper"] as const)(
+    "keeps the selected solo complement within the declared position: %s",
+    (position) => {
+      const p = { ...profile, position, equipment: ["football_ball"] };
+      for (let rotation = 0; rotation < 20; rotation++) {
+        for (const exercise of buildSkills(p, "development", { rotation })!.exercises) {
+          const drill = INDIVIDUAL_FOOTBALL_DRILLS.find(
+            (candidate) => candidate.id === exercise.exerciseId,
+          );
+          if (drill && "positions" in drill) expect(drill.positions).toContain(position);
+        }
+      }
+    },
+  );
   it("reduces actual skill exposure during deload", () => {
     const p = { ...profile, equipment: ["football_ball"] };
     const sum = (phase: "development" | "deload") =>

@@ -15,7 +15,7 @@ export type MethodClockMode =
   "none" | "continuous" | "intervals" | "cluster" | "hold" | "reactive" | "velocity";
 export interface TrainingMethodPreferences {
   upperBodyContrast?: boolean;
-  gymTemplate?: "balanced" | "paired_power";
+  gymTemplate?: "athletic_ab" | "balanced" | "paired_power";
   gymExercises?: import("../gymProgramming").GymExerciseChoices;
   /** Technique learned and a coach present for Olympic derivatives; never inferred from age. */
   coachedOlympicLifts?: boolean;

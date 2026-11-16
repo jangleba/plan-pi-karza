@@ -1192,6 +1192,18 @@ function supportExercise(
 }
 
 const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
+  supportExercise("warmup_walk", "Warm-up walk", "mobility", "general strength preparation", {
+    displayNamePl: "Marsz lub lekki trucht",
+    allowedSessionCategories: ["strength_gym", "mobility_prehab"],
+    loadingType: "none",
+    objective: "Rozpoczęcie istniejącego ogólnego przygotowania przed ćwiczeniami siłowymi.",
+    instructionsPl: [
+      "Zacznij od swobodnego marszu po równej, wolnej przestrzeni; możesz przejść do bardzo lekkiego truchtu.",
+      "Oddychaj swobodnie, rozluźnij barki i nie zamieniaj tej części w interwał.",
+      "Po podanym czasie przejdź do zaplanowanych ruchów przygotowawczych, a potem serii wprowadzających.",
+    ],
+    coachingCues: ["Spokojny początek", "Bez zadyszki", "Potem ruchy przygotowawcze"],
+  }),
   supportExercise(
     "long_lever_hamstring_iso",
     "Long-lever hamstring bridge iso",

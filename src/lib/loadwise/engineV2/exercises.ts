@@ -1,4 +1,5 @@
 import { buildSprintSession } from "./sprintSession";
+import { fitAthleticStrengthToBudget } from "./athleticFit";
 import type { SprintSessionContext } from "./sprintSession";
 import { buildAthleteTrainingProfile } from "../athleteProfile";
 import {
@@ -26,12 +27,21 @@ import { GYM_EXERCISE_OPTIONS, type GymExerciseSlot } from "../gymProgramming";
 import { meetsSessionRequirements } from "./placeRequirements";
 import { arrangeStrengthPairs } from "./strengthPairs";
 import { withoutUpperContrast } from "./upperContrast";
+import { buildStrengthPreparation, strengthPreparationOverhead } from "./strengthPreparation";
+import {
+  applyAthleticStrengthLayout,
+  athleticHamstringSupportCandidates,
+  athleticPowerCandidates,
+  isAthleticStrengthSelected,
+} from "./athleticStrength";
 import {
   coachedPrimerDose,
   coachedPrimerEligible,
   controlledKneeFlexionDose,
   quadricepsHoldingDose,
   clusterEligible,
+  CLUSTER_INSTRUCTION,
+  removeClusterProtocol,
 } from "./strengthProtocols";
 
 /** Roles describe function, independently of the legacy family/hinge labels. */
@@ -328,6 +338,31 @@ export function buildStrength(
   phase: EngineSession["phase"],
   rotation = 0,
 ): EngineSession {
+  return isAthleticStrengthSelected(p)
+    ? buildAthleticStrength(p, variant, phase, rotation)
+    : buildStrengthBase(p, variant, phase, rotation);
+}
+
+export function buildAthleticStrength(
+  p: Profile,
+  variant: "A" | "B",
+  phase: EngineSession["phase"],
+  rotation = 0,
+): EngineSession {
+  if (!p.hasGym) return buildStrengthBase(p, variant, phase, rotation);
+  const recipe = applyAthleticStrengthLayout(buildStrengthBase(p, variant, phase, rotation, true));
+  recipe.minutes =
+    Math.ceil(estimateSessionSeconds(recipe.exercises) / 60) + strengthPreparationOverhead(recipe);
+  return recipe;
+}
+
+function buildStrengthBase(
+  p: Profile,
+  variant: "A" | "B",
+  phase: EngineSession["phase"],
+  rotation = 0,
+  athletic = false,
+): EngineSession {
   const preparation = preparationProfile(p),
     tier = preparation.tier,
     deload =
@@ -345,17 +380,21 @@ export function buildStrength(
   const add = (role: Role, dose: Dose) => {
     const preferred =
       role === "power"
-        ? gymPowerCandidates(p, variant, phase)
+        ? athletic
+          ? athleticPowerCandidates(p, variant, phase)
+          : gymPowerCandidates(p, variant, phase)
         : role === "hamstring_dynamic_support"
-          ? gymHamstringSupportCandidates(p, phase)
+          ? athletic
+            ? athleticHamstringSupportCandidates(p, phase)
+            : gymHamstringSupportCandidates(p, phase)
           : [];
     const legacy =
       role === "hamstring_dynamic_support"
         ? undefined
         : pick(role, p, variant, used, rotation, phase);
     const preferredId = preferred
-      .filter((id) => id !== "gym_cmj")
-      .find((candidate) => !used.has(candidate) && eligibleExercise(candidate, p));
+      .filter((id) => athletic || id !== "gym_cmj")
+      .find((candidate) => !used.has(candidate) && eligibleExercise(candidate, p, role));
     const legacyGymPower =
       legacy &&
       getExerciseDefinition(legacy)?.family === "power" &&
@@ -454,7 +493,9 @@ export function buildStrength(
       }`,
     });
   };
-  add("warmup", { sets: 1, seconds: 60, perSide: true, restSeconds: 0, intent: "easy" });
+  // Preparation and work can use the same movement in distinct occurrences.
+  // Only work rows occupy `used`, so a bodyweight warm-up never removes the main lift.
+  exercises.push(...buildStrengthPreparation((id) => eligibleExercise(id, p, "warmup")));
   if (coachedPrimerEligible(p, phase)) add("iso_primer", coachedPrimerDose());
   else if (
     p.trainingMethodPreferences?.strength === "M14" &&
@@ -484,8 +525,8 @@ export function buildStrength(
     add("upper_power", { sets: 3, reps: 3, restSeconds: 90, intent: "explosive" });
   if (
     p.hasGym &&
-    variant === "B" &&
-    (resolveGymBraking(p) || gymChoice("landing", variant, p)) &&
+    ((variant === "B" && (resolveGymBraking(p) || gymChoice("landing", variant, p))) ||
+      (athletic && variant === "A")) &&
     powerRole === "power" &&
     eligibleExercise("gym_step_brake", p)
   ) {
@@ -520,7 +561,7 @@ export function buildStrength(
     intent: "controlled",
   });
   if (variant === "A") {
-    if (fullPreparedSession)
+    if (fullPreparedSession && !athletic)
       add("hip_strength", { sets: 2, reps: 8, rir: 3, restSeconds: 120, intent: "controlled" });
     add("knee_flexion", {
       sets: deload ? 1 : 2,
@@ -529,6 +570,18 @@ export function buildStrength(
       restSeconds: 120,
       intent: "controlled",
     });
+    if (
+      athletic &&
+      athleticHamstringSupportCandidates(p, phase).some((id) =>
+        eligibleExercise(id, p, "hamstring_dynamic_support"),
+      )
+    )
+      add("hamstring_dynamic_support", {
+        sets: 2,
+        seconds: 8,
+        restSeconds: 60,
+        intent: "controlled",
+      });
     // The full A combines a squat, knee flexion and a moderate hip-extension accessory.
     // B retains its hinge + unilateral emphasis; neither is a hamstring-only workout.
     if (!exercises.some((e) => e.role === "knee_flexion" || e.role === "hip_strength"))
@@ -548,7 +601,7 @@ export function buildStrength(
       restSeconds: tier === "performance" ? 120 : 90,
       intent: "controlled",
     });
-    if (gymHamstringSupportCandidates(p, phase).some((id) => eligibleExercise(id, p)))
+    if (!athletic && gymHamstringSupportCandidates(p, phase).some((id) => eligibleExercise(id, p)))
       add("hamstring_dynamic_support", {
         sets: 2,
         seconds: 8,
@@ -631,8 +684,7 @@ export function buildStrength(
         intraRestSeconds: 20,
       },
     };
-    primary.reason +=
-      " Klaster: 20 s między grupami po 2 powtórzenia. Łączna liczba powtórzeń i zwykła przerwa między seriami pozostają zapisane osobno; nie dodawaj ciężaru za samą zmianę metody.";
+    primary.reason += ` ${CLUSTER_INSTRUCTION}`;
   }
   if (
     p.trainingMethodPreferences?.strength === "M09" &&
@@ -661,6 +713,7 @@ export function buildStrength(
   const recipe = arrangeStrengthPairs(
     {
       variant: "full",
+      strengthPreparationVersion: 1,
       roles: [variant === "A" ? "strengthA" : "strengthB"],
       tier,
       phase,
@@ -670,11 +723,12 @@ export function buildStrength(
       missing,
       sprintMetres: 0,
       plyometricContacts: strengthLandingCount(exercises),
-      minutes: Math.ceil(estimateSessionSeconds(exercises) / 60) + 8,
+      minutes: Math.ceil(estimateSessionSeconds(exercises) / 60),
     },
-    upperFinale,
+    upperFinale && !athletic,
   );
-  recipe.minutes = Math.ceil(estimateSessionSeconds(recipe.exercises) / 60) + 8;
+  recipe.minutes =
+    Math.ceil(estimateSessionSeconds(recipe.exercises) / 60) + strengthPreparationOverhead(recipe);
   if (rotation > 0) recipe.exerciseRotation = rotation;
   return recipe;
 }
@@ -682,11 +736,15 @@ export function buildStrength(
 /** Trim the least important support first. A one-minute overrun must not turn all
  * accessories into one-set work. Main work, warm-up and ordinary recovery survive. */
 export function fitStrengthToBudget(recipe: EngineSession, budget: number): EngineSession {
+  if (recipe.strengthStructure === "athletic_ab")
+    return fitAthleticStrengthToBudget(recipe, budget, estimateSessionSeconds);
   if (recipe.minutes <= budget) return recipe;
   let compact = structuredClone(recipe);
   const a = recipe.roles.includes("strengthA");
   const primaryRole = a ? "knee_strength" : "hip_strength";
-  const minutes = () => Math.ceil(estimateSessionSeconds(compact.exercises) / 60) + 8;
+  const minutes = () =>
+    Math.ceil(estimateSessionSeconds(compact.exercises) / 60) +
+    strengthPreparationOverhead(compact);
   const finish = () => {
     compact.minutes = minutes();
     compact.plyometricContacts = strengthLandingCount(compact.exercises);
@@ -721,7 +779,7 @@ export function fitStrengthToBudget(recipe: EngineSession, budget: number): Engi
       e.dose.restSeconds = ["push", "pull"].includes(e.role) ? 75 : 60;
       delete e.dose.postRestSeconds;
     }
-    delete e.dose.cluster;
+    removeClusterProtocol(e);
     e.reason += " Krótszy wariant: zachowaj pełne przerwy i zapisany zapas.";
   }
   delete compact.strengthPairs;

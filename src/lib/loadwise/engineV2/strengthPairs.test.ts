@@ -7,6 +7,7 @@ import { restSecondsAfter } from "../sessionRunner/presentation";
 import { validateEngineSession } from "./validation";
 
 const player: Profile = {
+  trainingMethodPreferences: { gymTemplate: "balanced" },
   name: "17-year-old intermediate",
   age: 17,
   position: "forward",
@@ -49,7 +50,7 @@ describe("complete A/B sessions with accessory pairs", () => {
       expect(recipe.organization).toBe("power_first");
       expect(recipe.roles).toEqual([variant === "A" ? "strengthA" : "strengthB"]);
       expect(recipe.exercises.filter((e) => e.role === "power")).toHaveLength(1);
-      expect(recipe.minutes).toBe(Math.ceil(estimateSessionSeconds(recipe.exercises) / 60) + 8);
+      expect(recipe.minutes).toBe(Math.ceil(estimateSessionSeconds(recipe.exercises) / 60));
       expect(recipe.minutes).toBeLessThanOrEqual(75);
     },
   );

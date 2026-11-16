@@ -280,97 +280,124 @@ export function PlanScreen() {
           </p>
         ) : null}
         {(!state.plan.length || rebuild) && evidenceIssue ? (
-          <p role="status" className="bw-plan-quiet">
+          <p role="status" className="bw-plan-quiet bw-plan-notice">
             {evidenceIssue}
           </p>
         ) : null}
         {!preview ? <FeedbackAdjustmentCard /> : null}
         {!preview ? <MasTestAction /> : null}
         {!preview && runningMessage ? (
-          <p role="status" aria-label="Aktualizacja biegania" className="bw-plan-quiet">
-            {runningMessage}
-          </p>
+          <details className="bw-plan-disclosure bw-plan-notice" aria-label="Aktualizacja biegania">
+            <summary>
+              Aktualizacja biegania
+              <ChevronRight aria-hidden="true" />
+            </summary>
+            <div className="bw-plan-notice-body">
+              <p>{runningMessage}</p>
+            </div>
+          </details>
         ) : null}
         {state.plan.length > 0 && !preview ? (
-          <div className="bw-plan-card bw-plan-status">
-            {scheduleChanges.length > 0 && status.kind === "stale" ? (
-              <ul>
-                {scheduleChanges.map((c) => (
-                  <li key={c.kind}>{c.line}</li>
-                ))}
-              </ul>
-            ) : null}
-            {status.kind === "expired" ? (
+          <section className="bw-plan-card bw-plan-status bw-plan-status--compact">
+            <div className="bw-plan-status-row">
               <p role="status">
-                Cykl zakończony{status.endDate ? ` · ${plDate(status.endDate, true)}` : ""}.
-                Przygotuj kolejne 4 tygodnie.
+                {status.kind === "expired"
+                  ? "Cykl zakończony"
+                  : status.kind === "stale"
+                    ? "Plan wymaga odświeżenia"
+                    : "Zapisany plan"}
               </p>
-            ) : status.kind === "stale" ? (
-              <p role="status">
-                {status.staleReason === "version"
-                  ? "Dostępna jest aktualna wersja silnika. Przygotuj plan ponownie."
-                  : "Profil zmienił się. Przygotuj aktualny plan przed rozpoczęciem nowej sesji."}
-              </p>
+              <button type="button" className="bw-plan-link" onClick={() => setRebuild(true)}>
+                {status.kind === "stale" || runningMessage
+                  ? "Zaktualizuj plan"
+                  : "Przygotuj kolejny plan"}
+              </button>
+            </div>
+            {status.kind === "expired" || status.kind === "stale" ? (
+              <details className="bw-plan-disclosure bw-plan-status-details">
+                <summary>
+                  Informacje o planie
+                  <ChevronRight aria-hidden="true" />
+                </summary>
+                <div className="bw-plan-notice-body">
+                  {status.kind === "expired" ? (
+                    <p>
+                      Cykl zakończony{status.endDate ? ` · ${plDate(status.endDate, true)}` : ""}.
+                      Przygotuj kolejne 4 tygodnie.
+                    </p>
+                  ) : (
+                    <p>
+                      {status.staleReason === "version"
+                        ? "Dostępna jest aktualna wersja silnika. Przygotuj plan ponownie."
+                        : "Profil zmienił się. Przygotuj aktualny plan przed rozpoczęciem nowej sesji."}
+                    </p>
+                  )}
+                  {scheduleChanges.length > 0 && status.kind === "stale" ? (
+                    <ul className="bw-plan-bullets">
+                      {scheduleChanges.map((change) => (
+                        <li key={change.kind}>{change.line}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              </details>
             ) : null}
-            <button
-              type="button"
-              className={
-                status.kind === "stale" || status.kind === "expired" || runningMessage
-                  ? "bw-plan-button"
-                  : "bw-plan-link"
-              }
-              onClick={() => setRebuild(true)}
-            >
-              {status.kind === "stale" || runningMessage
-                ? "Zaktualizuj plan"
-                : "Przygotuj kolejny plan"}
-            </button>
-          </div>
+          </section>
         ) : null}
         {preview?.result ? (
-          <section className="bw-plan-card bw-plan-preview">
-            <h2>Twój plan · 4 tygodnie</h2>
-            <p>
-              Podgląd dopasowany do Twojego przygotowania siłowego i kalendarza. Zapisz go, aby
-              rozpocząć treningi.
+          <section className="bw-plan-card bw-plan-preview bw-plan-preview--compact">
+            <header className="bw-plan-preview-head">
+              <h2>Twój plan · 4 tygodnie</h2>
+              <span>Podgląd</span>
+            </header>
+            <p className="bw-plan-preview-meta">
+              {plDate(plan[0]?.date ?? todayIso, true)} –{" "}
+              {plDate(plan.at(-1)?.date ?? todayIso, true)}
             </p>
-            {scheduleChanges.length > 0 ? (
-              <ul className="bw-plan-bullets">
-                {scheduleChanges.map((c) => (
-                  <li key={c.kind}>{c.line}</li>
-                ))}
-              </ul>
-            ) : null}
-            {intervalNote ? <p>{intervalNote}</p> : null}
-            {nextDaysDiff.length > 0 ? (
-              <details className="bw-plan-disclosure">
-                <summary>
-                  Najbliższe 7 dni · zmiany ({nextDaysDiff.length})
-                  <ChevronRight aria-hidden="true" />
-                </summary>
-                {diffList(nextDaysDiff)}
-              </details>
-            ) : null}
-            {laterDiff.length > 0 ? (
-              <details className="bw-plan-disclosure" open>
-                <summary>
-                  Dalsze tygodnie · zmiany ({laterDiff.length})
-                  <ChevronRight aria-hidden="true" />
-                </summary>
-                {diffList(laterDiff)}
-              </details>
-            ) : null}
-            {state.plan.length > 0 ? (
-              <p className="bw-plan-fine">
-                Nowy plan rozpoczyna się {plDate(todayIso, true)}. Zapisane wykonanie i historia
-                treningów pozostają zachowane.
-              </p>
-            ) : (
-              <p className="bw-plan-fine">
-                {plDate(plan[0]?.date ?? todayIso, true)} –{" "}
-                {plDate(plan.at(-1)?.date ?? todayIso, true)}
-              </p>
-            )}
+            <details className="bw-plan-disclosure bw-plan-preview-details">
+              <summary>
+                Szczegóły podglądu
+                <ChevronRight aria-hidden="true" />
+              </summary>
+              <div className="bw-plan-notice-body">
+                <p>
+                  Podgląd dopasowany do Twojego przygotowania siłowego i kalendarza. Zapisz go, aby
+                  rozpocząć treningi.
+                </p>
+                {scheduleChanges.length > 0 ? (
+                  <ul className="bw-plan-bullets">
+                    {scheduleChanges.map((change) => (
+                      <li key={change.kind}>{change.line}</li>
+                    ))}
+                  </ul>
+                ) : null}
+                {intervalNote ? <p>{intervalNote}</p> : null}
+                {nextDaysDiff.length > 0 ? (
+                  <details className="bw-plan-disclosure">
+                    <summary>
+                      Najbliższe 7 dni · zmiany ({nextDaysDiff.length})
+                      <ChevronRight aria-hidden="true" />
+                    </summary>
+                    {diffList(nextDaysDiff)}
+                  </details>
+                ) : null}
+                {laterDiff.length > 0 ? (
+                  <details className="bw-plan-disclosure">
+                    <summary>
+                      Dalsze tygodnie · zmiany ({laterDiff.length})
+                      <ChevronRight aria-hidden="true" />
+                    </summary>
+                    {diffList(laterDiff)}
+                  </details>
+                ) : null}
+                {state.plan.length > 0 ? (
+                  <p className="bw-plan-fine">
+                    Nowy plan rozpoczyna się {plDate(todayIso, true)}. Zapisane wykonanie i historia
+                    treningów pozostają zachowane.
+                  </p>
+                ) : null}
+              </div>
+            </details>
             <button
               type="button"
               className="bw-plan-button"
@@ -433,6 +460,12 @@ export function PlanScreen() {
             completions={state.completions}
             preview={Boolean(preview)}
             onOpen={open}
+          />
+        ) : null}
+        {preview?.result || !rebuild ? (
+          <WeeklyPlanningCoverage
+            plan={plan}
+            preferences={preview?.result ? weeklyPreferences : savedWeeklyPreferences}
           />
         ) : null}
         {state.profile?.hasGym && (

@@ -5,6 +5,8 @@ potwierdzenia wdrożenia, odbioru prawnego ani testów na fizycznym urządzeniu.
 
 ## Utrzymywane instrukcje
 
+- [Sportowe dni siłowe A/B według notatek zawodnika · silnik V2.16](ATHLETIC-STRENGTH-AB.md)
+- [Dopracowanie silnika, tygodnia i rzeczywistych sesji — kolejna iteracja 16 listopada](TRAINING-ENGINE-FOLLOWUP-2026-11-16.md)
 - [Cele tygodnia, trwałość ustawień i narzędzia sesji](WEEKLY-PLANNING-AND-SESSION-TOOLS.md)
 - [Prosty wygląd i narzędzia sesji: kolory, sprint, bieg i schematy boiska](MINIMAL-TRAINING-UI.md)
 - [Sprawdzenie aplikacji i poprawki przepływów — 16 listopada 2026](APP-QA-2026-11-16.md)

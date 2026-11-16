@@ -6,6 +6,7 @@ import { getExerciseDefinition } from "../exerciseLibrary";
 import { assertPlanExerciseContract } from "../planExerciseContract";
 import type { Goal, Level, Profile, SessionDay } from "../types";
 import { generateTrainingPlan, validateTrainingPlan } from "./planner";
+import { preparationProfile } from "./preparation";
 
 const today = new Date("2026-11-02T12:00:00Z");
 const answers = (patch: Partial<OnboardingAnswers> = {}): OnboardingAnswers => ({
@@ -132,6 +133,39 @@ describe("existing onboarding to generated plan", () => {
     const result = generateTrainingPlan(p, { startDate: "2026-11-02", weeks: 1 });
     expect(result.tier).toBe("foundation");
     expect(p.strengthTrainingMonths).toBe(2);
+  });
+
+  it("uses preparation collected in onboarding after the real profile save/read codec", () => {
+    const profile = fromOnboarding(
+      answers({
+        level: "advanced",
+        goal: "endurance",
+        clubDays: [3, 5],
+        noMatch: false,
+        matchDate: "2026-11-08",
+        weeklyMatches: true,
+        seasonPhase: "inseason",
+        gymExperienceLevel: "advanced",
+        strengthTrainingMonths: 48,
+        movementCompetence: "high",
+        supervisionLevel: "none",
+      }),
+      21,
+    );
+    expect(preparationProfile(profile)).toEqual({
+      tier: "performance",
+      source: "explicit_strength",
+      provisional: false,
+    });
+    expect(profile.strengthTrainingMonths).toBe(48);
+    expect(profile.clubTrainingDays).toEqual([3, 5]);
+    expect(profile.usualMatchDay).toBe(7);
+    const result = generateTrainingPlan(profile, { startDate: "2026-11-02", weeks: 1 });
+    expect(result.tier).toBe("performance");
+    expect(validateTrainingPlan(result.plan, profile, { startDate: "2026-11-02" })).toEqual([]);
+    // Four years of gym training does not fabricate supervision or running calibration.
+    expect(profile.supervisionLevel).toBe("none");
+    expect(profile.fieldMasKmh ?? null).toBeNull();
   });
 
   it("makes the ball goal reachable through the existing equipment checklist", () => {

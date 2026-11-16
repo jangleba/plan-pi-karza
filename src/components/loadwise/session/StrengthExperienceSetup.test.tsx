@@ -35,6 +35,32 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
+it("shows adaptive sports A/B directly and persists an explicit structure choice", async () => {
+  await act(async () => root.render(<StrengthExperienceSetup />));
+  await act(async () => host.querySelector("button")!.click());
+  const structure = [...host.querySelectorAll("label")]
+    .find((el) => el.textContent?.trim().startsWith("Układ jednostki"))!
+    .querySelector("select")!;
+  expect(structure.value).toBe("athletic_ab");
+  expect(structure.closest("details")).toBeNull();
+  expect(host.textContent).toContain("Dwa osobne dni");
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(
+      structure,
+      "balanced",
+    );
+    structure.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  expect(m.save).not.toHaveBeenCalled();
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((b) => b.textContent === "Zapisz odpowiedzi")!
+      .click(),
+  );
+  const payload = decodeStrengthExperience(encodeStrengthExperience(m.save.mock.calls[0][0]));
+  expect(payload.trainingMethodPreferences?.gymTemplate).toBe("balanced");
+});
+
 it("lets the athlete actually declare trap bar/Nordic stations and save usable exercise choices", async () => {
   await act(async () => root.render(<StrengthExperienceSetup />));
   await act(async () => host.querySelector("button")!.click());

@@ -21,6 +21,7 @@ export function StartDashboard({
   adjustment,
   onSummarize,
   onSkipToday,
+  readiness,
 }: {
   name: string;
   todayTitle?: string;
@@ -34,6 +35,8 @@ export function StartDashboard({
   onSummarize?: () => void;
   /** "Dziś nie mogę": present only for an unstarted own session of today. */
   onSkipToday?: () => Promise<void>;
+  /** Optional daily self-report, separate from session execution. */
+  readiness?: ReactNode;
   avatar: ReactNode;
   onPlan: () => void;
   onLab: () => void;
@@ -112,6 +115,7 @@ export function StartDashboard({
           <small>{subtitle}</small>
         </span>
       </button>
+      {readiness}
       {adjustment}
       {openToday && onSkipToday && (
         <div className="bw-home-skip">

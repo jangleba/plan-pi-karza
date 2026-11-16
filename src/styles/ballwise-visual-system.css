@@ -600,10 +600,6 @@ select {
   padding-inline: 12px;
   min-width: 44px;
 }
-.bw-plan-screen .bw-page-header {
-  padding-bottom: 10px;
-}
-
 .premium-flow,
 .auth-premium,
 .onboarding-premium,

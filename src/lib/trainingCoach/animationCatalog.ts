@@ -732,6 +732,7 @@ const VISUAL_ALIASES: Readonly<Record<string, string>> = {
   sprint_d_skip: "d_skip",
 };
 const LEGACY_ID_ALIASES: Readonly<Record<string, string>> = {
+  warmup_walk: "bwprep:walk",
   ankle_rock_forward: "bwprep:ankle",
   adductor_rockback: "bwprep:adductor",
   easy_aerobic_run: "bwprep:walk",

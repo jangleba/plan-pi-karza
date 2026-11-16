@@ -36,7 +36,11 @@ export function upperBodyOnly(r: EngineSession): EngineSession | null {
   const out: EngineSession = {
     ...structuredClone(r),
     postMatch: "upper",
-    exercises: structuredClone(exercises),
+    exercises: structuredClone(exercises).map((row) =>
+      r.strengthStructure === "athletic_ab" && row.role !== "warmup"
+        ? { ...row, strengthStage: "main" as const }
+        : row,
+    ),
     missing: r.missing.filter(keep),
     strengthPairs: r.strengthPairs?.filter((pair) => pair.roles.every(keep)),
     upperContrast:

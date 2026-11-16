@@ -8,6 +8,7 @@ import type { Profile } from "@/lib/loadwise/types";
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   store: {
+    completeOnboarding: vi.fn(),
     hydrated: false,
     hydrationError: null as string | null,
     state: { profile: null as Profile | null },
@@ -35,6 +36,7 @@ beforeEach(() => {
   mocks.store.hydrated = false;
   mocks.store.hydrationError = null;
   mocks.store.state.profile = null;
+  mocks.store.completeOnboarding.mockReset();
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -72,4 +74,63 @@ it("keeps the form closed after a failed account read instead of offering a blan
   await render();
   expect(host.textContent).toBe("account-error");
   expect(host.querySelector("input")).toBeNull();
+});
+
+it("collects explicit strength preparation in onboarding and submits it with the profile", async () => {
+  mocks.store.hydrated = true;
+  mocks.store.state.profile = {
+    ...buildProfile({ full_name: "Zawodnik" }, { age: 21, position: "midfielder" }, null)!,
+    birthDate: "2005-03-12",
+    onboardingComplete: true,
+    level: "advanced",
+    competitionLevel: "iv_liga",
+    goal: "endurance",
+    secondaryLimiter: "strength",
+    currentPitchFeelings: ["training_without_direction"],
+    desiredPitchFeelings: ["ready_full_match"],
+    matchDate: null,
+    matchDates: [],
+    weeklyMatches: false,
+    seasonPhase: "preseason",
+    seasonPhaseOverride: true,
+  };
+  await render();
+  for (const checkbox of host.querySelectorAll<HTMLButtonElement>('[role="checkbox"]'))
+    if (checkbox.getAttribute("aria-checked") !== "true") await act(async () => checkbox.click());
+  for (let step = 0; step < 5; step++) {
+    await act(async () =>
+      [...host.querySelectorAll("button")].find((b) => b.textContent === "Dalej")!.click(),
+    );
+  }
+  expect(host.querySelector("[data-step]")?.getAttribute("data-step"), host.textContent ?? "").toBe(
+    "conditions",
+  );
+  for (const [id, value] of [
+    ["onboarding-strength-level", "advanced"],
+    ["onboarding-movement", "high"],
+    ["onboarding-supervision", "none"],
+  ]) {
+    await act(async () => {
+      const select = host.querySelector<HTMLSelectElement>(`#${id}`)!;
+      select.value = value;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
+  await act(async () => {
+    const input = host.querySelector<HTMLInputElement>("#onboarding-strength-months")!;
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "48");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  expect(mocks.store.completeOnboarding).not.toHaveBeenCalled();
+  await act(async () =>
+    [...host.querySelectorAll("button")].find((b) => b.textContent === "Zapisz")!.click(),
+  );
+  expect(mocks.store.completeOnboarding).toHaveBeenCalledOnce();
+  expect(mocks.store.completeOnboarding.mock.calls[0][0]).toMatchObject({
+    goal: "endurance",
+    gymExperienceLevel: "advanced",
+    strengthTrainingMonths: 48,
+    movementCompetence: "high",
+    supervisionLevel: "none",
+  });
 });

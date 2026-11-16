@@ -57,7 +57,11 @@ describe("gym catalogue reaches actual A/B prescriptions", () => {
       const opts = { startDate: "2026-11-16", weeks: 1, minutesPerSession: 75 };
       const result = generateTrainingPlan(p, opts);
       expect(validateTrainingPlan(result.plan, p, opts)).toEqual([]);
-      expect(result.issues.filter((i) => i.code !== "UNMET_WEEKLY_TARGET")).toEqual([]);
+      expect(
+        result.issues.filter(
+          (i) => !["UNMET_WEEKLY_TARGET", "REDUCED_STRENGTH_TIME"].includes(i.code),
+        ),
+      ).toEqual([]);
     },
   );
   it.each(choices)("prescribes $slot → $id through the real builder", ({ slot, id }) => {
@@ -72,7 +76,7 @@ describe("gym catalogue reaches actual A/B prescriptions", () => {
     const row = raw.exercises.find((e) => e.exerciseId === id);
     expect(row, `${slot}: ${raw.exercises.map((e) => e.exerciseId).join(", ")}`).toBeDefined();
     expect(getExerciseDefinition(id)?.instructionsPl?.length).toBeGreaterThanOrEqual(3);
-    expect(raw.minutes).toBe(Math.ceil(estimateSessionSeconds(raw.exercises) / 60) + 8);
+    expect(raw.minutes).toBe(Math.ceil(estimateSessionSeconds(raw.exercises) / 60));
   });
 
   it.each([16, 17, 27])(

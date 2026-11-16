@@ -320,6 +320,34 @@ it("offers an explicit profile update and lets the player return to the saved sn
   expect(mock.activate).not.toHaveBeenCalled();
 });
 
+it("keeps the refresh reason in closed details and uses a plain status headline", async () => {
+  const state = mock.store.state as LoadwiseState;
+  const profile = {
+    ...state.profile!,
+    individualTrainingDays: [1, 2, 3, 4, 5, 6, 7],
+    hasPitch: true,
+    hasSprintSpace: true,
+  };
+  const saved = generateTrainingPlan(profile, {
+    startDate: "2026-11-02",
+    weeks: 1,
+  }).plan.map((day) => ({ ...day, generatorVersion: "ballwise-v2.old" }));
+  mock.store.state = { ...state, profile, plan: saved };
+  await act(async () => root.render(<PlanScreen />));
+  expect(host.querySelector('.bw-plan-status-row [role="status"]')?.textContent).toBe(
+    "Plan wymaga odświeżenia",
+  );
+  const details = host.querySelector<HTMLDetailsElement>(".bw-plan-status-details")!;
+  expect(details.open).toBe(false);
+  expect(details.textContent).toContain(
+    "Dostępna jest aktualna wersja silnika. Przygotuj plan ponownie.",
+  );
+  await act(async () => details.querySelector("summary")!.click());
+  expect(details.open).toBe(true);
+  expect((mock.store.state as LoadwiseState).plan).toBe(saved);
+  expect(mock.activate).not.toHaveBeenCalled();
+});
+
 it("prepares the next preview from the confirmed choices, continues the cycle and carries the summary", async () => {
   const state = mock.store.state as LoadwiseState;
   // A profile with real training days, so the ended cycle contains own sessions to summarize.
@@ -448,6 +476,13 @@ it("a change that reaches later weeks says so before the save", async () => {
   );
   expect(host.textContent).toContain("Dalsze tygodnie · zmiany");
   expect(host.textContent).toMatch(/w dalszych tygodniach \(poniżej\)/);
+  const details = host.querySelector<HTMLDetailsElement>(".bw-plan-preview-details")!;
+  expect(details.open).toBe(false);
+  expect([...details.querySelectorAll("details")].every((item) => !item.open)).toBe(true);
+  expect(host.querySelector(".bw-plan-preview-meta")?.textContent).toContain("29 listopada");
+  await act(async () => details.querySelector("summary")!.click());
+  expect(details.open).toBe(true);
+  expect(details.textContent).toContain("Zapis zastąpi plan od 2 listopada do 29 listopada");
   expect(mock.activate).not.toHaveBeenCalled();
 });
 
@@ -492,6 +527,9 @@ it.each(["loading", "failed", "pending"])(
     );
     expect(save == null || save.disabled).toBe(true);
     expect(host.querySelector('[role="status"]')?.textContent).toBeTruthy();
+    const evidence = host.querySelector(".bw-plan-notice")!;
+    expect(evidence.getAttribute("role")).toBe("status");
+    expect(evidence.closest("details")).toBeNull();
     expect(mock.activate).not.toHaveBeenCalled();
   },
 );

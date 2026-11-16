@@ -200,35 +200,48 @@ it("an interrupted stopwatch stops and never offers that elapsed time as a relia
   expect(mocks.saveSet).not.toHaveBeenCalled();
 });
 
-it("collapsing the outer timing tool stops its otherwise-open stopwatch and preserves the input draft", async () => {
-  let now = 1000;
-  vi.spyOn(performance, "now").mockImplementation(() => now);
-  await act(async () =>
-    root.render(
-      <details open className="outer-timing-tool">
-        <summary>Czas odcinka</summary>
-        <SprintTimingPanel exercise={exercise} sessionId="s1" onRepeat={() => {}} />
-      </details>,
-    ),
-  );
-  await type("3.12");
-  await act(async () => {
-    host.querySelector<HTMLDetailsElement>(".bw-sprint-stopwatch")!.open = true;
-  });
-  await act(async () => button("Start stopera").click());
-  now = 2200;
-  await act(async () => {
-    const outer = host.querySelector<HTMLDetailsElement>(".outer-timing-tool")!;
-    outer.open = false;
-    outer.dispatchEvent(new Event("toggle"));
-  });
-  expect(button("Start stopera")).toBeDefined();
-  expect(button("Użyj czasu").disabled).toBe(true);
-  expect(
-    host.querySelector<HTMLInputElement>('[aria-label="Czas sprintu w sekundach"]')?.value,
-  ).toBe("3.12");
-  expect(mocks.saveSet).not.toHaveBeenCalled();
-});
+it.each([false, true])(
+  "collapsing the outer timing tool stops its stopwatch and preserves the input draft (inline=%s)",
+  async (inlineStopwatch) => {
+    let now = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    await act(async () =>
+      root.render(
+        <details open className="outer-timing-tool">
+          <summary>Czas odcinka</summary>
+          <SprintTimingPanel
+            exercise={exercise}
+            sessionId="s1"
+            onRepeat={() => {}}
+            inlineStopwatch={inlineStopwatch}
+          />
+        </details>,
+      ),
+    );
+    await type("3.12");
+    await act(async () => {
+      if (!inlineStopwatch)
+        host.querySelector<HTMLDetailsElement>(".bw-sprint-stopwatch")!.open = true;
+    });
+    const stopwatch = host.querySelector(".bw-sprint-stopwatch")!;
+    expect(stopwatch.tagName).toBe(inlineStopwatch ? "DIV" : "DETAILS");
+    expect(button("Start stopera")).toBeDefined();
+    expect(mocks.saveSet).not.toHaveBeenCalled();
+    await act(async () => button("Start stopera").click());
+    now = 2200;
+    await act(async () => {
+      const outer = host.querySelector<HTMLDetailsElement>(".outer-timing-tool")!;
+      outer.open = false;
+      outer.dispatchEvent(new Event("toggle"));
+    });
+    expect(button("Start stopera")).toBeDefined();
+    expect(button("Użyj czasu").disabled).toBe(true);
+    expect(
+      host.querySelector<HTMLInputElement>('[aria-label="Czas sprintu w sekundach"]')?.value,
+    ).toBe("3.12");
+    expect(mocks.saveSet).not.toHaveBeenCalled();
+  },
+);
 
 it("leaving the exercise removes the running stopwatch timer", async () => {
   vi.useFakeTimers();

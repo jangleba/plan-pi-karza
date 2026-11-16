@@ -7,6 +7,7 @@ import type { Dose, EngineOptions, EngineSession, ExerciseDecision } from "./mod
 import { gymPowerDose, strengthLandingCount } from "./gymPower";
 import { eligibleExercise, estimateSessionSeconds } from "./exercises";
 import { cycleStartEffect } from "./cycle";
+import { strengthPreparationOverhead } from "./strengthPreparation";
 
 /** GP1 thresholds are conservative PRODUCT policy, not validated physiological cut-offs.
  * Evidence and limitations: docs/SILOWNIA-V28-PROGRESJA.md. */
@@ -711,6 +712,14 @@ export function applyGymProgression(
       },
     ];
   });
+  copy.missing = [
+    ...new Set([
+      ...copy.missing,
+      ...recipe.exercises
+        .filter((row) => !copy.exercises.some((remaining) => remaining.role === row.role))
+        .map((row) => row.role),
+    ]),
+  ];
   // Contrast rounds share a set count; do not silently alter only half of a linked pair.
   if (copy.organization === "contrast") {
     const primary = copy.exercises.find((e) => ["knee_strength", "hip_strength"].includes(e.role));
@@ -720,6 +729,7 @@ export function applyGymProgression(
     else copy.organization = "straight";
   }
   copy.plyometricContacts = strengthLandingCount(copy.exercises);
-  copy.minutes = Math.ceil(estimateSessionSeconds(copy.exercises) / 60) + 8;
+  copy.minutes =
+    Math.ceil(estimateSessionSeconds(copy.exercises) / 60) + strengthPreparationOverhead(copy);
   return copy;
 }

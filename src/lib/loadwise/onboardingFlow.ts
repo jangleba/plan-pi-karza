@@ -11,6 +11,7 @@ import type {
   SecondaryLimiter,
 } from "./types";
 import { validateSeason } from "./seasonValidation";
+import { normalizeStrengthExperience } from "./strengthExperience";
 import {
   MAX_PITCH_FEELINGS,
   ONBOARDING_CURRENT_FEELINGS,
@@ -46,6 +47,22 @@ export interface OnboardingAnswers {
   /** Labels from OWN_EQUIPMENT_OPTIONS (wall/rebounder is `hasWall`). */
   equipment: string[];
   doubleSessionsAllowed: DoubleSessions;
+  gymExperienceLevel?: Profile["gymExperienceLevel"];
+  strengthTrainingMonths?: number;
+  movementCompetence?: Profile["movementCompetence"];
+  supervisionLevel?: Profile["supervisionLevel"];
+}
+
+/** Missing declarations stay unknown; invalid tenure must not silently disappear on save. */
+export function validOnboardingStrength(answers: OnboardingAnswers, age?: number): boolean {
+  const months = answers.strengthTrainingMonths;
+  return (
+    months === undefined ||
+    (Number.isInteger(months) &&
+      months >= 0 &&
+      months <= Math.min(720, age === undefined ? 720 : age * 12) &&
+      (answers.gymExperienceLevel !== "none" || months === 0))
+  );
 }
 
 const WALL = /wall|rebounder|odbojnik|ściana/i;
@@ -121,6 +138,10 @@ type TrainingFields = Pick<
   | "hasSprintSpace"
   | "currentPitchFeelings"
   | "desiredPitchFeelings"
+  | "gymExperienceLevel"
+  | "strengthTrainingMonths"
+  | "movementCompetence"
+  | "supervisionLevel"
 >;
 
 /**
@@ -135,6 +156,8 @@ export function trainingFieldsFromAnswers(
   const { position, level, goal, competitionLevel, seasonPhase } = answers;
   if (!position || !level || !goal || !competitionLevel || !seasonPhase)
     throw new Error("Onboarding answers are incomplete.");
+  if (!validOnboardingStrength(answers)) throw new Error("Sprawdź staż treningu siłowego.");
+  const strength = normalizeStrengthExperience(answers);
   const clubTrainingDays = [...new Set(answers.clubDays)].sort((a, b) => a - b);
   const unavailableDays = cleanUnavailableDays(answers.unavailableDays, clubTrainingDays);
   const matchDate = answers.noMatch ? null : answers.matchDate || null;
@@ -179,6 +202,10 @@ export function trainingFieldsFromAnswers(
     hasSprintSpace: answers.hasSprintSpace,
     currentPitchFeelings: onlyOffered(answers.currentFeelings, ONBOARDING_CURRENT_FEELINGS),
     desiredPitchFeelings: onlyOffered(answers.desiredFeelings, ONBOARDING_DESIRED_FEELINGS),
+    gymExperienceLevel: strength.gymExperienceLevel,
+    strengthTrainingMonths: strength.strengthTrainingMonths,
+    movementCompetence: strength.movementCompetence,
+    supervisionLevel: strength.supervisionLevel,
   };
 }
 
@@ -221,5 +248,9 @@ export function answersFromProfile(profile?: Profile | null): OnboardingAnswers 
     hasWall: hasWallEquipment(profile?.equipment ?? []),
     equipment: (profile?.equipment ?? []).filter((item) => !WALL.test(item)),
     doubleSessionsAllowed: profile?.doubleSessionsAllowed ?? "no",
+    gymExperienceLevel: profile?.gymExperienceLevel,
+    strengthTrainingMonths: profile?.strengthTrainingMonths,
+    movementCompetence: profile?.movementCompetence,
+    supervisionLevel: profile?.supervisionLevel,
   };
 }
