@@ -23,21 +23,20 @@ export function renderComplexPairs(sections: TrainingSection[], recipe: EngineSe
     const blocks = pair.exerciseIds.map((id) =>
       main.blocks.find((b) => b.exercises.length === 1 && b.exercises[0].exerciseId === id),
     );
-    if (!blocks[0] || !blocks[1]) continue;
-    const [first, second] = blocks;
-    first.exercises[0].label = `${pair.label}1`;
-    second.exercises[0].label = `${pair.label}2`;
-    second.exercises[0].restAfterPair = `${pair.roundRestSeconds} s`;
-    const at = main.blocks.indexOf(first);
+    if (blocks.length < 2 || blocks.some((b) => !b)) continue;
+    const found = blocks as NonNullable<(typeof blocks)[number]>[];
+    found.forEach((b, i) => (b.exercises[0].label = `${pair.label}${i + 1}`));
+    found[found.length - 1].exercises[0].restAfterPair = `${pair.roundRestSeconds} s`;
+    const at = main.blocks.indexOf(found[0]);
     const merged = {
-      ...first,
-      title: `Para ${pair.label} · ${pairTitle(pair.kind)}`,
+      ...found[0],
+      title: `${found.length === 2 ? "Para" : "Seria"} ${pair.label} · ${pairTitle(pair.kind)}`,
       blockType: "superset" as const,
       executionProtocol: "superset-rounds-v1" as const,
       restAfterBlock: `${pair.roundRestSeconds} s`,
-      exercises: [...first.exercises, ...second.exercises],
+      exercises: found.flatMap((b) => b.exercises),
     };
-    main.blocks = main.blocks.filter((b) => b !== first && b !== second);
+    main.blocks = main.blocks.filter((b) => !found.includes(b));
     main.blocks.splice(at, 0, merged);
   }
 }

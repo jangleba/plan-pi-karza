@@ -82,7 +82,15 @@ describe("gym catalogue reaches actual A/B prescriptions", () => {
   it.each([16, 17, 27])(
     "gives a prepared %i-year-old a complete balanced week at 75 min",
     (age) => {
-      const p = { ...prepared, age };
+      // The balanced A/B layout, chosen in settings; the default gym sessions follow the notes.
+      const p = {
+        ...prepared,
+        age,
+        trainingMethodPreferences: {
+          ...prepared.trainingMethodPreferences,
+          gymTemplate: "balanced",
+        },
+      } as Profile;
       const opts = { startDate: "2026-11-16", weeks: 1, minutesPerSession: 75 };
       const result = generateTrainingPlan(p, opts);
       expect(validateTrainingPlan(result.plan, p, opts)).toEqual([]);
@@ -118,10 +126,14 @@ describe("gym catalogue reaches actual A/B prescriptions", () => {
       );
   });
 
-  it("keeps main exercise identities stable throughout the block", () => {
+  it("keeps main exercise identities stable throughout the block (balanced A/B)", () => {
     const opts = { startDate: "2026-11-16", weeks: 4 };
-    const result = generateTrainingPlan(prepared, opts);
-    expect(validateTrainingPlan(result.plan, prepared, opts)).toEqual([]);
+    const p = {
+      ...prepared,
+      trainingMethodPreferences: { ...prepared.trainingMethodPreferences, gymTemplate: "balanced" },
+    } as Profile;
+    const result = generateTrainingPlan(p, opts);
+    expect(validateTrainingPlan(result.plan, p, opts)).toEqual([]);
     for (const role of ["strengthA", "strengthB"] as const) {
       const ids = result.plan
         .filter((s) => s.engineV2?.roles.includes(role))

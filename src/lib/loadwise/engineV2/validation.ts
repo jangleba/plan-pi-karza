@@ -263,7 +263,8 @@ function compatibleFunction(id: string, role: string): boolean {
     case "pull":
       return has("pull");
     case "trunk":
-      return has("brace") && !has("hip_adduction");
+      // Trunk work and the hip-flexor accessory of the notes (banded hip flexion).
+      return (has("brace") || has("hip_flexion")) && !has("hip_adduction");
     case "power":
       return metadata.contraction === "ballistic" || metadata.contraction === "reactive";
     case "upper_power":
@@ -546,21 +547,24 @@ export function validateEngineSession(
       const at = pair.exerciseIds.map((id) =>
         recipe.exercises.findIndex((e) => e.exerciseId === id),
       );
-      const [a, b] = at.map((i) => recipe.exercises[i]);
+      const rows = at.map((i) => recipe.exercises[i]);
+      const lastRow = rows[rows.length - 1];
       if (
         labels.has(pair.label) ||
+        pair.exerciseIds.length < 2 ||
+        pair.exerciseIds.length > 3 ||
         at.some((i) => i < 0) ||
-        at[1] !== at[0] + 1 ||
-        a.dose.sets !== b.dose.sets ||
+        at.some((i, k) => k > 0 && i !== at[k - 1] + 1) ||
+        rows.some((r) => r.dose.sets !== rows[0].dose.sets) ||
         pair.transitionSeconds !== 30 ||
-        a.dose.restSeconds !== pair.transitionSeconds ||
-        b.dose.restSeconds !== pair.roundRestSeconds ||
+        rows.slice(0, -1).some((r) => r.dose.restSeconds !== pair.transitionSeconds) ||
+        lastRow.dose.restSeconds !== pair.roundRestSeconds ||
         pair.roundRestSeconds < 60 ||
-        (["power", "landing"].includes(b.role) && pair.roundRestSeconds < 90)
+        (rows.some((r) => ["power", "landing"].includes(r.role)) && pair.roundRestSeconds < 90)
       ) {
         fail(
           "ADVANCED_PAIR_DOSE",
-          "Para wymaga dwóch kolejnych ćwiczeń z równą liczbą rund, 30 s przejścia i pełną przerwą po rundzie.",
+          "Seria wymaga 2–3 kolejnych ćwiczeń z równą liczbą rund, 30 s przejścia i pełną przerwą po rundzie.",
         );
         continue;
       }
@@ -666,7 +670,8 @@ export function validateEngineSession(
       );
     else if (
       complex
-        ? !["knee_strength", "unilateral_strength", "hip_strength", "knee_flexion"].some((r) =>
+        ? // A note session stands on a loaded lower lift; a leg curl alone is not one.
+          !["knee_strength", "unilateral_strength", "hip_strength"].some((r) =>
             roles.has(r as never),
           )
         : (!(roles.has("knee_strength") || roles.has("unilateral_strength")) &&
@@ -700,10 +705,15 @@ export function validateEngineSession(
     const d = exercise.dose as NumericDose;
     const definition = getExerciseDefinition(exercise.exerciseId);
     if (GYM_EXERCISE_RULES[exercise.exerciseId]) {
+      // In a note group the next round of the same exercise starts after the group's round rest.
+      const group = recipe.complexPairs?.find((g) => g.exerciseIds.includes(exercise.exerciseId));
+      const effectiveRest = group
+        ? Math.max(d.restSeconds, group.roundRestSeconds)
+        : d.restSeconds;
       if (
         !gymDoseWithinBounds(
           exercise.exerciseId,
-          exercise.dose,
+          { ...exercise.dose, restSeconds: effectiveRest },
           profile,
           recipe.phase,
           session.date,
@@ -756,7 +766,7 @@ export function validateEngineSession(
           d.sets > expected.sets ||
           Boolean(d.perSide) !== Boolean(expected.perSide) ||
           d.contactsPerRep !== 1 ||
-          d.restSeconds < expected.restSeconds
+          effectiveRest < expected.restSeconds
         )
           fail(
             "GYM_POWER_DOSE",
@@ -1036,7 +1046,6 @@ export function validateEngineSession(
       timeline.hard &&
       !masTest &&
       (!hasCurrentVerifiedMas(profile, session.date) ||
-        profile.age < 16 ||
         !["intermediate", "advanced", "elite"].includes(profile.level))
     )
       fail(

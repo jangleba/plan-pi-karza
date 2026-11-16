@@ -93,3 +93,18 @@ export function accountRoleLabel(owner: AccountOwnerType, age: number): string {
   }
   return age < ADULT_AGE ? "Konto zawodnika 16–17" : "Konto dorosłego zawodnika";
 }
+
+/** Training plans are built for players from this age; younger existing accounts stay open. */
+export const PLAN_MINIMUM_AGE = 16;
+
+/**
+ * An existing account under 16 keeps its data and access, but has no training plan: no new
+ * plan, no saved plan shown, no session start. Returns the message to show, or null.
+ */
+export function planUnavailableForAge(
+  profile: { age?: number | null } | null | undefined,
+): string | null {
+  const age = profile?.age;
+  if (typeof age !== "number" || !Number.isFinite(age) || age >= PLAN_MINIMUM_AGE) return null;
+  return `Plan treningowy BallWise jest dostępny od ${PLAN_MINIMUM_AGE} lat. Konto i zapisane dane zostają; plan pojawi się automatycznie po ukończeniu ${PLAN_MINIMUM_AGE} lat.`;
+}

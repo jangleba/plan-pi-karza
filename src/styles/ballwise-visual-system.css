@@ -1429,3 +1429,22 @@ select {
   border: 0;
   box-shadow: none;
 }
+
+/* Existing accounts under 16: the plan is unavailable, the account stays. */
+.bw-plan-age h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+.bw-plan-age p,
+.bw-plan-age-notice {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.bw-plan-age-notice {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--card);
+}

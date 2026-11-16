@@ -155,7 +155,13 @@ describe("reviewable updates of pending A/B sessions", () => {
   });
   it("uses two explicit smaller main-lift choices without calling them failed sets", () => {
     const input = fixture();
-    Object.values(input.completions).forEach((c) => (c.rpe = 6));
+    Object.values(input.completions).forEach((c) => {
+      c.rpe = 6;
+      // Only the main-lift answers are under test: the completed note sessions' jumps would
+      // otherwise (correctly) trigger the rolling 7-day landing limit on their own.
+      const e = c.executionSnapshot!.engineV2!;
+      e.exercises = e.exercises.filter((x) => !(x.dose.contactsPerRep ?? 0));
+    });
     const records: GymRecord[] = Object.entries(input.completions).map(([sid, c]) => {
       const id = c.executionSnapshot!.engineV2!.exercises.find(
         (e) => e.role === "knee_strength",

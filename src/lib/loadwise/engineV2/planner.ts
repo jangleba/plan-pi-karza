@@ -36,7 +36,14 @@ import { APP_MINIMUM_AGE, preparationProfile, hasVerifiedAdvancedStrength } from
 import { recipeTotalSeconds } from "@/lib/running/recipe";
 import { applyGymProgression } from "./gymProgression";
 import { renderStrengthPairs } from "./strengthPairs";
-import { buildAdvancedStrength, withoutAdvancedRows } from "./advancedSessions";
+import {
+  type AdvancedTemplateId,
+  buildAdvancedStrength,
+  lighterAdvanced,
+  progressAdvanced,
+  shortenAdvanced,
+  withoutAdvancedRows,
+} from "./advancedSessions";
 import { advancedSectionType, renderComplexPairs } from "./advancedRender";
 import { athleticSectionType } from "./athleticRender";
 import { chooseStrengthFocus, strengthWeekContext } from "./strengthPolicy";
@@ -112,7 +119,9 @@ function day(date: string, p: Profile, matches: Set<string>): SessionDay {
 function isFirstLoadedMain(recipe: EngineSession, index: number): boolean {
   if (!recipe.roles.some((r) => r.startsWith("strength"))) return false;
   const mainRoles =
-    recipe.postMatch === "upper" ? ["push", "pull"] : ["knee_strength", "hip_strength"];
+    recipe.postMatch === "upper"
+      ? ["push", "pull"]
+      : ["knee_strength", "hip_strength", "unilateral_strength"];
   const first = recipe.exercises.findIndex(
     (e) =>
       mainRoles.includes(e.role) &&
@@ -432,7 +441,7 @@ function plannedEndurance(
   // Keep an explicit return/fatigue route lighter across all three main modules.
   const running = recipe.runningRecipe;
   for (const block of running.blocks) {
-    block.work.seconds = Math.min(block.work.seconds, (p.age < 16 ? 10 : 15) * 60);
+    block.work.seconds = Math.min(block.work.seconds, 15 * 60);
     block.work.label = `${block.work.seconds / 60} min spokojnie`;
   }
   for (const exercise of recipe.exercises) exercise.dose.seconds = running.blocks[0].work.seconds;
@@ -527,9 +536,16 @@ function strengthBase(
   variant: "A" | "B",
   phase: EngineSession["phase"],
   rotation: number,
+  weekDate?: string,
+  keep?: AdvancedTemplateId,
 ): EngineSession {
+  // The athlete's notes alternate by calendar week (Monday-based), stable across rebuilds.
+  const week = weekDate ? Math.floor(dayDistance(weekDate, "1970-01-05") / 7) : 0;
+  const notes = buildAdvancedStrength(p, variant, phase, rotation + week, keep);
+  // "vary" starts the cycle with the other note; the usual A/B fallback keeps the same rotation.
+  if (notes && rotation > 0) notes.exerciseRotation = rotation;
   return (
-    buildAdvancedStrength(p, variant, phase, rotation) ??
+    notes ??
     buildStrength(routedProfile(p, resolveGoalPolicy(p).strengthGoal), variant, phase, rotation)
   );
 }
@@ -547,16 +563,39 @@ function finalizeAdvanced(
   budget: number,
 ): EngineSession | null {
   const focus = chooseStrengthFocus(p, base.phase, strengthWeekContext(p, date, options, days));
-  if (["maintenance", "deload", "reentry"].includes(focus.mode)) return null;
   let r = base;
+  // A lighter, maintenance or re-entry week keeps the note's structure with a round less;
+  // deload and re-entry also leave out drop/depth jumps.
+  if (["maintenance", "deload", "reentry"].includes(focus.mode) || base.phase === "deload") {
+    r = lighterAdvanced(r, focus.mode !== "maintenance" || base.phase === "deload");
+    // The lighter week is recorded like any other (the note's own weeks carry no focus label).
+    if (["maintenance", "deload", "reentry"].includes(focus.mode)) r.strengthFocus = focus;
+  }
   // "Jeśli nie ma meczu": within three days of a match (closer, the week is already maintenance).
   const nearMatch = scheduledMatchDates(p, plusDays(date, -3), 7).some(
     (m) => Math.abs(dayDistance(date, m)) <= 3,
   );
   if (nearMatch && r.skipNearMatch?.length) r = withoutAdvancedRows(r, new Set(r.skipNearMatch));
-  r = applyGymProgression(r, p, date, options, days);
-  if (r.minutes > budget && r.optionalExercises?.length)
-    r = withoutAdvancedRows(r, new Set(r.optionalExercises));
+  r = progressAdvanced(r, (x) => applyGymProgression(x, p, date, options, days));
+  // Too long: a short note (main lift and upper body stay), then a round less.
+  if (r.minutes > budget) {
+    const full = r;
+    r = shortenAdvanced(r, budget);
+    const fewerRounds = r.minutes > budget;
+    if (fewerRounds) r = lighterAdvanced(r, false, false);
+    // Leaving out only the note's optional accessories ("wedle uznania") is still the whole
+    // note; anything more is the compact variant, with the rows left out recorded and shown.
+    const kept = new Set(r.exercises.map((e) => e.exerciseId));
+    const optional = new Set(full.optionalExercises ?? []);
+    const omitted = full.exercises
+      .filter((e) => !kept.has(e.exerciseId))
+      .map((e) => ({ exerciseId: e.exerciseId, role: e.role }));
+    if (fewerRounds || omitted.some((e) => !optional.has(e.exerciseId))) {
+      r.variant = "compact";
+      if (omitted.length) r.strengthTimeOmissions = omitted;
+    }
+  }
+  r.highLower = deriveEngineSessionLoad(r, p).highLower;
   return r.minutes <= budget ? r : null;
 }
 
@@ -929,9 +968,10 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
     // strength B is then tried afterwards as a supplement, not placed instead of mobility.
     const mobilityRecipe = policy.primary === "mobility" ? buildMobility(p, phase) : null;
     // Full base recipes: the time budget is fitted only after the final dose (place()).
-    const strengthB = () => strengthBase(p, "B", phase, rotation);
+    const weekDate = plusDays(options.startDate, week * 7);
+    const strengthB = () => strengthBase(p, "B", phase, rotation, weekDate);
     const tasks = [
-      strengthBase(p, "A", phase, rotation),
+      strengthBase(p, "A", phase, rotation, weekDate),
       mobilityRecipe ?? strengthB(),
       buildRunning(routedProfile(p, policy.speedGoal), "speed", phase, {
         history: sprintHistory(
@@ -1534,6 +1574,8 @@ export function refreshStrengthSession(
     old.roles.includes("strengthA") ? "A" : "B",
     cycle.phase,
     cycleStartEffect(options).rotate ? 1 : 0,
+    session.date,
+    old.advancedTemplate,
   );
   // A session on the day after a match keeps its post-match shape.
   if (old.postMatch) base = { ...base, postMatch: old.postMatch };

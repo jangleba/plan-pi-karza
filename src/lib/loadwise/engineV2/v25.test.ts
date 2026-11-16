@@ -62,7 +62,10 @@ describe("V2.5 coherent sessions, cycle and feedback", () => {
   it("independently rejects tampered hamstring-only strength and merged roles", () => {
     const r = generateTrainingPlan(p, options);
     const s = structuredClone(slots(r.plan).find((s) => s.engineV2!.roles.includes("strengthB"))!);
-    s.engineV2!.exercises = s.engineV2!.exercises.filter((e) => e.role !== "unilateral_strength");
+    // Without its loaded lower lift (note B: step-up, trap bar or hinge), a leg curl does not suffice.
+    s.engineV2!.exercises = s.engineV2!.exercises.filter(
+      (e) => !["unilateral_strength", "hip_strength", "knee_strength"].includes(e.role),
+    );
     expect(validateEngineSession(s, p).map((x) => x.code)).toContain("UNBALANCED_STRENGTH");
     s.engineV2!.roles.push("speed");
     expect(validateEngineSession(s, p).map((x) => x.code)).toContain("MIXED_STRENGTH_SPEED");

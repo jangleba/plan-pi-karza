@@ -20,11 +20,17 @@ const profile: Profile = {
     "nordic_setup",
     "gym_jump_lane",
   ],
+  // Athletic A/B is a chosen layout; the default gym sessions follow the coaching notes.
+  trainingMethodPreferences: { gymTemplate: "athletic_ab" },
 };
 
 describe("adaptive athletic strength days", () => {
-  it("defaults to two independently executed athletic days without requiring a power goal", () => {
+  it("gives two independently executed athletic days when chosen, without requiring a power goal", () => {
     expect(isAthleticStrengthSelected(profile)).toBe(true);
+    // Without a choice it stays the fallback layout behind the note sessions.
+    expect(isAthleticStrengthSelected({ ...profile, trainingMethodPreferences: undefined })).toBe(
+      true,
+    );
     for (const variant of ["A", "B"] as const) {
       const recipe = buildStrength(profile, variant, "development");
       expect(recipe.strengthStructure).toBe("athletic_ab");

@@ -406,7 +406,7 @@ export function decideGymProgression(
       ...gymPowerDose(reducedId, p, "deload"),
       restSeconds: Math.max(current.restSeconds, gymPowerDose(reducedId, p, ctx.phase).restSeconds),
     };
-    const cap = p.age < 16 ? 36 : p.age < 18 ? 48 : 60;
+    const cap = p.age < 18 ? 48 : 60;
     if (ctx.knownLandingsOther7d + 2 * (dose.perSide ? 2 : 1) > cap)
       return result("omit", reducedId, null, why, latest ? [latest] : []);
     return result(action, reducedId, dose, why, latest ? [latest] : []);
@@ -454,7 +454,7 @@ export function decideGymProgression(
       "deload",
       "Mecz w odległości do dwóch dni: mniejsza dawka skoków, bez dynamicznego dodatku tyłu uda.",
     );
-  const cap = p.age < 16 ? 36 : p.age < 18 ? 48 : 60;
+  const cap = p.age < 18 ? 48 : 60;
   if (
     !timed &&
     ctx.knownLandingsOther7d + current.sets * (current.reps ?? 0) * (current.perSide ? 2 : 1) > cap

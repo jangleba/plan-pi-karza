@@ -134,8 +134,7 @@ export function buildEnduranceForDate(
     p.seasonPhase === "transition" ||
     p.goal !== "endurance" ||
     !verified ||
-    !sportPrepared ||
-    p.age < 16;
+    !sportPrepared;
   const level = recordedLevel(p);
   const selection = buildRunningSessionPrescription({
     fieldMasKmh: verified ? p.fieldMasKmh : null,
@@ -166,14 +165,12 @@ export function buildEnduranceForDate(
       : "Brak aktualnego, wiarygodnie powiązanego testu: nie wyznaczono tempa MAS i nie dodano obowiązkowego testu.",
     "Poziom siłowni nie wyznacza przygotowania do biegania. Czasy i progi MAS są zachowanymi regułami produktu, nie indywidualnym pomiarem progu metabolicznego.",
   ];
-  if (p.age < 16)
-    reasons.push("Dla wczesnej młodzieży pozostawiono konserwatywny wariant tlenowy.");
   const recipe: RunningRecipe = {
     schema: "ballwise-run-recipe-v1",
     id: `v2:endurance:${interval ? selection.method : "easy"}:${date}:l${level}`,
     method: "easy_continuous",
     title: interval ? selection.title : "Spokojny bieg tlenowy",
-    population: p.age < 16 ? "early_youth" : p.age < 18 ? "late_youth" : "adult",
+    population: p.age < 18 ? "late_youth" : "adult",
     level: interval ? level : 0,
     paceSource: interval ? "field_mas" : "effort",
     warmup: {
@@ -224,7 +221,7 @@ export function buildEnduranceForDate(
       },
     ];
   } else {
-    const base = phase === "deload" || p.age < 16 ? 15 : 20;
+    const base = phase === "deload" ? 15 : 20;
     const step = phase === "deload" ? 0 : Math.min(2, Math.max(0, Math.floor(buildWeek)));
     const seconds = Math.round(base * (1 + 0.1 * step)) * 60;
     if (step > 0)

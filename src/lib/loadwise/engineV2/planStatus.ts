@@ -1,3 +1,4 @@
+import { planUnavailableForAge } from "../agePolicy";
 import type { Profile, Readiness, SessionCompletion, SessionDay } from "../types";
 import { trainingProfileRevision, trainingSetupRevision } from "../planIdentity";
 import { ENGINE_VERSION } from "./model";
@@ -123,6 +124,8 @@ export function sessionStartIssue({
     return "Ta sesja została wstrzymana ze względów ostrożnościowych.";
   if (!ownPrescription(session)) return null;
   if (!profile) return "Poczekaj na wczytanie profilu.";
+  const ageBlock = planUnavailableForAge(profile);
+  if (ageBlock) return ageBlock;
   if (profile.painInjury || profile.seasonPhase === "return_injury")
     return "Automatyczny trening własny jest wstrzymany przy zgłoszonym bólu lub powrocie po urazie.";
   if (session.generatorVersion !== ENGINE_VERSION)

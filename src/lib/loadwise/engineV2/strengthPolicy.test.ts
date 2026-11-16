@@ -188,8 +188,10 @@ describe("SP1 strength emphasis", () => {
   });
   it("plans both A/B with a recorded focus and retains all independent validation", () => {
     const opts = { startDate: ctx.date, weeks: 1 };
-    const result = generateTrainingPlan(p, opts);
-    expect(validateTrainingPlan(result.plan, p, opts)).toEqual([]);
+    // The focus labels belong to the balanced A/B layout; note sessions carry their own dose.
+    const p2 = { ...p, trainingMethodPreferences: { gymTemplate: "balanced" as const } };
+    const result = generateTrainingPlan(p2, opts);
+    expect(validateTrainingPlan(result.plan, p2, opts)).toEqual([]);
     const sessions = result.plan
       .flatMap((d) => [d, ...(d.secondSession ? [d.secondSession] : [])])
       .filter((s) => s.engineV2?.roles.some((r) => r.startsWith("strength")));

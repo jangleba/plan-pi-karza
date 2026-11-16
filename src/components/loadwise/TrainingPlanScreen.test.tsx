@@ -590,3 +590,16 @@ it("a new queued write blocks a preview without waiting for a profile reload", a
   ).toBe(false);
   expect(mock.activate).not.toHaveBeenCalled();
 });
+
+it("an existing account under 16 keeps the account but sees no plan or settings", async () => {
+  const state = mock.store.state as LoadwiseState;
+  const adult = { ...state.profile!, individualTrainingDays: [1, 2, 3, 4, 5, 6, 7] };
+  const saved = generateTrainingPlan(adult, { startDate: "2026-11-02", weeks: 1 }).plan;
+  mock.store.state = { ...state, profile: { ...adult, age: 15 }, plan: saved };
+  await act(async () => root.render(<PlanScreen />));
+  expect(host.textContent).toContain("Plan niedostępny");
+  expect(host.textContent).toContain("od 16 lat");
+  expect(host.querySelector(".bw-wk")).toBeNull();
+  expect(host.querySelector(".bw-plan-settings-button")).toBeNull();
+  expect(mock.activate).not.toHaveBeenCalled();
+});

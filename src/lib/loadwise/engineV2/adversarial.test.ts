@@ -54,6 +54,14 @@ function session(role: "strengthA" | "strengthB" | "speed" | "endurance"): Sessi
   return structuredClone(value!);
 }
 const codes = (s: SessionDay) => validateEngineSession(s, profile).map((i) => i.code);
+/** A strength session of the chosen balanced A/B layout (the default gym sessions follow the notes). */
+const balanced: Profile = { ...profile, trainingMethodPreferences: { gymTemplate: "balanced" } };
+function balancedSession(role: "strengthA" | "strengthB"): SessionDay {
+  const plan = generateTrainingPlan(balanced, { startDate: "2026-11-02", weeks: 1 }).plan;
+  return structuredClone(
+    plan.flatMap((d) => [d, d.secondSession]).find((d) => d?.engineV2?.roles.includes(role))!,
+  );
+}
 
 describe("independent final-session validation", () => {
   it("compares equal numeric doses after JSONB-style key reordering", () => {
@@ -208,11 +216,11 @@ describe("independent final-session validation", () => {
     expect(codes(s)).toContain("STALE_LOAD_CLASSIFICATION");
   });
   it("does not count an RDL as knee flexion or Pallof as adductor work", () => {
-    const s = session("strengthA");
+    const s = balancedSession("strengthA");
     s.engineV2!.exercises.find((e) => e.role === "knee_flexion")!.exerciseId =
       "romanian_deadlift_db";
     expect(codes(s)).toContain("FUNCTION_MISMATCH");
-    const a = session("strengthA");
+    const a = balancedSession("strengthA");
     a.engineV2!.exercises.find((e) => e.role === "adductor")!.exerciseId = "pallof_press";
     expect(codes(a)).toContain("FUNCTION_MISMATCH");
   });
@@ -225,11 +233,11 @@ describe("independent final-session validation", () => {
     },
   );
   it("replaces the ordinary last-set rest with a mandatory post-block rest once", () => {
-    const s = session("strengthB"),
-      before = deriveEngineSessionLoad(s.engineV2!, profile).minutes;
+    const s = balancedSession("strengthB"),
+      before = deriveEngineSessionLoad(s.engineV2!, balanced).minutes;
     const iso = s.engineV2!.exercises.find((e) => e.role === "hamstring_iso")!;
     (iso.dose as typeof iso.dose & { postRestSeconds: number }).postRestSeconds = 300;
-    expect(deriveEngineSessionLoad(s.engineV2!, profile).minutes).toBe(before + 4);
+    expect(deriveEngineSessionLoad(s.engineV2!, balanced).minutes).toBe(before + 4);
   });
   it.each([
     { name: "legacy allowance", version: undefined, finalMinutes: 26, followedMinutes: 30 },

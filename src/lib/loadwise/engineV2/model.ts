@@ -1,7 +1,7 @@
 import type { Profile, Readiness, SessionDay } from "../types";
 import { preparationProfile } from "./preparation";
 
-export const ENGINE_VERSION = "ballwise-v2.17";
+export const ENGINE_VERSION = "ballwise-v2.18";
 export type Tier = "foundation" | "development" | "performance";
 export type Role =
   | "knee_strength"
@@ -153,18 +153,13 @@ export interface EngineSession {
    */
   postMatch?: "full" | "upper";
   /** Advanced 16+ session following the athlete's coaching notes (advancedSessions.ts). */
-  advancedTemplate?: "A_power" | "A_squat" | "B_hinge";
+  advancedTemplate?: import("./advancedSessions").AdvancedTemplateId;
   /** Pairs of an advanced session: first exercise, 30 s transition, second, then the round rest. */
+  /** Groups of a note session (1a → 1b → 1c): 30 s transitions, then the round rest. */
   complexPairs?: {
     label: string;
-    kind:
-      | "iso_reactive"
-      | "landing_reactive"
-      | "strength_power"
-      | "hinge_brake"
-      | "upper_trunk"
-      | "trunk";
-    exerciseIds: [string, string];
+    kind: import("./advancedSessions").PairKind;
+    exerciseIds: string[];
     transitionSeconds: number;
     roundRestSeconds: number;
   }[];

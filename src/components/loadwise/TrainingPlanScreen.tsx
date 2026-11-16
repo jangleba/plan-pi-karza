@@ -32,6 +32,7 @@ import {
   savedWeeklyPlanningPreferences,
   type WeeklyPlanningPreferences,
 } from "@/lib/loadwise/weeklyPlanningPreferences";
+import { planUnavailableForAge } from "@/lib/loadwise/agePolicy";
 import "@/styles/ballwise-plan.css";
 
 /** Preview, explicit activation and execution of the versioned training plan. */
@@ -270,6 +271,20 @@ export function PlanScreen() {
       ))}
     </ul>
   );
+  // Under 16: the account stays open, but there is no plan to show or settings to change.
+  const ageBlock = planUnavailableForAge(state.profile);
+  if (ageBlock)
+    return (
+      <div className="bw-plan-screen pb-6">
+        <AppHeader title="Plan" sketch="pitch" />
+        <div className="bw-plan-stack">
+          <section className="bw-plan-card bw-plan-age" aria-label="Plan niedostępny">
+            <h2>Plan niedostępny</h2>
+            <p role="status">{ageBlock}</p>
+          </section>
+        </div>
+      </div>
+    );
   // Everything that is not the week itself lives behind one settings button.
   const attention =
     status.kind === "stale" ||
