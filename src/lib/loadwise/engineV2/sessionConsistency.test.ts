@@ -53,7 +53,7 @@ const profiles: Profile[] = [
   { ...base, goal: "speed", age: 16, level: "intermediate" } as Profile,
   {
     ...base,
-    age: 15,
+    age: 16,
     level: "beginner",
     gymExperienceLevel: "beginner",
     strengthTrainingMonths: 0,

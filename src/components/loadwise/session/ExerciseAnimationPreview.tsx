@@ -6,7 +6,22 @@ import {
   type AnimationSelection,
 } from "@/lib/trainingCoach/animationCatalog";
 import { APP_VERSION } from "@/lib/appVersion";
-import { boxTouchVariant, parseHoldSeconds } from "@/lib/trainingCoach/exerciseTempo";
+import {
+  boxTouchVariant,
+  parseExerciseTempo,
+  parseHoldSeconds,
+} from "@/lib/trainingCoach/exerciseTempo";
+
+function prescribedTempo(exercise: TrainingExercise): string | undefined {
+  const tempo = exercise.engineDose?.tempo;
+  if (!tempo) return exercise.tempo;
+  const seconds = [tempo.eccentricSeconds, tempo.pauseSeconds, tempo.concentricSeconds];
+  if (seconds.some((value) => typeof value !== "number" || !Number.isFinite(value)))
+    return undefined;
+  // A current numeric dose takes precedence over a historical label. Invalid
+  // doses must not silently revive a different saved cadence or invent X.
+  return parseExerciseTempo([...seconds, 0].join("–"))?.label;
+}
 
 export function ExerciseAnimationPreview({
   exercise,
@@ -26,7 +41,7 @@ export function ExerciseAnimationPreview({
       exerciseName={exercise.name}
       autoOpen={autoOpen}
       mirror={mirror}
-      tempo={exercise.tempo}
+      tempo={prescribedTempo(exercise)}
       holdSeconds={parseHoldSeconds(exercise.duration) ?? parseHoldSeconds(exercise.reps)}
       variant={boxTouchVariant(exercise.name, exercise.animationVariant)}
     />

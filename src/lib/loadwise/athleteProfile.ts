@@ -494,6 +494,16 @@ export function getInjuryConstraints(p: Partial<Profile>): InjuryConstraints {
 // buildAthleteTrainingProfile — główny wpis
 // ---------------------------------------------------------------------------
 
+/** Keep legacy defaults, with an explicit choice taking priority everywhere. */
+export function getGymEquipmentMode(
+  p: Pick<Partial<Profile>, "equipment" | "trainingMethodPreferences">,
+): "full" | "selected" {
+  return (
+    p.trainingMethodPreferences?.gymEquipmentMode ??
+    ((p.equipment?.length ?? 0) > 0 ? "selected" : "full")
+  );
+}
+
 export function buildAthleteTrainingProfile(
   onboardingData: Partial<Profile>,
   userSettings: Partial<Profile> = {},
@@ -517,6 +527,7 @@ export function buildAthleteTrainingProfile(
   const supervisionLevel = supervisionOf(p);
 
   const gymAccess = p.hasGym ?? false;
+  const gymEquipmentMode = getGymEquipmentMode(p);
   if (p.hasGym == null)
     warnings.push("Brak informacji o siłowni — nie zakładamy dostępu do sztangi.");
 
@@ -548,9 +559,7 @@ export function buildAthleteTrainingProfile(
     readiness,
     currentPain: injuryConstraints.painLocations,
     gymAccess,
-    gymEquipmentMode:
-      p.trainingMethodPreferences?.gymEquipmentMode ??
-      ((p.equipment?.length ?? 0) > 0 ? "selected" : "full"),
+    gymEquipmentMode,
   };
   const exerciseSafetyProfile = getExerciseSafetyProfile(partialForSafety);
 
@@ -605,6 +614,7 @@ export function buildAthleteTrainingProfile(
       ...(p.trainingMethodPreferences?.declaredEquipment ?? []),
     ],
     gymAccess,
+    gymEquipmentMode,
     homeEquipment: p.homeEquipment ?? [],
     unavailableEquipmentIds: p.unavailableEquipmentIds ?? [],
     injuryHistory: injuryConstraints.injuryHistory,

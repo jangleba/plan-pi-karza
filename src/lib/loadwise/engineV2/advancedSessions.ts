@@ -87,9 +87,9 @@ const gymJump =
     const d = gymPowerDose(id, p, phase);
     return youth ? { ...d, sets: Math.min(2, d.sets) } : d;
   };
-const landings = (youth: boolean): Dose => ({
-  sets: youth ? 2 : 3,
-  reps: 3,
+const landings = (): Dose => ({
+  sets: 2,
+  reps: 2,
   restSeconds: 30,
   intent: "controlled",
 });
@@ -141,7 +141,7 @@ const A_POWER: Template = {
         role: "power",
         candidates: ["bilateral_pogo"],
         note: "Pogosy",
-        dose: jumps(10, 6, 2),
+        dose: jumps(6, 4, 2),
       },
       roundRestSeconds: 120,
     },
@@ -157,7 +157,7 @@ const A_POWER: Template = {
         role: "power",
         candidates: ["depth_jump", "box_jump"],
         note: "Depth jump",
-        dose: jumps(3, 3),
+        dose: jumps(2, 2, 2),
       },
       roundRestSeconds: 150,
     },
@@ -427,6 +427,7 @@ export const ADVANCED_CONTACT_LIMIT = (age: number) => (age < 18 ? 24 : 40);
 export function advancedSessionsEligible(p: Profile, phase: EngineSession["phase"]): boolean {
   return (
     p.hasGym &&
+    p.trainingMethodPreferences?.gymTemplate === "paired_power" &&
     Number.isFinite(p.age) &&
     p.age >= APP_MINIMUM_AGE &&
     trainingTier(p) === "performance" &&
@@ -435,27 +436,27 @@ export function advancedSessionsEligible(p: Profile, phase: EngineSession["phase
     !p.painInjury &&
     !["transition", "return_injury"].includes(p.seasonPhase) &&
     !resolveGoalPolicy(p).reduced &&
-    // The notes are a footballer's power/reactive sessions; the strength goal keeps A/B with its
-    // maximal-strength emphasis.
-    resolveGoalPolicy(p).strengthGoal !== "strength" &&
+    // Multi-pair reactive work is a power prescription, not a default for every advanced athlete.
+    resolveGoalPolicy(p).strengthGoal === "power" &&
     // An explicitly chosen specialist method keeps its own reviewed session.
-    !p.trainingMethodPreferences?.strength
+    (!p.trainingMethodPreferences?.strength || p.trainingMethodPreferences.strength === "auto")
   );
 }
 
-/** A alternates its two note templates week by week; B follows the hinge note. */
-export function advancedTemplateFor(variant: "A" | "B", week: number): Template {
-  return variant === "B" ? B_HINGE : week % 2 === 0 ? A_POWER : A_SQUAT;
+/** Main exercise identities stay stable for the block. Only an explicit "vary"
+ * cycle recommendation selects the alternate A; a calendar week never does. */
+export function advancedTemplateFor(variant: "A" | "B", rotation: number): Template {
+  return variant === "B" ? B_HINGE : rotation % 2 === 0 ? A_POWER : A_SQUAT;
 }
 
 export function buildAdvancedStrength(
   p: Profile,
   variant: "A" | "B",
   phase: EngineSession["phase"],
-  week: number,
+  rotation = 0,
 ): EngineSession | null {
   if (!advancedSessionsEligible(p, phase)) return null;
-  const template = advancedTemplateFor(variant, week);
+  const template = advancedTemplateFor(variant, rotation);
   const youth = p.age < 18;
   const used = new Set<string>();
   const pick = (slot: Slot): ExerciseDecision | null => {
@@ -467,7 +468,10 @@ export function buildAdvancedStrength(
     return {
       exerciseId: id,
       role: slot.role,
-      dose: slot.dose(youth, id, id !== candidates[0], p, phase),
+      dose: {
+        ...slot.dose(youth, id, id !== candidates[0], p, phase),
+        ...(id === "depth_jump" ? { contactsPerRep: 2 } : {}),
+      },
       reason: `Z notatki: „${slot.note}”.${slot.skipNearMatch ? " Pomijane w ciągu 3 dni od meczu." : ""}`,
     };
   };

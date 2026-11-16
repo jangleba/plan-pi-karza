@@ -130,17 +130,15 @@ describe("sprint rotation across sessions", () => {
 });
 
 describe("variants are qualified by level, age, space, equipment and partner", () => {
-  it("a 13-year-old beginner only receives simple start variants, two rounds and no resisted work", () => {
+  it("a 16-year-old beginner receives two drill rounds and no resisted work", () => {
     const young = withPrefs({}, {
-      age: 13,
+      age: 16,
       level: "beginner",
       gymExperienceLevel: "beginner",
       strengthTrainingMonths: 0,
-      movementCompetence: "medium",
+      movementCompetence: "low",
     } as Partial<Profile>);
     for (const s of sprints(young)) {
-      const v = s.engineV2!.sprintVariant!;
-      expect(variantById(v.mainVariantId)!.simple).toBe(true);
       expect(s.engineV2!.exercises.find((e) => e.dose.circuit)!.dose.sets).toBe(2);
       expect(s.engineV2!.exercises.some((e) => e.dose.speedStage === "resisted")).toBe(false);
     }

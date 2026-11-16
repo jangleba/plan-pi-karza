@@ -122,6 +122,7 @@ export const gymDoseKey = (d: Dose) =>
     d.restSeconds,
     d.intent,
     d.contactsPerRep ?? null,
+    ...(d.tempo ? [d.tempo] : []),
     d.gymBandSetup ?? null,
   ]);
 

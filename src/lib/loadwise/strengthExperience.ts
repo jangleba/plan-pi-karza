@@ -50,7 +50,7 @@ export function encodeStrengthExperience(value: StrengthExperience): string | nu
 }
 
 export function decodeStrengthExperience(raw: unknown): StrengthExperience {
-  if (typeof raw !== "string" || raw.length > 1000) return {};
+  if (typeof raw !== "string" || raw.length > 4096) return {};
   try {
     const value = JSON.parse(raw);
     if (!value || value.schema !== "ballwise-strength-v1") return {};

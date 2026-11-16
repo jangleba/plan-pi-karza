@@ -168,7 +168,7 @@ it("returns to effort-based runs if calibration is removed and never prescribes 
   expect(runs(reverted).every((s) => s.runningRecipe?.paceSource === "effort")).toBe(true);
   const young = {
     ...profile,
-    age: 13,
+    age: 16,
     level: "beginner" as const,
     gymExperienceLevel: "beginner" as const,
     strengthTrainingMonths: 0,

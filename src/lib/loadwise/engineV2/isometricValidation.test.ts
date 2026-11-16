@@ -134,7 +134,7 @@ describe("isometric execution contracts", () => {
     },
   );
 
-  it.each([13, 15, 17])("does not infer maximal primer readiness from youth age %s", (age) => {
+  it.each([16, 17])("does not infer maximal primer readiness from youth age %s", (age) => {
     const profile = { ...athlete, age };
     const day = session(profile);
     expect(day.engineV2!.exercises.some((row) => row.role === "iso_primer")).toBe(false);

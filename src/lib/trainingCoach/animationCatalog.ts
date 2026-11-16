@@ -1,5 +1,7 @@
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import movementIdentities from "./movement-identities.json";
+import { INSTRUCTION_ONLY_GYM_IDS } from "@/lib/loadwise/gymProgramming";
+import { GYM_EXERCISE_EXPANSIONS } from "@/lib/loadwise/gymExerciseExpansions";
 
 export interface AnimationCatalogEntry {
   id: string;
@@ -675,6 +677,22 @@ function normalise(value: string | null | undefined): string {
     .replace(/\s+/g, " ");
 }
 
+// Unreviewed variants keep their own written instructions. Recognise their
+// saved identities as well as their names before any older visual can win.
+const instructionOnlyIds = new Set<string>(INSTRUCTION_ONLY_GYM_IDS);
+const instructionOnlyNames = new Set(
+  [
+    ...INSTRUCTION_ONLY_GYM_IDS,
+    ...GYM_EXERCISE_EXPANSIONS.filter((entry) => instructionOnlyIds.has(entry.id)).flatMap(
+      (entry) => [entry.name, entry.displayNamePl, ...(entry.aliases ?? [])],
+    ),
+  ].map(normalise),
+);
+function isInstructionOnly(value: string | undefined): boolean {
+  const name = normalise(value);
+  return instructionOnlyNames.has(name) || instructionOnlyNames.has(name.replace(/ \d+$/, ""));
+}
+
 export const ANIMATION_CATALOG: readonly AnimationCatalogEntry[] = [
   ...originalCatalog.filter(
     (entry) => !movementIdentities.some((record) => record.id === entry.id),
@@ -942,6 +960,8 @@ function selectedAnimation(id: string, exercise: VariantExercise): AnimationSele
 
 /** Resolve a specific animation; unknown movements never receive a sprint fallback. */
 export function resolveExerciseAnimation(exercise: TrainingExercise): AnimationSelection | null {
+  if ([exercise.exerciseId, exercise.name, exercise.visualId, exercise.id].some(isInstructionOnly))
+    return null;
   const exactId = knownId(exercise.exerciseId);
   if (exactId) return selectedAnimation(exactId, exercise);
   // Exact names can disambiguate old shared drawings before visual fallback.

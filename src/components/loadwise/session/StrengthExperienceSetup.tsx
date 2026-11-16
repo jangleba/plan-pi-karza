@@ -4,9 +4,22 @@ import { ChevronRight, SlidersHorizontal } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { hasStrengthExperience, type StrengthExperience } from "@/lib/loadwise/strengthExperience";
+import {
+  EQUIPMENT_REGISTRY,
+  getExerciseDefinition,
+  resolveEquipmentId,
+} from "@/lib/loadwise/exerciseLibrary";
+import {
+  GYM_DECLARED_EQUIPMENT,
+  GYM_EXERCISE_OPTIONS,
+  type GymExerciseSlot,
+} from "@/lib/loadwise/gymProgramming";
+import { exerciseName } from "@/lib/loadwise/engineV2/sessionNames";
+import { getGymEquipmentMode } from "@/lib/loadwise/athleteProfile";
 import "./training-coach.css";
 
 const WEEKDAY_LABELS = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
+const BASIC_GYM_EQUIPMENT = ["barbell", "rack", "dumbbell", "bench", "cable", "band"];
 
 export function StrengthExperienceSetup({ compact = false }: { compact?: boolean } = {}) {
   const { state, saveStrengthExperience } = useLoadwise();
@@ -27,8 +40,42 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
   const clubDays = [...(profile.clubTrainingDays ?? [])].sort((a, b) => a - b);
   const clubStrength = draft.clubStrengthDays ?? [];
   const ageMonths = profile.age * 12;
+  const equipmentMode = getGymEquipmentMode({
+    equipment: profile.equipment,
+    trainingMethodPreferences: draft.trainingMethodPreferences,
+  });
+  function changeGymEquipment(id: string, checked: boolean) {
+    setDraft((d) => {
+      const currentMode = getGymEquipmentMode({
+        equipment: profile!.equipment,
+        trainingMethodPreferences: d.trainingMethodPreferences,
+      });
+      const declared = [
+        ...new Set([
+          ...(currentMode === "full" ? BASIC_GYM_EQUIPMENT : []),
+          ...(d.trainingMethodPreferences?.declaredEquipment ?? []),
+        ]),
+      ];
+      return {
+        ...d,
+        trainingMethodPreferences: {
+          ...d.trainingMethodPreferences,
+          gymEquipmentMode: "selected",
+          declaredEquipment: checked
+            ? [...new Set([...declared, id])]
+            : declared.filter((v) => v !== id),
+        },
+      };
+    });
+  }
   async function save() {
-    if (draft.strengthTrainingMonths !== undefined && (!Number.isInteger(draft.strengthTrainingMonths) || draft.strengthTrainingMonths < 0 || draft.strengthTrainingMonths > ageMonths || (draft.gymExperienceLevel === "none" && draft.strengthTrainingMonths !== 0))) {
+    if (
+      draft.strengthTrainingMonths !== undefined &&
+      (!Number.isInteger(draft.strengthTrainingMonths) ||
+        draft.strengthTrainingMonths < 0 ||
+        draft.strengthTrainingMonths > ageMonths ||
+        (draft.gymExperienceLevel === "none" && draft.strengthTrainingMonths !== 0))
+    ) {
       setError("Staż musi być zgodny z wiekiem i odpowiedzią o doświadczeniu.");
       return;
     }
@@ -91,7 +138,8 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
                 onChange={(e) =>
                   setDraft((d) => ({
                     ...d,
-                    gymExperienceLevel: (e.target.value || undefined) as StrengthExperience["gymExperienceLevel"],
+                    gymExperienceLevel: (e.target.value ||
+                      undefined) as StrengthExperience["gymExperienceLevel"],
                     ...(e.target.value === "none" ? { strengthTrainingMonths: 0 } : {}),
                   }))
                 }
@@ -160,7 +208,8 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
                 onChange={(e) =>
                   setDraft((d) => ({
                     ...d,
-                    movementCompetence: (e.target.value || undefined) as StrengthExperience["movementCompetence"],
+                    movementCompetence: (e.target.value ||
+                      undefined) as StrengthExperience["movementCompetence"],
                   }))
                 }
               >
@@ -178,7 +227,8 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
                 onChange={(e) =>
                   setDraft((d) => ({
                     ...d,
-                    supervisionLevel: (e.target.value || undefined) as StrengthExperience["supervisionLevel"],
+                    supervisionLevel: (e.target.value ||
+                      undefined) as StrengthExperience["supervisionLevel"],
                   }))
                 }
               >
@@ -211,6 +261,166 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
                 <option value="M14">Nadzorowana izometria przed treningiem</option>
               </select>
             </label>
+            {profile.hasGym && (
+              <details>
+                <summary>Sprzęt i warianty siłowni</summary>
+                <p className="text-sm mt-2">
+                  Wariant pozostaje stały w bloku. Silnik sprawdza sprzęt, staż i technikę;
+                  niedostępny wariant zastępuje ćwiczeniem tej samej funkcji.
+                </p>
+                <fieldset className="grid grid-cols-1 gap-2 mt-3">
+                  <legend>Sprzęt, z którego możesz korzystać</legend>
+                  <label>
+                    Wyposażenie siłowni
+                    <select
+                      disabled={saving}
+                      value={equipmentMode}
+                      onChange={(e) =>
+                        setDraft((d) => ({
+                          ...d,
+                          trainingMethodPreferences: {
+                            ...d.trainingMethodPreferences,
+                            gymEquipmentMode: e.target.value as "full" | "selected",
+                          },
+                        }))
+                      }
+                    >
+                      <option value="full">Podstawowe wyposażenie siłowni</option>
+                      <option value="selected">Tylko wskazane wyposażenie</option>
+                    </select>
+                  </label>
+                  <p className="text-sm">
+                    Podstawowe wyposażenie obejmuje sztangę i stojaki, ławkę, hantle, gumę oraz
+                    wyciąg. Trap bar, stanowisko Nordic i inne stanowiska specjalne zaznacz osobno.
+                    Sprzęt zapisany w Profilu pozostaje dostępny.
+                  </p>
+                  {GYM_DECLARED_EQUIPMENT.map((id) => {
+                    const fromProfile = profile.equipment.some(
+                      (value) => resolveEquipmentId(value) === id,
+                    );
+                    const selected = draft.trainingMethodPreferences?.declaredEquipment ?? [];
+                    const inferredBasic =
+                      equipmentMode === "full" && BASIC_GYM_EQUIPMENT.includes(id);
+                    return (
+                      <label className="flex items-center gap-2" key={id}>
+                        <input
+                          type="checkbox"
+                          disabled={saving || fromProfile}
+                          checked={fromProfile || inferredBasic || selected.includes(id)}
+                          onChange={(e) => changeGymEquipment(id, e.target.checked)}
+                        />
+                        {EQUIPMENT_REGISTRY.find((entry) => entry.id === id)?.displayName ?? id}
+                      </label>
+                    );
+                  })}
+                </fieldset>
+                <label>
+                  Układ jednostki
+                  <select
+                    disabled={saving}
+                    value={draft.trainingMethodPreferences?.gymTemplate ?? "balanced"}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        trainingMethodPreferences: {
+                          ...d.trainingMethodPreferences,
+                          gymTemplate: e.target.value as "balanced" | "paired_power",
+                        },
+                      }))
+                    }
+                  >
+                    <option value="balanced">Pełna siła i moc · A/B</option>
+                    <option value="paired_power">
+                      Specjalistyczne pary mocy · dla przygotowanych
+                    </option>
+                  </select>
+                </label>
+                {draft.trainingMethodPreferences?.gymTemplate !== "paired_power" && (
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      disabled={saving}
+                      checked={draft.trainingMethodPreferences?.upperBodyContrast === true}
+                      onChange={(e) =>
+                        setDraft((d) => ({
+                          ...d,
+                          trainingMethodPreferences: {
+                            ...d.trainingMethodPreferences,
+                            upperBodyContrast: e.target.checked,
+                            ...(e.target.checked
+                              ? {
+                                  gymExercises: {
+                                    ...d.trainingMethodPreferences?.gymExercises,
+                                    upperPower: "med_ball_throw",
+                                  },
+                                }
+                              : {}),
+                          },
+                        }))
+                      }
+                    />
+                    Kontrast góry ciała · wyciskanie i rzut sprzed klatki
+                    <span className="text-sm">
+                      Opcja dla przygotowanych dorosłych z trenerem: 2 rundy, po 4 min przerwy przed
+                      rzutem.
+                    </span>
+                  </label>
+                )}
+                {draft.trainingMethodPreferences?.gymTemplate !== "paired_power" &&
+                  Object.entries(GYM_EXERCISE_OPTIONS).map(([slot, options]) => (
+                    <label key={slot}>
+                      {options.label}
+                      <select
+                        disabled={saving}
+                        value={
+                          draft.trainingMethodPreferences?.gymExercises?.[
+                            slot as GymExerciseSlot
+                          ] ?? "auto"
+                        }
+                        onChange={(e) =>
+                          setDraft((d) => {
+                            const gymExercises = { ...d.trainingMethodPreferences?.gymExercises };
+                            if (e.target.value === "auto")
+                              delete gymExercises[slot as GymExerciseSlot];
+                            else gymExercises[slot as GymExerciseSlot] = e.target.value;
+                            return {
+                              ...d,
+                              trainingMethodPreferences: {
+                                ...d.trainingMethodPreferences,
+                                gymExercises,
+                              },
+                            };
+                          })
+                        }
+                      >
+                        <option value="auto">Dobierz automatycznie</option>
+                        {options.ids.map((id) => (
+                          <option value={id} key={id}>
+                            {exerciseName(id, getExerciseDefinition(id)?.name ?? id)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    disabled={saving}
+                    checked={draft.trainingMethodPreferences?.coachedOlympicLifts === true}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        trainingMethodPreferences: {
+                          ...d.trainingMethodPreferences,
+                          coachedOlympicLifts: e.target.checked,
+                        },
+                      }))
+                    }
+                  />
+                  Znam technikę wybranego ćwiczenia ciężarowego, a trener będzie obecny.
+                </label>
+              </details>
+            )}
             {draft.trainingMethodPreferences?.strength === "M14" && (
               <div className="space-y-2">
                 <p className="text-sm">
@@ -243,24 +453,7 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
                       false
                     }
                     disabled={saving}
-                    onChange={(e) =>
-                      setDraft((d) => ({
-                        ...d,
-                        trainingMethodPreferences: {
-                          ...d.trainingMethodPreferences,
-                          declaredEquipment: e.target.checked
-                            ? [
-                                ...new Set([
-                                  ...(d.trainingMethodPreferences?.declaredEquipment ?? []),
-                                  "fixed_pins",
-                                ]),
-                              ]
-                            : d.trainingMethodPreferences?.declaredEquipment?.filter(
-                                (x) => x !== "fixed_pins",
-                              ),
-                        },
-                      }))
-                    }
+                    onChange={(e) => changeGymEquipment("fixed_pins", e.target.checked)}
                   />
                   Mam stanowisko ze stałymi, zabezpieczonymi pinami.
                 </label>

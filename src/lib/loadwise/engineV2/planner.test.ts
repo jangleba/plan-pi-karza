@@ -61,7 +61,7 @@ describe("V2 final training contracts", () => {
     const cards = getAllExerciseDefinitions().filter((e) =>
       ["strength", "power", "plyometric", "tendon_isometric", "trunk"].includes(e.family ?? ""),
     );
-    expect(cards).toHaveLength(113);
+    expect(cards).toHaveLength(113 + INSTRUCTION_ONLY_GYM_IDS.length);
     expect(cards.filter((e) => !FUNCTIONAL_CATALOGUE[e.id]).map((e) => e.id)).toEqual([]);
   });
   it("keeps run counter seconds consistent with the planned duration", () => {
@@ -175,7 +175,7 @@ describe("V2 final training contracts", () => {
   it.each(["2026-02-30", "not-a-date"])("rejects invalid date %s", (startDate) => {
     expect(() => generateTrainingPlan(athlete, { startDate })).toThrow();
   });
-  for (const age of [13, 16, 17, 27])
+  for (const age of [16, 17, 18, 27])
     for (const clubTrainingDays of [[], [2, 4], [1, 2, 3, 4, 5]])
       for (const doubles of ["no", "yes_if_safe"] as const) {
         it(`validates 28 days: age=${age}, club=${clubTrainingDays.length}, doubles=${doubles}`, () => {
@@ -186,9 +186,9 @@ describe("V2 final training contracts", () => {
             doubleSessionsAllowed: doubles,
             weeklyMatches: true,
             usualMatchDay: 7,
-            gymExperienceLevel: age === 13 ? ("beginner" as const) : athlete.gymExperienceLevel,
-            strengthTrainingMonths: age === 13 ? 2 : 36,
-            movementCompetence: age === 13 ? ("low" as const) : ("high" as const),
+            gymExperienceLevel: age === 16 ? ("beginner" as const) : athlete.gymExperienceLevel,
+            strengthTrainingMonths: age === 16 ? 2 : 36,
+            movementCompetence: age === 16 ? ("low" as const) : ("high" as const),
           };
           const r = generateTrainingPlan(p, options);
           expect(validateTrainingPlan(r.plan, p, options)).toEqual([]);
@@ -198,3 +198,4 @@ describe("V2 final training contracts", () => {
         });
       }
 });
+import { INSTRUCTION_ONLY_GYM_IDS } from "../gymProgramming";

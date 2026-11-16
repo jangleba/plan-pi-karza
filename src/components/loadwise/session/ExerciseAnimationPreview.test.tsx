@@ -33,6 +33,64 @@ async function click(label: string) {
   await act(async () => button.click());
 }
 describe("exercise animation integration", () => {
+  it("passes the current numeric engine cadence ahead of an older tempo label", async () => {
+    await act(async () =>
+      root.render(
+        <ExerciseAnimationPreview
+          exercise={exercise("heavy_back_squat", {
+            tempo: "1–0–X–0",
+            engineDose: {
+              sets: 3,
+              reps: 5,
+              restSeconds: 120,
+              intent: "controlled",
+              tempo: { eccentricSeconds: 3, pauseSeconds: 1, concentricSeconds: 0.5 },
+            },
+          })}
+          autoOpen
+        />,
+      ),
+    );
+    expect(new URL(host.querySelector("iframe")!.src).searchParams.get("tempo")).toBe("3–1–0.5–0");
+  });
+  it.each([Number.NaN, Infinity, -1, 0, 31])(
+    "does not replace an invalid numeric cadence (%s) with a stale saved label",
+    async (eccentricSeconds) => {
+      await act(async () =>
+        root.render(
+          <ExerciseAnimationPreview
+            exercise={exercise("heavy_back_squat", {
+              tempo: "3–0–1–0",
+              engineDose: {
+                sets: 3,
+                reps: 5,
+                restSeconds: 120,
+                intent: "controlled",
+                tempo: { eccentricSeconds, pauseSeconds: 1, concentricSeconds: 1 },
+              },
+            })}
+            autoOpen
+          />,
+        ),
+      );
+      expect(new URL(host.querySelector("iframe")!.src).searchParams.has("tempo")).toBe(false);
+    },
+  );
+  it("keeps unreviewed variants instruction-only even when an old visual points to another lift", async () => {
+    await act(async () =>
+      root.render(
+        <ExerciseAnimationPreview
+          exercise={exercise(" TEMPO_BACK_SQUAT ", {
+            name: "Tempo Back Squat",
+            visualId: "heavy_back_squat",
+          })}
+          autoOpen
+        />,
+      ),
+    );
+    expect(host.querySelector("iframe")).toBeNull();
+    expect(host.textContent).toBe("");
+  });
   it("passes the saved tempo, hold time and explicit box variant to the shared player", async () => {
     await act(async () =>
       root.render(

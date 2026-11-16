@@ -205,7 +205,11 @@ describe("reviewed strength and isometric protocols", () => {
     ).toBe(true);
   });
   it("keeps knee flexion assistance explicit and supports a distinct rotational power option", () => {
-    const p = { ...athlete, goal: "power" as const };
+    const p = {
+      ...athlete,
+      goal: "power" as const,
+      equipment: [...athlete.equipment, "gym_throw_zone"],
+    };
     expect(
       buildStrength(p, "B", "development").exercises.find((e) => e.role === "power")?.exerciseId,
     ).toBe("medicine_ball_rotational_scoop_toss");

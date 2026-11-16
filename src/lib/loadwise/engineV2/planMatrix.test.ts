@@ -19,7 +19,7 @@ const goals: Goal[] = [
   "return",
   "matchready",
 ];
-const ages = [13, 15, 16, 17, 18, 27];
+const ages = [16, 17, 18, 20, 27, 35];
 const levels: Level[] = ["beginner", "intermediate", "advanced", "elite"];
 const calendars = [
   { name: "no club", club: [] as number[], matches: [] as string[] },

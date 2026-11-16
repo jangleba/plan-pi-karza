@@ -1,7 +1,7 @@
 import type { Profile, Readiness, SessionDay } from "../types";
 import { preparationProfile } from "./preparation";
 
-export const ENGINE_VERSION = "ballwise-v2.9";
+export const ENGINE_VERSION = "ballwise-v2.11";
 export type Tier = "foundation" | "development" | "performance";
 export type Role =
   | "knee_strength"
@@ -19,6 +19,7 @@ export type Role =
   | "pull"
   | "trunk"
   | "power"
+  | "upper_power"
   | "landing"
   | "speed"
   | "endurance"
@@ -28,6 +29,8 @@ export type Role =
   | "ball_skill";
 export type SupportRole = "activation" | "recovery" | "mobility" | "skills";
 export interface Dose {
+  /** Planned seconds per repetition for a controlled tempo; never a measured velocity. */
+  tempo?: { eccentricSeconds: number; pauseSeconds: number; concentricSeconds: number };
   gymBandSelectionId?: string;
   /** Measured setup identity; never a colour-derived or estimated band load. */
   gymBandSetup?: import("./gymProgression").GymBandSetup;
@@ -76,6 +79,7 @@ export const ROLE_NAMES: Record<Role, string> = {
   pull: "przyciąganie góry ciała",
   trunk: "kontrola tułowia",
   power: "moc",
+  upper_power: "szybki rzut piłką lekarską",
   landing: "kontrola lądowania i zatrzymania",
   speed: "szybkość",
   endurance: "wydolność tlenowa",
@@ -106,6 +110,15 @@ export interface EngineSession {
   exerciseRotation?: number;
   gymFeedbackRevision?: string;
   strengthFocus?: import("./strengthPolicy").StrengthFocus;
+  upperContrast?: {
+    exerciseIds: [string, string];
+    transitionSeconds: number;
+    roundRestSeconds: number;
+    originalPushDose: Dose;
+    originalPushReason: string;
+    originalPullDose?: Dose;
+    originalUpperPair?: NonNullable<EngineSession["strengthPairs"]>[number];
+  };
   /** Noncompeting accessory pairs; distinct from a heavy strength/power contrast. */
   strengthPairs?: {
     roles: [Role, Role];

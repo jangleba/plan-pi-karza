@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import { ANIMATION_CATALOG, resolveExerciseAnimation } from "./animationCatalog";
+import { GYM_EXERCISE_EXPANSIONS } from "@/lib/loadwise/gymExerciseExpansions";
+import { INSTRUCTION_ONLY_GYM_IDS } from "@/lib/loadwise/gymProgramming";
 
 const exercise = (exerciseId: string, rest: Partial<TrainingExercise> = {}): TrainingExercise => ({
   id: "session-instance",
@@ -10,6 +12,33 @@ const exercise = (exerciseId: string, rest: Partial<TrainingExercise> = {}): Tra
 });
 
 describe("exercise animation identity and session rhythm", () => {
+  it.each(INSTRUCTION_ONLY_GYM_IDS)(
+    "keeps the unreviewed %s identity out of every visual fallback",
+    (id) => {
+      const definition = GYM_EXERCISE_EXPANSIONS.find((entry) => entry.id === id)!;
+      expect(definition).toBeDefined();
+      const misleadingVisual = { name: "Przysiad", visualId: "heavy_back_squat" };
+      for (const exerciseId of [id, ` ${id.toUpperCase()} `, id.replaceAll("_", "-")])
+        expect(resolveExerciseAnimation(exercise(exerciseId, misleadingVisual))).toBeNull();
+      for (const name of [definition.name, definition.displayNamePl, ...(definition.aliases ?? [])])
+        expect(
+          resolveExerciseAnimation({
+            id: "old-row",
+            name: ` ${name.toUpperCase()} `,
+            visualId: "heavy_back_squat",
+          }),
+        ).toBeNull();
+      for (const instanceId of [id, ` ${id.toUpperCase()} `, `${id}_3`])
+        expect(resolveExerciseAnimation({ id: instanceId, ...misleadingVisual })).toBeNull();
+      expect(
+        resolveExerciseAnimation({ id: "old-row", name: "Skip A", visualId: `${id}_3` }),
+      ).toBeNull();
+      expect(
+        resolveExerciseAnimation(exercise("heavy_back_squat", { name: definition.name })),
+      ).toBeNull();
+    },
+  );
+
   it("covers the complete movement catalog without importing the renderer", () => {
     expect(ANIMATION_CATALOG).toHaveLength(227);
     expect(new Set(ANIMATION_CATALOG.map((entry) => entry.id)).size).toBe(227);

@@ -18,9 +18,15 @@ import {
   gymHamstringSupportDose,
   strengthLandingCount,
 } from "./gymPower";
-import { hasVerifiedAdvancedStrength, preparationProfile } from "./preparation";
+import {
+  hasVerifiedAdvancedStrength,
+  hasValidStrengthMonths,
+  preparationProfile,
+} from "./preparation";
+import { GYM_EXERCISE_OPTIONS, type GymExerciseSlot } from "../gymProgramming";
 import { meetsSessionRequirements } from "./placeRequirements";
 import { arrangeStrengthPairs } from "./strengthPairs";
+import { withoutUpperContrast } from "./upperContrast";
 import {
   coachedPrimerDose,
   coachedPrimerEligible,
@@ -72,7 +78,7 @@ export const CANDIDATES: Record<Role, readonly string[]> = {
   adductor: ["copenhagen_plank", "adductor_bridge_squeeze"],
   calf_straight: ["standing_calf_raise"],
   calf_bent: ["seated_soleus_raise", "soleus_iso_hold"],
-  push: ["dumbbell_bench_press", "push_up", "incline_push_up"],
+  push: ["barbell_bench_press", "dumbbell_bench_press", "push_up", "incline_push_up"],
   pull: ["one_arm_dumbbell_row", "lat_pulldown", "bodyweight_row", "face_pull_band"],
   trunk: ["pallof_press", "dead_bug", "plank"],
   power: [
@@ -83,6 +89,7 @@ export const CANDIDATES: Record<Role, readonly string[]> = {
     "broad_jump",
     "squat_jump",
   ],
+  upper_power: ["med_ball_throw", "medicine_ball_rotational_scoop_toss", "medicine_ball_slam"],
   landing: ["snap_down", "drop_landing"],
   speed: ["free_acceleration_sprint"],
   endurance: ["easy_aerobic_run"],
@@ -97,6 +104,23 @@ export function eligibleExercise(id: string, p: Profile, role?: Role): boolean {
   const equipment = [
     ...new Set([...p.equipment, ...(p.trainingMethodPreferences?.declaredEquipment ?? [])]),
   ];
+  if (
+    [
+      "drop_jump",
+      "single_leg_drop_landing",
+      "band_step_and_stick",
+      "dead_stop_pin_squat",
+      "jump_shrug",
+      "hang_power_snatch",
+    ].includes(id) &&
+    (!hasVerifiedAdvancedStrength(p) || p.supervisionLevel !== "full")
+  )
+    return false;
+  if (
+    ["jump_shrug", "hang_power_snatch"].includes(id) &&
+    p.trainingMethodPreferences?.coachedOlympicLifts !== true
+  )
+    return false;
   return (
     !!d &&
     d.approved !== false &&
@@ -115,10 +139,14 @@ export function eligibleExercise(id: string, p: Profile, role?: Role): boolean {
           "gym_jump_lane",
           "overhead_band_station",
           "low_band_station",
+          "gym_throw_zone",
+          "waist_band_station",
+          "platform",
+          "box",
         ].includes(e),
       )
       .every((e) => equipment.some((value) => (resolveEquipmentId(value) ?? value) === e)) &&
-    isExerciseAllowedForProfile(d, buildAthleteTrainingProfile({ ...p, equipment })).ok
+    isExerciseAllowedForProfile(d, buildAthleteTrainingProfile(p)).ok
   );
 }
 
@@ -128,21 +156,70 @@ const ROTATING_ROLES: readonly Role[] = [
   "unilateral_strength",
   "knee_flexion",
 ];
+function gymChoice(role: Role, variant: "A" | "B", p: Profile): string | undefined {
+  const slot: GymExerciseSlot | undefined =
+    role === "knee_strength"
+      ? "squat"
+      : role === "hip_strength" && variant === "B"
+        ? "hinge"
+        : role === "unilateral_strength"
+          ? "unilateral"
+          : role === "knee_flexion"
+            ? "kneeFlexion"
+            : role === "power"
+              ? variant === "A"
+                ? "powerA"
+                : "powerB"
+              : role === "upper_power"
+                ? "upperPower"
+                : role === "trunk"
+                  ? "trunk"
+                  : role === "pull" && variant === "B"
+                    ? "pullB"
+                    : role === "push" && variant === "A"
+                      ? "pushA"
+                      : role === "landing"
+                        ? "landing"
+                        : role === "calf_straight"
+                          ? "calfA"
+                          : undefined;
+  const requested = slot && p.trainingMethodPreferences?.gymExercises?.[slot];
+  return requested &&
+    slot &&
+    (GYM_EXERCISE_OPTIONS[slot].ids as readonly string[]).includes(requested)
+    ? requested
+    : undefined;
+}
+const DEVELOPMENT_ONLY = [
+  "depth_jump",
+  "drop_jump",
+  "single_leg_drop_landing",
+  "band_step_and_stick",
+  "jump_shrug",
+  "hang_power_snatch",
+];
+const availableInPhase = (id: string, phase: EngineSession["phase"]) =>
+  !DEVELOPMENT_ONLY.includes(id) || phase === "development";
 function pick(
   role: Role,
   p: Profile,
   variant: "A" | "B",
   used: Set<string>,
   rotation = 0,
+  phase: EngineSession["phase"] = "development",
 ): string | undefined {
   let ids = [...CANDIDATES[role]];
   const tier = trainingTier(p);
-  if (role === "knee_strength" && tier !== "performance")
+  const preparedLoaded =
+    ["intermediate", "advanced"].includes(p.gymExperienceLevel ?? "") &&
+    hasValidStrengthMonths(p, 12) &&
+    p.movementCompetence === "high";
+  if (role === "knee_strength" && !preparedLoaded)
     ids =
       tier === "foundation"
         ? ["goblet_squat", "bodyweight_squat", "leg_press"]
         : ["goblet_squat", "leg_press", "bodyweight_squat"];
-  if (role === "hip_strength" && tier !== "performance")
+  if (role === "hip_strength" && !preparedLoaded)
     ids = ["romanian_deadlift_db", "glute_bridge", "hip_thrust"];
   if (role === "knee_flexion" && tier !== "performance")
     ids = [
@@ -151,6 +228,21 @@ function pick(
       "prone_band_leg_curl",
       "assisted_nordic_hamstring",
     ];
+  // A develops horizontal upper work; B complements it with vertical work where eligible.
+  // A novice still uses the same supported, technically accessible alternatives.
+  if (variant === "B" && tier !== "foundation" && role === "push")
+    ids = ["dumbbell_overhead_press", ...ids];
+  if (variant === "B" && tier !== "foundation" && role === "pull")
+    ids = ["pull_up", "lat_pulldown", ...ids];
+  if (variant === "A" && role === "hip_strength")
+    ids = preparedLoaded
+      ? ["barbell_romanian_deadlift", "hip_thrust", "romanian_deadlift_db", "glute_bridge"]
+      : ["hip_thrust", "glute_bridge", ...ids];
+  if (variant === "B" && role === "trunk") ids = ["side_plank", "plank", ...ids];
+  if (role === "push" && tier === "foundation")
+    ids = ids.filter((id) => id !== "barbell_bench_press");
+  if (role === "upper_power" && p.goal === "agility")
+    ids = ["medicine_ball_rotational_scoop_toss", ...ids];
   if (role === "power") {
     const ballistic = p.goal === "power" && hasVerifiedAdvancedStrength(p);
     const declared = p.equipment.map((value) => resolveEquipmentId(value) ?? value);
@@ -172,7 +264,17 @@ function pick(
       ];
     }
   }
-  const eligible = ids.filter((id) => !used.has(id) && eligibleExercise(id, p, role));
+  const requested = gymChoice(role, variant, p);
+  if (
+    requested &&
+    !used.has(requested) &&
+    availableInPhase(requested, phase) &&
+    eligibleExercise(requested, p, role)
+  )
+    return requested;
+  const eligible = ids.filter(
+    (id) => !used.has(id) && availableInPhase(id, phase) && eligibleExercise(id, p, role),
+  );
   // A new stimulus picks another equivalent, eligible exercise of the same group; never an ineligible one.
   return rotation > 0 && ROTATING_ROLES.includes(role) && eligible.length > 1
     ? eligible[rotation % eligible.length]
@@ -181,7 +283,12 @@ function pick(
 
 export function estimateSeconds(e: ExerciseDecision, hasNext = false): number {
   const d = e.dose;
-  const work = d.seconds ?? (d.distanceM ? 8 : (d.reps ?? 1) * (d.intent === "explosive" ? 3 : 4));
+  const repSeconds = d.tempo
+    ? d.tempo.eccentricSeconds + d.tempo.pauseSeconds + d.tempo.concentricSeconds
+    : d.intent === "explosive"
+      ? 3
+      : 4;
+  const work = d.seconds ?? (d.distanceM ? 8 * (d.reps ?? 1) : (d.reps ?? 1) * repSeconds);
   return (
     d.sets * work * (d.perSide ? 2 : 1) +
     d.sets *
@@ -218,6 +325,8 @@ export function buildStrength(
     used = new Set<string>();
   const exercises: ExerciseDecision[] = [],
     missing: Role[] = [];
+  const fullPreparedSession = p.hasGym && tier !== "foundation" && !deload && phase !== "peak";
+  const fullSession = p.hasGym && !deload && phase !== "peak";
   // Stable work in weeks 1–3 allows two genuinely comparable exposures before load advice.
   const sets = deload ? (tier === "foundation" ? 1 : 2) : tier === "foundation" ? 2 : 3;
   const add = (role: Role, dose: Dose) => {
@@ -228,7 +337,9 @@ export function buildStrength(
           ? gymHamstringSupportCandidates(p, phase)
           : [];
     const legacy =
-      role === "hamstring_dynamic_support" ? undefined : pick(role, p, variant, used, rotation);
+      role === "hamstring_dynamic_support"
+        ? undefined
+        : pick(role, p, variant, used, rotation, phase);
     const preferredId = preferred
       .filter((id) => id !== "gym_cmj")
       .find((candidate) => !used.has(candidate) && eligibleExercise(candidate, p));
@@ -238,7 +349,9 @@ export function buildStrength(
       (getExerciseDefinition(legacy)?.spaceRequirement !== "open_field" || p.hasPitch)
         ? legacy
         : undefined;
+    const requested = gymChoice(role, variant, p);
     const id =
+      (requested === legacy ? legacy : undefined) ??
       preferredId ??
       (role === "power" && p.hasGym
         ? (legacyGymPower ?? (eligibleExercise("gym_cmj", p) ? "gym_cmj" : undefined))
@@ -263,7 +376,15 @@ export function buildStrength(
     if (FUNCTIONAL_CATALOGUE[id]?.unilateral) dose = { ...dose, perSide: true };
     if (id.endsWith("_30")) dose = { ...dose, jointAngleDegrees: 30 };
     if (id.endsWith("_90")) dose = { ...dose, jointAngleDegrees: 90 };
-    if (id === "soleus_iso_hold" || id === "copenhagen_plank" || id === "plank")
+    if (
+      [
+        "soleus_iso_hold",
+        "standing_calf_iso_hold",
+        "copenhagen_plank",
+        "plank",
+        "side_plank",
+      ].includes(id)
+    )
       dose = {
         ...dose,
         reps: undefined,
@@ -271,11 +392,44 @@ export function buildStrength(
         rir: undefined,
         intent: "hold",
       };
+    if (id === "suitcase_carry")
+      dose = {
+        sets: dose.sets,
+        seconds: 20,
+        perSide: true,
+        restSeconds: dose.restSeconds,
+        intent: "controlled",
+      };
+    if (id === "tempo_back_squat")
+      dose.tempo = { eccentricSeconds: 3, pauseSeconds: 1, concentricSeconds: 1 };
+    if (id === "box_squat")
+      dose.tempo = { eccentricSeconds: 2, pauseSeconds: 1, concentricSeconds: 1 };
+    if (id === "dead_stop_pin_squat")
+      dose.tempo = { eccentricSeconds: 2, pauseSeconds: 2, concentricSeconds: 1 };
+    if (id === "bilateral_pogo")
+      dose = {
+        sets: deload ? 1 : 2,
+        reps: deload ? 6 : 10,
+        restSeconds: 120,
+        contactsPerRep: 1,
+        intent: "explosive",
+      };
+    if (["depth_jump", "drop_jump"].includes(id))
+      dose = { sets: 3, reps: 3, restSeconds: 180, contactsPerRep: 2, intent: "explosive" };
+    if (["jump_shrug", "hang_power_snatch"].includes(id))
+      dose = {
+        sets: 3,
+        reps: 3,
+        restSeconds: 180,
+        ...(id === "jump_shrug" ? { contactsPerRep: 1 } : {}),
+        intent: "explosive",
+      };
+    if (id === "fast_band_row") dose = { sets: 2, reps: 6, restSeconds: 90, intent: "explosive" };
     exercises.push({
       exerciseId: id,
       role,
       dose,
-      reason: `Cel ćwiczenia: ${ROLE_NAMES[role]}.${
+      reason: `Cel ćwiczenia: ${ROLE_NAMES[role]}.${requested && requested !== id ? " Wybrany wariant nie spełnia warunków sprzętu, przygotowania lub fazy; użyto dostępnego ćwiczenia tej funkcji." : ""}${
         ["knee_strength", "hip_strength"].includes(role) &&
         !["external", "axial"].includes(getExerciseDefinition(id)!.loadingType)
           ? " Wariant z masą ciała: kontrolowane powtórzenia i zachowanie zapasu."
@@ -309,18 +463,40 @@ export function buildStrength(
     intent: powerRole === "landing" ? "controlled" : "explosive",
   });
   if (
+    variant === "B" &&
+    fullPreparedSession &&
+    (gymChoice("upper_power", variant, p) ||
+      CANDIDATES.upper_power.some((id) => eligibleExercise(id, p, "upper_power")))
+  )
+    add("upper_power", { sets: 3, reps: 3, restSeconds: 90, intent: "explosive" });
+  if (
     p.hasGym &&
     variant === "B" &&
-    resolveGymBraking(p) &&
+    (resolveGymBraking(p) || gymChoice("landing", variant, p)) &&
     powerRole === "power" &&
     eligibleExercise("gym_step_brake", p)
   ) {
+    const requested = gymChoice("landing", variant, p);
+    const landingId =
+      requested && availableInPhase(requested, phase) && eligibleExercise(requested, p, "landing")
+        ? requested
+        : "gym_step_brake";
     exercises.push({
-      exerciseId: "gym_step_brake",
+      exerciseId: landingId,
       role: "landing",
-      dose: { sets: 1, reps: 2, perSide: true, restSeconds: 45, intent: "controlled" },
+      dose:
+        landingId === "gym_step_brake"
+          ? { sets: 1, reps: 2, perSide: true, restSeconds: 45, intent: "controlled" }
+          : {
+              sets: 2,
+              reps: 3,
+              perSide: FUNCTIONAL_CATALOGUE[landingId]?.unilateral || undefined,
+              restSeconds: 90,
+              intent: "controlled",
+            },
       reason:
-        "Przyjęcie obciążenia po kroku i stabilizacja na siłowni. To przygotowanie hamowania, nie sprint ani hamowanie z dużej prędkości.",
+        getExerciseDefinition(landingId)?.objective ??
+        "Kontrola przyjęcia obciążenia na siłowni; bez sprintu.",
     });
   }
   add(variant === "A" ? "knee_strength" : "hip_strength", {
@@ -331,6 +507,8 @@ export function buildStrength(
     intent: "controlled",
   });
   if (variant === "A") {
+    if (fullPreparedSession)
+      add("hip_strength", { sets: 2, reps: 8, rir: 3, restSeconds: 120, intent: "controlled" });
     add("knee_flexion", {
       sets: deload ? 1 : 2,
       reps: tier === "performance" ? 4 : 6,
@@ -338,7 +516,9 @@ export function buildStrength(
       restSeconds: 120,
       intent: "controlled",
     });
-    if (!exercises.some((e) => e.role === "knee_flexion"))
+    // The full A combines a squat, knee flexion and a moderate hip-extension accessory.
+    // B retains its hinge + unilateral emphasis; neither is a hamstring-only workout.
+    if (!exercises.some((e) => e.role === "knee_flexion" || e.role === "hip_strength"))
       add("hip_strength", {
         sets: deload ? 1 : 2,
         reps: 8,
@@ -348,11 +528,11 @@ export function buildStrength(
       });
   } else {
     add("unilateral_strength", {
-      sets: deload ? 1 : 2,
+      sets: deload ? 1 : tier === "performance" ? 3 : 2,
       reps: 5,
       perSide: true,
       rir: 3,
-      restSeconds: 90,
+      restSeconds: tier === "performance" ? 120 : 90,
       intent: "controlled",
     });
     if (gymHamstringSupportCandidates(p, phase).some((id) => eligibleExercise(id, p)))
@@ -374,8 +554,7 @@ export function buildStrength(
   });
   // A fuller prepared-athlete session covers both upper-body directions.
   // General football level still never unlocks technical loaded lifts.
-  const fullPreparedSession = p.hasGym && tier !== "foundation" && !deload && phase !== "peak";
-  const upperFinale = p.hasGym && !deload && phase !== "peak";
+  const upperFinale = fullSession;
   if (upperFinale)
     add(variant === "A" ? "pull" : "push", {
       sets: 2,
@@ -388,7 +567,7 @@ export function buildStrength(
     add("adductor", { sets: deload ? 1 : 2, seconds: 15, restSeconds: 60, intent: "hold" });
   else
     add("trunk", { sets: deload ? 1 : 2, reps: 8, rir: 3, restSeconds: 60, intent: "controlled" });
-  if (fullPreparedSession) {
+  if (fullSession) {
     if (variant === "A")
       add("trunk", { sets: 2, reps: 8, rir: 3, restSeconds: 60, intent: "controlled" });
     else add("adductor", { sets: 2, seconds: 15, restSeconds: 60, intent: "hold" });
@@ -404,13 +583,20 @@ export function buildStrength(
   // One moderate upper pair at the end, not additional lower-body volume.
   if (upperFinale && (tier === "foundation" || p.age < 18)) {
     const upper = exercises.filter((e) => e.role === "push" || e.role === "pull");
-    for (const e of upper) { e.dose.sets = 2; e.dose.reps = 10; e.dose.rir = 3; }
+    for (const e of upper) {
+      e.dose.sets = 2;
+      e.dose.reps = 10;
+      e.dose.rir = 3;
+    }
     const rest = exercises.filter((e) => e.role !== "push" && e.role !== "pull");
     exercises.splice(0, exercises.length, ...rest, ...upper);
   }
   // Holding belongs to preparation, before power or strength, not a late accessory.
   const holdingIndex = exercises.findIndex((e) => e.role === "quad_iso");
-  if (holdingIndex >= 0) { const [holding] = exercises.splice(holdingIndex, 1); exercises.splice(1, 0, holding); }
+  if (holdingIndex >= 0) {
+    const [holding] = exercises.splice(holdingIndex, 1);
+    exercises.splice(1, 0, holding);
+  }
   let organization: EngineSession["organization"] =
     powerRole === "power" ? "power_first" : "straight";
   const primary = exercises.find(
@@ -480,53 +666,87 @@ export function buildStrength(
   return recipe;
 }
 
-/** Keep front/back legs and one upper-body task. Never shorten rests or erase
- * warm-up to pretend a complete session fits a small time budget. */
+/** Trim the least important support first. A one-minute overrun must not turn all
+ * accessories into one-set work. Main work, warm-up and ordinary recovery survive. */
 export function fitStrengthToBudget(recipe: EngineSession, budget: number): EngineSession {
   if (recipe.minutes <= budget) return recipe;
-  const essential = recipe.roles.includes("strengthA")
-    ? ["warmup", "knee_strength", "knee_flexion", "hip_strength", "push"]
-    : ["warmup", "hip_strength", "unilateral_strength", "pull"];
-  const compact = structuredClone(recipe);
-  const restoreSingleRest = (e: ExerciseDecision): ExerciseDecision => ({
-    ...e,
-    dose: {
-      ...e.dose,
-      restSeconds: recipe.strengthPairs?.some((pair) => pair.roles.includes(e.role))
-        ? Math.max(e.dose.restSeconds, ["push", "pull"].includes(e.role) ? 75 : 60)
-        : e.dose.restSeconds,
-    },
-  });
+  let compact = structuredClone(recipe);
+  const a = recipe.roles.includes("strengthA");
+  const primaryRole = a ? "knee_strength" : "hip_strength";
+  const minutes = () => Math.ceil(estimateSessionSeconds(compact.exercises) / 60) + 8;
+  const finish = () => {
+    compact.minutes = minutes();
+    compact.plyometricContacts = strengthLandingCount(compact.exercises);
+    return compact;
+  };
+  const drop = (roles: readonly Role[]) => {
+    compact.exercises = compact.exercises.filter((e) => !roles.includes(e.role));
+  };
+  // A free-standing throw is an optional addition, not a reason to erase the
+  // basic leg/upper tasks. An explicit linked contrast is removed as a whole.
+  if (!compact.upperContrast) drop(["upper_power"]);
+  if (minutes() <= budget) return finish();
+  // Optional lower support can go without changing the main dose or breaking a pair.
+  if (a && compact.exercises.some((e) => e.role === "knee_flexion")) drop(["hip_strength"]);
+  if (!a) drop(["hamstring_iso", "hamstring_dynamic_support"]);
+  if (minutes() <= budget) return finish();
+  if (compact.upperContrast) {
+    compact = withoutUpperContrast(
+      compact,
+      "Zwykłe wyciskanie: dostępny czas nie pozwala zachować pełnego opcjonalnego kontrastu i jego przerw.",
+    );
+    if (minutes() <= budget) return finish();
+  }
+
+  // A shorter session uses ordinary accessory sets. Restore their full standalone
+  // rests; 30 s was a transition to a partner, never the prescribed recovery alone.
   compact.variant = "compact";
   compact.organization = "straight";
-  const primary = (role: string) => role === "knee_strength" || role === "hip_strength";
-  compact.exercises = compact.exercises
-    .map(restoreSingleRest)
-    .filter((e) => essential.includes(e.role))
-    .map((e) => ({
-      ...e,
-      dose: {
-        ...e.dose,
-        cluster: undefined,
-        sets: e.role === "warmup" ? 1 : primary(e.role) ? Math.min(2, e.dose.sets) : 1,
-      },
-      reason: `Cel ćwiczenia: ${ROLE_NAMES[e.role]}. Krótszy wariant: zwykłe serie, podstawowe zadania i pełne przerwy. Nie jest to wykonanie metody specjalistycznej.`,
-    }));
-  const extras = recipe.exercises
-    .map(restoreSingleRest)
-    .filter((e) => !essential.includes(e.role) && e.role !== "iso_primer");
-  const minutes = () => Math.ceil(estimateSessionSeconds(compact.exercises) / 60) + 8;
-  compact.minutes = minutes();
-  for (const e of extras) {
-    const index = e.role === "power" || e.role === "landing" ? 1 : compact.exercises.length;
-    compact.exercises.splice(index, 0, { ...e, dose: { ...e.dose, sets: 1 } });
-    if (minutes() > budget) compact.exercises.splice(index, 1);
+  for (const e of compact.exercises) {
+    const paired = compact.strengthPairs?.some((pair) => pair.roles.includes(e.role));
+    if (paired) {
+      e.dose.restSeconds = ["push", "pull"].includes(e.role) ? 75 : 60;
+      delete e.dose.postRestSeconds;
+    }
+    delete e.dose.cluster;
+    e.reason += " Krótszy wariant: zachowaj pełne przerwy i zapisany zapas.";
   }
-  compact.minutes = minutes();
-  compact.plyometricContacts = strengthLandingCount(compact.exercises);
-  // Compact work keeps independent sets; a dropped partner must not survive as pair metadata.
   delete compact.strengthPairs;
-  return compact;
+  // An explicitly selected contrast becomes independent power followed by strength.
+  if (recipe.organization === "contrast") {
+    const primary = compact.exercises.find((e) => e.role === primaryRole);
+    const powerIndex = compact.exercises.findIndex((e) => e.role === "power");
+    if (primary) primary.dose.restSeconds = Math.max(180, primary.dose.restSeconds);
+    if (primary && powerIndex >= 0) {
+      const [power] = compact.exercises.splice(powerIndex, 1);
+      compact.exercises.splice(
+        compact.exercises.findIndex((e) => e.role === primaryRole),
+        0,
+        power,
+      );
+    }
+  }
+  drop(["iso_primer", "quad_iso"]);
+  if (minutes() <= budget) return finish();
+  // Keep two working sets of accessories where possible, rather than spreading
+  // one set across every exercise. Never add sets merely to fill a time limit.
+  for (const roles of [
+    ["calf_straight", "calf_bent"],
+    ["adductor", "trunk"],
+    ["power", "landing"],
+    [a ? "pull" : "push"],
+  ] as Role[][]) {
+    drop(roles);
+    if (minutes() <= budget) return finish();
+  }
+  const primary = compact.exercises.find((e) => e.role === primaryRole);
+  if (primary) primary.dose.sets = Math.min(2, primary.dose.sets);
+  if (minutes() <= budget) return finish();
+  for (const e of compact.exercises)
+    if (e.role !== "warmup" && e !== primary) e.dose.sets = Math.min(2, e.dose.sets);
+  // If even the minimum does not fit, the scheduler reports an unmet target.
+  // It never lies about duration or cuts warm-up/recovery to make it fit.
+  return finish();
 }
 
 function resolveGymBraking(p: Profile): boolean {
