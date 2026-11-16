@@ -1051,18 +1051,28 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
     }
     const supportKind = mobilityRecipe ? null : policy.support;
     if (supportKind) {
-      const supportRecipe =
+      const supportRecipe = (secondSession: boolean) =>
         supportKind === "skills"
-          ? buildSkills(p, phase, { rotation: cycle.weekIndex })
+          ? buildSkills(p, phase, {
+              rotation: cycle.weekIndex,
+              budget: options.minutesPerSession ?? 75,
+              secondSession,
+            })
           : buildMobility(p, phase);
       let fitted = false;
-      for (let i = 0; i < 7; i++) {
-        if ([...matches].some((m) => Math.abs(dayDistance(best[i].date, m)) <= 1)) continue;
-        const attempt = placeSupport(best, i, supportRecipe, p, options, matches);
-        if (attempt) {
-          best = attempt;
-          fitted = true;
-          break;
+      // A day of its own first; only then next to club training or another own session.
+      const free = (d: SessionDay) => d.dayType !== "club" && own(d).length === 0;
+      for (const pass of [true, false]) {
+        if (fitted) break;
+        for (let i = 0; i < 7; i++) {
+          if ([...matches].some((m) => Math.abs(dayDistance(best[i].date, m)) <= 1)) continue;
+          if (free(best[i]) !== pass) continue;
+          const attempt = placeSupport(best, i, supportRecipe(!pass), p, options, matches);
+          if (attempt) {
+            best = attempt;
+            fitted = true;
+            break;
+          }
         }
       }
       if (!fitted)

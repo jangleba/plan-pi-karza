@@ -233,25 +233,44 @@ it("keeps foundations stable and makes the direction/color tasks reachable witho
     expect(s.exercises[1].exerciseId).toBe("football_self_feed_first_touch");
     expect(new Set(s.exercises.map((e) => e.exerciseId)).size).toBe(s.exercises.length);
     expect(s.highLower).toBe(false);
-    expect(
-      s.exercises.some((e) =>
-        ["football_speed_dribble", "football_slalom_time", "football_finishing_corners"].includes(
-          e.exerciseId,
-        ),
-      ),
-    ).toBe(false);
   }
   expect(buildSkills(p, "development", { rotation: 2 })).toEqual(
     buildSkills(p, "development", { rotation: 2 }),
   );
 });
+it("leaves fast or forceful drills out next to club training, for beginners and in deload", () => {
+  const p = { ...profile, equipment: ["football_ball"], hasPitch: true };
+  const intense = ["football_speed_dribble", "football_slalom_time", "football_finishing_corners"];
+  const has = (s: ReturnType<typeof buildSkills>) =>
+    s!.exercises.some((e) => intense.includes(e.exerciseId));
+  const rotations = Array.from({ length: 12 }, (_, rotation) => rotation);
+  expect(rotations.some((rotation) => has(buildSkills(p, "development", { rotation })))).toBe(true);
+  for (const rotation of rotations) {
+    expect(has(buildSkills(p, "development", { rotation, secondSession: true }))).toBe(false);
+    expect(has(buildSkills({ ...p, level: "beginner" }, "development", { rotation }))).toBe(false);
+    expect(has(buildSkills(p, "deload", { rotation }))).toBe(false);
+  }
+});
+it("is a full session: ball warm-up, four work tasks and calm contacts, fitted to the time", () => {
+  const p = { ...profile, level: "intermediate" as const, equipment: ["football_ball"] };
+  const full = buildSkills(p, "development")!;
+  expect(full.exercises).toHaveLength(6);
+  expect(full.exercises.at(-1)!.exerciseId).toBe("football_easy_contacts");
+  expect(full.exercises.slice(1, 5).every((e) => e.dose.sets === 3 && e.dose.seconds === 60)).toBe(
+    true,
+  );
+  expect(full.minutes).toBeGreaterThanOrEqual(30);
+  const short = buildSkills(p, "development", { budget: 25 })!;
+  expect(short.minutes).toBeLessThanOrEqual(25);
+  expect(short.exercises.length).toBeLessThan(full.exercises.length);
+  expect(buildSkills(p, "development", { budget: 10 })).toBeNull();
+});
 it("uses smaller starting doses for a young or novice player without guessing actual technical ability", () => {
   const p = { ...profile, equipment: ["football_ball"] };
-  const young = buildSkills({ ...p, age: 13 }, "development")!;
-  expect(young.exercises.every((e) => e.dose.sets === 1 && e.dose.seconds === 30)).toBe(true);
+  const work = (s: ReturnType<typeof buildSkills>) => s!.exercises.slice(1, -1);
+  const novice = buildSkills({ ...p, level: "beginner" }, "development")!;
+  expect(work(novice).every((e) => e.dose.sets === 2 && e.dose.seconds === 45)).toBe(true);
   expect(
-    buildSkills(p, "development")!.exercises.every(
-      (e) => e.dose.sets === 2 && e.dose.seconds === 45,
-    ),
+    work(buildSkills(p, "development")).every((e) => e.dose.sets === 3 && e.dose.seconds === 75),
   ).toBe(true);
 });

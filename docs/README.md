@@ -5,6 +5,7 @@ potwierdzenia wdrożenia, odbioru prawnego ani testów na fizycznym urządzeniu.
 
 ## Utrzymywane instrukcje
 
+- [Indywidualna sesja z piłką · silnik V2.13](SESJE-Z-PILKA.md)
 - [Tydzień meczowy: siłownia dzień po meczu · silnik V2.12](TYDZIEN-W-SEZONIE.md)
 - [Doprecyzowanie sprzętu, para wyciskanie–rzut i wykonanie · silnik V2.11](SILOWNIA-V211.md)
 - [Pełne A/B siłowni 16+, warianty, dobór i badania · silnik V2.10](SILOWNIA-V210.md)

@@ -194,57 +194,121 @@ export function buildRecovery(
   ]);
 }
 
-/** Individual ball work only: no partner, wall or goalkeeper equipment is silently assumed. */
+/**
+ * Ordered slots of an individual ball session. Each slot takes the first usable drill from its
+ * list, starting at the week's rotation, so the session changes week to week without inventing
+ * equipment, space or a partner. Drills marked intense are left out of light sessions.
+ */
+const OUTFIELD_SLOTS: readonly (readonly string[])[] = [
+  ["football_ball_mastery", "football_fast_feet_sequence"],
+  ["football_wall_first_touch", "football_self_feed_first_touch"],
+  [
+    "football_wall_one_touch",
+    "football_wall_receive_turn",
+    "football_scan_control",
+    "football_turn_control",
+    "football_target_pass",
+  ],
+  ["football_gate_dribble", "football_cone_feints", "football_speed_dribble"],
+  [
+    "football_finishing_corners",
+    "football_juggling_record",
+    "football_long_pass_zone",
+    "football_slalom_time",
+  ],
+];
+const KEEPER_SLOTS: readonly (readonly string[])[] = [
+  ["football_ball_mastery", "football_fast_feet_sequence"],
+  ["football_gk_distribution", "football_gk_wall_handling"],
+  ["football_wall_first_touch", "football_self_feed_first_touch"],
+  ["football_gk_distribution", "football_target_pass"],
+  ["football_gk_kick_zone", "football_long_pass_zone", "football_juggling_record"],
+];
+/** The first two slots are stable foundations (first usable drill); the others rotate weekly. */
+const FIXED_SLOTS = 2;
+/** Removed first when the time budget is short: challenge, then dribbling/position work. */
+const DROP_ORDER = [4, 3, 2];
+
+/**
+ * Individual ball session: warm-up with the ball, first touch, passing or turning, dribbling,
+ * one challenge and calm contacts at the end. No partner, wall, goal or pitch is assumed
+ * beyond what the athlete declared.
+ */
 export function buildSkills(
   p: Profile,
   phase: EngineSession["phase"] = "adaptation",
-  context: { rotation?: number } = {},
+  context: { rotation?: number; budget?: number; secondSession?: boolean } = {},
 ): EngineSession | null {
   if (!hasDeclaredFootball(p)) return null;
-  const firstTouch = usable("football_wall_first_touch", p)
-    ? "football_wall_first_touch"
-    : "football_self_feed_first_touch";
-  const passing = usable("football_wall_one_touch", p)
-    ? "football_wall_one_touch"
-    : "football_turn_control";
-  // Stable foundations repeat; only one complementary task rotates between weeks.
-  // Rotation exposes other skills, never manufactures evidence of mastery or increases volume.
-  const drillEligible = (d: FootballDrill) =>
-    !d.intense &&
-    d.space !== "pitch" &&
-    !d.roles.every((role) => role === "cooldown") &&
-    (!d.positions || d.positions.includes(p.position)) &&
-    usable(d.id, p);
-  const keeper = p.position === "goalkeeper";
-  const fixed = keeper
-    ? ["football_gk_distribution", firstTouch]
-    : ["football_ball_mastery", firstTouch];
-  const first = keeper ? "football_ball_mastery" : passing;
-  const pool = [first, ...INDIVIDUAL_FOOTBALL_DRILLS.filter(drillEligible).map((d) => d.id)].filter(
-    (id, index, all) => !fixed.includes(id) && all.indexOf(id) === index && usable(id, p),
-  );
   const rotation =
     Number.isInteger(context.rotation) && context.rotation! >= 0 ? context.rotation! : 0;
-  const extra = pool.length ? pool[rotation % pool.length] : null;
-  const ids = [...fixed, ...(extra ? [extra] : [])];
   const beginner = p.age < 16 || p.level === "beginner";
-  return recipe(
-    "skills",
-    p,
-    phase,
-    ids.map((id) =>
-      decision(
-        p,
-        id,
-        "ball_skill",
-        {
-          sets: phase === "deload" || beginner ? 1 : 2,
-          seconds: beginner ? 30 : 45,
-          restSeconds: 30,
-          intent: "controlled",
-        },
-        `Cel: ${INDIVIDUAL_FOOTBALL_DRILLS.find((d) => d.id === id)?.quality ?? "Kontrola piłki"} Pracuj spokojnie obiema nogami. Najpierw powtarzalna dokładność, dopiero potem trudniejsza noga lub zmiana kierunku; zegar nie potwierdza opanowania umiejętności.`,
-      ),
-    ),
+  // Next to club training or another session: no fast or forceful drills and fewer sets.
+  const light = beginner || phase === "deload" || !!context.secondSession;
+  const drillById = new Map<string, FootballDrill>(
+    INDIVIDUAL_FOOTBALL_DRILLS.map((d) => [d.id, d as FootballDrill]),
   );
+  const fits = (id: string) => {
+    const d = drillById.get(id);
+    return (
+      !!d &&
+      (!d.positions || d.positions.includes(p.position)) &&
+      !(light && d.intense) &&
+      usable(id, p)
+    );
+  };
+  const slots = p.position === "goalkeeper" ? KEEPER_SLOTS : OUTFIELD_SLOTS;
+  const chosen: (string | null)[] = [];
+  for (const [slot, list] of slots.entries()) {
+    const shift = slot < FIXED_SLOTS ? 0 : rotation;
+    const ordered = list.map((_, i) => list[(i + shift) % list.length]);
+    chosen.push(ordered.find((id) => fits(id) && !chosen.includes(id)) ?? null);
+  }
+  const dose = (slot: number, sets: number): Dose =>
+    slot === 0
+      ? { sets: 1, seconds: 120, restSeconds: 30, intent: "controlled" }
+      : {
+          sets,
+          seconds: beginner ? 45 : ["advanced", "elite"].includes(p.level) ? 75 : 60,
+          restSeconds: beginner ? 30 : 45,
+          intent: "controlled",
+        };
+  const build = (ids: (string | null)[], sets: number) =>
+    recipe("skills", p, phase, [
+      ...ids.map((id, slot) =>
+        id
+          ? decision(
+              p,
+              id,
+              "ball_skill",
+              dose(slot, sets),
+              `Cel: ${drillById.get(id)?.quality ?? "Kontrola piłki"}`,
+            )
+          : null,
+      ),
+      fits("football_easy_contacts")
+        ? decision(
+            p,
+            "football_easy_contacts",
+            "ball_skill",
+            { sets: 1, seconds: 90, restSeconds: 0, intent: "easy" },
+            "Spokojne kontakty na koniec sesji.",
+          )
+        : null,
+    ]);
+  const budget = context.budget ?? Number.POSITIVE_INFINITY;
+  let sets = light ? 2 : 3;
+  let ids = [...chosen];
+  let session = build(ids, sets);
+  for (const slot of DROP_ORDER) {
+    if (!session || session.minutes <= budget) break;
+    if (ids.filter(Boolean).length <= 2) break;
+    ids = ids.map((id, i) => (i === slot ? null : id));
+    session = build(ids, sets);
+  }
+  while (session && session.minutes > budget && sets > 1) {
+    sets -= 1;
+    session = build(ids, sets);
+  }
+  return session && session.minutes <= budget ? session : null;
 }
