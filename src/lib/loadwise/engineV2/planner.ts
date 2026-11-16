@@ -37,9 +37,11 @@ import { applyGymProgression } from "./gymProgression";
 import { renderStrengthPairs } from "./strengthPairs";
 import { buildAdvancedStrength, withoutAdvancedRows } from "./advancedSessions";
 import { advancedSectionType, renderComplexPairs } from "./advancedRender";
+import { athleticSectionType } from "./athleticRender";
 import { chooseStrengthFocus, strengthWeekContext } from "./strengthPolicy";
 import { applyStrengthFocus } from "./strengthPolicy";
 import { applyUpperContrast, renderUpperContrast, withoutUpperContrast } from "./upperContrast";
+import { strengthPreparationOverhead } from "./strengthPreparation";
 
 const names = ["Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota"];
 const slots = (d: SessionDay) => [d, ...(d.secondSession ? [d.secondSession] : [])];
@@ -108,9 +110,11 @@ function day(date: string, p: Profile, matches: Set<string>): SessionDay {
 /** First external/axial-loaded main lift of a strength session: where a ramp-up is shown. */
 function isFirstLoadedMain(recipe: EngineSession, index: number): boolean {
   if (!recipe.roles.some((r) => r.startsWith("strength"))) return false;
+  const mainRoles =
+    recipe.postMatch === "upper" ? ["push", "pull"] : ["knee_strength", "hip_strength"];
   const first = recipe.exercises.findIndex(
     (e) =>
-      ["knee_strength", "hip_strength"].includes(e.role) &&
+      mainRoles.includes(e.role) &&
       ["external", "axial"].includes(getExerciseDefinition(e.exerciseId)?.loadingType ?? ""),
   );
   return first === index;
@@ -158,6 +162,7 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
       ].includes(e.role) ||
       (e.role === "upper_power" && !!recipe.upperContrast);
     const type =
+      athleticSectionType(recipe, e) ??
       advancedSectionType(recipe, e.role) ??
       (d.speedStage === "cooldown"
         ? "cooldown"
@@ -175,11 +180,13 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
         title:
           type === "warmup"
             ? "Przygotowanie"
-            : type === "accessory"
-              ? "Uzupełnienie"
-              : type === "cooldown"
-                ? "Zakończenie"
-                : "Część główna",
+            : type === "prep"
+              ? "Przygotowanie ruchowe"
+              : type === "accessory"
+                ? "Uzupełnienie"
+                : type === "cooldown"
+                  ? "Zakończenie"
+                  : "Część główna",
         type,
         blocks: [],
       };
@@ -213,6 +220,9 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
           ? `Runda ${d.sequenceStep.round}/${d.sequenceStep.rounds} · odcinek ${d.sequenceStep.attempt}/${d.sequenceStep.attempts}`
           : undefined,
       engineDose: d,
+      ...(recipe.strengthPreparationVersion === 1 && e.role === "warmup"
+        ? { preparationOnly: true as const }
+        : {}),
       strengthFocus: ["knee_strength", "hip_strength"].includes(e.role)
         ? recipe.strengthFocus
         : undefined,
@@ -372,7 +382,9 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
         ? "Rozgrzewkę i schłodzenie prowadzi licznik biegu."
         : speed
           ? "Wykonaj zapisane przygotowanie i narastające przebieżki przed głównymi sprintami. Zakończ próbę przy utracie jakości."
-          : "8 minut przygotowania ogólnego i serii wprowadzających uwzględniono w czasie sesji. Nie zaczynaj od ciężaru roboczego.",
+          : recipe.strengthPreparationVersion === 1
+            ? "Wykonaj zapisaną rozgrzewkę i lekkie serie wprowadzające przed pierwszym ćwiczeniem z obciążeniem. Nie zaczynaj od ciężaru roboczego."
+            : "8 minut przygotowania ogólnego i serii wprowadzających uwzględniono w czasie sesji. Nie zaczynaj od ciężaru roboczego.",
     structuredSections: sections,
     sections: structuredToFlat(sections),
   };
@@ -498,7 +510,9 @@ export function finalizeStrengthRecipe(
       p,
       (id) => eligibleExercise(id, p, "upper_power"),
     );
-    focused.minutes = Math.ceil(estimateSessionSeconds(focused.exercises) / 60) + 8;
+    focused.minutes =
+      Math.ceil(estimateSessionSeconds(focused.exercises) / 60) +
+      strengthPreparationOverhead(focused);
     return applyGymProgression(focused, p, date, options, days);
   };
   const full = settle(base);
@@ -550,7 +564,9 @@ const isStrengthRecipe = (r: EngineSession) =>
 
 const strengthSignature = (s: SessionDay) =>
   JSON.stringify([
-    s.engineV2?.exercises.map((e) => [e.exerciseId, e.role, e.dose]),
+    s.engineV2?.exercises.map((e) => [e.exerciseId, e.role, e.dose, e.strengthStage]),
+    s.engineV2?.strengthStructure,
+    s.engineV2?.strengthTimeOmissions,
     s.engineV2?.strengthFocus?.mode,
     s.engineV2?.organization,
     s.durationMin,
@@ -939,15 +955,31 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
         ? [{ id: ids[t], recipe, priority: weights[t] }]
         : [],
     );
+    const strengthIds = ["strengthA", "strengthB"] as const;
+    const recentStrength = [...(options.precedingDays ?? []), ...plan].filter(
+      (d) => dayDistance(base[0].date, d.date) <= 28 && dayDistance(base[0].date, d.date) > 0,
+    );
+    const countLegPattern = (id: (typeof strengthIds)[number]) =>
+      recentStrength
+        .flatMap(slots)
+        .filter((s) => s.engineV2?.roles.includes(id) && s.engineV2.postMatch !== "upper").length;
+    const preferLegPattern =
+      countLegPattern("strengthA") > countLegPattern("strengthB") ? "strengthB" : "strengthA";
     const solve = (candidates: typeof available) =>
       solveWeeklySchedule({
         initialState: base,
         tasks: candidates,
         dayCount: 7,
         mainGoalIds: mainGoalTasks(p),
-        // The key endurance session (intervals/tempo) counts in full only when it is the one placed;
-        // a calm run in its place still covers the target but ranks below the key session.
+        // A calm run covers endurance, but not its intended hard stimulus. Likewise,
+        // post-match upper work covers a gym slot, not that slot's leg pattern.
         isFull: (days, id) => {
+          if (id === "strengthA" || id === "strengthB")
+            return days.some((d) =>
+              own(d).some(
+                (s) => s.engineV2!.roles.includes(id) && s.engineV2!.postMatch !== "upper",
+              ),
+            );
           const intended = candidates.find((t) => t.id === "endurance")?.recipe.highLower;
           return (
             id !== "endurance" ||
@@ -961,30 +993,51 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
           days.some((d) =>
             own(d).some((s) => s.engineV2!.roles.includes(id as (typeof ids)[number])),
           ),
-        tryPlace: (days, recipe, i) =>
-          place(days, i, recipe, p, options, matches, [...(options.precedingDays ?? []), ...plan]),
+        tryPlace: (days, recipe, i) => {
+          const preceding = [...(options.precedingDays ?? []), ...plan];
+          const regular = place(days, i, recipe, p, options, matches, preceding);
+          if (
+            "state" in regular ||
+            !isStrengthRecipe(recipe) ||
+            !isPostMatchDate(days[i].date, matches)
+          )
+            return regular;
+          // MD+1 must participate in the whole-week search: appending only a missing gym
+          // session cannot move an already-covered Tue/Thu pair to make room for sprint.
+          const postMatch = place(
+            days,
+            i,
+            { ...recipe, postMatch: postMatchMode(p) },
+            p,
+            options,
+            matches,
+            preceding,
+          );
+          // The objective ranks goal/target coverage first. With equal coverage, retain
+          // regular gym dates instead of choosing post-match work for a cosmetic cost.
+          return "state" in postMatch
+            ? {
+                ...postMatch,
+                penalty:
+                  (postMatch.penalty ?? 0) +
+                  100 +
+                  // Upper work does not train its A/B leg pattern. Keep the actual leg
+                  // session alternating when either upper-body label fits equally well.
+                  (postMatchMode(p) === "upper" && recipe.roles.includes(preferLegPattern) ? 1 : 0),
+              }
+            : postMatch;
+        },
       });
     let solved = solve(available);
     // One strength slot in a week: alternate A and B across weeks by what the last four weeks
     // actually contained, instead of repeating A forever. Both are never merged into one session.
-    const strengthIds = ["strengthA", "strengthB"] as const;
     const placedStrength = strengthIds.filter((id) => solved.covered.includes(id));
     if (
       placedStrength.length === 1 &&
       available.some((t) => t.id === "strengthA") &&
       available.some((t) => t.id === "strengthB")
     ) {
-      const recent = [...(options.precedingDays ?? []), ...plan].filter(
-        (d) => dayDistance(base[0].date, d.date) <= 28 && dayDistance(base[0].date, d.date) > 0,
-      );
-      const count = (id: string) =>
-        recent
-          .flatMap(slots)
-          // An upper-body session after a match did not train that day's leg pattern.
-          .filter(
-            (s) => s.engineV2?.roles.includes(id as never) && s.engineV2.postMatch !== "upper",
-          ).length;
-      const prefer = count("strengthA") > count("strengthB") ? "strengthB" : "strengthA";
+      const prefer = preferLegPattern;
       if (placedStrength[0] !== prefer) {
         const nudged = available.map((t) =>
           t.id === prefer ? { ...t, priority: t.priority + 1 } : t,
@@ -1287,6 +1340,25 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
     }
     // Strength is judged on the complete week: sprint, runs, club and matches placed later count too.
     best = finalizeStrengthWeek(best, p, options, [...(options.precedingDays ?? []), ...plan]);
+    for (const d of best) {
+      if (d.executionProtected) continue;
+      for (const session of own(d)) {
+        for (const decision of session.engineV2!.gymProgressionDecisions ?? [])
+          if (decision.action === "omit")
+            issues.push({
+              code: "ADAPTED_STRENGTH_STIMULUS",
+              date: d.date,
+              message: `${getExerciseDefinition(decision.exerciseId)?.displayNamePl ?? "Zadanie siłowni"}: ${decision.reason}`,
+            });
+        const omitted = session.engineV2!.strengthTimeOmissions;
+        if (omitted?.length)
+          issues.push({
+            code: "REDUCED_STRENGTH_TIME",
+            date: d.date,
+            message: `Krótszy wariant siłowni: ze względu na dostępny czas pominięto opcjonalne zadania: ${[...new Set(omitted.map((row) => ROLE_NAMES[row.role]))].join(", ")}. Zachowano przygotowanie i główne wzorce sesji.`,
+          });
+      }
+    }
     attachCycle(best, cycle);
     best.forEach((d) => {
       if (!d.executionProtected)
@@ -1380,12 +1452,10 @@ export function validateTrainingPlan(
       if (r.minutes > (options.minutesPerSession ?? 75))
         fail("TIME_LIMIT", d.date, "Przekroczony czas.");
       if (r.sprintMetres > 240) fail("SPRINT_LIMIT", d.date, "Ponad 240 m sprintu.");
-      const ids = new Set<string>();
       for (const e of r.exercises) {
         if (!eligibleExercise(e.exerciseId, p, e.role))
           fail("INELIGIBLE_EXERCISE", d.date, e.exerciseId);
-        if (ids.has(e.exerciseId)) fail("DUPLICATE_EXERCISE", d.date, e.exerciseId);
-        ids.add(e.exerciseId);
+        // validateEngineSession already checks duplicate work, including explicit preparation.
         if (
           !Number.isInteger(e.dose.sets) ||
           e.dose.sets <= 0 ||

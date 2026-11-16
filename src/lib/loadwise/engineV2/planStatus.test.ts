@@ -4,7 +4,12 @@ import { trainingProfileRevision, trainingSetupRevision } from "../planIdentity"
 import type { Profile, Readiness, SessionCompletion, SessionDay } from "../types";
 import { generateTrainingPlan, validateTrainingPlan } from "./planner";
 import { ENGINE_VERSION } from "./model";
-import { getPlanStatus, sessionStartIssue, todayTrainingState } from "./planStatus";
+import {
+  getPlanStatus,
+  hasOutdatedPendingEngineWork,
+  sessionStartIssue,
+  todayTrainingState,
+} from "./planStatus";
 
 const profile: Profile = {
   ...buildProfile({ full_name: "Plan lifecycle" }, { age: 24, position: "midfielder" }, null)!,
@@ -38,6 +43,49 @@ const readiness = {
 } as unknown as Readiness;
 
 describe("read-only plan lifecycle", () => {
+  it("requires an explicit rebuild of unstarted v2.12 work after the v2.13 upgrade", () => {
+    const saved = [{ ...structuredClone(main), generatorVersion: "ballwise-v2.12" }];
+    const before = structuredClone(saved);
+    expect(getPlanStatus({ plan: saved, profile, todayIso: main.date })).toMatchObject({
+      kind: "stale",
+      staleReason: "version",
+    });
+    expect(hasOutdatedPendingEngineWork(saved, {}, main.date)).toBe(true);
+    expect(sessionStartIssue({ session: saved[0], profile, todayIso: main.date })).toContain(
+      "starszej wersji",
+    );
+    expect(saved).toEqual(before);
+    expect(getPlanStatus({ plan: [main], profile, todayIso: main.date }).kind).toBe("active");
+  });
+
+  it("keeps a started v2.12 prescription intact while an explicit rebuild uses v2.13 elsewhere", () => {
+    const old = { ...structuredClone(main), generatorVersion: "ballwise-v2.12" };
+    const before = structuredClone(old);
+    const completions = { [main.dbId]: started };
+    expect(getPlanStatus({ plan: [old], profile, todayIso: main.date, completions }).kind).toBe(
+      "active",
+    );
+    expect(hasOutdatedPendingEngineWork([old], completions, main.date)).toBe(false);
+    expect(
+      sessionStartIssue({ session: old, profile, todayIso: main.date, completion: started }),
+    ).toBeNull();
+    const rebuilt = generateTrainingPlan(profile, {
+      startDate: main.date,
+      weeks: 1,
+      lockedDays: [old],
+    }).plan;
+    const kept = rebuilt.find((day) => day.date === old.date)!;
+    expect(kept.generatorVersion).toBe("ballwise-v2.12");
+    expect(kept.engineV2).toEqual(before.engineV2);
+    expect(kept.sections).toEqual(before.sections);
+    expect(
+      rebuilt
+        .filter((day) => day.date !== old.date)
+        .every((day) => day.generatorVersion === ENGINE_VERSION),
+    ).toBe(true);
+    expect(old).toEqual(before);
+  });
+
   it("distinguishes an empty plan, active window and expired cycle without modifying history", () => {
     const original = structuredClone(plan);
     expect(getPlanStatus({ plan: [], profile, todayIso: "2026-11-02" }).kind).toBe("empty");

@@ -1,11 +1,18 @@
 /* Plan: one quiet week at a time. Inset grouped lists, hairlines, one accent. */
+.bw-plan-screen {
+  --primary: var(--foreground);
+  --primary-foreground: var(--card);
+  --bw-motion: var(--foreground);
+  --bw-motion-soft: var(--muted);
+  --bw-warning: var(--muted-foreground);
+}
 .bw-plan-screen .bw-page-header {
   padding-top: max(16px, env(safe-area-inset-top));
   padding-bottom: 4px;
 }
 .bw-plan-stack {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   padding: 0 var(--bw-page-gutter, 16px);
 }
 .bw-plan-quiet {
@@ -61,14 +68,14 @@
   font-size: 14px;
 }
 .bw-plan-button {
-  min-height: 50px;
+  min-height: 46px;
   width: 100%;
-  padding: 12px 16px;
-  border-radius: 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
   background: var(--primary);
   color: var(--primary-foreground);
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 500;
   transition: opacity 140ms ease;
 }
 .bw-plan-button:disabled {
@@ -136,8 +143,8 @@
   height: 30px;
   padding: 6px;
   border-radius: 8px;
-  color: var(--primary);
-  background: color-mix(in oklch, var(--primary) 9%, var(--card));
+  color: var(--muted-foreground);
+  background: var(--muted);
 }
 .bw-plan-select {
   display: flex;
@@ -217,8 +224,8 @@
   height: 44px;
   place-items: center;
   border-radius: 999px;
-  background: var(--card);
-  color: var(--primary);
+  background: transparent;
+  color: var(--foreground);
   box-shadow: none;
 }
 .bw-wk-head button svg {
@@ -259,8 +266,8 @@
   font-variant-numeric: tabular-nums;
 }
 .bw-wk-strip li[data-today] b {
-  background: var(--primary);
-  color: var(--primary-foreground);
+  background: var(--foreground);
+  color: var(--card);
   font-weight: 600;
 }
 .bw-wk-strip i {
@@ -270,10 +277,7 @@
   background: transparent;
 }
 .bw-wk-strip li[data-train] i {
-  background: var(--primary);
-}
-.bw-wk-strip li[data-match] i {
-  background: var(--bw-warning, #c2410c);
+  background: var(--muted-foreground);
 }
 .bw-wk-days {
   margin: 0;
@@ -317,7 +321,7 @@
 }
 .bw-wk-days > li[data-today] .bw-wk-date span,
 .bw-wk-days > li[data-today] .bw-wk-date b {
-  color: var(--primary);
+  color: var(--foreground);
   font-weight: 600;
 }
 .bw-wk-sessions {
@@ -332,7 +336,7 @@
 .bw-wk-static {
   display: flex;
   width: 100%;
-  min-height: 64px;
+  min-height: 62px;
   align-items: center;
   gap: 10px;
   padding: 10px 14px 10px 0;
@@ -375,7 +379,7 @@
   line-height: 1.35;
 }
 .bw-wk-phase {
-  color: var(--bw-warning, var(--primary)) !important;
+  color: var(--muted-foreground);
 }
 .bw-wk-done {
   flex: none;
@@ -383,8 +387,8 @@
   height: 20px;
   padding: 3px;
   border-radius: 999px;
-  background: var(--bw-recovery-soft);
-  color: var(--bw-recovery);
+  background: var(--muted);
+  color: var(--foreground);
 }
 .bw-wk-chevron {
   flex: none;
@@ -460,16 +464,179 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0;
+  column-gap: 3px;
 }
-.bw-wk-strip li[data-train] i {
-  width: 6px;
-  height: 6px;
-  background: var(--bw-tone-ink, var(--bw-motion));
+.bw-wk-category {
+  font: inherit;
+  color: inherit;
 }
 .bw-plan-status {
-  border-left: 3px solid var(--bw-warning-soft);
+  border: 0;
 }
 .bw-wk-copy strong {
-  font-weight: 550;
+  font-weight: 500;
+}
+
+/* A small monochrome mark describes the prescription, never the kind of training. */
+.bw-wk-load {
+  display: inline-flex;
+  flex: none;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  width: 16px;
+  height: 12px;
+  color: var(--muted-foreground);
+}
+.bw-wk-load i {
+  width: 3px;
+  border-radius: 1px;
+  background: var(--border);
+}
+.bw-wk-load i:nth-child(1) {
+  height: 4px;
+}
+.bw-wk-load i:nth-child(2) {
+  height: 8px;
+}
+.bw-wk-load i:nth-child(3) {
+  height: 12px;
+}
+.bw-wk-load i[data-filled] {
+  background: currentColor;
+}
+.bw-wk-load[data-level="unknown"] {
+  align-items: center;
+}
+.bw-wk-load[data-level="unknown"] i:first-child {
+  width: 10px;
+  height: 1px;
+  background: var(--muted-foreground);
+}
+.bw-wk-load[data-level="unknown"] i:not(:first-child) {
+  display: none;
+}
+.bw-wk-load-note {
+  margin: 0 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+}
+
+/* Secondary information stays compact so the week remains the main content. */
+.bw-plan-status--compact {
+  padding: 10px 14px;
+  gap: 0;
+}
+.bw-plan-status-row,
+.bw-plan-mas-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.bw-plan-status-row p,
+.bw-plan-mas-row p {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.bw-plan-status-row .bw-plan-link,
+.bw-plan-mas-row .bw-plan-link {
+  flex: none;
+  font-size: 13px;
+}
+.bw-plan-status-details {
+  border-top: 1px solid var(--border);
+}
+.bw-plan-status-details > summary,
+.bw-plan-notice > summary {
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.bw-plan-status-details > p,
+.bw-plan-status-details > ul {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+.bw-plan-mas {
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--card);
+}
+.bw-plan-mas-row p {
+  margin: 0;
+}
+.bw-plan-mas-row > span {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.bw-plan-mas-details {
+  display: grid;
+  gap: 10px;
+  padding-block: 8px;
+  font-size: 13px;
+}
+.bw-plan-mas-details[hidden] {
+  display: none;
+}
+.bw-plan-mas-details p {
+  margin: 0;
+}
+.bw-plan-mas-details ul {
+  margin: 0;
+  padding-left: 16px;
+}
+.bw-plan-mas-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+.bw-plan-mas-actions button {
+  min-height: 44px;
+  font-size: 14px;
+}
+.bw-plan-preview--compact {
+  padding: 14px;
+  gap: 8px;
+}
+.bw-plan-preview-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.bw-plan-preview-head > span {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.bw-plan-preview-head h2 {
+  font-size: 16px;
+}
+.bw-plan-preview-meta {
+  color: var(--muted-foreground);
+  font-size: 13px !important;
+}
+.bw-plan-preview-details {
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+}
+.bw-plan-preview-details > summary {
+  font-size: 13px;
+}
+.bw-plan-preview-details > p,
+.bw-plan-notice-body {
+  font-size: 13px;
+  color: var(--muted-foreground);
+  line-height: 1.45;
+}
+.bw-plan-notice-body {
+  padding-bottom: 10px;
+}
+.bw-plan-notice-body p {
+  font-size: 13px;
+}
+.bw-plan-screen .bw-weekly-coverage h2 {
+  font-size: 16px;
 }

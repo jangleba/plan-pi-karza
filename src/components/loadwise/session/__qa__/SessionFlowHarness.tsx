@@ -13,6 +13,7 @@ import {
 import { Route as SessionRoute } from "@/routes/sesja.$date";
 import { Route as ProgressRoute } from "@/routes/_tabs.postep";
 import { Route as PlanRoute } from "@/routes/_tabs.plan";
+import { Route as StartRoute } from "@/routes/_tabs.start";
 import { useAuth } from "@/lib/loadwise/auth";
 import { GymEvidenceProvider } from "@/lib/loadwise/useGymEvidence";
 import {
@@ -55,6 +56,11 @@ const progress = createRoute({
   path: "/postep",
   component: ProgressRoute.options.component as any,
 });
+const start = createRoute({
+  getParentRoute: () => root,
+  path: "/start",
+  component: StartRoute.options.component as any,
+});
 /** An isolated sheet launcher; the production plan currently opens a full route. */
 function WeekStandIn() {
   const search = useRouterState({ select: (s) => s.location.search }) as Record<string, unknown>;
@@ -82,9 +88,14 @@ const week = createRoute({
   component: pageFlow ? (PlanRoute.options.component as any) : WeekStandIn,
   validateSearch: parseSessionSheetSearch,
 });
-const startAt = pageFlow || query.get("unit") === "1" ? "/plan" : "/sesja/2026-11-02?slot=1";
+const startAt =
+  query.get("start") === "1"
+    ? "/start"
+    : pageFlow || query.get("unit") === "1"
+      ? "/plan"
+      : "/sesja/2026-11-02?slot=1";
 const router = createRouter({
-  routeTree: root.addChildren([route, progress, week]),
+  routeTree: root.addChildren([route, progress, week, start]),
   history: createMemoryHistory({ initialEntries: [startAt] }),
 });
 Object.assign(window, { __auditRouter: router });

@@ -42,6 +42,8 @@ const player: Profile = {
   strengthTrainingMonths: 24,
   movementCompetence: "high",
   supervisionLevel: "full",
+  // This suite exercises the established goal-based gymPowerCandidates routing.
+  trainingMethodPreferences: { gymTemplate: "balanced" },
 };
 const power = (
   p = player,

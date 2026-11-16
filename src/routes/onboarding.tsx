@@ -40,9 +40,11 @@ import {
   seasonCheck,
   suggestedSeasonPhase,
   trainingFieldsFromAnswers,
+  validOnboardingStrength,
   type OnboardingAnswers,
 } from "@/lib/loadwise/onboardingFlow";
 import { Button } from "@/components/ui/button";
+import { StrengthPreparationFields } from "@/components/onboarding/StrengthPreparationFields";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -213,6 +215,7 @@ const EQUIPMENT_LABEL: Record<string, string> = {
 };
 
 const STEP_ERROR: Partial<Record<StepId, string>> = {
+  conditions: "Sprawdź staż: pełne miesiące, zgodne z wiekiem i doświadczeniem.",
   consents: "Zaznacz wymagane zgody (*).",
   athlete: "Uzupełnij imię, datę urodzenia, pozycję, poziom i ligę.",
   guardian: "Uzupełnij dane opiekuna i potwierdź oświadczenie.",
@@ -377,6 +380,8 @@ function OnboardingForm() {
           answers.seasonPhase !== null &&
           !seasonBlocks
         );
+      case "conditions":
+        return validOnboardingStrength(answers, ageNum ?? undefined);
       default:
         return true;
     }
@@ -1091,6 +1096,17 @@ function OnboardingForm() {
                 }))}
                 value={answers.doubleSessionsAllowed}
                 onPick={(v) => pick("doubleSessionsAllowed", v)}
+              />
+            </Group>
+            <Group
+              icon={Dumbbell}
+              label="Przygotowanie siłowe"
+              note="Możesz uzupełnić teraz lub później w ustawieniach treningu."
+            >
+              <StrengthPreparationFields
+                value={answers}
+                age={ageNum ?? undefined}
+                onChange={(patch) => setAnswers((previous) => ({ ...previous, ...patch }))}
               />
             </Group>
           </>

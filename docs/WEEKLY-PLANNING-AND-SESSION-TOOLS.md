@@ -1,6 +1,8 @@
 # Cele tygodnia i narzędzia sesji
 
-Stan lokalnej implementacji i QA: 16 listopada 2026.
+Zapis etapu implementacji i QA zakończonego na `bd645d91`, 16 listopada 2026.
+Późniejsze diagnozy i zmiany opisuje
+[kolejna iteracja silnika i sesji](TRAINING-ENGINE-FOLLOWUP-2026-11-16.md).
 
 ## Planowanie tygodnia
 
@@ -93,7 +95,10 @@ do rzeczywiście uzupełnionego profilu i kalendarza.
 Znaczenie pastelowych kolorów i linii opisuje
 [instrukcja wyglądu i schematów](MINIMAL-TRAINING-UI.md).
 
-## Zakres sprawdzenia
+## Zakres sprawdzenia etapu bd645d91
+
+Poniższe wyniki dotyczą tamtego etapu i jego fixture; nie potwierdzają zmian
+wprowadzonych później ani kalendarza meczów powtarzanych przez cały cykl.
 
 Chromium: **26/26 widoków rzeczywistej strony sesji** po przejściu z Planu
 oraz **10/10 widoków panelu sesji — PASS**, w szerokościach 320 i 390 px.
@@ -114,7 +119,7 @@ mapowych kafelków online ani pomiaru i pracy w tle na fizycznym telefonie.
 Telefon i kompilacja iOS wymagają osobnego sprawdzenia. Wyniki globalnych
 testów projektu opisano poniżej.
 
-## Końcowa weryfikacja kodu
+## Historyczna weryfikacja kodu bd645d91
 
 - Zgodność lockfile'ów, TypeScript, ESLint, build web i mobilnego SPA: **PASS**.
 - Pełny przebieg UTC obejmował **342 pliki i 2966 testów**: 2964 PASS,
@@ -127,4 +132,5 @@ testów projektu opisano poniżej.
 - `TZ=Europe/Warsaw` dla `todayIso.test.ts`: **3/3 PASS**, również test
   warunkowo pominięty w UTC.
 
-Po tej weryfikacji nie zmieniano kodu produkcyjnego ani testów.
+Weryfikację zamknięto dla etapu `bd645d91`. Późniejsza iteracja zmienia kod
+produkcyjny i testy; wymaga własnego przebiegu weryfikacji.

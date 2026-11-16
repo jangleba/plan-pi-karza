@@ -3,7 +3,7 @@ import { resolveEquipmentId } from "../exerciseLibrary";
 import { hasDeclaredWall } from "./support";
 import { accelerationDistance } from "./preparation";
 import { trainingTier, type Dose, type EngineSession, type ExerciseDecision } from "./model";
-import { updateSprintTotals } from "./sprintRecipe";
+import { sprintDrillInstruction, updateSprintTotals } from "./sprintRecipe";
 import {
   DRILL_SETS,
   MAIN_VARIANTS,
@@ -58,7 +58,9 @@ export function buildSprintSession(
     (requested === "max_velocity" || (requested === "auto" && p.goal === "speed")) &&
     eligible("flying_sprint");
   let goal: SprintGoal = flying ? "max_velocity" : "acceleration";
-  const partner = (p.trainingMethodPreferences?.declaredEquipment ?? []).includes("partner");
+  const partner =
+    (p.trainingMethodPreferences?.declaredEquipment ?? []).includes("partner") &&
+    !(p.unavailableEquipmentIds ?? []).includes("partner");
   // Curves and changes of direction require a pitch and competent control, not just a straight lane.
   if (
     !reduced &&
@@ -167,7 +169,7 @@ export function buildSprintSession(
       },
       exerciseId === "dribble_to_sprint_transition"
         ? "10 m niskiego drobienia, płynnie 10 m przyspieszenia i wolna strefa 10 m do wyhamowania. Jedna próba w każdej rundzie; 30 s na zmianę ćwiczenia i 60 s po rundzie."
-        : `${rounds} rundy tych samych trzech ćwiczeń w kolejności 1 → 2 → 3. Każde 12 s, 30 s na zmianę ćwiczenia i 60 s po rundzie. Kontrola przed tempem.`,
+        : sprintDrillInstruction(rounds),
     );
   add(
     "progressive_build_up_sprint",

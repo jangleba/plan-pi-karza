@@ -64,6 +64,31 @@ export function planWeeks(plan: SessionDay[]): PlanWeekGroup[] {
 const isRest = (s: SessionDay) => s.dayType === "rest" && !s.engineV2;
 const isFullRestDay = (s: SessionDay) => isRest(s) && !s.secondSession && !s.externalCommitment;
 
+/** Prescribed intensity only; club/match placeholders do not establish an observed load. */
+function LoadMark({ session }: { session: SessionDay }) {
+  if (isRest(session)) return null;
+  const level =
+    session.externalCommitment || ["club", "match"].includes(session.dayType)
+      ? null
+      : ({ niska: 1, umiarkowana: 2, wysoka: 3 } as const)[session.intensity];
+  const label = level
+    ? `Planowana intensywność: ${["niska", "umiarkowana", "wysoka"][level - 1]}`
+    : "Planowana intensywność nieokreślona";
+  return (
+    <span
+      className="bw-wk-load"
+      data-level={level ?? "unknown"}
+      role="img"
+      aria-label={label}
+      title={label}
+    >
+      {[1, 2, 3].map((bar) => (
+        <i key={bar} data-filled={(level !== null && bar <= level) || undefined} />
+      ))}
+    </span>
+  );
+}
+
 function Exercises({ session }: { session: SessionDay }) {
   const blocks = session.structuredSections?.flatMap((x) => x.blocks) ?? [];
   if (!blocks.length) return null;
@@ -162,7 +187,6 @@ export function PlanWeek({
             data-today={iso === todayIso || undefined}
             data-train={(day && !isFullRestDay(day)) || undefined}
             data-match={day?.dayType === "match" || undefined}
-            data-tone={day ? sessionAppearance(day).tone : undefined}
           >
             <span>{WEEKDAY[parts(iso).dow]}</span>
             <b>{parts(iso).d}</b>
@@ -194,16 +218,12 @@ export function PlanWeek({
                     <>
                       <span className="bw-wk-copy">
                         <strong>{rest ? "Odpoczynek" : heading.title}</strong>
-                        {!rest && heading.meta.length > 0 && (
+                        {!rest && (
                           <small>
-                            <span className="bw-session-kind" data-tone={appearance.tone}>
+                            <span className="bw-wk-category">
                               {heading.category ?? appearance.label}
                             </span>
-                            <span>
-                              {" "}
-                              ·{" "}
-                              {heading.meta.filter((part) => part !== heading.category).join(" · ")}
-                            </span>
+                            {s.durationMin > 0 && <span> · {Math.round(s.durationMin)} min</span>}
                           </small>
                         )}
                         {s.engineV2?.cycle &&
@@ -211,11 +231,12 @@ export function PlanWeek({
                           <small className="bw-wk-phase">{s.blockPhaseLabel}</small>
                         ) : null}
                       </span>
+                      <LoadMark session={s} />
                       {done && <Check className="bw-wk-done" aria-label="Wykonane" />}
                     </>
                   );
                   return (
-                    <div key={i} className="bw-wk-session" data-tone={appearance.tone}>
+                    <div key={i} className="bw-wk-session">
                       {s.dbId && !preview && !rest ? (
                         <button
                           type="button"
@@ -238,6 +259,9 @@ export function PlanWeek({
           );
         })}
       </ul>
+      <p className="bw-wk-load-note">
+        Intensywność: 1–3 słupki. Kreska oznacza brak danych w planie.
+      </p>
     </section>
   );
 }

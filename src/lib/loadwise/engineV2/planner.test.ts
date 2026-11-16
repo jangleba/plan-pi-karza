@@ -126,7 +126,11 @@ describe("V2 final training contracts", () => {
     expect(b.exercises.some((e) => e.role === "trunk")).toBe(true);
   });
   it("uses loaded power only for eligible prepared athletes with explicitly declared equipment", () => {
-    const p = { ...athlete, goal: "power" as const };
+    const p = {
+      ...athlete,
+      goal: "power" as const,
+      trainingMethodPreferences: { gymTemplate: "balanced" as const },
+    };
     expect(
       buildStrength(p, "A", "development").exercises.some(
         (e) => getExerciseDefinition(e.exerciseId)?.family === "power",
@@ -136,6 +140,13 @@ describe("V2 final training contracts", () => {
       buildStrength({ ...p, equipment: [] }, "A", "development").exercises.some(
         (e) => getExerciseDefinition(e.exerciseId)?.family === "power",
       ),
+    ).toBe(false);
+    expect(
+      buildStrength(
+        { ...p, gymExperienceLevel: "none", strengthTrainingMonths: 0, movementCompetence: "low" },
+        "A",
+        "development",
+      ).exercises.some((row) => getExerciseDefinition(row.exerciseId)?.family === "power"),
     ).toBe(false);
   });
   it("reduces the actual dose on deload, without randomising the main lift", () => {

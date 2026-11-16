@@ -238,6 +238,35 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
                 <option value="full">Trener prowadzi i nadzoruje sesję</option>
               </select>
             </label>
+            {profile.hasGym && (
+              <label>
+                Układ jednostki
+                <select
+                  disabled={saving}
+                  value={draft.trainingMethodPreferences?.gymTemplate ?? "athletic_ab"}
+                  onChange={(e) =>
+                    setDraft((d) => ({
+                      ...d,
+                      trainingMethodPreferences: {
+                        ...d.trainingMethodPreferences,
+                        gymTemplate: e.target.value as TrainingMethodPreferences["gymTemplate"],
+                      },
+                    }))
+                  }
+                >
+                  <option value="athletic_ab">Sportowe A/B · dopasowane</option>
+                  <option value="balanced">Klasyczne całe ciało · A/B</option>
+                  <option value="paired_power">Specjalistyczne pary mocy</option>
+                </select>
+                {(draft.trainingMethodPreferences?.gymTemplate ?? "athletic_ab") ===
+                  "athletic_ab" && (
+                  <span className="text-sm">
+                    Dwa osobne dni: przygotowanie, moc lub lądowanie, siła i uzupełnienie.
+                    Ćwiczenia, serie i przerwy zależą od Twojego przygotowania, sprzętu i meczów.
+                  </span>
+                )}
+              </label>
+            )}
             <label>
               Organizacja siły
               <select
@@ -314,27 +343,6 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
                     );
                   })}
                 </fieldset>
-                <label>
-                  Układ jednostki
-                  <select
-                    disabled={saving}
-                    value={draft.trainingMethodPreferences?.gymTemplate ?? "balanced"}
-                    onChange={(e) =>
-                      setDraft((d) => ({
-                        ...d,
-                        trainingMethodPreferences: {
-                          ...d.trainingMethodPreferences,
-                          gymTemplate: e.target.value as "balanced" | "paired_power",
-                        },
-                      }))
-                    }
-                  >
-                    <option value="balanced">Pełna siła i moc · A/B</option>
-                    <option value="paired_power">
-                      Specjalistyczne pary mocy · dla przygotowanych
-                    </option>
-                  </select>
-                </label>
                 {draft.trainingMethodPreferences?.gymTemplate !== "paired_power" && (
                   <label className="flex items-center gap-2">
                     <input

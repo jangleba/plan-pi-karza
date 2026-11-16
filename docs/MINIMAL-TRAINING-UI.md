@@ -16,9 +16,35 @@ obciążeń, progów kwalifikacji ani reguł planowania.
 | Koralowy    | Błąd lub stan wymagający zatrzymania                       |
 | Turkusowy   | Praca z piłką i prowadzenie                                |
 
-Kolor zawsze towarzyszy tekstowi, ikonie lub rodzajowi linii. Kategorie sesji
-korzystają z tego samego zestawu kolorów w Planie, na Start i w nagłówku
-treningu. Pastel służy oznaczeniu, nie wypełnia całego ekranu.
+Kolor zawsze towarzyszy tekstowi, ikonie lub rodzajowi linii. Kategorie na Start,
+w nagłówku treningu oraz schematy ćwiczeń zachowują ten zestaw. Plan tygodnia
+ma osobny, neutralny wygląd opisany poniżej.
+
+## Neutralny Plan
+
+Lista tygodnia używa zwykłych szarych nazw kategorii, cienkich separatorów
+i małych oznaczeń intensywności zamiast kolorowych etykiet. Wybór dzisiejszej
+daty i główne działanie są neutralne; wspólna nawigacja aplikacji pozostaje spójna
+z pozostałymi zakładkami.
+
+- 1–3 szare słupki odpowiadają zapisanej niskiej, umiarkowanej i wysokiej
+  intensywności sesji. Nie tworzą nowego wyniku obciążenia ani pomiaru fizjologii.
+- Kreska oznacza brak określonej intensywności w planie. Trening klubowy i mecz
+  nie otrzymują udawanego pomiaru z domyślnej etykiety kalendarza.
+- Status i dobrowolny test biegowy zajmują krótkie wiersze. Pełne przyczyny,
+  zmiany profilu i porównanie propozycji są dostępne w zamkniętych szczegółach.
+- Błędy zapisu i blokujące informacje pozostają jawne. Podgląd nadal wymaga
+  osobnego zatwierdzenia. Realizacja celów znajduje się pod tygodniem.
+
+Zmiana dotyczy prezentacji Planu; nie zmienia planowania ani przepisanych dawek.
+
+Sprawdzenie tej korekty: 34 testy komponentów Planu/MAS, TypeScript, ESLint,
+build web i mobilnego SPA — PASS. Chromium: 8 widoków przy 320/390 px oraz
+4 sprawdzenia zwijanych szczegółów — PASS, bez błędów JS, przepełnienia
+i automatycznych zapisów. Raporty: `/tmp/ballwise-plan-monochrome-final/`.
+Pełne sprawdzenie silnika v2.13 pozostaje opisane dla poprzedniego commita
+`9b782530` w dokumencie dalszych prac; tej wizualnej korekty nie nazywa się
+ponownym pełnym przebiegiem wszystkich testów projektu.
 
 ## Sesja sprintu
 

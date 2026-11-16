@@ -54,6 +54,11 @@ export function taskKind(
   const sets = plannedSets(exercise);
   const seconds = exercise.engineDose?.seconds;
   const numericDuration = typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0;
+  if (
+    numericDuration &&
+    ["preparation", "technical"].includes(exercise.engineDose?.speedStage ?? "")
+  )
+    return "general";
   if (GYM_EXERCISE_RULES[exercise.exerciseId ?? ""]?.timedDynamic) return "general";
   const isometric =
     definition?.movementPattern === "isometric" ||

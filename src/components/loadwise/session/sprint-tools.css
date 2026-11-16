@@ -203,8 +203,14 @@
   background: var(--muted);
   padding: 0 12px;
 }
-.bw-sprint-stopwatch[open] {
+.bw-sprint-stopwatch[open],
+.bw-sprint-stopwatch[data-inline] {
   padding-bottom: 12px;
+}
+.bw-sprint-stopwatch-title {
+  margin: 0;
+  padding-top: 12px;
+  font-weight: 600;
 }
 .bw-sprint-stopwatch > output {
   display: block;

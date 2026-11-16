@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { ProfileAvatar } from "@/components/loadwise/ui";
 import { StartDashboard } from "@/components/loadwise/StartDashboard";
+import { DailyReadinessCard } from "@/components/loadwise/DailyReadinessCard";
 import { FeedbackAdjustmentCard } from "@/components/loadwise/FeedbackAdjustmentCard";
 import { ScheduleChangeCard } from "@/components/loadwise/ScheduleChangeCard";
 import { describeScheduleChanges } from "@/lib/loadwise/scheduleChange";
@@ -24,7 +25,7 @@ export const Route = createFileRoute("/_tabs/start")({
 
 function StartScreen() {
   const { user } = useAuth();
-  const { state, hydrated, todayIso, skipSession } = useLoadwise();
+  const { state, hydrated, todayIso, skipSession, saveReadiness } = useLoadwise();
   const navigate = useNavigate();
   const router = useRouter();
   const [iqTask, setIqTask] = useState<FieldTask | null>(null);
@@ -65,6 +66,16 @@ function StartScreen() {
       todayAppearance={today.session ? sessionAppearance(today.session) : undefined}
       planStatus={status.kind}
       todayComplete={today.complete}
+      readiness={
+        <DailyReadinessCard
+          ownerId={user?.id}
+          todayIso={todayIso}
+          enabled={state.profile?.healthPersonalizationEnabled === true}
+          value={state.readiness[todayIso]}
+          onSave={saveReadiness}
+          onManageConsent={() => void navigate({ to: "/onboarding", search: { edit: true } })}
+        />
+      }
       onToday={() =>
         void navigate({
           to: "/sesja/$date",

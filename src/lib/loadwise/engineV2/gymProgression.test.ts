@@ -503,7 +503,12 @@ describe("GP1 whole-week and integration contracts", () => {
     expect(ctx.unknownExternalLoad).toBe(true);
   });
   it("does not mutate source recipes, snapshots, or observations and does not ratchet on recalculation", () => {
-    const recipe = buildStrength(player, "A", "development"),
+    // Progress this exact trained variant; a layout's default jump can change.
+    const trained: Profile = {
+      ...player,
+      trainingMethodPreferences: { gymExercises: { powerA: "gym_cmj_resisted" } },
+    };
+    const recipe = buildStrength(trained, "A", "development"),
       h = history(row("gym_cmj_resisted", { sets: 2, reps: 2 }));
     const options = {
       startDate: "2026-11-15",
@@ -512,8 +517,8 @@ describe("GP1 whole-week and integration contracts", () => {
       readiness: { "2026-11-15": ready },
     };
     const before = JSON.stringify({ recipe, options });
-    const a = applyGymProgression(recipe, player, "2026-11-15", options, []);
-    const b = applyGymProgression(recipe, player, "2026-11-15", options, []);
+    const a = applyGymProgression(recipe, trained, "2026-11-15", options, []);
+    const b = applyGymProgression(recipe, trained, "2026-11-15", options, []);
     expect(a).toEqual(b);
     expect(JSON.stringify({ recipe, options })).toBe(before);
     expect(a.roles).toEqual(["strengthA"]);
@@ -523,7 +528,11 @@ describe("GP1 whole-week and integration contracts", () => {
   });
   it("integrates into dated placement, renders the same dose, and preserves A/B", () => {
     const h = history(row("gym_cmj_resisted", { sets: 2, reps: 2 }));
-    const p = { ...player, individualTrainingDays: [1] };
+    const p: Profile = {
+      ...player,
+      individualTrainingDays: [1],
+      trainingMethodPreferences: { gymExercises: { powerA: "gym_cmj_resisted" } },
+    };
     const result = generateTrainingPlan(p, {
       startDate: "2026-11-16",
       weeks: 1,

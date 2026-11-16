@@ -13,16 +13,18 @@ import "./sprint-tools.css";
 function SprintStopwatch({
   onUse,
   disabled,
+  inline = false,
 }: {
   onUse: (seconds: number) => void;
   disabled: boolean;
+  inline?: boolean;
 }) {
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [interrupted, setInterrupted] = useState(false);
   const startedAt = useRef<number | null>(null);
   const elapsedAtStop = useRef(0);
-  const panel = useRef<HTMLDetailsElement>(null);
+  const panel = useRef<HTMLElement | null>(null);
   const stop = useCallback((hidden = false) => {
     if (startedAt.current === null) return;
     elapsedAtStop.current = Math.max(0, (performance.now() - startedAt.current) / 1000);
@@ -58,16 +60,9 @@ function SprintStopwatch({
       document.removeEventListener("visibilitychange", hidden);
       for (const details of ancestors) details.removeEventListener("toggle", collapsed);
     };
-  }, [running, stop]);
-  return (
-    <details
-      ref={panel}
-      className="bw-sprint-stopwatch"
-      onToggle={(event) => {
-        if (!event.currentTarget.open) stop(true);
-      }}
-    >
-      <summary>Stoper ręczny</summary>
+  }, [running, stop, inline]);
+  const controls = (
+    <>
       <p>
         Uruchom na sygnał startu i zatrzymaj na mecie. Pomiar ręczny nie zastępuje fotokomórek ani
         analizy filmu.
@@ -120,6 +115,31 @@ function SprintStopwatch({
           Pomiar zatrzymano po ukryciu stopera. Powtórz próbę z widocznym stoperem.
         </p>
       )}
+    </>
+  );
+  return inline ? (
+    <div
+      ref={(node) => {
+        panel.current = node;
+      }}
+      className="bw-sprint-stopwatch"
+      data-inline
+    >
+      <p className="bw-sprint-stopwatch-title">Stoper ręczny</p>
+      {controls}
+    </div>
+  ) : (
+    <details
+      ref={(node) => {
+        panel.current = node;
+      }}
+      className="bw-sprint-stopwatch"
+      onToggle={(event) => {
+        if (!event.currentTarget.open) stop(true);
+      }}
+    >
+      <summary>Stoper ręczny</summary>
+      {controls}
     </details>
   );
 }
@@ -130,6 +150,8 @@ interface SprintTimingPanelProps {
   onRepeat: () => void;
   /** Occurrence-specific key when the same exercise appears more than once. */
   logKey?: string;
+  /** The current runner already owns the one disclosure for the timing tool. */
+  inlineStopwatch?: boolean;
 }
 
 export function SprintTimingPanel(props: SprintTimingPanelProps) {
@@ -159,6 +181,7 @@ function SprintTimingPanelContent({
   onRepeat,
   logKey,
   ownerId,
+  inlineStopwatch,
 }: SprintTimingPanelProps & { ownerId?: string }) {
   const logs = useExerciseSetLogs(sessionId, logKey ?? exerciseKey(exercise));
   const [time, setTime] = useState(""),
@@ -267,6 +290,7 @@ function SprintTimingPanelContent({
       </p>
       {comparison}
       <SprintStopwatch
+        inline={inlineStopwatch}
         disabled={busy || logs.loading}
         onUse={(seconds) => setTime(seconds.toFixed(2))}
       />

@@ -124,6 +124,59 @@ it("offers the planned sprint setup before starting, without logging trials or s
   expect(onStart).not.toHaveBeenCalled();
 });
 
+it("opens the active sprint stopwatch through one disclosure and starts only on request", async () => {
+  const sprint = sectionFixture("main", [
+    {
+      id: "main-sprint",
+      exerciseId: "free_acceleration_sprint",
+      name: "Standing Start Acceleration",
+      sets: "3",
+      reps: "10 m",
+      displayPrescription: "3 × 10 m",
+      restAfterExercise: "90 s",
+      engineDose: {
+        sets: 3,
+        distanceM: 10,
+        restSeconds: 90,
+        intent: "explosive",
+        speedStage: "main",
+      },
+    },
+  ]);
+  await act(async () =>
+    root.render(
+      <FocusedSessionRunner
+        sections={[sprint]}
+        date="2026-11-10"
+        kind="sprint"
+        canRecord
+        onFinish={() => {}}
+      />,
+    ),
+  );
+  const tool = host.querySelector<HTMLDetailsElement>(".bw-sprint-timing")!;
+  expect(tool.querySelector(":scope > summary")?.textContent).toContain("Stoper i czas odcinka");
+  expect(tool.open).toBe(false);
+  expect(tool.querySelector("details.bw-sprint-stopwatch")).toBeNull();
+  await act(async () => {
+    tool.open = true;
+    tool.dispatchEvent(new Event("toggle"));
+  });
+  const start = byText("Start stopera")!;
+  expect(start.closest("details")).toBe(tool);
+  expect(byText("Zatrzymaj stoper")).toBeUndefined();
+  expect(logs.save).not.toHaveBeenCalled();
+  await click(start);
+  expect(byText("Zatrzymaj stoper")).toBeDefined();
+  await act(async () => {
+    tool.open = false;
+    tool.dispatchEvent(new Event("toggle"));
+  });
+  expect(byText("Start stopera")).toBeDefined();
+  expect(byText("Zatrzymaj stoper")).toBeUndefined();
+  expect(logs.save).not.toHaveBeenCalled();
+});
+
 it("opens the football action diagram in the actual instruction view without starting a session", async () => {
   const onStart = vi.fn();
   const football = sectionFixture("main", [

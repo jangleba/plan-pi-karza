@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
+import { ENGINE_VERSION } from "./engineV2/model";
 
 let db: PGlite;
 const owner = "10000000-0000-4000-8000-000000000001";
@@ -79,7 +80,7 @@ async function persist(
       planId(n),
       "speed",
       "2026-10",
-      JSON.stringify([{ date: "2026-10-18", dbId: sessionId }]),
+      JSON.stringify([{ date: "2026-10-18", dbId: sessionId, generatorVersion: ENGINE_VERSION }]),
       JSON.stringify([{ id: dayId, date: "2026-10-18", day_type: "training" }]),
       JSON.stringify([{ id: sessionId, training_day_id: dayId, title }]),
       JSON.stringify([{ id: crypto.randomUUID(), session_id: sessionId, name: "Sprint" }]),
@@ -109,6 +110,13 @@ describe.sequential("Postgres plan transaction and ordering", () => {
     expect((await db.query("select id from training_plans where active")).rows).toEqual([
       { id: planId(2) },
     ]);
+    expect(
+      (
+        await db.query(
+          "select plan_json->0->>'generatorVersion' as version from training_plans where active",
+        )
+      ).rows,
+    ).toEqual([{ version: ENGINE_VERSION }]);
   });
   it("rejects a stale snapshot and rolls back an altered existing prescription", async () => {
     await expect(persist(3, 1)).rejects.toThrow(/another device/);

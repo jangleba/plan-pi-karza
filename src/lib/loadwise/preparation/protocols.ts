@@ -553,6 +553,7 @@ export function warmupFromExercises(
 
 /** Plan exercises that have a guided counterpart (same movement and drawing). */
 const VISUAL_BY_EXERCISE: Record<string, PreparationVisual> = {
+  warmup_walk: "walk",
   sprint_cooldown_walk: "walk",
   calf_wall_stretch: "calf",
   soleus_bent_knee_stretch: "soleus",
@@ -595,10 +596,8 @@ function mapPrescribed(
     const visual = preparationVisualFor(e);
     if (!visual) return undefined;
     const known = MOVES[visual];
-    const raw = [
-      e.sets && !/×/.test(e.duration || e.reps || "") ? `${e.sets} ×` : "",
-      e.displayPrescription || e.duration || e.reps || "",
-    ]
+    const prescription = (e.displayPrescription || e.duration || e.reps || "").trim();
+    const raw = [e.sets && !/^\d+\s*[×x]\s*/.test(prescription) ? `${e.sets} ×` : "", prescription]
       .join(" ")
       .trim();
     const sets = raw.match(/^(\d+)\s*[×x]\s*/);

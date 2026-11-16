@@ -12,7 +12,7 @@ export interface RunnerRow {
   section: TrainingSection;
   block: TrainingBlock;
   exercise: TrainingExercise;
-  /** 1 for the first occurrence of this history key in the session, 2 for the next … */
+  /** New canonical preparation counts independently; legacy occurrence numbering stays intact. */
   occurrence: number;
 }
 
@@ -45,8 +45,9 @@ export function buildRunnerSteps(
   const usedKeys = new Set<string>();
   const rowFor = (section: TrainingSection, block: TrainingBlock, exercise: TrainingExercise) => {
     const history = exerciseKey(exercise);
-    const occurrence = (seen.get(history) ?? 0) + 1;
-    seen.set(history, occurrence);
+    const historyScope = exercise.preparationOnly ? `warmup:${history}` : history;
+    const occurrence = (seen.get(historyScope) ?? 0) + 1;
+    seen.set(historyScope, occurrence);
     let key = `${section.id}/${block.id}/${exercise.id}`;
     // Old saved plans may repeat an instance id; keep the occurrences apart.
     for (let n = 2; usedKeys.has(key); n += 1)
@@ -77,6 +78,8 @@ export function buildRunnerSteps(
  */
 export function occurrenceLogKey(row: Pick<RunnerRow, "exercise" | "occurrence">): string {
   const key = exerciseKey(row.exercise);
+  if (row.exercise.preparationOnly)
+    return `${key}#warmup${row.occurrence > 1 ? `#${row.occurrence}` : ""}`;
   return row.occurrence > 1 ? `${key}#${row.occurrence}` : key;
 }
 

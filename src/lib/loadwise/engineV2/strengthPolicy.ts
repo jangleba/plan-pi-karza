@@ -13,6 +13,8 @@ import { cycleStartEffect } from "./cycle";
 import { strengthLandingCount } from "./gymPower";
 import { isStrengthSession, strengthPreference } from "../strengthCheckIn";
 import { dayDistance, plusDays, type EngineOptions, type EngineSession } from "./model";
+import { removeClusterProtocol } from "./strengthProtocols";
+import { strengthPreparationOverhead } from "./strengthPreparation";
 
 /** SP1 is product policy informed by literature, not a diagnosis or measured strength deficit. */
 export type StrengthMode =
@@ -336,7 +338,7 @@ export function applyStrengthFocus(
   if (recovery) {
     copy.exercises = copy.exercises.filter((e) => e.role !== "iso_primer");
     for (const e of copy.exercises) {
-      if (e.dose.cluster) delete e.dose.cluster;
+      removeClusterProtocol(e);
       if (e.role === "power") e.dose.sets = Math.min(1, e.dose.sets);
     }
     if (copy.organization === "contrast") {
@@ -352,13 +354,18 @@ export function applyStrengthFocus(
   // Explicit specialist methods retain their reviewed dose, rounds and rests.
   if (
     !primary ||
-    recipe.variant === "compact" ||
+    (recipe.variant === "compact" &&
+      !(
+        recipe.strengthStructure === "athletic_ab" &&
+        ["maintenance", "power_support", "deload", "reentry"].includes(focus.mode)
+      )) ||
     (!recovery && primary.dose.cluster) ||
     (!recovery && recipe.organization === "contrast") ||
     !["external", "axial"].includes(getExerciseDefinition(primary.exerciseId)?.loadingType ?? "") ||
     focus.mode === "foundation"
   ) {
-    copy.minutes = Math.ceil(estimateSessionSeconds(copy.exercises) / 60) + 8;
+    copy.minutes =
+      Math.ceil(estimateSessionSeconds(copy.exercises) / 60) + strengthPreparationOverhead(copy);
     copy.plyometricContacts = strengthLandingCount(copy.exercises);
     return copy;
   }
@@ -402,6 +409,7 @@ export function applyStrengthFocus(
     };
   primary.reason += ` ${copy.strengthFocus.reason}`;
   copy.plyometricContacts = strengthLandingCount(copy.exercises);
-  copy.minutes = Math.ceil(estimateSessionSeconds(copy.exercises) / 60) + 8;
+  copy.minutes =
+    Math.ceil(estimateSessionSeconds(copy.exercises) / 60) + strengthPreparationOverhead(copy);
   return copy;
 }
