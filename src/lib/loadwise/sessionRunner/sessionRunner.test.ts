@@ -9,6 +9,7 @@ import {
   restSecondsAfter,
   restText,
   setRange,
+  sprintDistance,
   taskKind,
   workSeconds,
 } from "./presentation";
@@ -91,6 +92,18 @@ describe("kroki sesji", () => {
 });
 
 describe("prezentacja dawki", () => {
+  it("dystans sprintu bierze z odcinka pracy, a nie z poprzedzającego go najazdu", () => {
+    const exercise = ex({
+      exerciseId: "flying_sprint",
+      displayPrescription: "1 × 20 m nabiegu + 15 m",
+      engineDose: { sets: 1, runInM: 20, distanceM: 15, restSeconds: 120, intent: "explosive" },
+    });
+    expect(sprintDistance(exercise)).toBe("15 m");
+    expect(sprintDistance(ex({ displayPrescription: "3 × 15–20 m" }))).toBe("15–20 m");
+    expect(
+      sprintDistance({ ...exercise, engineDose: { ...exercise.engineDose!, distanceM: NaN } }),
+    ).toBeNull();
+  });
   it.each(["split_squat_iso_hold", "long_lever_hamstring_iso"])(
     "zapisuje zaprogramowane utrzymanie %s jako czas mimo kategorii prehab",
     (exerciseId) => {

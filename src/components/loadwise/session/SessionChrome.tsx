@@ -5,6 +5,7 @@ import { formatDateFull, professionalSessionTitle } from "@/lib/loadwise/labels"
 import { statusBadgeLabel } from "@/lib/loadwise/sessionPresentation";
 import { IntensityBadge } from "../ui";
 import { sessionHeading, slotLabels } from "@/lib/loadwise/sessionRunner/heading";
+import { sessionAppearance } from "@/lib/loadwise/sessionAppearance";
 import {
   Accordion,
   AccordionContent,
@@ -107,9 +108,10 @@ export function SessionHeader({
   onBack?: () => void;
 }) {
   const heading = sessionHeading(session);
+  const appearance = sessionAppearance(session);
   const status = statusBadgeLabel(session);
   return (
-    <header className="bw-session-head">
+    <header className="bw-session-head" data-tone={appearance.tone}>
       {onBack && (
         <button type="button" onClick={onBack} className="bw-session-back">
           <ChevronLeft aria-hidden="true" /> Wstecz
@@ -125,7 +127,12 @@ export function SessionHeader({
       </p>
       <h1>{heading.title}</h1>
       {heading.meta.length > 0 && (
-        <p className="bw-session-meta-line">{heading.meta.join(" · ")}</p>
+        <p className="bw-session-meta-line">
+          <span className="bw-session-kind" data-tone={appearance.tone}>
+            {heading.category ?? appearance.label}
+          </span>
+          <span> · {heading.meta.filter((part) => part !== heading.category).join(" · ")}</span>
+        </p>
       )}
       {status && (
         <div className="mt-2">

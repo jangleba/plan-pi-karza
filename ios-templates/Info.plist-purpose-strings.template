@@ -4,7 +4,7 @@
 <dict>
   <!-- Skopiuj parę kamery do głównego dict Info.plist. Instrukcje: README.md. -->
   <key>NSCameraUsageDescription</key>
-  <string>BallWise używa kamery do nagrywania prób sportowych 240 FPS w Lab oraz, gdy wybierzesz skanowanie w Fuel, zdjęcia kodu produktu.</string>
+  <string>BallWise używa kamery do nagrywania prób sportowych w Lab i odczytu kodu produktu w Fuel. Dostęp jest uruchamiany po Twoim wyborze.</string>
   <!-- Opcjonalnie, tylko jeśli docelowy build udostępnia głos w Fuel:
   <key>NSMicrophoneUsageDescription</key>
   <string>BallWise używa mikrofonu, gdy wybierasz głosowe podanie składników lub nazwy produktu w Fuel.</string>

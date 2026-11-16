@@ -12,6 +12,9 @@ import {
 } from "@tanstack/react-router";
 import { Route as SessionRoute } from "@/routes/sesja.$date";
 import { Route as ProgressRoute } from "@/routes/_tabs.postep";
+import { Route as PlanRoute } from "@/routes/_tabs.plan";
+import { useAuth } from "@/lib/loadwise/auth";
+import { GymEvidenceProvider } from "@/lib/loadwise/useGymEvidence";
 import {
   parseSessionSheetSearch,
   SessionSheet,
@@ -22,12 +25,24 @@ import "@/styles/ballwise-visual-system.css";
 ProgressRoute.useSearch = (() => useRouterState({ select: (s) => s.location.search })) as any;
 SessionRoute.useSearch = (() => useRouterState({ select: (s) => s.location.search })) as any;
 SessionRoute.useParams = (() => useParams({ strict: false })) as any;
-const root = createRootRoute({
-  component: () => (
-    <div className="app-shell">
+function AuditShell() {
+  const { user } = useAuth();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const content = (
+    <div className="app-shell" data-session-audit-path={pathname}>
       <Outlet />
     </div>
-  ),
+  );
+  return query.get("kind") === "planning" ? (
+    <GymEvidenceProvider ownerId={user?.id} ready>
+      {content}
+    </GymEvidenceProvider>
+  ) : (
+    content
+  );
+}
+const root = createRootRoute({
+  component: AuditShell,
 });
 const route = createRoute({
   getParentRoute: () => root,
@@ -40,7 +55,7 @@ const progress = createRoute({
   path: "/postep",
   component: ProgressRoute.options.component as any,
 });
-/** The week list stand-in: one row that opens the training panel like the plan does. */
+/** An isolated sheet launcher; the production plan currently opens a full route. */
 function WeekStandIn() {
   const search = useRouterState({ select: (s) => s.location.search }) as Record<string, unknown>;
   const unit = useSessionSheet(parseSessionSheetSearch(search));
@@ -59,14 +74,15 @@ function WeekStandIn() {
     </main>
   );
 }
+const query = new URLSearchParams(location.search);
+const pageFlow = query.get("page") === "1";
 const week = createRoute({
   getParentRoute: () => root,
   path: "/plan",
-  component: WeekStandIn,
+  component: pageFlow ? (PlanRoute.options.component as any) : WeekStandIn,
   validateSearch: parseSessionSheetSearch,
 });
-const startAt =
-  new URLSearchParams(location.search).get("unit") === "1" ? "/plan" : "/sesja/2026-11-02?slot=1";
+const startAt = pageFlow || query.get("unit") === "1" ? "/plan" : "/sesja/2026-11-02?slot=1";
 const router = createRouter({
   routeTree: root.addChildren([route, progress, week]),
   history: createMemoryHistory({ initialEntries: [startAt] }),

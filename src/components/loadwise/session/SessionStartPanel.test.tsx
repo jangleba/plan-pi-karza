@@ -65,6 +65,14 @@ describe("explicit workout start", () => {
     expect(container.querySelector("button")).toBeNull();
     expect(mock.start).not.toHaveBeenCalled();
   });
+  it("keeps a deliberately missed session as a preview instead of offering a rejected start", async () => {
+    mock.completions = { "session-1": { status: "missed", completed: false } };
+    await act(async () => root.render(<SessionStartPanel session={sessionFixture()} canStart />));
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('[role="status"]')?.textContent).toContain("Sesja opuszczona");
+    expect(container.textContent).toContain("Plan ćwiczeń pozostaje do wglądu");
+    expect(mock.start).not.toHaveBeenCalled();
+  });
   it("keeps the start recoverable after a failed durable save", async () => {
     mock.start.mockRejectedValue({ code: "ENOSPC" });
     await act(async () => root.render(<SessionStartPanel session={sessionFixture()} canStart />));

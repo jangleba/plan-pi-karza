@@ -45,7 +45,7 @@ export const Route = createFileRoute("/_tabs/profil")({
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-2.5">
+    <div className="bw-profile-row flex items-start justify-between gap-4 py-2.5">
       <span className="text-sm text-muted-foreground">{label}</span>
       <span className="max-w-[58%] text-right text-sm font-medium text-foreground">{value}</span>
     </div>

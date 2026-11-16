@@ -17,3 +17,23 @@ export function healthFieldsForOnboarding(
     painLocations: [...(existing.painLocations ?? [])],
   };
 }
+
+type FoodSafetyFields = Pick<
+  Profile,
+  "fuelAllergyStatus" | "foodAllergies" | "foodIntolerances" | "foodExclusions"
+>;
+
+/** General profile edits preserve food answers; withdrawing health consent only clears health data. */
+export function foodSafetyFieldsForOnboarding(
+  existing:
+    (Partial<FoodSafetyFields> & Pick<Profile, "healthPersonalizationEnabled">) | null | undefined,
+  healthConsent: boolean,
+): FoodSafetyFields {
+  const keepHealth = healthConsent && existing?.healthPersonalizationEnabled === true;
+  return {
+    fuelAllergyStatus: keepHealth ? (existing.fuelAllergyStatus ?? "unconfirmed") : "unconfirmed",
+    foodAllergies: keepHealth ? [...(existing.foodAllergies ?? [])] : [],
+    foodIntolerances: keepHealth ? [...(existing.foodIntolerances ?? [])] : [],
+    foodExclusions: [...(existing?.foodExclusions ?? [])],
+  };
+}

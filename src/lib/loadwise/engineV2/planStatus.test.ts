@@ -145,6 +145,30 @@ describe("read-only plan lifecycle", () => {
       }).kind,
     ).toBe("active");
   });
+  it("does not request a rebuild of deliberately missed work, but still checks its next slot", () => {
+    const old = {
+      ...main,
+      generatorVersion: "ballwise-v2.2",
+      trainingSetupRevision: "old",
+    };
+    const missed = { completed: false, status: "missed" } as SessionCompletion;
+    expect(
+      getPlanStatus({
+        plan: [old],
+        profile,
+        todayIso: main.date,
+        completions: { [main.dbId]: missed },
+      }).kind,
+    ).toBe("active");
+    expect(
+      getPlanStatus({
+        plan: [{ ...old, secondSession: { ...old, dbId: "pending-second" } }],
+        profile,
+        todayIso: main.date,
+        completions: { [main.dbId]: missed },
+      }),
+    ).toMatchObject({ kind: "stale", staleReason: "version" });
+  });
   it("detects calendar changes in external or rest-only plans without applying recipe version gates", () => {
     const club: SessionDay = {
       ...main,

@@ -10,6 +10,7 @@ import { trainingProfileRevision } from "../planIdentity";
 import { effectiveActivityTags, hasRunningWork, isValidMatchMinutes } from "../sessionFeedback";
 import { dayDistance, ENGINE_VERSION, plusDays, trainingTier } from "./model";
 import type { EngineOptions, EngineResult, EngineSession } from "./model";
+import { preservesWeeklyRestReserve } from "./weeklyRestReserve";
 import { mainGoalTasks, resolveGoalPolicy, type WeeklyTaskId } from "./goalPolicy";
 import {
   lighterRecipes,
@@ -230,7 +231,10 @@ export function proposeFeedbackAdjustment(input: AdjustmentInput): AdjustmentPro
     `${i.code}|${i.date ?? ""}|${i.message}`;
   const baseline = new Set(validateTrainingPlan(upcoming, p, options).map(key));
   const sound = (plan: SessionDay[]) =>
-    validateTrainingPlan(plan, p, options).every((i) => baseline.has(key(i)));
+    preservesWeeklyRestReserve(input.plan, [
+      ...input.plan.filter((d) => d.date < todayIso),
+      ...plan,
+    ]) && validateTrainingPlan(plan, p, options).every((i) => baseline.has(key(i)));
   const done = appliedProposalIds(input.plan);
   const alignStart = input.plan[0].date;
   const block = (date: string) => Math.floor(dayDistance(date, alignStart) / 7);
@@ -453,6 +457,8 @@ export function proposeFeedbackAdjustment(input: AdjustmentInput): AdjustmentPro
     const old = input.plan.find((d) => d.date === first.date);
     if (old?.enginePlanIssues && !first.enginePlanIssues)
       first.enginePlanIssues = old.enginePlanIssues;
+    const savedInputs = input.plan.find((d) => d.planInputs)?.planInputs;
+    if (!first.planInputs && savedInputs) first.planInputs = structuredClone(savedInputs);
     first.engineTimeBudgetMin = minutesPerSession;
     const lead =
       event.kind === "match"

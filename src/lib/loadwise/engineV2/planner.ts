@@ -23,6 +23,7 @@ import {
   assessPlacement,
   hasKnownStrengthLoad,
   type PlacementAttempt,
+  type SchedulingBlock,
 } from "./scheduling";
 import { deriveEngineSessionLoad, validateEngineSession } from "./validation";
 import { isPostMatchDate, postMatchMode, upperBodyOnly } from "./postMatch";
@@ -43,6 +44,12 @@ import { applyUpperContrast, renderUpperContrast, withoutUpperContrast } from ".
 const names = ["Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota"];
 const slots = (d: SessionDay) => [d, ...(d.secondSession ? [d.secondSession] : [])];
 const own = (d: SessionDay) => slots(d).filter((s) => !!s.engineV2);
+const isFullRestDay = (d: SessionDay) =>
+  d.dayType === "rest" && !d.engineV2 && !d.secondSession && !d.externalCommitment;
+const fullRestCount = (days: readonly SessionDay[]) => days.filter(isFullRestDay).length;
+const consumesReservedRest = (days: SessionDay[], index: number, options: EngineOptions) =>
+  isFullRestDay(days[index]) &&
+  fullRestCount(days) <= (options.minFullRestDays ?? (options.fillRestDays ? 1 : 0));
 const matchLabel = (date: string, matches: Set<string>) => {
   const nearest = [...matches].sort(
     (a, b) => Math.abs(dayDistance(date, a)) - Math.abs(dayDistance(date, b)) || b.localeCompare(a),
@@ -591,6 +598,48 @@ function place(
   forceEnduranceLight = false,
 ): PlacementAttempt<SessionDay[]> {
   const current = days[index];
+  if (consumesReservedRest(days, index, options))
+    return {
+      blocked: {
+        code: "FULL_REST_RESERVE",
+        message: "Ten termin zabrałby zadeklarowany pełny dzień odpoczynku.",
+      },
+    };
+  if (recipe.roles.length === 1 && recipe.roles[0] === "speed") {
+    // Resolve the existing reduced sprint template for the actual MD-2 date before fitting it.
+    if (matches.has(plusDays(current.date, 2))) {
+      const dated = buildRunning(
+        routedProfile(p, resolveGoalPolicy(p).speedGoal),
+        "speed",
+        recipe.phase,
+        {
+          history: sprintHistory([...preceding, ...days], options.previousPlan, current.date),
+          force: recipe.sprintVariant,
+          preMatch: true,
+        },
+      );
+      if (!dated)
+        return {
+          blocked: {
+            code: "NO_SPEED_VARIANT",
+            message: "Brak dopuszczonego przedmeczowego wariantu sprintu.",
+          },
+        };
+      recipe = { ...recipe, ...dated };
+    }
+    const budget = options.minutesPerSession ?? 75;
+    if (Number.isFinite(budget) && budget > 0) {
+      const fitted = fitSprintToBudget(recipe, budget);
+      if (!fitted)
+        return {
+          blocked: {
+            code: "TIME_LIMIT",
+            message: "Dawka sprintu, także w krótszym wariancie, nie mieści się w czasie.",
+          },
+        };
+      recipe = fitted;
+    }
+  }
   if (isStrengthRecipe(recipe)) {
     const final = finalizeStrengthRecipe(
       recipe,
@@ -695,6 +744,7 @@ function placeResolvedEndurance(
   matches: Set<string>,
   preceding: SessionDay[],
 ): { state: SessionDay[]; penalty: number } | null {
+  if (consumesReservedRest(days, index, options)) return null;
   const gate = assessPlacement({
     days,
     dayIndex: index,
@@ -728,6 +778,7 @@ function placeSupport(
   matches: Set<string>,
 ): SessionDay[] | null {
   if (!recipe || p.painInjury || p.seasonPhase === "return_injury") return null;
+  if (consumesReservedRest(days, index, options)) return null;
   const d = days[index],
     dayNumber = weekday(d.date);
   if (
@@ -751,6 +802,20 @@ function placeSupport(
 }
 
 export function generateTrainingPlan(p: Profile, options: EngineOptions): EngineResult {
+  const saved = options.previousPlan?.find((d) => d.planInputs)?.planInputs;
+  // An omitted setting continues the saved request; an explicit undefined resets it to auto.
+  options = {
+    ...options,
+    ...(!Object.hasOwn(options, "weeklyTargets") && saved?.weeklyTargets !== undefined
+      ? { weeklyTargets: saved.weeklyTargets }
+      : {}),
+    ...(!Object.hasOwn(options, "fillRestDays") && saved?.fillRestDays !== undefined
+      ? { fillRestDays: saved.fillRestDays }
+      : {}),
+    ...(!Object.hasOwn(options, "minFullRestDays") && saved?.minFullRestDays !== undefined
+      ? { minFullRestDays: saved.minFullRestDays }
+      : {}),
+  };
   if (
     !/^\d{4}-\d{2}-\d{2}$/.test(options.startDate) ||
     !Number.isFinite(Date.parse(`${options.startDate}T12:00:00Z`)) ||
@@ -769,6 +834,20 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
       options.minutesPerSession > 120)
   )
     throw new Error("Czas sesji musi wynosić 10–120 minut.");
+  if (
+    options.weeklyTargets !== undefined &&
+    (!options.weeklyTargets ||
+      typeof options.weeklyTargets !== "object" ||
+      options.weeklyTargets.strength !== 2 ||
+      ![1, 2].includes(options.weeklyTargets.speed) ||
+      ![1, 2].includes(options.weeklyTargets.endurance))
+  )
+    throw new Error("Tygodniowy cel to 2 sesje siły oraz po 1–2 sesje sprintu i wydolności.");
+  if (options.fillRestDays !== undefined && typeof options.fillRestDays !== "boolean")
+    throw new Error("Ustawienie lekkich zadań musi mieć wartość włączone lub wyłączone.");
+  if (options.minFullRestDays !== undefined && ![0, 1, 2].includes(options.minFullRestDays))
+    throw new Error("Wybierz od 0 do 2 pełnych dni odpoczynku w tygodniu.");
+  const minFullRestDays = options.minFullRestDays ?? (options.fillRestDays ? 1 : 0);
   const matches = new Set(scheduledMatchDates(p, plusDays(options.startDate, -7), weeks * 7 + 14));
   const issues: Issue[] = [],
     plan: SessionDay[] = [],
@@ -837,16 +916,13 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
     const tasks = [
       strengthBase(p, "A", phase, rotation),
       mobilityRecipe ?? strengthB(),
-      fitSprintToBudget(
-        buildRunning(routedProfile(p, policy.speedGoal), "speed", phase, {
-          history: sprintHistory(
-            [...(options.precedingDays ?? []), ...(options.lockedDays ?? []), ...plan],
-            options.previousPlan,
-            base[0].date,
-          ),
-        }),
-        options.minutesPerSession ?? 75,
-      ),
+      buildRunning(routedProfile(p, policy.speedGoal), "speed", phase, {
+        history: sprintHistory(
+          [...(options.precedingDays ?? []), ...(options.lockedDays ?? []), ...plan],
+          options.previousPlan,
+          base[0].date,
+        ),
+      }),
       plannedEndurance(p, base[0].date, phase),
     ];
     const weights = policy.priorities;
@@ -919,6 +995,11 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
       }
     }
     let best = solved.state;
+    const targetRejections: Record<"strength" | "speed" | "endurance", SchedulingBlock[]> = {
+      strength: [...(solved.rejections.strengthA ?? []), ...(solved.rejections.strengthB ?? [])],
+      speed: [...(solved.rejections.speed ?? [])],
+      endurance: [...(solved.rejections.endurance ?? [])],
+    };
     // Tight match week: a strength target without a regular date may use the day after a match
     // (MD+1): the full session for advanced/elite players, upper body + trunk for everyone else.
     for (const id of strengthIds) {
@@ -1021,9 +1102,9 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
             message: `Nie znaleziono odpowiedniego ćwiczenia: ${ROLE_NAMES[role]}. Ten cel pozostaje niepokryty.`,
           });
     });
-    // The existing endurance goal promises two runs. The fifth target never
-    // displaces the baseline four or bypasses a calendar/load gate.
-    if (policy.extraEndurance) {
+    // Explicit requests replace the automatic run count. Optional sessions never
+    // displace the baseline four or bypass a calendar/load gate.
+    if ((options.weeklyTargets?.endurance ?? (policy.extraEndurance ? 2 : 1)) === 2) {
       const countEndurance = (days: SessionDay[]) =>
         days.flatMap(own).filter((s) => s.engineV2!.roles.includes("endurance")).length;
       if (countEndurance(best) === 1) {
@@ -1041,18 +1122,43 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
               [...(options.precedingDays ?? []), ...plan],
               true,
             );
-            if ("state" in attempt && (!extra || (attempt.penalty ?? 0) < extra.penalty))
+            if ("blocked" in attempt) targetRejections.endurance.push(attempt.blocked);
+            else if (!extra || (attempt.penalty ?? 0) < extra.penalty)
               extra = { state: attempt.state, penalty: attempt.penalty ?? 0 };
           }
         if (extra) best = extra.state;
       }
-      if (countEndurance(best) < 2)
+      if (!options.weeklyTargets && countEndurance(best) < 2)
         issues.push({
           code: "UNMET_GOAL_TARGET",
           target: "endurance",
           date: base[0].date,
           message: `Tydzień ${week + 1}: zaplanowano ${countEndurance(best)} z 2 jednostek wydolności. Po zabezpieczeniu celów bazowych nie znaleziono miejsca na drugi spokojny bieg przy aktualnym kalendarzu, czasie i limitach sesji.`,
         });
+    }
+    if (
+      options.weeklyTargets?.speed === 2 &&
+      best.flatMap(own).filter((s) => s.engineV2!.roles.includes("speed")).length === 1
+    ) {
+      const recipe = buildRunning(routedProfile(p, policy.speedGoal), "speed", phase, {
+        history: sprintHistory(
+          [...(options.precedingDays ?? []), ...plan, ...best],
+          options.previousPlan,
+          plusDays(base[6].date, 1),
+        ),
+      });
+      let extra: { state: SessionDay[]; penalty: number } | undefined;
+      if (recipe)
+        for (let i = 0; i < 7; i++) {
+          const attempt = place(best, i, recipe, p, options, matches, [
+            ...(options.precedingDays ?? []),
+            ...plan,
+          ]);
+          if ("blocked" in attempt) targetRejections.speed.push(attempt.blocked);
+          else if (!extra || (attempt.penalty ?? 0) < extra.penalty)
+            extra = { state: attempt.state, penalty: attempt.penalty ?? 0 };
+        }
+      if (extra) best = extra.state;
     }
     // Support never displaces a required training stimulus or masquerades as it.
     for (let i = 0; i < 7; i++) {
@@ -1073,11 +1179,14 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
           issues.push({
             code: "UNMET_ACTIVATION",
             date: best[i].date,
-            message:
-              "Nie dodano aktywacji przed meczem: wybrane miejsce, dostępność, czas lub limit sesji nie pozwalają na ten blok.",
+            message: minFullRestDays
+              ? "Nie dodano aktywacji przed meczem: wybrane miejsce, dostępność, czas, limit sesji lub rezerwa pełnego odpoczynku nie pozwalają na ten blok."
+              : "Nie dodano aktywacji przed meczem: wybrane miejsce, dostępność, czas lub limit sesji nie pozwalają na ten blok.",
           });
-      } else if (after)
-        best = placeSupport(best, i, buildRecovery(p, phase), p, options, matches) ?? best;
+      } else if (after) {
+        const attempt = placeSupport(best, i, buildRecovery(p, phase), p, options, matches);
+        if (attempt) best = attempt;
+      }
     }
     const supportKind = mobilityRecipe ? null : policy.support;
     if (supportKind) {
@@ -1115,6 +1224,67 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
               : "Nie znaleziono miejsca na dodatkową mobilność bez naruszania pozostałych ograniczeń.",
         });
     }
+    if (options.fillRestDays) {
+      let rotation = cycle.weekIndex;
+      for (let i = 0; i < best.length && fullRestCount(best) > minFullRestDays; i++) {
+        const d = best[i];
+        if (
+          d.dayType !== "rest" ||
+          d.engineV2 ||
+          d.secondSession ||
+          d.externalCommitment ||
+          d.executionProtected ||
+          d.isUnavailable ||
+          [...matches].some((m) => Math.abs(dayDistance(d.date, m)) <= 1)
+        )
+          continue;
+        const skills = buildSkills(p, phase, { rotation });
+        const mobility = buildMobility(p, phase);
+        const recipes = rotation % 2 ? [mobility, skills] : [skills, mobility];
+        for (const recipe of [...recipes, buildRecovery(p, phase)]) {
+          const attempt = placeSupport(best, i, recipe, p, options, matches);
+          if (attempt) {
+            best = attempt;
+            rotation++;
+            break;
+          }
+        }
+      }
+    }
+    if (fullRestCount(best) < minFullRestDays)
+      issues.push({
+        code: "UNMET_REST_TARGET",
+        date: base[0].date,
+        message: `Tydzień ${week + 1}: pozostało ${fullRestCount(best)} z ${minFullRestDays} pełnych dni odpoczynku. Kalendarz klubowy, mecze lub zachowane wykonania zajmują pozostałe dni.`,
+      });
+    if (options.weeklyTargets) {
+      const sessions = best.flatMap(own);
+      const planned = {
+        strength: sessions.filter((s) =>
+          s.engineV2!.roles.some((r) => r === "strengthA" || r === "strengthB"),
+        ).length,
+        speed: sessions.filter((s) => s.engineV2!.roles.includes("speed")).length,
+        endurance: sessions.filter((s) => s.engineV2!.roles.includes("endurance")).length,
+      };
+      for (const kind of ["strength", "speed", "endurance"] as const) {
+        const requested = options.weeklyTargets[kind];
+        if (planned[kind] >= requested) continue;
+        const reasons = [...new Set(targetRejections[kind].map((r) => r.message))];
+        const reasonCodes = [...new Set(targetRejections[kind].map((r) => r.code))];
+        issues.push({
+          code: "UNMET_GOAL_TARGET",
+          target:
+            kind !== "strength"
+              ? kind
+              : sessions.some((s) => s.engineV2!.roles.includes("strengthA"))
+                ? "strengthB"
+                : "strengthA",
+          date: base[0].date,
+          reasonCodes: reasonCodes.length ? reasonCodes : ["NO_ELIGIBLE_RECIPE"],
+          message: `Tydzień ${week + 1}: zaplanowano ${planned[kind]} z ${requested} sesji ${{ strength: "siły", speed: "sprintu", endurance: "wydolności" }[kind]}. ${reasons.length ? reasons.join(" ") : "Brak dopuszczonego wariantu przy zadanym sprzęcie, czasie i przygotowaniu."}`,
+        });
+      }
+    }
     // Strength is judged on the complete week: sprint, runs, club and matches placed later count too.
     best = finalizeStrengthWeek(best, p, options, [...(options.precedingDays ?? []), ...plan]);
     attachCycle(best, cycle);
@@ -1138,6 +1308,11 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
       unavailableEquipmentIds: [...(p.unavailableEquipmentIds ?? [])].sort(),
       equipment: [...p.equipment].sort(),
       minutesPerSession: options.minutesPerSession ?? 75,
+      ...(options.weeklyTargets ? { weeklyTargets: { ...options.weeklyTargets } } : {}),
+      ...(options.fillRestDays !== undefined ? { fillRestDays: options.fillRestDays } : {}),
+      ...(options.minFullRestDays !== undefined
+        ? { minFullRestDays: options.minFullRestDays }
+        : {}),
     };
   }
   return {

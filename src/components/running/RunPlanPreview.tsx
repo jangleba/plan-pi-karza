@@ -1,50 +1,43 @@
 import type { SessionDay } from "@/lib/loadwise/types";
 import { deriveRunningIntervalProtocol } from "@/lib/running/intervals";
+import { durationLabel } from "./runGuideText";
+import { runningPreviewRows } from "./runPlanPresentation";
+import { RunCourseSetup } from "./RunCourseSetup";
+import "./run-tools.css";
 
-/**
- * The run as a plan before the start: work and rest are named separately,
- * with the number of repetitions, their length and the pace range.
- */
+/** The plan and the clock read the same protocol; no distances are inferred from time. */
 export function RunPlanPreview({ session }: { session: SessionDay }) {
   const protocol = deriveRunningIntervalProtocol(session);
   if (!protocol?.steps.length) return null;
-  const work = protocol.steps.filter((step) => step.kind === "work");
-  const rest = protocol.steps.find((step) => step.kind === "recovery");
-  const first = work[0];
-  const same = work.every((step) => step.target.label === first.target.label);
+  const rows = runningPreviewRows(protocol);
+  const totalSeconds = protocol.steps.every((step) => step.target.mode === "time")
+    ? protocol.steps.reduce((sum, step) => sum + (step.target.value ?? 0), 0)
+    : null;
   return (
-    <section className="bw-rplan-group" aria-label="Plan biegu">
+    <section className="bw-rplan-group bw-run-preview" aria-label="Plan biegu">
       <h3>
-        Część główna
-        <small>{protocol.summary}</small>
+        Plan biegu
+        {totalSeconds ? <small>{durationLabel(totalSeconds)}</small> : null}
       </h3>
       <ul className="bw-rplan-card">
-        {(same ? [first] : work).map((step) => (
-          <li key={step.id} className="bw-run-plan-row">
-            <span className="bw-run-plan-kind">Praca</span>
+        {rows.map((row) => (
+          <li
+            key={row.id}
+            className="bw-run-plan-row"
+            data-tone={row.tone}
+            data-rest={row.tone === "warning" ? "" : undefined}
+          >
+            <span className="bw-run-plan-kind">{row.kind}</span>
             <span className="bw-run-plan-text">
-              <strong>
-                {same && work.length > 1
-                  ? `${work.length} × ${first.target.label}`
-                  : work.length > 1
-                    ? `Odcinek ${step.repeatIndex} z ${step.repeatTotal}: ${step.target.label}`
-                    : step.target.label}
-              </strong>
-              {step.target.paceTarget && <small>Tempo {step.target.paceTarget.label}</small>}
-              {step === first && step.instruction && <small>{step.instruction}</small>}
+              <strong>{row.title}</strong>
+              {row.details.map((detail) => (
+                <small key={detail}>{detail}</small>
+              ))}
             </span>
           </li>
         ))}
-        {rest && (
-          <li className="bw-run-plan-row" data-rest="">
-            <span className="bw-run-plan-kind">Przerwa</span>
-            <span className="bw-run-plan-text">
-              <strong>{rest.target.label}</strong>
-              <small>Po każdym odcinku</small>
-            </span>
-          </li>
-        )}
       </ul>
+      <RunCourseSetup session={session} />
     </section>
   );
 }

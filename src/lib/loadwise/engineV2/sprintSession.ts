@@ -13,12 +13,18 @@ import {
 } from "./sprintCatalog";
 import type { SprintGoal, SprintVariantRef } from "./model";
 
+export interface SprintSessionContext {
+  history?: SprintHistory;
+  force?: SprintVariantRef;
+  preMatch?: boolean;
+}
+
 /** Conservative coaching templates. Rounds are a product choice, not a proven optimal dose. */
 export function buildSprintSession(
   p: Profile,
   phase: EngineSession["phase"],
   eligible: (id: string) => boolean,
-  context: { history?: SprintHistory; force?: SprintVariantRef } = {},
+  context: SprintSessionContext = {},
 ): EngineSession | null {
   const history = context.history ?? [];
   const space = p.trainingMethodPreferences?.spaceLengthM;
@@ -33,6 +39,7 @@ export function buildSprintSession(
     return null;
   const prepared = p.age >= 18 && ["intermediate", "advanced", "elite"].includes(p.level);
   const reduced =
+    context.preMatch === true ||
     phase === "deload" ||
     p.seasonPhase === "transition" ||
     p.goal === "return" ||
@@ -264,6 +271,7 @@ export function buildSprintSession(
       drillSetId: chosenSet.item.id,
       addition: additionId,
       why: [
+        ...(context.preMatch ? ["MD-2: skrócony wariant przyspieszenia przed meczem"] : []),
         ...picked.reasons,
         `zestaw drilli ${chosenSet.item.id}: ${chosenSet.item.why}`,
         ...chosenSet.reasons,

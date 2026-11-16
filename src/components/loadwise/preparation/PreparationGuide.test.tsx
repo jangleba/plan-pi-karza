@@ -117,6 +117,31 @@ describe("prowadzenie ćwiczeń na ekranie", () => {
       expect.arrayContaining([expect.objectContaining({ completed: false })]),
     );
   });
+  it("przypisuje pominięcie do ćwiczenia po obu stronach i przerwie, nie do indeksu kroku", async () => {
+    const p = bilateral();
+    const protocol = {
+      ...p,
+      exercises: p.exercises.map((e, i) => ({
+        ...e,
+        sourceId: `planned-${i}`,
+        seconds: 1,
+        sets: 1,
+        switchSec: 1,
+        restSec: 1,
+      })),
+    };
+    await render(protocol);
+    await click("Rozpocznij regenerację");
+    // Left, switch, right, then the rest before the second exercise.
+    await tick(4_000);
+    expect(host.querySelector("h3")?.textContent).toBe(protocol.exercises[1].name);
+    await click("Pomiń ćwiczenie");
+    await click("Potwierdź zakończenie");
+    expect(finished).toHaveBeenCalledWith(false, [
+      { sourceId: "planned-0", name: protocol.exercises[0].name, completed: true },
+      { sourceId: "planned-1", name: protocol.exercises[1].name, completed: false },
+    ]);
+  });
   it("ćwiczenie na powtórzenia czeka na świadome potwierdzenie", async () => {
     const p = buildRecoveryProtocol("back");
     await render({ ...p, id: "manual", exercises: [p.exercises[0]] });

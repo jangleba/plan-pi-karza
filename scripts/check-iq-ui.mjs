@@ -106,7 +106,25 @@ try {
   });
   page.on("pageerror", (e) => errors.push(e.message));
   async function ready(target = page) {
-    await target.locator('[data-iq-renderer="ready"]').waitFor({ timeout: 45000 });
+    try {
+      await target.locator('[data-iq-renderer="ready"]').waitFor({ timeout: 45000 });
+    } catch (error) {
+      await fs.writeFile(
+        path.join(work, "renderer-error.json"),
+        JSON.stringify(
+          {
+            error: String(error),
+            errors,
+            renderer: await target.locator("[data-iq-renderer]").getAttribute("data-iq-renderer"),
+            body: await target.locator("body").innerText(),
+          },
+          null,
+          2,
+        ),
+      );
+      await target.screenshot({ path: path.join(work, "renderer-error.png") });
+      throw error;
+    }
     await target.evaluate(() => document.fonts.ready);
   }
   async function snap(name, target = page) {
@@ -372,9 +390,15 @@ try {
     viewport: { width: 390, height: 560 },
     reducedMotion: "reduce",
   });
-  await fallback.route(/running.*\.fbx/, (route) => route.abort());
+  // The production runner is a GLB; block its actual request to exercise asset failure.
+  let blockedRunner = false;
+  await fallback.route(/running[^/]*\.glb(?:\?.*)?$/, (route) => {
+    blockedRunner = true;
+    return route.abort();
+  });
   await fallback.goto(base + "?fixture=carry");
   await fallback.locator('[data-iq-renderer="fallback"]').waitFor({ timeout: 45000 });
+  ensure(blockedRunner, "Fallback check did not block the production runner asset");
   await fallback.locator('[data-iq-phase="board"]').waitFor();
   const expectedPlayers = await fallback.evaluate(
     () =>

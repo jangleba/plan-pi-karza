@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { healthFieldsForOnboarding } from "./onboardingHealth";
+import { foodSafetyFieldsForOnboarding, healthFieldsForOnboarding } from "./onboardingHealth";
 import type { Profile } from "./types";
 
 describe("health state while saving general onboarding answers", () => {
@@ -42,5 +42,65 @@ describe("health state while saving general onboarding answers", () => {
     expect(
       healthFieldsForOnboarding({ ...existing, healthPersonalizationEnabled: false }, true),
     ).toEqual({ painInjury: false, painLocations: [] });
+  });
+});
+
+describe("food safety while saving general onboarding answers", () => {
+  const existing = {
+    healthPersonalizationEnabled: true,
+    fuelAllergyStatus: "has_allergies" as const,
+    foodAllergies: ["orzechy"],
+    foodIntolerances: ["laktoza"],
+    foodExclusions: ["grzyby"],
+  };
+
+  it("keeps the separately confirmed allergies, intolerances and exclusions on profile edits", () => {
+    const fields = foodSafetyFieldsForOnboarding(existing, true);
+    expect(fields).toEqual({
+      fuelAllergyStatus: "has_allergies",
+      foodAllergies: ["orzechy"],
+      foodIntolerances: ["laktoza"],
+      foodExclusions: ["grzyby"],
+    });
+    for (const key of ["foodAllergies", "foodIntolerances", "foodExclusions"] as const)
+      expect(fields[key]).not.toBe(existing[key]);
+  });
+
+  it("preserves a confirmed absence of allergies", () => {
+    expect(
+      foodSafetyFieldsForOnboarding(
+        { ...existing, fuelAllergyStatus: "confirmed_none", foodAllergies: [] },
+        true,
+      ).fuelAllergyStatus,
+    ).toBe("confirmed_none");
+  });
+
+  it("clears allergies and intolerances after withdrawal while keeping ordinary exclusions", () => {
+    expect(foodSafetyFieldsForOnboarding(existing, false)).toEqual({
+      fuelAllergyStatus: "unconfirmed",
+      foodAllergies: [],
+      foodIntolerances: [],
+      foodExclusions: ["grzyby"],
+    });
+  });
+
+  it("does not restore stale health lists on new consent", () => {
+    expect(
+      foodSafetyFieldsForOnboarding({ ...existing, healthPersonalizationEnabled: false }, true),
+    ).toEqual({
+      fuelAllergyStatus: "unconfirmed",
+      foodAllergies: [],
+      foodIntolerances: [],
+      foodExclusions: ["grzyby"],
+    });
+  });
+
+  it("initializes new accounts without inferring any food answers", () => {
+    expect(foodSafetyFieldsForOnboarding(null, true)).toEqual({
+      fuelAllergyStatus: "unconfirmed",
+      foodAllergies: [],
+      foodIntolerances: [],
+      foodExclusions: [],
+    });
   });
 });

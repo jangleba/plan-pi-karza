@@ -30,7 +30,7 @@
   padding: 16px;
   border-radius: 16px;
   background: var(--card);
-  box-shadow: 0 1px 2px oklch(0.18 0.015 255 / 0.05);
+  box-shadow: none;
 }
 .bw-plan-card h2 {
   margin: 0;
@@ -150,13 +150,13 @@
   font-size: 15px;
 }
 .bw-plan-select select {
-  min-height: 36px;
+  min-height: 44px;
   padding: 4px 10px;
   border: 0;
   border-radius: 9px;
   background: color-mix(in oklch, var(--foreground) 6%, var(--card));
   color: var(--foreground);
-  font-size: 15px;
+  font-size: 16px;
 }
 .bw-plan-diff {
   display: grid;
@@ -192,7 +192,7 @@
 }
 .bw-wk-head {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) 36px;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
   align-items: center;
   gap: 8px;
 }
@@ -213,13 +213,13 @@
 }
 .bw-wk-head button {
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   place-items: center;
   border-radius: 999px;
   background: var(--card);
   color: var(--primary);
-  box-shadow: 0 1px 2px oklch(0.18 0.015 255 / 0.06);
+  box-shadow: none;
 }
 .bw-wk-head button svg {
   width: 18px;
@@ -383,8 +383,8 @@
   height: 20px;
   padding: 3px;
   border-radius: 999px;
-  background: var(--bw-success, #166249);
-  color: white;
+  background: var(--bw-recovery-soft);
+  color: var(--bw-recovery);
 }
 .bw-wk-chevron {
   flex: none;
@@ -397,7 +397,7 @@
   font-size: 13px;
 }
 .bw-wk-exercises summary {
-  min-height: 36px;
+  min-height: 44px;
   color: var(--primary);
   font-weight: 500;
   cursor: pointer;
@@ -454,4 +454,22 @@
   .bw-plan-button {
     transition: none;
   }
+}
+
+.bw-wk-copy > small {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+}
+.bw-wk-strip li[data-train] i {
+  width: 6px;
+  height: 6px;
+  background: var(--bw-tone-ink, var(--bw-motion));
+}
+.bw-plan-status {
+  border-left: 3px solid var(--bw-warning-soft);
+}
+.bw-wk-copy strong {
+  font-weight: 550;
 }

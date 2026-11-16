@@ -179,6 +179,23 @@ async function render(session: SessionDay) {
 }
 
 describe("saved engine session execution", () => {
+  it("shows a missed prescription for review without offering to restart it", async () => {
+    const session = generated(profile, "mobility");
+    setSession(session);
+    mocks.state.completions[session.dbId!] = {
+      completed: false,
+      status: "missed",
+    } as LoadwiseState["completions"][string];
+    await render(session);
+    expect(mocks.runner.mock.lastCall?.[0]).toMatchObject({
+      start: null,
+      canRecord: false,
+      previewNote: expect.stringContaining("Sesja opuszczona"),
+      sections: session.structuredSections,
+    });
+    expect(host.querySelector("[data-saved-runner] button")).toBeNull();
+    expect(mocks.start).not.toHaveBeenCalled();
+  });
   it("offers explicit equipment replanning and hides an obsolete notice after a saved update", async () => {
     const p: Profile = {
       ...profile,

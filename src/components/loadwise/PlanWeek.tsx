@@ -3,6 +3,7 @@ import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import type { SessionCompletion, SessionDay } from "@/lib/loadwise/types";
 import { sessionHeading } from "@/lib/loadwise/sessionRunner/heading";
 import { blockMethod, linkedLabel } from "@/lib/loadwise/blockMethod";
+import { sessionAppearance } from "@/lib/loadwise/sessionAppearance";
 
 const MONTHS = ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"];
 const MONTHS_FULL = [
@@ -60,8 +61,8 @@ export function planWeeks(plan: SessionDay[]): PlanWeekGroup[] {
   return out;
 }
 
-const isRest = (s: SessionDay) =>
-  s.dayType === "rest" || (!s.engineV2 && !s.durationMin && s.dayType !== "match");
+const isRest = (s: SessionDay) => s.dayType === "rest" && !s.engineV2;
+const isFullRestDay = (s: SessionDay) => isRest(s) && !s.secondSession && !s.externalCommitment;
 
 function Exercises({ session }: { session: SessionDay }) {
   const blocks = session.structuredSections?.flatMap((x) => x.blocks) ?? [];
@@ -159,8 +160,9 @@ export function PlanWeek({
           <li
             key={iso}
             data-today={iso === todayIso || undefined}
-            data-train={(day && !isRest(day)) || undefined}
+            data-train={(day && !isFullRestDay(day)) || undefined}
             data-match={day?.dayType === "match" || undefined}
+            data-tone={day ? sessionAppearance(day).tone : undefined}
           >
             <span>{WEEKDAY[parts(iso).dow]}</span>
             <b>{parts(iso).d}</b>
@@ -173,7 +175,11 @@ export function PlanWeek({
           const sessions = [d, ...(d.secondSession ? [d.secondSession] : [])];
           const today = d.date === todayIso;
           return (
-            <li key={d.date} data-today={today || undefined} data-rest={isRest(d) || undefined}>
+            <li
+              key={d.date}
+              data-today={today || undefined}
+              data-rest={isFullRestDay(d) || undefined}
+            >
               <div className="bw-wk-date">
                 <span>{today ? "Dziś" : WEEKDAY[parts(d.date).dow]}</span>
                 <b>{parts(d.date).d}</b>
@@ -183,12 +189,22 @@ export function PlanWeek({
                   const rest = isRest(s);
                   const heading = sessionHeading(s);
                   const done = Boolean(s.dbId && completions[s.dbId]?.completed);
+                  const appearance = sessionAppearance(s);
                   const body = (
                     <>
                       <span className="bw-wk-copy">
                         <strong>{rest ? "Odpoczynek" : heading.title}</strong>
                         {!rest && heading.meta.length > 0 && (
-                          <small>{heading.meta.join(" · ")}</small>
+                          <small>
+                            <span className="bw-session-kind" data-tone={appearance.tone}>
+                              {heading.category ?? appearance.label}
+                            </span>
+                            <span>
+                              {" "}
+                              ·{" "}
+                              {heading.meta.filter((part) => part !== heading.category).join(" · ")}
+                            </span>
+                          </small>
                         )}
                         {s.engineV2?.cycle &&
                         ["deload", "reentry", "review"].includes(s.engineV2.cycle.state) ? (
@@ -199,7 +215,7 @@ export function PlanWeek({
                     </>
                   );
                   return (
-                    <div key={i} className="bw-wk-session">
+                    <div key={i} className="bw-wk-session" data-tone={appearance.tone}>
                       {s.dbId && !preview && !rest ? (
                         <button
                           type="button"

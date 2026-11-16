@@ -164,7 +164,7 @@ export function deriveRunningIntervalProtocol(session: SessionDay): RunningInter
           steps.push({
             id: `${exercise.id}:rest:${i}`,
             kind: "recovery",
-            label: "Przerwa",
+            label: betweenRounds ? "Przerwa między seriami" : "Przerwa",
             instruction: "Odpocznij zgodnie z planem",
             repeatIndex: i,
             repeatTotal: count,

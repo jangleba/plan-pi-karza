@@ -242,6 +242,9 @@ export function formatRange(range: Range): string {
 
 /** Distance of one sprint repetition, as written in the plan ("15–20 m"). */
 export function sprintDistance(exercise: TrainingExercise): string | null {
+  const distance = exercise.engineDose?.distanceM;
+  if (distance !== undefined)
+    return Number.isFinite(distance) && distance > 0 ? `${distance} m` : null;
   const match = `${exercise.displayPrescription ?? ""} ${exercise.reps ?? ""}`.match(
     /(\d+(?:\s*[–-]\s*\d+)?)\s*m\b/,
   );

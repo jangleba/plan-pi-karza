@@ -1,0 +1,112 @@
+.bw-weekly-settings {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.bw-weekly-settings h3,
+.bw-weekly-coverage h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.bw-weekly-settings p,
+.bw-weekly-coverage p {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.bw-weekly-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.bw-weekly-actions button {
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--muted);
+  font-size: 13px;
+  text-align: left;
+}
+.bw-weekly-actions button[aria-pressed="true"] {
+  background: var(--bw-motion-soft);
+  color: var(--bw-motion);
+}
+.bw-weekly-fields {
+  display: grid;
+  gap: 12px;
+}
+.bw-weekly-fields label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(72px, 1fr);
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.bw-weekly-fields select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 0;
+  border-radius: 10px;
+  padding: 8px;
+  background: var(--muted);
+  font-size: 16px;
+}
+.bw-weekly-fields .bw-weekly-rest {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+.bw-weekly-fields .bw-weekly-check {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.bw-weekly-check input {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+}
+.bw-weekly-coverage {
+  display: grid;
+  gap: 10px;
+}
+.bw-weekly-coverage summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.bw-weekly-coverage table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.bw-weekly-coverage caption {
+  text-align: left;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  margin-bottom: 6px;
+}
+.bw-weekly-coverage th,
+.bw-weekly-coverage td {
+  padding: 8px 4px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.bw-weekly-coverage th {
+  font-weight: 500;
+}
+.bw-weekly-coverage td {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.bw-weekly-coverage tr[data-unmet] td {
+  color: var(--bw-warning);
+  font-weight: 600;
+}

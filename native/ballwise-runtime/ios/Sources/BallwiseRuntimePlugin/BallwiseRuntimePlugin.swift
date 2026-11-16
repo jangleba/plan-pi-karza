@@ -4,7 +4,7 @@ import Foundation
 import UIKit
 import Darwin
 
-/// Native owns the recording while React is suspended. Coordinates are only in memory.
+/// Native owns the recording while React is suspended. The recovery route stays on this device.
 @objc(BallwiseRuntimePlugin)
 public final class BallwiseRuntimePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
     public let identifier = "BallwiseRuntimePlugin"
@@ -363,7 +363,7 @@ public final class BallwiseRuntimePlugin: CAPPlugin, CAPBridgedPlugin, CLLocatio
                           "locationServicesEnabled": CLLocationManager.locationServicesEnabled(),
                           "authorization": self.location.authorizationStatus.rawValue,
                           "preciseLocation": self.location.accuracyAuthorization == .fullAccuracy,
-                          "coordinatesPersisted": false, "checkpointSchema": 1,
+                          "coordinatesPersisted": true, "checkpointSchema": 1,
                           "unattributedRecoveryCopies": unknownCopies])
         }
     }

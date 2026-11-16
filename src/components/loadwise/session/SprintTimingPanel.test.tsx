@@ -6,13 +6,15 @@ import { SprintTimingPanel } from "./SprintTimingPanel";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 
 const mocks = vi.hoisted(() => ({
+  ownerId: "sprint-user",
   current: {} as Record<number, Record<string, unknown>>,
   previous: {} as Record<number, Record<string, unknown>>,
   saveSet: vi.fn(),
 }));
-vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: "sprint-user" } }) }));
+vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: mocks.ownerId } }) }));
 vi.mock("@/lib/loadwise/setLogs", () => ({
   exerciseKey: () => "sprint_20",
+  plannedSets: (exercise: TrainingExercise) => Number(exercise.sets?.match(/\d+/)?.[0] ?? 0),
   useExerciseSetLogs: () => ({
     current: mocks.current,
     previous: mocks.previous,
@@ -41,6 +43,7 @@ const type = (value: string) =>
   });
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  mocks.ownerId = "sprint-user";
   mocks.current = {};
   mocks.previous = {};
   mocks.saveSet.mockReset().mockResolvedValue(true);
@@ -52,6 +55,8 @@ afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 const render = () =>
   act(async () =>
@@ -154,4 +159,198 @@ it("compares with the earlier session only under the same conditions and otherwi
   await render();
   expect(host.textContent).toContain("nie porównujemy");
   expect(host.textContent).not.toContain("Najlepszy wynik wcześniej");
+});
+
+it("a manual stopwatch only fills the time field; the athlete saves the trial explicitly", async () => {
+  let now = 1000;
+  vi.spyOn(performance, "now").mockImplementation(() => now);
+  await render();
+  await act(async () => {
+    host.querySelector<HTMLDetailsElement>(".bw-sprint-stopwatch")!.open = true;
+  });
+  await act(async () => button("Start stopera").click());
+  now = 4460;
+  await act(async () => button("Zatrzymaj stoper").click());
+  expect(host.querySelector('[role="timer"]')?.textContent).toContain("3,46");
+  await act(async () => button("Użyj czasu").click());
+  expect(
+    host.querySelector<HTMLInputElement>('[aria-label="Czas sprintu w sekundach"]')?.value,
+  ).toBe("3.46");
+  expect(mocks.saveSet).not.toHaveBeenCalled();
+  await act(async () => button("Zapisz czas").click());
+  expect(mocks.saveSet).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ metricValue: 3.46, measurementMethod: "manual_stopwatch" }),
+  );
+});
+
+it("an interrupted stopwatch stops and never offers that elapsed time as a reliable trial", async () => {
+  let now = 1000;
+  vi.spyOn(performance, "now").mockImplementation(() => now);
+  await render();
+  await act(async () => {
+    host.querySelector<HTMLDetailsElement>(".bw-sprint-stopwatch")!.open = true;
+  });
+  await act(async () => button("Start stopera").click());
+  now = 2500;
+  vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+  await act(async () => document.dispatchEvent(new Event("visibilitychange")));
+  expect(button("Start stopera")).toBeDefined();
+  expect(button("Użyj czasu").disabled).toBe(true);
+  expect(host.textContent).toContain("Pomiar zatrzymano po ukryciu stopera");
+  expect(mocks.saveSet).not.toHaveBeenCalled();
+});
+
+it("collapsing the outer timing tool stops its otherwise-open stopwatch and preserves the input draft", async () => {
+  let now = 1000;
+  vi.spyOn(performance, "now").mockImplementation(() => now);
+  await act(async () =>
+    root.render(
+      <details open className="outer-timing-tool">
+        <summary>Czas odcinka</summary>
+        <SprintTimingPanel exercise={exercise} sessionId="s1" onRepeat={() => {}} />
+      </details>,
+    ),
+  );
+  await type("3.12");
+  await act(async () => {
+    host.querySelector<HTMLDetailsElement>(".bw-sprint-stopwatch")!.open = true;
+  });
+  await act(async () => button("Start stopera").click());
+  now = 2200;
+  await act(async () => {
+    const outer = host.querySelector<HTMLDetailsElement>(".outer-timing-tool")!;
+    outer.open = false;
+    outer.dispatchEvent(new Event("toggle"));
+  });
+  expect(button("Start stopera")).toBeDefined();
+  expect(button("Użyj czasu").disabled).toBe(true);
+  expect(
+    host.querySelector<HTMLInputElement>('[aria-label="Czas sprintu w sekundach"]')?.value,
+  ).toBe("3.12");
+  expect(mocks.saveSet).not.toHaveBeenCalled();
+});
+
+it("leaving the exercise removes the running stopwatch timer", async () => {
+  vi.useFakeTimers();
+  await render();
+  const before = vi.getTimerCount();
+  await act(async () => button("Start stopera").click());
+  expect(vi.getTimerCount()).toBeGreaterThan(before);
+  await act(async () => root.render(null));
+  expect(vi.getTimerCount()).toBe(before);
+  expect(mocks.saveSet).not.toHaveBeenCalled();
+});
+
+it("two save taps before rerender cannot submit the same sprint trial twice", async () => {
+  let complete!: (value: boolean) => void;
+  mocks.saveSet.mockReturnValue(
+    new Promise<boolean>((resolve) => {
+      complete = resolve;
+    }),
+  );
+  await render();
+  await type("3.4");
+  await act(async () => {
+    button("Zapisz czas").click();
+    button("Zapisz czas").click();
+  });
+  expect(mocks.saveSet).toHaveBeenCalledTimes(1);
+  await act(async () => complete(true));
+});
+
+it("a ranged prescription allows the planned optional repetitions instead of showing a single trial", async () => {
+  await act(async () =>
+    root.render(
+      <SprintTimingPanel
+        exercise={{ ...exercise, sets: "3–4", engineDose: undefined }}
+        sessionId="s1"
+        onRepeat={() => {}}
+      />,
+    ),
+  );
+  expect(
+    host.querySelector<HTMLSelectElement>('[aria-label="Powtórzenie sprintu"]')!.options.length,
+  ).toBe(4);
+});
+
+it("does not attach a standing-start Lab trial to a flying sprint", async () => {
+  const flying = {
+    ...exercise,
+    displayPrescription: "2 × 10 m",
+    engineDose: { sets: 2, distanceM: 10, runInM: 20, restSeconds: 120, intent: "explosive" },
+  } as TrainingExercise;
+  await act(async () =>
+    root.render(<SprintTimingPanel exercise={flying} sessionId="s1" onRepeat={() => {}} />),
+  );
+  expect(host.textContent).not.toContain("Wybierz pomiar 10 m z Lab");
+});
+
+it("a saved legacy flying prescription keeps its flying start and cannot import a standing 10 m Lab trial", async () => {
+  const flying = {
+    ...exercise,
+    exerciseId: "flying_sprint",
+    sets: "4",
+    displayPrescription: "4 × 10 m z najazdu 15 m",
+    engineDose: undefined,
+  };
+  await act(async () =>
+    root.render(<SprintTimingPanel exercise={flying} sessionId="s1" onRepeat={() => {}} />),
+  );
+  expect(host.textContent).not.toContain("Wybierz pomiar 10 m z Lab");
+  await type("1.3");
+  await act(async () => button("Zapisz czas").click());
+  expect(mocks.saveSet).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({
+      distanceM: 10,
+      startType: "flying",
+      measurementMethod: "manual_stopwatch",
+    }),
+  );
+});
+
+it("keeps a pending save attached to its original session without confirming the newly opened one", async () => {
+  let finish!: (value: boolean) => void;
+  mocks.saveSet.mockReturnValueOnce(
+    new Promise<boolean>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const firstRepeat = vi.fn(),
+    nextRepeat = vi.fn();
+  await act(async () =>
+    root.render(<SprintTimingPanel exercise={exercise} sessionId="s1" onRepeat={firstRepeat} />),
+  );
+  await type("3.4");
+  await act(async () => button("Zapisz czas").click());
+  await act(async () =>
+    root.render(<SprintTimingPanel exercise={exercise} sessionId="s2" onRepeat={nextRepeat} />),
+  );
+  expect(
+    host.querySelector<HTMLInputElement>('[aria-label="Czas sprintu w sekundach"]')?.value,
+  ).toBe("");
+  expect(button("Zapisz czas").disabled).toBe(false);
+  await act(async () => finish(true));
+  expect(firstRepeat).not.toHaveBeenCalled();
+  expect(nextRepeat).not.toHaveBeenCalled();
+
+  await type("3.7");
+  await act(async () => button("Zapisz czas").click());
+  expect(nextRepeat).toHaveBeenCalledTimes(1);
+  expect(firstRepeat).not.toHaveBeenCalled();
+});
+
+it("removes the previous account's time draft and running stopwatch on an account change", async () => {
+  vi.useFakeTimers();
+  await render();
+  await type("3.4");
+  await act(async () => button("Start stopera").click());
+  expect(vi.getTimerCount()).toBeGreaterThan(0);
+  mocks.ownerId = "another-sprint-user";
+  await render();
+  expect(
+    host.querySelector<HTMLInputElement>('[aria-label="Czas sprintu w sekundach"]')?.value,
+  ).toBe("");
+  expect(host.querySelector('[role="timer"]')?.textContent).toContain("0,00");
+  expect(vi.getTimerCount()).toBe(0);
+  expect(mocks.saveSet).not.toHaveBeenCalled();
 });
