@@ -1,5 +1,6 @@
 import { lazy, Suspense, useId, useMemo, useState } from "react";
 import { WellbeingCard } from "./WellbeingCard";
+import { ProgressTests } from "./ProgressTests";
 import { wellbeingTrends } from "@/lib/progress/wellbeing";
 import { AppHeader } from "@/components/loadwise/ui";
 import type { LoadwiseState } from "@/lib/loadwise/types";
@@ -38,12 +39,12 @@ export function ProgressWorkspace({
   ownerId?: string;
   brand?: boolean;
   loading?: boolean;
-  initialTab?: "history";
+  initialTab?: "history" | "tests";
   focusSessionId?: string;
   /** Provided by the route: lets the end-of-plan summary prepare the next preview. */
   planEnd?: { currentMinutes: number; onPrepare: (draft: NextPlanDraft) => Promise<void> };
 }) {
-  const [tab, setTab] = useState<"dashboard" | "history">(initialTab ?? "dashboard");
+  const [tab, setTab] = useState<"dashboard" | "history" | "tests">(initialTab ?? "dashboard");
   const [period, setPeriod] = useState<ProgressPeriod>(7);
   const [measurements, setMeasurements] = useState(false);
   const [historyScope, setHistoryScope] = useState(false);
@@ -139,6 +140,7 @@ export function ProgressWorkspace({
   const tabs = [
     { id: "dashboard", label: "Podsumowanie" },
     { id: "history", label: "Historia" },
+    { id: "tests", label: "Testy" },
   ] as const;
   return (
     <div className="premium-flow progress-premium" data-progress-workspace>
@@ -170,7 +172,15 @@ export function ProgressWorkspace({
                 e.preventDefault();
                 setHistoryScope(false);
                 setHistoryMissingRpe(false);
-                const target = e.key === "Home" ? 0 : e.key === "End" ? 1 : 1 - index;
+                const last = tabs.length - 1;
+                const target =
+                  e.key === "Home"
+                    ? 0
+                    : e.key === "End"
+                      ? last
+                      : e.key === "ArrowRight"
+                        ? (index + 1) % tabs.length
+                        : (index + last) % tabs.length;
                 setTab(tabs[target].id);
                 document.getElementById(`${id}-${tabs[target].id}`)?.focus();
               }}
@@ -256,6 +266,8 @@ export function ProgressWorkspace({
                   </details>
                 )}
               </>
+            ) : tab === "tests" ? (
+              <ProgressTests />
             ) : (
               <>
                 {historyScope && (

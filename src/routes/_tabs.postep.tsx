@@ -8,8 +8,10 @@ import { trainingStorageKey } from "@/lib/loadwise/trainingDetails";
 import { useTrainingLocalState } from "@/lib/loadwise/useTrainingLocalState";
 
 export const Route = createFileRoute("/_tabs/postep")({
-  validateSearch: (s: Record<string, unknown>): { view?: "history"; session?: string } => ({
-    view: s.view === "history" ? ("history" as const) : undefined,
+  validateSearch: (
+    s: Record<string, unknown>,
+  ): { view?: "history" | "tests"; session?: string } => ({
+    view: s.view === "history" || s.view === "tests" ? s.view : undefined,
     session: typeof s.session === "string" ? s.session : undefined,
   }),
   component: ProgressScreen,

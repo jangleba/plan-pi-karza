@@ -82,9 +82,15 @@ function LoadMark({ session }: { session: SessionDay }) {
       aria-label={label}
       title={label}
     >
-      {[1, 2, 3].map((bar) => (
-        <i key={bar} data-filled={(level !== null && bar <= level) || undefined} />
-      ))}
+      <span className="bw-wk-load-bars" aria-hidden="true">
+        {[1, 2, 3].map((bar) => (
+          <i key={bar} data-filled={(level !== null && bar <= level) || undefined} />
+        ))}
+      </span>
+      {/* The load is never shown by bars alone. */}
+      <span className="bw-wk-load-text" aria-hidden="true">
+        {level ? ["Lekko", "Umiarkowanie", "Mocno"][level - 1] : "—"}
+      </span>
     </span>
   );
 }
@@ -220,10 +226,11 @@ export function PlanWeek({
                         <strong>{rest ? "Odpoczynek" : heading.title}</strong>
                         {!rest && (
                           <small>
-                            <span className="bw-wk-category">
+                            <span className="bw-session-kind" data-tone={appearance.tone}>
                               {heading.category ?? appearance.label}
                             </span>
-                            {s.durationMin > 0 && <span> · {Math.round(s.durationMin)} min</span>}
+                            {s.durationMin > 0 && <span>{Math.round(s.durationMin)} min</span>}
+                            <LoadMark session={s} />
                           </small>
                         )}
                         {s.engineV2?.cycle &&
@@ -231,7 +238,6 @@ export function PlanWeek({
                           <small className="bw-wk-phase">{s.blockPhaseLabel}</small>
                         ) : null}
                       </span>
-                      <LoadMark session={s} />
                       {done && <Check className="bw-wk-done" aria-label="Wykonane" />}
                     </>
                   );
@@ -259,9 +265,6 @@ export function PlanWeek({
           );
         })}
       </ul>
-      <p className="bw-wk-load-note">
-        Intensywność: 1–3 słupki. Kreska oznacza brak danych w planie.
-      </p>
     </section>
   );
 }

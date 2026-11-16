@@ -19,7 +19,9 @@ const mock = vi.hoisted(() => ({
 vi.mock("@/lib/loadwise/useGymEvidence", () => ({ useGymEvidence: () => mock.gym }));
 vi.mock("@/lib/loadwise/store", () => ({ useLoadwise: () => mock.store }));
 vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: "plan-test" } }) }));
-vi.mock("@/components/loadwise/ui", () => ({ AppHeader: () => null }));
+vi.mock("@/components/loadwise/ui", () => ({
+  AppHeader: ({ right }: { right?: import("react").ReactNode }) => right ?? null,
+}));
 vi.mock("@tanstack/react-router", async (importActual) => ({
   ...(await importActual<object>()),
   useNavigate: () => mock.navigate,
@@ -320,7 +322,7 @@ it("offers an explicit profile update and lets the player return to the saved sn
   expect(mock.activate).not.toHaveBeenCalled();
 });
 
-it("keeps the refresh reason in closed details and uses a plain status headline", async () => {
+it("keeps the refresh reason in plan settings and the week alone on screen", async () => {
   const state = mock.store.state as LoadwiseState;
   const profile = {
     ...state.profile!,
@@ -334,16 +336,25 @@ it("keeps the refresh reason in closed details and uses a plain status headline"
   }).plan.map((day) => ({ ...day, generatorVersion: "ballwise-v2.old" }));
   mock.store.state = { ...state, profile, plan: saved };
   await act(async () => root.render(<PlanScreen />));
-  expect(host.querySelector('.bw-plan-status-row [role="status"]')?.textContent).toBe(
+  const panel = host.querySelector<HTMLElement>(".bw-plan-settings-panel")!;
+  expect(panel.hidden).toBe(true);
+  // The default screen: settings button and the week, nothing else above it.
+  const main = host.querySelector(".bw-plan-stack")!;
+  expect(main.textContent).not.toMatch(/Test biegowy|kalibr|Plan wymaga|Ograniczenia/);
+  expect(main.querySelector("details")).toBeNull();
+  expect(main.querySelector(".bw-wk")).not.toBeNull();
+  const button = host.querySelector<HTMLButtonElement>(".bw-plan-settings-button")!;
+  expect(button.getAttribute("aria-label")).toBe("Ustawienia planu, wymagają uwagi");
+  await act(async () => button.click());
+  expect(panel.hidden).toBe(false);
+  expect(panel.querySelector('.bw-plan-status-row [role="status"]')?.textContent).toBe(
     "Plan wymaga odświeżenia",
   );
-  const details = host.querySelector<HTMLDetailsElement>(".bw-plan-status-details")!;
-  expect(details.open).toBe(false);
-  expect(details.textContent).toContain(
+  expect(panel.textContent).toContain(
     "Dostępna jest aktualna wersja silnika. Przygotuj plan ponownie.",
   );
-  await act(async () => details.querySelector("summary")!.click());
-  expect(details.open).toBe(true);
+  await act(async () => panel.querySelector<HTMLButtonElement>(".bw-plan-settings-close")!.click());
+  expect(panel.hidden).toBe(true);
   expect((mock.store.state as LoadwiseState).plan).toBe(saved);
   expect(mock.activate).not.toHaveBeenCalled();
 });
@@ -476,13 +487,15 @@ it("a change that reaches later weeks says so before the save", async () => {
   );
   expect(host.textContent).toContain("Dalsze tygodnie · zmiany");
   expect(host.textContent).toMatch(/w dalszych tygodniach \(poniżej\)/);
-  const details = host.querySelector<HTMLDetailsElement>(".bw-plan-preview-details")!;
-  expect(details.open).toBe(false);
-  expect([...details.querySelectorAll("details")].every((item) => !item.open)).toBe(true);
+  // The preview card stays short; the change details are one tap away in plan settings.
   expect(host.querySelector(".bw-plan-preview-meta")?.textContent).toContain("29 listopada");
-  await act(async () => details.querySelector("summary")!.click());
-  expect(details.open).toBe(true);
-  expect(details.textContent).toContain("Zapis zastąpi plan od 2 listopada do 29 listopada");
+  expect(host.querySelector(".bw-plan-preview details")).toBeNull();
+  const panel = host.querySelector<HTMLElement>(".bw-plan-settings-panel")!;
+  await act(async () =>
+    [...host.querySelectorAll("button")].find((b) => b.textContent === "Szczegóły zmian")!.click(),
+  );
+  expect(panel.hidden).toBe(false);
+  expect(panel.textContent).toContain("Zapis zastąpi plan od 2 listopada do 29 listopada");
   expect(mock.activate).not.toHaveBeenCalled();
 });
 

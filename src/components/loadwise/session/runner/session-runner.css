@@ -1650,3 +1650,9 @@
   border-radius: var(--bw-control-radius);
   padding: 12px;
 }
+
+/* Rest of a single exercise under its dose; quieter than the dose. */
+.bw-rplan-text .bw-rplan-row-rest {
+  font-size: 13px;
+  color: color-mix(in oklch, var(--muted-foreground) 85%, transparent);
+}

@@ -72,7 +72,11 @@ describe("plan week", () => {
     expect(host.querySelector('[aria-label="Wykonane"]')).not.toBeNull();
     const open = host.querySelector<HTMLButtonElement>(".bw-wk-open")!;
     expect(open.textContent).toContain("Całe ciało A");
-    expect(open.textContent).toContain("Siłownia · 50 min");
+    // Category chip, minutes and the load, always with text next to the bars.
+    expect(open.querySelector(".bw-session-kind")?.textContent).toBe("Siłownia");
+    expect(open.querySelector(".bw-session-kind")?.getAttribute("data-tone")).toBe("strength");
+    expect(open.textContent).toContain("50 min");
+    expect(open.querySelector(".bw-wk-load-text")?.textContent).toBe("Umiarkowanie");
     await act(async () => open.click());
     expect(onOpen).toHaveBeenCalledWith(plan[0], 1);
   });
