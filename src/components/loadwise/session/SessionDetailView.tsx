@@ -19,6 +19,8 @@ import { flatToStructured } from "@/lib/loadwise/sessionStructure";
 import { ArrowRight, SlidersHorizontal, Undo2 } from "lucide-react";
 import { EnduranceRunTracker } from "@/components/running/EnduranceRunTracker";
 import { RunPlanPreview } from "@/components/running/RunPlanPreview";
+import { RunModePicker } from "@/components/running/RunModePicker";
+import { RunCourseSetup } from "@/components/running/RunCourseSetup";
 import { isRecipePhaseItem } from "@/lib/running/recipeSession";
 import { trainingSetupRevision } from "@/lib/loadwise/planIdentity";
 import "@/components/loadwise/session/runner/session-runner.css";
@@ -38,6 +40,7 @@ import {
   recoveryContextForSession,
 } from "@/lib/loadwise/preparation/protocols";
 import {
+  MISSED_SESSION_NOTE,
   SessionStartPanel,
   useSessionStart,
 } from "@/components/loadwise/session/SessionStartPanel";
@@ -406,25 +409,9 @@ export function SessionDetailView({
             session.loadLabelOverride !== "Wstrzymaj trening" && (
               <>
                 {session.classification?.subcategory !== "field_mas_test" && (
-                  <div className="bw-run-mode" role="group" aria-label="Sposób pomiaru biegu">
-                    <button
-                      type="button"
-                      disabled={runBusy}
-                      aria-pressed={runMode === "gps"}
-                      onClick={() => setRunMode("gps")}
-                    >
-                      Z GPS
-                    </button>
-                    <button
-                      type="button"
-                      disabled={runBusy}
-                      aria-pressed={runMode === "timer"}
-                      onClick={() => setRunMode("timer")}
-                    >
-                      Bez GPS
-                    </button>
-                  </div>
+                  <RunModePicker mode={runMode} busy={runBusy} onChange={setRunMode} />
                 )}
+                <RunCourseSetup session={displayedSession} />
                 {runMode === "timer" && session.classification?.subcategory !== "field_mas_test" ? (
                   <RunClock
                     key={`${user.id}:${session.dbId}`}
@@ -712,11 +699,13 @@ function SessionRunner({
           : null
       }
       previewNote={
-        start.availability === "other-day"
-          ? `Podgląd sesji: ${formatDateFull(session.date).toLocaleLowerCase("pl-PL")}. Start i zapis wykonania są dostępne w dniu treningu.`
-          : completed
-            ? "Sesja zakończona. Oznaczenia poniżej są tylko do wglądu."
-            : null
+        start.availability === "missed"
+          ? MISSED_SESSION_NOTE
+          : start.availability === "other-day"
+            ? `Podgląd sesji: ${formatDateFull(session.date).toLocaleLowerCase("pl-PL")}. Start i zapis wykonania są dostępne w dniu treningu.`
+            : completed
+              ? "Sesja zakończona. Oznaczenia poniżej są tylko do wglądu."
+              : null
       }
     />
   );

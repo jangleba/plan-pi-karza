@@ -4,9 +4,15 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FuelWorkspace, type FuelDaySource } from "./FuelWorkspace";
-import { FOOD_BY_ID } from "@/lib/fuel/catalog";
-import { fuelStorageKey, localDate, planFuelContexts, readFuelData } from "@/lib/fuel/experience";
-import { EMPTY_FOOD_SAFETY } from "@/lib/fuel/practical";
+import { FOOD_BY_ID, RECIPES } from "@/lib/fuel/catalog";
+import {
+  emptyFuelData,
+  fuelStorageKey,
+  localDate,
+  planFuelContexts,
+  readFuelData,
+} from "@/lib/fuel/experience";
+import { createRecipeEntry, EMPTY_FOOD_SAFETY } from "@/lib/fuel/practical";
 import { sessionFixture } from "@/components/loadwise/session/testFixtures";
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() } }));
 vi.mock("@capacitor/core", () => ({
@@ -130,6 +136,57 @@ describe("Fuel day on the screen", () => {
     const text = host.querySelector(".fuel-questions")?.textContent ?? "";
     expect(text).not.toContain("Ile dziś zagrasz?");
     expect(text).not.toContain("Kiedy był ostatni posiłek?");
+  });
+
+  it("uses actual meal times when an older meal was entered after the latest meal", async () => {
+    const data = emptyFuelData();
+    data.entries = [
+      {
+        ...createRecipeEntry(RECIPES[0], "breakfast", "eaten", now, "older"),
+        eatenAt: now - 5 * 3_600_000,
+      },
+      {
+        ...createRecipeEntry(RECIPES[1], "lunch", "eaten", now, "recent"),
+        eatenAt: now - 3_600_000,
+      },
+    ];
+    localStorage.setItem(fuelStorageKey("u"), JSON.stringify(data));
+    await render(source({ plan: [{ ...matchDay, scheduledStartTime: "13:00" }] }));
+    expect(host.querySelector(".fuel-match-steps")?.textContent).toContain(
+      "Jesz już niedawno: kolejny talerz nie jest potrzebny.",
+    );
+  });
+
+  it("does not let an imported future meal hide the last-meal question", async () => {
+    const data = emptyFuelData();
+    data.entries = [
+      {
+        ...createRecipeEntry(RECIPES[0], "future", "eaten", now, "future"),
+        eatenAt: now + 3_600_000,
+      },
+    ];
+    localStorage.setItem(fuelStorageKey("u"), JSON.stringify(data));
+    await render(source());
+    expect(host.querySelector(".fuel-questions")?.textContent).toContain(
+      "Kiedy był ostatni posiłek?",
+    );
+    expect(host.querySelector('[aria-label="Historia, zapisano dziś"]')).toBeNull();
+  });
+
+  it("keeps a later last-meal answer when an older meal is added to the history", async () => {
+    const data = emptyFuelData();
+    data.dayAnswers = { [today]: { lastMealAt: now - 3_600_000 } };
+    data.entries = [
+      {
+        ...createRecipeEntry(RECIPES[0], "breakfast", "eaten", now, "older"),
+        eatenAt: now - 5 * 3_600_000,
+      },
+    ];
+    localStorage.setItem(fuelStorageKey("u"), JSON.stringify(data));
+    await render(source({ plan: [{ ...matchDay, scheduledStartTime: "13:00" }] }));
+    expect(host.querySelector(".fuel-match-steps")?.textContent).toContain(
+      "Jesz już niedawno: kolejny talerz nie jest potrzebny.",
+    );
   });
 
   it("profile allergy: proposals avoid it; the notice says no conflict is not a guarantee", async () => {

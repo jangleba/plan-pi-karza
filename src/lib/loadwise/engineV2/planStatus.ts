@@ -66,7 +66,10 @@ export function getPlanStatus({
   const pending = plan
     .filter((d) => d.date >= todayIso)
     .flatMap(slots)
-    .filter((s) => !executionStarted(s.dbId ? completions[s.dbId] : undefined));
+    .filter((s) => {
+      const completion = s.dbId ? completions[s.dbId] : undefined;
+      return !executionStarted(completion) && !handled(completion);
+    });
   const staleReason = pending.some(
     (s) => ownPrescription(s) && s.generatorVersion !== ENGINE_VERSION,
   )

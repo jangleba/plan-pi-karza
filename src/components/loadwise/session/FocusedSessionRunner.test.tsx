@@ -45,6 +45,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 const sections: TrainingSection[] = [
@@ -82,6 +83,160 @@ const closeHowTo = () =>
 /** The rest takes the screen after a set; the athlete starts the next one. */
 const nextSet = () => click(byText("Rozpocznij kolejną serię"));
 const click = async (button: HTMLButtonElement | undefined) => act(async () => button!.click());
+
+it("offers the planned sprint setup before starting, without logging trials or starting the workout", async () => {
+  const onStart = vi.fn();
+  const sprint = sectionFixture("main", [
+    {
+      id: "flight-1",
+      exerciseId: "flying_sprint",
+      name: "Bieg lotny",
+      sets: "3",
+      reps: "10 m",
+      engineDose: { sets: 3, distanceM: 10, runInM: 20, restSeconds: 120, intent: "explosive" },
+      displayPrescription: "3 × 10 m",
+      restAfterExercise: "120 s",
+    },
+  ]);
+  await act(async () =>
+    root.render(
+      <FocusedSessionRunner
+        sections={[sprint]}
+        date="2026-11-10"
+        kind="sprint"
+        canRecord={false}
+        onFinish={() => {}}
+        start={{ label: "Rozpocznij trening", busy: false, error: null, onStart }}
+      />,
+    ),
+  );
+  await click(host.querySelector<HTMLButtonElement>(".bw-rplan-row button")!);
+  expect(host.querySelector(".bw-course-setup > summary")?.textContent).toContain(
+    "Ustawienie odcinka",
+  );
+  expect(host.querySelector('[data-training-field="flying_sprint"]')).not.toBeNull();
+  expect(host.querySelector(".bw-course-setup input")).toBeNull(); // No inactive camera controls in the browser.
+  expect(host.querySelector(".bw-sprint-result-entry")).toBeNull();
+  expect(onStart).not.toHaveBeenCalled();
+  expect(logs.save).not.toHaveBeenCalled();
+  await click(howTo());
+  expect(host.querySelector(".bw-training-field")).toBeNull(); // Setup is not duplicated in technique.
+  expect(onStart).not.toHaveBeenCalled();
+});
+
+it("opens the football action diagram in the actual instruction view without starting a session", async () => {
+  const onStart = vi.fn();
+  const football = sectionFixture("main", [
+    {
+      id: "ball-1",
+      exerciseId: "football_wall_first_touch",
+      name: "Podanie o ścianę i przyjęcie",
+      sets: "3",
+      reps: "8",
+      instructionSteps: [
+        { title: "Wybrany wariant", description: "Przyjmij zewnętrzną częścią stopy." },
+      ],
+    },
+  ]);
+  await act(async () =>
+    root.render(
+      <FocusedSessionRunner
+        sections={[football]}
+        date="2026-11-10"
+        canRecord={false}
+        onFinish={() => {}}
+        start={{ label: "Rozpocznij trening", busy: false, error: null, onStart }}
+      />,
+    ),
+  );
+  await click(host.querySelector<HTMLButtonElement>(".bw-rplan-row button")!);
+  expect(host.querySelector(".bw-course-setup")).toBeNull();
+  await click(howTo());
+  expect(host.querySelector('[data-training-field="football_wall_first_touch"]')).not.toBeNull();
+  expect(host.querySelector('[aria-label="Kierunki i kolory"]')).toBeNull();
+  expect(host.querySelector(".bw-howto-animation")).toBeNull();
+  expect(host.querySelector(".bw-howto-panel > .bw-howto-steps")).toBeNull();
+  const stored = host.querySelector<HTMLDetailsElement>(".bw-howto-plan-instruction")!;
+  expect(stored.open).toBe(false);
+  expect(stored.querySelector("summary")?.textContent).toBe("Instrukcja z planu");
+  await act(async () => {
+    stored.open = true;
+  });
+  expect(stored.open).toBe(true);
+  expect(stored.querySelector("li")?.textContent).toContain("Przyjmij zewnętrzną częścią stopy");
+  expect(host.querySelector(".bw-howto-gap")).toBeNull();
+  expect(onStart).not.toHaveBeenCalled();
+  expect(logs.save).not.toHaveBeenCalled();
+});
+
+it.each(["football_gate_dribble", "football_scan_control"])(
+  "makes optional direction cues available in the actual %s instruction without starting or logging the preview",
+  async (exerciseId) => {
+    vi.useFakeTimers();
+    const onStart = vi.fn();
+    const football = sectionFixture("main", [
+      { id: "ball-reactive", exerciseId, name: "Praca z piłką", sets: "2", reps: "45 s" },
+    ]);
+    await act(async () =>
+      root.render(
+        <FocusedSessionRunner
+          sections={[football]}
+          date="2026-11-10"
+          canRecord={false}
+          onFinish={() => {}}
+          start={{ label: "Rozpocznij trening", busy: false, error: null, onStart }}
+        />,
+      ),
+    );
+    await click(host.querySelector<HTMLButtonElement>(".bw-rplan-row button")!);
+    await click(howTo());
+    const tool = host.querySelector<HTMLDetailsElement>('[aria-label="Kierunki i kolory"]')!;
+    expect(tool).not.toBeNull();
+    expect(tool.open).toBe(false);
+    expect(host.querySelectorAll("[data-training-field]")).toHaveLength(1);
+    expect(host.querySelector(".bw-football-quality")).toBeNull();
+    expect(tool.querySelector("animateMotion")).toBeNull();
+    await act(async () => {
+      tool.open = true;
+      tool.dispatchEvent(new Event("toggle"));
+      vi.advanceTimersByTime(0);
+    });
+    expect(tool.querySelector("animateMotion")).toBeNull();
+    await click(
+      [...tool.querySelectorAll("button")].find(
+        (button) => button.textContent === "Odtwórz schemat",
+      ),
+    );
+    const firstCue = tool.querySelector('[role="status"]')?.textContent;
+    expect(tool.querySelector("animateMotion")).not.toBeNull();
+    await act(async () => vi.advanceTimersByTime(6000));
+    expect(tool.querySelector('[role="status"]')?.textContent).not.toBe(firstCue);
+    await act(async () => {
+      tool.open = false;
+      tool.dispatchEvent(new Event("toggle"));
+      vi.advanceTimersByTime(0);
+    });
+    expect(tool.querySelector("animateMotion")).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+    await act(async () => {
+      tool.open = true;
+      tool.dispatchEvent(new Event("toggle"));
+      vi.advanceTimersByTime(0);
+    });
+    await click(
+      [...tool.querySelectorAll("button")].find(
+        (button) => button.textContent === "Odtwórz schemat",
+      ),
+    );
+    expect(tool.querySelector("animateMotion")).not.toBeNull();
+    await click(closeHowTo());
+    await act(async () => vi.advanceTimersByTime(0));
+    expect(host.querySelector('[aria-label="Kierunki i kolory"]')).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+    expect(onStart).not.toHaveBeenCalled();
+    expect(logs.save).not.toHaveBeenCalled();
+  },
+);
 
 function runner(canRecord: boolean, onStart = vi.fn()) {
   return (

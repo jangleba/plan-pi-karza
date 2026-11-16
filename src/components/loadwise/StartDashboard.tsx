@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Brain, CalendarDays, Move, ScanLine, Target } from "lucide-react";
 import { PageHeader } from "./PageHeader";
+import type { SessionAppearance } from "@/lib/loadwise/sessionAppearance";
 
 export function StartDashboard({
   name,
@@ -13,6 +14,7 @@ export function StartDashboard({
   iqTask,
   iqGoal,
   todayTitle,
+  todayAppearance,
   planStatus,
   todayComplete = false,
   onToday,
@@ -22,6 +24,7 @@ export function StartDashboard({
 }: {
   name: string;
   todayTitle?: string;
+  todayAppearance?: SessionAppearance;
   planStatus?: "empty" | "active" | "expired" | "stale";
   todayComplete?: boolean;
   onToday?: () => void;
@@ -85,6 +88,13 @@ export function StartDashboard({
       <button
         type="button"
         className="bw-plan-soon bw-plan-soon--compact"
+        data-tone={
+          todayComplete
+            ? "recovery"
+            : status === "stale"
+              ? "warning"
+              : (todayAppearance?.tone ?? "motion")
+        }
         onClick={
           openToday
             ? (onToday ?? onPlan)
@@ -95,6 +105,9 @@ export function StartDashboard({
       >
         <CalendarDays size={18} aria-hidden="true" />
         <span>
+          {status === "active" && todayAppearance && !todayComplete && (
+            <span className="bw-home-kind">{todayAppearance.label}</span>
+          )}
           <strong>{title}</strong>
           <small>{subtitle}</small>
         </span>
@@ -157,12 +170,22 @@ export function StartDashboard({
         </section>
       )}
       <section className="bw-home-tools" aria-label="Narzędzia">
-        <button onClick={onLab} onPointerDown={onPrepareLab} onFocus={onPrepareLab}>
+        <button
+          onClick={onLab}
+          onPointerDown={onPrepareLab}
+          onFocus={onPrepareLab}
+          data-tone="motion"
+        >
           <ScanLine size={21} />
           <strong>BallWise Lab</strong>
           <small>Testy i pomiary</small>
         </button>
-        <button onClick={onReaction} onPointerDown={onPrepareReaction} onFocus={onPrepareReaction}>
+        <button
+          onClick={onReaction}
+          onPointerDown={onPrepareReaction}
+          onFocus={onPrepareReaction}
+          data-tone="carry"
+        >
           <Move size={21} />
           <strong>Bodźce boiskowe</strong>
           <small>Kierunki i kolory</small>

@@ -11,6 +11,10 @@ function from(table: string) {
       filters.push((r) => r[k] === v);
       return chain;
     },
+    gte: (k: string, v: any) => {
+      filters.push((r) => r[k] >= v);
+      return chain;
+    },
     in: (k: string, v: any[]) => {
       filters.push((r) => v.includes(r[k]));
       return chain;

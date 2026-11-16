@@ -725,6 +725,9 @@ export interface WeekMeta {
 
 /** Schedule-relevant inputs a plan was generated from; lets the app say what changed later. */
 export interface PlanInputsSnapshot {
+  weeklyTargets?: import("./engineV2/model").WeeklyTargets;
+  fillRestDays?: boolean;
+  minFullRestDays?: 0 | 1 | 2;
   matchDates: string[];
   individualTrainingDays: number[];
   unavailableDays: number[];

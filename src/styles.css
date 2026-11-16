@@ -77,13 +77,13 @@
   color-scheme: light;
   --bw-font-family:
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
-  --bw-title: 1.75rem;
+  --bw-title: 1.875rem;
   --bw-heading: 1.125rem;
   --bw-body: 1rem;
   --bw-secondary-text: 0.8125rem;
   --bw-caption: 0.75rem;
   --bw-hairline: 1px;
-  --bw-card-radius: 20px;
+  --bw-card-radius: 18px;
   --bw-control-radius: 14px;
   --bw-control-height: 44px;
   --bw-page-gutter: 20px;
@@ -91,34 +91,52 @@
   --bw-segment-background: oklch(0.948 0.004 255);
   --bw-segment-selected: oklch(1 0 0);
   --bw-segment-text: oklch(0.255 0.018 255);
-  --bw-shadow-card: 0 1px 2px oklch(0.18 0.015 255 / 0.025);
-  --bw-shadow-float: 0 -8px 40px oklch(0.18 0.015 255 / 0.12);
+  --bw-shadow-card: none;
+  --bw-shadow-float: 0 8px 32px oklch(0.18 0.015 255 / 0.09);
   /* Status colour always accompanies a word or icon, never a medical judgement. */
-  --bw-success: oklch(0.4442 0.0832 166.1);
-  --bw-success-soft: oklch(0.969 0.0148 158.25);
+  --bw-success: oklch(0.43 0.075 165);
+  --bw-success-soft: oklch(0.945 0.032 163);
   --bw-success-line: oklch(0.8344 0.0578 161.56);
   --bw-warning: oklch(0.4756 0.0955 66.24);
-  --bw-warning-soft: oklch(0.9759 0.0232 82.12);
+  --bw-warning-soft: oklch(0.955 0.047 86);
   --bw-warning-line: oklch(0.8583 0.0713 86.49);
   --bw-error: oklch(0.4791 0.1482 20.43);
-  --bw-error-soft: oklch(0.9672 0.0163 12.78);
+  --bw-error-soft: oklch(0.947 0.031 25);
   --bw-error-line: oklch(0.8191 0.0583 13.05);
-  --bw-info: oklch(0.3646 0.0784 251.36);
-  --bw-info-soft: oklch(0.9524 0.0196 245.64);
+  --bw-info: oklch(0.435 0.105 255);
+  --bw-info-soft: oklch(0.94 0.031 252);
   --bw-info-line: oklch(0.7662 0.0645 245.09);
+  /* Stable content semantics. Each tint is paired with text or an icon. */
+  --bw-motion: var(--bw-info);
+  --bw-motion-soft: var(--bw-info-soft);
+  --bw-strength: oklch(0.455 0.105 295);
+  --bw-strength-soft: oklch(0.94 0.03 295);
+  --bw-strength-line: oklch(0.8 0.07 295);
+  --bw-recovery: var(--bw-success);
+  --bw-recovery-soft: var(--bw-success-soft);
+  --bw-carry: oklch(0.43 0.07 188);
+  --bw-carry-soft: oklch(0.94 0.029 184);
+  --bw-carry-line: oklch(0.79 0.063 184);
+  --bw-pass: var(--bw-strength);
+  --bw-pass-soft: var(--bw-strength-soft);
+  --bw-field-run: var(--bw-motion);
+  --bw-field-carry: var(--bw-carry);
+  --bw-field-pass: var(--bw-pass);
+  --bw-field-return: var(--bw-recovery);
+  --bw-field-cone: var(--bw-warning);
   --bw-neutral: oklch(0.513 0.026 254.51);
   --bw-neutral-soft: oklch(0.954 0.0063 255.48);
   --bw-neutral-line: oklch(0.8665 0.0152 251.17);
   --bw-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   --bw-ease-emphasized: var(--bw-ease);
   --radius: 12px;
-  --background: oklch(0.977 0.003 265);
-  --foreground: oklch(0.23 0.018 255);
+  --background: oklch(0.978 0.002 265);
+  --foreground: oklch(0.235 0.009 260);
   --card: oklch(1 0 0);
   --card-foreground: var(--foreground);
   --popover: var(--card);
   --popover-foreground: var(--foreground);
-  --primary: oklch(0.37 0.085 253);
+  --primary: oklch(0.455 0.12 255);
   --primary-foreground: oklch(0.998 0 0);
   --secondary: oklch(0.956 0.007 252);
   --secondary-foreground: var(--foreground);
@@ -128,7 +146,7 @@
   --accent-foreground: var(--primary);
   --destructive: oklch(0.52 0.19 25);
   --destructive-foreground: oklch(0.998 0 0);
-  --border: oklch(0.898 0.006 255);
+  --border: oklch(0.915 0.004 255);
   --input: oklch(0.84 0.009 255);
   --ring: oklch(0.53 0.14 253);
   --brand: var(--primary);
@@ -184,14 +202,12 @@
   box-shadow: var(--bw-shadow-card);
 }
 
-/* Dark graphite hero card — premium focal surface */
+/* Main action surface. Content cards stay white. */
 @utility hero-card {
   background: var(--primary);
   color: var(--color-graphite-foreground);
   border-radius: var(--bw-card-radius);
-  box-shadow:
-    0 1px 2px oklch(0.15 0.03 260 / 0.1),
-    0 24px 48px -20px oklch(0.18 0.04 260 / 0.45);
+  box-shadow: none;
 }
 
 /* Pale-blue rounded icon container */

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { SurfaceSketch, type SketchKind } from "@/components/design/SurfaceSketch";
+import type { SketchKind } from "@/components/design/SurfaceSketch";
 
 /** Shared page hierarchy. Authentication and actions stay with the caller. */
 export function PageHeader({
@@ -7,7 +7,6 @@ export function PageHeader({
   subtitle,
   actions,
   brand = false,
-  sketch,
   className = "",
 }: {
   title: string;
@@ -18,8 +17,7 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <header className={`bw-page-header ${sketch ? "bw-sketch-surface" : ""} ${className}`}>
-      {sketch && <SurfaceSketch kind={sketch} />}
+    <header className={`bw-page-header ${className}`}>
       <div className="bw-page-heading">
         <div className="bw-page-heading-copy">
           {brand && (

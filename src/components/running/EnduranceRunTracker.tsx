@@ -449,7 +449,7 @@ function RunTracker({
       distanceM: distanceMRef.current,
     });
     setRoutePointCount(routeRef.current.length);
-    if (isFieldMasTest) setPreviewRoute([...routeRef.current]);
+    setPreviewRoute([...routeRef.current]);
     setDistanceM(distanceMRef.current);
   };
 
@@ -712,7 +712,10 @@ function RunTracker({
     samplesRef.current = [];
     try {
       if (nativeMode) {
-        applyNativeState(await nativeRecorder.start({ ...nativeIdentity, date }));
+        const state = await nativeRecorder.start({ ...nativeIdentity, date });
+        routeRef.current = [];
+        setPreviewRoute([]);
+        applyNativeState(state);
         samplesRef.current = [{ elapsedSec: 0, distanceM: 0 }];
         if (timedGuide) startIntervalGuide();
         return;
@@ -1486,6 +1489,11 @@ function RunTracker({
             {formatRunDuration(elapsedSec)} · {formatDistance(distanceM)} · {formatPace(livePace)}
             {routePointCount < 2 ? " · szukam sygnału GPS" : ""}
           </p>
+          {!isFieldMasTest && (
+            <section aria-label="Mapa biegu na żywo">
+              <RunRouteMap route={previewRoute} height={220} />
+            </section>
+          )}
           <div className="bw-run-dock">
             {phase === "recording" && isFieldMasTest ? (
               <p className="py-2 text-center text-xs">

@@ -9,6 +9,7 @@ import type { LoadwiseState, SessionDay } from "@/lib/loadwise/types";
 import type { PlanGymEvidence } from "@/lib/loadwise/planEvidence";
 import { enqueueTrainingWrite } from "@/lib/loadwise/offlineTrainingQueue";
 import { trainingStorageKey } from "@/lib/loadwise/trainingDetails";
+import { weeklyTargetCoverage } from "@/lib/loadwise/engineV2/weeklyTargets";
 const mock = vi.hoisted(() => ({
   store: null as unknown as Record<string, unknown>,
   activate: vi.fn(),
@@ -125,6 +126,159 @@ it("does not carry an unsaved budget choice into another saved plan", async () =
   expect(
     host.querySelector<HTMLSelectElement>('select[aria-label="Czas na jednostkę"]')!.value,
   ).toBe("60");
+});
+
+it("previews explicit weekly targets and saves the same choices only on request", async () => {
+  await act(async () => root.render(<PlanScreen />));
+  expect(host.querySelector('[aria-label="Pokrycie celów tygodniowych"]')).toBeNull();
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((b) => b.textContent === "2 siłowe · 2 sprinty · 1 bieg")!
+      .click(),
+  );
+  expect(mock.activate).not.toHaveBeenCalled();
+  expect(host.querySelector<HTMLSelectElement>('[aria-label="Sprinty na tydzień"]')!.value).toBe(
+    "2",
+  );
+  expect(host.querySelector<HTMLSelectElement>('[aria-label="Biegi na tydzień"]')!.value).toBe("1");
+  expect(host.querySelector<HTMLSelectElement>('[aria-label="Pełne dni odpoczynku"]')!.value).toBe(
+    "1",
+  );
+  expect(host.querySelector<HTMLInputElement>(".bw-weekly-check input")!.checked).toBe(true);
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((b) => b.textContent?.startsWith("Zapisz plan"))!
+      .click(),
+  );
+  const result = mock.activate.mock.calls[0][0];
+  const targets = { strength: 2, speed: 2, endurance: 1 } as const;
+  expect(result.plan[0].planInputs).toMatchObject({
+    weeklyTargets: targets,
+    minFullRestDays: 1,
+    fillRestDays: true,
+  });
+  // Counts come from physical slots, even if the profile cannot meet the request.
+  const actual = weeklyTargetCoverage(result.plan, targets)[0];
+  const cells = [...host.querySelectorAll(".bw-weekly-coverage details:first-of-type td")].map(
+    (cell) => cell.textContent,
+  );
+  expect(cells).toEqual([
+    `${actual.planned.strength} / 2`,
+    `${actual.planned.speed} / 2`,
+    `${actual.planned.endurance} / 1`,
+    `${actual.fullRestDays} / min. 1`,
+  ]);
+});
+
+it("restores saved weekly choices and can explicitly reset them to the profile policy", async () => {
+  const state = mock.store.state as LoadwiseState;
+  const profile = { ...state.profile!, goal: "endurance" as const };
+  const saved = generateTrainingPlan(profile, {
+    startDate: "2026-11-02",
+    weeks: 1,
+    weeklyTargets: { strength: 2, speed: 2, endurance: 1 },
+    fillRestDays: true,
+    minFullRestDays: 1,
+  }).plan;
+  mock.store.state = { ...state, profile, plan: saved, activePlanId: "weekly-saved" };
+  await act(async () => root.render(<PlanScreen />));
+  expect(host.querySelector<HTMLSelectElement>('[aria-label="Sprinty na tydzień"]')!.value).toBe(
+    "2",
+  );
+  expect(mock.activate).not.toHaveBeenCalled();
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((b) => b.textContent === "Automatycznie z profilu")!
+      .click(),
+  );
+  expect(host.querySelector('[aria-label="Pokrycie celów tygodniowych"]')).toBeNull();
+  expect(mock.activate).not.toHaveBeenCalled();
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((b) => b.textContent?.startsWith("Zapisz plan"))!
+      .click(),
+  );
+  const snapshot = mock.activate.mock.calls[0][0].plan[0].planInputs;
+  expect(snapshot).not.toHaveProperty("weeklyTargets");
+  expect(snapshot).not.toHaveProperty("fillRestDays");
+  expect(snapshot).not.toHaveProperty("minFullRestDays");
+});
+
+it("drops an unsaved weekly request when another plan arrives and on return to the saved plan", async () => {
+  const state = mock.store.state as LoadwiseState;
+  const saved = generateTrainingPlan(state.profile!, { startDate: "2026-11-02", weeks: 1 }).plan;
+  mock.store.state = { ...state, plan: saved, activePlanId: "first" };
+  await act(async () => root.render(<PlanScreen />));
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((b) => b.textContent === "2 siłowe · 2 sprinty · 1 bieg")!
+      .click(),
+  );
+  expect(host.querySelector('[aria-label="Sprinty na tydzień"]')).not.toBeNull();
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((b) => b.textContent === "Wróć do zapisanego planu")!
+      .click(),
+  );
+  expect(host.querySelector('[aria-label="Sprinty na tydzień"]')).toBeNull();
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((b) => b.textContent === "2 siłowe · 2 sprinty · 1 bieg")!
+      .click(),
+  );
+  const other = generateTrainingPlan(state.profile!, {
+    startDate: "2026-11-02",
+    weeks: 1,
+    weeklyTargets: { strength: 2, speed: 1, endurance: 2 },
+    fillRestDays: false,
+    minFullRestDays: 2,
+  }).plan;
+  mock.store.state = { ...state, plan: other, activePlanId: "other" };
+  await act(async () => root.render(<PlanScreen />));
+  expect(host.querySelector<HTMLSelectElement>('[aria-label="Sprinty na tydzień"]')!.value).toBe(
+    "1",
+  );
+  expect(host.querySelector<HTMLSelectElement>('[aria-label="Biegi na tydzień"]')!.value).toBe("2");
+  expect(host.querySelector<HTMLSelectElement>('[aria-label="Pełne dni odpoczynku"]')!.value).toBe(
+    "2",
+  );
+  expect(host.querySelector<HTMLInputElement>(".bw-weekly-check input")!.checked).toBe(false);
+  expect(mock.activate).not.toHaveBeenCalled();
+});
+
+it("restores the saved time budget when rejecting a preview before changing weekly targets", async () => {
+  const state = mock.store.state as LoadwiseState;
+  const saved = generateTrainingPlan(state.profile!, {
+    startDate: "2026-11-02",
+    weeks: 1,
+    minutesPerSession: 75,
+  }).plan;
+  mock.store.state = { ...state, plan: saved, activePlanId: "saved" };
+  await act(async () => root.render(<PlanScreen />));
+  await act(async () => {
+    const time = host.querySelector<HTMLSelectElement>('[aria-label="Czas na jednostkę"]')!;
+    time.value = "45";
+    time.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((b) => b.textContent === "Wróć do zapisanego planu")!
+      .click(),
+  );
+  expect(host.querySelector<HTMLSelectElement>('[aria-label="Czas na jednostkę"]')!.value).toBe(
+    "75",
+  );
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((b) => b.textContent === "2 siłowe · 2 sprinty · 1 bieg")!
+      .click(),
+  );
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((b) => b.textContent?.startsWith("Zapisz plan"))!
+      .click(),
+  );
+  expect(mock.activate.mock.calls[0][0].minutesPerSession).toBe(75);
 });
 
 it("recognizes an expired cycle and prepares today's next window only on request", async () => {

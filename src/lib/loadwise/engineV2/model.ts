@@ -184,8 +184,21 @@ export interface Issue {
   message: string;
   /** Weekly target a diagnostic refers to; absent for older saved plans. */
   target?: "strengthA" | "strengthB" | "speed" | "endurance" | "mobility";
+  /** Placement gates that prevented an explicitly requested extra session. */
+  reasonCodes?: string[];
+}
+/** Explicit weekly requests remain subject to calendar, preparation and load gates. */
+export interface WeeklyTargets {
+  strength: 2;
+  speed: 1 | 2;
+  endurance: 1 | 2;
 }
 export interface EngineOptions {
+  weeklyTargets?: WeeklyTargets;
+  /** Offer existing light technique/mobility recipes on otherwise unused days. */
+  fillRestDays?: boolean;
+  /** Whole physical days without training; assigned sessions never consume this reserve. */
+  minFullRestDays?: 0 | 1 | 2;
   strengthLoadResponses?: import("../gymEvidence").GymLoadResponse[];
   /** Optional observations from real execution, scoped to the current athlete.
    * Legacy completions/timers alone never imply movement quality. */

@@ -5,6 +5,9 @@ potwierdzenia wdrożenia, odbioru prawnego ani testów na fizycznym urządzeniu.
 
 ## Utrzymywane instrukcje
 
+- [Cele tygodnia, trwałość ustawień i narzędzia sesji](WEEKLY-PLANNING-AND-SESSION-TOOLS.md)
+- [Prosty wygląd i narzędzia sesji: kolory, sprint, bieg i schematy boiska](MINIMAL-TRAINING-UI.md)
+- [Sprawdzenie aplikacji i poprawki przepływów — 16 listopada 2026](APP-QA-2026-11-16.md)
 - [Tydzień meczowy: siłownia dzień po meczu · silnik V2.12](TYDZIEN-W-SEZONIE.md)
 - [Doprecyzowanie sprzętu, para wyciskanie–rzut i wykonanie · silnik V2.11](SILOWNIA-V211.md)
 - [Pełne A/B siłowni 16+, warianty, dobór i badania · silnik V2.10](SILOWNIA-V210.md)

@@ -34,6 +34,8 @@ import { RowPlan, RunnerCard, type RowStatus } from "./runner/RunnerCard";
 import { HowToPanel } from "./runner/HowToSection";
 import { SessionPlanList } from "./runner/SessionPlanList";
 import { ContrastRounds } from "./runner/ContrastRounds";
+import { CourseSetup } from "./CourseSetup";
+import "./sprint-tools.css";
 import "./runner/session-runner.css";
 
 export interface StartAction {
@@ -344,6 +346,7 @@ export function FocusedSessionRunner({
         {opened && openIndex !== null ? (
           <ExerciseView
             active={false}
+            sessionKind={kind}
             step={opened}
             index={openIndex}
             total={steps.length}
@@ -611,6 +614,7 @@ export function FocusedSessionRunner({
       <ExerciseView
         key={`${fingerprint}:${step.key}`}
         active
+        sessionKind={kind}
         dock={restDockButtons || null}
         step={step}
         index={index}
@@ -632,8 +636,24 @@ export function FocusedSessionRunner({
               <CooldownCoach
                 protocol={guided}
                 storageKey={trainingStorageKey("cooldown", user?.id, scope, fingerprint)}
-                onFinish={async () => {
-                  for (const r of step.rows) if (!record.done[r.exercise.id]) await mark(r, true);
+                onFinish={async (_all, execution) => {
+                  const omitted: string[] = [];
+                  for (const row of step.rows) {
+                    const completed = execution?.find(
+                      (item) => item.sourceId === row.exercise.id,
+                    )?.completed;
+                    if (!completed) {
+                      if (!record.done[row.exercise.id]) omitted.push(row.key);
+                      continue;
+                    }
+                    if (!record.done[row.exercise.id] && !(await mark(row, true)))
+                      throw new Error("Cooldown save failed");
+                  }
+                  if (omitted.length)
+                    skipped.setValue((all) => ({
+                      ...all,
+                      ...Object.fromEntries(omitted.map((key) => [key, true as const])),
+                    }));
                   if (isLast) onFinish();
                   else go(index + 1);
                 }}
@@ -715,6 +735,7 @@ export function FocusedSessionRunner({
  */
 function ExerciseView({
   active,
+  sessionKind,
   step,
   index,
   total,
@@ -729,6 +750,7 @@ function ExerciseView({
 }: {
   /** Started session: the card shows the name, the top row shows the position. */
   active: boolean;
+  sessionKind: SessionKind;
   step: RunnerStep;
   index: number;
   total: number;
@@ -786,7 +808,13 @@ function ExerciseView({
           </div>
         )}
         <div className="bw-unit-panel">
-          <HowToPanel key={techniqueFor.key} exercise={techniqueFor.exercise} />
+          <HowToPanel
+            key={techniqueFor.key}
+            exercise={techniqueFor.exercise}
+            showField={
+              taskKind(techniqueFor.exercise, techniqueFor.section, sessionKind) !== "sprint"
+            }
+          />
         </div>
       </section>
     );
@@ -827,6 +855,12 @@ function ExerciseView({
       <DockSlot.Provider value={active ? slot : null}>
         <div className="bw-unit-panel">{training}</div>
       </DockSlot.Provider>
+      {!guidedLabel &&
+        step.rows.map((row) =>
+          taskKind(row.exercise, row.section, sessionKind) === "sprint" ? (
+            <CourseSetup key={row.key} exercises={[row.exercise]} />
+          ) : null,
+        )}
       {!guidedLabel && (
         <button type="button" className="bw-unit-howto" onClick={() => onTab("technika")}>
           <span>Jak wykonać?</span>

@@ -15,6 +15,8 @@ import {
 import { focusAim, loadMastery, type AimProgress } from "@/features/football-iq-match/masteryStore";
 import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
 import { getPlanStatus, todayTrainingState } from "@/lib/loadwise/engineV2/planStatus";
+import { sessionAppearance } from "@/lib/loadwise/sessionAppearance";
+import { sessionHeading } from "@/lib/loadwise/sessionRunner/heading";
 
 export const Route = createFileRoute("/_tabs/start")({
   component: StartScreen,
@@ -59,7 +61,8 @@ function StartScreen() {
   return (
     <StartDashboard
       name={firstName}
-      todayTitle={today.session?.title}
+      todayTitle={today.session ? sessionHeading(today.session).title : undefined}
+      todayAppearance={today.session ? sessionAppearance(today.session) : undefined}
       planStatus={status.kind}
       todayComplete={today.complete}
       onToday={() =>

@@ -49,7 +49,18 @@ export function qaStrengthSession(_profile: Profile, date: string, dbId: string)
     intensity: "umiarkowana",
     mdLabel: null,
     sections,
-    structuredSections: flatToStructured(sections),
+    structuredSections: flatToStructured(sections).map((section) => ({
+      ...section,
+      blocks: section.blocks.map((block) => ({
+        ...block,
+        exercises: block.exercises.map((exercise) => {
+          // Authored dose fields mirror persisted structured sessions; the flat fallback
+          // stores the whole prescription in reps and has no set count for recording.
+          const dose = exercise.reps?.match(/^(\d+)\s*×\s*(.+)$/);
+          return dose ? { ...exercise, sets: dose[1], reps: dose[2] } : exercise;
+        }),
+      })),
+    })),
   });
 }
 

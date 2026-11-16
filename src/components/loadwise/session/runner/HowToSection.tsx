@@ -5,6 +5,9 @@ import { resolveHowTo } from "@/lib/loadwise/sessionRunner/howTo";
 import type { AnimationSelection } from "@/lib/trainingCoach/animationCatalog";
 import { boxTouchVariant, parseHoldSeconds } from "@/lib/trainingCoach/exerciseTempo";
 import { APP_VERSION } from "@/lib/appVersion";
+import { TrainingFieldBoard } from "@/components/football/TrainingFieldBoard";
+import { FootballDirectionPractice } from "@/components/football/FootballDrillBoard";
+import { resolveTrainingField } from "@/lib/trainingField/model";
 
 /**
  * The "Technika" tab: animation and a short instruction. It mounts only while
@@ -12,8 +15,26 @@ import { APP_VERSION } from "@/lib/appVersion";
  * switching back to "Trening" unmounts the player, which stops playback. It
  * never touches set entries, completion marks or the rest clock.
  */
-export function HowToPanel({ id, exercise }: { id?: string; exercise: TrainingExercise }) {
+export function HowToPanel({
+  id,
+  exercise,
+  showField = true,
+}: {
+  id?: string;
+  exercise: TrainingExercise;
+  showField?: boolean;
+}) {
   const howTo = useMemo(() => resolveHowTo(exercise), [exercise]);
+  const field = useMemo(() => resolveTrainingField(exercise), [exercise]);
+  const fieldShown = Boolean(field && showField);
+  const planSteps =
+    howTo.steps.length > 0 ? (
+      <ol className="bw-howto-steps">
+        {howTo.steps.map((step) => (
+          <li key={step}>{step}</li>
+        ))}
+      </ol>
+    ) : null;
   return (
     <div id={id} className="bw-howto-panel">
       {exercise.displayPrescription && (
@@ -25,7 +46,12 @@ export function HowToPanel({ id, exercise }: { id?: string; exercise: TrainingEx
       {howTo.objective && (
         <p className="text-sm leading-relaxed text-muted-foreground">{howTo.objective}</p>
       )}
-      {howTo.animation ? (
+      {fieldShown ? (
+        <>
+          <TrainingFieldBoard exercise={exercise} />
+          <FootballDirectionPractice exerciseId={exercise.exerciseId} />
+        </>
+      ) : howTo.animation ? (
         <AnimationStage
           key={`${exercise.id}:${howTo.animation.id}`}
           selection={howTo.animation}
@@ -34,15 +60,16 @@ export function HowToPanel({ id, exercise }: { id?: string; exercise: TrainingEx
       ) : (
         <p className="bw-howto-gap">{howTo.animationGap}</p>
       )}
-      {howTo.steps.length > 0 ? (
-        <ol className="bw-howto-steps">
-          {howTo.steps.map((step) => (
-            <li key={step}>{step}</li>
-          ))}
-        </ol>
-      ) : (
+      {fieldShown && planSteps ? (
+        <details className="bw-howto-plan-instruction">
+          <summary>Instrukcja z planu</summary>
+          {planSteps}
+        </details>
+      ) : planSteps ? (
+        planSteps
+      ) : !fieldShown ? (
         <p className="bw-howto-gap">Wykonaj zadanie zgodnie z opisem dawki.</p>
-      )}
+      ) : null}
       {howTo.cue && <p className="text-sm font-medium">{howTo.cue}</p>}
       {howTo.stop && <p className="text-xs leading-relaxed text-muted-foreground">{howTo.stop}</p>}
       {howTo.watch.length > 0 && (

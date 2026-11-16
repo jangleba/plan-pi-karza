@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { useAuth } from "@/lib/loadwise/auth";
 import { AppLaunchScreen } from "@/components/loadwise/AppLaunchScreen";
+import { AppDataError } from "@/components/loadwise/AppDataError";
 import type {
   Profile,
   Position,
@@ -26,7 +27,10 @@ import {
   type AccountOwnerType,
 } from "@/lib/loadwise/agePolicy";
 import { OWN_EQUIPMENT_OPTIONS } from "@/lib/loadwise/equipmentOptions";
-import { healthFieldsForOnboarding } from "@/lib/loadwise/onboardingHealth";
+import {
+  foodSafetyFieldsForOnboarding,
+  healthFieldsForOnboarding,
+} from "@/lib/loadwise/onboardingHealth";
 import {
   answersFromProfile,
   cleanUnavailableDays,
@@ -225,6 +229,23 @@ const STEP_ERROR: Partial<Record<StepId, string>> = {
 let pendingRetry: { userId: string; consents: Record<string, boolean> } | null = null;
 
 function Onboarding() {
+  const { state, hydrated, hydrationError } = useLoadwise();
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && !user) navigate({ to: "/auth", replace: true });
+  }, [loading, user, navigate]);
+
+  if (loading || !user || !hydrated) return <AppLaunchScreen />;
+  if (hydrationError && !state.profile?.onboardingComplete) return <AppDataError />;
+
+  // Mount draft state only once the account data exists. Direct visits and
+  // refreshes otherwise initialize every field from the empty startup store.
+  return <OnboardingForm key={user.id} />;
+}
+
+function OnboardingForm() {
   const { state, hydrated, completeOnboarding, profileSaveStage } = useLoadwise();
   const { user, loading, resendSignupConfirmation } = useAuth();
   const navigate = useNavigate();
@@ -422,10 +443,7 @@ function Onboarding() {
       healthPersonalizationEnabled: Boolean(consents.health_data),
       fuelPrecisionEnabled: existing?.fuelPrecisionEnabled ?? false,
       weightKg: existing?.fuelPrecisionEnabled ? (existing.weightKg ?? null) : null,
-      fuelAllergyStatus: "unconfirmed",
-      foodAllergies: [],
-      foodIntolerances: [],
-      foodExclusions: [],
+      ...foodSafetyFieldsForOnboarding(existing, Boolean(consents.health_data)),
       ...training,
       // General answers do not clear previously reported pain while health consent remains active.
       ...healthFieldsForOnboarding(existing, Boolean(consents.health_data)),

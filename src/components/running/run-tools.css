@@ -1,0 +1,115 @@
+.bw-run-measurement {
+  display: grid;
+  gap: 8px;
+}
+.bw-run-measurement .bw-run-mode button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+}
+.bw-run-guide .bw-run-clock-sound,
+.bw-run-live .bw-run-clock-sound {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+}
+.bw-run-guide .bw-run-clock-head {
+  min-height: 44px;
+}
+.bw-rplan-group.bw-run-preview h3 small {
+  display: inline;
+  font-size: 12px;
+  font-weight: 400;
+}
+.bw-run-measurement-note {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+.bw-run-preview .bw-run-plan-row {
+  align-items: start;
+  padding: 14px 16px;
+  gap: 12px;
+}
+.bw-run-preview .bw-run-plan-kind {
+  min-width: 0;
+  max-width: 88px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  color: var(--bw-motion, #386b9f);
+  background: var(--bw-motion-soft, #eaf2fc);
+  font-size: 10px;
+  line-height: 1.3;
+  white-space: normal;
+}
+.bw-run-preview .bw-run-plan-row[data-tone="warning"] .bw-run-plan-kind {
+  color: var(--bw-warning, #8f651a);
+  background: var(--bw-warning-soft, #faf0d9);
+}
+.bw-run-preview [data-tone="recovery"] .bw-run-plan-kind {
+  color: var(--bw-recovery, #3b7567);
+  background: var(--bw-recovery-soft, #e6f3ed);
+}
+.bw-run-preview .bw-run-plan-text {
+  min-width: 0;
+}
+.bw-run-preview .bw-run-plan-text strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+.bw-run-preview .bw-run-plan-text small {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.bw-run-setup {
+  margin-top: 12px;
+  border-radius: var(--bw-card-radius, 18px);
+  background: var(--card);
+  padding: 0 16px;
+}
+.bw-run-setup > summary {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 550;
+  cursor: pointer;
+  list-style: none;
+}
+.bw-run-setup > summary::-webkit-details-marker {
+  display: none;
+}
+.bw-run-setup > summary::after {
+  content: "+";
+  color: var(--muted-foreground);
+  font-size: 19px;
+  font-weight: 400;
+}
+.bw-run-setup[open] > summary::after {
+  content: "−";
+}
+.bw-run-setup > p {
+  margin: 0;
+  padding-bottom: 14px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.55;
+}
+@media (max-width: 359px) {
+  .bw-run-preview .bw-run-plan-row {
+    gap: 8px;
+    padding-inline: 12px;
+  }
+  .bw-run-preview .bw-run-plan-kind {
+    max-width: 73px;
+    padding-inline: 5px;
+  }
+}

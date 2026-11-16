@@ -26,6 +26,7 @@ import { FOOD_BY_ID, findRecipe, parsePantry, type FuelRecipe } from "@/lib/fuel
 import {
   emptyFuelData,
   fuelMoment,
+  latestEatenMeal,
   localDate,
   manualFuelContext,
   SESSION_LABELS,
@@ -241,9 +242,7 @@ export function FuelWorkspace({
     () => provenFuelSets(data.entries, data.preferences, restrictions),
     [data.entries, data.preferences, restrictions],
   );
-  const latest = data.entries.find(
-    (e) => e.status === "eaten" && e.eatenAt !== null && localDate(e.eatenAt) === localDate(now),
-  );
+  const latest = latestEatenMeal(data.entries, now);
   const tomorrowDate = new Date(now);
   tomorrowDate.setDate(tomorrowDate.getDate() + 1);
   const packContext = packingTomorrow
@@ -292,10 +291,10 @@ export function FuelWorkspace({
     [day, date, prefs.nonTrainingActivity],
   );
   const todayMatch = contexts.find((c) => c.kind === "match") ?? null;
-  const lastEatenToday = data.entries.find(
-    (e) => e.status === "eaten" && e.eatenAt !== null && localDate(e.eatenAt) === date,
+  const mealTimes = [latest?.eatenAt, answers.lastMealAt].filter(
+    (at): at is number => typeof at === "number" && Number.isFinite(at) && at <= now,
   );
-  const lastMealAt = lastEatenToday?.eatenAt ?? answers.lastMealAt ?? null;
+  const lastMealAt = mealTimes.length ? Math.max(...mealTimes) : null;
   const matchPlanFor = (c: FuelContext | null, participation: typeof answers.participation) =>
     c && day
       ? matchFuelPlan({

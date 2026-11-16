@@ -10,7 +10,7 @@ import { Link } from "@tanstack/react-router";
 import {
   ageOnDate,
   birthDateForApproximateAge,
-  type AccountOwnerType,
+  NEW_ACCOUNT_MIN_AGE,
 } from "@/lib/loadwise/agePolicy";
 import { authErrorMessage } from "@/lib/authMessages";
 import { AppLaunchScreen } from "@/components/loadwise/AppLaunchScreen";
@@ -42,7 +42,6 @@ function AuthScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
-  const [accountOwnerType, setAccountOwnerType] = useState<AccountOwnerType>("athlete");
   const [athleteBirthDate, setAthleteBirthDate] = useState("");
   const [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -133,23 +132,17 @@ function AuthScreen() {
           return;
         }
         const athleteAge = athleteBirthDate ? ageOnDate(athleteBirthDate) : null;
-        if (athleteAge == null || athleteAge < 13) {
-          toast.error("Spersonalizowane konto jest dostępne dopiero od 13 lat.");
-          return;
-        }
-        if (accountOwnerType === "athlete" && athleteAge < 16) {
-          toast.error("Dla zawodnika 13–15 konto musi utworzyć rodzic lub opiekun.");
-          return;
-        }
-        if (accountOwnerType === "guardian" && athleteAge >= 16) {
-          toast.error("Nowe konto zawodnika od 16 lat powinno należeć do zawodnika.");
+        if (athleteAge == null || athleteAge < NEW_ACCOUNT_MIN_AGE || athleteAge > 80) {
+          toast.error(
+            `Nowe konto jest dostępne dla zawodników od ${NEW_ACCOUNT_MIN_AGE} do 80 lat.`,
+          );
           return;
         }
         const { error, needsEmailConfirmation } = await signUp(
           email.trim(),
           password,
           name.trim(),
-          accountOwnerType,
+          "athlete",
           athleteBirthDate,
         );
         if (error) {
@@ -248,42 +241,7 @@ function AuthScreen() {
           <form onSubmit={handleSubmit} className="bw-auth__form" aria-busy={busy}>
             {mode === "register" && (
               <>
-                <fieldset className="bw-auth__owner" disabled={busy}>
-                  <legend>Dla kogo tworzysz konto?</legend>
-                  <div>
-                    <label>
-                      <input
-                        type="radio"
-                        name="account-owner"
-                        value="athlete"
-                        checked={accountOwnerType === "athlete"}
-                        onChange={() => setAccountOwnerType("athlete")}
-                      />
-                      <span>
-                        <strong>Dla siebie</strong>
-                        <small>Zawodnik, 16+ lat</small>
-                      </span>
-                    </label>
-                    <label>
-                      <input
-                        type="radio"
-                        name="account-owner"
-                        value="guardian"
-                        checked={accountOwnerType === "guardian"}
-                        onChange={() => setAccountOwnerType("guardian")}
-                      />
-                      <span>
-                        <strong>Dla dziecka</strong>
-                        <small>Zawodnik, 13–15 lat</small>
-                      </span>
-                    </label>
-                  </div>
-                </fieldset>
-                {accountOwnerType === "guardian" && (
-                  <p className="bw-auth__hint">
-                    Rodzic lub opiekun jest właścicielem konta. Podaj swój e-mail i swoje imię.
-                  </p>
-                )}
+                <p className="bw-auth__hint">Nowe konto zawodnika od {NEW_ACCOUNT_MIN_AGE} lat.</p>
                 <div className="bw-auth__field">
                   <Label htmlFor="register-birth-date">Data urodzenia zawodnika</Label>
                   <Input
@@ -291,16 +249,14 @@ function AuthScreen() {
                     type="date"
                     required
                     min={birthDateForApproximateAge(80)}
-                    max={birthDateForApproximateAge(13)}
+                    max={birthDateForApproximateAge(NEW_ACCOUNT_MIN_AGE)}
                     value={athleteBirthDate}
                     disabled={busy}
                     onChange={(event) => setAthleteBirthDate(event.target.value)}
                   />
                 </div>
                 <div className="bw-auth__field">
-                  <Label htmlFor="name">
-                    {accountOwnerType === "guardian" ? "Imię opiekuna" : "Twoje imię"}
-                  </Label>
+                  <Label htmlFor="name">Twoje imię</Label>
                   <Input
                     id="name"
                     value={name}
@@ -316,11 +272,7 @@ function AuthScreen() {
             )}
             {mode !== "recovery" && (
               <div className="bw-auth__field">
-                <Label htmlFor="email">
-                  {mode === "register" && accountOwnerType === "guardian"
-                    ? "E-mail opiekuna"
-                    : "E-mail"}
-                </Label>
+                <Label htmlFor="email">E-mail</Label>
                 <Input
                   id="email"
                   type="email"
@@ -413,7 +365,8 @@ function AuthScreen() {
           )}
           {mode === "register" && (
             <p className="bw-auth__hint bw-auth__registration-note">
-              Konto od 13 lat. Regulamin i zgody zatwierdzisz podczas konfiguracji profilu.
+              Konto od {NEW_ACCOUNT_MIN_AGE} lat. Regulamin i zgody zatwierdzisz podczas
+              konfiguracji profilu.
             </p>
           )}
         </section>

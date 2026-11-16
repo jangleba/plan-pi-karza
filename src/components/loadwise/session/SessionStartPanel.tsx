@@ -4,7 +4,9 @@ import { useLoadwise } from "@/lib/loadwise/store";
 import type { SessionDay } from "@/lib/loadwise/types";
 import { isStrengthSession, type StrengthLoadPreference } from "@/lib/loadwise/strengthCheckIn";
 
-export type StartAvailability = "start" | "started" | "other-day" | "none";
+export type StartAvailability = "start" | "started" | "missed" | "other-day" | "none";
+export const MISSED_SESSION_NOTE =
+  "Sesja opuszczona. Nie przenosimy jej automatycznie na inny dzień. Plan ćwiczeń pozostaje do wglądu.";
 
 /** An explicit start pins the selected prescription before exercise recording. */
 export function useSessionStart(session: SessionDay, canStart: boolean) {
@@ -24,11 +26,13 @@ export function useSessionStart(session: SessionDay, canStart: boolean) {
     session.dayType === "rest" ||
     session.loadLabelOverride === "Wstrzymaj trening"
       ? "none"
-      : completion?.status === "started"
-        ? "started"
-        : canStart
-          ? "start"
-          : "other-day";
+      : completion?.status === "missed"
+        ? "missed"
+        : completion?.status === "started"
+          ? "started"
+          : canStart
+            ? "start"
+            : "other-day";
   async function start() {
     if (busy || availability !== "start") return;
     setBusy(true);
@@ -89,6 +93,12 @@ export function SessionStartPanel({
 }) {
   const { availability, busy, error, start, checkIn } = useSessionStart(session, canStart);
   if (availability === "none" || availability === "started") return null;
+  if (availability === "missed")
+    return (
+      <p className="bw-session-preview" role="status">
+        {MISSED_SESSION_NOTE}
+      </p>
+    );
   if (availability === "other-day")
     return (
       <p className="bw-session-preview">

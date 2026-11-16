@@ -28,6 +28,11 @@ import { hasUnresolvedTrainingWrites } from "@/lib/loadwise/offlineTrainingQueue
 import { runningCalibrationMessage } from "@/lib/loadwise/engineV2/runningCalibrationStatus";
 import { ArrowRight, ChevronRight, SlidersHorizontal } from "lucide-react";
 import { PlanWeek, plDate } from "./PlanWeek";
+import { WeeklyPlanningSettings, WeeklyPlanningCoverage } from "./WeeklyPlanningSettings";
+import {
+  savedWeeklyPlanningPreferences,
+  type WeeklyPlanningPreferences,
+} from "@/lib/loadwise/weeklyPlanningPreferences";
 import "@/styles/ballwise-plan.css";
 
 /** Preview, explicit activation and execution of the versioned training plan. */
@@ -54,6 +59,22 @@ export function PlanScreen() {
     null,
   );
   const planId = state.activePlanId ?? null;
+  const savedWeeklyPreferences = useMemo(
+    () =>
+      state.profile
+        ? savedWeeklyPlanningPreferences(state.plan[0]?.planInputs, state.profile)
+        : null,
+    [state.profile, state.plan],
+  );
+  const [weeklyChoice, setWeeklyChoice] = useState<{
+    ownerId: string | undefined;
+    planId: string | null;
+    value: WeeklyPlanningPreferences | null;
+  } | null>(null);
+  const weeklyPreferences =
+    weeklyChoice?.ownerId === user?.id && weeklyChoice?.planId === planId
+      ? weeklyChoice.value
+      : savedWeeklyPreferences;
   const intent =
     intentState.value && intentState.value.planId === planId ? intentState.value : null;
   const rebuild = rebuildRequested || intent !== null;
@@ -120,6 +141,9 @@ export function PlanScreen() {
         completions: state.completions,
         expectedPlanId: state.activePlanId ?? null,
         minutesPerSession: minutes,
+        weeklyTargets: weeklyPreferences?.weeklyTargets,
+        fillRestDays: weeklyPreferences?.fillRestDays,
+        minFullRestDays: weeklyPreferences?.minFullRestDays,
         lockedDays: lockedExecutionDays(
           resolveEffectivePlan(state.plan, state.modifications, {
             completions: state.completions,
@@ -161,6 +185,7 @@ export function PlanScreen() {
     gymEvidence.records,
     evidenceIssue,
     evidenceKey,
+    weeklyPreferences,
   ]);
   const plan = preview?.result?.plan ?? effectivePlan;
   // What changed since the saved plan was built, and what the next days would look like.
@@ -365,6 +390,8 @@ export function PlanScreen() {
                 onClick={() => {
                   setRebuild(false);
                   intentState.setValue(null);
+                  setWeeklyChoice(null);
+                  setTimeChoice(null);
                 }}
               >
                 Wróć do zapisanego planu
@@ -393,6 +420,12 @@ export function PlanScreen() {
         {!state.profile && hydrated ? (
           <p className="bw-plan-quiet">Uzupełnij profil, aby przygotować plan.</p>
         ) : null}
+        {preview?.result || !rebuild ? (
+          <WeeklyPlanningCoverage
+            plan={plan}
+            preferences={preview?.result ? weeklyPreferences : savedWeeklyPreferences}
+          />
+        ) : null}
         {plan.length > 0 ? (
           <PlanWeek
             plan={plan}
@@ -415,7 +448,7 @@ export function PlanScreen() {
               <SlidersHorizontal aria-hidden="true" className="bw-plan-settings-icon" />
               <span>
                 Dopasowanie treningu
-                <small>{minutes} min na jednostkę · doświadczenie i sprzęt</small>
+                <small>Cele tygodnia · {minutes} min · doświadczenie i sprzęt</small>
               </span>
               <ChevronRight aria-hidden="true" />
             </summary>
@@ -439,6 +472,14 @@ export function PlanScreen() {
                   ))}
               </select>
             </label>
+            <WeeklyPlanningSettings
+              profile={state.profile}
+              value={weeklyPreferences}
+              onChange={(value) => {
+                setWeeklyChoice({ ownerId: user?.id, planId, value });
+                if (state.plan.length) setRebuild(true);
+              }}
+            />
             <StrengthExperienceSetup />
           </details>
         ) : null}
