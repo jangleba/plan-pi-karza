@@ -30,12 +30,12 @@ function group(
   for (const id of ids.split(" ")) FUNCTIONAL_CATALOGUE[id] = { actions, contraction, unilateral };
 }
 group(
-  "bodyweight_squat goblet_squat heavy_back_squat front_squat leg_press flywheel_squat band_resisted_squat",
+  "bodyweight_squat goblet_squat heavy_back_squat front_squat leg_press flywheel_squat band_resisted_squat tempo_back_squat box_squat dead_stop_pin_squat",
   ["knee_extension", "hip_extension"],
 );
 group("leg_extension", ["knee_extension"]);
 group(
-  "bodyweight_split_squat bulgarian_split_squat reverse_lunge step_up lateral_lunge",
+  "bodyweight_split_squat bulgarian_split_squat reverse_lunge step_up loaded_step_up lateral_lunge",
   ["knee_extension", "hip_extension"],
   "dynamic",
   true,
@@ -83,17 +83,19 @@ group("overcoming_pin_squat_primer", ["knee_extension", "hip_extension"], "isome
 group("split_squat_iso_hold", ["knee_extension", "hip_extension"], "isometric", true);
 group("adductor_bridge_squeeze", ["hip_adduction"], "isometric");
 group("copenhagen_plank", ["hip_adduction", "brace"], "isometric", true);
-group("soleus_iso_hold", ["plantar_flexion"], "isometric");
+group("soleus_iso_hold standing_calf_iso_hold", ["plantar_flexion"], "isometric");
 group("standing_calf_raise seated_soleus_raise", ["plantar_flexion"]);
 group("tibialis_raise", ["dorsiflexion"]);
-group("incline_push_up push_up dumbbell_bench_press pike_push_up dumbbell_overhead_press", [
-  "push",
-]);
-group("lat_pulldown face_pull_band bodyweight_row pull_up", ["pull"]);
+group(
+  "incline_push_up push_up dumbbell_bench_press barbell_bench_press pike_push_up dumbbell_overhead_press",
+  ["push"],
+);
+group("lat_pulldown face_pull_band bodyweight_row pull_up fast_band_row", ["pull"]);
 group("one_arm_dumbbell_row", ["pull"], "dynamic", true);
 group("farmer_carry front_rack_carry overhead_carry", ["brace", "locomotion"], "mixed");
 group("suitcase_carry", ["brace", "locomotion"], "mixed", true);
 group("drop_landing snap_down", ["landing"]);
+group("single_leg_drop_landing band_step_and_stick", ["landing"], "dynamic", true);
 group(
   "lateral_bound_to_stick single_leg_hop_and_stick diagonal_bound_to_stick",
   ["jump", "landing"],
@@ -101,7 +103,11 @@ group(
   true,
 );
 group("countermovement_jump squat_jump broad_jump box_jump", ["jump", "landing"], "ballistic");
-group("bilateral_pogo lateral_pogo hurdle_hops depth_jump", ["jump", "landing"], "reactive");
+group(
+  "bilateral_pogo lateral_pogo hurdle_hops depth_jump drop_jump",
+  ["jump", "landing"],
+  "reactive",
+);
 group("single_leg_pogo", ["jump", "landing"], "reactive", true);
 group(
   "skip_b_alternate_bounds alternate_leg_bounds power_skip_height power_skip_distance scissor_exchange_jump split_squat_jump scissor_bounds",
@@ -110,7 +116,12 @@ group(
   true,
 );
 group("repeated_broad_jump", ["jump", "landing"], "reactive");
-group("power_clean clean_pull_from_hang kettlebell_swing", ["hip_extension"], "ballistic");
+group(
+  "power_clean clean_pull_from_hang kettlebell_swing hang_power_snatch",
+  ["hip_extension"],
+  "ballistic",
+);
+group("jump_shrug", ["hip_extension", "jump", "landing"], "ballistic");
 group("push_press", ["knee_extension", "push"], "ballistic");
 group(
   "trap_bar_jump dumbbell_jump_squat barbell_jump_squat band_assisted_jump",
@@ -125,7 +136,12 @@ group(
 group("medicine_ball_rotational_scoop_toss", ["brace"], "ballistic", true);
 group("plank", ["brace"], "isometric");
 group("side_plank", ["brace"], "isometric", true);
-group("dead_bug bird_dog pallof_press bodyweight_march_hold", ["brace"], "mixed", true);
+group(
+  "dead_bug bird_dog pallof_press bodyweight_march_hold half_kneeling_cable_chop",
+  ["brace"],
+  "mixed",
+  true,
+);
 group(
   "resisted_sled_acceleration flying_sprint football_curved_sprint accel_decel_reaccel planned_cut a_march free_acceleration_sprint flying_sprint easy_aerobic_run method_interval_run progressive_run_three_step_stop progressive_deceleration_5_10_15 half_kneeling_start falling_start split_stance_start dribble_to_sprint_transition lateral_start_acceleration run_two_step_stop deceleration_lateral_exit planned_505 cut_and_reaccelerate reactive_180_turn reactive_curved_sprint",
   ["locomotion"],
@@ -134,6 +150,8 @@ group(
 for (const id of [
   "snap_down",
   "drop_landing",
+  "single_leg_drop_landing",
+  "band_step_and_stick",
   "lateral_bound_to_stick",
   "single_leg_hop_and_stick",
   "diagonal_bound_to_stick",

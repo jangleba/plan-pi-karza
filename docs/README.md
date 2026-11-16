@@ -5,6 +5,8 @@ potwierdzenia wdrożenia, odbioru prawnego ani testów na fizycznym urządzeniu.
 
 ## Utrzymywane instrukcje
 
+- [Doprecyzowanie sprzętu, para wyciskanie–rzut i wykonanie · silnik V2.11](SILOWNIA-V211.md)
+- [Pełne A/B siłowni 16+, warianty, dobór i badania · silnik V2.10](SILOWNIA-V210.md)
 - [Konfiguracja wdrożenia, iOS i płatności](INSTALLATION-2026-10.md)
 - [Uruchomienie, npm, web i iOS](../README.md)
 - [Macierz QA produktu](QA-MATRIX.md)

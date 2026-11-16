@@ -1,8 +1,10 @@
 import { getTrainingMethod, isTrainingMethodId } from "./catalogue";
 import type { TrainingMethodPreferences } from "./types";
+import { GYM_DECLARED_EQUIPMENT, normalizeGymExerciseChoices } from "../gymProgramming";
 
 /** Zapisane w profilu preferencje metod (dane profilu, nie układanie treningu). */
 export const METHOD_SPECIAL_EQUIPMENT = [
+  ...GYM_DECLARED_EQUIPMENT,
   "gym_jump_lane",
   "overhead_band_station",
   "low_band_station",
@@ -20,6 +22,12 @@ export function normalizeMethodPreferences(raw: unknown): TrainingMethodPreferen
   if (!raw || typeof raw !== "object") return {};
   const r = raw as Record<string, unknown>,
     out: TrainingMethodPreferences = {};
+  if (r.upperBodyContrast === true) out.upperBodyContrast = true;
+  if (r.gymTemplate === "balanced" || r.gymTemplate === "paired_power")
+    out.gymTemplate = r.gymTemplate;
+  const choices = normalizeGymExerciseChoices(r.gymExercises);
+  if (Object.keys(choices).length) out.gymExercises = choices;
+  if (r.coachedOlympicLifts === true) out.coachedOlympicLifts = true;
   if (r.gymEquipmentMode === "full" || r.gymEquipmentMode === "selected")
     out.gymEquipmentMode = r.gymEquipmentMode;
   if (

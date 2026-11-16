@@ -1,7 +1,11 @@
 import type { Profile, Readiness, SessionCompletion, SessionDay } from "../types";
 import { calculateOverallReadiness } from "../readinessModel";
 import { scheduledMatchDates } from "../matchSchedule";
-import { preparationProfile, hasVerifiedAdvancedStrength, hasValidStrengthMonths } from "./preparation";
+import {
+  preparationProfile,
+  hasVerifiedAdvancedStrength,
+  hasValidStrengthMonths,
+} from "./preparation";
 import { resolveGoalPolicy } from "./goalPolicy";
 import { getExerciseDefinition } from "../exerciseLibrary";
 import { estimateSessionSeconds } from "./exercises";
@@ -308,6 +312,11 @@ export function applyStrengthFocus(
   const primary = copy.exercises.find(
     (e) => e.role === (variant === "A" ? "knee_strength" : "hip_strength"),
   );
+  // Feedback can re-place an already-finalized recipe. Replace its old focus
+  // explanation rather than appending the same paragraph on every recalculation.
+  const oldReason = recipe.strengthFocus?.reason;
+  if (primary && oldReason && primary.reason.endsWith(` ${oldReason}`))
+    primary.reason = primary.reason.slice(0, -(oldReason.length + 1));
   const recovery = ["deload", "reentry"].includes(focus.mode);
   if (
     focus.mode === "max_strength" &&
@@ -357,7 +366,7 @@ export function applyStrengthFocus(
   if (focus.mode === "max_strength")
     primary.dose = {
       ...base,
-      sets: variant === "A" ? 3 : 2,
+      sets: 3,
       reps: hasVerifiedAdvancedStrength(p) ? 4 : 5,
       rir: hasVerifiedAdvancedStrength(p) ? 2 : 3,
       restSeconds: Math.max(180, base.restSeconds),
@@ -391,7 +400,7 @@ export function applyStrengthFocus(
       rir: 4,
       restSeconds: Math.max(150, base.restSeconds),
     };
-  primary.reason += ` ${focus.reason}`;
+  primary.reason += ` ${copy.strengthFocus.reason}`;
   copy.plyometricContacts = strengthLandingCount(copy.exercises);
   copy.minutes = Math.ceil(estimateSessionSeconds(copy.exercises) / 60) + 8;
   return copy;

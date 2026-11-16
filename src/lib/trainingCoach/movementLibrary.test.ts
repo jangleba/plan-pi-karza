@@ -51,14 +51,14 @@ const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 describe("complete shared exercise demonstrations", () => {
   it("resolves reviewed demonstrations and explicitly identifies new instruction-only drills", () => {
     const definitions = getApprovedExerciseDefinitions();
-    expect(definitions).toHaveLength(216);
+    expect(definitions).toHaveLength(216 + INSTRUCTION_ONLY_GYM_IDS.length);
     for (const definition of definitions) {
       const selection = resolveExerciseAnimation({
         id: definition.id,
         exerciseId: definition.id,
         name: definition.displayNamePl,
       });
-      if (["wicket_run", "resisted_a_march"].includes(definition.id)) {
+      if (["wicket_run", "resisted_a_march", ...INSTRUCTION_ONLY_GYM_IDS].includes(definition.id)) {
         expect(selection, definition.id).toBeNull();
         expect(definition.instructionsPl?.length).toBe(3);
         continue;
@@ -207,3 +207,4 @@ describe("complete shared exercise demonstrations", () => {
     }
   });
 });
+import { INSTRUCTION_ONLY_GYM_IDS } from "@/lib/loadwise/gymProgramming";

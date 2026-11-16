@@ -293,7 +293,7 @@ describe("sprint titles describe the actual dose", () => {
       {
         ...profile,
         goal: "speed",
-        age: 15,
+        age: 16,
         level: "beginner",
         gymExperienceLevel: "beginner",
         strengthTrainingMonths: 0,

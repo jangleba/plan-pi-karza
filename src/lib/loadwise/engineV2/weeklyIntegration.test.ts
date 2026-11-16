@@ -258,7 +258,7 @@ describe("weekly planner end-to-end contracts", () => {
   it("builds different foundational and advanced strength content from actual preparation", () => {
     const beginner = {
       ...base,
-      age: 13,
+      age: 16,
       level: "elite" as const,
       gymExperienceLevel: "beginner" as const,
       strengthTrainingMonths: 2,

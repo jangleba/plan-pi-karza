@@ -6,7 +6,12 @@ import type { Profile, SessionDay } from "../types";
 import { trainingTier, type Dose, type EngineSession, type Issue } from "./model";
 import { FUNCTIONAL_CATALOGUE } from "./taxonomy";
 import { sessionRequirementIssue } from "./placeRequirements";
-import { coachedPrimerEligible, coachedPrimerDose, clusterEligible } from "./strengthProtocols";
+import {
+  coachedPrimerEligible,
+  coachedPrimerDose,
+  clusterEligible,
+  quadricepsHoldingDose,
+} from "./strengthProtocols";
 import { hasCurrentVerifiedMas } from "./endurance";
 import { hasVerifiedAdvancedStrength } from "./preparation";
 import { drillSetById, variantById } from "./sprintCatalog";
@@ -22,6 +27,7 @@ import { GYM_EXERCISE_RULES } from "../gymStrengthExercises";
 import { maximalStrengthEligible } from "./strengthPolicy";
 import { gymDoseWithinBounds } from "./gymProgression";
 import { ADVANCED_CONTACT_LIMIT, advancedSessionsEligible } from "./advancedSessions";
+import { UPPER_CONTRAST, upperContrastIneligibility } from "./upperContrast";
 import { parseRestDuration } from "../restTimer";
 
 const TARGETS = new Set([
@@ -50,6 +56,7 @@ const FUNCTIONS = new Set([
   "pull",
   "trunk",
   "power",
+  "upper_power",
   "landing",
   "braking",
   "speed",
@@ -148,7 +155,14 @@ export function deriveEngineSessionLoad(
     const repetitions = d.reps ?? 1;
     const work =
       d.seconds ??
-      (d.distanceM ? 8 * repetitions : repetitions * (d.intent === "explosive" ? 3 : 4));
+      (d.distanceM
+        ? 8 * repetitions
+        : repetitions *
+          (d.tempo
+            ? d.tempo.eccentricSeconds + d.tempo.pauseSeconds + d.tempo.concentricSeconds
+            : d.intent === "explosive"
+              ? 3
+              : 4));
     seconds +=
       d.sets * work * sides +
       d.sets *
@@ -228,7 +242,9 @@ function compatibleFunction(id: string, role: string): boolean {
     case "adductor":
       return has("hip_adduction");
     case "calf_straight":
-      return has("plantar_flexion") && id === "standing_calf_raise";
+      return (
+        has("plantar_flexion") && ["standing_calf_raise", "standing_calf_iso_hold"].includes(id)
+      );
     case "calf_bent":
       return has("plantar_flexion") && ["seated_soleus_raise", "soleus_iso_hold"].includes(id);
     case "push":
@@ -239,6 +255,12 @@ function compatibleFunction(id: string, role: string): boolean {
       return has("brace") && !has("hip_adduction");
     case "power":
       return metadata.contraction === "ballistic" || metadata.contraction === "reactive";
+    case "upper_power":
+      return (
+        metadata.contraction === "ballistic" &&
+        definition.equipmentRequired.includes("med_ball") &&
+        (has("push") || has("brace"))
+      );
     case "landing":
     case "braking":
       return has("landing") || id === "progressive_run_three_step_stop";
@@ -312,6 +334,68 @@ export function validateEngineSession(
     }
   }
   const pairLabels = new Set<string>();
+  if (recipe.upperContrast) {
+    const pair = recipe.upperContrast;
+    const indices = pair.exerciseIds.map((id) =>
+      recipe.exercises.findIndex((e) => e.exerciseId === id),
+    );
+    const [press, ball] = indices.map((i) => recipe.exercises[i]);
+    if (
+      profile.trainingMethodPreferences?.upperBodyContrast !== true ||
+      upperContrastIneligibility(recipe, profile) ||
+      !press ||
+      !ball ||
+      indices[1] !== indices[0] + 1 ||
+      press.role !== "push" ||
+      ball.role !== "upper_power" ||
+      ball.exerciseId !== "med_ball_throw" ||
+      press.dose.sets !== UPPER_CONTRAST.rounds ||
+      ball.dose.sets !== UPPER_CONTRAST.rounds ||
+      press.dose.reps !== UPPER_CONTRAST.pressReps ||
+      ball.dose.reps !== UPPER_CONTRAST.throwReps ||
+      press.dose.rir !== 2 ||
+      press.dose.intent !== "controlled" ||
+      ball.dose.intent !== "explosive" ||
+      pair.transitionSeconds !== UPPER_CONTRAST.transition ||
+      press.dose.restSeconds !== pair.transitionSeconds ||
+      pair.roundRestSeconds !== UPPER_CONTRAST.roundRest ||
+      ball.dose.restSeconds !== pair.roundRestSeconds ||
+      ball.dose.postRestSeconds !== pair.roundRestSeconds ||
+      recipe.strengthPairs?.some((p) => p.label === "B")
+    )
+      fail(
+        "UPPER_CONTRAST_DOSE",
+        "Para wyciskania i rzutu wymaga przygotowania, zgodnych rund i pełnych przerw.",
+      );
+    const rendered = session.structuredSections
+      ?.flatMap((s) => s.blocks)
+      .filter((b) => b.exercises.some((e) => e.label === "B1"));
+    const block = rendered?.[0];
+    if (
+      rendered?.length !== 1 ||
+      !block ||
+      block.blockType !== "superset" ||
+      block.executionProtocol !== "superset-rounds-v1" ||
+      block.exercises.length !== 2 ||
+      block.exercises.some(
+        (e, i) =>
+          e.exerciseId !== pair.exerciseIds[i] ||
+          e.label !== `B${i + 1}` ||
+          e.sets !== String([press, ball][i]?.dose.sets) ||
+          e.reps !== String([press, ball][i]?.dose.reps) ||
+          e.displayPrescription !==
+            `${[press, ball][i]?.dose.sets} × ${[press, ball][i]?.dose.reps}` ||
+          stableJson(e.engineDose) !== stableJson([press, ball][i]?.dose) ||
+          parseRestDuration(e.restAfterExercise ?? "") !==
+            (i === 0 ? pair.transitionSeconds : pair.roundRestSeconds),
+      ) ||
+      parseRestDuration(block.exercises[1].restAfterPair ?? "") !== pair.roundRestSeconds
+    )
+      fail(
+        "UPPER_CONTRAST_RENDER",
+        "Widok i wykonanie muszą prowadzić wyciskanie, pełną przerwę oraz rzut w tej samej rundzie.",
+      );
+  }
   for (const pair of recipe.strengthPairs ?? []) {
     const allowed = [
       ["push", "pull"],
@@ -432,8 +516,8 @@ export function validateEngineSession(
         "ISOMETRIC_PRIMER_ORDER",
         "Krótki nacisk na piny wymaga rozgrzewki przed blokiem oraz zaplanowanej części głównej po pełnym odpoczynku.",
       );
-    // These roles describe accessory holding work, not a general ban on brief
-    // preparatory holds. The latter must have a separate reviewed prescription.
+    // Ordinary hamstring holds stay after priority work. M13 has a distinct,
+    // moderate preparatory quadriceps hold, not the maximal M14 pin primer.
     const lastPriorityIndex = recipe.exercises.reduce(
       (last, e, index) =>
         ["power", "landing", "knee_strength", "hip_strength", "unilateral_strength"].includes(
@@ -443,11 +527,28 @@ export function validateEngineSession(
           : last,
       -1,
     );
-    // Advanced pairs deliberately open with a hold before the reactive jump (the coaching notes).
+    const holding = quadricepsHoldingDose(
+      recipe.phase === "deload" ||
+        resolveGoalPolicy(profile).reduced ||
+        profile.seasonPhase === "transition",
+    );
+    const preparatoryHold = (e: EngineSession["exercises"][number], index: number) =>
+      e.role === "quad_iso" &&
+      profile.trainingMethodPreferences?.strength === "M13" &&
+      index === recipe.exercises.findIndex((row) => row.role !== "warmup") &&
+      e.dose.sets === holding.sets &&
+      e.dose.seconds === holding.seconds &&
+      e.dose.perSide === true &&
+      e.dose.intent === "hold" &&
+      e.dose.restSeconds >= holding.restSeconds;
+    // Advanced pairs also deliberately open with a hold before the reactive jump.
     if (
       !complex &&
       recipe.exercises.some(
-        (e, index) => ["hamstring_iso", "quad_iso"].includes(e.role) && index < lastPriorityIndex,
+        (e, index) =>
+          ["hamstring_iso", "quad_iso"].includes(e.role) &&
+          index < lastPriorityIndex &&
+          !preparatoryHold(e, index),
       )
     )
       fail(
@@ -648,6 +749,22 @@ export function validateEngineSession(
         `Ćwiczenie nie realizuje przypisanej funkcji: ${exercise.exerciseId}.`,
       );
     const positive = [d.reps, d.seconds, d.distanceM];
+    if (
+      d.tempo &&
+      ([d.tempo.eccentricSeconds, d.tempo.pauseSeconds, d.tempo.concentricSeconds].some(
+        (v) => !Number.isFinite(v) || v < 0 || v > 10,
+      ) ||
+        d.tempo.concentricSeconds <= 0 ||
+        !d.reps ||
+        d.seconds !== undefined ||
+        d.intent !== "controlled")
+    ) {
+      fail(
+        "INVALID_TEMPO_DOSE",
+        "Tempo wymaga dodatniej fazy podnoszenia i zapisanych powtórzeń; nie jest pomiarem prędkości.",
+      );
+      validArithmetic = false;
+    }
     const nonnegative = [
       d.restSeconds,
       d.runInM,

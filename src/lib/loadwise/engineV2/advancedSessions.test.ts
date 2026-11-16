@@ -3,7 +3,11 @@ import type { Profile, SessionDay } from "../types";
 import { generateTrainingPlan, validateTrainingPlan } from "./planner";
 import { buildRunnerSteps } from "../sessionRunner/steps";
 import { restSecondsAfter } from "../sessionRunner/presentation";
-import { ADVANCED_CONTACT_LIMIT, advancedSessionsEligible } from "./advancedSessions";
+import {
+  ADVANCED_CONTACT_LIMIT,
+  advancedSessionsEligible,
+  buildAdvancedStrength,
+} from "./advancedSessions";
 
 /** Advanced 16+ gym sessions organised like the athlete's coaching notes. */
 const athlete = {
@@ -28,6 +32,7 @@ const athlete = {
     "box",
     "platform",
     "med_ball",
+    "gym_throw_zone",
     "kettlebell",
     "gym_jump_lane",
   ],
@@ -47,6 +52,7 @@ const athlete = {
   strengthTrainingMonths: 24,
   movementCompetence: "high",
   supervisionLevel: "full",
+  trainingMethodPreferences: { gymTemplate: "paired_power" },
 } as unknown as Profile;
 const opts = { startDate: "2026-11-02", weeks: 2, minutesPerSession: 75 };
 const slots = (d: SessionDay) => [d, ...(d.secondSession ? [d.secondSession] : [])];
@@ -57,7 +63,7 @@ const pairIds = (s: SessionDay) => s.engineV2!.complexPairs!.map((p) => p.exerci
 const gen = (p: Profile, o = opts) => generateTrainingPlan(p, o).plan;
 
 describe("advanced 16+ sessions follow the coaching notes", () => {
-  it("builds A (11.09), A (squat note) and B (25.09) as pairs, valid end to end", () => {
+  it("keeps the same A/B pairs throughout the block; an explicit variation selects the squat note", () => {
     const plan = gen(athlete);
     expect(validateTrainingPlan(plan, athlete, opts)).toEqual([]);
     const [a1, b1, a2] = strength(plan);
@@ -80,8 +86,11 @@ describe("advanced 16+ sessions follow the coaching notes", () => {
         "pull_up", // Podciąganie
       ]),
     );
-    expect(a2.engineV2!.advancedTemplate).toBe("A_squat");
-    expect(pairIds(a2)).toEqual(
+    expect(a2.engineV2!.advancedTemplate).toBe("A_power");
+    expect(ids(a2)).toEqual(ids(a1));
+    const alternate = buildAdvancedStrength(athlete, "A", "development", 1)!;
+    expect(alternate.advancedTemplate).toBe("A_squat");
+    expect(alternate.complexPairs!.map((pair) => pair.exerciseIds.join("+"))).toEqual(
       expect.arrayContaining([
         "heavy_back_squat+box_jump", // Siady / Skoki na boxa
         "long_lever_hamstring_iso+repeated_broad_jump", // ISO na dwójki / Dwa skoki w dal
@@ -142,7 +151,6 @@ describe("advanced 16+ sessions follow the coaching notes", () => {
   });
 
   it.each([
-    ["under 16 (existing account)", { age: 15 }],
     ["a declared limitation", { movementCompetence: "low" }],
     ["the strength goal (A/B with maximal-strength emphasis)", { goal: "strength" }],
     ["a chosen specialist method", { trainingMethodPreferences: { strength: "M09" } }],
@@ -151,6 +159,12 @@ describe("advanced 16+ sessions follow the coaching notes", () => {
     const p = { ...athlete, ...patch } as Profile;
     expect(advancedSessionsEligible(p, "development")).toBe(false);
     for (const s of strength(gen(p))) expect(s.engineV2!.organization).not.toBe("complex");
+  });
+
+  it("keeps existing under-16 data readable but does not generate new training for it", () => {
+    const young = { ...athlete, age: 15 } as Profile;
+    expect(advancedSessionsEligible(young, "development")).toBe(false);
+    expect(() => gen(young)).toThrow(/od 16 lat/);
   });
 
   it("lighter weeks are never advanced pairs", () => {

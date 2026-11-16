@@ -6,19 +6,30 @@ import { trainingProfileRevision, trainingSetupRevision } from "../planIdentity"
 import { hydrateTrainingExerciseFromDefinition, getExerciseDefinition } from "../exerciseLibrary";
 import { structuredToFlat } from "../sessionStructure";
 import type { Profile, SessionDay, TrainingSection } from "../types";
-import { buildStrength, buildRunning, fitStrengthToBudget, eligibleExercise } from "./exercises";
+import {
+  buildStrength,
+  buildRunning,
+  fitStrengthToBudget,
+  eligibleExercise,
+  estimateSessionSeconds,
+} from "./exercises";
 import { ENGINE_VERSION, trainingTier, plusDays, weekday, dayDistance, ROLE_NAMES } from "./model";
 import type { EngineResult, EngineOptions, EngineSession, Issue } from "./model";
 import { FUNCTIONAL_CATALOGUE } from "./taxonomy";
 import { easyRunningRecipe } from "./running";
 import { coachedPrimerEligible, clusterEligible } from "./strengthProtocols";
-import { solveWeeklySchedule, assessPlacement, type PlacementAttempt } from "./scheduling";
+import {
+  solveWeeklySchedule,
+  assessPlacement,
+  hasKnownStrengthLoad,
+  type PlacementAttempt,
+} from "./scheduling";
 import { validateEngineSession } from "./validation";
 import { buildActivation, buildRecovery, buildMobility, buildSkills } from "./support";
 import { buildEnduranceForDate, hasCurrentVerifiedMas } from "./endurance";
 import { resolveGoalPolicy, routedProfile, mainGoalTasks } from "./goalPolicy";
 import { hasReadinessStop } from "./planStatus";
-import { preparationProfile, hasVerifiedAdvancedStrength } from "./preparation";
+import { APP_MINIMUM_AGE, preparationProfile, hasVerifiedAdvancedStrength } from "./preparation";
 import { recipeTotalSeconds } from "@/lib/running/recipe";
 import { applyGymProgression } from "./gymProgression";
 import { renderStrengthPairs } from "./strengthPairs";
@@ -26,6 +37,7 @@ import { buildAdvancedStrength, withoutAdvancedRows } from "./advancedSessions";
 import { advancedSectionType, renderComplexPairs } from "./advancedRender";
 import { chooseStrengthFocus, strengthWeekContext } from "./strengthPolicy";
 import { applyStrengthFocus } from "./strengthPolicy";
+import { applyUpperContrast, renderUpperContrast, withoutUpperContrast } from "./upperContrast";
 
 const names = ["Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota"];
 const slots = (d: SessionDay) => [d, ...(d.secondSession ? [d.secondSession] : [])];
@@ -124,17 +136,19 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
     : recipe.exercises
   ).entries()) {
     const d = e.dose;
-    const accessory = [
-      "push",
-      "pull",
-      "adductor",
-      "trunk",
-      "calf_straight",
-      "calf_bent",
-      "hamstring_iso",
-      "hamstring_dynamic_support",
-      "quad_iso",
-    ].includes(e.role);
+    const accessory =
+      [
+        "push",
+        "pull",
+        "adductor",
+        "trunk",
+        "calf_straight",
+        "calf_bent",
+        "hamstring_iso",
+        "hamstring_dynamic_support",
+        "quad_iso",
+      ].includes(e.role) ||
+      (e.role === "upper_power" && !!recipe.upperContrast);
     const type =
       advancedSectionType(recipe, e.role) ??
       (d.speedStage === "cooldown"
@@ -225,17 +239,23 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
               ? `Przed pierwszą serią roboczą wykonaj ${recipe.tier === "foundation" ? "2 bardzo lekkie serie wprowadzające" : "2–3 serie wprowadzające"} (np. ok. 50% i 70% planowanego ciężaru po 3–5 powtórzeń). To nie są serie robocze: nie zapisuj ich jako wykonanych i nie liczą się do progresji. Pierwszy ciężar roboczy dobierz tak, by zostawał zapas ${d.rir ?? 3} powtórzeń.`
               : undefined,
       groundContacts:
-        FUNCTIONAL_CATALOGUE[e.exerciseId]?.actions.includes("jump") || e.exerciseId === "snap_down"
-          ? (d.reps ?? 0) * (d.perSide ? 2 : 1)
+        FUNCTIONAL_CATALOGUE[e.exerciseId]?.actions.includes("jump") ||
+        ["snap_down", "drop_landing", "single_leg_drop_landing"].includes(e.exerciseId)
+          ? (d.reps ?? 0) *
+            (d.perSide ? 2 : 1) *
+            (["depth_jump", "drop_jump"].includes(e.exerciseId) ? 2 : (d.contactsPerRep ?? 1))
           : undefined,
       speedRole: e.role === "speed" ? "primary" : undefined,
     });
+    if (d.tempo)
+      exercise.cue =
+        `Tempo ${d.tempo.eccentricSeconds} s opuszczanie · ${d.tempo.pauseSeconds} s pauza · szybka intencja podnoszenia. ${exercise.cue ?? ""}`.trim();
     section.blocks.push({
       id: `${exercise.id}:block`,
       title: exercise.name,
       blockType: "single",
       intent:
-        e.role === "power"
+        e.role === "power" || e.role === "upper_power"
           ? "power"
           : e.role === "landing"
             ? "braking"
@@ -249,6 +269,7 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
   const priority = { warmup: 0, prep: 1, main: 2, accessory: 3, cooldown: 4, log: 5 };
   sections.sort((a, b) => priority[a.type] - priority[b.type]);
   renderStrengthPairs(sections, recipe);
+  renderUpperContrast(sections, recipe);
   renderComplexPairs(sections, recipe);
   if (recipe.organization === "contrast") {
     const main = sections.find((s) => s.type === "main");
@@ -401,8 +422,15 @@ export function finalizeStrengthRecipe(
       base.exerciseRotation ?? 0,
     );
   }
-  const settle = (r: EngineSession) =>
-    applyGymProgression(applyStrengthFocus(r, p, date, options, days), p, date, options, days);
+  const settle = (r: EngineSession) => {
+    const focused = applyUpperContrast(
+      applyStrengthFocus(withoutUpperContrast(r), p, date, options, days),
+      p,
+      (id) => eligibleExercise(id, p, "upper_power"),
+    );
+    focused.minutes = Math.ceil(estimateSessionSeconds(focused.exercises) / 60) + 8;
+    return applyGymProgression(focused, p, date, options, days);
+  };
   const full = settle(base);
   if (full.minutes <= budget) return full;
   const compact = fitStrengthToBudget(full, budget);
@@ -414,10 +442,9 @@ function strengthBase(
   variant: "A" | "B",
   phase: EngineSession["phase"],
   rotation: number,
-  week: number,
 ): EngineSession {
   return (
-    buildAdvancedStrength(p, variant, phase, week) ??
+    buildAdvancedStrength(p, variant, phase, rotation) ??
     buildStrength(routedProfile(p, resolveGoalPolicy(p).strengthGoal), variant, phase, rotation)
   );
 }
@@ -664,8 +691,8 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
   const weeks = options.weeks ?? 4;
   if (!Number.isInteger(weeks) || weeks < 1 || weeks > 4)
     throw new Error("Plan obejmuje od 1 do 4 tygodni.");
-  if (!Number.isFinite(p.age) || p.age < 13)
-    throw new Error("Ten silnik obsługuje zawodników od 13 lat.");
+  if (!Number.isInteger(p.age) || p.age < APP_MINIMUM_AGE)
+    throw new Error(`Nowe plany BallWise są dostępne od ${APP_MINIMUM_AGE} lat.`);
   if (
     options.minutesPerSession !== undefined &&
     (!Number.isFinite(options.minutesPerSession) ||
@@ -737,9 +764,9 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
     // strength B is then tried afterwards as a supplement, not placed instead of mobility.
     const mobilityRecipe = policy.primary === "mobility" ? buildMobility(p, phase) : null;
     // Full base recipes: the time budget is fitted only after the final dose (place()).
-    const strengthB = () => strengthBase(p, "B", phase, rotation, cycle.weekIndex);
+    const strengthB = () => strengthBase(p, "B", phase, rotation);
     const tasks = [
-      strengthBase(p, "A", phase, rotation, cycle.weekIndex),
+      strengthBase(p, "A", phase, rotation),
       mobilityRecipe ?? strengthB(),
       fitSprintToBudget(
         buildRunning(routedProfile(p, policy.speedGoal), "speed", phase, {
@@ -1074,6 +1101,13 @@ export function validateTrainingPlan(
         )
       )
         fail("CONSECUTIVE_HIGH_LOWER", d.date, "Ciężkie obciążenie nóg dzień po dniu.");
+      if (
+        isStrengthRecipe(r) &&
+        [...(options.precedingDays ?? []), ...plan].some(
+          (prev) => Math.abs(dayDistance(d.date, prev.date)) === 1 && hasKnownStrengthLoad(prev, p),
+        )
+      )
+        fail("CONSECUTIVE_STRENGTH", d.date, "Siłownie A/B wymagają co najmniej dnia przerwy.");
       // The ramp-up note is guidance added later; plans saved before it must stay valid.
       const plain = (value: unknown) =>
         JSON.stringify(value, (key, item) =>
@@ -1118,7 +1152,6 @@ export function refreshStrengthSession(
     old.roles.includes("strengthA") ? "A" : "B",
     cycle.phase,
     cycleStartEffect(options).rotate ? 1 : 0,
-    cycle.cycle.weekIndex,
   );
   // An accepted shorter variant (feedback correction) stays short; otherwise the generator's rule.
   if (old.variant === "compact" && session.feedbackAdjustments?.length)

@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { useAuth } from "./auth";
+import { useAuth } from "@/lib/loadwise/auth";
 import { resolveEffectivePlan } from "./effectivePlan";
 import {
   proposalToEngineResult,
   proposeFeedbackAdjustment,
   type AdjustmentProposal,
 } from "./engineV2/feedbackAdjustment";
-import { useLoadwise } from "./store";
+import { useLoadwise } from "@/lib/loadwise/store";
 import { trainingStorageKey } from "./trainingDetails";
 import { useTrainingLocalState } from "./useTrainingLocalState";
 import { useGymEvidence } from "./useGymEvidence";

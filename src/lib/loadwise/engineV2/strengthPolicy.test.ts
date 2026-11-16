@@ -176,7 +176,7 @@ describe("SP1 strength emphasis", () => {
     expect(
       s.exercises.find((e) => e.role === (variant === "A" ? "knee_strength" : "hip_strength"))
         ?.dose,
-    ).toMatchObject({ sets: variant === "A" ? 3 : 2, reps: 4, rir: 2, restSeconds: 180 });
+    ).toMatchObject({ sets: 3, reps: 4, rir: 2, restSeconds: 180 });
     expect(s.roles).toEqual([variant === "A" ? "strengthA" : "strengthB"]);
     expect(s.minutes).toBe(Math.ceil(estimateSessionSeconds(s.exercises) / 60) + 8);
   });

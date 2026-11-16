@@ -16,6 +16,8 @@ import { exerciseName } from "./engineV2/sessionNames";
 import { SKIP_GUIDES, SKIP_LANDING } from "./skipGuides";
 import { INDIVIDUAL_FOOTBALL_DRILLS, FOOTBALL_DRILL_NAMES_EN } from "./individualFootballDrills";
 import { GYM_STRENGTH_EXERCISES, GYM_EXERCISE_RULES } from "./gymStrengthExercises";
+import { GYM_EXERCISE_EXPANSIONS } from "./gymExerciseExpansions";
+import { GYM_EXECUTION_GUIDES } from "./gymExecutionGuides";
 import type { ExerciseInstructionStep, ExerciseItem, SessionDay, TrainingExercise } from "./types";
 import type {
   AthleteTrainingProfile,
@@ -104,6 +106,8 @@ export type ParticipantMode = "solo" | "partner" | "small_group" | "team";
 export type SpaceRequirement = "home_small" | "indoor_gym" | "pitch" | "sprint_lane" | "open_field";
 
 export type EquipmentId =
+  | "gym_throw_zone"
+  | "waist_band_station"
   | "gym_jump_lane"
   | "overhead_band_station"
   | "low_band_station"
@@ -139,6 +143,16 @@ export interface EquipmentDefinition {
 }
 
 export const EQUIPMENT_REGISTRY: readonly EquipmentDefinition[] = [
+  {
+    id: "gym_throw_zone",
+    displayName: "Zabezpieczona strefa rzutów piłką lekarską",
+    aliases: ["gym_throw_zone"],
+  },
+  {
+    id: "waist_band_station",
+    displayName: "Stałe mocowanie gum na wysokości pasa i pas biodrowy",
+    aliases: ["waist_band_station"],
+  },
   {
     id: "gym_jump_lane",
     displayName: "Wolna strefa skoków na siłowni 6 × 3 m",
@@ -898,7 +912,7 @@ const LIBRARY: ExerciseDefinition[] = [
     id: "depth_jump",
     name: "Depth jump (skok w głąb)",
     displayNamePl: "Depth jump — zeskok, amortyzacja i skok",
-    aliases: ["Skok w głąb", "Depth jumps", "Drop jump"],
+    aliases: ["Skok w głąb", "Depth jumps"],
     requiresBall: false,
     allowedSessionCategories: ["power_plyo"],
     participantMode: "solo",
@@ -1033,16 +1047,21 @@ const LIBRARY: ExerciseDefinition[] = [
   },
   {
     id: "med_ball_throw",
-    name: "Med ball throw (lekka piłka)",
+    name: "Medicine Ball Chest Pass",
     displayNamePl: "Wyrzut piłki lekarskiej sprzed klatki",
-    aliases: ["Med ball throw", "Medicine ball chest pass", "Rzut piłką lekarską"],
+    aliases: [
+      "Med ball throw",
+      "Med ball throw (lekka piłka)",
+      "Medicine ball chest pass",
+      "Rzut piłką lekarską",
+    ],
     requiresBall: false,
     allowedSessionCategories: ["power_plyo", "strength_gym"],
     participantMode: "solo",
     minParticipants: 1,
     spaceRequirement: "home_small",
     category: "power",
-    movementPattern: "rotation",
+    movementPattern: "push",
     primaryAdaptation: "power",
     difficultyLevel: 2,
     technicalComplexity: 2,
@@ -3918,9 +3937,16 @@ const METHOD_SPECIFIC_EXERCISES: ExerciseDefinition[] = [
 LIBRARY.push(...METHOD_SPECIFIC_EXERCISES);
 LIBRARY.push(...STRENGTH_DOMAIN_EXPANSIONS);
 LIBRARY.push(...GYM_STRENGTH_EXERCISES.map(strengthDomainExercise));
+LIBRARY.push(...GYM_EXERCISE_EXPANSIONS.map(strengthDomainExercise));
 LIBRARY.push(...PHASE_3A_EXERCISES);
 LIBRARY.push(...FOOTBALL_SPEED_EXERCISES);
 LIBRARY.push(...REQUIRED_FAMILY_EXERCISES);
+// A gym or pitch alone is not evidence of a safe medicine-ball throwing area.
+for (const def of LIBRARY)
+  if (def.equipmentRequired.includes("med_ball") && ["power", "plyometric"].includes(def.category))
+    def.equipmentRequired = [...new Set([...def.equipmentRequired, "gym_throw_zone" as const])];
+for (const def of LIBRARY)
+  if (GYM_EXECUTION_GUIDES[def.id]) def.instructionsPl = GYM_EXECUTION_GUIDES[def.id];
 const aliasEnrichments: Record<string, string[]> = {
   hip_thrust: ["Hip thrust", "Hip thrust ze sztangą", "Wypychanie bioder"],
   seated_leg_curl: [
@@ -5358,6 +5384,25 @@ function isBeginnerProfile(a: AthleteTrainingProfile): boolean {
   return a.gymExperienceLevel === "none" || a.gymExperienceLevel === "beginner";
 }
 
+/** An experienced adult can perform established gym lifts independently. This
+ * does not waive the full-coach gate for Olympic derivatives or specialist work. */
+const INDEPENDENT_ADULT_LIFTS = new Set([
+  "heavy_back_squat",
+  "front_squat",
+  "trap_bar_deadlift",
+  "barbell_deadlift",
+  "barbell_romanian_deadlift",
+  "romanian_deadlift_db",
+  "single_leg_romanian_deadlift",
+  "kickstand_romanian_deadlift",
+  "bulgarian_split_squat",
+  "reverse_lunge",
+  "loaded_step_up",
+  "barbell_bench_press",
+  "tempo_back_squat",
+  "box_squat",
+]);
+
 function hasEquipment(def: ExerciseDefinition, a: AthleteTrainingProfile): boolean {
   if (def.equipmentRequired.length === 0) return true;
   const owned = [
@@ -5483,7 +5528,15 @@ export function isExerciseAllowedForProfile(
 
   // Niskie i umiarkowane skoki są częścią każdej rozgrzewki piłkarskiej; wysokie
   // bez nadzoru tylko dla dorosłych.
-  const supervisionWaived = bodyweightJump && (!highImpact || a.developmentStage === "adult");
+  const independentLift =
+    a.developmentStage === "adult" &&
+    ["intermediate", "advanced"].includes(a.gymExperienceLevel) &&
+    (a.strengthTrainingAge ?? 0) >= 12 &&
+    a.movementCompetenceLevel === "high" &&
+    def.requiredSupervisionLevel !== "full" &&
+    INDEPENDENT_ADULT_LIFTS.has(def.id);
+  const supervisionWaived =
+    independentLift || (bodyweightJump && (!highImpact || a.developmentStage === "adult"));
   if (!supervisionWaived && SUP_RANK[a.supervisionLevel] < SUP_RANK[def.requiredSupervisionLevel])
     reasons.push("Wymagany wyższy poziom nadzoru trenerskiego.");
 

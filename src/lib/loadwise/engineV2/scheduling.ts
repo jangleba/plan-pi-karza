@@ -161,6 +161,19 @@ export function hasKnownHighLowerLoad(day: SessionDay, profile: Profile): boolea
   return day.dayType === "club" && (profile.clubStrengthDays ?? []).includes(weekday(day.date));
 }
 
+/** A/B both train the legs even when a beginner's work is not classified heavy. */
+export function hasKnownStrengthLoad(day: SessionDay, profile: Profile): boolean {
+  return (
+    sessions(day).some(
+      (session) =>
+        session.engineV2?.roles.some((role) => role === "strengthA" || role === "strengthB") ||
+        (session.classification?.category === "gym_strength" &&
+          session.classification.countsAsStrength),
+    ) ||
+    (day.dayType === "club" && (profile.clubStrengthDays ?? []).includes(weekday(day.date)))
+  );
+}
+
 export interface PlacementConstraintInput {
   days: readonly SessionDay[];
   dayIndex: number;
@@ -225,6 +238,24 @@ export function assessPlacement(input: PlacementConstraintInput): PlacementAsses
       return block(
         "ADJACENT_HIGH_LOWER",
         "Ciężka praca nóg koliduje z poprzednim lub następnym dniem.",
+      );
+  }
+  if (recipe.roles.some((role) => role === "strengthA" || role === "strengthB")) {
+    const knownAdjacent = [...(input.precedingDays ?? []), ...days].some(
+      (day) => Math.abs(dayDistance(date, day.date)) === 1 && hasKnownStrengthLoad(day, p),
+    );
+    const declaredAdjacent = [-1, 1].some((offset) => {
+      const adjacentDate = plusDays(date, offset);
+      return (
+        !matchDates.has(adjacentDate) &&
+        p.clubTrainingDays.includes(weekday(adjacentDate)) &&
+        (p.clubStrengthDays ?? []).includes(weekday(adjacentDate))
+      );
+    });
+    if (knownAdjacent || declaredAdjacent)
+      return block(
+        "ADJACENT_STRENGTH",
+        "Siłownie A/B wymagają co najmniej dnia przerwy między sesjami.",
       );
   }
   const own = ownSessions(current);

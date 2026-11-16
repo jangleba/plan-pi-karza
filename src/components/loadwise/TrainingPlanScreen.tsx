@@ -26,6 +26,8 @@ import { planEvidenceIssue, planEvidenceKey } from "@/lib/loadwise/planEvidence"
 import { useTrainingWriteStatus } from "@/lib/loadwise/useTrainingWriteStatus";
 import { hasUnresolvedTrainingWrites } from "@/lib/loadwise/offlineTrainingQueue";
 import { runningCalibrationMessage } from "@/lib/loadwise/engineV2/runningCalibrationStatus";
+import { ArrowRight, ChevronRight, SlidersHorizontal } from "lucide-react";
+import { PlanWeek, plDate } from "./PlanWeek";
 import "@/styles/ballwise-plan.css";
 
 /** Preview, explicit activation and execution of the versioned training plan. */
@@ -223,20 +225,182 @@ export function PlanScreen() {
   function open(d: SessionDay, slot: 1 | 2) {
     void navigate({ to: "/sesja/$date", params: { date: d.date }, search: { slot } });
   }
+  const intervalNote =
+    state.plan.length > 0 && preview?.result
+      ? `Zapis zastąpi plan od ${plDate(todayIso, true)} do ${plDate(preview.result.plan.at(-1)?.date ?? todayIso, true)}. Zmiany: ${nextDaysDiff.length} w najbliższych 7 dniach${
+          laterDiff.length > 0
+            ? `, ${laterDiff.length} w dalszych tygodniach (poniżej)`
+            : ", żadnych w dalszych tygodniach"
+        }.`
+      : null;
+  const diffList = (rows: typeof allDiff) => (
+    <ul className="bw-plan-diff">
+      {rows.map((d) => (
+        <li key={d.date}>
+          <span>{plDate(d.date)}</span>
+          <span>
+            {d.before} <ArrowRight aria-hidden="true" /> {d.after}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
   return (
     <div className="bw-plan-screen pb-6">
       <AppHeader title="Plan" sketch="pitch" />
-      <div className="px-4 space-y-4">
-        {!hydrated || syncing ? <p role="status">Wczytywanie profilu…</p> : null}
+      <div className="bw-plan-stack">
+        {!hydrated || syncing ? (
+          <p role="status" className="bw-plan-quiet">
+            Wczytywanie profilu…
+          </p>
+        ) : null}
         {(!state.plan.length || rebuild) && evidenceIssue ? (
-          <p role="status">{evidenceIssue}</p>
+          <p role="status" className="bw-plan-quiet">
+            {evidenceIssue}
+          </p>
         ) : null}
         {!preview ? <FeedbackAdjustmentCard /> : null}
         {!preview ? <MasTestAction /> : null}
         {!preview && runningMessage ? (
-          <p role="status" aria-label="Aktualizacja biegania">
+          <p role="status" aria-label="Aktualizacja biegania" className="bw-plan-quiet">
             {runningMessage}
           </p>
+        ) : null}
+        {state.plan.length > 0 && !preview ? (
+          <div className="bw-plan-card bw-plan-status">
+            {scheduleChanges.length > 0 && status.kind === "stale" ? (
+              <ul>
+                {scheduleChanges.map((c) => (
+                  <li key={c.kind}>{c.line}</li>
+                ))}
+              </ul>
+            ) : null}
+            {status.kind === "expired" ? (
+              <p role="status">
+                Cykl zakończony{status.endDate ? ` · ${plDate(status.endDate, true)}` : ""}.
+                Przygotuj kolejne 4 tygodnie.
+              </p>
+            ) : status.kind === "stale" ? (
+              <p role="status">
+                {status.staleReason === "version"
+                  ? "Dostępna jest aktualna wersja silnika. Przygotuj plan ponownie."
+                  : "Profil zmienił się. Przygotuj aktualny plan przed rozpoczęciem nowej sesji."}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              className={
+                status.kind === "stale" || status.kind === "expired" || runningMessage
+                  ? "bw-plan-button"
+                  : "bw-plan-link"
+              }
+              onClick={() => setRebuild(true)}
+            >
+              {status.kind === "stale" || runningMessage
+                ? "Zaktualizuj plan"
+                : "Przygotuj kolejny plan"}
+            </button>
+          </div>
+        ) : null}
+        {preview?.result ? (
+          <section className="bw-plan-card bw-plan-preview">
+            <h2>Twój plan · 4 tygodnie</h2>
+            <p>
+              Podgląd dopasowany do Twojego przygotowania siłowego i kalendarza. Zapisz go, aby
+              rozpocząć treningi.
+            </p>
+            {scheduleChanges.length > 0 ? (
+              <ul className="bw-plan-bullets">
+                {scheduleChanges.map((c) => (
+                  <li key={c.kind}>{c.line}</li>
+                ))}
+              </ul>
+            ) : null}
+            {intervalNote ? <p>{intervalNote}</p> : null}
+            {nextDaysDiff.length > 0 ? (
+              <details className="bw-plan-disclosure">
+                <summary>
+                  Najbliższe 7 dni · zmiany ({nextDaysDiff.length})
+                  <ChevronRight aria-hidden="true" />
+                </summary>
+                {diffList(nextDaysDiff)}
+              </details>
+            ) : null}
+            {laterDiff.length > 0 ? (
+              <details className="bw-plan-disclosure" open>
+                <summary>
+                  Dalsze tygodnie · zmiany ({laterDiff.length})
+                  <ChevronRight aria-hidden="true" />
+                </summary>
+                {diffList(laterDiff)}
+              </details>
+            ) : null}
+            {state.plan.length > 0 ? (
+              <p className="bw-plan-fine">
+                Nowy plan rozpoczyna się {plDate(todayIso, true)}. Zapisane wykonanie i historia
+                treningów pozostają zachowane.
+              </p>
+            ) : (
+              <p className="bw-plan-fine">
+                {plDate(plan[0]?.date ?? todayIso, true)} –{" "}
+                {plDate(plan.at(-1)?.date ?? todayIso, true)}
+              </p>
+            )}
+            <button
+              type="button"
+              className="bw-plan-button"
+              disabled={saving || !hydrated || syncing || !!evidenceIssue || !activatePlanV2}
+              onClick={() => void save()}
+            >
+              {saving
+                ? "Zapisywanie…"
+                : issues.length
+                  ? "Zapisz plan z pokazanymi ograniczeniami"
+                  : "Zapisz plan"}
+            </button>
+            {state.plan.length > 0 ? (
+              <button
+                type="button"
+                className="bw-plan-link"
+                onClick={() => {
+                  setRebuild(false);
+                  intentState.setValue(null);
+                }}
+              >
+                Wróć do zapisanego planu
+              </button>
+            ) : null}
+          </section>
+        ) : null}
+        {error || preview?.error ? (
+          <p role="alert" className="bw-plan-alert">
+            {error || preview?.error}
+          </p>
+        ) : null}
+        {issues.length ? (
+          <details className="bw-plan-card bw-plan-disclosure">
+            <summary>
+              Ograniczenia planu · {issues.length}
+              <ChevronRight aria-hidden="true" />
+            </summary>
+            <ul className="bw-plan-bullets">
+              {issues.map((x, i) => (
+                <li key={i}>{x.message}</li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
+        {!state.profile && hydrated ? (
+          <p className="bw-plan-quiet">Uzupełnij profil, aby przygotować plan.</p>
+        ) : null}
+        {plan.length > 0 ? (
+          <PlanWeek
+            plan={plan}
+            todayIso={todayIso}
+            completions={state.completions}
+            preview={Boolean(preview)}
+            onOpen={open}
+          />
         ) : null}
         {state.profile?.hasGym && (
           <GymBandSetupPanel
@@ -246,10 +410,16 @@ export function PlanScreen() {
           />
         )}
         {state.profile ? (
-          <details className="rounded-2xl border border-black/10 p-4">
-            <summary>Dopasowanie treningu</summary>
-            <StrengthExperienceSetup />
-            <label className="block text-sm pt-3">
+          <details className="bw-plan-card bw-plan-disclosure bw-plan-settings">
+            <summary>
+              <SlidersHorizontal aria-hidden="true" className="bw-plan-settings-icon" />
+              <span>
+                Dopasowanie treningu
+                <small>{minutes} min na jednostkę · doświadczenie i sprzęt</small>
+              </span>
+              <ChevronRight aria-hidden="true" />
+            </summary>
+            <label className="bw-plan-select">
               Czas na jednostkę
               <select
                 aria-label="Czas na jednostkę"
@@ -269,174 +439,9 @@ export function PlanScreen() {
                   ))}
               </select>
             </label>
+            <StrengthExperienceSetup />
           </details>
         ) : null}
-        {!state.profile && hydrated ? <p>Uzupełnij profil, aby przygotować plan.</p> : null}
-        {state.plan.length > 0 && !preview ? (
-          <div className="space-y-2">
-            {scheduleChanges.length > 0 && status.kind === "stale" ? (
-              <ul className="text-sm">
-                {scheduleChanges.map((c) => (
-                  <li key={c.kind}>{c.line}</li>
-                ))}
-              </ul>
-            ) : null}
-            {status.kind === "expired" ? (
-              <p role="status">
-                Cykl zakończony{status.endDate ? ` · ${status.endDate}` : ""}. Przygotuj kolejne 4
-                tygodnie.
-              </p>
-            ) : status.kind === "stale" ? (
-              <p role="status">
-                {status.staleReason === "version"
-                  ? "Dostępna jest aktualna wersja silnika. Przygotuj plan ponownie."
-                  : "Profil zmienił się. Przygotuj aktualny plan przed rozpoczęciem nowej sesji."}
-              </p>
-            ) : null}
-            <button className="text-sm underline py-2" onClick={() => setRebuild(true)}>
-              {status.kind === "stale" || runningMessage
-                ? "Zaktualizuj plan"
-                : "Przygotuj kolejny plan"}
-            </button>
-          </div>
-        ) : null}
-        {preview?.result ? (
-          <section className="rounded-2xl border border-black/10 p-4 space-y-3">
-            <h2 className="font-semibold">Twój plan · 4 tygodnie</h2>
-            <p className="text-sm text-neutral-600">
-              Podgląd dopasowany do Twojego przygotowania siłowego i kalendarza. Zapisz go, aby
-              rozpocząć treningi.
-            </p>
-            {scheduleChanges.length > 0 ? (
-              <ul className="text-sm text-neutral-600">
-                {scheduleChanges.map((c) => (
-                  <li key={c.kind}>{c.line}</li>
-                ))}
-              </ul>
-            ) : null}
-            {state.plan.length > 0 && preview?.result ? (
-              <p className="text-sm">
-                Zapis zastąpi plan od {todayIso} do {preview.result.plan.at(-1)?.date}. Zmiany:{" "}
-                {nextDaysDiff.length} w najbliższych 7 dniach
-                {laterDiff.length > 0
-                  ? `, ${laterDiff.length} w dalszych tygodniach (poniżej)`
-                  : ", żadnych w dalszych tygodniach"}
-                .
-              </p>
-            ) : null}
-            {nextDaysDiff.length > 0 ? (
-              <details className="text-sm">
-                <summary>Najbliższe 7 dni · zmiany ({nextDaysDiff.length})</summary>
-                <ul>
-                  {nextDaysDiff.map((d) => (
-                    <li key={d.date}>
-                      {d.date}: {d.before} → {d.after}
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            ) : null}
-            {laterDiff.length > 0 ? (
-              <details className="text-sm" open>
-                <summary>Dalsze tygodnie · zmiany ({laterDiff.length})</summary>
-                <ul>
-                  {laterDiff.map((d) => (
-                    <li key={d.date}>
-                      {d.date}: {d.before} → {d.after}
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            ) : null}
-            {state.plan.length > 0 ? (
-              <p className="text-sm text-neutral-600">
-                Nowy plan rozpoczyna się {todayIso}. Zapisane wykonanie i historia treningów
-                pozostają zachowane.
-              </p>
-            ) : null}
-            {state.plan.length > 0 ? (
-              <button
-                type="button"
-                className="text-sm underline py-2"
-                onClick={() => {
-                  setRebuild(false);
-                  intentState.setValue(null);
-                }}
-              >
-                Wróć do zapisanego planu
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="rounded-xl bg-neutral-900 text-white px-4 py-3"
-              disabled={saving || !hydrated || syncing || !!evidenceIssue || !activatePlanV2}
-              onClick={() => void save()}
-            >
-              {saving
-                ? "Zapisywanie…"
-                : issues.length
-                  ? "Zapisz plan z pokazanymi ograniczeniami"
-                  : "Zapisz plan"}
-            </button>
-          </section>
-        ) : null}
-        {error || preview?.error ? <p role="alert">{error || preview?.error}</p> : null}
-        {issues.length ? (
-          <details className="rounded-2xl border border-black/10 p-4">
-            <summary>Ograniczenia planu · {issues.length}</summary>
-            <ul className="list-disc pl-5 text-sm">
-              {issues.map((x, i) => (
-                <li key={i}>{x.message}</li>
-              ))}
-            </ul>
-          </details>
-        ) : null}
-        {plan.map((d) => (
-          <section key={d.date} className="rounded-2xl border border-black/10 p-4 space-y-2">
-            <p className="text-xs text-neutral-500">
-              {d.dayName} · {d.date}
-            </p>
-            {[d, ...(d.secondSession ? [d.secondSession] : [])].map((s, i) => (
-              <div key={i}>
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="font-medium">{s.title}</h3>
-                  {s.durationMin > 0 ? (
-                    <span className="text-sm text-neutral-500">{s.durationMin} min</span>
-                  ) : null}
-                </div>
-                {s.engineV2?.cycle &&
-                ["deload", "reentry", "review"].includes(s.engineV2.cycle.state) ? (
-                  <details className="text-sm text-neutral-600">
-                    <summary>{s.blockPhaseLabel}</summary>
-                    <p>{s.engineV2.cycle.reason}</p>
-                  </details>
-                ) : null}
-                {s.dbId && !preview && s.dayType !== "rest" ? (
-                  <button
-                    className="text-sm underline py-2"
-                    onClick={() => open(d, i === 0 ? 1 : 2)}
-                  >
-                    Otwórz trening
-                  </button>
-                ) : s.engineV2 ? (
-                  <details className="text-sm">
-                    <summary>Ćwiczenia i dawki</summary>
-                    <ul className="space-y-2 py-2">
-                      {s.structuredSections
-                        ?.flatMap((x) => x.blocks.flatMap((b) => b.exercises))
-                        .map((e) => (
-                          <li key={e.id}>
-                            <strong>{e.name}</strong> · {e.displayPrescription} · przerwa{" "}
-                            {e.restAfterExercise}
-                          </li>
-                        ))}
-                    </ul>
-                  </details>
-                ) : null}
-              </div>
-            ))}
-          </section>
-        ))}
       </div>
     </div>
   );

@@ -77,7 +77,7 @@ describe("existing onboarding to generated plan", () => {
   it.each(cases)(
     "generates validated plans from the actual answers: $goal / $level",
     ({ goal, level, g, l }) => {
-      const age = [13, 15, 16, 17, 27][(g + l) % 5];
+      const age = [16, 17, 18, 20, 27][(g + l) % 5];
       const p = fromOnboarding(
         answers({
           goal,

@@ -94,7 +94,7 @@ const EXERCISE_NAMES: Record<string, string> = {
   barbell_deadlift: "Barbell Deadlift",
   depth_jump: "Depth Jump",
   max_velocity_high_volume: "Maximum Velocity Sprinting",
-  med_ball_throw: "Medicine Ball Throw",
+  med_ball_throw: "Medicine Ball Chest Pass",
   static_stretch_cooldown: "Static Stretching",
   sprint_ramp_warmup: "Sprint Warm-Up",
   sprint_cooldown_walk: "Cool-Down Walk",

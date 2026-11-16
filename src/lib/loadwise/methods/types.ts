@@ -14,6 +14,11 @@ export type MethodDomain =
 export type MethodClockMode =
   "none" | "continuous" | "intervals" | "cluster" | "hold" | "reactive" | "velocity";
 export interface TrainingMethodPreferences {
+  upperBodyContrast?: boolean;
+  gymTemplate?: "balanced" | "paired_power";
+  gymExercises?: import("../gymProgramming").GymExerciseChoices;
+  /** Technique learned and a coach present for Olympic derivatives; never inferred from age. */
+  coachedOlympicLifts?: boolean;
   gymEquipmentMode?: "full" | "selected";
   /** Explicit supervised primer option; never inferred from strength level. */
   coachedIsometricPrimer?: boolean;
@@ -24,13 +29,7 @@ export interface TrainingMethodPreferences {
   conditioning?: "auto" | TrainingMethodId;
   sprint?: "auto" | TrainingMethodId;
   sprintFocus?:
-    | "auto"
-    | "acceleration"
-    | "max_velocity"
-    | "curve"
-    | "braking"
-    | "planned_cod"
-    | "reactive";
+    "auto" | "acceleration" | "max_velocity" | "curve" | "braking" | "planned_cod" | "reactive";
   spaceLengthM?: number;
   declaredEquipment?: string[];
 }

@@ -146,7 +146,7 @@ describe("calendar robustness", () => {
     ).toEqual([]);
   });
 
-  it.each([13, 16, 17, 20])(
+  it.each([16, 17, 18, 20])(
     "age %i produces a plan that passes the independent validator",
     (age) => {
       const level = age < 17 ? "beginner" : "intermediate";

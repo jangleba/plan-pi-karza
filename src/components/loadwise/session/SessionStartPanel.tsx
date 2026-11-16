@@ -50,28 +50,28 @@ export function useSessionStart(session: SessionDay, canStart: boolean) {
   }
   const checkIn =
     availability === "start" && isStrengthSession(session) ? (
-      <fieldset className="space-y-2 text-sm" disabled={busy}>
-        <legend className="mb-2 font-medium">Ciężar dziś · opcjonalnie</legend>
-        {(
-          [
-            ["as_planned", "Zgodnie z planem"],
-            ["lighter", "Dziś mniejszy ciężar"],
-          ] as const
-        ).map(([value, label]) => (
-          <label key={value} className="flex min-h-11 cursor-pointer items-center gap-2">
-            <input
-              type="radio"
-              name={`strength-load-${choiceKey}`}
-              value={value}
-              checked={preference === value}
-              onChange={() => setChoice({ session: choiceKey, value })}
-            />
-            {label}
-          </label>
-        ))}
-        <p className="text-xs text-muted-foreground">
-          Wybór zapisze się przy rozpoczęciu. Ciężar sprawdzisz w seriach wprowadzających.
-        </p>
+      <fieldset className="bw-load-choice" disabled={busy}>
+        <legend>Ciężar dziś · opcjonalnie</legend>
+        <div className="bw-load-segments">
+          {(
+            [
+              ["as_planned", "Zgodnie z planem"],
+              ["lighter", "Dziś mniejszy ciężar"],
+            ] as const
+          ).map(([value, label]) => (
+            <label key={value} data-checked={preference === value || undefined}>
+              <input
+                type="radio"
+                name={`strength-load-${choiceKey}`}
+                value={value}
+                checked={preference === value}
+                onChange={() => setChoice({ session: choiceKey, value })}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+        <p>Wybór zapisze się przy rozpoczęciu. Ciężar sprawdzisz w seriach wprowadzających.</p>
       </fieldset>
     ) : null;
   return { availability, busy, error, start, checkIn };

@@ -96,11 +96,14 @@ export function strengthLandingCount(rows: readonly ExerciseDecision[]): number 
   return rows.reduce(
     (total, row) =>
       total +
-      (FUNCTIONAL_CATALOGUE[row.exerciseId]?.actions.includes("jump")
+      (FUNCTIONAL_CATALOGUE[row.exerciseId]?.actions.includes("jump") ||
+      ["drop_landing", "single_leg_drop_landing"].includes(row.exerciseId)
         ? row.dose.sets *
           (row.dose.reps ?? 0) *
           (row.dose.perSide ? 2 : 1) *
-          (row.dose.contactsPerRep ?? 1)
+          (["depth_jump", "drop_jump"].includes(row.exerciseId)
+            ? 2
+            : (row.dose.contactsPerRep ?? 1))
         : 0),
     0,
   );
