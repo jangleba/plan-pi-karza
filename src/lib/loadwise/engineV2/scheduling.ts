@@ -3,6 +3,7 @@ import type { EngineOptions, EngineSession } from "./model";
 import { dayDistance, plusDays, weekday } from "./model";
 import { hasStrengthExperience } from "../strengthExperience";
 import { hasReadinessStop } from "./planStatus";
+import { isPostMatchDate } from "./postMatch";
 
 export interface SchedulingBlock {
   code: string;
@@ -166,7 +167,9 @@ export function hasKnownStrengthLoad(day: SessionDay, profile: Profile): boolean
   return (
     sessions(day).some(
       (session) =>
-        session.engineV2?.roles.some((role) => role === "strengthA" || role === "strengthB") ||
+        // An upper-body + trunk session after a match does not load the legs for the next day.
+        (session.engineV2?.postMatch !== "upper" &&
+          session.engineV2?.roles.some((role) => role === "strengthA" || role === "strengthB")) ||
         (session.classification?.category === "gym_strength" &&
           session.classification.countsAsStrength),
     ) ||
@@ -215,7 +218,8 @@ export function assessPlacement(input: PlacementConstraintInput): PlacementAsses
     return block("UNAVAILABLE", "Ten dzień nie jest dostępny na trening własny.");
   if (
     current.dayType === "match" ||
-    [...matchDates].some((match) => Math.abs(dayDistance(date, match)) <= 1)
+    ([...matchDates].some((match) => Math.abs(dayDistance(date, match)) <= 1) &&
+      !(recipe.postMatch && isPostMatchDate(date, matchDates)))
   )
     return block("MATCH_BUFFER", "Mecz lub dzień bezpośrednio przed albo po meczu.");
   const readiness = options.readiness?.[date];
@@ -240,7 +244,10 @@ export function assessPlacement(input: PlacementConstraintInput): PlacementAsses
         "Ciężka praca nóg koliduje z poprzednim lub następnym dniem.",
       );
   }
-  if (recipe.roles.some((role) => role === "strengthA" || role === "strengthB")) {
+  if (
+    recipe.postMatch !== "upper" &&
+    recipe.roles.some((role) => role === "strengthA" || role === "strengthB")
+  ) {
     const knownAdjacent = [...(input.precedingDays ?? []), ...days].some(
       (day) => Math.abs(dayDistance(date, day.date)) === 1 && hasKnownStrengthLoad(day, p),
     );

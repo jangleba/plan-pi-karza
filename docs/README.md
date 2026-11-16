@@ -5,6 +5,7 @@ potwierdzenia wdrożenia, odbioru prawnego ani testów na fizycznym urządzeniu.
 
 ## Utrzymywane instrukcje
 
+- [Tydzień meczowy: siłownia dzień po meczu · silnik V2.12](TYDZIEN-W-SEZONIE.md)
 - [Doprecyzowanie sprzętu, para wyciskanie–rzut i wykonanie · silnik V2.11](SILOWNIA-V211.md)
 - [Pełne A/B siłowni 16+, warianty, dobór i badania · silnik V2.10](SILOWNIA-V210.md)
 - [Konfiguracja wdrożenia, iOS i płatności](INSTALLATION-2026-10.md)

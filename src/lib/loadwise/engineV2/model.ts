@@ -1,7 +1,7 @@
 import type { Profile, Readiness, SessionDay } from "../types";
 import { preparationProfile } from "./preparation";
 
-export const ENGINE_VERSION = "ballwise-v2.11";
+export const ENGINE_VERSION = "ballwise-v2.12";
 export type Tier = "foundation" | "development" | "performance";
 export type Role =
   | "knee_strength"
@@ -139,6 +139,11 @@ export interface EngineSession {
   runningRecipe?: import("@/lib/running/recipe").RunningRecipe;
   roles: ("strengthA" | "strengthB" | "speed" | "endurance" | SupportRole)[];
   organization?: "straight" | "power_first" | "contrast" | "complex";
+  /**
+   * A strength session on the day after a match (MD+1), used only when the week has no other
+   * date for it: "full" for advanced/elite players, "upper" (upper body + trunk) for the rest.
+   */
+  postMatch?: "full" | "upper";
   /** Advanced 16+ session following the athlete's coaching notes (advancedSessions.ts). */
   advancedTemplate?: "A_power" | "A_squat" | "B_hinge";
   /** Pairs of an advanced session: first exercise, 30 s transition, second, then the round rest. */

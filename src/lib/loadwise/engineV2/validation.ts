@@ -29,6 +29,7 @@ import { gymDoseWithinBounds } from "./gymProgression";
 import { ADVANCED_CONTACT_LIMIT, advancedSessionsEligible } from "./advancedSessions";
 import { UPPER_CONTRAST, upperContrastIneligibility } from "./upperContrast";
 import { parseRestDuration } from "../restTimer";
+import { POST_MATCH_UPPER_ROLES, postMatchMode } from "./postMatch";
 
 const TARGETS = new Set([
   "strengthA",
@@ -573,7 +574,21 @@ export function validateEngineSession(
         "REGIONAL_TASK_OVERLAP",
         "Zbyt wiele zadań jednej strony nóg w tej jednostce A/B; rozłóż akcenty w tygodniu.",
       );
-    if (
+    if (recipe.postMatch === "upper") {
+      if (
+        recipe.exercises.some((e) => !POST_MATCH_UPPER_ROLES.has(e.role)) ||
+        !recipe.exercises.some((e) => e.role === "push" || e.role === "pull")
+      )
+        fail(
+          "POST_MATCH_UPPER_ONLY",
+          "Dzień po meczu: tylko góra ciała i tułów, z co najmniej jednym ćwiczeniem pchania lub przyciągania.",
+        );
+    } else if (recipe.postMatch === "full" && postMatchMode(profile) !== "full")
+      fail(
+        "POST_MATCH_FULL",
+        "Pełna siłownia dzień po meczu jest tylko dla zawodników zaawansowanych i elity.",
+      );
+    else if (
       complex
         ? !["knee_strength", "unilateral_strength", "hip_strength", "knee_flexion"].some((r) =>
             roles.has(r as never),
