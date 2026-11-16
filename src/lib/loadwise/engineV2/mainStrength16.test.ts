@@ -58,7 +58,7 @@ describe("16+ main strength selection", () => {
     const rows = mainRows(r.plan);
     expect(rows.length).toBeGreaterThan(0);
     for (const row of rows) expect(TRIVIAL).not.toContain(row.exerciseId);
-    // Every session still has its loaded knee and hip pattern.
+    // Every session still has a loaded lower-body lift.
     for (const s of r.plan
       .flatMap(slots)
       .filter(
@@ -67,7 +67,10 @@ describe("16+ main strength selection", () => {
           d.engineV2.postMatch !== "upper",
       )) {
       const roles = new Set(s.engineV2!.exercises.map((e) => e.role));
-      expect(roles.has("knee_strength") || roles.has("unilateral_strength")).toBe(true);
+      // Note B (trap bar) loads knee and hip in one lift; every session has a loaded lower lift.
+      expect(
+        ["knee_strength", "unilateral_strength", "hip_strength"].some((r) => roles.has(r as never)),
+      ).toBe(true);
     }
     expect(validateTrainingPlan(r.plan, p, options)).toEqual([]);
   });

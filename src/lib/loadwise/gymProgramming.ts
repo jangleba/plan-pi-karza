@@ -1,3 +1,4 @@
+import { NOTE_GYM_EXERCISE_IDS } from "./noteGymExercises";
 /** Optional choices pin an exercise for the training block. Eligibility and the
  * weekly calendar still decide whether it can be prescribed. No random rotation. */
 export const GYM_EXERCISE_OPTIONS = {
@@ -107,7 +108,9 @@ export const INSTRUCTION_ONLY_GYM_IDS = [
   "hang_power_snatch",
   "wall_push_up",
   "prone_ytw_raise",
-] as const;
+  // Exercises from the athlete's coaching notes: written instructions until reviewed animations.
+  ...NOTE_GYM_EXERCISE_IDS,
+] as readonly string[];
 
 export function normalizeGymExerciseChoices(value: unknown): GymExerciseChoices {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};

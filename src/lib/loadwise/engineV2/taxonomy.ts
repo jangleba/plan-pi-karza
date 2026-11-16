@@ -11,7 +11,8 @@ export type JointAction =
   | "brace"
   | "jump"
   | "landing"
-  | "locomotion";
+  | "locomotion"
+  | "hip_flexion";
 export interface FunctionMetadata {
   actions: JointAction[];
   contraction: "dynamic" | "eccentric" | "isometric" | "ballistic" | "reactive" | "mixed";
@@ -196,3 +197,33 @@ export function functionalReplacementCompatible(sourceId: string, targetId: stri
     return false;
   return source.actions.every((action) => target.actions.includes(action));
 }
+
+// Exercises of the athlete's coaching notes (noteGymExercises.ts).
+group("quarter_box_squat", ["knee_extension", "hip_extension"]);
+group(
+  "single_leg_banded_hip_thrust single_leg_straight_leg_hip_thrust",
+  ["hip_extension"],
+  "dynamic",
+  true,
+);
+group("rebound_back_extension", ["hip_extension"], "dynamic");
+group("barbell_row speed_barbell_row", ["pull"]);
+group("single_arm_plyo_row", ["pull"], "dynamic", true);
+group("banded_plyo_push_up", ["push"], "ballistic");
+group("weighted_step_up_jump single_leg_assisted_cmj", ["jump"], "ballistic", true);
+group("single_leg_box_jump", ["jump", "landing"], "ballistic", true);
+group("depth_jump_over_hurdle", ["jump", "landing"], "reactive");
+group("medicine_ball_shot_put", ["push", "brace"], "ballistic");
+group("knee_iso_push", ["knee_extension"], "isometric", true);
+group(
+  "single_leg_straight_leg_iso_switch single_leg_straight_leg_ht_iso",
+  ["hip_extension"],
+  "isometric",
+  true,
+);
+group(
+  "high_side_plank_abduction single_leg_swiss_ball_pike single_leg_swiss_ball_hip_twist",
+  ["brace"],
+  "isometric",
+);
+group("standing_banded_hip_flexion", ["hip_flexion"], "dynamic", true);

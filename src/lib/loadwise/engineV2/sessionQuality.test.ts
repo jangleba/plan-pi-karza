@@ -67,22 +67,18 @@ describe("session quality at the final prescription boundary", () => {
   });
 
   it.each(["endurance", "mobility", "matchready"] as const)(
-    "%s does not inherit the power/reactive coaching-note template",
+    "%s keeps the universal note sessions in the gym, valid and within the landing limit",
     (goal) => {
-      const p = {
-        ...gymAthlete,
-        goal,
-        trainingMethodPreferences: { gymTemplate: "paired_power" as const },
-      };
-      expect(advancedSessionsEligible(p, "development")).toBe(false);
-      const result = generateTrainingPlan(p, { startDate: "2026-11-16", weeks: 1 });
+      const p = { ...gymAthlete, goal };
+      expect(advancedSessionsEligible(p, "development")).toBe(true);
+      const options = { startDate: "2026-11-16", weeks: 1 };
+      const result = generateTrainingPlan(p, options);
       expect(strength(result.plan).length).toBeGreaterThan(0);
       for (const s of strength(result.plan)) {
-        expect(s.engineV2!.advancedTemplate).toBeUndefined();
-        expect(s.engineV2!.exercises.filter((e) => e.role === "power").length).toBeLessThanOrEqual(
-          1,
-        );
+        expect(s.engineV2!.advancedTemplate).toBeDefined();
+        expect(s.engineV2!.plyometricContacts).toBeLessThanOrEqual(48);
       }
+      expect(validateTrainingPlan(result.plan, p, options)).toEqual([]);
     },
   );
 });

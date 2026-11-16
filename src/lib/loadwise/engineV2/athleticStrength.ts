@@ -3,7 +3,10 @@ import type { EngineSession, Role } from "./model";
 import { gymSpecialWorkAllowed } from "./gymPower";
 import { hasVerifiedAdvancedStrength } from "./preparation";
 
-/** A layout choice never changes the athlete's primary goal or proves preparation. */
+/**
+ * A layout choice never changes the athlete's primary goal or proves preparation. Without a choice
+ * the note sessions come first (advancedSessions); athletic A/B is their fallback.
+ */
 export function isAthleticStrengthSelected(profile: Profile): boolean {
   return (
     profile.hasGym &&

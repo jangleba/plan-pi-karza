@@ -1,4 +1,5 @@
 import type { ExerciseDefinition } from "./exerciseLibrary";
+import { NOTE_GYM_EXERCISES } from "./noteGymExercises";
 
 type Input = Pick<ExerciseDefinition, "id" | "name" | "displayNamePl"> &
   Partial<ExerciseDefinition>;
@@ -391,4 +392,5 @@ export const GYM_EXERCISE_EXPANSIONS: Input[] = [
     coachingCues: ["Łopatki w dół", "Kciuki w górę", "Szyja długa"],
     commonErrors: ["Unoszenie głowy i wyginanie lędźwi", "Szarpanie rękami"],
   },
+  ...NOTE_GYM_EXERCISES,
 ];

@@ -9,7 +9,7 @@ export { applyExerciseReplacements };
 const q = new URLSearchParams(location.search),
   kind = q.get("kind") || "strength";
 const auditTodayIso = kind === "planning" ? "2026-11-16" : "2026-11-02";
-/** "advanced": a real 16+ note session (A1/A2 pairs) straight from the engine. */
+/** "advanced": a real 16+ note session (A1/A2(/A3) groups) straight from the engine. */
 function advancedCase() {
   const profile: any = {
     ...(cases as Record<string, any>).strength.profile,
@@ -37,16 +37,25 @@ function advancedCase() {
       "med_ball",
       "kettlebell",
       "gym_jump_lane",
+      "trap_bar",
+      "nordic_setup",
+      "swiss_ball",
+      "sliders",
     ],
   };
   const plan = generateTrainingPlan(profile, {
     startDate: "2026-11-02",
-    weeks: 1,
+    weeks: 2,
     minutesPerSession: 75,
   }).plan;
+  // `note=N_trapbar` (etc.) selects one of the four notes; otherwise the first note session.
+  const note = new URLSearchParams(globalThis.location?.search ?? "").get("note");
   const day = plan
     .flatMap((d: any) => [d, ...(d.secondSession ? [d.secondSession] : [])])
-    .find((d: any) => d.engineV2?.organization === "complex");
+    .find(
+      (d: any) =>
+        d.engineV2?.organization === "complex" && (!note || d.engineV2.advancedTemplate === note),
+    );
   return {
     profile,
     session: {

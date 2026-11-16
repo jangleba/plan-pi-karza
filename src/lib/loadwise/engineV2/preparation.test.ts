@@ -186,6 +186,8 @@ describe("preparation grounded in existing onboarding", () => {
       strengthTrainingMonths: 36,
       movementCompetence: "high",
       supervisionLevel: "full",
+      // The balanced A/B layout repeats the same squat each week (the notes alternate).
+      trainingMethodPreferences: { gymTemplate: "balanced" },
     };
     const plan = generateTrainingPlan(p, { startDate: "2026-11-02" }).plan;
     const sessions = plan

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { generateTrainingPlan, validateTrainingPlan } from "./planner";
+import { buildAdvancedStrength } from "./advancedSessions";
 import { buildStrength } from "./exercises";
 import { resolveGoalPolicy } from "./goalPolicy";
 import type { EngineSession } from "./model";
@@ -265,7 +266,8 @@ describe("weekly planner end-to-end contracts", () => {
       movementCompetence: "low" as const,
     };
     const novice = generateTrainingPlan(beginner, options);
-    const advanced = generateTrainingPlan(base, options);
+    // Two weeks cover both A/B note pairs of the advanced athlete.
+    const advanced = generateTrainingPlan(base, { ...options, weeks: 2 });
     expect(novice.tier).toBe("foundation");
     expect(advanced.tier).toBe("performance");
     const main = (days: SessionDay[]) =>
@@ -393,9 +395,12 @@ describe("weekly planner end-to-end contracts", () => {
     expect(slot).toBeDefined();
     expect(slot.date).toBe("2026-11-05");
     expect(slot.mdLabel).toBe("MD-3");
-    const expected = buildStrength(p, "A", "adaptation").exercises.find(
-      (exercise) => exercise.role === "knee_strength",
-    )!;
+    const note = slot.engineV2!.advancedTemplate;
+    const expected = (
+      note
+        ? buildAdvancedStrength(p, "A", slot.engineV2!.phase, 0, note)!
+        : buildStrength(p, "A", "adaptation")
+    ).exercises.find((exercise) => exercise.role === "knee_strength")!;
     const actual = slot.engineV2!.exercises.find((exercise) => exercise.role === "knee_strength")!;
     expect(actual.dose).toEqual(expected.dose);
     expect(validateTrainingPlan(r.plan, p, options)).toEqual([]);
