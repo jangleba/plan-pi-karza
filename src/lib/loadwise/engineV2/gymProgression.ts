@@ -1,7 +1,7 @@
 import type { Profile, Readiness, SessionCompletion, SessionDay } from "../types";
 import { GYM_EXERCISE_RULES } from "../gymStrengthExercises";
 import { scheduledMatchDates } from "../matchSchedule";
-import { calculateOverallReadiness } from "../readinessModel";
+import { readinessScore as readinessScoreOf } from "../readinessModel";
 import { dayDistance, plusDays, trainingTier, weekday } from "./model";
 import type { Dose, EngineOptions, EngineSession, ExerciseDecision } from "./model";
 import { gymPowerDose, strengthLandingCount } from "./gymPower";
@@ -388,17 +388,7 @@ export function decideGymProgression(
   const timed = !!GYM_EXERCISE_RULES[id]?.timedDynamic;
   const readiness = ctx.readiness;
   const readinessScore =
-    readiness &&
-    readiness.date === ctx.date &&
-    [
-      readiness.sleep,
-      readiness.fatigue,
-      readiness.soreness,
-      readiness.stress,
-      readiness.overall,
-    ].every((n) => Number.isFinite(n) && n >= 1 && n <= 10)
-      ? Math.min(readiness.overall, calculateOverallReadiness(readiness))
-      : undefined;
+    readiness && readiness.date === ctx.date ? readinessScoreOf(readiness) : undefined;
   const reduce = (action: "regress" | "deload", why: string) => {
     if (timed) return result("omit", id, null, why, latest ? [latest] : []);
     const reducedId = fallbackId(id);

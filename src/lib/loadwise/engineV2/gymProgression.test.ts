@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { sessionFixture } from "@/components/loadwise/session/testFixtures";
 import type { Profile, Readiness, SessionCompletion } from "../types";
 import type { Dose, ExerciseDecision } from "./model";
+import { buildReadiness } from "../readinessModel";
 import { buildStrength } from "./exercises";
 import { generateTrainingPlan, validateTrainingPlan } from "./planner";
 import { gymPowerDose, gymHamstringSupportDose, strengthLandingCount } from "./gymPower";
@@ -200,6 +201,19 @@ describe("GP1 verified progression", () => {
     h.input.proposalOnly = true;
     expect(decide(row(), h, { readiness: undefined, date: "2026-11-18" }).action).toBe("progress");
     expect(decide(row(), h, { readiness: { ...ready, overall: 3 } }).action).toBe("deload");
+  });
+  it("reads a saved check-in as the player saw it: the stress placeholder does not lower it", () => {
+    // sleep 3, fatigue 8, soreness 1, no pain: saved as 7; a stress=5 placeholder used to give 6.
+    const saved = buildReadiness("2026-11-15", {
+      sleep: 3,
+      fatigue: 8,
+      soreness: 1,
+      jointPain: 0,
+    });
+    expect(saved.overall).toBe(7);
+    const h = history(row("gym_cmj", { sets: 2, reps: 2 }));
+    expect(decide(row(), h, { readiness: saved }).action).toBe("progress");
+    expect(decide(row(), h, { readiness: { ...saved, overall: 6 } }).action).toBe("hold");
   });
   it("regresses from an explicit interrupted-control report without inventing repetitions", () => {
     const h = history(row());

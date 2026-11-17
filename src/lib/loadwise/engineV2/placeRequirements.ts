@@ -26,6 +26,14 @@ export function hasDeclaredFootball(profile: Profile): boolean {
   );
 }
 
+/** A partner is real only when the player declared one (the same flag the reactive sprint tasks use). */
+export function hasDeclaredPartner(profile: Profile): boolean {
+  return (
+    (profile.trainingMethodPreferences?.declaredEquipment ?? []).includes("partner") &&
+    !(profile.unavailableEquipmentIds ?? []).includes("partner")
+  );
+}
+
 /** The existing wall checkbox is stored as rebounder; ownership is never inferred from venue. */
 export function hasDeclaredWall(profile: Profile): boolean {
   return (
@@ -75,7 +83,12 @@ export function sessionRequirementIssue(
   profile: Profile,
   role?: Role,
 ): RequirementIssue | null {
-  if (def.minParticipants > 1 || def.requiresPartner) return "partner";
+  // Two-person tasks need a declared partner; larger groups are never assumed.
+  if (
+    (def.minParticipants > 1 || def.requiresPartner) &&
+    !(def.minParticipants <= 2 && hasDeclaredPartner(profile))
+  )
+    return "partner";
   if (def.requiresBall && !hasDeclaredFootball(profile)) return "ball";
   if (requiresDeclaredWall(def.id) && !hasDeclaredWall(profile)) return "wall";
   if (/^football_gk_/.test(def.id) && profile.position !== "goalkeeper") return "goalkeeper";

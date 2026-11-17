@@ -162,6 +162,27 @@ export const MAIN_VARIANTS: readonly MainVariant[] = [
     instruction: () =>
       "30 m płynnego nabiegu, 10 m lotnego biegu i 20 m wyhamowania; wymaga co najmniej 60 m wolnej prostej. Co najmniej 4 min przerwy; wydłuż ją, jeśli nie jesteś gotowy. Osiągnięcie Vmax nie jest potwierdzane samą długością nabiegu.",
   },
+  // Rhythm run between flat markers (library: wicket_run). Distance and runs stay inside the
+  // library's default prescription (10–20 m, 2–4 runs); like every task of the max-velocity goal
+  // it keeps the full 4 min recovery (longer than the library's generic range, never shorter).
+  {
+    id: "mv_wicket_run",
+    goal: "max_velocity",
+    exerciseId: "wicket_run",
+    qualifies: (e) => e.coached && e.space >= 40 && !e.reduced,
+    dose: () => ({
+      sets: 3,
+      reps: 1,
+      distanceM: 15,
+      runInM: 15,
+      runOutM: 15,
+      restSeconds: 240,
+      intent: "controlled",
+      speedStage: "main",
+    }),
+    instruction: () =>
+      "Z trenerem ustaw 4–6 płaskich znaczników w Twoim rozstawie, z 15 m wolnego nabiegu i 15 m wybiegu. Przebiegnij rytmicznie między znacznikami bez sięgania stopą; to praca nad rytmem, nie bieg maksymalny. Zakończ serię przy utracie rytmu; nie skracaj przerwy.",
+  },
   // Curve: both directions, wide and controlled.
   {
     id: "curve_wide_10",
@@ -378,6 +399,8 @@ export interface DrillSet {
   groups: Array<"start" | "max_velocity" | "directional">;
   drills: [string, string, string];
   wall?: boolean;
+  /** Level/age gate for drills that need more control than the basic sets. */
+  qualifies?: (env: SprintEnv) => boolean;
   why: string;
 }
 export const DRILL_SETS: readonly DrillSet[] = [
@@ -412,6 +435,20 @@ export const DRILL_SETS: readonly DrillSet[] = [
     groups: ["start"],
     drills: ["a_skip", "low_dribble", "dribble_to_sprint_transition"],
     why: "rytm → szybkie stopy → przejście do biegu",
+  },
+  {
+    id: "ds_start_bskip",
+    groups: ["start", "directional"],
+    drills: ["a_march", "b_skip", "low_dribble"],
+    qualifies: (e) => e.age >= 16 && e.level !== "beginner",
+    why: "pozycja → pazurzenie i cykl nogi (B skip) → szybkie stopy",
+  },
+  {
+    id: "ds_mv_bskip",
+    groups: ["max_velocity"],
+    drills: ["a_skip", "b_skip", "ankling"],
+    qualifies: (e) => e.age >= 16 && e.level !== "beginner",
+    why: "rytm → pazurzenie i cykl nogi (B skip) → sprężystość",
   },
   {
     id: "ds_mv_basic",

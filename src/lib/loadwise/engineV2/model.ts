@@ -98,6 +98,12 @@ export interface SprintVariantRef {
   addition: string | null;
   /** Short, human-readable reasons for the choice (rotation, level, space, equipment). */
   why: string[];
+  /** The goal the player or the cycle asked for, when it differs from `goal`. */
+  requestedGoal?: SprintGoal;
+  /** Why the requested goal was replaced by an alternative (never an unexplained swap). */
+  goalChange?: { code: string; reason: string };
+  /** The plyometric block of this session (null when none), for rotation and weekly load. */
+  plyometric?: string | null;
 }
 export interface ExerciseDecision {
   exerciseId: string;
@@ -152,6 +158,11 @@ export interface EngineSession {
    * date for it: "full" for advanced/elite players, "upper" (upper body + trunk) for the rest.
    */
   postMatch?: "full" | "upper";
+  /**
+   * Why a strength session is not the first-choice coaching-note session (advancedSessions.ts):
+   * a concrete, structured cause. Absent when the requested note was used unchanged.
+   */
+  strengthPath?: StrengthPathNote;
   /** Advanced 16+ session following the athlete's coaching notes (advancedSessions.ts). */
   advancedTemplate?: import("./advancedSessions").AdvancedTemplateId;
   /** Pairs of an advanced session: first exercise, 30 s transition, second, then the round rest. */
@@ -181,10 +192,24 @@ export interface CycleContext {
   state: "build" | "review" | "deload" | "reentry";
   reason: string;
 }
+/** Why a stimulus is limited or missing; the five causes are never mixed. */
+export type LimitationCause = "recipe" | "equipment" | "preparation" | "time" | "calendar";
+export interface StrengthPathNote {
+  /** "note": a coaching-note template (maybe another than first choice); "standard": usual A/B. */
+  path: "note" | "standard";
+  code: string;
+  /** Absent when the cause is the player's own layout choice, not a limitation. */
+  cause?: LimitationCause;
+  message: string;
+  /** The note that was first choice but could not be used. */
+  requestedTemplate?: string;
+}
 export interface Issue {
   code: string;
   date?: string;
   message: string;
+  /** Structural cause of a limitation; absent for older saved plans and neutral diagnostics. */
+  cause?: LimitationCause;
   /** Weekly target a diagnostic refers to; absent for older saved plans. */
   target?: "strengthA" | "strengthB" | "speed" | "endurance" | "mobility";
   /** Placement gates that prevented an explicitly requested extra session. */

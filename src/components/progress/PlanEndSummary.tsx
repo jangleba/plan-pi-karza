@@ -19,6 +19,19 @@ const GOALS = Object.keys(GOAL_LABELS) as Goal[];
 const BARRIERS = Object.keys(BARRIER_LABELS) as Barrier[];
 const shortDate = (iso: string) => `${Number(iso.slice(8, 10))}.${iso.slice(5, 7)}`;
 
+const CAUSE_TEXT: Record<string, string> = {
+  calendar: "brak terminu w kalendarzu",
+  time: "za mało czasu w sesji",
+  equipment: "brak sprzętu lub miejsca",
+  preparation: "wymagane przygotowanie nie jest potwierdzone",
+  recipe: "brak zatwierdzonej receptury",
+  unknown: "przyczyna niezapisana w starszym planie",
+};
+const notPlannedText = (by: PlanSummary["targets"][number]["notPlannedBy"]) =>
+  Object.entries(by)
+    .map(([cause, count]) => `${CAUSE_TEXT[cause] ?? cause} ${count}`)
+    .join(", ");
+
 function SummaryBody({ summary }: { summary: PlanSummary }) {
   const { own, club, targets, credits } = summary;
   return (
@@ -35,9 +48,10 @@ function SummaryBody({ summary }: { summary: PlanSummary }) {
               <strong>{t.label}:</strong> wykonane {t.done}/{t.planned}
               {t.missed ? ` · pominięte ${t.missed}` : ""}
               {t.external ? ` · zgłoszone z klubu ${t.external}` : ""}
-              {t.notPlanned
-                ? ` · nie zaplanowano (kalendarz, sprzęt lub czas) ${t.notPlanned}`
+              {t.partial
+                ? ` · bez pełnego bodźca siłowego (tylko praca wspierająca) ${t.partial}`
                 : ""}
+              {t.notPlanned ? ` · nie zaplanowano: ${notPlannedText(t.notPlannedBy)}` : ""}
             </li>
           ))}
       </ul>

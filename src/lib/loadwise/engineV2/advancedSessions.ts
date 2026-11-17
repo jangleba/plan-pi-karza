@@ -1,7 +1,15 @@
 import type { Profile } from "../types";
-import type { Dose, EngineSession, ExerciseDecision, Role } from "./model";
+import type {
+  Dose,
+  EngineSession,
+  ExerciseDecision,
+  LimitationCause,
+  Role,
+  StrengthPathNote,
+} from "./model";
 import { trainingTier } from "./model";
-import { eligibleExercise, estimateSessionSeconds } from "./exercises";
+import { eligibleExercise, estimateSessionSeconds, exerciseLimitation } from "./exercises";
+import { limitationText } from "./limitations";
 import { gymPowerDose, strengthLandingCount } from "./gymPower";
 import { resolveGoalPolicy } from "./goalPolicy";
 import { FUNCTIONAL_CATALOGUE } from "./taxonomy";
@@ -674,26 +682,58 @@ export const pairTitle = (kind: PairKind) => KIND_TITLE[kind] ?? "Superseria";
 /** Landing events per gym session: below the weekly app budgets (48 for 16–17, 60 for adults). */
 export const ADVANCED_CONTACT_LIMIT = (age: number) => (age < 18 ? 30 : 48);
 
+/** A concrete reason the note sessions do not apply to a profile; null when they do. */
+export interface NoteIneligibility {
+  code: string;
+  message: string;
+}
+export function advancedIneligibility(p: Profile): NoteIneligibility | null {
+  const template = p.trainingMethodPreferences?.gymTemplate;
+  if (!p.hasGym) return { code: "NO_GYM", message: "Sesje według notatek wymagają siłowni." };
+  if (!Number.isFinite(p.age) || p.age < APP_MINIMUM_AGE)
+    return { code: "AGE", message: "Sesje według notatek są dla zawodników od 16 lat." };
+  if (p.painInjury || p.seasonPhase === "return_injury")
+    return {
+      code: "RETURN_REVIEW",
+      message: "Przy zgłoszonym bólu lub powrocie po urazie sesje według notatek są wstrzymane.",
+    };
+  if (p.seasonPhase === "transition")
+    return {
+      code: "TRANSITION_PHASE",
+      message: "W fazie przejściowej sesje według notatek nie są układane; zastosowano zwykłe A/B.",
+    };
+  if (resolveGoalPolicy(p).reduced)
+    return {
+      code: "REDUCED_GOAL",
+      message:
+        "Zadeklarowany powrót lub ograniczenie zmęczeniem wybiera lżejszą siłę A/B zamiast notatek.",
+    };
+  if (template === "athletic_ab" || template === "balanced")
+    return {
+      code: "LAYOUT_CHOSEN",
+      message: "Zawodnik wybrał własny układ siłowni (sportowe lub zrównoważone A/B).",
+    };
+  // Exercises the player picked by hand keep the usual A/B layout they were chosen for.
+  if (Object.values(p.trainingMethodPreferences?.gymExercises ?? {}).some(Boolean))
+    return {
+      code: "MANUAL_EXERCISES",
+      message: "Ręcznie wybrane ćwiczenia siłowni zachowują zwykły układ A/B.",
+    };
+  if (p.trainingMethodPreferences?.strength && p.trainingMethodPreferences.strength !== "auto")
+    return {
+      code: "METHOD_CHOSEN",
+      message: "Wybrana metoda specjalistyczna zachowuje zwykły układ A/B.",
+    };
+  return null;
+}
+
 /**
  * Every 16+ player with a gym gets the note sessions, unless they chose another layout
  * (athletic or balanced A/B), their own gym exercises or a specialist method, report pain, return from injury or are in
  * a transition phase. Lighter weeks keep the notes with fewer rounds (planner.finalizeAdvanced).
  */
 export function advancedSessionsEligible(p: Profile, _phase?: EngineSession["phase"]): boolean {
-  const template = p.trainingMethodPreferences?.gymTemplate;
-  return (
-    p.hasGym &&
-    Number.isFinite(p.age) &&
-    p.age >= APP_MINIMUM_AGE &&
-    !p.painInjury &&
-    !["transition", "return_injury"].includes(p.seasonPhase) &&
-    !resolveGoalPolicy(p).reduced &&
-    template !== "athletic_ab" &&
-    template !== "balanced" &&
-    // Exercises the player picked by hand keep the usual A/B layout they were chosen for.
-    !Object.values(p.trainingMethodPreferences?.gymExercises ?? {}).some(Boolean) &&
-    (!p.trainingMethodPreferences?.strength || p.trainingMethodPreferences.strength === "auto")
-  );
+  return advancedIneligibility(p) === null;
 }
 
 /** How much of the note's own prescription a player gets. */
@@ -720,6 +760,112 @@ export function advancedTemplateFor(variant: "A" | "B", rotation: number, p?: Pr
   return pair[Math.abs(rotation) % 2];
 }
 
+const LOWER_ROLES: Role[] = ["knee_strength", "hip_strength", "unilateral_strength"];
+
+/** Why a template cannot stand for this profile: the structural cause of the missing main part. */
+function templateLimitation(
+  p: Profile,
+  template: Template,
+): { cause: LimitationCause; message: string } {
+  const slots = template.items.flatMap((item) => item.slots);
+  const probe = (roles: Role[]) => {
+    const ids = slots.flatMap((slot) => [
+      ...(roles.includes(slot.role) ? slot.candidates.map((id) => ({ id, role: slot.role })) : []),
+      ...(slot.alt && roles.includes(slot.alt.role)
+        ? slot.alt.candidates.map((id) => ({ id, role: slot.alt!.role }))
+        : []),
+    ]);
+    const why = ids.map(({ id, role }) => exerciseLimitation(id, p, role)).filter(Boolean);
+    const cause: LimitationCause = why.includes("equipment")
+      ? "equipment"
+      : why.includes("preparation")
+        ? "preparation"
+        : "recipe";
+    return { cause, role: roles[0] };
+  };
+  const lowerPresent = slots.some(
+    (slot) =>
+      LOWER_ROLES.includes(slot.role) &&
+      slot.candidates.some((id) => eligibleExercise(id, p, slot.role)),
+  );
+  const missing = lowerPresent ? probe(["push", "pull"]) : probe(LOWER_ROLES);
+  const label = lowerPresent
+    ? "zadanie góry ciała (pchanie lub przyciąganie)"
+    : "główny wzorzec nóg";
+  return {
+    cause: missing.cause,
+    message: `Notatka „${template.title}” niedostępna. ${limitationText(missing.cause, missing.role, label)}`,
+  };
+}
+
+export interface AdvancedAttempt {
+  session: EngineSession | null;
+  /** Set when the first-choice note was replaced or no note could be built. */
+  path?: StrengthPathNote;
+}
+
+/**
+ * The one entry of the note path with its outcome explained. The first-choice note of the
+ * rotation is tried, then the other note of the same A/B variant; only when neither stands is
+ * the usual A/B session used, with the structural cause of both failures.
+ */
+export function attemptAdvancedStrength(
+  p: Profile,
+  variant: "A" | "B",
+  phase: EngineSession["phase"],
+  rotation = 0,
+  keep?: AdvancedTemplateId,
+): AdvancedAttempt {
+  const ineligible = advancedIneligibility(p);
+  if (ineligible)
+    return {
+      session: null,
+      path: { path: "standard", code: ineligible.code, message: ineligible.message },
+    };
+  const kept = keep && ADVANCED_TEMPLATES[keep];
+  const first =
+    kept && [advancedTemplateFor(variant, 0, p), advancedTemplateFor(variant, 1, p)].includes(kept)
+      ? kept
+      : advancedTemplateFor(variant, rotation, p);
+  const second = advancedTemplateFor(
+    variant,
+    first === advancedTemplateFor(variant, 0, p) ? 1 : 0,
+    p,
+  );
+  const built = buildFromTemplate(p, variant, phase, first);
+  if (built) return { session: built };
+  const firstWhy = templateLimitation(p, first);
+  const alternative = second !== first ? buildFromTemplate(p, variant, phase, second) : null;
+  if (alternative)
+    return {
+      session: alternative,
+      path: {
+        path: "note",
+        code: "NOTE_SUBSTITUTED",
+        cause: firstWhy.cause,
+        requestedTemplate: first.id,
+        message: `${firstWhy.message} Użyto drugiej notatki tego dnia („${second.title}”).`,
+      },
+    };
+  const secondWhy = second !== first ? templateLimitation(p, second) : firstWhy;
+  const cause =
+    firstWhy.cause === "equipment" || secondWhy.cause === "equipment"
+      ? "equipment"
+      : firstWhy.cause === "preparation" || secondWhy.cause === "preparation"
+        ? "preparation"
+        : "recipe";
+  return {
+    session: null,
+    path: {
+      path: "standard",
+      code: `NOTE_${cause.toUpperCase()}`,
+      cause,
+      requestedTemplate: first.id,
+      message: `${firstWhy.message}${second !== first ? ` ${secondWhy.message}` : ""} Zastosowano zwykłą siłę A/B.`,
+    },
+  };
+}
+
 export function buildAdvancedStrength(
   p: Profile,
   variant: "A" | "B",
@@ -728,12 +874,17 @@ export function buildAdvancedStrength(
   /** A rebuild of a saved session keeps its note (when it still exists and matches A/B). */
   keep?: AdvancedTemplateId,
 ): EngineSession | null {
-  if (!advancedSessionsEligible(p, phase)) return null;
-  const kept = keep && ADVANCED_TEMPLATES[keep];
-  const template =
-    kept && [advancedTemplateFor(variant, 0, p), advancedTemplateFor(variant, 1, p)].includes(kept)
-      ? kept
-      : advancedTemplateFor(variant, rotation, p);
+  const attempt = attemptAdvancedStrength(p, variant, phase, rotation, keep);
+  if (attempt.session && attempt.path) attempt.session.strengthPath = attempt.path;
+  return attempt.session;
+}
+
+function buildFromTemplate(
+  p: Profile,
+  variant: "A" | "B",
+  phase: EngineSession["phase"],
+  template: Template,
+): EngineSession | null {
   const level = noteLevel(p);
   const youth = p.age < 18;
   const used = new Set<string>();

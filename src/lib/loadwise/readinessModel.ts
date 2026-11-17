@@ -41,7 +41,24 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(value)));
 }
 
-export function calculateOverallReadiness(input: ShortReadinessInput): number {
+/**
+ * Answers that only make sense while joint pain is reported. A form may keep
+ * them in memory after the pain was set back to 0; they must be dropped before
+ * any score is calculated, otherwise a hidden "alters movement" answer would
+ * silently force overall=1 on a record that stores no pain.
+ */
+export function normalizePainAnswers<
+  T extends Pick<
+    ShortReadinessInput,
+    "jointPain" | "painLocation" | "painOnset" | "altersMovement"
+  >,
+>(input: T): T {
+  if (input.jointPain > 0) return input;
+  return { ...input, painLocation: null, painOnset: null, altersMovement: false };
+}
+
+export function calculateOverallReadiness(rawInput: ShortReadinessInput): number {
+  const input = normalizePainAnswers(rawInput);
   const recoveryFromFatigue = 11 - clamp(input.fatigue, 1, 10);
   const recoveryFromSoreness = 11 - clamp(input.soreness ?? input.fatigue, 1, 10);
   const movementComfort = 10 - clamp(input.jointPain, 0, 10);
@@ -72,7 +89,8 @@ export function calculateOverallReadiness(input: ShortReadinessInput): number {
   return mean;
 }
 
-export function buildReadiness(date: string, input: ShortReadinessInput): Readiness {
+export function buildReadiness(date: string, rawInput: ShortReadinessInput): Readiness {
+  const input = normalizePainAnswers(rawInput);
   return {
     date,
     sleep: clamp(input.sleep, 1, 10),
@@ -84,14 +102,47 @@ export function buildReadiness(date: string, input: ShortReadinessInput): Readin
     jointPain: clamp(input.jointPain, 0, 10),
     painLocation: input.jointPain > 0 ? (input.painLocation ?? "other") : null,
     // Neutral legacy placeholders; stress/motivation are not inferred as good.
-    stress: clamp(input.stress ?? 5, 1, 10),
-    motivation: clamp(11 - (input.stress ?? 5), 1, 10),
+    stress: clamp(input.stress ?? NEUTRAL_STRESS, 1, 10),
+    motivation: clamp(11 - (input.stress ?? NEUTRAL_STRESS), 1, 10),
     overall: calculateOverallReadiness(input),
     painOnset: input.jointPain > 0 ? (input.painOnset ?? null) : null,
     altersMovement: input.jointPain > 0 ? Boolean(input.altersMovement) : false,
     // Chest symptoms/fainting can occur without any joint pain.
     redFlags: input.redFlags ?? [],
   };
+}
+
+/** Stored placeholder for the stress answer the check-in form does not collect. */
+const NEUTRAL_STRESS = 5;
+
+/**
+ * The single reader of a stored check-in. It recomputes from the answers the
+ * form really collects (sleep, fatigue, soreness, pain, symptoms) and never
+ * from the stored stress/motivation placeholders, so the value a player saw at
+ * save time equals the one the planner and progression use later. The stored
+ * `overall` can only lower the result (a cached aggregate never raises it), and
+ * thresholds are untouched. Returns undefined for corrupt records.
+ */
+export function readinessScore(readiness: Readiness | undefined): number | undefined {
+  if (!readiness) return undefined;
+  if (
+    ![readiness.sleep, readiness.fatigue, readiness.soreness, readiness.overall].every(
+      (n) => Number.isFinite(n) && n >= 1 && n <= 10,
+    ) ||
+    !Number.isFinite(readiness.jointPain)
+  )
+    return undefined;
+  const recomputed = calculateOverallReadiness({
+    sleep: readiness.sleep,
+    fatigue: readiness.fatigue,
+    soreness: readiness.soreness,
+    jointPain: readiness.jointPain,
+    painLocation: readiness.painLocation,
+    painOnset: readiness.painOnset,
+    altersMovement: readiness.altersMovement,
+    redFlags: readiness.redFlags,
+  });
+  return Math.min(readiness.overall, recomputed);
 }
 
 export function hasMedicalRedFlag(input: Pick<ShortReadinessInput, "redFlags">): boolean {

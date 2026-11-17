@@ -236,3 +236,35 @@ it("allows skipping without saving and remembers it only for the same account an
   await click("Wypełnij check-in");
   expect(field("Jakość snu").value).toBe("");
 });
+
+it("clears hidden pain answers when pain returns to 0 and saves a consistent score", async () => {
+  await render();
+  await click("Wypełnij check-in");
+  await fill("5");
+  await select("Miejsce bólu", "knee");
+  await select("Od kiedy czujesz ból?", "today");
+  const alters = host.querySelector<HTMLInputElement>(".bw-readiness-check input[type=checkbox]")!;
+  await act(async () => alters.click());
+  expect(alters.checked).toBe(true);
+  await select("Ból stawów lub urazowy", "0");
+  expect(host.querySelector('select[aria-label="Miejsce bólu"]')).toBeNull();
+  await click("Zapisz check-in");
+  const saved = vi.mocked(props.onSave).mock.calls[0][0];
+  expect(saved).toMatchObject({
+    jointPain: 0,
+    painLocation: null,
+    painOnset: null,
+    altersMovement: false,
+  });
+  expect(saved.overall).toBe(
+    buildReadiness(today, { sleep: 8, fatigue: 3, soreness: 2, jointPain: 0 }).overall,
+  );
+  expect(saved.overall).toBeGreaterThan(1);
+  // Raising the pain again starts from an empty form, not from the cleared answers.
+  await click("Edytuj check-in");
+  await select("Ból stawów lub urazowy", "4");
+  expect(field("Miejsce bólu").value).toBe("");
+  expect(
+    host.querySelector<HTMLInputElement>(".bw-readiness-check input[type=checkbox]")!.checked,
+  ).toBe(false);
+});

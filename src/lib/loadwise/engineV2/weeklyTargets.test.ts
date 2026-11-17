@@ -5,11 +5,21 @@ import { plusDays, type EngineSession, type WeeklyTargets } from "./model";
 import { weeklyTargetCoverage } from "./weeklyTargets";
 
 const targets: WeeklyTargets = { strength: 2, speed: 2, endurance: 1 };
+const lift = (role: "knee_strength" | "hip_strength" | "push" | "knee_flexion") => ({
+  exerciseId: role,
+  role,
+  dose: { sets: 3, reps: 5, rir: 2, restSeconds: 120, intent: "controlled" as const },
+  reason: "fixture",
+});
+// A strength session carries its main lift; the label alone is not the stimulus.
 const recipe = (roles: EngineSession["roles"]): EngineSession => ({
   roles,
   tier: "development",
   highLower: false,
-  exercises: [],
+  exercises: [
+    ...(roles.includes("strengthA") ? [lift("knee_strength")] : []),
+    ...(roles.includes("strengthB") ? [lift("hip_strength")] : []),
+  ],
   missing: [],
   minutes: 20,
   sprintMetres: 0,
@@ -41,6 +51,7 @@ describe("saved weekly target coverage", () => {
         endDate: "2026-11-22",
         requested: targets,
         planned: { strength: 2, speed: 1, endurance: 1 },
+        partialStrength: 0,
         fullRestDays: 1,
       },
     ]);
@@ -49,11 +60,23 @@ describe("saved weekly target coverage", () => {
   it("counts an explicit post-match upper-body gym session without classifying it as running", () => {
     const upper = training(0, ["strengthA"]);
     upper.engineV2!.postMatch = "upper";
+    upper.engineV2!.exercises = [lift("push")];
     expect(weeklyTargetCoverage([upper], targets)[0].planned).toEqual({
       strength: 1,
       speed: 0,
       endurance: 0,
     });
+  });
+
+  it("does not count a strength label without its main leg pattern as full coverage", () => {
+    const curlOnly = training(0, ["strengthA"]);
+    curlOnly.engineV2!.exercises = [lift("knee_flexion")];
+    const noUpper = training(1, ["strengthB"]);
+    noUpper.engineV2!.postMatch = "upper";
+    noUpper.engineV2!.exercises = [];
+    const [week] = weeklyTargetCoverage([curlOnly, noUpper, training(2, ["strengthB"])], targets);
+    expect(week.planned.strength).toBe(1);
+    expect(week.partialStrength).toBe(2);
   });
 
   it("does not credit mobility, ball technique, activation or recovery as sprint or endurance", () => {

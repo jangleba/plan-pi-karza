@@ -104,14 +104,42 @@ export const CANDIDATES: Record<Role, readonly string[]> = {
   ball_skill: [],
 };
 
+const GATED_EQUIPMENT = [
+  "trap_bar",
+  "nordic_setup",
+  "machine",
+  "fixed_pins",
+  "sliders",
+  "med_ball",
+  "sled",
+  "gym_jump_lane",
+  "overhead_band_station",
+  "low_band_station",
+  "gym_throw_zone",
+  "waist_band_station",
+  "platform",
+  "box",
+];
+const ownedEquipment = (p: Profile) => [
+  ...new Set([...p.equipment, ...(p.trainingMethodPreferences?.declaredEquipment ?? [])]),
+];
+/** Gated equipment the exercise needs and the profile does not declare. */
+export function missingGatedEquipment(id: string, p: Profile): string[] {
+  const d = getExerciseDefinition(id);
+  if (!d) return [];
+  const equipment = ownedEquipment(p);
+  return d.equipmentRequired.filter(
+    (e) =>
+      GATED_EQUIPMENT.includes(e) &&
+      !equipment.some((value) => (resolveEquipmentId(value) ?? value) === e),
+  );
+}
+
 export function eligibleExercise(id: string, p: Profile, role?: Role): boolean {
   // 16+: no trivial movement as main strength work, whichever path asks (pool, manual choice,
   // rotation, equipment rebuild). Warm-up and activation roles may still use them.
   if (role && excludedFromMainStrength(id, role)) return false;
   const d = getExerciseDefinition(id);
-  const equipment = [
-    ...new Set([...p.equipment, ...(p.trainingMethodPreferences?.declaredEquipment ?? [])]),
-  ];
   if (
     [
       "drop_jump",
@@ -134,28 +162,32 @@ export function eligibleExercise(id: string, p: Profile, role?: Role): boolean {
     d.approved !== false &&
     !d.draft &&
     meetsSessionRequirements(d, p, role) &&
-    d.equipmentRequired
-      .filter((e) =>
-        [
-          "trap_bar",
-          "nordic_setup",
-          "machine",
-          "fixed_pins",
-          "sliders",
-          "med_ball",
-          "sled",
-          "gym_jump_lane",
-          "overhead_band_station",
-          "low_band_station",
-          "gym_throw_zone",
-          "waist_band_station",
-          "platform",
-          "box",
-        ].includes(e),
-      )
-      .every((e) => equipment.some((value) => (resolveEquipmentId(value) ?? value) === e)) &&
+    missingGatedEquipment(id, p).length === 0 &&
     isExerciseAllowedForProfile(d, buildAthleteTrainingProfile(p)).ok
   );
+}
+
+/**
+ * Why an exercise is not eligible, as one structural cause. "equipment" wins when a declared
+ * item is missing (the player can fix it by owning it); everything else that remains is the
+ * verified preparation. "recipe" means the library has no approved recipe for the role.
+ */
+export function exerciseLimitation(
+  id: string,
+  p: Profile,
+  role?: Role,
+): "equipment" | "preparation" | "recipe" | null {
+  if (eligibleExercise(id, p, role)) return null;
+  const d = getExerciseDefinition(id);
+  if (!d || d.approved === false || d.draft || (role && excludedFromMainStrength(id, role)))
+    return "recipe";
+  if (missingGatedEquipment(id, p).length || !meetsSessionRequirements(d, p, role))
+    return "equipment";
+  const allowed = isExerciseAllowedForProfile(d, buildAthleteTrainingProfile(p));
+  // The library names a missing item in plain words; anything else is level, competence, age or supervision.
+  return allowed.reasons.some((reason) => reason.startsWith("Brak wymaganego sprzętu"))
+    ? "equipment"
+    : "preparation";
 }
 
 const ROTATING_ROLES: readonly Role[] = [
