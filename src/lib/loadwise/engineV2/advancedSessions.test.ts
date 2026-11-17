@@ -130,7 +130,7 @@ describe("gym sessions follow the athlete's four notes", () => {
 
   it("step-up note: three-exercise group step-up → weighted step-up jump → assisted single-leg jump", () => {
     const s = byNote(plan, "N_step_reactive");
-    const triple = s.engineV2!.complexPairs!.find((g) => g.exerciseIds[0] === "step_up")!;
+    const triple = s.engineV2!.complexPairs!.find((g) => g.exerciseIds[0] === "loaded_step_up")!;
     expect(triple.exerciseIds).toHaveLength(3);
     expect(triple.exerciseIds[1]).toBe("weighted_step_up_jump");
     expect(ids(s)).toEqual(

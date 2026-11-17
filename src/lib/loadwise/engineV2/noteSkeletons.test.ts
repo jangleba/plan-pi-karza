@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { Profile } from "../types";
 import type { EngineSession } from "./model";
 import { buildAdvancedStrength, attemptAdvancedStrength } from "./advancedSessions";
-import { COACH_SKELETONS, skeletonDoubts, type Skeleton } from "./coachSkeletons";
+import {
+  COACH_SKELETONS,
+  skeletonClarifications,
+  skeletonDoubts,
+  type Skeleton,
+} from "./coachSkeletons";
 import { FUNCTIONAL_CATALOGUE } from "./taxonomy";
 import { NOTE_FUNCTIONS, functionViolations } from "./noteFunctions";
 import { adaptDose, noteLevel, noteLevelDecision } from "./noteDosage";
@@ -93,12 +98,35 @@ describe("the five photos as skeletons", () => {
     const doubts = skeletonDoubts();
     expect(doubts.length).toBeGreaterThan(8);
     expect(doubts.some((d) => /Tempo „x”/.test(d.doubt))).toBe(true);
-    expect(doubts.some((d) => /Wysokość skrzyni/.test(d.doubt))).toBe(true);
+    // The trapbar photo is a summary: its missing numbers stay open.
+    expect(doubts.some((d) => d.skeleton === "N_trapbar")).toBe(true);
     const trapbar = COACH_SKELETONS.N_trapbar!;
     const unspecified = trapbar.blocks.flatMap((b) => b.slots).filter((s) => s.ref.unspecified);
     expect(unspecified.length).toBeGreaterThanOrEqual(5);
   });
 
+  it("records the coach's later explanations as the source of the number, not as a doubt", () => {
+    const text = (slot: string, skeleton: string) =>
+      skeletonClarifications().find((c) => c.slot === slot && c.skeleton === skeleton)?.text ?? "";
+    expect(text("1a", "N_squat_bench")).toMatch(/1 s mocno i 1 s luzu|1 s mocno, 1 s luz/);
+    expect(text("0", "N_clean_plyo")).toMatch(/8 s/);
+    expect(text("5c", "N_clean_plyo")).toMatch(/jedną stronę, potem na drugą/);
+    expect(text("1b", "N_squat_bench")).toMatch(/prostych nogach/);
+    expect(text("2a", "N_step_reactive")).toMatch(/zawsze obciążony/);
+    const switchSlot = COACH_SKELETONS.N_step_reactive!.blocks.flatMap((b) => b.slots).find(
+      (x) => x.id === "3b",
+    )!;
+    expect(switchSlot.ref).toMatchObject({ sets: 3, seconds: 5, perSide: true });
+    // “x” of the tempo is still open.
+    expect(skeletonDoubts().some((d) => /Tempo „x”/.test(d.doubt))).toBe(true);
+  });
+  it("a step-up is never done without load: no bodyweight step-up among the candidates", () => {
+    expect(NOTE_FUNCTIONS.knee_single_leg_strength.candidates).not.toContain("step_up");
+    for (const p of [verified, profile({ equipment: ["barbell", "rack", "bench", "band"] })]) {
+      const s = buildAdvancedStrength(p, "B", "development", 1);
+      expect(s?.exercises.map((e) => e.exerciseId) ?? []).not.toContain("step_up");
+    }
+  });
   it("every slot names a registered function with a library exercise or an equivalent", () => {
     for (const s of skeletons)
       for (const slot of s.blocks.flatMap((b) => b.slots)) {

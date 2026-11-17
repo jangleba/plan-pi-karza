@@ -204,7 +204,8 @@ export const NOTE_FUNCTIONS: Readonly<Record<SlotFunction, NoteFunction>> = {
     role: "unilateral_strength",
     label: "siła jednonóż (wejście)",
     main: true,
-    candidates: ["step_up", "loaded_step_up", "bulgarian_split_squat", "reverse_lunge"],
+    // Always loaded: a bodyweight step-up is not the coach's exercise.
+    candidates: ["loaded_step_up", "bulgarian_split_squat", "reverse_lunge"],
     alt: { role: "knee_strength", candidates: ["goblet_squat", "heavy_back_squat"] },
   },
   weighted_step_jump: {

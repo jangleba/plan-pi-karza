@@ -97,6 +97,8 @@ export interface SkeletonSlot {
   coachNote?: string;
   /** Open questions about this line; never guessed, listed. */
   doubts?: readonly string[];
+  /** What the coach later explained about the line: no longer a doubt, kept as the source of the number. */
+  clarified?: readonly string[];
 }
 
 export interface SkeletonBlock {
@@ -127,8 +129,8 @@ const T441: Tempo = [4, 1, 1]; // “4-1-x”: x is read as one second (explosiv
 const T311: Tempo = [3, 1, 1];
 const X_DOUBT =
   "Tempo „x” przyjęte jako 1 s fazy podnoszenia (celowo szybko); zdjęcie nie podaje sekund.";
-const ISO_DOUBT =
-  "„3x5x1sec/leg” przyjęte jako 3 serie po 5 powtórzeń izometrii trwającej 1 s, na każdą nogę.";
+const ISO_CLARIFIED =
+  "Wyjaśnił trener: „3x5x1sec” to 3 serie; w serii 5 razy 1 s mocno i 1 s luzu (1 s mocno, 1 s luz, 1 s mocno…), na każdą nogę.";
 
 /** Photo 1 and photo 4: the same Day 1 in two loading weeks. */
 const SQUAT_BENCH: Skeleton = {
@@ -150,7 +152,8 @@ const SQUAT_BENCH: Skeleton = {
           fn: "quad_iso",
           kind: "iso_holds",
           ref: { sets: 3, holds: 5, holdSeconds: 1, perSide: true },
-          doubts: [ISO_DOUBT],
+          clarified: [ISO_CLARIFIED],
+          coachNote: "1 s mocno, 1 s luz",
         },
         {
           id: "1b",
@@ -159,7 +162,9 @@ const SQUAT_BENCH: Skeleton = {
           kind: "jump",
           ref: { sets: 3, reps: 3, perSide: true },
           prefer: ["single_leg_box_jump"],
-          doubts: ["Wysokość skrzyni nie jest podana; nie jest wymyślana."],
+          clarified: [
+            "Wyjaśnił trener: wysokość skrzyni taka, by wskoczyć niemal na prostych nogach, jak najmocniej i jak najszybciej; można lekko ugiąć nogi na skrzyni. Aplikacja nie podaje centymetrów.",
+          ],
         },
       ],
     },
@@ -208,7 +213,9 @@ const SQUAT_BENCH: Skeleton = {
           ref: { sets: 4, reps: 2 },
           heavy: { text: "Depth Box jump over Hurdle 4x3", ref: { reps: 3 } },
           prefer: ["depth_jump_over_hurdle"],
-          doubts: ["Wysokość skrzyni i płotka nie jest podana."],
+          clarified: [
+            "Wyjaśnił trener: skrzynia jak przy skoku na prostych nogach (jak najmocniej, jak najszybciej); płotek niski, taki jak do pogo. Aplikacja nie podaje centymetrów.",
+          ],
         },
       ],
     },
@@ -336,7 +343,9 @@ const CLEAN_PLYO: Skeleton = {
           fn: "hamstring_iso_hold",
           kind: "iso_time",
           ref: { sets: 3, seconds: 8, perSide: true },
-          doubts: ["„iso hold 3x8” przyjęte jako 8 s trzymania, nie 8 powtórzeń."],
+          clarified: [
+            "Wyjaśnił trener: 3 serie po jednym trzymaniu przez 8 s (nie 8 powtórzeń), na każdą stronę.",
+          ],
         },
       ],
     },
@@ -389,7 +398,9 @@ const CLEAN_PLYO: Skeleton = {
           kind: "jump",
           ref: { sets: 4, reps: 3 },
           prefer: ["drop_jump"],
-          doubts: ["Wysokość skrzyni nie jest podana."],
+          clarified: [
+            "Wyjaśnił trener: wysokość skrzyni jak przy skoku na prostych nogach, jak najmocniej i najszybciej.",
+          ],
         },
       ],
     },
@@ -478,8 +489,8 @@ const CLEAN_PLYO: Skeleton = {
           kind: "accessory",
           ref: { sets: 3, reps: 6, perSide: true },
           prefer: ["copenhagen_plank"],
-          doubts: [
-            "„add str L” nieczytelne: przyjęte jako deska kopenhaska (przywodziciele, długa dźwignia); biblioteka nie rozróżnia wariantu z prostą nogą.",
+          clarified: [
+            "Wyjaśnił trener: „str” to strona: najpierw seria na jedną stronę, potem na drugą (lewa i prawa). „add L” czytane jako przywodziciele, długa dźwignia (deska kopenhaska); biblioteka nie rozróżnia wariantu z prostą nogą.",
           ],
         },
       ],
@@ -507,7 +518,8 @@ const STEP_REACTIVE: Skeleton = {
           fn: "quad_iso",
           kind: "iso_holds",
           ref: { sets: 3, holds: 3, holdSeconds: 1, perSide: true },
-          doubts: [ISO_DOUBT],
+          clarified: [ISO_CLARIFIED],
+          coachNote: "1 s mocno, 1 s luz",
         },
         {
           id: "1b",
@@ -533,8 +545,10 @@ const STEP_REACTIVE: Skeleton = {
           fn: "knee_single_leg_strength",
           kind: "lift",
           ref: { sets: 4, reps: 3, perSide: true },
-          prefer: ["step_up"],
-          doubts: ["Czy z obciążeniem — nie podano; obciążenie to indywidualny wybór zawodnika."],
+          prefer: ["loaded_step_up"],
+          clarified: [
+            "Wyjaśnił trener: step up jest zawsze obciążony, nigdy bez obciążenia. Ciężar dobiera zawodnik (bez historii aplikacja go nie podaje).",
+          ],
         },
         {
           id: "2b",
@@ -576,12 +590,10 @@ const STEP_REACTIVE: Skeleton = {
           id: "3b",
           text: "SL str L iso switch 3x5/leg",
           fn: "hamstring_iso_switch",
-          kind: "iso_holds",
-          ref: { sets: 3, holds: 5, perSide: true },
+          kind: "iso_time",
+          ref: { sets: 3, seconds: 5, perSide: true },
           prefer: ["single_leg_straight_leg_iso_switch"],
-          doubts: [
-            "„iso switch 3x5/leg”: 5 przełączeń czy 5 s — nie podano; zapisane jako 5 przełączeń bez czasu.",
-          ],
+          clarified: ["Wyjaśnił trener: 3 serie po 5 s trzymania, na każdą nogę."],
         },
       ],
     },
@@ -810,6 +822,23 @@ export function skeletonDoubts(): { skeleton: AdvancedTemplateId; slot: string; 
             ),
           ),
         ]
+      : [],
+  );
+}
+
+/** The coach's later explanations of unclear lines, with the slot they apply to. */
+export function skeletonClarifications(): {
+  skeleton: AdvancedTemplateId;
+  slot: string;
+  text: string;
+}[] {
+  return Object.values(COACH_SKELETONS).flatMap((skeleton) =>
+    skeleton
+      ? skeleton.blocks.flatMap((block) =>
+          block.slots.flatMap((slot) =>
+            (slot.clarified ?? []).map((text) => ({ skeleton: skeleton.id, slot: slot.id, text })),
+          ),
+        )
       : [],
   );
 }

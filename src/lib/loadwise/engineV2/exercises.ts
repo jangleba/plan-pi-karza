@@ -325,9 +325,10 @@ export function estimateSeconds(e: ExerciseDecision, hasNext = false): number {
     : d.intent === "explosive"
       ? 3
       : 4;
-  // A hold counted in repetitions: each hold plus a short reset before the next.
+  // A hold counted in repetitions: each hold plus one second of relaxing before the next
+  // (the coach's “1 s hard, 1 s easy”).
   const work = d.holdReps
-    ? d.holdReps * ((d.seconds ?? 1) + 2)
+    ? d.holdReps * ((d.seconds ?? 1) + 1)
     : (d.seconds ?? (d.distanceM ? 8 * (d.reps ?? 1) : (d.reps ?? 1) * repSeconds));
   // Sets done with a partner rest the short transition; sets done alone rest the round rest.
   const paired = Math.min(d.pairedSets ?? d.sets, d.sets);

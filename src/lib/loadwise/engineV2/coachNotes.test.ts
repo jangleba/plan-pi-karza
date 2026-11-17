@@ -151,13 +151,13 @@ const STEP_REACTIVE: Row[][] = [
     ["depth_jump", { sets: 3, reps: 3 }],
   ],
   [
-    ["step_up", { sets: 4, reps: 3, perSide: true }],
+    ["loaded_step_up", { sets: 4, reps: 3, perSide: true }],
     ["weighted_step_up_jump", { sets: 3, reps: 2, perSide: true }],
     ["single_leg_assisted_cmj", { sets: 3, reps: 3, perSide: true }],
   ],
   [
     ["banded_plyo_push_up", { sets: 3, reps: 5 }],
-    ["single_leg_straight_leg_iso_switch", { sets: 3, holdReps: 5, perSide: true }],
+    ["single_leg_straight_leg_iso_switch", { sets: 3, seconds: 5, perSide: true }],
   ],
   [
     ["speed_barbell_row", { sets: 3, reps: 6 }],
