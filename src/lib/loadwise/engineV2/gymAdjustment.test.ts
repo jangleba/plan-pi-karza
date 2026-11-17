@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { Profile, SessionCompletion, SessionDay } from "../types";
 import { generateTrainingPlan, validateTrainingPlan } from "./planner";
 import { proposeGymAdjustment } from "./gymAdjustment";
+import { strengthLandingCount } from "./gymPower";
 import { isStrengthSession } from "../strengthCheckIn";
 import { gymRecordKey, type GymRecord, type GymEquipment } from "../gymEvidence";
 import { strengthWeekContext } from "./strengthPolicy";
@@ -160,7 +161,7 @@ describe("reviewable updates of pending A/B sessions", () => {
       // Only the main-lift answers are under test: the completed note sessions' jumps would
       // otherwise (correctly) trigger the rolling 7-day landing limit on their own.
       const e = c.executionSnapshot!.engineV2!;
-      e.exercises = e.exercises.filter((x) => !(x.dose.contactsPerRep ?? 0));
+      e.exercises = e.exercises.filter((x) => strengthLandingCount([x]) === 0);
     });
     const records: GymRecord[] = Object.entries(input.completions).map(([sid, c]) => {
       const id = c.executionSnapshot!.engineV2!.exercises.find(

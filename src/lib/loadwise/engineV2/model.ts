@@ -117,11 +117,26 @@ export interface SprintVariantRef {
   /** The plyometric block of this session (null when none), for rotation and weekly load. */
   plyometric?: string | null;
 }
+/** A change of the coach's reference dose for one athlete, always with its reason. */
+export interface DoseAdjustment {
+  field: "sets" | "reps" | "tempo" | "perSide" | "exercise";
+  from: string | number | null;
+  to: string | number | null;
+  reason: string;
+}
 export interface ExerciseDecision {
   exerciseId: string;
   role: Role;
   dose: Dose;
   reason: string;
+  /** Note session: the coach's own line (numbering and text), the function it stands for. */
+  noteSlot?: { id: string; text: string; function: string };
+  /** The coach's exercise this one replaces (same function); absent when it is the coach's own. */
+  substituteFor?: string;
+  /** Changes of the reference dose for this athlete; empty when the coach's dose stands. */
+  doseAdjustments?: DoseAdjustment[];
+  /** Dose fields the photo does not state: product defaults, not the coach's numbers. */
+  productDefaults?: string[];
   /** Explicit stage for the adaptive sports days; never implies a superset. */
   strengthStage?: "prep" | "main" | "accessory" | "cooldown";
 }
@@ -175,6 +190,10 @@ export interface EngineSession {
    * a concrete, structured cause. Absent when the requested note was used unchanged.
    */
   strengthPath?: StrengthPathNote;
+  /** Why the doses of a note session are at this level (the athlete's own strength declaration). */
+  noteLevelBasis?: string;
+  /** Note slots left out because no exercise of their function fits the athlete, with the cause. */
+  noteOmissions?: { slot: string; function: string; cause: LimitationCause }[];
   /** Advanced 16+ session following the athlete's coaching notes (advancedSessions.ts). */
   advancedTemplate?: import("./advancedSessions").AdvancedTemplateId;
   /** Pairs of an advanced session: first exercise, 30 s transition, second, then the round rest. */
