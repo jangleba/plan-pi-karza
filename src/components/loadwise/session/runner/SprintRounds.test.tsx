@@ -145,8 +145,8 @@ describe("why the chosen sprint variant is not the requested one", () => {
       .find((s): s is SessionDay => !!s?.engineV2?.roles.includes("speed"))!;
     await act(async () => root.render(<SprintVariantNote session={session} />));
     const note = host.querySelector('[aria-label="Dobór sprintu"]')!;
-    expect(note.textContent).toContain("Nie zadeklarowano długości prostej");
-    expect(note.textContent).toContain("zamiast „lotny sprint");
+    expect(note.textContent).toContain("nie zadeklarowano długości prostej");
+    expect(note.textContent).toContain("Zamiast „lotny sprint");
     await act(async () => root.render(<SprintVariantNote session={sprintSession()} />));
     expect(host.querySelector('[aria-label="Dobór sprintu"]')).toBeNull();
   });

@@ -41,6 +41,7 @@ import {
 } from "@/lib/loadwise/preparation/protocols";
 import {
   MISSED_SESSION_NOTE,
+  PlanUpdateNotice,
   SessionStartPanel,
   useSessionStart,
 } from "@/components/loadwise/session/SessionStartPanel";
@@ -672,34 +673,37 @@ function SessionRunner({
 }) {
   const start = useSessionStart(session, isToday);
   return (
-    <FocusedSessionRunner
-      sections={sections}
-      sessionId={session.dbId}
-      date={session.date}
-      kind={kind}
-      canRecord={canRecord}
-      onFinish={onFinish}
-      start={
-        start.availability === "start"
-          ? {
-              label: startLabel,
-              busy: start.busy,
-              error: start.error,
-              checkIn: start.checkIn,
-              onStart: () => void start.start(),
-            }
-          : null
-      }
-      previewNote={
-        start.availability === "missed"
-          ? MISSED_SESSION_NOTE
-          : start.availability === "other-day"
-            ? `Podgląd sesji: ${formatDateFull(session.date).toLocaleLowerCase("pl-PL")}. Start i zapis wykonania są dostępne w dniu treningu.`
-            : completed
-              ? "Sesja zakończona. Oznaczenia poniżej są tylko do wglądu."
-              : null
-      }
-    />
+    <>
+      {start.availability === "update" && <PlanUpdateNotice reason={start.updateReason} />}
+      <FocusedSessionRunner
+        sections={sections}
+        sessionId={session.dbId}
+        date={session.date}
+        kind={kind}
+        canRecord={canRecord}
+        onFinish={onFinish}
+        start={
+          start.availability === "start"
+            ? {
+                label: startLabel,
+                busy: start.busy,
+                error: start.error,
+                checkIn: start.checkIn,
+                onStart: () => void start.start(),
+              }
+            : null
+        }
+        previewNote={
+          start.availability === "missed"
+            ? MISSED_SESSION_NOTE
+            : start.availability === "other-day"
+              ? `Podgląd sesji: ${formatDateFull(session.date).toLocaleLowerCase("pl-PL")}. Start i zapis wykonania są dostępne w dniu treningu.`
+              : completed
+                ? "Sesja zakończona. Oznaczenia poniżej są tylko do wglądu."
+                : null
+        }
+      />
+    </>
   );
 }
 
@@ -742,6 +746,9 @@ function EnduranceRunPanel({
   const start = useSessionStart(session, isToday);
   if (!hasStarted && (start.availability === "none" || start.availability === "started"))
     return null;
+  // No Start that is known to be refused: the plan is updated first.
+  if (!hasStarted && start.availability === "update")
+    return <PlanUpdateNotice reason={start.updateReason} />;
   const mas = session.classification?.subcategory === "field_mas_test";
   const canStartNow = start.availability === "start";
   const enabled = !completed && (hasStarted ? canExecute : canStartNow);

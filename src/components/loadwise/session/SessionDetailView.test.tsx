@@ -268,6 +268,15 @@ describe("saved engine session execution", () => {
       await render(session);
       expect(mocks.runner.mock.lastCall?.[0].sections).toEqual(saved.structuredSections);
       expect(mocks.recovery).not.toHaveBeenCalled();
+      // The edited setup no longer matches the saved plan: a new start is not offered (it would be
+      // refused); the update path is. The saved prescription itself stays untouched.
+      expect(
+        [...host.querySelectorAll("button")].some((b) => b.textContent === "Start zapisanej sesji"),
+      ).toBe(false);
+      expect(host.textContent).toContain("Zaktualizuj plan");
+      // With the setup the plan was made for, the same saved prescription starts unchanged.
+      mocks.state = { ...mocks.state, profile: p };
+      await render(session);
       const start = host.querySelector<HTMLButtonElement>("[data-saved-runner] button")!;
       expect(start).not.toBeNull();
       await act(async () => start.click());
