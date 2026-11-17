@@ -1,5 +1,6 @@
 import { planUnavailableForAge } from "../agePolicy";
 import type { Profile, Readiness, SessionCompletion, SessionDay } from "../types";
+import { readinessScore } from "../readinessModel";
 import { trainingProfileRevision, trainingSetupRevision } from "../planIdentity";
 import { ENGINE_VERSION } from "./model";
 import { validateEngineSession } from "./validation";
@@ -141,7 +142,7 @@ export function sessionStartIssue({
     const jump = session.engineV2?.exercises.some(
       (e) => e.role === "power" || e.role === "landing",
     );
-    if (readiness.overall <= 4 && (!supportOnly || jump))
+    if ((readinessScore(readiness) ?? readiness.overall) <= 4 && (!supportOnly || jump))
       return "Bieżący check-in wymaga lżejszego planu. Przygotuj go ponownie przed startem.";
   }
   const recipeIssue = validateEngineSession(session, profile, { minutesPerSession })[0];

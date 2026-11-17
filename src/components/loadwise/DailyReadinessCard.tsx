@@ -100,6 +100,7 @@ function ReadinessEditor({ ownerId, todayIso, value, onSave }: DailyReadinessPro
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!complete || flight.current) return;
+    // buildReadiness normalizes pain-dependent answers before scoring.
     const record = buildReadiness(todayIso, {
       sleep: draft.sleep!,
       fatigue: draft.fatigue!,
@@ -218,10 +219,15 @@ function ReadinessEditor({ ownerId, todayIso, value, onSave }: DailyReadinessPro
                   required
                   value={draft[key] ?? ""}
                   onChange={(event) =>
-                    setDraft((previous) => ({
-                      ...previous,
-                      [key]: event.target.value === "" ? null : Number(event.target.value),
-                    }))
+                    setDraft((previous) => {
+                      const next = event.target.value === "" ? null : Number(event.target.value);
+                      const updated = { ...previous, [key]: next };
+                      // Pain details belong only to a reported pain; clear them with the form
+                      // state, so a hidden answer cannot change the saved score later.
+                      return key === "jointPain" && next === 0
+                        ? { ...updated, painLocation: "", painOnset: "", altersMovement: false }
+                        : updated;
+                    })
                   }
                 >
                   <option value="" disabled>

@@ -1,11 +1,15 @@
 import type { SessionDay } from "../types";
 import { dayDistance, plusDays, type WeeklyTargets } from "./model";
+import { strengthCoverageOf } from "./strengthCompleteness";
 
 export interface WeeklyTargetCoverage {
   startDate: string;
   endDate: string;
   requested: WeeklyTargets;
+  /** `strength` counts only sessions with the full strength stimulus (or the MD+1 upper exception). */
   planned: { strength: number; speed: number; endurance: number };
+  /** Strength sessions that carry support work only; not counted as coverage of the target. */
+  partialStrength: number;
   fullRestDays: number;
 }
 
@@ -34,17 +38,28 @@ export function weeklyTargetCoverage(
     const endDate = plusDays(startDate, 6);
     const week = days.filter((day) => day.date >= startDate && day.date <= endDate);
     const planned = { strength: 0, speed: 0, endurance: 0 };
+    let partialStrength = 0;
     const restDates = new Set<string>();
     for (const day of week) {
       if (day.dayType === "rest" && !day.engineV2 && !day.secondSession && !day.externalCommitment)
         restDates.add(day.date);
       for (const session of [day, ...(day.secondSession ? [day.secondSession] : [])]) {
         const roles = session.engineV2?.roles ?? [];
-        if (roles.some((role) => role === "strengthA" || role === "strengthB")) planned.strength++;
+        if (roles.some((role) => role === "strengthA" || role === "strengthB")) {
+          if (strengthCoverageOf(session) === "partial") partialStrength++;
+          else planned.strength++;
+        }
         if (roles.includes("speed")) planned.speed++;
         if (roles.includes("endurance")) planned.endurance++;
       }
     }
-    return { startDate, endDate, requested: { ...targets }, planned, fullRestDays: restDates.size };
+    return {
+      startDate,
+      endDate,
+      requested: { ...targets },
+      planned,
+      partialStrength,
+      fullRestDays: restDates.size,
+    };
   });
 }

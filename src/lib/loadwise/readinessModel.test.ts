@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildReadiness, calculateOverallReadiness, hasMedicalRedFlag } from "./readinessModel";
+import {
+  buildReadiness,
+  calculateOverallReadiness,
+  hasMedicalRedFlag,
+  readinessScore,
+} from "./readinessModel";
 
 describe("short readiness check-in", () => {
   it("wylicza gotowość z pięciu krótkich odpowiedzi", () => {
@@ -52,5 +57,48 @@ describe("short readiness check-in", () => {
   it("wykrywa zamkniętą listę sygnałów alarmowych", () => {
     expect(hasMedicalRedFlag({ redFlags: [] })).toBe(false);
     expect(hasMedicalRedFlag({ redFlags: ["chest_pain"] })).toBe(true);
+  });
+
+  it("normalizuje odpowiedzi zależne od bólu przed policzeniem wyniku", () => {
+    // Ból 5 → „zmienia mój ruch” → ból 0: ukryta odpowiedź nie może dawać overall=1.
+    const r = buildReadiness("2026-11-16", {
+      sleep: 8,
+      fatigue: 3,
+      soreness: 2,
+      jointPain: 0,
+      painLocation: "knee",
+      painOnset: "today",
+      altersMovement: true,
+    });
+    expect(r).toMatchObject({ painLocation: null, painOnset: null, altersMovement: false });
+    expect(r.overall).toBeGreaterThan(1);
+    expect(r.overall).toBe(
+      calculateOverallReadiness({ sleep: 8, fatigue: 3, soreness: 2, jointPain: 0 }),
+    );
+    // Przy zgłoszonym bólu ten sam wybór nadal obniża wynik.
+    expect(
+      buildReadiness("2026-11-16", {
+        sleep: 8,
+        fatigue: 3,
+        soreness: 2,
+        jointPain: 3,
+        altersMovement: true,
+      }).overall,
+    ).toBe(1);
+  });
+
+  it("odczyt zapisu daje ten sam wynik co zapis, bez wpływu zastępczego stresu", () => {
+    const saved = buildReadiness("2026-11-16", { sleep: 3, fatigue: 8, soreness: 1, jointPain: 0 });
+    expect(saved.overall).toBe(7);
+    expect(saved.stress).toBe(5);
+    expect(readinessScore(saved)).toBe(7);
+  });
+
+  it("odczyt nie podnosi zapisanego wyniku i odrzuca uszkodzone rekordy", () => {
+    const saved = buildReadiness("2026-11-16", { sleep: 8, fatigue: 3, soreness: 2, jointPain: 0 });
+    expect(readinessScore({ ...saved, overall: 3 })).toBe(3);
+    expect(readinessScore({ ...saved, overall: 11 })).toBeUndefined();
+    expect(readinessScore({ ...saved, redFlags: ["fainting"] })).toBe(1);
+    expect(readinessScore(undefined)).toBeUndefined();
   });
 });

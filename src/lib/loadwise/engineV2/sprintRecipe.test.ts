@@ -150,8 +150,17 @@ describe("executable sprint recipe", () => {
       "speed",
       "development",
     )!;
-    expect(normal.sprintMetres).toBe(180);
-    expect(normal.plyometricContacts).toBeUndefined();
+    // Room in the week's landing budget: the broad-jump block replaces the braking addition.
+    expect(normal.sprintMetres).toBe(160);
+    expect(normal.plyometricContacts).toBe(6);
+    const busyWeek = buildRunning(
+      { ...p, trainingMethodPreferences: { spaceLengthM: 40 } },
+      "speed",
+      "development",
+      { weekLandings: 60 },
+    )!;
+    expect(busyWeek.sprintMetres).toBe(180);
+    expect(busyWeek.plyometricContacts).toBeUndefined();
     expect(normal.exercises.some((e) => e.dose.speedStage === "resisted")).toBe(false);
     const sled = buildRunning(
       { ...p, equipment: ["sled"], trainingMethodPreferences: { spaceLengthM: 40 } },
@@ -161,7 +170,7 @@ describe("executable sprint recipe", () => {
     expect(sled.exercises.find((e) => e.dose.speedStage === "resisted")?.exerciseId).toBe(
       "resisted_sled_acceleration",
     );
-    expect(sprintDistance(sled.exercises)).toBe(200);
+    expect(sprintDistance(sled.exercises)).toBe(sprintDistance(normal.exercises) + 20);
   });
   it.each(["curve", "braking", "planned_cod"] as const)(
     "selects %s only with sufficient declared conditions",

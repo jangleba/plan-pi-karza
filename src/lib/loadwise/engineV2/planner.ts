@@ -15,7 +15,9 @@ import {
 } from "./exercises";
 import { MAIN_STRENGTH_ROLES } from "../mainStrengthExclusions";
 import { ENGINE_VERSION, trainingTier, plusDays, weekday, dayDistance, ROLE_NAMES } from "./model";
-import type { EngineResult, EngineOptions, EngineSession, Issue } from "./model";
+import type { EngineResult, EngineOptions, EngineSession, Issue, LimitationCause } from "./model";
+import { limitationText, roleLimitation } from "./limitations";
+import { placementCause, strengthCompleteness } from "./strengthCompleteness";
 import { FUNCTIONAL_CATALOGUE } from "./taxonomy";
 import { easyRunningRecipe } from "./running";
 import { coachedPrimerEligible, clusterEligible } from "./strengthProtocols";
@@ -32,13 +34,14 @@ import { buildActivation, buildRecovery, buildMobility, buildSkills } from "./su
 import { buildEnduranceForDate, hasCurrentVerifiedMas } from "./endurance";
 import { resolveGoalPolicy, routedProfile, mainGoalTasks } from "./goalPolicy";
 import { hasReadinessStop } from "./planStatus";
+import { readinessScore } from "../readinessModel";
 import { APP_MINIMUM_AGE, preparationProfile, hasVerifiedAdvancedStrength } from "./preparation";
 import { recipeTotalSeconds } from "@/lib/running/recipe";
 import { applyGymProgression } from "./gymProgression";
 import { renderStrengthPairs } from "./strengthPairs";
 import {
   type AdvancedTemplateId,
-  buildAdvancedStrength,
+  attemptAdvancedStrength,
   lighterAdvanced,
   progressAdvanced,
   shortenAdvanced,
@@ -148,6 +151,24 @@ function sprintHistory(
       return true;
     })
     .map((s) => s.engineV2!.sprintVariant!);
+}
+
+/** Structural cause of a sprint goal replaced by an alternative; neutral reasons have none. */
+const SPRINT_CHANGE_CAUSE: Record<string, LimitationCause | undefined> = {
+  SPACE_UNDECLARED: "equipment",
+  SPACE_SHORT: "equipment",
+  NO_PITCH: "equipment",
+  NO_PARTNER: "equipment",
+  NOT_COACHED: "preparation",
+  LEVEL: "preparation",
+  COMPETENCE: "preparation",
+  NOT_ELIGIBLE: "recipe",
+  NO_QUALIFIED_VARIANT: "recipe",
+};
+
+/** Known landings of all jump work already placed in a week (gym and sprint blocks). */
+function weekLandingsOf(days: readonly SessionDay[]): number {
+  return days.flatMap(slots).reduce((n, s) => n + (s.engineV2?.plyometricContacts ?? 0), 0);
 }
 
 function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
@@ -506,13 +527,22 @@ export function finalizeStrengthRecipe(
   if (base.organization === "complex") {
     const advanced = finalizeAdvanced(base, p, date, options, days, budget);
     if (advanced) return advanced;
-    // The week, the calendar or the time does not allow the advanced pairs: the usual A/B session.
+    // The shortened note still exceeds the time budget (the only way finalizeAdvanced gives up):
+    // the usual A/B session takes over, and the session says why.
+    const requested = base.advancedTemplate;
     base = buildStrength(
       routedProfile(p, resolveGoalPolicy(p).strengthGoal),
       base.roles.includes("strengthA") ? "A" : "B",
       base.phase,
       base.exerciseRotation ?? 0,
     );
+    base.strengthPath = {
+      path: "standard",
+      code: "NOTE_TIME_BUDGET",
+      cause: "time",
+      ...(requested ? { requestedTemplate: requested } : {}),
+      message: `Notatka nie mieści się w dostępnym czasie (${budget} min), nawet skrócona. Zastosowano zwykłą siłę A/B.`,
+    };
   }
   const settle = (r: EngineSession) => {
     const focused = applyUpperContrast(
@@ -541,13 +571,23 @@ function strengthBase(
 ): EngineSession {
   // The athlete's notes alternate by calendar week (Monday-based), stable across rebuilds.
   const week = weekDate ? Math.floor(dayDistance(weekDate, "1970-01-05") / 7) : 0;
-  const notes = buildAdvancedStrength(p, variant, phase, rotation + week, keep);
-  // "vary" starts the cycle with the other note; the usual A/B fallback keeps the same rotation.
-  if (notes && rotation > 0) notes.exerciseRotation = rotation;
-  return (
-    notes ??
-    buildStrength(routedProfile(p, resolveGoalPolicy(p).strengthGoal), variant, phase, rotation)
+  const attempt = attemptAdvancedStrength(p, variant, phase, rotation + week, keep);
+  const notes = attempt.session;
+  if (notes) {
+    // "vary" starts the cycle with the other note; the usual A/B fallback keeps the same rotation.
+    if (rotation > 0) notes.exerciseRotation = rotation;
+    if (attempt.path) notes.strengthPath = attempt.path;
+    return notes;
+  }
+  const usual = buildStrength(
+    routedProfile(p, resolveGoalPolicy(p).strengthGoal),
+    variant,
+    phase,
+    rotation,
   );
+  // The usual A/B session says why the notes were not used (only for players with a gym).
+  if (p.hasGym && attempt.path) usual.strengthPath = attempt.path;
+  return usual;
 }
 
 /**
@@ -672,6 +712,7 @@ function place(
           history: sprintHistory([...preceding, ...days], options.previousPlan, current.date),
           force: recipe.sprintVariant,
           preMatch: true,
+          weekLandings: weekLandingsOf(days),
         },
       );
       if (!dated)
@@ -857,6 +898,79 @@ function placeSupport(
   );
 }
 
+const TARGET_NAMES = {
+  strengthA: "siłę A",
+  strengthB: "siłę B",
+  speed: "sprint",
+  endurance: "wydolność",
+  mobility: "mobilność",
+} as const;
+
+/**
+ * A weekly target left without a session, with its structural cause. "Nie znaleziono terminu"
+ * is reserved for a real calendar problem; a missing recipe, equipment, preparation or time
+ * budget say what they are.
+ */
+function unmetTargetIssue(input: {
+  role: "strengthA" | "strengthB" | "speed" | "endurance" | "mobility";
+  recipe: EngineSession | null;
+  usable: boolean;
+  rejections: Array<{ code: string; message: string }>;
+  profile: Profile;
+  week: number;
+  date: string;
+}): Issue {
+  const { role, recipe, usable, rejections, profile: p, week, date } = input;
+  const name = TARGET_NAMES[role];
+  const prefix = `Tydzień ${week + 1}: `;
+  if (!usable) {
+    const strength = role.startsWith("strength");
+    const why = strength
+      ? roleLimitation(p, role === "strengthA" ? "knee_strength" : "hip_strength")
+      : null;
+    const cause: LimitationCause = why?.cause ?? (recipe ? "recipe" : sessionLimitation(p, role));
+    return {
+      code: "UNMET_WEEKLY_TARGET",
+      target: role,
+      date,
+      cause,
+      message: `${prefix}brak sesji: ${name}. ${
+        strength
+          ? limitationText(cause, role === "strengthA" ? "knee_strength" : "hip_strength")
+          : cause === "equipment"
+            ? "Brakuje sprzętu lub miejsca wymaganego przez receptury tego celu."
+            : cause === "preparation"
+              ? "Receptury tego celu wymagają przygotowania, którego profil jeszcze nie potwierdza; deklaracji nie podnosimy po to, by je odblokować."
+              : "Brak dopuszczonej receptury tego celu."
+      }`,
+    };
+  }
+  const causes = new Set(rejections.map((r) => placementCause(r.code)));
+  const reasons = [...new Set(rejections.map((r) => r.message))];
+  if (causes.size > 0 && !causes.has("calendar"))
+    return {
+      code: "UNMET_WEEKLY_TARGET",
+      target: role,
+      date,
+      cause: "time",
+      message:
+        `${prefix}${name} nie mieści się w dostępnym czasie sesji, nawet w krótszym wariancie. ${reasons.join(" ")}`.trim(),
+    };
+  return {
+    code: "UNMET_WEEKLY_TARGET",
+    target: role,
+    date,
+    cause: "calendar",
+    message: `${prefix}nie znaleziono terminu na ${name}. ${reasons.join(" ")}`.trim(),
+  };
+}
+
+/** Cause of a missing sprint/endurance/mobility recipe from what the profile declares. */
+function sessionLimitation(p: Profile, role: string): LimitationCause {
+  if (role === "speed" && !p.hasSprintSpace && !p.hasPitch) return "equipment";
+  return "recipe";
+}
+
 export function generateTrainingPlan(p: Profile, options: EngineOptions): EngineResult {
   const saved = options.previousPlan?.find((d) => d.planInputs)?.planInputs;
   // An omitted setting continues the saved request; an explicit undefined resets it to auto.
@@ -970,15 +1084,20 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
     // Full base recipes: the time budget is fitted only after the final dose (place()).
     const weekDate = plusDays(options.startDate, week * 7);
     const strengthB = () => strengthBase(p, "B", phase, rotation, weekDate);
-    const tasks = [
+    const strengthTasks = [
       strengthBase(p, "A", phase, rotation, weekDate),
       mobilityRecipe ?? strengthB(),
+    ];
+    const tasks = [
+      ...strengthTasks,
       buildRunning(routedProfile(p, policy.speedGoal), "speed", phase, {
         history: sprintHistory(
           [...(options.precedingDays ?? []), ...(options.lockedDays ?? []), ...plan],
           options.previousPlan,
           base[0].date,
         ),
+        // The jump work the week's gym sessions already carry limits a sprint plyometric block.
+        weekLandings: strengthTasks.reduce((n, r) => n + (r.plyometricContacts ?? 0), 0),
       }),
       plannedEndurance(p, base[0].date, phase),
     ];
@@ -1022,7 +1141,11 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
           if (id === "strengthA" || id === "strengthB")
             return days.some((d) =>
               own(d).some(
-                (s) => s.engineV2!.roles.includes(id) && s.engineV2!.postMatch !== "upper",
+                (s) =>
+                  s.engineV2!.roles.includes(id) &&
+                  s.engineV2!.postMatch !== "upper" &&
+                  // The label alone is not the stimulus: the main leg pattern must be there.
+                  strengthCompleteness(s.engineV2!).complete,
               ),
             );
           const intended = candidates.find((t) => t.id === "endurance")?.recipe.highLower;
@@ -1178,29 +1301,40 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
               "Kluczową jednostkę wydolnościową (interwały lub tempo) zastąpiono spokojnym biegiem ze względu na termin, obciążenie lub czas. To jawna adaptacja, nie równoważne zaliczenie tego bodźca.",
           });
       }
+    const reportedMain = new Set<string>();
     tasks.forEach((recipe, t) => {
       const role = ids[t];
       if (
         !best.some((d) => own(d).some((s) => s.engineV2!.roles.includes(role))) &&
         !(singleStrengthWeek && role.startsWith("strength"))
       ) {
-        const reasons = [...new Set((solved.rejections[role] ?? []).map((r) => r.message))];
-        issues.push({
-          code: "UNMET_WEEKLY_TARGET",
-          target: role,
-          date: base[0].date,
-          message: `Tydzień ${week + 1}: nie znaleziono terminu na ${{ strengthA: "siłę A", strengthB: "siłę B", speed: "sprint", endurance: "wydolność", mobility: "mobilność" }[role]}. ${reasons.length ? reasons.join(" ") : "Brak dopuszczonego wariantu przy zadanym sprzęcie i przygotowaniu."}`,
-        });
+        issues.push(
+          unmetTargetIssue({
+            role,
+            recipe,
+            usable: available.some((task) => task.id === role),
+            rejections: solved.rejections[role] ?? [],
+            profile: p,
+            week,
+            date: base[0].date,
+          }),
+        );
       }
       if (recipe)
-        for (const role of recipe.missing)
+        for (const role of recipe.missing) {
+          if (MAIN_STRENGTH_ROLES.has(role) || role === "knee_flexion") reportedMain.add(role);
+          const why = MAIN_STRENGTH_ROLES.has(role)
+            ? roleLimitation(p, role)
+            : { cause: "recipe" as const, blocked: [] };
           issues.push({
             code: "UNMET_STIMULUS",
             date: base[0].date,
+            cause: why.cause,
             message: MAIN_STRENGTH_ROLES.has(role)
-              ? `Brak wariantu z obciążeniem: ${ROLE_NAMES[role]}. Dodaj sprzęt (np. hantle) albo uzupełnij staż i technikę w ustawieniach. Przysiad, most, wykrok z masą ciała ani pompka na podwyższeniu nie zastępują tej pracy.`
+              ? `Brak wariantu z obciążeniem: ${ROLE_NAMES[role]}. ${limitationText(why.cause, role)} Przysiad, most, wykrok z masą ciała ani pompka na podwyższeniu nie zastępują tej pracy.`
               : `Nie znaleziono odpowiedniego ćwiczenia: ${ROLE_NAMES[role]}. Ten cel pozostaje niepokryty.`,
           });
+        }
     });
     // Explicit requests replace the automatic run count. Optional sessions never
     // displace the baseline four or bypass a calendar/load gate.
@@ -1246,6 +1380,7 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
           options.previousPlan,
           plusDays(base[6].date, 1),
         ),
+        weekLandings: weekLandingsOf(best),
       });
       let extra: { state: SessionDay[]; penalty: number } | undefined;
       if (recipe)
@@ -1265,7 +1400,10 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
       const before = matches.has(plusDays(best[i].date, 1)),
         after = matches.has(plusDays(best[i].date, -1));
       if (before && !after) {
-        const allowJump = !policy.reduced && (options.readiness?.[best[i].date]?.overall ?? 10) > 4;
+        const dayReadiness = options.readiness?.[best[i].date];
+        const allowJump =
+          !policy.reduced &&
+          (dayReadiness ? (readinessScore(dayReadiness) ?? dayReadiness.overall) : 10) > 4;
         const attempt = placeSupport(
           best,
           i,
@@ -1360,8 +1498,10 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
     if (options.weeklyTargets) {
       const sessions = best.flatMap(own);
       const planned = {
-        strength: sessions.filter((s) =>
-          s.engineV2!.roles.some((r) => r === "strengthA" || r === "strengthB"),
+        strength: sessions.filter(
+          (s) =>
+            s.engineV2!.roles.some((r) => r === "strengthA" || r === "strengthB") &&
+            strengthCompleteness(s.engineV2!).coverage !== "partial",
         ).length,
         speed: sessions.filter((s) => s.engineV2!.roles.includes("speed")).length,
         endurance: sessions.filter((s) => s.engineV2!.roles.includes("endurance")).length,
@@ -1381,12 +1521,20 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
                 : "strengthA",
           date: base[0].date,
           reasonCodes: reasonCodes.length ? reasonCodes : ["NO_ELIGIBLE_RECIPE"],
-          message: `Tydzień ${week + 1}: zaplanowano ${planned[kind]} z ${requested} sesji ${{ strength: "siły", speed: "sprintu", endurance: "wydolności" }[kind]}. ${reasons.length ? reasons.join(" ") : "Brak dopuszczonego wariantu przy zadanym sprzęcie, czasie i przygotowaniu."}`,
+          cause: targetRejections[kind].length
+            ? targetRejections[kind].some((r) => placementCause(r.code) === "calendar")
+              ? "calendar"
+              : "time"
+            : kind === "strength"
+              ? roleLimitation(p, "knee_strength").cause
+              : "recipe",
+          message: `Tydzień ${week + 1}: zaplanowano ${planned[kind]} z ${requested} ${kind === "strength" ? "pełnych sesji siły" : `sesji ${{ speed: "sprintu", endurance: "wydolności" }[kind]}`}. ${reasons.length ? reasons.join(" ") : "Brak dopuszczonego wariantu przy zadanym sprzęcie, czasie i przygotowaniu."}`,
         });
       }
     }
     // Strength is judged on the complete week: sprint, runs, club and matches placed later count too.
     best = finalizeStrengthWeek(best, p, options, [...(options.precedingDays ?? []), ...plan]);
+    const sprintNoted = new Set<string>();
     for (const d of best) {
       if (d.executionProtected) continue;
       for (const session of own(d)) {
@@ -1397,6 +1545,48 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
               date: d.date,
               message: `${getExerciseDefinition(decision.exerciseId)?.displayNamePl ?? "Zadanie siłowni"}: ${decision.reason}`,
             });
+        const change = session.engineV2!.sprintVariant?.goalChange;
+        if (change && !sprintNoted.has(change.code)) {
+          sprintNoted.add(change.code);
+          const cause = SPRINT_CHANGE_CAUSE[change.code];
+          issues.push({
+            code: "SPRINT_GOAL_CHANGED",
+            date: d.date,
+            target: "speed",
+            ...(cause ? { cause } : {}),
+            message: `Tydzień ${week + 1}: ${change.reason}`,
+          });
+        }
+        const path = session.engineV2!.strengthPath;
+        if (path?.cause)
+          issues.push({
+            code: "STRENGTH_PATH_FALLBACK",
+            date: d.date,
+            cause: path.cause,
+            message: path.message,
+          });
+        const coverage = isStrengthRecipe(session.engineV2!)
+          ? strengthCompleteness(session.engineV2!)
+          : null;
+        // Already reported for the week (UNMET_STIMULUS) or for this very session: not twice.
+        const reported =
+          [...reportedMain].some((r) =>
+            ["knee_strength", "hip_strength", "unilateral_strength", "knee_flexion"].includes(r),
+          ) ||
+          session.engineV2!.missing.some((r) =>
+            ["knee_strength", "hip_strength", "unilateral_strength", "knee_flexion"].includes(r),
+          );
+        if (coverage?.coverage === "partial" && !reported) {
+          const absent = coverage.absent[0];
+          const why = roleLimitation(p, absent);
+          issues.push({
+            code: "INCOMPLETE_STRENGTH",
+            date: d.date,
+            cause: why.cause,
+            target: session.engineV2!.roles.includes("strengthA") ? "strengthA" : "strengthB",
+            message: `Sesja siłowa ${d.date} jest niepełna: ${limitationText(why.cause, absent)} Zachowano pracę wspierającą; nie liczy się ona jako pełna siła tego dnia.`,
+          });
+        }
         const omitted = session.engineV2!.strengthTimeOmissions;
         if (omitted?.length)
           issues.push({
@@ -1481,7 +1671,9 @@ export function validateTrainingPlan(
       );
       if (
         hasReadinessStop(options.readiness?.[d.date]) ||
-        (!supportOnly && options.readiness?.[d.date] && options.readiness[d.date].overall <= 4)
+        (!supportOnly &&
+          !!options.readiness?.[d.date] &&
+          (readinessScore(options.readiness[d.date]) ?? options.readiness[d.date].overall) <= 4)
       )
         fail("READINESS_CONFLICT", d.date, "Bieżący check-in wymaga ponownego ułożenia treningu.");
       if (
@@ -1616,7 +1808,14 @@ export function lighterRecipes(
   const light = routedProfile({ ...p, secondaryLimiter: "fatigue" }, p.goal);
   const strength = r.roles.includes("strengthA") || r.roles.includes("strengthB");
   let reduced: EngineSession | null = null;
-  if (strength)
+  if (strength && r.organization === "complex" && r.advancedTemplate)
+    // A note session stays a note: the lighter variant is the same note with fewer rounds, not
+    // the older straight A/B generator.
+    reduced =
+      [lighterAdvanced(r, true), lighterAdvanced(r, true, false)].find(
+        (candidate) => candidate.minutes <= r.minutes && doseWeight(candidate) < doseWeight(r),
+      ) ?? null;
+  else if (strength)
     reduced = fitStrengthToBudget(
       buildStrength(
         light,

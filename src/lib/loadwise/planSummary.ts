@@ -7,6 +7,8 @@ import {
   type StrengthSetEntry,
 } from "./cycleReview";
 import { estimatedSessionLoad } from "./sessionFeedback";
+import { strengthCoverageOf } from "./engineV2/strengthCompleteness";
+import type { LimitationCause } from "./engineV2/model";
 import type {
   ExternalGoalCredit,
   Profile,
@@ -37,13 +39,22 @@ export interface TargetSummary {
   label: string;
   /** Own sessions the plan contained for this target. */
   planned: number;
+  /** Completed sessions that carried the full stimulus of the target. */
   done: number;
+  /**
+   * Strength sessions labelled for this target that lack the main leg pattern: support work only.
+   * They are counted in `planned`, never in `done`; `partialDone` are the completed ones.
+   */
+  partial: number;
+  partialDone: number;
   /** Planned, date passed, not completed: a skipped execution. */
   missed: number;
   /** Covered by reported club work after the athlete's acceptance; not a completed own session. */
   external: number;
   /** The generator could not schedule it (calendar, equipment, time): not a skipped execution. */
   notPlanned: number;
+  /** The same count by structural cause; an old plan without causes has only `unknown`. */
+  notPlannedBy: Partial<Record<LimitationCause | "unknown", number>>;
 }
 export interface PlanSummary {
   startDate: string;
@@ -118,9 +129,12 @@ export function buildPlanSummary(input: PlanSummaryInput): PlanSummary | null {
         label: TARGET_LABELS[target],
         planned: 0,
         done: 0,
+        partial: 0,
+        partialDone: 0,
         missed: 0,
         external: 0,
         notPlanned: 0,
+        notPlannedBy: {},
       },
     ]),
   );
@@ -169,8 +183,12 @@ export function buildPlanSummary(input: PlanSummaryInput): PlanSummary | null {
       const row = targets.get(target)!;
       row.planned += 1;
       own.planned += 1;
+      const partial = strengthCoverageOf(s) === "partial";
+      if (partial) row.partial += 1;
       if (completion?.completed) {
-        row.done += 1;
+        // Own work was done; only a complete strength session counts as the target's stimulus.
+        if (partial) row.partialDone += 1;
+        else row.done += 1;
         own.done += 1;
       } else if (completion?.status === "missed" || s.date < todayIso) {
         row.missed += 1;
@@ -187,7 +205,10 @@ export function buildPlanSummary(input: PlanSummaryInput): PlanSummary | null {
     const key = `${issue.code}:${issue.date ?? ""}:${target}:${issue.message}`;
     if (!target || seen.has(key)) continue;
     seen.add(key);
-    targets.get(target)!.notPlanned += 1;
+    const row = targets.get(target)!;
+    row.notPlanned += 1;
+    const by = issue.cause ?? "unknown";
+    row.notPlannedBy[by] = (row.notPlannedBy[by] ?? 0) + 1;
   }
   const consent = input.profile?.healthPersonalizationEnabled === true;
   const review = input.profile

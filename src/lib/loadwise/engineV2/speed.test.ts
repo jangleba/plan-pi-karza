@@ -45,7 +45,18 @@ describe("sport-specific speed preparation", () => {
       distanceM: 20,
       restSeconds: 150,
     });
-    expect(s.sprintMetres).toBe(180); // includes 40 m of build-ups and 20 m of braking approaches
+    // A speed-goal acceleration session with room in the week's landing budget carries the
+    // horizontal jump block instead of the braking addition: 120 m of runs + 40 m of build-ups.
+    expect(s.sprintMetres).toBe(160);
+    expect(s.plyometricContacts).toBe(6);
+    expect(s.sprintVariant?.plyometric).toBe("broad_jump");
+    // The same session in a week whose landings are already used keeps the earlier shape:
+    // 40 m of build-ups and 20 m of braking approaches, no jumps, and says why.
+    const loaded = buildRunning(athlete, "speed", "development", { weekLandings: 60 })!;
+    expect(loaded.sprintMetres).toBe(180);
+    expect(loaded.plyometricContacts).toBeUndefined();
+    expect(loaded.sprintVariant?.plyometric).toBeNull();
+    expect(loaded.sprintVariant?.why.join(" ")).toContain("skoki w dal pominięte");
   });
   it("does not turn advanced gym experience into advanced sport preparation", () => {
     const s = buildRunning(

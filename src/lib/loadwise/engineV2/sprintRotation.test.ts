@@ -210,7 +210,11 @@ describe("every catalogue variant has a complete dose, instruction and counted d
         planned_cod: "planned_cod",
         reactive: "reactive",
       }[variant.goal];
-      const prefs = { sprintFocus: focus, spaceLengthM: 70, declaredEquipment: ["partner"] };
+      const prefs = {
+        sprintFocus: focus,
+        spaceLengthM: 70,
+        declaredEquipment: ["partner", "flat_markers"],
+      };
       const seen = new Set<string>();
       let earlier: SessionDay[] = [];
       // consecutive four-week plans, each seeing the history of the previous ones

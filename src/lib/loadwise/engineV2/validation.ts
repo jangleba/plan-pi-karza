@@ -27,6 +27,7 @@ import { GYM_EXERCISE_RULES } from "../gymStrengthExercises";
 import { maximalStrengthEligible } from "./strengthPolicy";
 import { gymDoseWithinBounds } from "./gymProgression";
 import { ADVANCED_CONTACT_LIMIT, advancedSessionsEligible } from "./advancedSessions";
+import { MAIN_LEG_ROLES } from "./strengthCompleteness";
 import { UPPER_CONTRAST, upperContrastIneligibility } from "./upperContrast";
 import { parseRestDuration } from "../restTimer";
 import { POST_MATCH_UPPER_ROLES, postMatchMode } from "./postMatch";
@@ -671,9 +672,7 @@ export function validateEngineSession(
     else if (
       complex
         ? // A note session stands on a loaded lower lift; a leg curl alone is not one.
-          !["knee_strength", "unilateral_strength", "hip_strength"].some((r) =>
-            roles.has(r as never),
-          )
+          !MAIN_LEG_ROLES.some((r) => roles.has(r))
         : (!(roles.has("knee_strength") || roles.has("unilateral_strength")) &&
             // A pattern without a loaded variant is reported (UNMET_STIMULUS), never padded
             // with a trivial bodyweight movement.
@@ -707,9 +706,7 @@ export function validateEngineSession(
     if (GYM_EXERCISE_RULES[exercise.exerciseId]) {
       // In a note group the next round of the same exercise starts after the group's round rest.
       const group = recipe.complexPairs?.find((g) => g.exerciseIds.includes(exercise.exerciseId));
-      const effectiveRest = group
-        ? Math.max(d.restSeconds, group.roundRestSeconds)
-        : d.restSeconds;
+      const effectiveRest = group ? Math.max(d.restSeconds, group.roundRestSeconds) : d.restSeconds;
       if (
         !gymDoseWithinBounds(
           exercise.exerciseId,

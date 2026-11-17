@@ -1,5 +1,5 @@
 import type { Profile, Readiness, SessionCompletion, SessionDay } from "../types";
-import { calculateOverallReadiness } from "../readinessModel";
+import { readinessScore as readinessScoreOf } from "../readinessModel";
 import { scheduledMatchDates } from "../matchSchedule";
 import {
   preparationProfile,
@@ -145,17 +145,7 @@ export function strengthWeekContext(
         ),
     ).values(),
   ].slice(0, 3);
-  const readinessScore =
-    readiness?.date === date &&
-    [
-      readiness.sleep,
-      readiness.fatigue,
-      readiness.soreness,
-      readiness.stress,
-      readiness.overall,
-    ].every((n) => Number.isFinite(n) && n >= 1 && n <= 10)
-      ? Math.min(readiness.overall, calculateOverallReadiness(readiness))
-      : undefined;
+  const readinessScore = readiness?.date === date ? readinessScoreOf(readiness) : undefined;
   return {
     date,
     asOfDate,
