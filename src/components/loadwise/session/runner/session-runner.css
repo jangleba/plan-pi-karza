@@ -645,7 +645,7 @@
   border: 1px solid color-mix(in oklch, var(--primary) 30%, var(--border));
   border-radius: 14px;
   background: var(--card);
-  box-shadow: 0 6px 18px rgb(15 30 55 / 0.12);
+  box-shadow: var(--bw-shadow-float);
 }
 .bw-rest-card[data-done] {
   border-color: var(--primary);

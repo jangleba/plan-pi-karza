@@ -33,14 +33,17 @@ export function useSessionStart(session: SessionDay, canStart: boolean) {
           : canStart
             ? "start"
             : "other-day";
-  async function start() {
-    if (busy || availability !== "start") return;
+  /** Resolves true when the session is started (or already was); false when it could not be. */
+  async function start(): Promise<boolean> {
+    if (availability === "started") return true;
+    if (busy || availability !== "start") return false;
     setBusy(true);
     setError(null);
     try {
       if (isStrengthSession(session) && preference !== undefined)
         await startSession(session, preference);
       else await startSession(session);
+      return true;
     } catch (cause) {
       const message = cause instanceof Error ? cause.message.trim() : "";
       setError(
@@ -48,6 +51,7 @@ export function useSessionStart(session: SessionDay, canStart: boolean) {
           ? message
           : "Nie udało się rozpocząć sesji. Sprawdź połączenie i dostępną pamięć telefonu.",
       );
+      return false;
     } finally {
       setBusy(false);
     }

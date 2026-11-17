@@ -104,7 +104,7 @@ it("shows an ordinary run's accepted GPS track alongside live time, distance and
   );
   expect(host.querySelector('[aria-label="Mapa biegu na żywo"]')).toBeNull();
   expect(watchPosition).not.toHaveBeenCalled();
-  await act(async () => button("Start GPS").click());
+  await act(async () => button("Start").click());
   expect(liveRoute()).toHaveLength(1);
   expect(watchPosition).toHaveBeenCalledOnce();
 
@@ -116,10 +116,13 @@ it("shows an ordinary run's accepted GPS track alongside live time, distance and
   expect(route).toHaveLength(2);
   expect(route.at(-1)).toMatchObject({ lat: 52.001, lng: 21, elapsedSec: 20 });
   const distanceM = haversineDistanceM(route[0], route[1]);
-  const metrics = host.querySelector(".bw-run-live-stats")!.textContent!;
-  expect(metrics).toContain("0:20");
+  expect(host.querySelector(".bw-run-live")!.textContent).toContain("0:20");
+  const metrics = host.querySelector(".bw-run-metrics")!.textContent!;
   expect(metrics).toContain(formatDistance(distanceM));
   expect(metrics).toContain(formatPace(20 / (distanceM / 1000)));
+  // Average pace and speed come from the same accepted track.
+  expect(metrics).toContain("Tempo średnie");
+  expect(metrics).toContain(`${((distanceM / 20) * 3.6).toFixed(1).replace(".", ",")} km/h`);
   expect(save).not.toHaveBeenCalled();
 
   await act(async () => button("Pauza").click());
@@ -184,7 +187,7 @@ it("starts a fresh native map when recording the same session again", async () =
   expect(liveRoute()).toHaveLength(1);
   await act(async () => button("Zakończ bieg").click());
   await act(async () => button("Zapisz bieg").click());
-  await act(async () => button("Start GPS").click());
+  await act(async () => button("Start").click());
   expect(liveRoute()).toEqual([]);
   expect(native.start).toHaveBeenCalledOnce();
   expect(watchPosition).not.toHaveBeenCalled();

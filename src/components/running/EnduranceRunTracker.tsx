@@ -26,7 +26,13 @@ import {
 } from "@/lib/running/intervals";
 import { classifyPace, vibrationForPace, type PaceGuidance } from "@/lib/running/paceGuidance";
 import { vibrate } from "@/lib/haptics";
-import { isTimedProtocol, stageLabel } from "@/lib/running/guideTimeline";
+import {
+  formatCountdown,
+  isTimedProtocol,
+  stageLabel,
+  stepBoundaries,
+} from "@/lib/running/guideTimeline";
+import { GOOD_ACCURACY_M, locationStatusText, useLocationPreview } from "./useLocationPreview";
 import {
   durationLabel,
   goalOf,
@@ -131,6 +137,8 @@ function RunTracker({
   onDelete,
   onFinish,
   onRecordingChange,
+  onBeforeStart,
+  previewNote,
 }: {
   ownerId?: string;
   session: SessionDay;
@@ -142,6 +150,13 @@ function RunTracker({
   onDelete: (activityId: string) => Promise<void>;
   onFinish?: (draft: RunningActivityDraft) => void;
   onRecordingChange?: (busy: boolean) => void;
+  /**
+   * The session's own start (pins the prescription). One "Start" runs it first, then the
+   * measurement; returns false when the session could not be started.
+   */
+  onBeforeStart?: () => Promise<boolean>;
+  /** Why Start is not available (preview of another day, missed session). */
+  previewNote?: string | null;
 }) {
   const intervalProtocol = useMemo(() => deriveRunningIntervalProtocol(session), [session]);
   /** Receptura czasowa: kroki wynikają z czasu biegu, więc prowadzenie działa też w tle. */
@@ -161,9 +176,20 @@ function RunTracker({
   const checkpointBlockedRef = useRef(false);
   const checkpointSourceRef = useRef<"native" | "web">("web");
   const [phase, setPhase] = useState<TrackerPhase>("idle");
+  const [starting, setStarting] = useState(false);
+  const location = useLocationPreview(canRecord || !!previewNote);
+  // Busy covers the start itself and the preparation of the location.
   useEffect(() => {
-    onRecordingChange?.(phase === "recording" || phase === "paused" || phase === "review");
-  }, [phase, onRecordingChange]);
+    onRecordingChange?.(
+      phase === "recording" ||
+        phase === "paused" ||
+        phase === "review" ||
+        starting ||
+        location.busy,
+    );
+  }, [phase, starting, location.busy, onRecordingChange]);
+  const lastFixMsRef = useRef<number | null>(null);
+  const [signalAgeSec, setSignalAgeSec] = useState(0);
   const [routePointCount, setRoutePointCount] = useState(0);
   const mountedRef = useRef(true);
   const startingRef = useRef(false);
@@ -442,6 +468,8 @@ function RunTracker({
       return;
     const clean = accepted.at(-1)!;
     routeRef.current.push(clean);
+    lastFixMsRef.current = Date.now();
+    setSignalAgeSec(0);
     if (previous && previous.segment === clean.segment)
       distanceMRef.current += haversineDistanceM(previous, clean);
     samplesRef.current = pushSample(samplesRef.current, {
@@ -467,15 +495,14 @@ function RunTracker({
 
   useEffect(() => {
     if (phase !== "recording") return;
-    const timer = window.setInterval(
-      () =>
-        setElapsedSec(
-          Math.round(
-            accumulatedSecRef.current + (Date.now() - segmentStartedMsRef.current) / 1_000,
-          ),
-        ),
-      1_000,
-    );
+    const timer = window.setInterval(() => {
+      setElapsedSec(
+        Math.round(accumulatedSecRef.current + (Date.now() - segmentStartedMsRef.current) / 1_000),
+      );
+      setSignalAgeSec(
+        lastFixMsRef.current == null ? 0 : Math.round((Date.now() - lastFixMsRef.current) / 1_000),
+      );
+    }, 1_000);
     return () => window.clearInterval(timer);
   }, [phase]);
 
@@ -707,17 +734,25 @@ function RunTracker({
     }
     masInterruptedRef.current = false;
     startingRef.current = true;
+    setStarting(true);
     unlockSignals();
     if (timedGuide) void ensureLockScreenPermission();
     samplesRef.current = [];
     try {
+      if (onBeforeStart && !(await onBeforeStart())) return;
+      if (!mountedRef.current) return;
       if (nativeMode) {
         const state = await nativeRecorder.start({ ...nativeIdentity, date });
+        if (!mountedRef.current) {
+          // The screen was left while the recorder was starting: nothing to resume, no orphan run.
+          await nativeRecorder.clear(nativeIdentity).catch(() => undefined);
+          return;
+        }
         routeRef.current = [];
         setPreviewRoute([]);
         applyNativeState(state);
         samplesRef.current = [{ elapsedSec: 0, distanceM: 0 }];
-        if (timedGuide) startIntervalGuide();
+        if (timedGuide || (intervalProtocol && !isFieldMasTest)) startIntervalGuide();
         return;
       }
       const first = await new Promise<GeolocationPosition>((resolve, reject) =>
@@ -771,9 +806,11 @@ function RunTracker({
       phaseRef.current = "recording";
       setPhase("recording");
       samplesRef.current = [{ elapsedSec: 0, distanceM: 0 }];
+      lastFixMsRef.current = Date.now();
       startWatch();
       void requestWakeLock();
-      if (timedGuide) startIntervalGuide();
+      // One Start runs the measurement and the guidance; MAS keeps its own trial start.
+      if (timedGuide || (intervalProtocol && !isFieldMasTest)) startIntervalGuide();
     } catch (error) {
       if (nativeMode) {
         setGpsError(
@@ -790,6 +827,7 @@ function RunTracker({
       }
     } finally {
       startingRef.current = false;
+      if (mountedRef.current) setStarting(false);
     }
   }
 
@@ -1132,6 +1170,23 @@ function RunTracker({
       )
     : "unavailable";
 
+  const lastAccuracyM = routeRef.current.at(-1)?.accuracyM;
+  const signalLost = isTracking && phase === "recording" && signalAgeSec > 12;
+  const weakGps =
+    isTracking &&
+    (routePointCount < 2 ||
+      signalLost ||
+      (lastAccuracyM !== undefined && lastAccuracyM > GOOD_ACCURACY_M));
+  // Nothing is invented from a weak fix: distance, pace and speed wait for a usable signal.
+  const metricsOk = isTracking && !weakGps && distanceM >= 20;
+  const averagePace = metricsOk && distanceM >= 50 ? elapsedSec / (distanceM / 1_000) : null;
+  const speedKmh = metricsOk && elapsedSec > 0 ? (distanceM / elapsedSec) * 3.6 : null;
+  const timedBounds = intervalProtocol && timedGuide ? stepBoundaries(intervalProtocol) : null;
+  const remainingTotalSec = timedBounds ? Math.max(0, timedBounds.totalSec - elapsedSec) : null;
+  const idleRoute = previewRoute.length ? previewRoute : location.point ? [location.point] : [];
+  const firstStep = intervalProtocol?.steps[0] ?? null;
+  const secondStep = intervalProtocol?.steps[1] ?? null;
+
   useEffect(() => {
     const state = paceStateRef.current;
     if (phase !== "recording" || paceGuidance === "unavailable" || paceGuidance === "on_target") {
@@ -1166,8 +1221,9 @@ function RunTracker({
         <details className="bw-session-extra">
           <summary>GPS i prywatność</summary>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            GPS włącza się dopiero po Twoim kliknięciu. Mapa trasy i międzyczasy zostają w tym
-            telefonie. Na konto trafiają tylko wyniki biegu i odcinków, bez współrzędnych trasy.
+            Pozycja na mapie jest pobierana tylko do podglądu i za Twoją zgodą; pomiar i zapis trasy
+            zaczyna dopiero Start. Mapa trasy i międzyczasy zostają w tym telefonie. Na konto
+            trafiają tylko wyniki biegu i odcinków, bez współrzędnych trasy.
           </p>
         </details>
       </div>
@@ -1291,6 +1347,56 @@ function RunTracker({
           </p>
         </div>
       )}
+      {!isFieldMasTest && !pending && !activity && !isTracking && (
+        <section
+          className="bw-run-ready"
+          aria-label="Przygotowanie biegu"
+          aria-busy={starting || location.busy}
+        >
+          <RunRouteMap
+            route={idleRoute}
+            height={200}
+            placeholder={locationStatusText(location.status, location.point?.accuracyM)}
+          />
+          <div className="bw-run-location" role="status">
+            <span>{locationStatusText(location.status, location.point?.accuracyM)}</span>
+            {["needs_consent", "timeout", "unavailable"].includes(location.status) && (
+              <button type="button" onClick={location.request} disabled={starting}>
+                {location.status === "needs_consent" ? "Włącz lokalizację" : "Spróbuj ponownie"}
+              </button>
+            )}
+          </div>
+          <div className="bw-run-now">
+            {firstStep && timedGuide ? (
+              <>
+                <p className="bw-run-now-title">{stepTitle(firstStep)}</p>
+                <div className="bw-run-readout" role="timer" aria-live="off">
+                  {padClock(formatCountdown(firstStep.target.value ?? 0))}
+                </div>
+                <p className="bw-run-now-until">{untilLabel(firstStep)}</p>
+              </>
+            ) : (
+              <>
+                <p className="bw-run-now-title">{intervalProtocol?.summary ?? "Bieg z pomiarem"}</p>
+                <div className="bw-run-readout" role="timer" aria-live="off">
+                  {padClock(formatCountdown(0))}
+                </div>
+              </>
+            )}
+          </div>
+          {secondStep && (
+            <p className="bw-run-next">
+              <span>Następnie</span>
+              <strong>
+                {nextName(secondStep)}
+                {secondStep.target.mode === "time" && secondStep.target.value
+                  ? ` · ${durationLabel(secondStep.target.value)}`
+                  : ` · ${secondStep.target.label}`}
+              </strong>
+            </p>
+          )}
+        </section>
+      )}
       {shownActivity && !isTracking && <RunActivitySummary activity={shownActivity} showSplits />}
       {pending && isFieldMasTest && (
         <p role="status" className="rounded-xl bg-muted/40 p-3 text-sm">
@@ -1336,7 +1442,7 @@ function RunTracker({
                 className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"
               >
                 <Play className="h-4 w-4" />{" "}
-                {isFieldMasTest ? "Start próby 5 min" : "Rozpocznij bieg"}
+                {isFieldMasTest ? "Start próby 5 min" : "Wznów prowadzenie"}
               </button>
             </>
           ) : currentIntervalStep ? (
@@ -1485,10 +1591,39 @@ function RunTracker({
               </div>
             </>
           )}
-          <p className="bw-run-live-stats">
-            {formatRunDuration(elapsedSec)} · {formatDistance(distanceM)} · {formatPace(livePace)}
-            {routePointCount < 2 ? " · szukam sygnału GPS" : ""}
-          </p>
+          <dl className="bw-run-metrics" aria-label="Pomiar biegu">
+            {remainingTotalSec !== null && (
+              <div>
+                <dt>Pozostało</dt>
+                <dd>{padClock(formatCountdown(remainingTotalSec))}</dd>
+              </div>
+            )}
+            <div>
+              <dt>Dystans</dt>
+              <dd>{metricsOk || distanceM >= 20 ? formatDistance(distanceM) : "—"}</dd>
+            </div>
+            <div>
+              <dt>Tempo teraz</dt>
+              <dd>{metricsOk ? formatPace(livePace) : "—"}</dd>
+            </div>
+            <div>
+              <dt>Tempo średnie</dt>
+              <dd>{averagePace ? formatPace(averagePace) : "—"}</dd>
+            </div>
+            <div>
+              <dt>Prędkość</dt>
+              <dd>{speedKmh ? `${speedKmh.toFixed(1).replace(".", ",")} km/h` : "—"}</dd>
+            </div>
+          </dl>
+          {weakGps && phase === "recording" && (
+            <p className="bw-run-signal" role="status">
+              {signalLost
+                ? "Utrata sygnału GPS. Czas biegnie dalej; dystans i tempo wrócą po odzyskaniu sygnału."
+                : routePointCount < 2
+                  ? "Szukam sygnału GPS… Dystans i tempo pojawią się po ustaleniu pozycji."
+                  : `Słaby sygnał GPS (±${Math.round(lastAccuracyM ?? 0)} m). Dystans i tempo są wstrzymane, dopóki sygnał się nie poprawi.`}
+            </p>
+          )}
           {!isFieldMasTest && (
             <section aria-label="Mapa biegu na żywo">
               <RunRouteMap route={previewRoute} height={220} />
@@ -1543,21 +1678,26 @@ function RunTracker({
 
       {!isTracking && (
         <div className="flex flex-wrap gap-2">
-          {!pending && canRecord && (
+          {!pending && (canRecord || previewNote) && (
             <button
               type="button"
               onClick={() => void startRecording()}
               disabled={
-                isFieldMasTest && (!safetyAcknowledged || !previewRoute.length || gpsPreparing)
+                !canRecord ||
+                starting ||
+                (isFieldMasTest && (!safetyAcknowledged || !previewRoute.length || gpsPreparing))
               }
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
+              aria-busy={starting}
+              className="bw-run-start inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
             >
               <LocateFixed className="h-4 w-4" />{" "}
-              {activity
-                ? "Nagraj ponownie"
-                : isFieldMasTest
-                  ? "Rozpocznij rozgrzewkę 10 min"
-                  : "Start GPS"}
+              {starting
+                ? "Rozpoczynanie…"
+                : activity
+                  ? "Nagraj ponownie"
+                  : isFieldMasTest
+                    ? "Rozpocznij rozgrzewkę 10 min"
+                    : "Start"}
             </button>
           )}
           {!pending && (
@@ -1625,15 +1765,16 @@ function RunTracker({
         </div>
       )}
       {!canRecord && !activity && !pending && (
-        <p className="text-xs text-muted-foreground">
-          GPS uruchomisz w dniu treningu. Starszy wynik możesz obliczyć lokalnie z pliku GPX.
+        <p className="text-xs text-muted-foreground" role="status">
+          {previewNote ??
+            "Start i zapis biegu są dostępne w dniu treningu. Starszy wynik możesz obliczyć lokalnie z pliku GPX."}
         </p>
       )}
-      {canRecord && !isTracking && !activity && !pending && (
+      {!isTracking && !activity && !pending && (
         <p className="text-[11px] leading-relaxed text-muted-foreground">
           {nativeMode
-            ? "Pomiar GPS działa także po zablokowaniu ekranu. Trasa zostaje w telefonie. Po wymuszonym zamknięciu aplikacji pomiar zostanie przerwany."
-            : "W przeglądarce pomiar wymaga widocznego ekranu. Blokada telefonu lub przejście do innej aplikacji wstrzymuje GPS. Możesz też zaimportować GPX."}
+            ? "Aplikacja na iPhonie mierzy GPS także po zablokowaniu ekranu. Trasa zostaje w telefonie. Po wymuszonym zamknięciu aplikacji pomiar zostanie przerwany."
+            : "W przeglądarce (Safari) pomiar działa przy widocznym ekranie; blokada telefonu lub inna aplikacja wstrzymuje GPS. Ciągły pomiar w tle zapewnia aplikacja na iPhonie. Możesz też wybrać bieg bez GPS albo wczytać plik GPX."}
         </p>
       )}
     </section>

@@ -60,6 +60,8 @@ interface RunClockProps {
   enabled: boolean;
   onFinish: (seconds: number) => void;
   onBusy: (busy: boolean) => void;
+  /** The session's own start; the one "Start" runs it first, then the counter. */
+  onBeforeStart?: () => Promise<boolean>;
 }
 
 /**
@@ -81,6 +83,7 @@ function GuidedRunClock({
   enabled,
   onFinish,
   onBusy,
+  onBeforeStart,
   protocol,
 }: RunClockProps & { protocol: RunningIntervalProtocol }) {
   const { user } = useAuth();
@@ -247,8 +250,15 @@ function GuidedRunClock({
     if (!enabled && live.current.runningSince != null) pause();
   }, [enabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function start() {
-    if (!enabled) return;
+  const starting = useRef(false);
+  async function start() {
+    if (!enabled || starting.current) return;
+    starting.current = true;
+    try {
+      if (onBeforeStart && !(await onBeforeStart())) return;
+    } finally {
+      starting.current = false;
+    }
     unlockSignals();
     void ensureLockScreenPermission();
     const nowMs = Date.now();
@@ -449,7 +459,7 @@ function GuidedRunClock({
               type="button"
               className="bw-session-primary bw-run-clock-main"
               disabled={!enabled}
-              onClick={running ? pause : start}
+              onClick={running ? pause : () => void start()}
             >
               {running ? <Pause size={20} /> : <Play size={20} />}
               {running ? "Pauza" : started ? "Wznów" : "Start"}

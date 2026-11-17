@@ -113,3 +113,71 @@
     padding-inline: 5px;
   }
 }
+
+/* Przygotowanie biegu: mapa, stan lokalizacji i licznik jeszcze przed Startem. */
+.bw-run-ready {
+  display: grid;
+  gap: 12px;
+}
+.bw-run-location {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--accent);
+  color: var(--foreground);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.bw-run-location button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font: inherit;
+  font-weight: 600;
+}
+.bw-run-ready .bw-run-now {
+  text-align: center;
+}
+.bw-run-ready .bw-run-readout {
+  font-variant-numeric: tabular-nums;
+}
+/* Pomiar na żywo: tylko wartości, które da się uczciwie wyznaczyć z GPS. */
+.bw-run-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.bw-run-metrics > div {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--accent);
+}
+.bw-run-metrics dt {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.bw-run-metrics dd {
+  margin: 2px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.bw-run-signal {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--bw-warning-soft);
+  color: var(--bw-warning);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.bw-run-start {
+  min-height: 48px;
+}

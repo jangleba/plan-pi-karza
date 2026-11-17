@@ -77,7 +77,7 @@ it("shows the native recorder error instead of treating a string code as a GPS t
       />,
     ),
   );
-  await act(async () => button("Start GPS").click());
+  await act(async () => button("Start").click());
   expect(host.textContent).toContain("Istnieje niezapisany szkic innej sesji.");
   expect(host.textContent).not.toContain("GPS nie odpowiedział na czas");
 });

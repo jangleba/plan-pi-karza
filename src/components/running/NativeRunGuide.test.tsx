@@ -120,7 +120,7 @@ it("prowadzi recepturę przy zablokowanym ekranie i liczy odcinki z trasy telefo
       />,
     ),
   );
-  await act(async () => button("Start GPS").click());
+  await act(async () => button("Start").click());
   // Prowadzenie startuje razem z GPS — bez osobnego przycisku.
   expect(host.textContent).toContain("Rozgrzewka");
   expect(mock.signal).toHaveBeenCalledTimes(1);
