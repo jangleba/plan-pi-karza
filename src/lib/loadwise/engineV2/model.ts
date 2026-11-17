@@ -55,6 +55,18 @@ export interface Dose {
   seconds?: number;
   restSeconds: number;
   postRestSeconds?: number;
+  /**
+   * Repetitions of a short isometric hold (“5 × 1 s”): the coach's note counts holds, not a
+   * continuous time. With `seconds` it is the length of each hold; without it the repetitions
+   * are the dose itself (“iso switch 5/leg”).
+   */
+  holdReps?: number;
+  /**
+   * In a note group whose exercises have different numbers of sets: how many of this exercise's
+   * sets have a partner in the round; the remaining sets are done alone and rest `soloRestSeconds`.
+   */
+  pairedSets?: number;
+  soloRestSeconds?: number;
   perSide?: boolean;
   rir?: number;
   distanceM?: number;

@@ -325,13 +325,21 @@ export function estimateSeconds(e: ExerciseDecision, hasNext = false): number {
     : d.intent === "explosive"
       ? 3
       : 4;
-  const work = d.seconds ?? (d.distanceM ? 8 * (d.reps ?? 1) : (d.reps ?? 1) * repSeconds);
+  // A hold counted in repetitions: each hold plus a short reset before the next.
+  const work = d.holdReps
+    ? d.holdReps * ((d.seconds ?? 1) + 2)
+    : (d.seconds ?? (d.distanceM ? 8 * (d.reps ?? 1) : (d.reps ?? 1) * repSeconds));
+  // Sets done with a partner rest the short transition; sets done alone rest the round rest.
+  const paired = Math.min(d.pairedSets ?? d.sets, d.sets);
+  const between =
+    Math.min(paired, Math.max(0, d.sets - 1)) * d.restSeconds +
+    Math.max(0, d.sets - 1 - paired) * (d.soloRestSeconds ?? d.restSeconds);
   return (
     d.sets * work * (d.perSide ? 2 : 1) +
     d.sets *
       Math.max(0, (d.cluster?.repGroups.length ?? 1) - 1) *
       (d.cluster?.intraRestSeconds ?? 0) +
-    Math.max(0, d.sets - 1) * d.restSeconds +
+    between +
     (d.postRestSeconds ?? (hasNext ? d.restSeconds : 0)) +
     45
   );

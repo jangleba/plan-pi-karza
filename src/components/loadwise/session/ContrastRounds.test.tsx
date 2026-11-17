@@ -213,3 +213,45 @@ it("recovers a saved third set whose final completion failed, without saving the
   expect(m.writes).toEqual(["snap_down:3"]);
   expect(next).toHaveBeenCalledOnce();
 });
+
+it("runs a group whose exercises have different numbers of sets: the longer one finishes alone", async () => {
+  const unequal = structuredClone(section);
+  const block = unequal.blocks[0];
+  block.blockType = "superset";
+  block.executionProtocol = "superset-rounds-v1";
+  block.restAfterBlock = "150 s";
+  block.exercises[0].sets = "4"; // e.g. bench 4 sets
+  block.exercises[0].restAfterExercise = "30 s";
+  block.exercises[1].sets = "3"; // e.g. face pull 3 sets
+  block.exercises[1].restAfterPair = "150 s";
+  await render(unequal);
+  const order: string[] = [];
+  for (let turn = 0; turn < 7; turn++) {
+    const head = host.querySelector(".bw-runner-position")!.textContent!;
+    order.push(head);
+    const set = Number(/Runda (\d)/.exec(head)![1]);
+    const first = head.includes("A1");
+    if (first) {
+      await input(`Seria ${set}: ciężar w kg`, "30");
+      await input(`Seria ${set}: powtórzenia`, "5");
+      await click("Zapisz serię");
+    } else await click("Seria skoków wykonana");
+  }
+  expect(order).toEqual([
+    "Runda 1 z 4 · A1",
+    "Runda 1 z 4 · A2",
+    "Runda 2 z 4 · A1",
+    "Runda 2 z 4 · A2",
+    "Runda 3 z 4 · A1",
+    "Runda 3 z 4 · A2",
+    "Runda 4 z 4 · A1",
+  ]);
+  expect(m.writes.filter((w) => w.startsWith("goblet_squat"))).toHaveLength(4);
+  expect(m.writes.filter((w) => w.startsWith("snap_down"))).toHaveLength(3);
+  // Each exercise is marked done on its own last set; the block ends once.
+  expect(mark.mock.calls).toHaveLength(2);
+  expect(next).toHaveBeenCalledOnce();
+  const rests = rest.mock.calls.map((call) => call[0]);
+  // Short transitions only while a partner is still open in the round; solo and last sets rest in full.
+  expect(rests).toEqual([30, 150, 30, 150, 30, 150, 150]);
+});

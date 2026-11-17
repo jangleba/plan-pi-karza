@@ -1,4 +1,5 @@
 import { sprintSeconds, sprintDistance, sprintChronology } from "./sprintRecipe";
+import { estimateSeconds } from "./exercises";
 import { buildAthleteTrainingProfile } from "../athleteProfile";
 import { getExerciseDefinition, isExerciseAllowedForProfile } from "../exerciseLibrary";
 import type { RunningRecipe } from "@/lib/running/recipe";
@@ -156,24 +157,9 @@ export function deriveEngineSessionLoad(
     const d = exercise.dose as NumericDose;
     const sides = d.perSide ? 2 : 1;
     const repetitions = d.reps ?? 1;
-    const work =
-      d.seconds ??
-      (d.distanceM
-        ? 8 * repetitions
-        : repetitions *
-          (d.tempo
-            ? d.tempo.eccentricSeconds + d.tempo.pauseSeconds + d.tempo.concentricSeconds
-            : d.intent === "explosive"
-              ? 3
-              : 4));
-    seconds +=
-      d.sets * work * sides +
-      d.sets *
-        Math.max(0, (d.cluster?.repGroups.length ?? 1) - 1) *
-        (d.cluster?.intraRestSeconds ?? 0) +
-      Math.max(0, d.sets - 1) * d.restSeconds +
-      (d.postRestSeconds ?? (index < recipe.exercises.length - 1 ? d.restSeconds : 0)) +
-      45;
+    // One estimate for the generator and the validator (holds counted in repetitions and
+    // groups with unequal sets are priced there).
+    seconds += estimateSeconds(exercise, index < recipe.exercises.length - 1);
     if (d.distanceM !== undefined && ["speed", "landing", "braking"].includes(exercise.role)) {
       sprintMetres += d.sets * repetitions * sides * (d.distanceM + (d.runInM ?? 0));
     }
@@ -556,7 +542,7 @@ export function validateEngineSession(
         pair.exerciseIds.length > 3 ||
         at.some((i) => i < 0) ||
         at.some((i, k) => k > 0 && i !== at[k - 1] + 1) ||
-        rows.some((r) => r.dose.sets !== rows[0].dose.sets) ||
+        rows.some((r) => !Number.isInteger(r.dose.sets) || r.dose.sets < 1) ||
         pair.transitionSeconds !== 30 ||
         rows.slice(0, -1).some((r) => r.dose.restSeconds !== pair.transitionSeconds) ||
         lastRow.dose.restSeconds !== pair.roundRestSeconds ||
@@ -565,7 +551,7 @@ export function validateEngineSession(
       ) {
         fail(
           "ADVANCED_PAIR_DOSE",
-          "Seria wymaga 2–3 kolejnych ćwiczeń z równą liczbą rund, 30 s przejścia i pełną przerwą po rundzie.",
+          "Seria wymaga 2–3 kolejnych ćwiczeń, 30 s przejścia i pełnej przerwy po rundzie.",
         );
         continue;
       }
@@ -859,7 +845,7 @@ export function validateEngineSession(
         "FUNCTION_MISMATCH",
         `Ćwiczenie nie realizuje przypisanej funkcji: ${exercise.exerciseId}.`,
       );
-    const positive = [d.reps, d.seconds, d.distanceM];
+    const positive = [d.reps, d.seconds, d.distanceM, d.holdReps];
     if (
       d.tempo &&
       ([d.tempo.eccentricSeconds, d.tempo.pauseSeconds, d.tempo.concentricSeconds].some(
@@ -890,7 +876,10 @@ export function validateEngineSession(
       !Number.isFinite(d.restSeconds) ||
       positive.some((n) => n !== undefined && (!Number.isFinite(n) || n <= 0)) ||
       nonnegative.some((n) => n !== undefined && (!Number.isFinite(n) || n < 0)) ||
-      (d.reps === undefined && d.seconds === undefined && d.distanceM === undefined) ||
+      (d.reps === undefined &&
+        d.seconds === undefined &&
+        d.distanceM === undefined &&
+        d.holdReps === undefined) ||
       (d.rir !== undefined && (!Number.isFinite(d.rir) || d.rir < 0 || d.rir > 10)) ||
       (d.perSide !== undefined && typeof d.perSide !== "boolean")
     ) {
@@ -902,7 +891,7 @@ export function validateEngineSession(
     }
     if (
       ["hamstring_iso", "quad_iso", "iso_primer"].includes(exercise.role) &&
-      (!d.seconds ||
+      ((!d.seconds && !d.holdReps) ||
         d.reps !== undefined ||
         d.distanceM !== undefined ||
         d.cluster !== undefined ||

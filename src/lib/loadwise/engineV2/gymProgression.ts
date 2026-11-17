@@ -564,11 +564,15 @@ export function gymWeekContext(
   const asOfDate = options.asOfDate ?? options.startDate;
   const unique = new Map<string, SessionDay>();
   const slotKey = (s: SessionDay) => `${s.date}:${s.engineV2?.roles.join() ?? s.dayType}`;
+  // Work of the previous plan that is still ahead (and not performed) is being replaced by the
+  // plan under construction; counting both would double its landings and load.
+  const stillPending = (s: SessionDay) =>
+    s.date >= asOfDate && !(s.dbId && options.completions?.[s.dbId]?.completed);
   for (const d of [
-    ...(options.previousPlan ?? []),
-    ...(options.precedingDays ?? []),
-    ...days,
-  ].flatMap(slots))
+    ...(options.previousPlan ?? []).flatMap(slots).filter((s) => !stillPending(s)),
+    ...(options.precedingDays ?? []).flatMap(slots),
+    ...days.flatMap(slots),
+  ])
     unique.set(slotKey(d), d);
   for (const c of Object.values(options.completions ?? {})) {
     const s = c.executionSnapshot;

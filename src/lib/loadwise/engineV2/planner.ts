@@ -223,18 +223,21 @@ function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
       };
       sections.push(section);
     }
-    const text = d.seconds
-      ? `${d.seconds} s${d.perSide ? " / stronę" : ""}`
-      : d.distanceM
-        ? `${d.runInM ? `${d.runInM} m nabiegu + ` : ""}${d.distanceM} m${d.perSide ? " / stronę" : ""}`
-        : `${d.reps}${d.perSide ? " / stronę" : ""}`;
+    const holds = d.holdReps !== undefined;
+    const text = holds
+      ? `${d.holdReps}${d.seconds ? ` × ${d.seconds} s` : ""}${d.perSide ? " / stronę" : ""}`
+      : d.seconds
+        ? `${d.seconds} s${d.perSide ? " / stronę" : ""}`
+        : d.distanceM
+          ? `${d.runInM ? `${d.runInM} m nabiegu + ` : ""}${d.distanceM} m${d.perSide ? " / stronę" : ""}`
+          : `${d.reps}${d.perSide ? " / stronę" : ""}`;
     const exercise = hydrateTrainingExerciseFromDefinition({
       id: `${date}:${e.role}:${index}`,
       exerciseId: e.exerciseId,
       name: getExerciseDefinition(e.exerciseId)!.displayNamePl,
       sets: String(d.sets),
-      reps: d.seconds ? undefined : text,
-      duration: d.seconds ? text : undefined,
+      reps: d.seconds && !holds ? undefined : text,
+      duration: d.seconds && !holds ? text : undefined,
       displayPrescription: `${d.sets} × ${text}`,
       restAfterExercise: `${d.restSeconds} s`,
       rir: d.rir === undefined ? undefined : String(d.rir),
@@ -1701,8 +1704,8 @@ export function validateTrainingPlan(
           e.dose.sets <= 0 ||
           !Number.isFinite(e.dose.restSeconds) ||
           e.dose.restSeconds < 0 ||
-          (!e.dose.reps && !e.dose.seconds) ||
-          [e.dose.reps, e.dose.seconds, e.dose.distanceM].some(
+          (!e.dose.reps && !e.dose.seconds && !e.dose.holdReps) ||
+          [e.dose.reps, e.dose.seconds, e.dose.distanceM, e.dose.holdReps].some(
             (v) => v !== undefined && (!Number.isFinite(v) || v <= 0),
           )
         )

@@ -60,6 +60,8 @@ interface Slot {
   /** The note's own exercise first, then the family's options; the first eligible id wins. */
   candidates: string[];
   note: string;
+  /** The coach's own remark (percentage, cue); shown only when the note's own exercise is used. */
+  coachNote?: string;
   dose: (level: NoteLevel, id: string, fallback: boolean, youth: boolean, ctx: DoseContext) => Dose;
   /** When no candidate of the role fits (e.g. a beginner without step-ups), the same place in another role. */
   alt?: { role: Role; candidates: string[] };
@@ -79,6 +81,8 @@ interface Template {
   variant: "A" | "B";
   title: string;
   items: Item[];
+  /** The note's second loading week (more volume); used every second time the note comes up. */
+  heavyItems?: Item[];
 }
 
 const perSideOf = (id: string) => (FUNCTIONAL_CATALOGUE[id]?.unilateral ? { perSide: true } : {});
@@ -141,6 +145,28 @@ const isoPush =
     intent: "hold",
   });
 
+/**
+ * Short isometric holds counted in repetitions: “3×5×1 s/noga” is three sets of five 1-second
+ * holds per leg; “iso switch 3×5/noga” is five alternating holds without a stated time.
+ */
+const isoHold =
+  (sets: number, holds: number, holdSeconds?: number) =>
+  (level: NoteLevel, id: string): Dose => ({
+    sets: level === "intro" ? Math.min(sets, 2) : sets,
+    holdReps: holds,
+    ...(holdSeconds ? { seconds: holdSeconds } : {}),
+    ...perSideOf(id),
+    restSeconds: 45,
+    intent: "hold",
+  });
+/** A throw to each side (“MB shot put 3×5/strona”). */
+const throwPerSide =
+  (sets: number, reps: number) =>
+  (level: NoteLevel, id: string, f: boolean, y: boolean, ctx: DoseContext): Dose => ({
+    ...fast(sets, reps, 1, "throw")(level, id, f, y, ctx),
+    perSide: true,
+  });
+
 const POWER_CLEAN = [
   "power_clean",
   "trap_bar_jump",
@@ -151,12 +177,17 @@ const POWER_CLEAN = [
 ];
 const BOX_JUMPS = ["box_jump", "gym_cmj", "countermovement_jump", "med_ball_throw"];
 
-/** „Jutro zrób tak” — Day 1: iso + SL box jump · HPC · squat 4-1-x + depth jump over hurdle · bench + facepull · row + SL HT · curl + calf + hip flexion. */
-const N_SQUAT_BENCH: Template = {
-  id: "N_squat_bench",
-  variant: "A",
-  title: "Siła A — przysiad, ławka i zarzut",
-  items: [
+const SQUAT_TEMPO = { eccentricSeconds: 4, pauseSeconds: 1, concentricSeconds: 1 } as const;
+const CURL_TEMPO = { eccentricSeconds: 3, pauseSeconds: 1, concentricSeconds: 1 } as const;
+
+/**
+ * „Jutro zrób tak” — Day 1: knee iso push + SL box jump · HPC · back squat 4-1-x + depth jump over
+ * hurdle · bench + face pull · BB row + SL straight-leg HT · slider curl 3-1-x + seated SL calf
+ * raises + banded hip flexion. Week one is the first message; `heavy` is the second message of the
+ * same Day 1 (more volume, lighter percentages, a supine hip flexor instead of the standing one).
+ */
+function squatBenchItems(heavy: boolean): Item[] {
+  return [
     {
       kind: "iso_reactive",
       slots: [
@@ -164,7 +195,7 @@ const N_SQUAT_BENCH: Template = {
           role: "quad_iso",
           candidates: ["knee_iso_push", "split_squat_iso_hold"],
           note: "Knee iso push 3×5×1 s/noga",
-          dose: isoPush(3, 5),
+          dose: isoHold(3, 5, 1),
         },
         {
           role: "power",
@@ -181,8 +212,8 @@ const N_SQUAT_BENCH: Template = {
         {
           role: "power",
           candidates: POWER_CLEAN,
-          note: "Hang power clean 3×3",
-          dose: fast(3, 3, 1, "lift"),
+          note: heavy ? "Hang power clean 4×3" : "Hang power clean 3×3",
+          dose: fast(heavy ? 4 : 3, 3, 1, "lift"),
         },
       ],
       roundRestSeconds: 150,
@@ -193,17 +224,14 @@ const N_SQUAT_BENCH: Template = {
         {
           role: "knee_strength",
           candidates: ["heavy_back_squat", "front_squat", "goblet_squat", "leg_press"],
-          note: "Back squat 4×2 (4-1-X)",
-          dose: lift(4, 2, {
-            rest: 180,
-            tempo: { eccentricSeconds: 4, pauseSeconds: 1, concentricSeconds: 1 },
-          }),
+          note: heavy ? "Back squat 5×3 (4-1-X)" : "Back squat 4×2 (4-1-X)",
+          dose: lift(heavy ? 5 : 4, heavy ? 3 : 2, { rest: 180, tempo: SQUAT_TEMPO }),
         },
         {
           role: "power",
           candidates: ["depth_jump_over_hurdle", "depth_jump", ...BOX_JUMPS],
-          note: "Depth box jump over hurdle 4×2",
-          dose: fast(4, 2, 2),
+          note: heavy ? "Depth box jump over hurdle 4×3" : "Depth box jump over hurdle 4×2",
+          dose: fast(4, heavy ? 3 : 2, 2),
         },
       ],
       roundRestSeconds: 180,
@@ -215,14 +243,15 @@ const N_SQUAT_BENCH: Template = {
         {
           role: "push",
           candidates: ["barbell_bench_press", "dumbbell_bench_press", "push_up"],
-          note: "Bench press 4×2",
-          dose: lift(4, 2, { rest: 150 }),
+          note: heavy ? "Bench press 5×4" : "Bench press 4×2",
+          coachNote: heavy ? "80–85%" : "90–95% 1RM",
+          dose: lift(heavy ? 5 : 4, heavy ? 4 : 2, { rest: 150 }),
         },
         {
           role: "pull",
           candidates: ["face_pull_band"],
-          note: "Facepull 3×8",
-          dose: acc(3, 8),
+          note: heavy ? "Facepull 3×10" : "Facepull 3×8",
+          dose: acc(3, heavy ? 10 : 8),
         },
       ],
       roundRestSeconds: 150,
@@ -234,8 +263,8 @@ const N_SQUAT_BENCH: Template = {
         {
           role: "pull",
           candidates: ["barbell_row", "one_arm_dumbbell_row", "lat_pulldown"],
-          note: "BB row 3×3",
-          dose: lift(3, 3, { rest: 120 }),
+          note: heavy ? "BB row 3×5" : "BB row 3×3",
+          dose: lift(3, heavy ? 5 : 3, { rest: 120 }),
         },
         {
           role: "hip_strength",
@@ -244,8 +273,9 @@ const N_SQUAT_BENCH: Template = {
             "single_leg_banded_hip_thrust",
             "hip_thrust",
           ],
-          note: "SL straight-leg HT 3×3/noga",
-          dose: acc(3, 3, true),
+          note: heavy ? "SL straight-leg HT 3×5/noga" : "SL straight-leg HT 3×3/noga",
+          coachNote: heavy ? "back el." : undefined,
+          dose: acc(3, heavy ? 5 : 3, true),
         },
       ],
       roundRestSeconds: 120,
@@ -257,17 +287,17 @@ const N_SQUAT_BENCH: Template = {
         {
           role: "knee_flexion",
           candidates: [
-            "single_leg_slider_leg_curl",
             "bilateral_slider_leg_curl",
+            "single_leg_slider_leg_curl",
             "lying_leg_curl",
             "seated_leg_curl",
             "bilateral_swiss_ball_leg_curl",
             "prone_band_leg_curl",
           ],
-          note: "Slider leg curl 3×4 (3-1-X)",
+          note: heavy ? "Slider leg curl 3×6 (3-1-X)" : "Slider leg curl 3×4 (3-1-X)",
           dose: (level, id) => ({
-            ...acc(3, 4)(level, id),
-            tempo: { eccentricSeconds: 3, pauseSeconds: 1, concentricSeconds: 1 },
+            ...acc(3, heavy ? 6 : 4)(level, id),
+            tempo: CURL_TEMPO,
           }),
         },
         {
@@ -278,16 +308,26 @@ const N_SQUAT_BENCH: Template = {
         },
         {
           role: "trunk",
-          candidates: ["standing_banded_hip_flexion"],
-          note: "Banded hip flexion 3×5/noga",
-          dose: acc(3, 5, true),
+          candidates: heavy
+            ? ["supine_banded_hip_flexion", "standing_banded_hip_flexion"]
+            : ["standing_banded_hip_flexion"],
+          note: heavy ? "Banded supine hip flexor 3×8/noga" : "Banded hip flexion 3×5/noga",
+          dose: acc(3, heavy ? 8 : 5, true),
         },
       ],
       roundRestSeconds: 60,
       optional: true,
       keepAlone: true,
     },
-  ],
+  ];
+}
+
+const N_SQUAT_BENCH: Template = {
+  id: "N_squat_bench",
+  variant: "A",
+  title: "Siła A — przysiad, ławka i zarzut",
+  items: squatBenchItems(false),
+  heavyItems: squatBenchItems(true),
 };
 
 /** Day 1 (16.09): SL HT iso · HPC + pogo · quarter box squat + drop box jump · shot put + SL HT · plyo row + back ext · side plank + hip flexion + Copenhagen. */
@@ -344,7 +384,7 @@ const N_CLEAN_PLYO: Template = {
         },
         {
           role: "power",
-          candidates: ["depth_jump", ...BOX_JUMPS],
+          candidates: ["drop_jump", "depth_jump", ...BOX_JUMPS],
           note: "Drop box jump 4×3",
           dose: fast(4, 3, 2),
         },
@@ -363,7 +403,7 @@ const N_CLEAN_PLYO: Template = {
             "medicine_ball_rotational_scoop_toss",
           ],
           note: "MB shot put 3×5/strona",
-          dose: fast(3, 5, 1, "throw"),
+          dose: throwPerSide(3, 5),
         },
         {
           role: "hip_strength",
@@ -444,7 +484,7 @@ const N_STEP_REACTIVE: Template = {
           role: "quad_iso",
           candidates: ["knee_iso_push", "split_squat_iso_hold"],
           note: "Knee iso push 3×3×1 s/noga",
-          dose: isoPush(3, 3),
+          dose: isoHold(3, 3, 1),
         },
         {
           role: "power",
@@ -460,7 +500,7 @@ const N_STEP_REACTIVE: Template = {
       slots: [
         {
           role: "unilateral_strength",
-          candidates: ["loaded_step_up", "step_up", "bulgarian_split_squat", "reverse_lunge"],
+          candidates: ["step_up", "loaded_step_up", "bulgarian_split_squat", "reverse_lunge"],
           note: "Step up 4×3/noga",
           dose: lift(4, 3, { rest: 150 }),
           alt: { role: "knee_strength", candidates: ["goblet_squat", "back_squat"] },
@@ -494,7 +534,7 @@ const N_STEP_REACTIVE: Template = {
           role: "hamstring_iso",
           candidates: ["single_leg_straight_leg_iso_switch", "long_lever_hamstring_iso"],
           note: "SL str L iso switch 3×5/noga",
-          dose: isoPush(3, 5),
+          dose: isoHold(3, 5),
         },
       ],
       roundRestSeconds: 90,
@@ -569,7 +609,7 @@ const N_TRAPBAR: Template = {
           role: "quad_iso",
           candidates: ["knee_iso_push", "split_squat_iso_hold"],
           note: "Iso push (2 serie)",
-          dose: isoPush(2, 3),
+          dose: isoHold(2, 3, 1),
         },
         {
           role: "power",
@@ -832,10 +872,12 @@ export function attemptAdvancedStrength(
     first === advancedTemplateFor(variant, 0, p) ? 1 : 0,
     p,
   );
-  const built = buildFromTemplate(p, variant, phase, first);
+  // The note's second loading week comes every second time the note is due.
+  const heavy = Math.floor(Math.abs(rotation) / 2) % 2 === 1;
+  const built = buildFromTemplate(p, variant, phase, first, heavy);
   if (built) return { session: built };
   const firstWhy = templateLimitation(p, first);
-  const alternative = second !== first ? buildFromTemplate(p, variant, phase, second) : null;
+  const alternative = second !== first ? buildFromTemplate(p, variant, phase, second, heavy) : null;
   if (alternative)
     return {
       session: alternative,
@@ -884,7 +926,9 @@ function buildFromTemplate(
   variant: "A" | "B",
   phase: EngineSession["phase"],
   template: Template,
+  heavy = false,
 ): EngineSession | null {
+  const items = heavy && template.heavyItems ? template.heavyItems : template.items;
   const level = noteLevel(p);
   const youth = p.age < 18;
   const used = new Set<string>();
@@ -898,11 +942,14 @@ function buildFromTemplate(
     if (!id) return null;
     used.add(id);
     const fallback = id !== slot.candidates[0];
+    const dose = slot.dose(level, id, fallback, youth, { p, phase });
+    // Under 18 and for an introduction no exercise exceeds three sets, whatever the note says.
+    if (youth || level === "intro") dose.sets = Math.min(dose.sets, 3);
     return {
       exerciseId: id,
       role,
-      dose: slot.dose(level, id, fallback, youth, { p, phase }),
-      reason: `Z notatki: „${slot.note}”.${fallback ? " Ćwiczenie z notatki nie pasuje do przygotowania lub sprzętu: wybrano zamiennik tej samej funkcji." : ""}`,
+      dose,
+      reason: `Z notatki: „${slot.note}”${!fallback && slot.coachNote ? ` (${slot.coachNote})` : ""}.${fallback ? " Ćwiczenie z notatki nie pasuje do przygotowania lub sprzętu: wybrano zamiennik tej samej funkcji." : ""}`,
     };
   };
   const exercises: ExerciseDecision[] = [];
@@ -910,26 +957,18 @@ function buildFromTemplate(
   const optional: string[] = [];
   exercises.push(...buildStrengthPreparation((id) => eligibleExercise(id, p, "warmup")));
   const labels = "ABCDEFGH";
-  for (const item of template.items) {
+  for (const item of items) {
     const picked = item.slots.map(pick);
     let rows = picked.filter((r): r is ExerciseDecision => Boolean(r));
     if (!rows.length) continue;
     // A group keeps the exercises that are available (e.g. the isometric push without the jump).
-    // A group's exercises share the round count.
-    // (A gym jump with fewer rounds by its own rules follows the group instead: resync below.)
-    if (rows.length > 1) {
-      const lifts = rows.filter((r) => !r.exerciseId.startsWith("gym_"));
-      const sets = Math.min(...(lifts.length ? lifts : rows).map((r) => r.dose.sets));
-      rows = rows.map((r) => ({ ...r, dose: { ...r.dose, sets: Math.min(sets, r.dose.sets) } }));
-    }
+    // The sets are the note's own: exercises of one group may differ (bench 4 sets, face pull 3);
+    // the group runs as many rounds as its longest exercise and the others stop earlier.
     const last = rows[rows.length - 1];
     const roundRest = Math.max(last.dose.restSeconds, item.roundRestSeconds);
     if (rows.length > 1) {
-      rows = rows.map((r, i) =>
-        i < rows.length - 1
-          ? { ...r, dose: { ...r.dose, restSeconds: 30 } }
-          : { ...r, dose: { ...r.dose, restSeconds: roundRest, postRestSeconds: roundRest } },
-      );
+      rows = rows.map((r) => ({ ...r, dose: { ...r.dose } }));
+      layoutGroup(rows, roundRest);
       pairs.push({
         label: labels[pairs.length],
         kind: item.kind as PairKind,
@@ -1079,42 +1118,50 @@ export function shortenAdvanced(recipe: EngineSession, budget: number): EngineSe
 }
 
 /** After a dose change (progression), every group again shares its rounds and rests. */
+/**
+ * Rests of one note group whose exercises may have different numbers of sets. In every round the
+ * exercises that still have sets follow each other with the short transition; the last of them
+ * rests the full round rest. An exercise with more sets than its later partners does its
+ * extra sets alone (`pairedSets`) and rests the round rest after them (`soloRestSeconds`).
+ */
+export function layoutGroup(rows: ExerciseDecision[], roundRestSeconds: number, transition = 30) {
+  rows.forEach((row, i) => {
+    const later = Math.max(0, ...rows.slice(i + 1).map((r) => r.dose.sets));
+    const d = { ...row.dose };
+    delete d.pairedSets;
+    delete d.soloRestSeconds;
+    delete d.postRestSeconds;
+    if (i === rows.length - 1) {
+      d.restSeconds = roundRestSeconds;
+      d.postRestSeconds = roundRestSeconds;
+    } else {
+      d.restSeconds = transition;
+      if (d.sets > later) {
+        d.pairedSets = later;
+        d.soloRestSeconds = roundRestSeconds;
+        d.postRestSeconds = roundRestSeconds;
+      }
+    }
+    row.dose = d;
+  });
+}
+
 export function resyncAdvancedGroups(recipe: EngineSession): EngineSession {
   const pairs: NonNullable<EngineSession["complexPairs"]> = [];
   for (const pair of recipe.complexPairs ?? []) {
-    let rows = recipe.exercises.filter((e) => pair.exerciseIds.includes(e.exerciseId));
-    // A gym jump whose own rules give fewer rounds leaves the group and follows it on its own,
-    // so the lift keeps its rounds instead of shrinking to the jump's dose.
-    const top = Math.max(...rows.map((r) => r.dose.sets));
-    const short = rows.filter((r) => r.exerciseId.startsWith("gym_") && r.dose.sets < top);
-    if (short.length && short.length < rows.length) {
-      rows = rows.filter((r) => !short.includes(r));
-      recipe.exercises = recipe.exercises.filter((e) => !short.includes(e));
-      const after = recipe.exercises.indexOf(rows[rows.length - 1]) + 1;
-      for (const r of short) {
-        r.dose = { ...r.dose, restSeconds: Math.max(r.dose.restSeconds, pair.roundRestSeconds) };
-        delete r.dose.postRestSeconds;
-      }
-      recipe.exercises.splice(after, 0, ...short);
-    }
+    const rows = recipe.exercises.filter((e) => pair.exerciseIds.includes(e.exerciseId));
+    // Groups may have exercises with different numbers of sets (a gym jump with fewer rounds by
+    // its own rules simply stops earlier), so nothing leaves the group here.
     if (rows.length < 2) {
       for (const r of rows) {
         r.dose = { ...r.dose, restSeconds: pair.roundRestSeconds };
         delete r.dose.postRestSeconds;
+        delete r.dose.pairedSets;
+        delete r.dose.soloRestSeconds;
       }
       continue;
     }
-    const sets = Math.min(...rows.map((r) => r.dose.sets));
-    rows.forEach((r, i) => {
-      r.dose = { ...r.dose, sets };
-      if (i < rows.length - 1) {
-        r.dose.restSeconds = 30;
-        delete r.dose.postRestSeconds;
-      } else {
-        r.dose.restSeconds = pair.roundRestSeconds;
-        r.dose.postRestSeconds = pair.roundRestSeconds;
-      }
-    });
+    layoutGroup(rows, pair.roundRestSeconds);
     pairs.push({ ...pair, exerciseIds: rows.map((r) => r.exerciseId) });
   }
   pairs.forEach((pair, i) => (pair.label = "ABCDEFGH"[i]));
@@ -1173,21 +1220,15 @@ export function withoutAdvancedRows(
     const rows = copy.exercises.filter((e) => left.includes(e.exerciseId));
     if (left.length >= 2) {
       // The shorter group keeps the transitions and ends with the full round rest.
-      rows.forEach((e, i) => {
-        if (i < rows.length - 1) {
-          e.dose.restSeconds = 30;
-          delete e.dose.postRestSeconds;
-        } else {
-          e.dose.restSeconds = pair.roundRestSeconds;
-          e.dose.postRestSeconds = pair.roundRestSeconds;
-        }
-      });
+      layoutGroup(rows, pair.roundRestSeconds);
       pairs.push({ ...pair, exerciseIds: left });
     } else
       for (const e of rows) {
         // A partner left alone keeps the full rest of its round, not the 30 s transition.
         e.dose.restSeconds = pair.roundRestSeconds;
         delete e.dose.postRestSeconds;
+        delete e.dose.pairedSets;
+        delete e.dose.soloRestSeconds;
       }
   }
   pairs.forEach((pair, i) => (pair.label = "ABCDEFGH"[i]));

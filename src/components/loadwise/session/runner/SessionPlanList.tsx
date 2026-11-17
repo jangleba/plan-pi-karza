@@ -42,7 +42,10 @@ export function linkedSummary(step: RunnerStep): {
   const first = step.rows[0].exercise;
   const last = step.rows[step.rows.length - 1].exercise;
   const letter = linkedLabel(block, first)?.[0] ?? "A";
-  const sets = Number(String(first.sets ?? "").match(/\d+/)?.[0]);
+  // The group runs as many rounds as its longest exercise.
+  const sets = Math.max(
+    ...step.rows.map((row) => Number(String(row.exercise.sets ?? "").match(/\d+/)?.[0])),
+  );
   const between = restSecondsAfter(block, first, true, true);
   // Same value the runner starts after the last exercise of a round (postRestSeconds first).
   const after = restSecondsAfter(block, last, true, false, true);
