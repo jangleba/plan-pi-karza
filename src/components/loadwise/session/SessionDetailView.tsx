@@ -1,5 +1,6 @@
 import { FocusedSessionRunner } from "@/components/loadwise/session/FocusedSessionRunner";
 import { RunClock } from "@/components/running/RunClock";
+import { SprintVariantNote } from "./SprintVariantNote";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import "@/components/loadwise/session/session-focus.css";
 import { MethodExecutionCoach } from "@/components/loadwise/session/MethodExecutionCoach";
@@ -341,6 +342,7 @@ export function SessionDetailView({
         {shortNote && (session.loadLabelOverride || isClub) && (
           <div className="bw-session-notice">{shortNote}</div>
         )}
+        {sprintRunner && <SprintVariantNote session={displayedSession} />}
         {equipmentNotice && (
           <div className="soft-card px-4 py-3 text-sm text-muted-foreground">
             <p>{equipmentNotice}</p>

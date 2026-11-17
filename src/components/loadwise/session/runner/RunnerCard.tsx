@@ -333,6 +333,9 @@ export function RunnerCard({
               <summary>
                 Stoper i czas odcinka <span>Opcjonalnie</span>
               </summary>
+              <p className="bw-runner-muted">
+                Czas wpisujesz lub mierzysz stoperem; GPS telefonu nie mierzy krótkiego sprintu.
+              </p>
               <SprintTimingPanel
                 exercise={exercise}
                 sessionId={sessionId}
