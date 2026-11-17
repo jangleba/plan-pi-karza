@@ -1661,3 +1661,146 @@
 .bw-rplan-card[data-circuit] small {
   color: var(--bw-muted-on-tint);
 }
+
+/*
+ * Quiet, Apple-like plan list: white rounded cards on the page tone, hairlines, one calm type
+ * scale. Colour is a small pastel accent per group (pill, marks, link line), never a background
+ * block: the rest of a round is a plain grey line.
+ */
+.bw-rplan {
+  gap: 22px;
+}
+.bw-rplan-group {
+  gap: 8px;
+}
+.bw-rplan-group h3 {
+  margin: 0 20px -2px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--muted-foreground);
+}
+.bw-rplan-card {
+  border-radius: 20px;
+  box-shadow: 0 0 0 0.5px color-mix(in oklch, var(--foreground) 6%, transparent);
+}
+.bw-rplan-card[data-tone="motion"] {
+  --tone-ink: var(--bw-motion);
+  --tone-fill: var(--bw-motion-soft);
+}
+.bw-rplan-card[data-tone="strength"] {
+  --tone-ink: var(--bw-strength);
+  --tone-fill: var(--bw-strength-soft);
+}
+.bw-rplan-card[data-tone="recovery"] {
+  --tone-ink: var(--bw-recovery);
+  --tone-fill: var(--bw-recovery-soft);
+}
+.bw-rplan-card[data-tone="carry"] {
+  --tone-ink: var(--bw-carry);
+  --tone-fill: var(--bw-carry-soft);
+}
+.bw-rplan-head {
+  padding: 14px 16px 4px;
+}
+.bw-rplan-method {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--tone-fill, var(--muted));
+  color: var(--tone-ink, var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 600;
+}
+.bw-rplan-method span {
+  color: inherit;
+  font-weight: 500;
+  opacity: 0.8;
+}
+.bw-rplan-card[data-linked] .bw-rplan-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: var(--tone-fill, var(--muted));
+  color: var(--tone-ink, var(--muted-foreground));
+}
+.bw-rplan-card[data-linked] .bw-rplan-row:not(:last-child) .bw-rplan-mark::after {
+  background: color-mix(in oklch, var(--tone-ink, var(--primary)) 28%, transparent);
+}
+.bw-rplan-rest {
+  display: flex;
+  gap: 6px;
+  padding: 4px 16px 14px 56px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.bw-rplan-rest span {
+  color: var(--muted-foreground);
+  font-weight: 600;
+}
+.bw-rplan-card[data-circuit] small {
+  color: var(--muted-foreground);
+}
+.bw-rplan-text strong {
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.bw-rplan-text small {
+  font-size: 13.5px;
+}
+
+/*
+ * Execution card: plain and exact. Neutral surfaces, one dark action, the figures large and the
+ * words small. No colour on the card itself; state is told by a check mark and the label.
+ */
+.bw-runner-label {
+  padding: 2px 8px;
+  border-radius: 7px;
+  background: var(--muted);
+  color: var(--foreground);
+  font-size: 12.5px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+.bw-set-name {
+  font-size: 22px;
+  font-weight: 650;
+}
+.bw-set-sub {
+  font-size: 15px;
+}
+.bw-set-dots button,
+.bw-set-dots span {
+  border-width: 1px;
+}
+.bw-set-dots li[data-state="current"] span,
+.bw-set-dots li[data-editing] button {
+  border-color: transparent;
+  background: var(--foreground);
+  color: var(--background);
+  font-weight: 600;
+}
+.bw-set-dots li[data-state="done"] button {
+  border-color: transparent;
+  background: var(--muted);
+  color: var(--foreground);
+}
+.bw-set-facts {
+  gap: 2px 16px;
+  font-size: 14px;
+}
+.bw-set-cue {
+  font-size: 14px;
+}
+.bw-stepper-box {
+  border-radius: 14px;
+  background: color-mix(in oklch, var(--foreground) 4%, var(--card));
+}
+.bw-stepper-buttons button {
+  background: var(--card);
+  box-shadow: 0 0 0 0.5px color-mix(in oklch, var(--foreground) 14%, transparent);
+}

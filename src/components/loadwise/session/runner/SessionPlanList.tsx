@@ -58,6 +58,13 @@ export function linkedSummary(step: RunnerStep): {
   return { letter, rounds: Number.isFinite(sets) && sets > 0 ? roundsWord(sets) : null, rest };
 }
 
+/** A pastel accent per group letter (A, B, C, D …): quiet colour, never the main signal. */
+const TONES = ["motion", "strength", "recovery", "carry"] as const;
+const toneOf = (letter: string) =>
+  TONES[(letter.charCodeAt(0) - 65 + TONES.length * 4) % TONES.length];
+/** Warm-up and cool-down rows are listed plainly: their short rests are not worth a line. */
+const QUIET_PARTS = new Set(["Rozgrzewka", "Zakończenie"]);
+
 const circuitOf = (item: Item) => item.step.rows[0].exercise.engineDose?.circuit;
 
 /**
@@ -179,6 +186,7 @@ export function SessionPlanList({
                 key={card[0].step.key}
                 className="bw-rplan-card"
                 data-linked={linked || undefined}
+                data-tone={summary ? toneOf(summary.letter) : undefined}
                 aria-label={method && summary ? `${method.name} ${summary.letter}` : undefined}
               >
                 {method && summary && (
@@ -219,7 +227,9 @@ export function SessionPlanList({
                               <span className="bw-rplan-text">
                                 <strong>{canonicalExerciseName(row.exercise)}</strong>
                                 <small>{doseLine(row.exercise)}</small>
-                                {!linked && restLabel(row.exercise) ? (
+                                {!linked &&
+                                !QUIET_PARTS.has(group.title) &&
+                                restLabel(row.exercise) ? (
                                   <small className="bw-rplan-row-rest">
                                     {restLabel(row.exercise)}
                                   </small>
@@ -282,7 +292,7 @@ function CircuitCard({
     .filter(Boolean)
     .join(" · ");
   return (
-    <ul className="bw-rplan-card" data-linked data-circuit aria-label={title}>
+    <ul className="bw-rplan-card" data-linked data-circuit data-tone="motion" aria-label={title}>
       <li className="bw-rplan-head" aria-hidden="true">
         <p className="bw-rplan-method">{title}</p>
       </li>
