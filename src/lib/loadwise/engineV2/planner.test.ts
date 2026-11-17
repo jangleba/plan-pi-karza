@@ -90,7 +90,11 @@ describe("V2 final training contracts", () => {
   });
   it("covers all four weekly targets when feasible and persists valid, instructed exercises", () => {
     const r = generateTrainingPlan(athlete, options);
-    expect(r.issues.filter((i) => i.code !== "UNMET_STIMULUS")).toEqual([]);
+    // The second loading week of the squat/bench note is longer than 75 minutes; the shortened
+    // variant is reported as information (REDUCED_STRENGTH_TIME), not as a limitation.
+    expect(
+      r.issues.filter((i) => !["UNMET_STIMULUS", "REDUCED_STRENGTH_TIME"].includes(i.code)),
+    ).toEqual([]);
     for (let w = 0; w < 4; w++) {
       const roles = r.plan
         .slice(w * 7, w * 7 + 7)

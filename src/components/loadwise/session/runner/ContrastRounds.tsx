@@ -33,8 +33,14 @@ export function ContrastRounds({
 }) {
   const { user } = useAuth();
   const superset = step.rows[0]?.block.executionProtocol === "superset-rounds-v1";
-  const rounds = Math.min(...step.rows.map((r) => plannedSets(r.exercise)));
-  const total = rounds * step.rows.length;
+  // The group runs as many rounds as its longest exercise; an exercise with fewer sets (bench 4,
+  // face pull 3) takes part in the first rounds only. The queue lists the turns in order.
+  const setsOf = step.rows.map((r) => plannedSets(r.exercise));
+  const rounds = Math.max(...setsOf);
+  const queue = Array.from({ length: rounds }, (_, r) =>
+    step.rows.flatMap((row, i) => (setsOf[i] >= r + 1 ? [{ row, i, round: r + 1 }] : [])),
+  ).flat();
+  const total = queue.length;
   const cursor = useTrainingLocalState(
     trainingStorageKey(
       "contrast-round",
@@ -46,9 +52,8 @@ export function ContrastRounds({
     parse,
   );
   const index = Math.min(cursor.value, Math.max(0, total - 1));
-  const round = Math.floor(index / step.rows.length) + 1;
-  const position = index % step.rows.length;
-  const row = step.rows[position];
+  const { row, i: position, round } = queue[index];
+  const rowSets = setsOf[position];
   const lock = useRef(false);
   const [error, setError] = useState<string | null>(null);
   async function complete() {
@@ -56,15 +61,16 @@ export function ContrastRounds({
     lock.current = true;
     setError(null);
     try {
-      if (round === rounds && !(await mark(row))) return false;
+      if (round === rowSets && !(await mark(row))) return false;
       const next = index + 1;
       cursor.setValue(next);
-      const partner = position < step.rows.length - 1;
-      const nextRow = step.rows[next % step.rows.length];
+      const nextTurn = queue[next];
+      // A partner is still open when the next turn belongs to the same round.
+      const partner = nextTurn !== undefined && nextTurn.round === round;
       onRest(
         restSecondsAfter(row.block, row.exercise, true, partner, next >= total),
         next < total
-          ? `Następnie: ${canonicalExerciseName(nextRow.exercise)} · runda ${Math.floor(next / step.rows.length) + 1}`
+          ? `Następnie: ${canonicalExerciseName(nextTurn.row.exercise)} · runda ${nextTurn.round}`
           : superset
             ? "Koniec superserii"
             : "Koniec bloku siły i mocy",

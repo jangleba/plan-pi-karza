@@ -226,4 +226,4 @@ group(
   ["brace"],
   "isometric",
 );
-group("standing_banded_hip_flexion", ["hip_flexion"], "dynamic", true);
+group("standing_banded_hip_flexion supine_banded_hip_flexion", ["hip_flexion"], "dynamic", true);
