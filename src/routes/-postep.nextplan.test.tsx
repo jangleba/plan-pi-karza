@@ -106,6 +106,8 @@ afterEach(async () => {
 
 it("confirmed choices go to the next preview without saving a plan; an unchanged profile is not rewritten", async () => {
   await click("Przygotuj kolejny plan");
+  await click("Brak meczu w tym tygodniu");
+  await click("Dalej");
   await click("Dalej");
   await click("Brakowało czasu");
   await click("Dalej");
@@ -120,6 +122,8 @@ it("confirmed choices go to the next preview without saving a plan; an unchanged
 
 it("a profile change (missing equipment) is saved through the existing profile update first", async () => {
   await click("Przygotuj kolejny plan");
+  await click("Brak meczu w tym tygodniu");
+  await click("Dalej");
   await click("Dalej");
   await click("Dalej");
   await click("Hantle");
@@ -132,6 +136,8 @@ it("a profile change (missing equipment) is saved through the existing profile u
 it("a failed profile update stops the flow: no preview request is stored and nothing navigates", async () => {
   mocks.updateProfile.mockRejectedValueOnce(new Error("Brak połączenia"));
   await click("Przygotuj kolejny plan");
+  await click("Brak meczu w tym tygodniu");
+  await click("Dalej");
   await click("Dalej");
   await click("Dalej");
   await click("Hantle");

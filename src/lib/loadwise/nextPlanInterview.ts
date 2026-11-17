@@ -21,6 +21,11 @@ export const BARRIER_LABELS: Record<Barrier, string> = {
 export const DAY_LABELS = ["", "Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"] as const;
 
 export interface InterviewAnswers {
+  /**
+   * The match of the coming week, asked before every new week. `answered` is false until the
+   * athlete picks a date or "no match"; a plan is never prepared on an unanswered question.
+   */
+  match: { answered: boolean; date: string | null };
   /** null = keep the current goal. */
   goal: Goal | null;
   barriers: Barrier[];
@@ -36,6 +41,7 @@ export interface InterviewAnswers {
   noteTopic: NoteTopic | null;
 }
 export const emptyAnswers = (): InterviewAnswers => ({
+  match: { answered: false, date: null },
   goal: null,
   barriers: [],
   days: null,
@@ -47,7 +53,7 @@ export const emptyAnswers = (): InterviewAnswers => ({
 
 export interface NextPlanChange {
   id: string;
-  kind: "goal" | "days" | "minutes" | "equipment" | "fatigue" | "gym";
+  kind: "match" | "goal" | "days" | "minutes" | "equipment" | "fatigue" | "gym";
   source: "answer" | "note";
   /** What the athlete sees and confirms. */
   text: string;
@@ -164,6 +170,25 @@ export function draftNextPlan(
     changes.push(change);
     if (confirmed.has(change.id)) apply();
   };
+
+  // The match of the coming week is asked every time; the answer always replaces the saved one.
+  if (answers.match.answered) {
+    const date = answers.match.date;
+    add(
+      {
+        id: "match",
+        kind: "match",
+        source: "answer",
+        text: date
+          ? `Mecz w kolejnym tygodniu: ${new Date(`${date}T12:00:00Z`).toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })}.`
+          : "Brak meczu w kolejnym tygodniu.",
+        defaultConfirmed: true,
+      },
+      () => {
+        next = { ...next, matchDate: date, matchDates: date ? [date] : [] };
+      },
+    );
+  }
 
   if (answers.goal && answers.goal !== profile.goal)
     add(

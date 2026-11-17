@@ -36,6 +36,12 @@ import {
 import { planUnavailableForAge } from "@/lib/loadwise/agePolicy";
 import "@/styles/ballwise-plan.css";
 
+/** "1 tydzień", "2 tygodnie": the length of the plan shown. */
+function planLength(days: number): string {
+  const weeks = Math.max(1, Math.round(days / 7));
+  return weeks === 1 ? "1 tydzień" : `${weeks} tygodnie`;
+}
+
 /** Preview, explicit activation and execution of the versioned training plan. */
 export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}) {
   const gymEvidence = useGymEvidence();
@@ -136,7 +142,21 @@ export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}
         ? cycleStartRecord(summary.review, state.plan[0]?.cycleId ?? null)
         : null;
       const gymContext = gymPlanContext(gymEvidence.records);
+      // Plans are made one week at a time, after the match of that week is confirmed. Updating a
+      // plan that is still running keeps its remaining length.
+      const lastDay = state.plan.length ? effectivePlan.at(-1)?.date : undefined;
+      const remainingWeeks =
+        status.kind !== "expired" && lastDay
+          ? Math.max(
+              1,
+              Math.min(
+                4,
+                Math.ceil((Date.parse(lastDay) - Date.parse(todayIso)) / 86400000 / 7 + 1 / 7),
+              ),
+            )
+          : 1;
       const generated = generateTrainingPlan(state.profile, {
+        weeks: remainingWeeks,
         cycleStart: record,
         startDate: todayIso,
         previousPlan: state.plan,
@@ -299,6 +319,12 @@ export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}
         ? "Plan wymaga odświeżenia"
         : "Zapisany plan";
   const startRebuild = () => {
+    // A finished plan is followed by the question about the next match, asked in Progress.
+    if (status.kind === "expired") {
+      setSettingsOpen(false);
+      void navigate({ to: "/postep" });
+      return;
+    }
     setRebuild(true);
     setSettingsOpen(false);
   };
@@ -341,7 +367,7 @@ export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}
         {preview?.result ? (
           <section className="bw-plan-card bw-plan-preview bw-plan-preview--compact">
             <header className="bw-plan-preview-head">
-              <h2>Twój plan · 4 tygodnie</h2>
+              <h2>Twój plan · {planLength(plan.length)}</h2>
               <span>Podgląd</span>
             </header>
             <p className="bw-plan-preview-meta">
@@ -411,7 +437,7 @@ export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}
             {!preview?.result && status.kind === "expired" ? (
               <p>
                 Cykl zakończony{status.endDate ? ` · ${plDate(status.endDate, true)}` : ""}.
-                Przygotuj kolejne 4 tygodnie.
+                Przygotuj kolejny tydzień: najpierw potwierdź datę meczu w Postępie.
               </p>
             ) : null}
             {!preview?.result && status.kind === "stale" ? (

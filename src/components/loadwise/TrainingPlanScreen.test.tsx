@@ -52,17 +52,17 @@ afterEach(async () => {
   host.remove();
   vi.unstubAllGlobals();
 });
-it("shows the four-week preview and only saves after an explicit click", async () => {
+it("shows the one-week preview and only saves after an explicit click", async () => {
   await act(async () => root.render(<PlanScreen />));
   expect(mock.activate).not.toHaveBeenCalled();
-  expect(host.textContent).toContain("4 tygodnie");
-  expect(host.textContent).toContain("29 listopada");
+  expect(host.textContent).toContain("Twój plan · 1 tydzień");
+  expect(host.textContent).toContain("8 listopada");
   const save = [...host.querySelectorAll("button")].find((b) =>
     b.textContent?.startsWith("Zapisz plan"),
   )!;
   await act(async () => save.click());
   expect(mock.activate).toHaveBeenCalledOnce();
-  expect(mock.activate.mock.calls[0][0].plan).toHaveLength(28);
+  expect(mock.activate.mock.calls[0][0].plan).toHaveLength(7);
 });
 it("keeps the preview and explains a failed write instead of claiming success", async () => {
   mock.activate.mockRejectedValueOnce(new Error("Brak połączenia"));
@@ -289,15 +289,16 @@ it("recognizes an expired cycle and prepares today's next window only on request
   mock.store.state = { ...state, activePlanId: "old-cycle", plan: old };
   await act(async () => root.render(<PlanScreen />));
   expect(host.textContent).toContain("Cykl zakończony");
-  expect(host.textContent).not.toContain("Twój plan · 4 tygodnie");
+  expect(host.textContent).not.toContain("Twój plan · 1 tydzień");
   expect(mock.activate).not.toHaveBeenCalled();
+  // The next week is never prepared here: the question about its match comes first (Progress).
   await act(async () =>
     [...host.querySelectorAll("button")]
       .find((b) => b.textContent === "Przygotuj kolejny plan")!
       .click(),
   );
-  expect(host.textContent).toContain("Nowy plan rozpoczyna się 2 listopada");
-  expect(host.textContent).toContain("29 listopada");
+  expect(mock.navigate).toHaveBeenCalledWith({ to: "/postep" });
+  expect(host.textContent).not.toContain("Twój plan · 1 tydzień");
   expect((mock.store.state as LoadwiseState).plan).toBe(old);
   expect(mock.activate).not.toHaveBeenCalled();
 });
@@ -311,13 +312,13 @@ it("offers an explicit profile update and lets the player return to the saved sn
   await act(async () =>
     [...host.querySelectorAll("button")].find((b) => b.textContent === "Zaktualizuj plan")!.click(),
   );
-  expect(host.textContent).toContain("Twój plan · 4 tygodnie");
+  expect(host.textContent).toContain("Twój plan · 1 tydzień");
   await act(async () =>
     [...host.querySelectorAll("button")]
       .find((b) => b.textContent === "Wróć do zapisanego planu")!
       .click(),
   );
-  expect(host.textContent).not.toContain("Twój plan · 4 tygodnie");
+  expect(host.textContent).not.toContain("Twój plan · 1 tydzień");
   expect((mock.store.state as LoadwiseState).plan).toBe(saved);
   expect(mock.activate).not.toHaveBeenCalled();
 });
@@ -377,7 +378,7 @@ it("prepares the next preview from the confirmed choices, continues the cycle an
   );
   await act(async () => root.render(<PlanScreen />));
   // The preview opens by itself, with the chosen budget, and nothing is saved yet.
-  expect(host.textContent).toContain("Twój plan · 4 tygodnie");
+  expect(host.textContent).toContain("Twój plan · 1 tydzień");
   expect(
     host.querySelector<HTMLSelectElement>('select[aria-label="Czas na jednostkę"]')!.value,
   ).toBe("45");
@@ -413,7 +414,7 @@ it("ignores confirmed choices that belong to another saved plan", async () => {
     JSON.stringify({ planId: "some-other-plan", minutes: 30, createdAt: "2026-11-02T08:00:00Z" }),
   );
   await act(async () => root.render(<PlanScreen />));
-  expect(host.textContent).not.toContain("Twój plan · 4 tygodnie");
+  expect(host.textContent).not.toContain("Twój plan · 1 tydzień");
   expect(host.textContent).toContain("Cykl zakończony");
 });
 
@@ -432,7 +433,7 @@ it("'Wróć do zapisanego planu' drops the confirmed choices instead of reopenin
       .find((b) => b.textContent === "Wróć do zapisanego planu")!
       .click(),
   );
-  expect(host.textContent).not.toContain("Twój plan · 4 tygodnie");
+  expect(host.textContent).not.toContain("Twój plan · 1 tydzień");
   expect(localStorage.getItem(key)).toBe("null");
 });
 
