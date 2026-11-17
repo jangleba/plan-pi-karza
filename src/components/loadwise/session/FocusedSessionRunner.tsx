@@ -836,7 +836,9 @@ function ExerciseView({
       {showHead && (
         <header className="bw-unit-exercise-head">
           <p className="bw-runner-eyebrow">
-            {first.exercise.engineDose?.circuit ? first.exercise.label : sectionLabel(step.section)}
+            {first.exercise.engineDose?.circuit
+              ? `${first.exercise.engineDose.speedStage === "technical" ? "Technika biegu · " : ""}${first.exercise.label}`
+              : sectionLabel(step.section)}
             {method && ` · ${method.name}`}
           </p>
           <h2>

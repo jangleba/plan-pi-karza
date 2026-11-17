@@ -129,13 +129,40 @@ export function sessionStartIssue({
   if (ageBlock) return ageBlock;
   if (profile.painInjury || profile.seasonPhase === "return_injury")
     return "Automatyczny trening własny jest wstrzymany przy zgłoszonym bólu lub powrocie po urazie.";
+  // A health stop is not solved by a new plan: the session simply must not start.
+  if (profile.healthPersonalizationEnabled && readiness && hasReadinessStop(readiness))
+    return "Bieżący check-in wstrzymuje trening własny. Nie rozpoczynaj tej sesji.";
+  return sessionPlanUpdateReason({ session, profile, readiness, minutesPerSession });
+}
+
+/**
+ * A new start is not possible only because the saved plan is out of date: an older generator, a
+ * changed profile or equipment setup, a check-in that asks for a lighter plan, or a recipe the
+ * current rules no longer accept. The answer is the preview and activation of an updated plan
+ * (never a Start that is known to fail). Null when the session can start as it is.
+ */
+export function sessionPlanUpdateReason({
+  session,
+  profile,
+  readiness,
+  minutesPerSession,
+}: {
+  session: SessionDay;
+  profile: Profile | null;
+  readiness?: Readiness;
+  minutesPerSession?: number;
+}): string | null {
+  if (!ownPrescription(session) || !profile) return null;
+  if (planUnavailableForAge(profile)) return null;
+  if (profile.painInjury || profile.seasonPhase === "return_injury") return null;
+  if (session.isUnavailable || session.dayType === "rest") return null;
+  if (session.loadLabelOverride === "Wstrzymaj trening") return null;
   if (session.generatorVersion !== ENGINE_VERSION)
     return "Plan korzysta ze starszej wersji silnika. Przygotuj aktualny plan.";
   if (setupChanged(session, profile))
     return "Profil zmienił się. Przygotuj aktualny plan przed rozpoczęciem nowej sesji.";
   if (profile.healthPersonalizationEnabled && readiness) {
-    if (hasReadinessStop(readiness))
-      return "Bieżący check-in wstrzymuje trening własny. Nie rozpoczynaj tej sesji.";
+    if (hasReadinessStop(readiness)) return null;
     const supportOnly = session.engineV2?.roles.every((r) =>
       ["activation", "recovery", "mobility", "skills"].includes(r),
     );

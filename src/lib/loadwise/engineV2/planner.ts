@@ -1493,6 +1493,7 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
       issues.push({
         code: "UNMET_REST_TARGET",
         date: base[0].date,
+        cause: "calendar",
         message: `Tydzień ${week + 1}: pozostało ${fullRestCount(best)} z ${minFullRestDays} pełnych dni odpoczynku. Kalendarz klubowy, mecze lub zachowane wykonania zajmują pozostałe dni.`,
       });
     if (options.weeklyTargets) {

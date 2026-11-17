@@ -9,6 +9,9 @@ import {
 import type { PainLocation, Readiness } from "@/lib/loadwise/types";
 import { trainingStorageKey } from "@/lib/loadwise/trainingDetails";
 import { useTrainingLocalState } from "@/lib/loadwise/useTrainingLocalState";
+import { readinessImpact } from "@/lib/loadwise/readinessImpact";
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import type { SessionDay } from "@/lib/loadwise/types";
 import "./daily-readiness.css";
 
 interface DailyReadinessProps {
@@ -16,6 +19,8 @@ interface DailyReadinessProps {
   todayIso: string;
   enabled: boolean;
   value?: Readiness;
+  /** Today's own session, to show the real effect of the answers on it. */
+  todaySession?: SessionDay | null;
   onSave: (value: Readiness) => Promise<void>;
   onManageConsent: () => void;
 }
@@ -72,7 +77,7 @@ export function DailyReadinessCard(props: DailyReadinessProps) {
   return <ReadinessEditor key={`${props.ownerId}:${props.todayIso}`} {...props} />;
 }
 
-function ReadinessEditor({ ownerId, todayIso, value, onSave }: DailyReadinessProps) {
+function ReadinessEditor({ ownerId, todayIso, value, todaySession, onSave }: DailyReadinessProps) {
   const skipped = useTrainingLocalState(
     trainingStorageKey("readiness-skip", ownerId, todayIso),
     false,
@@ -94,6 +99,16 @@ function ReadinessEditor({ ownerId, todayIso, value, onSave }: DailyReadinessPro
       mounted.current = false;
     };
   }, []);
+  function setScale(key: Scale, next: number) {
+    setDraft((previous) => {
+      const updated = { ...previous, [key]: next };
+      // Pain details belong only to a reported pain; clear them with the form state, so a
+      // hidden answer cannot change the saved score later.
+      return key === "jointPain" && next === 0
+        ? { ...updated, painLocation: "" as const, painOnset: "" as const, altersMovement: false }
+        : updated;
+    });
+  }
   const complete =
     SCALES.every(({ key }) => draft[key] !== null) &&
     (!(draft.jointPain && draft.jointPain > 0) || draft.painLocation !== "");
@@ -132,225 +147,207 @@ function ReadinessEditor({ ownerId, todayIso, value, onSave }: DailyReadinessPro
       if (mounted.current) setSaving(false);
     }
   }
+  const impact = saved ? readinessImpact(saved, todaySession) : null;
+  const close = () => {
+    if (saving) return;
+    if (!saved) skipped.setValue(true);
+    setEditing(false);
+    setDraft(draftFrom(saved));
+    setError(null);
+  };
   return (
-    <section className="bw-readiness-card" aria-label="Dzisiejszy check-in">
-      <header>
-        <h2>Jak się dziś czujesz?</h2>
-        <span>Opcjonalnie</span>
-      </header>
-      <p>Zapis dotyczy dzisiaj. Nie zmienia automatycznie planu.</p>
-      {!editing ? (
-        <>
-          {saved ? (
-            <>
-              <p className="bw-readiness-saved" role="status">
-                Dzisiejszy check-in zapisany
-              </p>
-              <dl className="bw-readiness-summary">
-                {SCALES.map(({ key, label }) => (
-                  <div key={key}>
-                    <dt>{label}</dt>
-                    <dd>{saved[key]}/10</dd>
-                  </div>
-                ))}
-                {saved.jointPain > 0 && (
-                  <div>
-                    <dt>Miejsce bólu</dt>
-                    <dd>
-                      {PAIN_LOCATION_OPTIONS.find((option) => option.value === saved.painLocation)
-                        ?.label ?? "Inny obszar"}
-                    </dd>
-                  </div>
-                )}
-              </dl>
-              {hasMedicalRedFlag(saved) ? (
-                <p className="bw-readiness-warning" role="alert">
-                  Nie rozpoczynaj treningu. Zgłoszone objawy wymagają pilnego kontaktu z lekarzem. W
-                  nagłym zagrożeniu zadzwoń pod 112.
-                </p>
-              ) : saved.jointPain > 0 || saved.altersMovement ? (
-                <p className="bw-readiness-warning" role="status">
-                  Zgłoszony ból wstrzymuje nowy trening własny. Nie wykonuj ruchu, który nasila ból.
-                </p>
-              ) : saved.overall <= 4 ? (
-                <p className="bw-readiness-warning" role="status">
-                  Dzisiejsze odpowiedzi wskazują potrzebę lżejszego treningu. Sprawdź plan przed
-                  rozpoczęciem sesji.
-                </p>
-              ) : null}
-            </>
-          ) : skipped.value ? (
-            <p>Check-in pominięty na dziś. Możesz do niego wrócić.</p>
-          ) : (
-            <p>Krótki check-in snu, zmęczenia i bólu. Możesz też przejść od razu do sesji.</p>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              setDraft(draftFrom(saved));
-              setError(null);
-              setEditing(true);
-            }}
-          >
-            {saved ? "Edytuj check-in" : "Wypełnij check-in"}
-          </button>
-          {!saved && !skipped.value && (
-            <button type="button" onClick={() => skipped.setValue(true)}>
-              Pomiń na dziś
-            </button>
-          )}
-        </>
-      ) : (
-        <form
-          onSubmit={(event) => void save(event)}
-          aria-label="Check-in samopoczucia"
-          aria-busy={saving}
+    <section className="bw-readiness-card" aria-label="Dzisiejszy check-in" data-compact>
+      <div className="bw-readiness-row">
+        <div>
+          <h2>Samopoczucie</h2>
+          <p>Krótki check-in przed treningiem</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setDraft(draftFrom(saved));
+            setError(null);
+            setEditing(true);
+          }}
         >
-          <fieldset disabled={saving}>
-            <legend className="sr-only">Dzisiejsze samopoczucie</legend>
-            {SCALES.map(({ key, label, hint, min }) => (
-              <label className="bw-readiness-scale" key={key}>
-                <span>
-                  {label}
-                  <small>{hint}</small>
-                </span>
-                <select
-                  aria-label={label}
-                  required
-                  value={draft[key] ?? ""}
-                  onChange={(event) =>
-                    setDraft((previous) => {
-                      const next = event.target.value === "" ? null : Number(event.target.value);
-                      const updated = { ...previous, [key]: next };
-                      // Pain details belong only to a reported pain; clear them with the form
-                      // state, so a hidden answer cannot change the saved score later.
-                      return key === "jointPain" && next === 0
-                        ? { ...updated, painLocation: "", painOnset: "", altersMovement: false }
-                        : updated;
-                    })
-                  }
-                >
-                  <option value="" disabled>
-                    Wybierz
-                  </option>
-                  {Array.from({ length: 11 - min }, (_, index) => min + index).map((number) => (
-                    <option value={number} key={number}>
-                      {number}
-                    </option>
-                  ))}
-                </select>
-              </label>
+          {saved ? "Edytuj" : "Uzupełnij"}
+        </button>
+      </div>
+      {saved && impact ? (
+        <div className="bw-readiness-result" data-kind={impact.kind}>
+          <p className="bw-readiness-saved" role="status">
+            Check-in zapisany
+          </p>
+          <dl className="bw-readiness-summary">
+            {SCALES.map(({ key, label }) => (
+              <div key={key}>
+                <dt>{label}</dt>
+                <dd>{saved[key]}/10</dd>
+              </div>
             ))}
-            {draft.jointPain !== null && draft.jointPain > 0 && (
-              <div className="bw-readiness-pain">
-                <label>
-                  Miejsce bólu
-                  <select
-                    aria-label="Miejsce bólu"
-                    required
-                    value={draft.painLocation}
-                    onChange={(event) =>
-                      setDraft((previous) => ({
-                        ...previous,
-                        painLocation: event.target.value as PainLocation,
-                      }))
-                    }
-                  >
-                    <option value="" disabled>
-                      Wybierz miejsce
-                    </option>
-                    {PAIN_LOCATION_OPTIONS.map((option) => (
-                      <option value={option.value} key={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Od kiedy czujesz ból?
-                  <select
-                    aria-label="Od kiedy czujesz ból?"
-                    value={draft.painOnset}
-                    onChange={(event) =>
-                      setDraft((previous) => ({
-                        ...previous,
-                        painOnset: event.target.value as Draft["painOnset"],
-                      }))
-                    }
-                  >
-                    <option value="">Nie wiem / nie podaję</option>
-                    <option value="today">Od dzisiaj</option>
-                    <option value="1_7_days">Od 1–7 dni</option>
-                    <option value="over_7_days">Ponad 7 dni</option>
-                  </select>
-                </label>
-                <label className="bw-readiness-check">
-                  <input
-                    type="checkbox"
-                    checked={draft.altersMovement}
-                    onChange={(event) =>
-                      setDraft((previous) => ({
-                        ...previous,
-                        altersMovement: event.target.checked,
-                      }))
-                    }
-                  />
-                  Ból zmienia mój ruch
-                </label>
+            {saved.jointPain > 0 && (
+              <div>
+                <dt>Miejsce bólu</dt>
+                <dd>
+                  {PAIN_LOCATION_OPTIONS.find((option) => option.value === saved.painLocation)
+                    ?.label ?? "Inny obszar"}
+                </dd>
               </div>
             )}
-            <details className="bw-readiness-symptoms">
-              <summary>Objawy alarmowe, jeśli występują</summary>
-              <p>Zaznacz objawy niezależnie od odpowiedzi o bólu stawów.</p>
-              {READINESS_RED_FLAG_OPTIONS.map(({ value: flag, label }) => (
-                <label className="bw-readiness-check" key={flag}>
-                  <input
-                    type="checkbox"
-                    checked={draft.redFlags.includes(flag)}
-                    onChange={(event) =>
-                      setDraft((previous) => ({
-                        ...previous,
-                        redFlags: event.target.checked
-                          ? [...previous.redFlags, flag]
-                          : previous.redFlags.filter((item) => item !== flag),
-                      }))
-                    }
-                  />
-                  {label}
-                </label>
+          </dl>
+          <p
+            className={impact.kind === "none" ? undefined : "bw-readiness-warning"}
+            role={impact.kind === "stop" ? "alert" : "status"}
+            aria-label="Wpływ na dzisiejszy trening"
+          >
+            {impact.text}
+          </p>
+        </div>
+      ) : skipped.value ? (
+        <p>Check-in pominięty na dziś. Możesz do niego wrócić.</p>
+      ) : null}
+      <Drawer
+        open={editing}
+        onOpenChange={(open) => {
+          if (!open) close();
+        }}
+        initialDetent="large"
+      >
+        <DrawerContent aria-describedby={undefined} className="bw-readiness-sheet">
+          <DrawerTitle>Samopoczucie</DrawerTitle>
+          <form
+            onSubmit={(event) => void save(event)}
+            aria-label="Check-in samopoczucia"
+            aria-busy={saving}
+            className="bw-readiness-card"
+          >
+            <p>Zapis dotyczy dzisiaj. Nie zmienia planu poza pokazanym wpływem po zapisie.</p>
+            <fieldset disabled={saving}>
+              <legend className="sr-only">Dzisiejsze samopoczucie</legend>
+              {SCALES.map(({ key, label, hint, min }) => (
+                <fieldset className="bw-scale" key={key} aria-label={label}>
+                  <legend>
+                    {label}
+                    <small>{hint}</small>
+                  </legend>
+                  <div className="bw-scale-options" data-count={11 - min}>
+                    {Array.from({ length: 11 - min }, (_, index) => min + index).map((number) => (
+                      <label key={number}>
+                        <input
+                          type="radio"
+                          name={`readiness-${key}`}
+                          value={number}
+                          checked={draft[key] === number}
+                          onChange={() => setScale(key, number)}
+                        />
+                        <span>{number}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
               ))}
-            </details>
-            {hasMedicalRedFlag(draft) && (
+              {draft.jointPain !== null && draft.jointPain > 0 && (
+                <div className="bw-readiness-pain">
+                  <label>
+                    Miejsce bólu
+                    <select
+                      aria-label="Miejsce bólu"
+                      required
+                      value={draft.painLocation}
+                      onChange={(event) =>
+                        setDraft((previous) => ({
+                          ...previous,
+                          painLocation: event.target.value as PainLocation,
+                        }))
+                      }
+                    >
+                      <option value="" disabled>
+                        Wybierz miejsce
+                      </option>
+                      {PAIN_LOCATION_OPTIONS.map((option) => (
+                        <option value={option.value} key={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Od kiedy czujesz ból?
+                    <select
+                      aria-label="Od kiedy czujesz ból?"
+                      value={draft.painOnset}
+                      onChange={(event) =>
+                        setDraft((previous) => ({
+                          ...previous,
+                          painOnset: event.target.value as Draft["painOnset"],
+                        }))
+                      }
+                    >
+                      <option value="">Nie wiem / nie podaję</option>
+                      <option value="today">Od dzisiaj</option>
+                      <option value="1_7_days">Od 1–7 dni</option>
+                      <option value="over_7_days">Ponad 7 dni</option>
+                    </select>
+                  </label>
+                  <label className="bw-readiness-check">
+                    <input
+                      type="checkbox"
+                      checked={draft.altersMovement}
+                      onChange={(event) =>
+                        setDraft((previous) => ({
+                          ...previous,
+                          altersMovement: event.target.checked,
+                        }))
+                      }
+                    />
+                    Ból zmienia mój ruch
+                  </label>
+                </div>
+              )}
+              <details className="bw-readiness-symptoms">
+                <summary>Objawy alarmowe, jeśli występują</summary>
+                <p>Zaznacz objawy niezależnie od odpowiedzi o bólu stawów.</p>
+                {READINESS_RED_FLAG_OPTIONS.map(({ value: flag, label }) => (
+                  <label className="bw-readiness-check" key={flag}>
+                    <input
+                      type="checkbox"
+                      checked={draft.redFlags.includes(flag)}
+                      onChange={(event) =>
+                        setDraft((previous) => ({
+                          ...previous,
+                          redFlags: event.target.checked
+                            ? [...previous.redFlags, flag]
+                            : previous.redFlags.filter((item) => item !== flag),
+                        }))
+                      }
+                    />
+                    {label}
+                  </label>
+                ))}
+              </details>
+              {hasMedicalRedFlag(draft) && (
+                <p className="bw-readiness-warning" role="alert">
+                  Nie rozpoczynaj treningu. Skontaktuj się pilnie z lekarzem; w nagłym zagrożeniu
+                  zadzwoń pod 112.
+                </p>
+              )}
+            </fieldset>
+            {error && (
               <p className="bw-readiness-warning" role="alert">
-                Nie rozpoczynaj treningu. Skontaktuj się pilnie z lekarzem; w nagłym zagrożeniu
-                zadzwoń pod 112.
+                {error}
               </p>
             )}
-          </fieldset>
-          {error && (
-            <p className="bw-readiness-warning" role="alert">
-              {error}
-            </p>
-          )}
-          <div className="bw-readiness-actions">
-            <button type="submit" disabled={!complete || saving}>
-              {saving ? "Zapisywanie…" : "Zapisz check-in"}
-            </button>
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => {
-                if (!saved) skipped.setValue(true);
-                setEditing(false);
-                setDraft(draftFrom(saved));
-                setError(null);
-              }}
-            >
-              {saved ? "Anuluj" : "Pomiń na dziś"}
-            </button>
-          </div>
-        </form>
-      )}
+            <div className="bw-readiness-actions">
+              <button type="submit" disabled={!complete || saving}>
+                {saving ? "Zapisywanie…" : "Zapisz check-in"}
+              </button>
+              <button type="button" disabled={saving} onClick={close}>
+                {saved ? "Anuluj" : "Pomiń na dziś"}
+              </button>
+            </div>
+          </form>
+        </DrawerContent>
+      </Drawer>
     </section>
   );
 }

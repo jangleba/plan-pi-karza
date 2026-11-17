@@ -54,15 +54,24 @@ vi.mock("./FocusedSessionRunner", () => ({
   },
 }));
 vi.mock("@/components/running/RunClock", () => ({
-  RunClock: (props: { session: SessionDay }) => {
+  RunClock: (props: { session: SessionDay; onBeforeStart?: () => Promise<boolean> }) => {
     mocks.clock(props);
-    return <div data-run-clock>{JSON.stringify(deriveRunningIntervalProtocol(props.session))}</div>;
+    return (
+      <div data-run-clock>
+        {JSON.stringify(deriveRunningIntervalProtocol(props.session))}
+        <button onClick={() => void props.onBeforeStart?.()}>Start licznika</button>
+      </div>
+    );
   },
 }));
 vi.mock("@/components/running/EnduranceRunTracker", () => ({
-  EnduranceRunTracker: (props: { session: SessionDay }) => {
+  EnduranceRunTracker: (props: { session: SessionDay; onBeforeStart?: () => Promise<boolean> }) => {
     mocks.gps(props);
-    return <div data-gps-counter />;
+    return (
+      <div data-gps-counter>
+        <button onClick={() => void props.onBeforeStart?.()}>Start</button>
+      </div>
+    );
   },
 }));
 vi.mock("@/components/loadwise/preparation/PreparationGuide", () => ({
@@ -259,6 +268,15 @@ describe("saved engine session execution", () => {
       await render(session);
       expect(mocks.runner.mock.lastCall?.[0].sections).toEqual(saved.structuredSections);
       expect(mocks.recovery).not.toHaveBeenCalled();
+      // The edited setup no longer matches the saved plan: a new start is not offered (it would be
+      // refused); the update path is. The saved prescription itself stays untouched.
+      expect(
+        [...host.querySelectorAll("button")].some((b) => b.textContent === "Start zapisanej sesji"),
+      ).toBe(false);
+      expect(host.textContent).toContain("Zaktualizuj plan");
+      // With the setup the plan was made for, the same saved prescription starts unchanged.
+      mocks.state = { ...mocks.state, profile: p };
+      await render(session);
       const start = host.querySelector<HTMLButtonElement>("[data-saved-runner] button")!;
       expect(start).not.toBeNull();
       await act(async () => start.click());
@@ -343,7 +361,7 @@ describe("saved engine session execution", () => {
   );
 
   it.each(["gps", "timer"] as const)(
-    "chooses %s before starting without mounting a recorder and retains the plan after activation",
+    "shows the %s run view before starting; one Start starts the session and keeps the plan",
     async (mode) => {
       const p = { ...profile, goal: "endurance" as const };
       const session = generated(p, "endurance");
@@ -356,15 +374,19 @@ describe("saved engine session execution", () => {
       expect(choice).toBeDefined();
       await act(async () => choice.click());
       expect(choice.getAttribute("aria-pressed")).toBe("true");
-      expect(mocks.gps).not.toHaveBeenCalled();
-      expect(mocks.clock).not.toHaveBeenCalled();
+      // The map / prepared counter is mounted at once; opening it starts nothing.
+      expect(mode === "gps" ? mocks.gps : mocks.clock).toHaveBeenCalled();
       expect(mocks.start).not.toHaveBeenCalled();
       expect(host.querySelector('[aria-label="Rozgrzewka i zakończenie"]')).toBeNull();
+      // No separate "Rozpocznij bieg" step before the counter.
+      expect(
+        [...host.querySelectorAll("button")].some((b) => b.textContent === "Rozpocznij bieg"),
+      ).toBe(false);
 
-      const start = [...host.querySelectorAll("button")].find(
-        (button) => button.textContent === "Rozpocznij bieg",
+      const startButton = [...host.querySelectorAll("button")].find(
+        (b) => b.textContent === (mode === "gps" ? "Start" : "Start licznika"),
       )!;
-      await act(async () => start.click());
+      await act(async () => startButton.click());
       expect(mocks.start).toHaveBeenCalledOnce();
       mocks.state.completions[session.dbId!] = {
         status: "started",
@@ -372,11 +394,23 @@ describe("saved engine session execution", () => {
         executionSnapshot: session,
       } as LoadwiseState["completions"][string];
       await render(session);
-      expect(mode === "gps" ? mocks.gps : mocks.clock).toHaveBeenCalled();
-      expect(mode === "gps" ? mocks.clock : mocks.gps).not.toHaveBeenCalled();
       expect(host.querySelector('[aria-label="Plan biegu"]')!.textContent).toBe(preview);
       expect(host.querySelectorAll(".bw-run-setup")).toHaveLength(1);
       expect(host.querySelector('[aria-label="Rozgrzewka i zakończenie"]')).toBeNull();
     },
   );
+
+  it("shows the run view of another day as a preview without a start", async () => {
+    const p = { ...profile, goal: "endurance" as const };
+    const session = generated(p, "endurance");
+    const other = { ...session, date: "2026-12-30" };
+    setSession(other, p);
+    mocks.today = "2026-12-29";
+    await render(other);
+    expect(mocks.gps).toHaveBeenCalled();
+    const props = mocks.gps.mock.lastCall?.[0];
+    expect(props.canRecord).toBe(false);
+    expect(props.previewNote).toMatch(/dniu treningu/);
+    expect(mocks.start).not.toHaveBeenCalled();
+  });
 });

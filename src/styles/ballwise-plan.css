@@ -778,3 +778,42 @@
   align-items: center;
   gap: 4px 8px;
 }
+
+/* Ograniczenia planu pogrupowane według przyczyny. */
+.bw-plan-limits {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bw-plan-limits > li {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--accent);
+}
+.bw-plan-limits > li[data-cause="preparation"],
+.bw-plan-limits > li[data-cause="recipe"] {
+  background: var(--muted);
+}
+.bw-plan-limits h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.bw-plan-limits p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.bw-plan-limits-touched,
+.bw-plan-limits-action {
+  color: var(--bw-muted-on-tint);
+}
+.bw-plan-limits summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}

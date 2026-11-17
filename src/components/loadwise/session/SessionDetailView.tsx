@@ -1,5 +1,6 @@
 import { FocusedSessionRunner } from "@/components/loadwise/session/FocusedSessionRunner";
 import { RunClock } from "@/components/running/RunClock";
+import { SprintVariantNote } from "./SprintVariantNote";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import "@/components/loadwise/session/session-focus.css";
 import { MethodExecutionCoach } from "@/components/loadwise/session/MethodExecutionCoach";
@@ -40,6 +41,7 @@ import {
 } from "@/lib/loadwise/preparation/protocols";
 import {
   MISSED_SESSION_NOTE,
+  PlanUpdateNotice,
   SessionStartPanel,
   useSessionStart,
 } from "@/components/loadwise/session/SessionStartPanel";
@@ -341,6 +343,7 @@ export function SessionDetailView({
         {shortNote && (session.loadLabelOverride || isClub) && (
           <div className="bw-session-notice">{shortNote}</div>
         )}
+        {sprintRunner && <SprintVariantNote session={displayedSession} />}
         {equipmentNotice && (
           <div className="soft-card px-4 py-3 text-sm text-muted-foreground">
             <p>{equipmentNotice}</p>
@@ -355,11 +358,12 @@ export function SessionDetailView({
         {session.dayType === "match" ? (
           <MatchStartPanel session={session} isToday={isToday} />
         ) : (
-          !usesRunner && (
+          !usesRunner &&
+          !trackableEndurance && (
             <SessionStartPanel
               session={displayedSession}
               canStart={isToday}
-              label={enduranceSession ? "Rozpocznij bieg" : "Rozpocznij sesję"}
+              label="Rozpocznij sesję"
             />
           )
         )}
@@ -405,41 +409,31 @@ export function SessionDetailView({
           {enduranceSession && session.classification?.subcategory !== "field_mas_test" && (
             <RunModePicker mode={runMode} busy={runBusy} onChange={setRunMode} />
           )}
-          {enduranceSession && !hasStarted && <RunPlanPreview session={displayedSession} />}
           {trackableEndurance &&
             session.dbId &&
-            hasStarted &&
             session.loadLabelOverride !== "Wstrzymaj trening" && (
-              <>
-                {runMode === "timer" && session.classification?.subcategory !== "field_mas_test" ? (
-                  <RunClock
-                    key={`${user.id}:${session.dbId}`}
-                    session={displayedSession}
-                    enabled={canExecute && !completion?.completed}
-                    onBusy={setRunBusy}
-                    onFinish={(seconds) => {
-                      setClockDuration(seconds / 60);
-                      setFinishOpen(true);
-                    }}
-                  />
-                ) : (
-                  <EnduranceRunTracker
-                    key={`${user.id}:${session.dbId}`}
-                    ownerId={user.id}
-                    session={displayedSession}
-                    sessionId={session.dbId}
-                    date={session.date}
-                    canRecord={canExecute && !completion?.completed}
-                    activity={state.runningActivities[session.dbId] ?? null}
-                    onSave={saveRunningActivity}
-                    onDelete={deleteRunningActivity}
-                    onRecordingChange={setRunBusy}
-                    onFinish={() => setFinishOpen(true)}
-                  />
-                )}
-              </>
+              <EnduranceRunPanel
+                key={`${user.id}:${session.dbId}`}
+                ownerId={user.id}
+                session={session}
+                displayedSession={displayedSession}
+                isToday={isToday}
+                hasStarted={hasStarted}
+                canExecute={canExecute}
+                completed={!!completion?.completed}
+                mode={runMode}
+                activity={state.runningActivities[session.dbId] ?? null}
+                onBusy={setRunBusy}
+                onSave={saveRunningActivity}
+                onDelete={deleteRunningActivity}
+                onClockFinish={(seconds) => {
+                  setClockDuration(seconds / 60);
+                  setFinishOpen(true);
+                }}
+                onTrackerFinish={() => setFinishOpen(true)}
+              />
             )}
-          {enduranceSession && hasStarted && <RunPlanPreview session={displayedSession} />}
+          {enduranceSession && <RunPlanPreview session={displayedSession} />}
           {enduranceSession && (enduranceWarmup.length > 0 || enduranceCooldown.length > 0) && (
             <section className="bw-unit-part" aria-label="Rozgrzewka i zakończenie">
               <h2 className="bw-unit-part-title">Rozgrzewka i zakończenie</h2>
@@ -679,33 +673,128 @@ function SessionRunner({
 }) {
   const start = useSessionStart(session, isToday);
   return (
-    <FocusedSessionRunner
-      sections={sections}
-      sessionId={session.dbId}
-      date={session.date}
-      kind={kind}
-      canRecord={canRecord}
-      onFinish={onFinish}
-      start={
-        start.availability === "start"
-          ? {
-              label: startLabel,
-              busy: start.busy,
-              error: start.error,
-              checkIn: start.checkIn,
-              onStart: () => void start.start(),
-            }
-          : null
-      }
-      previewNote={
-        start.availability === "missed"
-          ? MISSED_SESSION_NOTE
-          : start.availability === "other-day"
-            ? `Podgląd sesji: ${formatDateFull(session.date).toLocaleLowerCase("pl-PL")}. Start i zapis wykonania są dostępne w dniu treningu.`
-            : completed
-              ? "Sesja zakończona. Oznaczenia poniżej są tylko do wglądu."
-              : null
-      }
-    />
+    <>
+      {start.availability === "update" && <PlanUpdateNotice reason={start.updateReason} />}
+      <FocusedSessionRunner
+        sections={sections}
+        sessionId={session.dbId}
+        date={session.date}
+        kind={kind}
+        canRecord={canRecord}
+        onFinish={onFinish}
+        start={
+          start.availability === "start"
+            ? {
+                label: startLabel,
+                busy: start.busy,
+                error: start.error,
+                checkIn: start.checkIn,
+                onStart: () => void start.start(),
+              }
+            : null
+        }
+        previewNote={
+          start.availability === "missed"
+            ? MISSED_SESSION_NOTE
+            : start.availability === "other-day"
+              ? `Podgląd sesji: ${formatDateFull(session.date).toLocaleLowerCase("pl-PL")}. Start i zapis wykonania są dostępne w dniu treningu.`
+              : completed
+                ? "Sesja zakończona. Oznaczenia poniżej są tylko do wglądu."
+                : null
+        }
+      />
+    </>
+  );
+}
+
+/**
+ * Run measurement before and after the session starts. The map and the prepared counter are
+ * visible at once; one "Start" starts the session, then the measurement and the guidance.
+ * Another day's session shows the same map and planned countdown, without start or recording.
+ */
+function EnduranceRunPanel({
+  ownerId,
+  session,
+  displayedSession,
+  isToday,
+  hasStarted,
+  canExecute,
+  completed,
+  mode,
+  activity,
+  onBusy,
+  onSave,
+  onDelete,
+  onClockFinish,
+  onTrackerFinish,
+}: {
+  ownerId: string;
+  session: SessionDay;
+  displayedSession: SessionDay;
+  isToday: boolean;
+  hasStarted: boolean;
+  canExecute: boolean;
+  completed: boolean;
+  mode: "gps" | "timer";
+  activity: import("@/lib/running/types").RunningActivity | null;
+  onBusy: (busy: boolean) => void;
+  onSave: (draft: import("@/lib/running/types").RunningActivityDraft) => Promise<void>;
+  onDelete: (activityId: string) => Promise<void>;
+  onClockFinish: (seconds: number) => void;
+  onTrackerFinish: () => void;
+}) {
+  const start = useSessionStart(session, isToday);
+  if (!hasStarted && (start.availability === "none" || start.availability === "started"))
+    return null;
+  // No Start that is known to be refused: the plan is updated first.
+  if (!hasStarted && start.availability === "update")
+    return <PlanUpdateNotice reason={start.updateReason} />;
+  const mas = session.classification?.subcategory === "field_mas_test";
+  const canStartNow = start.availability === "start";
+  const enabled = !completed && (hasStarted ? canExecute : canStartNow);
+  const previewNote =
+    !hasStarted && start.availability === "other-day"
+      ? `Podgląd sesji. Start i zapis biegu są dostępne w dniu treningu.`
+      : !hasStarted && start.availability === "missed"
+        ? MISSED_SESSION_NOTE
+        : null;
+  const beforeStart = hasStarted ? undefined : () => start.start();
+  return (
+    <>
+      {mode === "timer" && !mas ? (
+        <RunClock
+          session={displayedSession}
+          enabled={enabled}
+          onBusy={onBusy}
+          onBeforeStart={beforeStart}
+          onFinish={onClockFinish}
+        />
+      ) : (
+        <EnduranceRunTracker
+          ownerId={ownerId}
+          session={displayedSession}
+          sessionId={session.dbId!}
+          date={session.date}
+          canRecord={enabled}
+          previewNote={previewNote}
+          activity={activity}
+          onSave={onSave}
+          onDelete={onDelete}
+          onRecordingChange={onBusy}
+          onBeforeStart={beforeStart}
+          onFinish={onTrackerFinish}
+        />
+      )}
+      {mode === "timer" && !mas && previewNote && (
+        <p className="bw-session-preview" role="status">
+          {previewNote}
+        </p>
+      )}
+      {start.error && (
+        <p role="alert" className="text-sm">
+          {start.error}
+        </p>
+      )}
+    </>
   );
 }

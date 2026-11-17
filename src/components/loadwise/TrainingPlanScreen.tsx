@@ -27,6 +27,7 @@ import { hasUnresolvedTrainingWrites } from "@/lib/loadwise/offlineTrainingQueue
 import { runningCalibrationMessage } from "@/lib/loadwise/engineV2/runningCalibrationStatus";
 import { ArrowRight, ChevronRight, SlidersHorizontal, X } from "lucide-react";
 import { PlanWeek, plDate } from "./PlanWeek";
+import { PlanLimitations } from "./PlanLimitations";
 import { WeeklyPlanningSettings, WeeklyPlanningCoverage } from "./WeeklyPlanningSettings";
 import {
   savedWeeklyPlanningPreferences,
@@ -36,7 +37,7 @@ import { planUnavailableForAge } from "@/lib/loadwise/agePolicy";
 import "@/styles/ballwise-plan.css";
 
 /** Preview, explicit activation and execution of the versioned training plan. */
-export function PlanScreen() {
+export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}) {
   const gymEvidence = useGymEvidence();
   const { state, todayIso, hydrated, syncing, activatePlanV2 } = useLoadwise();
   const navigate = useNavigate();
@@ -48,7 +49,7 @@ export function PlanScreen() {
   const evidenceKey = planEvidenceKey(gymEvidence);
   const liveEvidence = useRef({ gym: gymEvidence, ownerId: user?.id });
   liveEvidence.current = { gym: gymEvidence, ownerId: user?.id };
-  const [rebuildRequested, setRebuild] = useState(false);
+  const [rebuildRequested, setRebuild] = useState(autoUpdate);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Choices confirmed in Progress (time budget); a different saved plan voids them.
   const intentState = useTrainingLocalState<NextPlanIntent | null>(
@@ -465,16 +466,7 @@ export function PlanScreen() {
             ) : null}
           </section>
           {!preview ? <FeedbackAdjustmentCard /> : null}
-          {issues.length ? (
-            <section className="bw-plan-card" aria-label="Ograniczenia planu">
-              <h3 className="bw-plan-settings-title">Ograniczenia planu · {issues.length}</h3>
-              <ul className="bw-plan-bullets">
-                {issues.map((x, i) => (
-                  <li key={i}>{x.message}</li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
+          <PlanLimitations issues={issues} />
           {preview?.result || !rebuild ? (
             <WeeklyPlanningCoverage
               plan={plan}

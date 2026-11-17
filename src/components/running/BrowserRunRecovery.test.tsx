@@ -79,7 +79,7 @@ async function remount() {
 
 it("restores finished browser GPS directly to the save review after remount", async () => {
   await render();
-  await act(async () => button("Start GPS").click());
+  await act(async () => button("Start").click());
   await act(async () => {
     vi.advanceTimersByTime(20_000);
     watch(position(52.001));
@@ -158,7 +158,7 @@ it("does not start GPS while an imported GPX is still being read", async () => {
   Object.defineProperty(input, "files", { configurable: true, value: [{ text: () => read }] });
   await act(async () => {
     input.dispatchEvent(new Event("change", { bubbles: true }));
-    button("Start GPS").click();
+    button("Start").click();
   });
   expect(loadRunCheckpoint(ownerId, sessionId)).toBeNull();
   await act(async () =>

@@ -645,7 +645,7 @@
   border: 1px solid color-mix(in oklch, var(--primary) 30%, var(--border));
   border-radius: 14px;
   background: var(--card);
-  box-shadow: 0 6px 18px rgb(15 30 55 / 0.12);
+  box-shadow: var(--bw-shadow-float);
 }
 .bw-rest-card[data-done] {
   border-color: var(--primary);
@@ -1655,4 +1655,9 @@
 .bw-rplan-text .bw-rplan-row-rest {
   font-size: 13px;
   color: color-mix(in oklch, var(--muted-foreground) 85%, transparent);
+}
+
+/* Technika biegu: tekst pomocniczy na błękitnym podkładzie bloku (kontrast co najmniej 4,5:1). */
+.bw-rplan-card[data-circuit] small {
+  color: var(--bw-muted-on-tint);
 }

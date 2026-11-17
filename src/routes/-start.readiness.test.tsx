@@ -33,6 +33,13 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
 vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: "owner" } }) }));
 vi.mock("@/lib/loadwise/store", () => ({ useLoadwise: () => mocks.store }));
 vi.mock("@/components/loadwise/ui", () => ({ ProfileAvatar: () => <span>Avatar</span> }));
+// The bottom panel (vaul) is replaced by a plain container; its content is the real form.
+vi.mock("@/components/ui/drawer", () => ({
+  Drawer: ({ open, children }: { open: boolean; children: import("react").ReactNode }) =>
+    open ? <div data-panel>{children}</div> : null,
+  DrawerContent: ({ children }: { children: import("react").ReactNode }) => <div>{children}</div>,
+  DrawerTitle: ({ children }: { children: import("react").ReactNode }) => <h2>{children}</h2>,
+}));
 
 import { Route } from "./_tabs.start";
 
@@ -133,10 +140,17 @@ async function select(label: string, value: string) {
     element.dispatchEvent(new Event("change", { bubbles: true }));
   });
 }
+async function pick(label: string, value: string) {
+  const input = host.querySelector<HTMLInputElement>(
+    `fieldset[aria-label="${label}"] input[value="${value}"]`,
+  );
+  expect(input).not.toBeNull();
+  await act(async () => input!.click());
+}
 async function fill(values = ["8", "3", "2", "0"], painLocation?: string) {
-  await click(button("Wypełnij check-in"));
+  await click(button("Uzupełnij"));
   const labels = ["Jakość snu", "Zmęczenie", "Ból mięśni", "Ból stawów lub urazowy"];
-  for (const [index, label] of labels.entries()) await select(label, values[index]);
+  for (const [index, label] of labels.entries()) await pick(label, values[index]);
   if (painLocation) await select("Miejsce bólu", painLocation);
 }
 const issue = (completion?: SessionCompletion, prescribed = session) =>
@@ -165,7 +179,7 @@ it("keeps health fields closed without consent and opens profile consent managem
 
 it("lets the athlete open today's session without submitting the optional check-in", async () => {
   await render();
-  expect(button("Wypełnij check-in")).toBeDefined();
+  expect(button("Uzupełnij")).toBeDefined();
   expect(issue()).toBeNull();
   await click(host.querySelector<HTMLButtonElement>(".bw-plan-soon")!);
   expect(mocks.navigate).toHaveBeenCalledWith({
@@ -227,7 +241,7 @@ it("awaits an explicit readiness save, updates today's summary and preserves the
     await pending;
   });
   await render();
-  expect(host.querySelector(".bw-readiness-saved")?.textContent).toContain("check-in zapisany");
+  expect(host.querySelector(".bw-readiness-saved")?.textContent).toContain("Check-in zapisany");
   expect(mocks.store.state.readiness[session.date]).toMatchObject({
     sleep: 8,
     fatigue: 3,

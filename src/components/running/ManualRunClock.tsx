@@ -47,11 +47,13 @@ export function ManualRunClock({
   enabled,
   onFinish,
   onBusy,
+  onBeforeStart,
 }: {
   session: SessionDay;
   enabled: boolean;
   onFinish: (seconds: number) => void;
   onBusy: (busy: boolean) => void;
+  onBeforeStart?: () => Promise<boolean>;
 }) {
   const { user } = useAuth();
   const protocol = deriveRunningIntervalProtocol(session);
@@ -264,10 +266,12 @@ export function ManualRunClock({
             disabled={!enabled}
             onClick={() => {
               if (running) pause();
-              else {
-                start.current = performance.now();
-                setRunning(true);
-              }
+              else
+                void (async () => {
+                  if (onBeforeStart && !(await onBeforeStart())) return;
+                  start.current = performance.now();
+                  setRunning(true);
+                })();
             }}
           >
             {running ? "Pauza" : local.value.totalSec ? "Wznów bieg" : "Start biegu"}

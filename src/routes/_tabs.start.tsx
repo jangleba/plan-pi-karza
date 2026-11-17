@@ -77,6 +77,7 @@ function StartScreen() {
           todayIso={todayIso}
           enabled={state.profile?.healthPersonalizationEnabled === true}
           value={state.readiness[todayIso]}
+          todaySession={today.session}
           onSave={saveReadiness}
           onManageConsent={() => void navigate({ to: "/onboarding", search: { edit: true } })}
         />

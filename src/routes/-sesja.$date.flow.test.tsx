@@ -55,6 +55,12 @@ vi.mock("@/lib/loadwise/store", () => ({
     startSession: mocks.startSession,
   }),
 }));
+// These gates test the route's start/completion visibility, not the plan-version gate (covered in
+// PlanUpdate.test.tsx); the unversioned fixture sessions here would otherwise ask for an update.
+vi.mock("@/lib/loadwise/engineV2/planStatus", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/loadwise/engineV2/planStatus")>()),
+  sessionPlanUpdateReason: () => null,
+}));
 vi.mock("@/lib/loadwise/uiHooks", () => ({
   useInstantBack: () => mocks.navigate,
   useDelayedFlag: () => true,

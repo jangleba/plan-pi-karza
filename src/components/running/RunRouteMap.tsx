@@ -46,9 +46,18 @@ export function projectRoute(
   return paths;
 }
 
-const ROUTE_COLOR = "#16a34a";
+const ROUTE_COLOR = "#315B7C";
 
-export function RunRouteMap({ route, height = 220 }: { route: RoutePoint[]; height?: number }) {
+export function RunRouteMap({
+  route,
+  height = 220,
+  placeholder,
+}: {
+  route: RoutePoint[];
+  height?: number;
+  /** Shown instead of the map while there is no position (permission, waiting, error). */
+  placeholder?: string;
+}) {
   const host = useRef<HTMLDivElement>(null);
   const instance = useRef<{
     L: typeof import("leaflet");
@@ -139,7 +148,8 @@ export function RunRouteMap({ route, height = 220 }: { route: RoutePoint[]; heig
         style={{ height }}
         role="status"
       >
-        Włącz lokalizację, aby przygotować mapę. Bez pozycji GPS nie rysujemy trasy.
+        {placeholder ??
+          "Włącz lokalizację, aby przygotować mapę. Bez pozycji GPS nie rysujemy trasy."}
       </div>
     );
   const paths = mode === "sketch" ? projectRoute(route, 320, height) : [];

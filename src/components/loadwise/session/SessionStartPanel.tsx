@@ -1,10 +1,19 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Link } from "@tanstack/react-router";
 import { useLoadwise } from "@/lib/loadwise/store";
+import { planTimeBudget, sessionPlanUpdateReason } from "@/lib/loadwise/engineV2/planStatus";
 import type { SessionDay } from "@/lib/loadwise/types";
 import { isStrengthSession, type StrengthLoadPreference } from "@/lib/loadwise/strengthCheckIn";
 
-export type StartAvailability = "start" | "started" | "missed" | "other-day" | "none";
+export type StartAvailability =
+  | "start"
+  | "started"
+  | "missed"
+  | "other-day"
+  /** The saved plan is out of date for a new start: show "Zaktualizuj plan", not Start. */
+  | "update"
+  | "none";
 export const MISSED_SESSION_NOTE =
   "Sesja opuszczona. Nie przenosimy jej automatycznie na inny dzień. Plan ćwiczeń pozostaje do wglądu.";
 
@@ -19,7 +28,7 @@ export function useSessionStart(session: SessionDay, canStart: boolean) {
   const choiceKey = `${session.dbId}:${session.date}`;
   const preference = choice?.session === choiceKey ? choice.value : undefined;
   const completion = session.dbId ? state.completions[session.dbId] : undefined;
-  const availability: StartAvailability =
+  const baseAvailability: StartAvailability =
     !session.dbId ||
     completion?.completed ||
     session.isUnavailable ||
@@ -33,14 +42,29 @@ export function useSessionStart(session: SessionDay, canStart: boolean) {
           : canStart
             ? "start"
             : "other-day";
-  async function start() {
-    if (busy || availability !== "start") return;
+  // A new start that is known to be refused (older generator, changed setup, outdated recipe)
+  // becomes "Zaktualizuj plan". A started session never does: continuing stays possible.
+  const updateReason =
+    baseAvailability === "start"
+      ? sessionPlanUpdateReason({
+          session,
+          profile: state.profile ?? null,
+          readiness: state.readiness?.[session.date],
+          minutesPerSession: planTimeBudget(state.plan ?? []),
+        })
+      : null;
+  const availability: StartAvailability = updateReason ? "update" : baseAvailability;
+  /** Resolves true when the session is started (or already was); false when it could not be. */
+  async function start(): Promise<boolean> {
+    if (availability === "started") return true;
+    if (busy || availability !== "start") return false;
     setBusy(true);
     setError(null);
     try {
       if (isStrengthSession(session) && preference !== undefined)
         await startSession(session, preference);
       else await startSession(session);
+      return true;
     } catch (cause) {
       const message = cause instanceof Error ? cause.message.trim() : "";
       setError(
@@ -48,6 +72,7 @@ export function useSessionStart(session: SessionDay, canStart: boolean) {
           ? message
           : "Nie udało się rozpocząć sesji. Sprawdź połączenie i dostępną pamięć telefonu.",
       );
+      return false;
     } finally {
       setBusy(false);
     }
@@ -78,7 +103,7 @@ export function useSessionStart(session: SessionDay, canStart: boolean) {
         <p>Wybór zapisze się przy rozpoczęciu. Ciężar sprawdzisz w seriach wprowadzających.</p>
       </fieldset>
     ) : null;
-  return { availability, busy, error, start, checkIn };
+  return { availability, busy, error, start, checkIn, updateReason };
 }
 
 /** Start control for sessions without the exercise runner (runs, recovery). */
@@ -91,8 +116,12 @@ export function SessionStartPanel({
   canStart: boolean;
   label?: string;
 }) {
-  const { availability, busy, error, start, checkIn } = useSessionStart(session, canStart);
+  const { availability, busy, error, start, checkIn, updateReason } = useSessionStart(
+    session,
+    canStart,
+  );
   if (availability === "none" || availability === "started") return null;
+  if (availability === "update") return <PlanUpdateNotice reason={updateReason} />;
   if (availability === "missed")
     return (
       <p className="bw-session-preview" role="status">
@@ -116,6 +145,32 @@ export function SessionStartPanel({
           {error}
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * Shown instead of Start when the saved plan is out of date. The link opens the plan with the
+ * preview of the updated plan; saving it there is the activation. Started and completed
+ * sessions, their sets, weights and history are kept.
+ */
+export function PlanUpdateNotice({ reason }: { reason: string | null }) {
+  return (
+    <div className="bw-session-update soft-card space-y-3 p-4" role="status">
+      <p className="text-sm">
+        {reason ?? "Plan wymaga aktualizacji przed rozpoczęciem tej sesji."}
+      </p>
+      <Link
+        to="/plan"
+        search={{ aktualizuj: "1" }}
+        className="bw-session-update-link inline-flex min-h-12 w-full items-center justify-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground"
+      >
+        Zaktualizuj plan
+      </Link>
+      <p className="text-xs text-muted-foreground">
+        Zobaczysz podgląd zmian przed zapisem. Rozpoczęte i ukończone treningi oraz historia zostają
+        bez zmian.
+      </p>
     </div>
   );
 }
