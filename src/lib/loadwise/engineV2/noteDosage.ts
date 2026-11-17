@@ -85,10 +85,8 @@ const REST_BY_KIND: Record<DoseKind, number> = {
   iso_time: 45,
   iso_holds: 45,
 };
-/** Landing events per repetition of a reactive jump after a drop. */
-const CONTACTS: Partial<Record<SlotFunction, number>> = {
-  reactive_jump_depth: 2,
-};
+/** Jumps that land and rebound: two ground contacts per repetition. Any other jump counts one. */
+const TWO_CONTACT_JUMPS = new Set(["depth_jump", "drop_jump", "depth_jump_over_hurdle"]);
 
 const SQUAT_LIKE_TEMPO = (t: readonly [number, number, number]) => ({
   eccentricSeconds: t[0],
@@ -171,7 +169,7 @@ export function adaptDose(req: DoseRequest): DoseResult {
     dose.holdReps = ref.holds;
     if (ref.holdSeconds) dose.seconds = ref.holdSeconds;
   } else dose.reps = ref.reps;
-  if (kind === "jump") dose.contactsPerRep = CONTACTS[slot.fn] ?? 1;
+  if (kind === "jump") dose.contactsPerRep = TWO_CONTACT_JUMPS.has(id) ? 2 : 1;
   if (kind === "accessory") dose.rir = 3;
   if (isLift) dose.rir = level === "full" && !substitute && !youth ? 1 : level === "intro" ? 3 : 2;
   if (ref.tempo && level !== "intro") dose.tempo = SQUAT_LIKE_TEMPO(ref.tempo);
