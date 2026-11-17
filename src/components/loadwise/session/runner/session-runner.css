@@ -1663,9 +1663,9 @@
 }
 
 /*
- * Quiet, Apple-like plan list: white rounded cards on the page tone, hairlines, one calm type
- * scale. Colour is a small pastel accent per group (pill, marks, link line), never a background
- * block: the rest of a round is a plain grey line.
+ * Quiet, Apple-like plan list as chosen in the design studio: white rounded cards, hairlines,
+ * compact rows, no colour on the list itself (the pastel accents are switched off). The rest of
+ * a round is a plain grey line.
  */
 .bw-rplan {
   gap: 22px;
@@ -1683,22 +1683,6 @@
 .bw-rplan-card {
   border-radius: 20px;
   box-shadow: 0 0 0 0.5px color-mix(in oklch, var(--foreground) 6%, transparent);
-}
-.bw-rplan-card[data-tone="motion"] {
-  --tone-ink: var(--bw-motion);
-  --tone-fill: var(--bw-motion-soft);
-}
-.bw-rplan-card[data-tone="strength"] {
-  --tone-ink: var(--bw-strength);
-  --tone-fill: var(--bw-strength-soft);
-}
-.bw-rplan-card[data-tone="recovery"] {
-  --tone-ink: var(--bw-recovery);
-  --tone-fill: var(--bw-recovery-soft);
-}
-.bw-rplan-card[data-tone="carry"] {
-  --tone-ink: var(--bw-carry);
-  --tone-fill: var(--bw-carry-soft);
 }
 .bw-rplan-head {
   padding: 14px 16px 4px;
@@ -1803,4 +1787,13 @@
 .bw-stepper-buttons button {
   background: var(--card);
   box-shadow: 0 0 0 0.5px color-mix(in oklch, var(--foreground) 14%, transparent);
+}
+
+/* Compact density (design studio choice). */
+.bw-rplan-row > button {
+  min-height: 52px;
+  padding-block: 8px;
+}
+.bw-rplan-text strong {
+  font-size: 15.5px;
 }
