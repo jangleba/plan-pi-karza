@@ -810,7 +810,7 @@
 }
 .bw-plan-limits-touched,
 .bw-plan-limits-action {
-  color: var(--muted-foreground);
+  color: var(--bw-muted-on-tint);
 }
 .bw-plan-limits summary {
   min-height: 44px;

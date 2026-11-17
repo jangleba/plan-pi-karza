@@ -160,7 +160,7 @@
   background: var(--accent);
 }
 .bw-run-metrics dt {
-  color: var(--muted-foreground);
+  color: var(--bw-muted-on-tint);
   font-size: 12px;
 }
 .bw-run-metrics dd {
@@ -180,4 +180,14 @@
 }
 .bw-run-start {
   min-height: 48px;
+}
+
+/* Pola dotyku co najmniej 44 px także w rozwijanych objaśnieniach i linkach pod licznikiem. */
+section[aria-labelledby="run-tracker-title"] summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.bw-run-dock-links button {
+  min-height: 44px;
 }

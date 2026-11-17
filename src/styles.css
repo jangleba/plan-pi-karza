@@ -143,6 +143,8 @@
   --secondary-foreground: var(--foreground);
   --muted: oklch(0.9605 0.0099 155.1);
   --muted-foreground: oklch(0.5436 0.023 250.6);
+  /* Secondary text on the pale-blue tint (#E8EFF5): 4.5:1 or better. */
+  --bw-muted-on-tint: oklch(0.47 0.022 251);
   --accent: oklch(0.9486 0.011 243.7);
   --accent-foreground: var(--primary);
   --destructive: oklch(0.52 0.19 25);

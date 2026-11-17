@@ -1656,3 +1656,8 @@
   font-size: 13px;
   color: color-mix(in oklch, var(--muted-foreground) 85%, transparent);
 }
+
+/* Technika biegu: tekst pomocniczy na błękitnym podkładzie bloku (kontrast co najmniej 4,5:1). */
+.bw-rplan-card[data-circuit] small {
+  color: var(--bw-muted-on-tint);
+}
