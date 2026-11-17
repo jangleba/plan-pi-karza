@@ -154,3 +154,103 @@
   background: var(--bw-warning-soft, #fbf2dd);
   color: var(--bw-warning, #865e20);
 }
+
+/* Mała karta na Start (~80 px) i formularz w panelu od dołu. */
+.bw-readiness-card[data-compact] {
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+}
+.bw-readiness-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+}
+.bw-readiness-row h2 {
+  font-size: 16px;
+}
+.bw-readiness-row p {
+  margin-top: 2px;
+}
+.bw-readiness-row > button {
+  flex-shrink: 0;
+  min-width: 96px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 600;
+}
+.bw-readiness-result {
+  display: grid;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+.bw-readiness-sheet .bw-readiness-card {
+  padding: 4px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+}
+.bw-scale {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+}
+.bw-scale > legend {
+  float: left;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+.bw-scale > legend small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 400;
+}
+.bw-scale-options {
+  clear: both;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+.bw-scale-options[data-count="11"] {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+.bw-scale-options label {
+  position: relative;
+  display: block;
+}
+.bw-scale-options input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.bw-scale-options span {
+  display: grid;
+  min-height: 44px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.bw-scale-options input:checked + span {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 600;
+}
+.bw-scale-options input:focus-visible + span {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
