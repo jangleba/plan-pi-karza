@@ -71,7 +71,7 @@ function TestCard({ test, onSaved }: { test: LabTest; onSaved: () => void }) {
           <h3 className="text-sm font-semibold">{test.title}</h3>
           <p className="text-xs text-muted">{last ? `Ostatni: ${last}` : "Jeszcze nie testowany"}</p>
         </div>
-        {due && <span className="rounded-full bg-yellow-soft px-2.5 py-1 text-xs text-yellow-ink">Do zrobienia</span>}
+        {due && <span className="rounded-full border border-hairline bg-canvas px-2.5 py-1 text-xs text-muted">Do zrobienia</span>}
       </button>
       {open && (
         <div className="mt-3">
@@ -83,7 +83,7 @@ function TestCard({ test, onSaved }: { test: LabTest; onSaved: () => void }) {
             </button>
           )}
           {(test.key === "cmj" || test.key === "sprint") && (
-            <button onClick={() => setVideo(true)} className="mb-3 w-full rounded-xl bg-blue-soft py-2 text-sm font-medium text-blue-ink">
+            <button onClick={() => setVideo(true)} className="mb-3 w-full rounded-xl border border-hairline bg-canvas py-2 text-sm font-medium text-ink">
               Zmierz z wideo
             </button>
           )}

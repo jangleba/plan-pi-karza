@@ -33,7 +33,7 @@ export function Auth() {
           {mode === "in" ? "Zaloguj" : "Załóż konto"}
         </button>
       </section>
-      {msg && <p className="mt-4 rounded-2xl bg-yellow-soft p-3 text-sm text-yellow-ink">{msg}</p>}
+      {msg && <p className="mt-4 rounded-2xl border border-hairline bg-canvas p-3 text-sm text-muted">{msg}</p>}
       <button onClick={() => setMode(mode === "in" ? "up" : "in")} className="mt-4 text-sm text-muted underline">
         {mode === "in" ? "Nie mam konta" : "Mam już konto"}
       </button>

@@ -21,7 +21,7 @@ function TipCard({ t }: { t: Tip }) {
     <div className="mb-2.5 rounded-2xl bg-card p-4 border border-hairline">
       <div className="flex items-baseline justify-between gap-2">
         <h3 className="text-sm font-semibold">{t.title}</h3>
-        {t.amount && <span className="rounded-full bg-green-soft px-2.5 py-0.5 text-xs font-medium text-green-ink">{t.amount}</span>}
+        {t.amount && <span className="rounded-full border border-hairline bg-canvas px-2.5 py-0.5 text-xs font-medium text-ink">{t.amount}</span>}
       </div>
       <p className="mt-1 text-sm text-muted">{t.body}</p>
       {t.amount && <p className="mt-1 text-[11px] text-muted">{t.uefa ? "Zalecenie UEFA dla piłkarzy" : "Orientacyjnie"}</p>}
@@ -118,7 +118,7 @@ function Log({ profile }: { profile: Profile }) {
   const bar = (label: string, v: number, [lo, hi]: [number, number]) => (
     <div className="mb-3">
       <div className="mb-1 flex justify-between text-xs text-muted"><span>{label}</span><span>{v} / {lo}–{hi} g</span></div>
-      <div className="h-2 rounded-full bg-canvas"><div className="h-2 rounded-full bg-green-soft" style={{ width: `${Math.min(100, (v / hi) * 100)}%`, background: v >= lo ? "#34a06a" : "#f0cf6b" }} /></div>
+      <div className="h-1.5 rounded-full bg-canvas"><div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, (v / hi) * 100)}%`, background: v >= lo ? "#5f8a67" : "#c9c2b2" }} /></div>
     </div>
   );
   return (

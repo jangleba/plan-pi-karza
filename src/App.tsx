@@ -25,14 +25,14 @@ const KIND_LABEL: Record<SessionKind, string> = {
   recovery: "Regeneracja",
 };
 
-/** Kolory znaczeniowe: zielony = mocna praca, żółty = lekka, czerwony = mecz. */
-const KIND_TONE: Record<SessionKind, string> = {
-  strength: "bg-green-soft text-green-ink",
-  run: "bg-green-soft text-green-ink",
-  sprint: "bg-green-soft text-green-ink",
-  technique: "bg-blue-soft text-blue-ink",
-  activation: "bg-yellow-soft text-yellow-ink",
-  recovery: "bg-yellow-soft text-yellow-ink",
+/** Etykiety są neutralne; kolor niesie tylko mała kropka: ciemna = mocna praca, jasna = lekka, czerwona = mecz. */
+const KIND_DOT: Record<SessionKind, string> = {
+  strength: "#2a2a28",
+  run: "#2a2a28",
+  sprint: "#2a2a28",
+  technique: "#8a8578",
+  activation: "#c9c2b2",
+  recovery: "#c9c2b2",
 };
 
 const WEEKDAY = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
@@ -44,8 +44,13 @@ function mondayOf(d: Date): string {
   return copy.toISOString().slice(0, 10);
 }
 
-function Chip({ tone, children }: { tone: string; children: React.ReactNode }) {
-  return <span className={`self-start rounded-full px-3 py-1 text-xs font-medium ${tone}`}>{children}</span>;
+function Chip({ dot, children }: { dot: string; children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 self-start rounded-full border border-hairline bg-canvas px-3 py-1 text-xs font-medium text-ink">
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: dot }} />
+      {children}
+    </span>
+  );
 }
 
 function DayRow({ day, index, onOpen }: { day: DayPlan; index: number; onOpen: () => void }) {
@@ -60,11 +65,11 @@ function DayRow({ day, index, onOpen }: { day: DayPlan; index: number; onOpen: (
         <div className="text-lg font-semibold">{Number(day.date.slice(8))}</div>
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        {day.isMatch && <Chip tone="bg-red-soft text-red-ink">Mecz</Chip>}
-        {day.isClub && <Chip tone="bg-blue-soft text-blue-ink">Trening klubowy</Chip>}
+        {day.isMatch && <Chip dot="#b45f55">Mecz</Chip>}
+        {day.isClub && <Chip dot="#8a8578">Trening klubowy</Chip>}
         {s && (
           <div className="flex flex-col">
-            <Chip tone={KIND_TONE[s.kind]}>
+            <Chip dot={KIND_DOT[s.kind]}>
               {KIND_LABEL[s.kind]}
               {s.variant === "upper" ? " · góra" : s.variant === "light" ? " · lekki" : ""}
             </Chip>
@@ -287,7 +292,7 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
         <Pick label="Samopoczucie" value={checkIn.feeling} onChange={(v) => setCheckIn({ ...checkIn, feeling: v })} />
         <button
           onClick={() => setCheckIn({ ...checkIn, less: !checkIn.less })}
-          className={`w-full rounded-xl py-2 text-sm transition ${checkIn.less ? "bg-yellow-soft font-medium text-yellow-ink" : "bg-canvas text-muted"}`}
+          className={`w-full rounded-xl py-2 text-sm transition ${checkIn.less ? "bg-ink font-medium text-card" : "bg-canvas text-muted"}`}
         >
           Dziś mniej / brak czasu
         </button>
@@ -311,7 +316,7 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
         <SessionSheet day={open} checkIn={checkIn} weekInCycle={weekInCycle(profile.startDate, weekStart)} mas={mas} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")} onClose={() => setOpen(null)} />
       )}
       {plan.warnings.length > 0 && (
-        <p className="mt-4 rounded-2xl bg-yellow-soft p-3 text-sm text-yellow-ink">
+        <p className="mt-4 rounded-2xl border border-hairline bg-canvas p-3 text-sm text-muted">
           {plan.warnings.join(" ")}
         </p>
       )}

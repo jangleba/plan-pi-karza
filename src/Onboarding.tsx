@@ -21,7 +21,7 @@ function Chips<T extends string | number>({
           key={String(v)}
           type="button"
           onClick={() => onToggle(v)}
-          className={`rounded-full px-3.5 py-1.5 text-sm transition ${value.includes(v) ? "bg-green-soft font-medium text-green-ink" : "bg-canvas text-muted"}`}
+          className={`rounded-full px-3.5 py-1.5 text-sm transition ${value.includes(v) ? "bg-ink font-medium text-card" : "bg-canvas text-muted"}`}
         >
           {t}
         </button>
@@ -88,7 +88,7 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
         <button
           type="button"
           onClick={() => setLimited(!limited)}
-          className={`mb-1 w-full rounded-xl py-2 text-sm ${limited ? "bg-yellow-soft font-medium text-yellow-ink" : "bg-canvas text-muted"}`}
+          className={`mb-1 w-full rounded-xl py-2 text-sm ${limited ? "bg-ink font-medium text-card" : "bg-canvas text-muted"}`}
         >
           Mam mało dni na siłownię
         </button>
