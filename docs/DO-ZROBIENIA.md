@@ -24,3 +24,5 @@
 - Przyczyna „Couldn't update the preview": projekt Lovable jest z szablonu TanStack Start (`.lovable/project.json`), a nowa aplikacja była zwykłym Vite bez `@lovable.dev/vite-tanstack-config`.
 - Naprawa: przywrócony szablon (TanStack Start, konfiguracja Lovable, wersje paczek jak w ostatniej działającej wersji, bun.lock). Aplikacja renderowana tylko w przeglądarce (`ClientOnly`).
 - Nie usuwać `.lovable/project.json`, `vite.config.ts` z konfiguracją Lovable ani `bun.lock`.
+- „Not Found" w podglądzie: Lovable otwierał zapamiętany adres starej aplikacji (np. /start). Trasa `src/routes/$.tsx` pokazuje aplikację pod każdym adresem.
+- Przepływ pracy: PR-y scalane przez „Squash and merge"; przed każdym nowym PR gałąź jest synchronizowana z main, żeby nie było konfliktów.
