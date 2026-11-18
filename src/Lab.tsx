@@ -1,0 +1,94 @@
+import { useState } from "react";
+import { addEvents, jumpHeightFromFlightTime, labDue, LAB_TESTS, loadHistory, series, validateLab, validateSprintSplits } from "./engine";
+import type { LabTest } from "./engine";
+
+const today = () => new Date().toISOString().slice(0, 10);
+const num = (s: string) => Number(s.replace(",", "."));
+const field = "w-full rounded-xl bg-canvas px-3 py-2.5 text-sm outline-none";
+
+function lastDate(keys: string[]): string | undefined {
+  const ev = loadHistory().filter((e) => e.type === "lab" && keys.includes(e.key));
+  return ev.map((e) => e.date).sort().pop();
+}
+
+function TestCard({ test, onSaved }: { test: LabTest; onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [vals, setVals] = useState<Record<string, string>>({});
+  const [flight, setFlight] = useState(false);
+  const [error, setError] = useState("");
+  const keys = test.key === "sprint" ? ["sprint-10", "sprint-20", "sprint-30"] : [test.key];
+  const last = lastDate(keys);
+  const due = labDue(last, today());
+  const set = (k: string, v: string) => setVals({ ...vals, [k]: v });
+
+  const save = () => {
+    const out: Array<{ key: string; value: number }> = [];
+    for (const k of keys) {
+      const raw = vals[k];
+      if (!raw) continue;
+      let v = num(raw);
+      if (test.key === "cmj" && flight) v = Math.round(jumpHeightFromFlightTime(v) * 10) / 10;
+      const err = validateLab(k, v);
+      if (!(v > 0) || err) { setError(err ?? "Podaj liczbę."); return; }
+      out.push({ key: k, value: v });
+    }
+    if (test.key === "sprint") {
+      const g = (k: string) => out.find((o) => o.key === k)?.value;
+      const e = validateSprintSplits(g("sprint-10"), g("sprint-20"), g("sprint-30"));
+      if (e) { setError(e); return; }
+    }
+    if (!out.length) { setError("Wpisz przynajmniej jeden wynik."); return; }
+    addEvents(out.map((o) => ({ date: today(), type: "lab" as const, key: o.key, value: o.value })));
+    setError(""); setVals({}); setOpen(false); onSaved();
+  };
+
+  const inputs: Array<[string, string]> =
+    test.key === "sprint" ? [["sprint-10", "10 m (s)"], ["sprint-20", "20 m (s)"], ["sprint-30", "30 m (s)"]]
+    : test.key === "cmj" ? [["cmj", flight ? "Czas lotu (s)" : "Wysokość (cm)"]]
+    : [[test.key, `Wynik (${test.unit})`]];
+
+  return (
+    <section className="mb-3 rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <button className="flex w-full items-center justify-between text-left" onClick={() => setOpen(!open)}>
+        <div>
+          <h3 className="text-sm font-semibold">{test.title}</h3>
+          <p className="text-xs text-muted">{last ? `Ostatni: ${last}` : "Jeszcze nie testowany"}</p>
+        </div>
+        {due && <span className="rounded-full bg-yellow-soft px-2.5 py-1 text-xs text-yellow-ink">Do zrobienia</span>}
+      </button>
+      {open && (
+        <div className="mt-3">
+          <ul className="mb-3 list-disc pl-4 text-sm">{test.instructions.map((t) => <li key={t}>{t}</li>)}</ul>
+          {test.caveat && <p className="mb-3 rounded-xl bg-canvas p-2.5 text-xs text-muted">{test.caveat}</p>}
+          {test.key === "cmj" && (
+            <button onClick={() => setFlight(!flight)} className="mb-3 text-xs text-muted underline">
+              {flight ? "Wpisz wysokość zamiast czasu lotu" : "Mam czas lotu – przelicz na wysokość"}
+            </button>
+          )}
+          <div className="mb-3 flex flex-col gap-2">
+            {inputs.map(([k, label]) => (
+              <input key={k} className={field} inputMode="decimal" placeholder={label} value={vals[k] ?? ""} onChange={(e) => set(k, e.target.value)} />
+            ))}
+          </div>
+          {error && <p className="mb-3 rounded-xl bg-red-soft p-2.5 text-sm text-red-ink">{error}</p>}
+          <button onClick={save} className="w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-white">Zapisz wynik</button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+export function Lab() {
+  const [tick, setTick] = useState(0);
+  const cmj = series(loadHistory(), "lab", "cmj").at(-1);
+  void tick;
+  return (
+    <main className="mx-auto max-w-md px-4 pb-28 pt-14">
+      <h1 className="text-3xl font-semibold tracking-tight">Lab</h1>
+      <p className="mb-6 mt-1 text-sm text-muted">
+        Testuj co 4–5 tygodni, najlepiej w tygodniu rozładowania.{cmj ? ` Ostatni CMJ: ${cmj.value} cm.` : ""}
+      </p>
+      {LAB_TESTS.map((t) => <TestCard key={t.key} test={t} onSaved={() => setTick(tick + 1)} />)}
+    </main>
+  );
+}

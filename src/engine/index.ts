@@ -9,3 +9,4 @@ export * from "./technique";
 export * from "./profile";
 export * from "./progress";
 export * from "./history";
+export * from "./lab";

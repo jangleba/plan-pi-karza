@@ -11,6 +11,7 @@ const LABS: Metric[] = [
   { title: "Sprint 10 m", type: "lab", key: "sprint-10", unit: " s", better: "lower" },
   { title: "Sprint 20 m", type: "lab", key: "sprint-20", unit: " s", better: "lower" },
   { title: "Sprint 30 m", type: "lab", key: "sprint-30", unit: " s", better: "lower" },
+  { title: "Yo-Yo IR1", type: "lab", key: "yoyo-ir1", unit: " m", better: "higher" },
 ];
 
 function Card({
