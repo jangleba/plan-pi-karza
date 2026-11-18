@@ -70,6 +70,7 @@ export function PlanScreen({
   const [rebuildRequested, setRebuild] = useState(autoUpdate);
   // Plan settings are not part of the plan screen; Profile opens them (`?ustawienia=1`).
   const [settingsOpen, setSettingsOpen] = useState(openSettings);
+  const [nextOpen, setNextOpen] = useState(false);
   // Choices confirmed in Progress (time budget); a different saved plan voids them.
   const intentState = useTrainingLocalState<NextPlanIntent | null>(
     trainingStorageKey("next-plan-intent", user?.id),
@@ -343,7 +344,6 @@ export function PlanScreen({
         : "Zapisany plan";
   // The next week opens from a row under the week, only when the date allows it (the week is
   // over); its sheet asks for the next match first.
-  const [nextOpen, setNextOpen] = useState(false);
   const nextAllowed = status.kind === "expired";
   const lastPlanDay = effectivePlan.at(-1)?.date ?? todayIso;
   const nextFrom = nextAllowed ? todayIso : addIsoDays(lastPlanDay, 1);
