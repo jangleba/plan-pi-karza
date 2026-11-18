@@ -36,6 +36,7 @@ import {
   MessageCircleQuestion,
   Pencil,
   ShieldCheck,
+  SlidersHorizontal,
   User,
 } from "lucide-react";
 
@@ -353,6 +354,11 @@ function ProfileScreen() {
         </details>
 
         <div className="soft-card divide-y divide-border p-0">
+          <SettingsLink
+            icon={SlidersHorizontal}
+            label="Ustawienia planu"
+            onClick={() => navigate({ to: "/plan", search: { ustawienia: "1" } })}
+          />
           <SettingsLink
             icon={MessageCircleQuestion}
             label="Pomoc i FAQ"

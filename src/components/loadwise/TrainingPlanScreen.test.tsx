@@ -332,7 +332,25 @@ it("restores the saved time budget when rejecting a preview before changing week
   expect(mock.activate.mock.calls[0][0].minutesPerSession).toBe(75);
 });
 
-it("after a finished week the next one opens only after the match date is answered", async () => {
+const nextRow = () =>
+  [...host.querySelectorAll<HTMLButtonElement>("button.bw-next-row")].find((b) =>
+    b.textContent?.includes("Kolejny tydzień"),
+  )!;
+const sheet = () =>
+  host.querySelector<HTMLElement>('[role="dialog"][aria-label="Kolejny tydzień"]');
+
+it("the next week is not available until its date; the row says from when", async () => {
+  const state = mock.store.state as LoadwiseState;
+  const current = generateTrainingPlan(state.profile!, { startDate: "2026-11-02", weeks: 1 }).plan;
+  mock.store.state = { ...state, activePlanId: "current", plan: current };
+  await act(async () => root.render(<PlanScreen />));
+  expect(nextRow().disabled).toBe(true);
+  expect(nextRow().textContent).toContain("Od 9 listopada");
+  await act(async () => nextRow().click());
+  expect(sheet()).toBeNull();
+});
+
+it("after a finished week the next one opens from the bottom only after the match date is answered", async () => {
   const state = mock.store.state as LoadwiseState;
   const old = generateTrainingPlan(state.profile!, { startDate: "2026-10-05", weeks: 4 }).plan;
   mock.store.state = {
@@ -343,16 +361,19 @@ it("after a finished week the next one opens only after the match date is answer
   };
   mock.store.updateProfile = vi.fn(async () => undefined);
   await act(async () => root.render(<PlanScreen />));
-  expect(host.textContent).toContain("Cykl zakończony");
-  const gate = host.querySelector<HTMLElement>('[aria-label="Kolejny tydzień"]')!;
+  expect(sheet()).toBeNull();
+  expect(nextRow().disabled).toBe(false);
+  await act(async () => nextRow().click());
+  const gate = sheet()!;
   expect(gate).not.toBeNull();
   const prepare = () =>
     [...gate.querySelectorAll("button")].find((b) => b.textContent === "Przygotuj tydzień")!;
   // Without the match answer there is no way forward, and nothing is prepared or saved.
   expect(prepare().disabled).toBe(true);
   expect(host.textContent).not.toContain("Twój plan · 1 tydzień");
-  expect(mock.navigate).not.toHaveBeenCalled();
   expect(mock.activate).not.toHaveBeenCalled();
+  // Calendar changes are optional and inside the sheet.
+  expect(gate.textContent).toContain("Zmiany w kalendarzu");
   // "No match" is an answer too.
   await act(async () =>
     [...gate.querySelectorAll("button")]
@@ -362,8 +383,25 @@ it("after a finished week the next one opens only after the match date is answer
   expect(prepare().disabled).toBe(false);
   await act(async () => prepare().click());
   expect(host.textContent).toContain("Twój plan · 1 tydzień");
-  expect(host.querySelector('[aria-label="Kolejny tydzień"]')).toBeNull();
+  expect(sheet()).toBeNull();
   expect(mock.activate).not.toHaveBeenCalled();
+});
+
+it("the sheet closes with its backdrop and with Escape without preparing anything", async () => {
+  const state = mock.store.state as LoadwiseState;
+  const old = generateTrainingPlan(state.profile!, { startDate: "2026-10-05", weeks: 4 }).plan;
+  mock.store.state = { ...state, activePlanId: "old-cycle", plan: old };
+  await act(async () => root.render(<PlanScreen />));
+  await act(async () => nextRow().click());
+  await act(async () => host.querySelector<HTMLButtonElement>(".bw-sheet-backdrop")!.click());
+  expect(sheet()).toBeNull();
+  await act(async () => nextRow().click());
+  expect(sheet()).not.toBeNull();
+  await act(async () => {
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+  });
+  expect(sheet()).toBeNull();
+  expect(host.textContent).not.toContain("Twój plan · 1 tydzień");
 });
 
 it("saves the chosen match day with the next week", async () => {
@@ -373,7 +411,8 @@ it("saves the chosen match day with the next week", async () => {
   const updateProfile = vi.fn(async () => undefined);
   mock.store.updateProfile = updateProfile;
   await act(async () => root.render(<PlanScreen />));
-  const gate = host.querySelector<HTMLElement>('[aria-label="Kolejny tydzień"]')!;
+  await act(async () => nextRow().click());
+  const gate = sheet()!;
   const saturday = [...gate.querySelectorAll<HTMLButtonElement>(".bw-gate-days button")].find((b) =>
     b.textContent?.startsWith("so"),
   )!;
@@ -409,7 +448,7 @@ it("offers an explicit profile update and lets the player return to the saved sn
   expect(mock.activate).not.toHaveBeenCalled();
 });
 
-it("keeps the refresh reason in plan settings and the week alone on screen", async () => {
+it("shows only the week on screen; the refresh reason lives in settings opened from Profile", async () => {
   const state = mock.store.state as LoadwiseState;
   const profile = {
     ...state.profile!,
@@ -423,16 +462,20 @@ it("keeps the refresh reason in plan settings and the week alone on screen", asy
   }).plan.map((day) => ({ ...day, generatorVersion: "ballwise-v2.old" }));
   mock.store.state = { ...state, profile, plan: saved };
   await act(async () => root.render(<PlanScreen />));
-  const panel = host.querySelector<HTMLElement>(".bw-plan-settings-panel")!;
-  expect(panel.hidden).toBe(true);
-  // The default screen: settings button and the week, nothing else above it.
+  // Nothing but the plan: no settings button, no profile avatar, no status or banner.
+  expect(host.querySelector(".bw-plan-settings-button")).toBeNull();
+  expect(host.textContent).not.toContain("Ustawienia planu,");
+  // The week, and the row to the next week: nothing else.
+  const stack = [...host.querySelector(".bw-plan-stack")!.children];
+  expect(stack.map((el) => el.className)).toEqual(["bw-wk", "bw-next-row"]);
   const main = host.querySelector(".bw-plan-stack")!;
   expect(main.textContent).not.toMatch(/Test biegowy|kalibr|Plan wymaga|Ograniczenia/);
   expect(main.querySelector("details")).toBeNull();
   expect(main.querySelector(".bw-wk")).not.toBeNull();
-  const button = host.querySelector<HTMLButtonElement>(".bw-plan-settings-button")!;
-  expect(button.getAttribute("aria-label")).toBe("Ustawienia planu, wymagają uwagi");
-  await act(async () => button.click());
+  // Settings open only when asked for (from Profile), with the refresh reason inside.
+  expect(host.querySelector<HTMLElement>(".bw-plan-settings-panel")!.hidden).toBe(true);
+  await act(async () => root.render(<PlanScreen key="settings" openSettings />));
+  const panel = host.querySelector<HTMLElement>(".bw-plan-settings-panel")!;
   expect(panel.hidden).toBe(false);
   expect(panel.querySelector('.bw-plan-status-row [role="status"]')?.textContent).toBe(
     "Plan wymaga odświeżenia",

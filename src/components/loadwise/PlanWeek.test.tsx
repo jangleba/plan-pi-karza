@@ -72,11 +72,12 @@ describe("plan week", () => {
     expect(host.querySelector('[aria-label="Wykonane"]')).not.toBeNull();
     const open = host.querySelector<HTMLButtonElement>(".bw-wk-open")!;
     expect(open.textContent).toContain("Całe ciało A");
-    // Category chip, minutes and the load, always with text next to the bars.
-    expect(open.querySelector(".bw-session-kind")?.textContent).toBe("Siłownia");
-    expect(open.querySelector(".bw-session-kind")?.getAttribute("data-tone")).toBe("strength");
-    expect(open.textContent).toContain("50 min");
-    expect(open.querySelector(".bw-wk-load-text")?.textContent).toBe("Umiarkowanie");
+    // Only the title, the kind and the minutes: no load bars, no phase labels.
+    expect(open.querySelector(".bw-wk-meta")?.textContent).toBe("Siłownia · 50 min");
+    // No colour coding: the kind is plain text.
+    expect(host.querySelector("[data-tone]")).toBeNull();
+    expect(host.querySelector(".bw-session-kind")).toBeNull();
+    expect(open.querySelector(".bw-wk-load")).toBeNull();
     await act(async () => open.click());
     expect(onOpen).toHaveBeenCalledWith(plan[0], 1);
   });
@@ -90,20 +91,15 @@ describe("plan week", () => {
     expect(host.querySelectorAll(".bw-wk-open")).toHaveLength(0);
   });
 
-  it("shows each prescribed intensity independently and leaves external load unassessed", async () => {
+  it("shows only the days and their trainings: no intensity marks and no day strip", async () => {
     const double = day("2026-11-02", {
       intensity: "niska",
       secondSession: day("2026-11-02", { intensity: "wysoka" }),
     });
-    const club = day("2026-11-04", {
-      dayType: "club",
-      externalCommitment: true,
-      intensity: "umiarkowana",
-    });
     await act(async () =>
       root.render(
         <PlanWeek
-          plan={[double, day("2026-11-03", { intensity: "umiarkowana" }), club, rest("2026-11-05")]}
+          plan={[double, day("2026-11-03", { intensity: "umiarkowana" }), rest("2026-11-05")]}
           todayIso="2026-11-02"
           completions={{}}
           preview
@@ -111,15 +107,16 @@ describe("plan week", () => {
         />,
       ),
     );
+    expect(host.querySelectorAll('[role="img"]')).toHaveLength(0);
+    expect(host.querySelector(".bw-wk-load")).toBeNull();
+    expect(host.querySelector(".bw-wk-strip")).toBeNull();
+    // One week: only its date range, no week navigation.
+    expect(host.querySelector(".bw-wk-head")).toBeNull();
+    expect(host.querySelector(".bw-wk-range")?.textContent).toBe("2–8 listopada");
+    // Two sessions on one day are both there.
     expect(
-      [...host.querySelectorAll('[role="img"]')].map((mark) => mark.getAttribute("aria-label")),
-    ).toEqual([
-      "Planowana intensywność: niska",
-      "Planowana intensywność: wysoka",
-      "Planowana intensywność: umiarkowana",
-      "Planowana intensywność nieokreślona",
-    ]);
-    expect(host.querySelectorAll('[data-rest] [role="img"]')).toHaveLength(0);
+      host.querySelectorAll(".bw-wk-days > li")[0].querySelectorAll(".bw-wk-session"),
+    ).toHaveLength(2);
   });
 
   it("keeps zero-minute club commitments visible and does not call a second-session day full rest", async () => {
