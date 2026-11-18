@@ -107,11 +107,10 @@ describe("FiveAsideIQ lesson flow", () => {
     expect(host.textContent).toContain("Wróć do gry");
     act(() => button("Wróć do gry").click());
     expect(fn("recenterForward")).toHaveBeenCalled();
-    // View from behind and back: only the camera changes.
-    act(() => button("Widok zza pleców").click());
+    // The game is played from behind your player: that view is set and there is no eye view to switch to.
     expect(fn("setView")).toHaveBeenLastCalledWith("behind");
-    act(() => button("Widok z oczu").click());
-    expect(fn("setView")).toHaveBeenLastCalledWith("eye");
+    expect(button("Widok z oczu")).toBeUndefined();
+    expect(button("Widok zza pleców")).toBeUndefined();
 
     // The fragment ends: replay from above, then the debrief.
     const sim = createSim(makeVariant(seed, "left"));

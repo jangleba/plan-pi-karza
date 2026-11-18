@@ -140,9 +140,9 @@ export function buildDebrief(s: SimState): E11Debrief {
     kind: "none",
     text: "Nie zagrałeś w przestrzeń za linię obrony, więc timing nie był sprawdzany.",
   };
-  let choice: E11Debrief["choice"] = { grade: "ok", text: "" };
+  let choice: E11Debrief["choice"];
   let problem: ProblemKey = "none";
-  let keyTick = Math.max(
+  const keyTick = Math.max(
     0,
     (firstPass?.tick ?? shots[0]?.tick ?? s.outcome?.tick ?? 0) - TICK_HZ * 2,
   );
