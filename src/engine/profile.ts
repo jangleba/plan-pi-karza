@@ -58,3 +58,15 @@ export function weekInCycle(startDate: string | undefined, weekStart: string): n
   const weeks = Math.floor((Date.parse(weekStart) - startMonday) / (7 * 86_400_000));
   return (((weeks % 5) + 5) % 5) + 1;
 }
+
+/** Mecze z poprzedniego, bieżącego i następnego tygodnia – do fazy MD-x na granicy tygodni. */
+export function matchesAround(weekStart: string, weekdays: number[]): string[] {
+  return [-7, 0, 7].flatMap((off) => datesForWeek(addDays(weekStart, off), weekdays));
+}
+
+/** Kolejny tydzień odblokowuje się w dniu ostatniego meczu bieżącego tygodnia (aplikacja nie zna godziny meczu). */
+export function nextWeekUnlocked(weekStart: string, matchWeekdays: number[], todayISO: string): boolean {
+  if (!matchWeekdays.length) return false;
+  const last = datesForWeek(weekStart, matchWeekdays).sort().pop()!;
+  return todayISO >= last;
+}

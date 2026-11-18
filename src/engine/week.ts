@@ -132,3 +132,16 @@ export function planWeek(input: WeekInput): WeekPlan {
 
   return { days, warnings };
 }
+
+/** Poniedziałek tygodnia, do którego należy data ISO. */
+export function weekStartOf(iso: string): string {
+  const dow = (new Date(Date.parse(iso)).getUTCDay() + 6) % 7;
+  return addDays(iso, -dow);
+}
+
+/** Dzisiejsza data ISO w czasie lokalnym (toISOString dałoby UTC, czyli wczoraj tuż po północy). */
+export function localISO(d: Date = new Date()): string {
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}

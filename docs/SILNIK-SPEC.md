@@ -111,3 +111,9 @@ Silnik = czysty, deterministyczny TypeScript (bez AI). Ten sam wynik dla tych sa
 - Local-first: zapis lokalny, potem cichy zapis do Supabase (`src/lib/sync.ts`); po zalogowaniu pobranie profilu, MAS, dziennika kg i dzisiejszego check-inu.
 - Mapowanie wierszy ma testy (`src/lib/sync-map.test.ts`); zapytania sieciowe wymagają kluczy i migracji `0001_init.sql`.
 - Check-in dnia zapisuje się lokalnie i przetrwa odświeżenie strony.
+
+## Luki silnika zamknięte (runda 7)
+- Siła bez siłowni: drabinki trudności (docs/BEZ-SILOWNI.md), wybierane, gdy w profilu brak „pełnej siłowni".
+- Pozycja: wpływa tylko na sprint (skrzydłowy/napastnik – prędkość, pozostali – przyspieszenie i COD, co 2. tydzień zamiana), lekko na bieganie (pomocnik +1, bramkarz −1 powtórzenie) i na dobór ćwiczeń z piłką. NIE na siłę.
+- Plan uwzględnia mecze z sąsiednich tygodni (poprawne MD+1/MD-1 na granicy tygodni).
+- Kolejny tydzień odblokowuje się po dacie ostatniego meczu bieżącego tygodnia.

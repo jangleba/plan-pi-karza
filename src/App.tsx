@@ -1,11 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
-import { calcMas, datesForWeek, formatPace, levelOf, planWeek, weekInCycle } from "./engine";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { localISO, addDays, calcMas, datesForWeek, formatPace, levelOf, matchesAround, nextWeekUnlocked, planWeek, weekInCycle } from "./engine";
 import type { CheckIn, DayPlan, Mas, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
 import { Auth } from "./Auth";
+import { Progress } from "./Progress";
+import { Lab } from "./Lab";
+import { Fuel } from "./Fuel";
+
+// Three.js ładowane dopiero po wejściu w zakładkę IQ
+const IQ = lazy(() => import("./IQ"));
+import { Soon, TabBar, type Tab } from "./Tabs";
 import { supabase } from "./lib/supabase";
 import { pullAll, pushCheckIn, pushMas, pushProfile } from "./lib/sync";
-import { loadLog, saveLog } from "./engine";
+import { addEvents, loadLog, saveLog } from "./engine";
 import { SessionSheet } from "./SessionSheet";
 
 const KIND_LABEL: Record<SessionKind, string> = {
@@ -156,7 +163,7 @@ export function App() {
   return <Gate />;
 }
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localISO();
 
 function store(key: string, value: string) {
   try { localStorage.setItem(key, value); } catch { /* brak pamięci */ }
@@ -193,12 +200,13 @@ function Gate() {
 }
 
 function Main() {
+  const [tab, setTab] = useState<Tab>("plan");
   const [profile, setProfile] = useState<Profile | null>(loadProfile);
   if (!profile) {
     return (
       <Onboarding
         onDone={(raw) => {
-          const p = { ...raw, startDate: new Date().toISOString().slice(0, 10) };
+          const p = { ...raw, startDate: localISO() };
           store("profile", JSON.stringify(p));
           void pushProfile(p);
           setProfile(p);
@@ -206,10 +214,25 @@ function Main() {
       />
     );
   }
-  return <Home profile={profile} onReset={() => {
-    try { localStorage.removeItem("profile"); } catch { /* brak pamięci */ }
-    setProfile(null);
-  }} />;
+  return (
+    <>
+      {tab === "plan" && (
+        <Home profile={profile} onReset={() => {
+          try { localStorage.removeItem("profile"); } catch { /* brak pamięci */ }
+          setProfile(null);
+        }} />
+      )}
+      {tab === "lab" && <Lab />}
+      {tab === "iq" && (
+        <Suspense fallback={<Soon title="IQ" text="Ładowanie sceny…" />}>
+          <IQ />
+        </Suspense>
+      )}
+      {tab === "fuel" && <Fuel profile={profile} />}
+      {tab === "progres" && <Progress />}
+      <TabBar tab={tab} onChange={setTab} />
+    </>
+  );
 }
 
 function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
@@ -222,12 +245,15 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
     void pushCheckIn(today(), c);
   };
   const [open, setOpen] = useState<DayPlan | null>(null);
-  const weekStart = useMemo(() => mondayOf(new Date()), []);
+  const thisWeek = mondayOf(new Date());
+  const unlocked = nextWeekUnlocked(thisWeek, profile.matchWeekdays, today());
+  const [viewNext, setViewNext] = useState(false);
+  const weekStart = viewNext && unlocked ? addDays(thisWeek, 7) : thisWeek;
   const plan = useMemo(
     () =>
       planWeek({
         weekStart,
-        matches: datesForWeek(weekStart, profile.matchWeekdays),
+        matches: matchesAround(weekStart, profile.matchWeekdays),
         clubDays: datesForWeek(weekStart, profile.clubWeekdays),
         level: levelOf(profile.age, profile.strengthYears),
         limitedGymAccess: profile.limitedGymAccess,
@@ -236,7 +262,7 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
   );
 
   return (
-    <main className="mx-auto max-w-md px-4 pb-16 pt-14">
+    <main className="mx-auto max-w-md px-4 pb-28 pt-14">
       <h1 className="text-3xl font-semibold tracking-tight">Twój tydzień</h1>
       <p className="mb-6 mt-1 text-sm text-muted">
         Plan dopasowany do meczu. <button onClick={onReset} className="underline">Zmień profil</button>
@@ -246,6 +272,7 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
         onSave={(d) => {
           setDistance(d);
           store("masDistance", String(d));
+          addEvents([{ date: today(), type: "mas", key: "mas", value: calcMas(d).kmh }]);
           void pushMas(d);
         }}
       />
@@ -260,13 +287,23 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
           Dziś mniej / brak czasu
         </button>
       </section>
+      <div className="mb-3 flex gap-1.5 rounded-xl bg-card p-1 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <button onClick={() => setViewNext(false)} className={`flex-1 rounded-lg py-1.5 text-sm ${!viewNext ? "bg-canvas font-medium" : "text-muted"}`}>Ten tydzień</button>
+        <button
+          disabled={!unlocked}
+          onClick={() => setViewNext(true)}
+          className={`flex-1 rounded-lg py-1.5 text-sm ${viewNext && unlocked ? "bg-canvas font-medium" : "text-muted"} disabled:opacity-40`}
+        >
+          Kolejny tydzień{!unlocked ? " (po meczu)" : ""}
+        </button>
+      </div>
       <ul className="flex flex-col gap-2.5">
         {plan.days.map((d, i) => (
           <DayRow key={d.date} day={d} index={i} onOpen={() => setOpen(d)} />
         ))}
       </ul>
       {open && (
-        <SessionSheet day={open} checkIn={checkIn} weekInCycle={weekInCycle(profile.startDate, weekStart)} mas={mas} level={levelOf(profile.age, profile.strengthYears)} onClose={() => setOpen(null)} />
+        <SessionSheet day={open} checkIn={checkIn} weekInCycle={weekInCycle(profile.startDate, weekStart)} mas={mas} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")} onClose={() => setOpen(null)} />
       )}
       {plan.warnings.length > 0 && (
         <p className="mt-4 rounded-2xl bg-yellow-soft p-3 text-sm text-yellow-ink">

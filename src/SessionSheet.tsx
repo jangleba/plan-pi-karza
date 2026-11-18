@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Pitch } from "./Pitch";
 import { pushWeightLog } from "./lib/sync";
 import { CueTrainer } from "./CueTrainer";
-import { EXERCISES, RECOVERY, TECHNIQUE_DRILLS, adaptSession, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
-import type { CheckIn, DayPlan, Level, Mas, Suggestion } from "./engine";
+import { EXERCISES, RECOVERY, bodyweightTemplate, drillsFor, adaptSession, addEvents, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
+import type { CheckIn, DayPlan, HistoryEvent, Level, Mas, Position, Suggestion } from "./engine";
 
 const KIND_TITLE: Record<string, string> = {
   strength: "Siła", run: "Bieganie", sprint: "Sprint",
@@ -11,19 +11,24 @@ const KIND_TITLE: Record<string, string> = {
 };
 
 export function SessionSheet({
-  day, checkIn, weekInCycle, mas, level, onClose,
-}: { day: DayPlan; checkIn: CheckIn; weekInCycle: number; mas: Mas | null; level: Level; onClose: () => void }) {
+  day, checkIn, weekInCycle, mas, level, position, hasGym, onClose,
+}: { day: DayPlan; checkIn: CheckIn; weekInCycle: number; mas: Mas | null; level: Level; position?: Position; hasGym: boolean; onClose: () => void }) {
   const [log, setLog] = useState(loadLog);
   const [weights, setWeights] = useState<Record<string, string>>({});
   const [summary, setSummary] = useState<Suggestion[] | null>(null);
   const s = day.session;
   const module = s?.kind === "strength" || s?.kind === "sprint" ? s.kind : null;
-  const found = module ? templateFor(module, weekInCycle) : null;
-  const run = s?.kind === "run" ? (mas ? runSession(mas, mesoPhase(weekInCycle), level, checkIn) : masTestSession()) : null;
+  const found = module
+    ? module === "strength" && !hasGym
+      ? { template: bodyweightTemplate(level, mesoPhase(weekInCycle)), deload: mesoPhase(weekInCycle) === "deload" }
+      : templateFor(module, weekInCycle, position)
+    : null;
+  const run = s?.kind === "run" ? (mas ? runSession(mas, mesoPhase(weekInCycle), level, checkIn, position) : masTestSession()) : null;
   const adapted = found ? adaptSession(found.template, checkIn, found.deload) : null;
 
   const finish = () => {
-    if (!adapted || !found) { onClose(); return; }
+    const events: HistoryEvent[] = s ? [{ date: day.date, type: "session", key: s.kind, value: 1 }] : [];
+    if (!adapted || !found) { addEvents(events); onClose(); return; }
     const strain = strainOf(checkIn);
     const next = { ...log };
     const out: Suggestion[] = [];
@@ -32,10 +37,12 @@ export function SessionSheet({
         const kg = Number((weights[`${bi}-${ii}`] ?? "").replace(",", "."));
         if (!(kg > 0) || !EXERCISES[i.exerciseId]?.loaded) return;
         next[i.exerciseId] = { kg, reps: firstNumber(i.reps), date: day.date };
+        events.push({ date: day.date, type: "strength", key: i.exerciseId, value: Math.round(estimate1RM(kg, firstNumber(i.reps)) * 10) / 10 });
         const sug = suggestNext(i.exerciseId, kg, strain, found.deload);
         if (sug) out.push(sug);
       }),
     );
+    addEvents(events);
     setLog(next);
     saveLog(next);
     void pushWeightLog(next);
@@ -154,7 +161,7 @@ export function SessionSheet({
           <>
             <p className="text-sm text-muted">Szkice do przeglądu trenera</p>
             <div className="mt-4 flex flex-col gap-5">
-              {TECHNIQUE_DRILLS.map((d) => (
+              {drillsFor(position).map((d) => (
                 <div key={d.id}>
                   <div className="mb-2 text-sm font-medium">{d.title}</div>
                   <Pitch drill={d} />

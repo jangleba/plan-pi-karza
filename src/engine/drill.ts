@@ -1,3 +1,5 @@
+import type { Position } from "./profile";
+
 /** Model ćwiczenia z diagramem boiska (współrzędne w metrach). */
 export type ArrowStyle = "run" | "dribble" | "pass" | "shot";
 export type Tone = "green" | "yellow" | "red" | "blue";
@@ -24,6 +26,8 @@ export interface Drill {
   goal: string;
   dose: string;
   points: string[];
+  /** Pozycje, dla których ćwiczenie jest szczególnie ważne (puste = dla wszystkich). */
+  positions?: Position[];
   /** Źródło treści (uzupełniane po researchu). */
   source: string;
 }

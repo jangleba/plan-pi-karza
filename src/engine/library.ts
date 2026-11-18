@@ -1,3 +1,4 @@
+import type { Position } from "./profile";
 /**
  * Biblioteka ćwiczeń i szablony sesji z notatek trenera
  * (docs/SESJE-SILOWE-TRENERA.md, docs/SESJE-SPRINT-TRENERA.md).
@@ -65,6 +66,27 @@ export const EXERCISES: Record<string, Exercise> = Object.fromEntries(
     ex("sl-jumps-llrr", "Skoki jednonóż LL-RR", "jump", false, 2, "ankle", ["pogo-jumps"]),
     ex("heiden-jumps", "Heiden jumps", "jump", false, 2, "ankle", ["sl-jumps-llrr"]),
     ex("curve-run", "Bieg po łuku", "sprint", false, 2, "hip"),
+    // bez siłowni – drabinki trudności (docs/BEZ-SILOWNI.md)
+    ex("bw-squat", "Przysiad z masą ciała", "squat", false, 1, "knee", ["split-squat"]),
+    ex("split-squat", "Wykrok w miejscu", "squat", false, 1, "knee", ["bw-squat"]),
+    ex("bulgarian-split-squat", "Przysiad bułgarski", "squat", false, 2, "knee", ["split-squat"]),
+    ex("assisted-pistol", "Przysiad jednonóż z asystą", "squat", false, 2, "knee", ["bulgarian-split-squat"]),
+    ex("pistol-squat", "Przysiad jednonóż", "squat", false, 3, "knee", ["assisted-pistol"]),
+    ex("sl-glute-bridge", "Glute bridge jednonóż", "hinge", false, 1, "hip", ["glute-bridge"]),
+    ex("sl-rdl-bw", "Martwy ciąg jednonóż (masa ciała)", "hinge", false, 2, "back", ["sl-glute-bridge"]),
+    ex("nordic-assisted", "Nordic curl z asystą", "hinge", false, 2, "knee", ["slider-leg-curl"]),
+    ex("nordic-curl", "Nordic curl", "hinge", false, 3, "knee", ["nordic-assisted"]),
+    ex("incline-push-up", "Pompki z podwyższeniem", "push", false, 1, "shoulder", ["push-up"]),
+    ex("feet-elevated-push-up", "Pompki z nogami na podwyższeniu", "push", false, 2, "shoulder", ["push-up"]),
+    ex("archer-push-up", "Pompki łucznika", "push", false, 2, "shoulder", ["feet-elevated-push-up"]),
+    ex("feet-elevated-row", "Podciąganie poziome z nogami wyżej", "pull", false, 2, "back", ["inverted-row"]),
+    ex("archer-row", "Podciąganie poziome łucznika", "pull", false, 2, "back", ["feet-elevated-row"]),
+    ex("squat-jump", "Wyskok z przysiadu", "jump", false, 2, "knee", ["pogo-jumps"]),
+    ex("bounding", "Skoki wykroczne (bounding)", "jump", false, 2, "ankle", ["squat-jump"]),
+    ex("sl-hop", "Skoki jednonóż do przodu", "jump", false, 2, "ankle", ["bounding"]),
+    ex("sl-calf-raise", "Łydki jednonóż", "calf", false, 1, "ankle", ["seated-sl-calf"]),
+    ex("side-plank", "Plank boczny", "core", false, 1, "back"),
+    ex("copenhagen", "Copenhagen plank", "core", false, 2, "hip", ["side-plank"]),
   ].map((e) => [e.id, e]),
 );
 
@@ -155,9 +177,24 @@ export function mesoPhase(weekInCycle: number): MesoPhase {
   return w < 2 ? "volume" : w < 4 ? "intensity" : "deload";
 }
 
+/**
+ * Pozycja wpływa tylko na sprint: skrzydłowy i napastnik – więcej prędkości liniowej
+ * (sprint-b), pozostali – przyspieszenie i zmiana kierunku (sprint-a); co drugi tydzień drugi wariant (tygodnie 2 i 4 cyklu).
+ * Siły (siłownia) pozycja NIE zmienia.
+ */
+export function sprintTemplateFor(position: Position | undefined, weekInCycle: number): SessionTemplate | undefined {
+  const a = TEMPLATES.find((x) => x.id === "sprint-a");
+  const b = TEMPLATES.find((x) => x.id === "sprint-b");
+  const speedFirst = position === "skrzydlowy" || position === "napastnik";
+  const primary = speedFirst ? b : a;
+  const other = speedFirst ? a : b;
+  return weekInCycle % 2 === 0 ? other : primary;
+}
+
 export function templateFor(
   module: "strength" | "sprint",
   weekInCycle: number,
+  position?: Position,
 ): { template: SessionTemplate; deload: boolean } | null {
   const phase = mesoPhase(weekInCycle);
   if (module === "strength") {
@@ -165,7 +202,6 @@ export function templateFor(
     const t = TEMPLATES.find((x) => x.module === "strength" && x.phase === want);
     return t ? { template: t, deload: phase === "deload" } : null;
   }
-  const sprints = TEMPLATES.filter((x) => x.module === "sprint");
-  const t = sprints[((weekInCycle - 1) % sprints.length + sprints.length) % sprints.length];
+  const t = sprintTemplateFor(position, weekInCycle);
   return t ? { template: t, deload: phase === "deload" } : null;
 }
