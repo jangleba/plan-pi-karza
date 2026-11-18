@@ -30,6 +30,11 @@ export interface DayPlan {
   session: IndividualSession | null;
 }
 
+/** Moment w sezonie. */
+export type Season = "preseason" | "inseason" | "offseason";
+/** Cel zawodnika na sezon. */
+export type SeasonGoal = "speed" | "strength" | "endurance" | "return";
+
 export interface WeekInput {
   /** Poniedziałek tygodnia, ISO. */
   weekStart: string;
@@ -38,6 +43,9 @@ export interface WeekInput {
   level: Level;
   /** Zawodnik ma mało dni na siłownię – wtedy siła pełna także w MD+1. */
   limitedGymAccess: boolean;
+  /** Domyślnie „w sezonie". */
+  season?: Season;
+  goal?: SeasonGoal;
 }
 
 export interface WeekPlan {

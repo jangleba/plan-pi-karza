@@ -1,10 +1,22 @@
-import type { Level } from "./types";
+import type { Level, Season, SeasonGoal } from "./types";
 import { addDays, planWeek } from "./week";
 
 export type Position = "bramkarz" | "obronca" | "pomocnik" | "skrzydlowy" | "napastnik";
 export type Equipment = "gym" | "bodyweight" | "field";
 
+/** Polskie poziomy rozgrywek (wpływ na silnik – do ustalenia, na razie tylko zapis). */
+export const LEAGUES = [
+  "Ekstraklasa", "I liga", "II liga", "III liga", "IV liga", "V liga", "Klasa okręgowa",
+  "A-klasa", "B-klasa", "C-klasa", "Juniorzy – CLJ", "Juniorzy – liga wojewódzka", "Juniorzy – liga okręgowa", "Amatorsko",
+] as const;
+export type League = (typeof LEAGUES)[number];
+
 export interface Profile {
+  name?: string;
+  /** Domyślnie „w sezonie" (stare profile). */
+  season?: Season;
+  goal?: SeasonGoal;
+  league?: League;
   age: number;
   /** Lata regularnego treningu siłowego. */
   strengthYears: number;
@@ -40,7 +52,7 @@ export function validateProfile(p: Partial<Profile>): string[] {
   if (!p.weightKg || p.weightKg < 40 || p.weightKg > 160) e.push("Podaj masę ciała (40–160 kg).");
   if (!p.position) e.push("Wybierz pozycję.");
   if (!p.equipment?.length) e.push("Wybierz dostępny sprzęt.");
-  if (!p.matchWeekdays?.length) e.push("Zaznacz dzień meczu.");
+  if ((p.season ?? "inseason") === "inseason" && !p.matchWeekdays?.length) e.push("Zaznacz dzień meczu.");
   if ((p.matchWeekdays?.length ?? 0) > 2) e.push("Maksymalnie dwa mecze w tygodniu.");
   return e;
 }
@@ -79,5 +91,24 @@ export function planForProfile(profile: Profile, weekStart: string) {
     clubDays: datesForWeek(weekStart, profile.clubWeekdays),
     level: levelOf(profile.age, profile.strengthYears),
     limitedGymAccess: profile.limitedGymAccess,
+    season: profile.season,
+    goal: profile.goal,
   });
+}
+
+/**
+ * Tydzień cyklu do doboru faz. Cel „powrót po przerwie": pierwsze 2 tygodnie od startu
+ * jako rozładowanie (tydzień 5 cyklu), potem zwykły cykl.
+ */
+export function cycleWeekFor(profile: Profile, weekStart: string): number {
+  if (profile.goal === "return" && profile.startDate) {
+    const weeks = Math.floor((Date.parse(weekStart) - Date.parse(weekStartOfISO(profile.startDate))) / (7 * 86_400_000));
+    if (weeks >= 0 && weeks < 2) return 5;
+  }
+  return weekInCycle(profile.startDate, weekStart);
+}
+
+function weekStartOfISO(iso: string): string {
+  const dow = (new Date(Date.parse(iso)).getUTCDay() + 6) % 7;
+  return addDays(iso, -dow);
 }

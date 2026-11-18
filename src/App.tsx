@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
-import { localISO, addDays, datesForWeek, levelOf, matchesAround, nextWeekUnlocked, planWeek, weekInCycle } from "./engine";
+import { localISO, addDays, cycleWeekFor, levelOf, nextWeekUnlocked, planForProfile } from "./engine";
 import type { CheckIn, DayPlan, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
 import { Start } from "./Start";
@@ -205,13 +205,7 @@ function Home({ profile, checkIn, initialOpen, onOpened, onReset }: {
   const weekStart = viewNext && unlocked ? addDays(thisWeek, 7) : thisWeek;
   const plan = useMemo(
     () =>
-      planWeek({
-        weekStart,
-        matches: matchesAround(weekStart, profile.matchWeekdays),
-        clubDays: datesForWeek(weekStart, profile.clubWeekdays),
-        level: levelOf(profile.age, profile.strengthYears),
-        limitedGymAccess: profile.limitedGymAccess,
-      }),
+      planForProfile(profile, weekStart),
     [weekStart, profile],
   );
 
@@ -238,7 +232,7 @@ function Home({ profile, checkIn, initialOpen, onOpened, onReset }: {
         ))}
       </ul>
       {open && (
-        <SessionSheet day={open} checkIn={checkIn} weekInCycle={weekInCycle(profile.startDate, weekStart)} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")} onClose={() => setOpen(null)} />
+        <SessionSheet day={open} checkIn={checkIn} weekInCycle={cycleWeekFor(profile, weekStart)} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")} onClose={() => setOpen(null)} />
       )}
       {plan.warnings.length > 0 && (
         <p className="mt-4 rounded-2xl border border-hairline bg-canvas p-3 text-sm text-muted">

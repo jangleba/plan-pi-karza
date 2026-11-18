@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { levelOf, localISO, planForProfile, readinessScore, strainOf, weekInCycle, weekStartOf } from "./engine";
+import { cycleWeekFor, levelOf, localISO, planForProfile, readinessScore, strainOf, weekStartOf } from "./engine";
 import type { CheckIn, DayPlan, Profile, SessionKind } from "./engine";
 import { Sheet } from "./Sheet";
 import { SessionSheet } from "./SessionSheet";
@@ -70,7 +70,7 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn }: {
   return (
     <main className="mx-auto max-w-md px-5 pb-28 pt-14">
       <p className="text-sm text-muted">{new Date().toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" })}</p>
-      <h1 className="mb-8 text-[32px] font-semibold tracking-tight">Dziś</h1>
+      <h1 className="mb-8 text-[32px] font-semibold tracking-tight">{profile.name ? `Cześć, ${profile.name}` : "Dziś"}</h1>
 
       <Ring value={readinessScore(checkIn)} done={checkedIn} onTap={() => setSheet("checkin")} />
       <p className="mb-8 mt-3 text-center text-sm text-muted">{checkedIn ? STRAIN[strainOf(checkIn)] : "Jak się czujesz?"}</p>
@@ -99,7 +99,7 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn }: {
         </Sheet>
       )}
       {sheet === "session" && day && (
-        <SessionSheet day={day} checkIn={checkIn} weekInCycle={weekInCycle(profile.startDate, ws)}
+        <SessionSheet day={day} checkIn={checkIn} weekInCycle={cycleWeekFor(profile, ws)}
           level={levelOf(profile.age, profile.strengthYears)} position={profile.position}
           hasGym={profile.equipment.includes("gym")} onClose={() => setSheet(null)} />
       )}
