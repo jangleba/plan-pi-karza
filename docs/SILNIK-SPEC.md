@@ -64,3 +64,10 @@ Silnik = czysty, deterministyczny TypeScript (bez AI). Ten sam wynik dla tych sa
 ## Sprint (runda 4)
 - Źródło: `docs/SESJE-SPRINT-TRENERA.md`. Kolejność: skipy → przejścia → drille techniczne → przyspieszenia → prędkość maksymalna → akcesoria wg celu (hamowanie, łuk, COD, plyo).
 - Bez partnera. Szukanie partnera – późniejsza funkcja.
+- Cel zawodnika w sprincie (akcesoria): zmiana kierunku i hamowanie. Powtarzalne sprinty meczowe należą do modułu wytrzymałości, nie sprintu.
+- Drille techniczne: stały zestaw na mezocykl (4–5 tyg.), potem zmiana.
+- Objętość sprintu w tygodniu = metry szybkich biegów.
+- Pomiar sprintu telefonem (czas + dystans → prędkość): do zbadania wykonalność (patrz „Do sprawdzenia").
+
+## Do sprawdzenia
+- Czy telefon nadaje się do pomiaru czasu/dystansu sprintu 15–30 m (GPS 1 Hz jest zbyt zgrubny; alternatywy: pomiar z wideo, ręczny wpis czasu).
