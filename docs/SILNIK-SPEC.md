@@ -42,3 +42,12 @@ Silnik = czysty, deterministyczny TypeScript (bez AI). Ten sam wynik dla tych sa
 
 ## Wyjście
 - Plan tygodnia + szczegółowa sesja (ćwiczenia, serie, powtórzenia, przerwy), z wbudowanej biblioteki ćwiczeń.
+
+## Ustalenia – sesje siłowe (runda 2)
+- Źródło: `docs/SESJE-SILOWE-TRENERA.md` (na start to wszystkie sesje). Kolejne ćwiczenia dodawane później.
+- Silnik łączy 3 tryby: gotowe szablony sesji, biblioteka ćwiczeń + reguły składania, szablony z podmianami (zamienniki, check-in).
+- Zmiana planu treningowego (faza) co 4–5 tygodni.
+- Skracanie: mniej serii albo ćwiczenia mniej obciążające OUN i stawy.
+- Bez siłowni: osobna lista ćwiczeń z progresją trudności.
+- Zamiana ćwiczenia w trakcie sesji: „idealny zamiennik" (ta sama partia, wzorzec ruchu, dostępny sprzęt).
+- Przeniesienie opuszczonej sesji: dopasowane do celu i tygodnia, z zachowaniem reguł MD-x.
