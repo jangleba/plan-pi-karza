@@ -1442,3 +1442,205 @@
   gap: 8px;
   min-height: 40px;
 }
+
+/* ---- Pastel sketches and calm motion --------------------------------------------------------
+   Quiet line drawings on soft pastel discs. Colours mix with the card, so they work in both
+   themes; motion is short and is removed for people who ask for less of it. */
+.fuel-v4 {
+  --fuel-p-butter: color-mix(in oklch, oklch(0.86 0.09 92) 42%, var(--card));
+  --fuel-p-rose: color-mix(in oklch, oklch(0.8 0.08 20) 38%, var(--card));
+  --fuel-p-peach: color-mix(in oklch, oklch(0.82 0.09 55) 40%, var(--card));
+  --fuel-p-mint: color-mix(in oklch, oklch(0.84 0.08 160) 40%, var(--card));
+  --fuel-p-lilac: color-mix(in oklch, oklch(0.8 0.07 295) 38%, var(--card));
+  --fuel-p-sky: color-mix(in oklch, oklch(0.83 0.07 235) 42%, var(--card));
+  --fuel-ease: cubic-bezier(0.22, 0.8, 0.28, 1);
+}
+
+.fuel-meal-sketches {
+  display: flex;
+  align-items: center;
+  margin: 10px 0 8px;
+}
+.fuel-sketch {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  margin-right: -5px;
+  animation: fuel-pop 0.42s var(--fuel-ease) both;
+  animation-delay: calc(var(--i, 0) * 70ms + 60ms);
+}
+.fuel-meal-sketches .fuel-sketch:last-child {
+  margin-right: 0;
+}
+.fuel-sketch-disc {
+  fill: var(--fuel-p-butter);
+  stroke: var(--card);
+  stroke-width: 2.5;
+}
+.fuel-sketch[data-role="protein"] .fuel-sketch-disc {
+  fill: var(--fuel-p-rose);
+}
+.fuel-sketch[data-role="fruit"] .fuel-sketch-disc {
+  fill: var(--fuel-p-peach);
+}
+.fuel-sketch[data-role="vegetable"] .fuel-sketch-disc {
+  fill: var(--fuel-p-mint);
+}
+.fuel-sketch[data-role="fat"] .fuel-sketch-disc {
+  fill: var(--fuel-p-lilac);
+}
+.fuel-sketch[data-role="fluid"] .fuel-sketch-disc {
+  fill: var(--fuel-p-sky);
+}
+.fuel-sketch-line {
+  stroke: color-mix(in srgb, var(--fuel-text) 62%, transparent);
+  fill: none;
+}
+.fuel-sketch-line circle[r=".8"] {
+  fill: color-mix(in srgb, var(--fuel-text) 62%, transparent);
+}
+@keyframes fuel-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.86);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fuel-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The meal card settles in whenever the suggestion or the phase changes. */
+.fuel-v4 .fuel-now-card {
+  animation: fuel-rise 0.34s var(--fuel-ease) both;
+}
+
+/* Timeline: the line fills up to "now", and "now" breathes once. */
+.fuel-timeline ol::after {
+  content: "";
+  position: absolute;
+  top: 41px;
+  left: 16.66%;
+  width: 66.66%;
+  height: 2px;
+  background: var(--fuel-accent);
+  transform: scaleX(var(--fuel-progress, 0));
+  transform-origin: left center;
+  transition: transform 0.7s var(--fuel-ease);
+}
+.fuel-timeline li > i {
+  position: relative;
+  z-index: 1;
+  transition:
+    background-color 0.3s,
+    border-color 0.3s;
+}
+.fuel-timeline li[data-state="now"] > i::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--bw-success, #5f8f5a) 55%, transparent);
+  animation: fuel-ring 2.4s ease-out 2 both;
+}
+@keyframes fuel-ring {
+  from {
+    opacity: 0.9;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.25);
+  }
+}
+
+/* "Adjust to the moment": three pastel tiles, each with its own quiet disc. */
+.fuel-fit-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--fuel-p-sky);
+  transition: transform 0.25s var(--fuel-ease);
+}
+.fuel-fit-icon[data-fit="store"] {
+  background: var(--fuel-p-mint);
+}
+.fuel-fit-icon[data-fit="own"] {
+  background: var(--fuel-p-lilac);
+}
+.fuel-v4 .fuel-now-fit svg {
+  color: color-mix(in srgb, var(--fuel-text) 70%, transparent);
+}
+.fuel-v4 .fuel-now-fit:active .fuel-fit-icon {
+  transform: scale(0.92);
+}
+.fuel-v4 .fuel-now-fit[aria-pressed="true"] .fuel-fit-icon {
+  transform: scale(1.06);
+}
+
+/* Water: the glass rises to today's amount; every add ripples the surface once. */
+.fuel-glass {
+  align-self: start;
+  flex: 0 0 auto;
+}
+.fuel-glass-line {
+  stroke: color-mix(in srgb, var(--fuel-text) 55%, transparent);
+}
+.fuel-glass-water,
+.fuel-glass-wave {
+  fill: var(--fuel-p-sky);
+  transform: translateY(calc((1 - var(--level, 0)) * 32px));
+  transition: transform 0.9s var(--fuel-ease);
+}
+.fuel-glass-wave {
+  animation: fuel-wave 3.2s ease-in-out infinite alternate;
+}
+@keyframes fuel-wave {
+  from {
+    translate: -4px 0;
+  }
+  to {
+    translate: 4px 0;
+  }
+}
+.fuel-water-added {
+  animation: fuel-rise 0.3s var(--fuel-ease) both;
+}
+.fuel-water-add {
+  transition: transform 0.15s var(--fuel-ease);
+}
+.fuel-water-add:active {
+  transform: scale(0.95);
+}
+.fuel-v4 .fuel-primary:active {
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fuel-sketch,
+  .fuel-v4 .fuel-now-card,
+  .fuel-water-added,
+  .fuel-timeline li[data-state="now"] > i::after,
+  .fuel-glass-wave {
+    animation: none;
+  }
+  .fuel-timeline ol::after,
+  .fuel-glass-water,
+  .fuel-glass-wave,
+  .fuel-fit-icon,
+  .fuel-water-add {
+    transition: none;
+  }
+}

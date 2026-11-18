@@ -2,7 +2,7 @@ export type SketchKind = "pitch" | "track" | "play" | "strength" | "fuel" | "mea
 
 /** Architectural line work. Decorative: never a control, chart or measurement overlay. */
 export function SurfaceSketch({ kind, className = "" }: { kind: SketchKind; className?: string }) {
-  const field = kind === "pitch" || kind === "fuel";
+  const field = kind === "pitch";
   return (
     <svg
       className={`bw-surface-sketch ${className}`}
@@ -25,6 +25,17 @@ export function SurfaceSketch({ kind, className = "" }: { kind: SketchKind; clas
             <path d="M10 150V24h140v126M38.49 24v33.97h83.02V24M61.14 24v11.32h37.72V24" />
             <path d="M64.96 57.97a18.84 18.84 0 0 0 30.08 0M72.46 24v-5h15.08v5" />
             <circle cx="80" cy="46.65" r=".75" fill="currentColor" stroke="none" />
+          </>
+        )}
+        {kind === "fuel" && (
+          <>
+            {/* A bowl with steam, a banana and a glass: one calm table, line work only. */}
+            <path d="M22 84h116c0 32-26 56-58 56S22 116 22 84zM52 150h56" />
+            <path
+              d="M58 70c-6-8 6-14 0-24M82 70c-6-8 6-14 0-24M106 70c-6-8 6-14 0-24"
+              strokeDasharray="3 5"
+            />
+            <path d="M118 150c16-4 30-16 30-38" strokeDasharray="4 5" />
           </>
         )}
         {kind === "track" && (
