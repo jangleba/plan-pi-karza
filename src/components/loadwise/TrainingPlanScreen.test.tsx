@@ -11,6 +11,7 @@ import { enqueueTrainingWrite } from "@/lib/loadwise/offlineTrainingQueue";
 import { trainingStorageKey } from "@/lib/loadwise/trainingDetails";
 import { weeklyTargetCoverage } from "@/lib/loadwise/engineV2/weeklyTargets";
 const mock = vi.hoisted(() => ({
+  ownerId: "plan-test",
   store: null as unknown as Record<string, unknown>,
   activate: vi.fn(),
   navigate: vi.fn(),
@@ -18,7 +19,7 @@ const mock = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/loadwise/useGymEvidence", () => ({ useGymEvidence: () => mock.gym }));
 vi.mock("@/lib/loadwise/store", () => ({ useLoadwise: () => mock.store }));
-vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: "plan-test" } }) }));
+vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: mock.ownerId } }) }));
 vi.mock("@/components/loadwise/ui", () => ({
   AppHeader: ({ right }: { right?: import("react").ReactNode }) => right ?? null,
 }));
@@ -34,6 +35,7 @@ beforeEach(() => {
   document.body.append(host);
   root = createRoot(host);
   mock.activate.mockReset();
+  mock.ownerId = "plan-test";
   mock.gym = { loading: false, available: true, records: [] };
   mock.navigate.mockReset();
   mock.store = {
@@ -52,17 +54,17 @@ afterEach(async () => {
   host.remove();
   vi.unstubAllGlobals();
 });
-it("shows the four-week preview and only saves after an explicit click", async () => {
+it("shows the one-week preview and only saves after an explicit click", async () => {
   await act(async () => root.render(<PlanScreen />));
   expect(mock.activate).not.toHaveBeenCalled();
-  expect(host.textContent).toContain("4 tygodnie");
-  expect(host.textContent).toContain("29 listopada");
+  expect(host.textContent).toContain("Twój plan · 1 tydzień");
+  expect(host.textContent).toContain("8 listopada");
   const save = [...host.querySelectorAll("button")].find((b) =>
     b.textContent?.startsWith("Zapisz plan"),
   )!;
   await act(async () => save.click());
   expect(mock.activate).toHaveBeenCalledOnce();
-  expect(mock.activate.mock.calls[0][0].plan).toHaveLength(28);
+  expect(mock.activate.mock.calls[0][0].plan).toHaveLength(7);
 });
 it("keeps the preview and explains a failed write instead of claiming success", async () => {
   mock.activate.mockRejectedValueOnce(new Error("Brak połączenia"));
@@ -82,6 +84,50 @@ it("does not enable writes until hydration finishes", async () => {
     b.textContent?.startsWith("Zapisz plan"),
   )!;
   expect(save.disabled).toBe(true);
+});
+
+it("defaults a new plan to whole sessions and limits time only after a deliberate choice", async () => {
+  await act(async () => root.render(<PlanScreen />));
+  const select = host.querySelector<HTMLSelectElement>('[aria-label="Czas na jednostkę"]')!;
+  expect(select.value).toBe("full");
+  expect(mock.activate).not.toHaveBeenCalled();
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((b) => b.textContent?.startsWith("Zapisz plan"))!
+      .click(),
+  );
+  expect(mock.activate.mock.calls[0][0].sessionDurationMode).toBe("full");
+  expect(mock.activate.mock.calls[0][0].plan[0].planInputs.sessionDurationMode).toBe("full");
+  mock.activate.mockClear();
+  await act(async () => {
+    select.value = "30";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  expect(select.value).toBe("30");
+  expect(mock.activate).not.toHaveBeenCalled();
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((b) => b.textContent?.startsWith("Zapisz plan"))!
+      .click(),
+  );
+  expect(mock.activate.mock.calls[0][0]).toMatchObject({
+    sessionDurationMode: "limited",
+    minutesPerSession: 30,
+  });
+});
+
+it("does not carry an unsaved time limit into another account's new plan", async () => {
+  await act(async () => root.render(<PlanScreen />));
+  const select = host.querySelector<HTMLSelectElement>('[aria-label="Czas na jednostkę"]')!;
+  await act(async () => {
+    select.value = "30";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  expect(select.value).toBe("30");
+  mock.ownerId = "another-plan-athlete";
+  await act(async () => root.render(<PlanScreen />));
+  expect(select.value).toBe("full");
+  expect(mock.activate).not.toHaveBeenCalled();
 });
 
 it("restores the saved time budget after hydration and uses it when rebuilding", async () => {
@@ -135,12 +181,13 @@ it("previews explicit weekly targets and saves the same choices only on request"
   expect(host.querySelector('[aria-label="Pokrycie celów tygodniowych"]')).toBeNull();
   await act(async () =>
     [...host.querySelectorAll("button")]
-      .find((b) => b.textContent === "2 siłowe · 2 sprinty · 1 bieg")!
+      .find((b) => b.textContent === "2 siłowe · 1 bieg · sprint automatycznie")!
       .click(),
   );
   expect(mock.activate).not.toHaveBeenCalled();
-  expect(host.querySelector<HTMLSelectElement>('[aria-label="Sprinty na tydzień"]')!.value).toBe(
-    "2",
+  expect(host.querySelector('[aria-label="Sprinty na tydzień"]')).toBeNull();
+  expect(host.querySelector('[aria-label="Liczba sesji sprintu"]')?.textContent).toContain(
+    "automatycznie",
   );
   expect(host.querySelector<HTMLSelectElement>('[aria-label="Biegi na tydzień"]')!.value).toBe("1");
   expect(host.querySelector<HTMLSelectElement>('[aria-label="Pełne dni odpoczynku"]')!.value).toBe(
@@ -153,7 +200,7 @@ it("previews explicit weekly targets and saves the same choices only on request"
       .click(),
   );
   const result = mock.activate.mock.calls[0][0];
-  const targets = { strength: 2, speed: 2, endurance: 1 } as const;
+  const targets = { strength: 2, speed: "auto", endurance: 1 } as const;
   expect(result.plan[0].planInputs).toMatchObject({
     weeklyTargets: targets,
     minFullRestDays: 1,
@@ -166,7 +213,7 @@ it("previews explicit weekly targets and saves the same choices only on request"
   );
   expect(cells).toEqual([
     `${actual.planned.strength} / 2`,
-    `${actual.planned.speed} / 2`,
+    `${actual.planned.speed} · automatycznie`,
     `${actual.planned.endurance} / 1`,
     `${actual.fullRestDays} / min. 1`,
   ]);
@@ -184,8 +231,9 @@ it("restores saved weekly choices and can explicitly reset them to the profile p
   }).plan;
   mock.store.state = { ...state, profile, plan: saved, activePlanId: "weekly-saved" };
   await act(async () => root.render(<PlanScreen />));
-  expect(host.querySelector<HTMLSelectElement>('[aria-label="Sprinty na tydzień"]')!.value).toBe(
-    "2",
+  expect(host.querySelector('[aria-label="Sprinty na tydzień"]')).toBeNull();
+  expect(host.querySelector('[aria-label="Liczba sesji sprintu"]')?.textContent).toContain(
+    "automatycznie",
   );
   expect(mock.activate).not.toHaveBeenCalled();
   await act(async () =>
@@ -213,19 +261,19 @@ it("drops an unsaved weekly request when another plan arrives and on return to t
   await act(async () => root.render(<PlanScreen />));
   await act(async () =>
     [...host.querySelectorAll("button")]
-      .find((b) => b.textContent === "2 siłowe · 2 sprinty · 1 bieg")!
+      .find((b) => b.textContent === "2 siłowe · 1 bieg · sprint automatycznie")!
       .click(),
   );
-  expect(host.querySelector('[aria-label="Sprinty na tydzień"]')).not.toBeNull();
+  expect(host.querySelector('[aria-label="Biegi na tydzień"]')).not.toBeNull();
   await act(async () =>
     [...host.querySelectorAll("button")]
       .find((b) => b.textContent === "Wróć do zapisanego planu")!
       .click(),
   );
-  expect(host.querySelector('[aria-label="Sprinty na tydzień"]')).toBeNull();
+  expect(host.querySelector('[aria-label="Biegi na tydzień"]')).toBeNull();
   await act(async () =>
     [...host.querySelectorAll("button")]
-      .find((b) => b.textContent === "2 siłowe · 2 sprinty · 1 bieg")!
+      .find((b) => b.textContent === "2 siłowe · 1 bieg · sprint automatycznie")!
       .click(),
   );
   const other = generateTrainingPlan(state.profile!, {
@@ -237,8 +285,9 @@ it("drops an unsaved weekly request when another plan arrives and on return to t
   }).plan;
   mock.store.state = { ...state, plan: other, activePlanId: "other" };
   await act(async () => root.render(<PlanScreen />));
-  expect(host.querySelector<HTMLSelectElement>('[aria-label="Sprinty na tydzień"]')!.value).toBe(
-    "1",
+  expect(host.querySelector('[aria-label="Sprinty na tydzień"]')).toBeNull();
+  expect(host.querySelector('[aria-label="Liczba sesji sprintu"]')?.textContent).toContain(
+    "automatycznie",
   );
   expect(host.querySelector<HTMLSelectElement>('[aria-label="Biegi na tydzień"]')!.value).toBe("2");
   expect(host.querySelector<HTMLSelectElement>('[aria-label="Pełne dni odpoczynku"]')!.value).toBe(
@@ -272,7 +321,7 @@ it("restores the saved time budget when rejecting a preview before changing week
   );
   await act(async () =>
     [...host.querySelectorAll("button")]
-      .find((b) => b.textContent === "2 siłowe · 2 sprinty · 1 bieg")!
+      .find((b) => b.textContent === "2 siłowe · 1 bieg · sprint automatycznie")!
       .click(),
   );
   await act(async () =>
@@ -289,15 +338,16 @@ it("recognizes an expired cycle and prepares today's next window only on request
   mock.store.state = { ...state, activePlanId: "old-cycle", plan: old };
   await act(async () => root.render(<PlanScreen />));
   expect(host.textContent).toContain("Cykl zakończony");
-  expect(host.textContent).not.toContain("Twój plan · 4 tygodnie");
+  expect(host.textContent).not.toContain("Twój plan · 1 tydzień");
   expect(mock.activate).not.toHaveBeenCalled();
+  // The next week is never prepared here: the question about its match comes first (Progress).
   await act(async () =>
     [...host.querySelectorAll("button")]
       .find((b) => b.textContent === "Przygotuj kolejny plan")!
       .click(),
   );
-  expect(host.textContent).toContain("Nowy plan rozpoczyna się 2 listopada");
-  expect(host.textContent).toContain("29 listopada");
+  expect(mock.navigate).toHaveBeenCalledWith({ to: "/postep" });
+  expect(host.textContent).not.toContain("Twój plan · 1 tydzień");
   expect((mock.store.state as LoadwiseState).plan).toBe(old);
   expect(mock.activate).not.toHaveBeenCalled();
 });
@@ -311,13 +361,13 @@ it("offers an explicit profile update and lets the player return to the saved sn
   await act(async () =>
     [...host.querySelectorAll("button")].find((b) => b.textContent === "Zaktualizuj plan")!.click(),
   );
-  expect(host.textContent).toContain("Twój plan · 4 tygodnie");
+  expect(host.textContent).toContain("Twój plan · 1 tydzień");
   await act(async () =>
     [...host.querySelectorAll("button")]
       .find((b) => b.textContent === "Wróć do zapisanego planu")!
       .click(),
   );
-  expect(host.textContent).not.toContain("Twój plan · 4 tygodnie");
+  expect(host.textContent).not.toContain("Twój plan · 1 tydzień");
   expect((mock.store.state as LoadwiseState).plan).toBe(saved);
   expect(mock.activate).not.toHaveBeenCalled();
 });
@@ -377,7 +427,7 @@ it("prepares the next preview from the confirmed choices, continues the cycle an
   );
   await act(async () => root.render(<PlanScreen />));
   // The preview opens by itself, with the chosen budget, and nothing is saved yet.
-  expect(host.textContent).toContain("Twój plan · 4 tygodnie");
+  expect(host.textContent).toContain("Twój plan · 1 tydzień");
   expect(
     host.querySelector<HTMLSelectElement>('select[aria-label="Czas na jednostkę"]')!.value,
   ).toBe("45");
@@ -413,7 +463,7 @@ it("ignores confirmed choices that belong to another saved plan", async () => {
     JSON.stringify({ planId: "some-other-plan", minutes: 30, createdAt: "2026-11-02T08:00:00Z" }),
   );
   await act(async () => root.render(<PlanScreen />));
-  expect(host.textContent).not.toContain("Twój plan · 4 tygodnie");
+  expect(host.textContent).not.toContain("Twój plan · 1 tydzień");
   expect(host.textContent).toContain("Cykl zakończony");
 });
 
@@ -432,7 +482,7 @@ it("'Wróć do zapisanego planu' drops the confirmed choices instead of reopenin
       .find((b) => b.textContent === "Wróć do zapisanego planu")!
       .click(),
   );
-  expect(host.textContent).not.toContain("Twój plan · 4 tygodnie");
+  expect(host.textContent).not.toContain("Twój plan · 1 tydzień");
   expect(localStorage.getItem(key)).toBe("null");
 });
 

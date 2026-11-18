@@ -121,6 +121,7 @@ describe("reviewable updates of pending A/B sessions", () => {
       validateTrainingPlan(result!.candidatePlan, p, {
         startDate: input.plan[0].date,
         minutesPerSession: 75,
+        sessionDurationMode: result!.sessionDurationMode,
       }),
     ).toEqual([]);
     expect(result!.changes.every((c) => c.before.date === c.after?.date)).toBe(true);

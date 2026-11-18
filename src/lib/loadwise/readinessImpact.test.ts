@@ -3,6 +3,7 @@ import { generateTrainingPlan } from "./engineV2/planner";
 import { gymAthlete } from "./engineV2/testFixtures";
 import { buildReadiness } from "./readinessModel";
 import { readinessImpact } from "./readinessImpact";
+import { readinessKey } from "./engineV2/planStatus";
 import type { Profile, SessionDay } from "./types";
 
 const profile = { ...gymAthlete, goal: "strength" } as unknown as Profile;
@@ -26,6 +27,28 @@ describe("effect of a saved check-in on today's session", () => {
     const lighter = readinessImpact(answers(2, 9, 9), strength);
     expect(lighter.kind).toBe("lighter");
     expect(lighter.text).toContain("zaktualizuj plan");
+  });
+
+  it("after the session was recalculated for that very check-in it says what was done, not 'update the plan'", () => {
+    const readiness = answers(2, 9, 9);
+    const adjusted: SessionDay = {
+      ...strength,
+      readinessAdjustedDate: readiness.date,
+      readinessAdjustmentKey: readinessKey(readiness),
+      readinessAdjustment: {
+        kind: "lighter",
+        score: readiness.overall,
+        reason: "test",
+        changes: ["a"],
+        beforeMinutes: 80,
+        afterMinutes: 55,
+      },
+    };
+    const impact = readinessImpact(readiness, adjusted);
+    expect(impact.kind).toBe("adjusted");
+    expect(impact.text).toContain("80 → 55 min");
+    // A different later answer is not covered by the old correction.
+    expect(readinessImpact(answers(8, 3, 2), adjusted).kind).not.toBe("adjusted");
   });
 
   it("pain pauses the own session; a red flag stops training whatever the session", () => {

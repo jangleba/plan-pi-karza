@@ -17,6 +17,9 @@ import type { Goal, Profile } from "@/lib/loadwise/types";
 
 const GOALS = Object.keys(GOAL_LABELS) as Goal[];
 const BARRIERS = Object.keys(BARRIER_LABELS) as Barrier[];
+const DAY_NAMES = ["nd", "pn", "wt", "śr", "cz", "pt", "so"];
+const dayLabel = (iso: string) =>
+  `${DAY_NAMES[new Date(`${iso}T12:00:00Z`).getUTCDay()]} ${Number(iso.slice(8, 10))}.${iso.slice(5, 7)}`;
 const shortDate = (iso: string) => `${Number(iso.slice(8, 10))}.${iso.slice(5, 7)}`;
 
 const CAUSE_TEXT: Record<string, string> = {
@@ -84,7 +87,7 @@ function SummaryBody({ summary }: { summary: PlanSummary }) {
 }
 
 /**
- * End of a saved plan: summary, a three-step interview, the list of what changes and one
+ * End of a saved plan: summary, a four-step interview (the match of the coming week first), the list of what changes and one
  * button that prepares a preview. Nothing is saved to the plan here.
  */
 export function PlanEndSummary({
@@ -98,13 +101,22 @@ export function PlanEndSummary({
   currentMinutes: number;
   onPrepare: (draft: NextPlanDraft) => Promise<void>;
 }) {
-  const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
+  const [step, setStep] = useState<0 | 1 | 2 | 3 | 4>(0);
   const [answers, setAnswers] = useState<InterviewAnswers>(emptyAnswers);
   const [stepNotes, setStepNotes] = useState<[string, string, string]>(["", "", ""]);
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const owned = useMemo(() => ownedEquipment(profile), [profile]);
+  // The coming week: the days after the plan that just ended (a match may also fall in the week after).
+  const matchDays = useMemo(() => {
+    const from = new Date(`${summary.endDate}T12:00:00Z`);
+    return Array.from({ length: 14 }, (_, i) => {
+      const d = new Date(from);
+      d.setUTCDate(d.getUTCDate() + 1 + i);
+      return d.toISOString().slice(0, 10);
+    });
+  }, [summary.endDate]);
   const merged: InterviewAnswers = {
     ...answers,
     notes: stepNotes.filter(Boolean).join(". "),
@@ -113,15 +125,19 @@ export function PlanEndSummary({
     profile,
     currentMinutes,
     merged,
-    new Set(["goal", "days", "minutes", "equipment", "gym", "fatigue"]),
+    new Set(["match", "goal", "days", "minutes", "equipment", "gym", "fatigue"]),
   );
   const confirmed = new Set(
     everything.changes.filter((c) => overrides[c.id] ?? c.defaultConfirmed).map((c) => c.id),
   );
   const draft = draftNextPlan(profile, currentMinutes, merged, confirmed);
+  // The match is the athlete's own answer, always applied: shown as a line, not as a choice.
+  const matchChange = everything.changes.find((c) => c.kind === "match");
+  const optionalChanges = everything.changes.filter((c) => c.kind !== "match");
   const set = (patch: Partial<InterviewAnswers>) => setAnswers((a) => ({ ...a, ...patch }));
   const days = answers.days ?? profile.individualTrainingDays;
-  const minutes = answers.minutes ?? currentMinutes;
+  const selectedDuration =
+    answers.sessionDurationMode === "full" || answers.minutes === null ? "full" : answers.minutes;
   const noteBox = (index: 0 | 1 | 2, label: string) => (
     <label className="block text-xs text-muted-foreground">
       {label}
@@ -165,9 +181,38 @@ export function PlanEndSummary({
           Przygotuj kolejny plan
         </button>
       ) : (
-        <div className="space-y-3" role="group" aria-label={`Krok ${step} z 3`}>
-          <p className="text-xs font-medium text-muted-foreground">Krok {step} z 3</p>
+        <div className="space-y-3" role="group" aria-label={`Krok ${step} z 4`}>
+          <p className="text-xs font-medium text-muted-foreground">Krok {step} z 4</p>
           {step === 1 && (
+            <>
+              <h3 className="text-sm font-semibold">Mecz w kolejnym tygodniu</h3>
+              <p className="text-xs text-muted-foreground">
+                Pytamy przed każdym tygodniem. Plan układamy na tydzień, wokół meczu, jeśli jest.
+              </p>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Data meczu">
+                {matchDays.map((iso) => (
+                  <button
+                    key={iso}
+                    type="button"
+                    className="min-h-11 min-w-14 rounded-lg border px-2 text-sm"
+                    aria-pressed={answers.match.answered && answers.match.date === iso}
+                    onClick={() => set({ match: { answered: true, date: iso } })}
+                  >
+                    {dayLabel(iso)}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="min-h-11 w-full rounded-lg border px-3 text-sm"
+                aria-pressed={answers.match.answered && answers.match.date === null}
+                onClick={() => set({ match: { answered: true, date: null } })}
+              >
+                Brak meczu w tym tygodniu
+              </button>
+            </>
+          )}
+          {step === 2 && (
             <>
               <h3 className="text-sm font-semibold">Cel kolejnego planu</h3>
               <div className="flex flex-wrap gap-2">
@@ -187,7 +232,7 @@ export function PlanEndSummary({
               {noteBox(0, "Uwagi do celu (opcjonalnie)")}
             </>
           )}
-          {step === 2 && (
+          {step === 3 && (
             <>
               <h3 className="text-sm font-semibold">Co utrudniało realizację?</h3>
               <div className="flex flex-wrap gap-2">
@@ -214,7 +259,7 @@ export function PlanEndSummary({
               {noteBox(1, "Uwagi (opcjonalnie)")}
             </>
           )}
-          {step === 3 && (
+          {step === 4 && (
             <>
               <h3 className="text-sm font-semibold">Dni, czas i sprzęt</h3>
               <div
@@ -242,9 +287,16 @@ export function PlanEndSummary({
                 <select
                   aria-label="Czas na jednostkę w kolejnym planie"
                   className="ml-2 rounded border p-1"
-                  value={minutes}
-                  onChange={(e) => set({ minutes: Number(e.target.value) })}
+                  value={selectedDuration}
+                  onChange={(e) =>
+                    set(
+                      e.target.value === "full"
+                        ? { sessionDurationMode: "full", minutes: null }
+                        : { sessionDurationMode: "limited", minutes: Number(e.target.value) },
+                    )
+                  }
                 >
+                  <option value="full">Pełne jednostki</option>
                   {[...new Set<number>([...MINUTE_STEPS, currentMinutes])]
                     .sort((a, b) => a - b)
                     .map((m) => (
@@ -285,28 +337,37 @@ export function PlanEndSummary({
             <button
               type="button"
               className="min-h-11 rounded-lg border px-4"
-              onClick={() => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2) : 0))}
+              onClick={() => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3) : 0))}
             >
               Wstecz
             </button>
-            {step < 3 && (
+            {step < 4 && (
               <button
                 type="button"
-                className="min-h-11 rounded-lg bg-primary px-4 text-primary-foreground"
-                onClick={() => setStep((s) => (s + 1) as 2 | 3)}
+                className="min-h-11 rounded-lg bg-primary px-4 text-primary-foreground disabled:opacity-50"
+                disabled={step === 1 && !answers.match.answered}
+                onClick={() => setStep((s) => (s + 1) as 2 | 3 | 4)}
               >
                 Dalej
               </button>
             )}
           </div>
-          {step === 3 && (
+          {step === 4 && (
             <div className="space-y-3 border-t pt-3">
               <h3 className="text-sm font-semibold">Co zmieniamy w kolejnym planie</h3>
-              {draft.changes.length === 0 ? (
-                <p className="text-sm">Bez zmian ustawień. Plan będzie kontynuował bieżący cykl.</p>
+              <p className="text-sm">
+                {draft.sessionDurationMode === "limited"
+                  ? `Limit czasu na jednostkę: ${draft.minutes} min.`
+                  : "Pełne jednostki"}
+              </p>
+              {matchChange && <p className="text-sm">{matchChange.text}</p>}
+              {optionalChanges.length === 0 ? (
+                <p className="text-sm">
+                  Pozostałe ustawienia bez zmian. Plan będzie kontynuował bieżący cykl.
+                </p>
               ) : (
                 <ul className="space-y-2">
-                  {everything.changes.map((c) => (
+                  {optionalChanges.map((c) => (
                     <li key={c.id}>
                       <label className="flex items-start gap-2 text-sm">
                         <input
@@ -356,7 +417,7 @@ export function PlanEndSummary({
               <button
                 type="button"
                 className="min-h-11 w-full rounded-xl bg-primary px-4 py-2 text-primary-foreground disabled:opacity-60"
-                disabled={busy || !!draft.clarification}
+                disabled={busy || !!draft.clarification || !answers.match.answered}
                 onClick={() => void prepare()}
               >
                 {busy ? "Przygotowywanie…" : "Przygotuj podgląd planu"}

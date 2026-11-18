@@ -1,3 +1,4 @@
+import { resolveSessionDurationMode, sessionTimeBudget } from "./sessionDurationPolicy";
 import type { Profile, SessionDay } from "../types";
 import { readinessScore } from "../readinessModel";
 import type { EngineOptions, EngineSession } from "./model";
@@ -202,8 +203,8 @@ export function assessPlacement(input: PlacementConstraintInput): PlacementAsses
   });
   if (!current) return block("INVALID_DATE", "Nie znaleziono daty treningu.");
   const date = current.date;
-  const budget = options.minutesPerSession ?? 75;
-  if (!Number.isFinite(budget) || budget <= 0)
+  const budget = sessionTimeBudget(options);
+  if ((resolveSessionDurationMode(options) !== "full" && !Number.isFinite(budget)) || budget <= 0)
     return block("INVALID_BUDGET", "Nie można potwierdzić dostępnego czasu sesji.");
   if (!Number.isFinite(recipe.minutes) || recipe.minutes <= 0)
     return block("INVALID_RECIPE", "Brak wiarygodnego czasu sesji.");

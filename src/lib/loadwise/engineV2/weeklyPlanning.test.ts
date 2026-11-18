@@ -77,6 +77,52 @@ describe("explicit weekly requests and light free-day tasks", () => {
     expect(result.issues.filter((i) => i.code === "UNMET_GOAL_TARGET")).toEqual([]);
   });
 
+  it("automatically keeps one main sprint for an endurance-priority week without requesting a second", () => {
+    const request: EngineOptions = {
+      ...options,
+      sessionDurationMode: "full",
+      weeklyTargets: { ...targets, speed: "auto" },
+      minFullRestDays: 1,
+    };
+    const result = generateTrainingPlan(profile, request);
+    expect(roles(result.plan, "speed")).toHaveLength(1);
+    expect(roles(result.plan, "endurance")).toHaveLength(1);
+    expect(
+      weeklyTargetCoverage(result.plan, request.weeklyTargets!)[0].fullRestDays,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      result.issues.filter(
+        (i) =>
+          i.target === "speed" && ["UNMET_WEEKLY_TARGET", "UNMET_GOAL_TARGET"].includes(i.code),
+      ),
+    ).toEqual([]);
+    expect(validateTrainingPlan(result.plan, profile, request)).toEqual([]);
+  });
+
+  it("explains zero automatic sprints in an unavailable week without inventing a numeric sprint deficit", () => {
+    const unavailable = { ...profile, unavailableDays: [1, 2, 3, 4, 5, 6, 7] };
+    const request: EngineOptions = {
+      ...options,
+      sessionDurationMode: "full",
+      weeklyTargets: { ...targets, speed: "auto" },
+      minFullRestDays: 1,
+    };
+    const result = generateTrainingPlan(unavailable, request);
+    expect(roles(result.plan, "speed")).toEqual([]);
+    const context = result.issues.find(
+      (i) => i.code === "AUTO_SPRINT_CONTEXT" && i.target === "speed",
+    );
+    expect(context?.message).toMatch(/dostępn/i);
+    expect(context?.cause).toBe("calendar");
+    expect(
+      result.issues.filter(
+        (i) =>
+          i.target === "speed" && ["UNMET_WEEKLY_TARGET", "UNMET_GOAL_TARGET"].includes(i.code),
+      ),
+    ).toEqual([]);
+    expect(validateTrainingPlan(result.plan, unavailable, request)).toEqual([]);
+  });
+
   it("fills unused days with genuine light support and preserves one whole rest day", () => {
     const request = {
       ...options,
@@ -199,8 +245,11 @@ describe("explicit weekly requests and light free-day tasks", () => {
     expect(result.issues.some((i) => i.code === "UNMET_REST_TARGET")).toBe(false);
     expect(roles(result.plan, "endurance")).toHaveLength(1);
     expect(
-      result.issues.some((i) => i.code === "UNMET_WEEKLY_TARGET" && i.target !== "endurance"),
+      result.issues.some((i) => i.code === "AUTO_SPRINT_CONTEXT" && i.target === "speed"),
     ).toBe(true);
+    expect(
+      result.issues.some((i) => i.code === "UNMET_WEEKLY_TARGET" && i.target === "speed"),
+    ).toBe(false);
     expect(result.issues.some((i) => i.message.includes("pełny dzień odpoczynku"))).toBe(true);
     expect(validateTrainingPlan(result.plan, busy, request)).toEqual([]);
 
@@ -241,11 +290,20 @@ describe("explicit weekly requests and light free-day tasks", () => {
     }).plan;
     const inherited = generateTrainingPlan(profile, { ...options, previousPlan: saved });
     expect(inherited.plan[0].planInputs).toMatchObject({
-      weeklyTargets: targets,
+      weeklyTargets: { ...targets, speed: "auto" },
       fillRestDays: true,
       minFullRestDays: 1,
     });
     expect(roles(inherited.plan, "endurance")).toHaveLength(1);
+    expect(roles(inherited.plan, "speed")).toHaveLength(1);
+    expect(saved[0].planInputs?.weeklyTargets).toEqual(targets);
+    const explicitLegacy = generateTrainingPlan(profile, {
+      ...options,
+      previousPlan: saved,
+      weeklyTargets: targets,
+    });
+    expect(explicitLegacy.plan[0].planInputs?.weeklyTargets).toEqual(targets);
+    expect(roles(explicitLegacy.plan, "speed")).toHaveLength(2);
     const reset = generateTrainingPlan(profile, {
       ...options,
       previousPlan: saved,

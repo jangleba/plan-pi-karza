@@ -3,6 +3,7 @@ import { sessionPrescription, trainingProfileRevision } from "../planIdentity";
 import { ENGINE_VERSION, type EngineResult } from "./model";
 import { validateTrainingPlan } from "./planner";
 import { lockedExecutionDays } from "./locks";
+import { savedSessionDurationMode } from "./sessionDurationPolicy";
 
 export interface ActivationSnapshot {
   ownerId: string;
@@ -68,6 +69,7 @@ export async function activateTrainingPlan(
     const violations = validateTrainingPlan(result.plan, now.profile, {
       startDate: result.plan[0].date,
       minutesPerSession: result.minutesPerSession,
+      sessionDurationMode: result.sessionDurationMode ?? savedSessionDurationMode(result.plan),
       precedingDays: now.plan.filter((d) => d.date < result.plan[0].date),
       readiness: now.profile.healthPersonalizationEnabled ? now.readiness : undefined,
     });

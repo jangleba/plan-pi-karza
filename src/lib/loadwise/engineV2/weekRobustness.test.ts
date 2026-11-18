@@ -65,7 +65,7 @@ describe("calendar robustness", () => {
       expect(
         validateTrainingPlan(plan, { ...base } as Profile, {
           startDate: start,
-          minutesPerSession: 75,
+          sessionDurationMode: "full",
         }),
       ).toEqual([]);
     }
@@ -104,7 +104,7 @@ describe("calendar robustness", () => {
           ).toBe(0);
       }
     expect(
-      validateTrainingPlan(plan, p, { startDate: "2026-11-02", minutesPerSession: 75 }),
+      validateTrainingPlan(plan, p, { startDate: "2026-11-02", sessionDurationMode: "full" }),
     ).toEqual([]);
   });
 
@@ -161,7 +161,7 @@ describe("calendar robustness", () => {
       } as Profile;
       const { plan } = generateTrainingPlan(p, { startDate: "2026-11-02", weeks: 2 });
       expect(
-        validateTrainingPlan(plan, p, { startDate: "2026-11-02", minutesPerSession: 75 }),
+        validateTrainingPlan(plan, p, { startDate: "2026-11-02", sessionDurationMode: "full" }),
       ).toEqual([]);
     },
   );
@@ -170,7 +170,7 @@ describe("calendar robustness", () => {
     const p = { ...base, equipment: [], hasGym: false } as Profile;
     const { plan, issues } = generateTrainingPlan(p, { startDate: "2026-11-02", weeks: 1 });
     expect(
-      validateTrainingPlan(plan, p, { startDate: "2026-11-02", minutesPerSession: 75 }),
+      validateTrainingPlan(plan, p, { startDate: "2026-11-02", sessionDurationMode: "full" }),
     ).toEqual([]);
     expect(Array.isArray(issues)).toBe(true);
   });

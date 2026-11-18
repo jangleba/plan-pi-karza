@@ -58,6 +58,9 @@ export function linkedSummary(step: RunnerStep): {
   return { letter, rounds: Number.isFinite(sets) && sets > 0 ? roundsWord(sets) : null, rest };
 }
 
+/** Warm-up and cool-down rows are listed plainly: their short rests are not worth a line. */
+const QUIET_PARTS = new Set(["Rozgrzewka", "Zakończenie"]);
+
 const circuitOf = (item: Item) => item.step.rows[0].exercise.engineDose?.circuit;
 
 /**
@@ -219,7 +222,9 @@ export function SessionPlanList({
                               <span className="bw-rplan-text">
                                 <strong>{canonicalExerciseName(row.exercise)}</strong>
                                 <small>{doseLine(row.exercise)}</small>
-                                {!linked && restLabel(row.exercise) ? (
+                                {!linked &&
+                                !QUIET_PARTS.has(group.title) &&
+                                restLabel(row.exercise) ? (
                                   <small className="bw-rplan-row-rest">
                                     {restLabel(row.exercise)}
                                   </small>

@@ -64,6 +64,19 @@ const button = (text: string) =>
     b.textContent?.includes(text),
   ) as HTMLButtonElement;
 const click = (text: string) => act(async () => button(text).click());
+/** Step 1 is the match of the coming week; "no match" is a valid answer, an unanswered step is not. */
+const answerMatch = async () => {
+  await click("Brak meczu w tym tygodniu");
+  await click("Dalej");
+};
+const chooseDuration = (value: string) =>
+  act(async () => {
+    const select = host.querySelector<HTMLSelectElement>(
+      'select[aria-label="Czas na jednostkę w kolejnym planie"]',
+    )!;
+    select.value = value;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   host = document.createElement("div");
@@ -96,44 +109,109 @@ describe("end of plan summary and interview", () => {
     expect(host.textContent).toContain("Podsumowanie planu");
     expect(host.textContent).toContain("Własne sesje");
     expect(host.textContent).toContain("Sama frekwencja nie oznacza poprawy");
-    expect(host.textContent).not.toContain("Krok 1 z 3");
+    expect(host.textContent).not.toContain("Krok 1 z 4");
     expect(onPrepare).not.toHaveBeenCalled();
   });
 
-  it("walks three steps, shows what changes, and prepares only the confirmed changes", async () => {
+  it("always asks about the match of the coming week first, and will not go on without an answer", async () => {
     const onPrepare = await render();
     await click("Przygotuj kolejny plan");
-    expect(host.textContent).toContain("Krok 1 z 3");
+    expect(host.textContent).toContain("Krok 1 z 4");
+    expect(host.textContent).toContain("Mecz w kolejnym tygodniu");
+    expect(button("Dalej").disabled).toBe(true);
+    await click("Brak meczu w tym tygodniu");
+    expect(button("Dalej").disabled).toBe(false);
+    for (let i = 0; i < 3; i++) await click("Dalej");
+    await click("Przygotuj podgląd planu");
+    const draft = onPrepare.mock.calls[0][0];
+    // "No match" is an answer too: it replaces any saved date.
+    expect(draft.profile.matchDate).toBeNull();
+    expect(draft.profile.matchDates).toEqual([]);
+  });
+
+  it("a chosen match date is written into the next plan's profile", async () => {
+    const onPrepare = await render();
+    await click("Przygotuj kolejny plan");
+    const days = [...host.querySelectorAll('[aria-label="Data meczu"] button')];
+    expect(days).toHaveLength(14);
+    await act(async () => (days[5] as HTMLButtonElement).click());
+    for (let i = 0; i < 3; i++) await click("Dalej");
+    expect(host.textContent).toContain("Mecz w kolejnym tygodniu:");
+    await click("Przygotuj podgląd planu");
+    const draft = onPrepare.mock.calls[0][0];
+    expect(draft.profile.matchDates).toHaveLength(1);
+    expect(draft.profile.matchDate).toBe(draft.profile.matchDates[0]);
+    expect(draft.profileChanged).toBe(true);
+  });
+
+  it("walks four steps and keeps full sessions by default even when time was a barrier", async () => {
+    const onPrepare = await render();
+    await click("Przygotuj kolejny plan");
+    await answerMatch();
+    expect(host.textContent).toContain("Krok 2 z 4");
     await click("Dalej");
-    expect(host.textContent).toContain("Krok 2 z 3");
+    expect(host.textContent).toContain("Krok 3 z 4");
     await click("Brakowało czasu");
     await click("Dalej");
-    expect(host.textContent).toContain("Krok 3 z 3");
-    // time was the barrier → budget one step lower, shown for confirmation
+    expect(host.textContent).toContain("Krok 4 z 4");
     expect(host.textContent).toContain("Co zmieniamy w kolejnym planie");
-    expect(host.textContent).toContain("75 → 60 min");
+    expect(host.querySelector("select")?.value).toBe("full");
+    expect(host.textContent).toContain("Pełne jednostki");
+    expect(host.textContent).toContain("Wybierz limit czasu");
+    expect(host.querySelector('input[type="checkbox"]')).toBeNull();
     await click("Przygotuj podgląd planu");
     expect(onPrepare).toHaveBeenCalledTimes(1);
     const draft = onPrepare.mock.calls[0][0];
-    expect(draft.minutes).toBe(60);
+    expect(draft.sessionDurationMode).toBe("full");
+    expect(draft.minutes).toBe(75); // finite compatibility value, not a limit
     expect(draft.profileChanged).toBe(false);
   });
 
   it("an unticked change is not applied", async () => {
     const onPrepare = await render();
     await click("Przygotuj kolejny plan");
+    await answerMatch();
     await click("Dalej");
     await click("Brakowało czasu");
     await click("Dalej");
+    await chooseDuration("45");
     await act(async () => host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
     await click("Przygotuj podgląd planu");
     expect(onPrepare.mock.calls[0][0].minutes).toBe(75);
+    expect(onPrepare.mock.calls[0][0].sessionDurationMode).toBe("full");
+  });
+
+  it("uses a numeric limit only after it is explicitly chosen", async () => {
+    const onPrepare = await render();
+    await click("Przygotuj kolejny plan");
+    await answerMatch();
+    await click("Dalej");
+    await click("Dalej");
+    await chooseDuration("45");
+    await click("Przygotuj podgląd planu");
+    expect(onPrepare.mock.calls[0][0]).toMatchObject({
+      sessionDurationMode: "limited",
+      minutes: 45,
+    });
+  });
+
+  it("lets the athlete return from a numeric limit to full sessions", async () => {
+    const onPrepare = await render();
+    await click("Przygotuj kolejny plan");
+    await answerMatch();
+    await click("Dalej");
+    await click("Dalej");
+    await chooseDuration("45");
+    await chooseDuration("full");
+    expect(host.querySelector('input[type="checkbox"]')).toBeNull();
+    await click("Przygotuj podgląd planu");
+    expect(onPrepare.mock.calls[0][0].sessionDurationMode).toBe("full");
   });
 
   it("unclear text blocks the button until one concrete question is answered", async () => {
     const onPrepare = await render();
     await click("Przygotuj kolejny plan");
-    await click("Dalej");
+    await answerMatch();
     await act(async () => {
       const area = host.querySelector("textarea")!;
       Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(
@@ -142,6 +220,7 @@ describe("end of plan summary and interview", () => {
       );
       area.dispatchEvent(new Event("input", { bubbles: true }));
     });
+    await click("Dalej");
     await click("Dalej");
     expect(host.textContent).toContain("Czego dotyczy ta uwaga?");
     expect(button("Przygotuj podgląd planu").disabled).toBe(true);
@@ -167,6 +246,7 @@ describe("end of plan summary and interview", () => {
       ),
     );
     await click("Przygotuj kolejny plan");
+    await answerMatch();
     await click("Dalej");
     await click("Dalej");
     await click("Przygotuj podgląd planu");

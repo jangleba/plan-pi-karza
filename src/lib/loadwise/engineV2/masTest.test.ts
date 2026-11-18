@@ -85,6 +85,7 @@ describe("voluntary field MAS test ('Ustal tempo')", () => {
       validateTrainingPlan(proposal.candidatePlan, roomy, {
         startDate: TODAY,
         minutesPerSession: 75,
+        sessionDurationMode: proposal.sessionDurationMode,
       }),
     ).toEqual([]);
     const test = proposal.candidatePlan

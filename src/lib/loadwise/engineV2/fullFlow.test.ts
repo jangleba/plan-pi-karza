@@ -57,7 +57,7 @@ describe("plan → start → resume → finish → feedback → correction → p
       });
     }
     expect(
-      validateTrainingPlan(plan, profile, { startDate: "2026-11-02", minutesPerSession: 75 }),
+      validateTrainingPlan(plan, profile, { startDate: "2026-11-02", sessionDurationMode: "full" }),
     ).toEqual([]);
 
     // 2. club Monday finished with the fixed 90 minutes, RPE 8 and two categories
@@ -159,11 +159,17 @@ describe("plan → start → resume → finish → feedback → correction → p
     expect(summary.club.loadUsesAssumedMinutes).toBe(true);
     expect(summary.comparable.join(" ")).toContain("Sama frekwencja nie oznacza poprawy");
 
-    // 7. interview: less time and a missing machine change the next plan
+    // 7. interview: an explicit time limit and a missing machine change the next plan
     const draft = draftNextPlan(
       profile,
       75,
-      { ...emptyAnswers(), barriers: ["time", "equipment"], unavailableEquipment: ["bench"] },
+      {
+        ...emptyAnswers(),
+        barriers: ["time", "equipment"],
+        unavailableEquipment: ["bench"],
+        sessionDurationMode: "limited",
+        minutes: 60,
+      },
       new Set(["minutes", "equipment"]),
     );
     expect(draft.minutes).toBe(60);
@@ -174,6 +180,7 @@ describe("plan → start → resume → finish → feedback → correction → p
       startDate: "2026-12-02",
       weeks: 4,
       minutesPerSession: draft.minutes,
+      sessionDurationMode: draft.sessionDurationMode,
       previousPlan: saved,
       completions,
       lockedDays: lockedExecutionDays(saved, completions),

@@ -49,9 +49,11 @@ function ProgressScreen() {
   // Saves only the confirmed profile changes; the plan itself is saved later, after the preview.
   async function prepareNextPlan(draft: NextPlanDraft) {
     if (draft.profileChanged) await updateProfile(draft.profile);
+    const sessionDurationMode = draft.sessionDurationMode ?? "limited";
     intent.setValue({
       planId: state.activePlanId ?? null,
-      minutes: draft.minutes,
+      sessionDurationMode,
+      minutes: sessionDurationMode === "full" ? null : draft.minutes,
       createdAt: new Date().toISOString(),
     });
     await navigate({ to: "/plan" });

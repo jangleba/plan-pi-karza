@@ -1,13 +1,13 @@
 import type { Readiness, SessionDay } from "./types";
 import { hasMedicalRedFlag, readinessScore } from "./readinessModel";
-import { hasReadinessStop } from "./engineV2/planStatus";
+import { adjustedForReadiness, hasReadinessStop } from "./engineV2/planStatus";
 
 /**
  * What a saved check-in really does to today's training, using the same rules the planner and
  * the progression apply (planStatus: stop and lighter plan; gymProgression: no load increase
  * below 7). It never invents an adjustment the engine does not make.
  */
-export type ReadinessImpactKind = "stop" | "paused" | "lighter" | "hold" | "none";
+export type ReadinessImpactKind = "stop" | "paused" | "adjusted" | "lighter" | "hold" | "none";
 export interface ReadinessImpact {
   kind: ReadinessImpactKind;
   text: string;
@@ -39,6 +39,11 @@ export function readinessImpact(
       text: "Dziś nie masz sesji własnej, więc check-in nie zmienia treningu. Zostaje zapisany do oceny kolejnych dni.",
     };
   const score = readinessScore(readiness) ?? readiness.overall;
+  if (session && adjustedForReadiness(session, readiness))
+    return {
+      kind: "adjusted",
+      text: `Sesja ${title} została dostosowana do dzisiejszego check-inu (${session.readinessAdjustment!.beforeMinutes} → ${session.readinessAdjustment!.afterMinutes} min). Szczegóły poniżej.`,
+    };
   const supportOnly = recipe.roles.every((role) => SUPPORT_ROLES.includes(role));
   const jump = recipe.exercises.some((e) => e.role === "power" || e.role === "landing");
   if (score <= 4 && (!supportOnly || jump))

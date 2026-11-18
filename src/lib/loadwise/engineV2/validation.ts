@@ -1,3 +1,4 @@
+import { sessionTimeBudget, type SessionDurationOptions } from "./sessionDurationPolicy";
 import { sprintSeconds, sprintDistance, sprintChronology } from "./sprintRecipe";
 import { estimateSeconds } from "./exercises";
 import { buildAthleteTrainingProfile } from "../athleteProfile";
@@ -274,7 +275,7 @@ function compatibleFunction(id: string, role: string): boolean {
 export function validateEngineSession(
   session: SessionDay,
   profile: Profile,
-  options: { minutesPerSession?: number } = {},
+  options: SessionDurationOptions = {},
 ): Issue[] {
   const recipe = session.engineV2;
   if (!recipe) return [];
@@ -1146,7 +1147,17 @@ export function validateEngineSession(
     fail("STALE_SPRINT_METRES", "Suma metrów nie odpowiada odcinkom, nabiegom i stronom.");
   if (recipe.highLower !== totals.highLower)
     fail("STALE_LOAD_CLASSIFICATION", "Klasyfikacja obciążenia nie odpowiada zadaniom sesji.");
-  if (totals.minutes > (options.minutesPerSession ?? 75))
+  if (
+    totals.minutes >
+    sessionTimeBudget({
+      ...options,
+      sessionDurationMode:
+        options.sessionDurationMode ??
+        (options.minutesPerSession !== undefined
+          ? "limited"
+          : (recipe.sessionDurationMode ?? "limited")),
+    })
+  )
     fail("TIME_LIMIT", "Rzeczywista dawka przekracza dostępny czas.");
   if (totals.sprintMetres > 240)
     fail("SPRINT_LIMIT", "Rzeczywista suma szybkich odcinków przekracza 240 m.");

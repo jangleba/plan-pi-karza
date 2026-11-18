@@ -1,3 +1,4 @@
+import { savedSessionDurationMode } from "./sessionDurationPolicy";
 import { hasOutdatedPendingEngineWork } from "./planStatus";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex } from "@noble/hashes/utils";
@@ -116,6 +117,7 @@ export function proposeGymAdjustment(input: {
     previousPlan: plan,
     completions,
     minutesPerSession: plan[0].engineTimeBudgetMin ?? 75,
+    sessionDurationMode: savedSessionDurationMode(plan),
     readiness: p.healthPersonalizationEnabled ? input.readiness : undefined,
     gymProgression: gymProgressionInput(input.records, true),
     strengthLoadResponses: gymStrengthResponses(input.records),
@@ -192,6 +194,7 @@ export function proposeGymAdjustment(input: {
     affectedSessionIds: changes.map((c) => c.sessionId),
     candidatePlan: work,
     minutesPerSession: options.minutesPerSession!,
+    sessionDurationMode: options.sessionDurationMode,
     fingerprint: JSON.stringify([
       key,
       input.planId,

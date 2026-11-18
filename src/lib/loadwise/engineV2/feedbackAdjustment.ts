@@ -1,3 +1,8 @@
+import {
+  savedSessionDurationMode,
+  sessionTimeBudget,
+  type SessionDurationMode,
+} from "./sessionDurationPolicy";
 import type {
   ActivityTag,
   FeedbackAdjustmentMark,
@@ -80,6 +85,7 @@ export interface AdjustmentProposal {
   /** Plan from today on, ready for the explicit, version-checked write. */
   candidatePlan: SessionDay[];
   minutesPerSession: number;
+  sessionDurationMode?: SessionDurationMode;
   /** Changes if the plan, the feedback or the affected sessions change. */
   fingerprint: string;
 }
@@ -224,6 +230,7 @@ export function proposeFeedbackAdjustment(input: AdjustmentInput): AdjustmentPro
   const options: EngineOptions = {
     startDate: todayIso,
     minutesPerSession,
+    sessionDurationMode: savedSessionDurationMode(input.plan),
     readiness: p.healthPersonalizationEnabled ? input.readiness : undefined,
     precedingDays: input.plan.filter((d) => d.date < todayIso),
   };
@@ -323,7 +330,7 @@ export function proposeFeedbackAdjustment(input: AdjustmentInput): AdjustmentPro
           };
         }
         // 2. an existing lighter or compact variant on the same date
-        for (const alt of lighterRecipes(source, p, minutesPerSession)) {
+        for (const alt of lighterRecipes(source, p, sessionTimeBudget(options))) {
           const placed = placeRecipeOnDate(gone, source.date, alt.recipe, p, options);
           if ("blocked" in placed) continue;
           stamp(placed.session);
@@ -492,6 +499,7 @@ export function proposeFeedbackAdjustment(input: AdjustmentInput): AdjustmentPro
       affectedSessionIds: changes.map((c) => c.sessionId),
       candidatePlan: work,
       minutesPerSession,
+      sessionDurationMode: options.sessionDurationMode,
       fingerprint,
     };
   }
@@ -500,13 +508,18 @@ export function proposeFeedbackAdjustment(input: AdjustmentInput): AdjustmentPro
 
 /** The explicit write goes through the same version-checked activation as any new plan. */
 export function proposalToEngineResult(
-  proposal: Pick<AdjustmentProposal, "planId" | "minutesPerSession" | "candidatePlan">,
+  proposal: Pick<
+    AdjustmentProposal,
+    "planId" | "minutesPerSession" | "candidatePlan" | "sessionDurationMode"
+  >,
   profile: Profile,
 ): EngineResult {
   return {
     version: ENGINE_VERSION,
     expectedPlanId: proposal.planId,
     minutesPerSession: proposal.minutesPerSession,
+    sessionDurationMode:
+      proposal.sessionDurationMode ?? savedSessionDurationMode(proposal.candidatePlan),
     plan: proposal.candidatePlan,
     issues: proposal.candidatePlan[0]?.enginePlanIssues ?? [],
     tier: trainingTier(profile),
