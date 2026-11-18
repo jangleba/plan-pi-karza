@@ -4,6 +4,7 @@ import type { LabTest } from "./engine";
 import { Sheet } from "./Sheet";
 import { Group, LargeTitle, ListRow } from "./ui";
 import { VideoMeasure, type VideoResult } from "./VideoMeasure";
+import { CameraCapture, type Recording } from "./CameraCapture";
 
 const today = () => localISO();
 const num = (s: string) => Number(s.replace(",", "."));
@@ -20,6 +21,8 @@ function TestRow({ test, index, onSaved }: { test: LabTest; index: number; onSav
   const [flight, setFlight] = useState(false);
   const [error, setError] = useState("");
   const [video, setVideo] = useState(false);
+  const [camera, setCamera] = useState(false);
+  const [recording, setRecording] = useState<Recording | null>(null);
   const keys = test.key === "sprint" ? ["sprint-10", "sprint-20", "sprint-30"] : [test.key];
   const last = lastDate(keys);
   const due = labDue(last, today());
@@ -91,9 +94,12 @@ function TestRow({ test, index, onSaved }: { test: LabTest; index: number; onSav
           </ol>
           {test.caveat && <p className="mb-4 text-xs text-muted">{test.caveat}</p>}
           {(test.key === "cmj" || test.key === "sprint") && (
-            <button onClick={() => setVideo(true)} className="mb-3 w-full rounded-2xl border border-hairline bg-canvas py-3.5 text-sm font-medium">
-              Zmierz z wideo
-            </button>
+            <>
+              <button onClick={() => setCamera(true)} className="mb-2 w-full rounded-2xl bg-accent py-4 text-base font-medium text-white">
+                {test.key === "cmj" ? "Nagraj skok" : "Nagraj sprint"}
+              </button>
+              <button onClick={() => setVideo(true)} className="mb-4 w-full py-2 text-sm text-muted">Wgraj film z galerii</button>
+            </>
           )}
           {test.key === "cmj" && (
             <button onClick={() => setFlight(!flight)} className="mb-3 text-xs text-muted underline">
@@ -111,6 +117,18 @@ function TestRow({ test, index, onSaved }: { test: LabTest; index: number; onSav
       )}
       {video && (test.key === "cmj" || test.key === "sprint") && (
         <VideoMeasure mode={test.key} onResult={applyVideo} onClose={() => setVideo(false)} />
+      )}
+      {camera && (test.key === "cmj" || test.key === "sprint") && (
+        <CameraCapture
+          orientation={test.key === "cmj" ? "portrait" : "landscape"}
+          autoStopS={test.key === "cmj" ? 6 : undefined}
+          onClose={() => setCamera(false)}
+          onDone={(r) => { setCamera(false); setRecording(r); }}
+        />
+      )}
+      {recording && (test.key === "cmj" || test.key === "sprint") && (
+        <VideoMeasure mode={test.key} src={recording.url} srcFps={recording.fps} auto={test.key === "cmj"}
+          onResult={applyVideo} onClose={() => { URL.revokeObjectURL(recording.url); setRecording(null); }} />
       )}
     </>
   );

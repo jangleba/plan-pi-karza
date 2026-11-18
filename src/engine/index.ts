@@ -16,3 +16,4 @@ export * from "./bodyweight";
 export * from "./iq";
 export * from "./imagery";
 export * from "./track";
+export * from "./jumpdetect";
