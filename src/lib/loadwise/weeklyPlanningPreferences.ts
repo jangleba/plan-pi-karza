@@ -9,7 +9,30 @@ export interface WeeklyPlanningPreferences {
 }
 
 export function defaultWeeklyTargets(profile: Profile): WeeklyTargets {
-  return { strength: 2, speed: 1, endurance: resolveGoalPolicy(profile).extraEndurance ? 2 : 1 };
+  return {
+    strength: 2,
+    speed: "auto",
+    endurance: resolveGoalPolicy(profile).extraEndurance ? 2 : 1,
+  };
+}
+
+/** A new automatic choice never revives the fixed sprint count of an older plan. */
+export function automaticWeeklyTargets(targets: WeeklyTargets): WeeklyTargets {
+  return { ...targets, speed: "auto" };
+}
+
+export function isAutomaticSprintTarget(target: WeeklyTargets["speed"] | undefined): boolean {
+  return target === undefined || target === "auto";
+}
+
+/** An extra exposure is an opportunity for a speed goal, never an automatic quota. */
+export function shouldTryExtraSprint(
+  profile: Profile,
+  target: WeeklyTargets["speed"] | undefined,
+): boolean {
+  if (!isAutomaticSprintTarget(target)) return target === 2;
+  const policy = resolveGoalPolicy(profile);
+  return !policy.reduced && ["speed", "agility"].includes(policy.speedGoal);
 }
 
 /** Only persisted, explicit choices enable custom planning after a reload. */
@@ -30,7 +53,7 @@ export function savedWeeklyPlanningPreferences(
     !targets ||
     typeof targets !== "object" ||
     targets.strength !== 2 ||
-    ![1, 2].includes(targets.speed) ||
+    !["auto", 1, 2].includes(targets.speed) ||
     ![1, 2].includes(targets.endurance)
   )
     return null;
@@ -42,7 +65,7 @@ export function savedWeeklyPlanningPreferences(
   )
     return null;
   return {
-    weeklyTargets: { ...targets },
+    weeklyTargets: automaticWeeklyTargets(targets),
     fillRestDays: saved.fillRestDays ?? false,
     minFullRestDays: rest,
   };

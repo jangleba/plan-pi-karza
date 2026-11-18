@@ -683,10 +683,9 @@ export function lighterAdvanced(
       .map((e) => e.exerciseId);
     out = withoutAdvancedRows(copy, new Set(deep));
   }
-  out.plyometricContacts = strengthLandingCount(out.exercises);
-  out.minutes =
-    Math.ceil(estimateSessionSeconds(out.exercises) / 60) + strengthPreparationOverhead(out);
-  return out;
+  // Set changes alter how many rounds have a partner and how many rest alone.
+  // Recompute those rests before time fitting or the compact recipe can undercount recovery.
+  return resyncAdvancedGroups(out);
 }
 
 /** Drops rows (match proximity, time, lighter week), keeping the rest of each group in rounds. */

@@ -308,7 +308,10 @@ describe("weekly planner end-to-end contracts", () => {
     const p = { ...base, individualTrainingDays: [2, 4] };
     const r = generateTrainingPlan(p, options);
     expect(targets(r.plan).sort()).toEqual(["endurance", "strengthA", "strengthB"]);
-    expect(r.issues.filter((issue) => issue.code === "UNMET_WEEKLY_TARGET")).toHaveLength(1);
+    expect(r.issues.filter((issue) => issue.code === "UNMET_WEEKLY_TARGET")).toEqual([]);
+    expect(r.issues.filter((issue) => issue.code === "AUTO_SPRINT_CONTEXT")).toMatchObject([
+      { target: "speed" },
+    ]);
     for (const day of r.plan) {
       if (ownSlots([day]).length) expect(["2026-11-03", "2026-11-05"]).toContain(day.date);
       expect(day.secondSession?.secondSession).toBeFalsy();
@@ -320,8 +323,14 @@ describe("weekly planner end-to-end contracts", () => {
     const p = { ...base, unavailableDays: [1, 2, 3, 4, 5, 6, 7] };
     const r = generateTrainingPlan(p, options);
     expect(targets(r.plan)).toEqual([]);
-    const missing = r.issues.filter((issue) => issue.code === "UNMET_WEEKLY_TARGET");
+    const missing = r.issues.filter((issue) =>
+      ["UNMET_WEEKLY_TARGET", "AUTO_SPRINT_CONTEXT"].includes(issue.code),
+    );
     expect(missing).toHaveLength(4);
+    expect(missing.filter((issue) => issue.code === "UNMET_WEEKLY_TARGET")).toHaveLength(3);
+    expect(missing.filter((issue) => issue.code === "AUTO_SPRINT_CONTEXT")).toMatchObject([
+      { target: "speed" },
+    ]);
     for (const issue of missing) {
       expect(issue.message).toMatch(/dostępn/i);
       expect(issue.message).not.toMatch(/strengthA|strengthB|endurance/);

@@ -8,6 +8,7 @@ import {
 import { masTestIneligibility, buildMasTestSession } from "./masTestRecipe";
 import { placeRecipeOnDate, removeOwnSession, validateTrainingPlan } from "./planner";
 import { trainingProfileRevision } from "../planIdentity";
+import { savedSessionDurationMode } from "./sessionDurationPolicy";
 
 const slotsOf = (d: SessionDay) => [d, ...(d.secondSession ? [d.secondSession] : [])];
 const executed = (s: SessionDay, c: Record<string, SessionCompletion>) => {
@@ -48,6 +49,7 @@ export function proposeMasTest(input: AdjustmentInput): MasTestOffer {
   const options: EngineOptions = {
     startDate: todayIso,
     minutesPerSession,
+    sessionDurationMode: savedSessionDurationMode(input.plan),
     readiness: p.healthPersonalizationEnabled ? input.readiness : undefined,
     precedingDays: input.plan.filter((d) => d.date < todayIso),
   };
@@ -151,6 +153,7 @@ export function proposeMasTest(input: AdjustmentInput): MasTestOffer {
       affectedSessionIds: [target.dbId!],
       candidatePlan: candidate,
       minutesPerSession,
+      sessionDurationMode: options.sessionDurationMode,
       fingerprint: proposalFingerprint([
         id,
         input.planId,

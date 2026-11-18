@@ -90,11 +90,8 @@ describe("V2 final training contracts", () => {
   });
   it("covers all four weekly targets when feasible and persists valid, instructed exercises", () => {
     const r = generateTrainingPlan(athlete, options);
-    // The second loading week of the squat/bench note is longer than 75 minutes; the shortened
-    // variant is reported as information (REDUCED_STRENGTH_TIME), not as a limitation.
-    expect(
-      r.issues.filter((i) => !["UNMET_STIMULUS", "REDUCED_STRENGTH_TIME"].includes(i.code)),
-    ).toEqual([]);
+    // With no explicit time limit the note's second loading week remains complete, even >75 min.
+    expect(r.issues.filter((i) => i.code !== "UNMET_STIMULUS")).toEqual([]);
     for (let w = 0; w < 4; w++) {
       const roles = r.plan
         .slice(w * 7, w * 7 + 7)
@@ -174,7 +171,8 @@ describe("V2 final training contracts", () => {
   it("reports impossible targets rather than creating unavailable days or phantom sessions", () => {
     const r = generateTrainingPlan({ ...athlete, unavailableDays: [1, 2, 3, 4, 5, 6, 7] }, options);
     expect(recipes(r)).toHaveLength(0);
-    expect(r.issues.filter((i) => i.code === "UNMET_WEEKLY_TARGET")).toHaveLength(16);
+    expect(r.issues.filter((i) => i.code === "UNMET_WEEKLY_TARGET")).toHaveLength(12);
+    expect(r.issues.filter((i) => i.code === "AUTO_SPRINT_CONTEXT")).toHaveLength(4);
   });
   it("does not rewrite its inputs and is deterministic", () => {
     const p = structuredClone(athlete),

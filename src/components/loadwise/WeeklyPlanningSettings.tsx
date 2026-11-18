@@ -1,6 +1,7 @@
 import type { Profile, SessionDay } from "@/lib/loadwise/types";
 import { GOAL_LABELS } from "@/lib/loadwise/labels";
 import {
+  automaticWeeklyTargets,
   defaultWeeklyTargets,
   type WeeklyPlanningPreferences,
 } from "@/lib/loadwise/weeklyPlanningPreferences";
@@ -10,17 +11,24 @@ import "./weekly-planning.css";
 
 export function WeeklyPlanningSettings({
   profile,
-  value,
+  value: savedValue,
   onChange,
 }: {
   profile: Profile;
   value: WeeklyPlanningPreferences | null;
   onChange: (value: WeeklyPlanningPreferences | null) => void;
 }) {
+  const value = savedValue
+    ? { ...savedValue, weeklyTargets: automaticWeeklyTargets(savedValue.weeklyTargets) }
+    : null;
   return (
     <section className="bw-weekly-settings" aria-label="Cele tygodnia">
       <h3>Cele tygodnia</h3>
       <p>Priorytet z profilu: {GOAL_LABELS[profile.goal]}. Klub i mecze pozostają w kalendarzu.</p>
+      <p className="bw-weekly-speed" aria-label="Liczba sesji sprintu">
+        Sprint automatycznie: główna sesja i ewentualna dodatkowa ekspozycja, jeśli pasuje do celu i
+        obciążenia tygodnia.
+      </p>
       <div className="bw-weekly-actions">
         <button type="button" aria-pressed={value === null} onClick={() => onChange(null)}>
           Automatycznie z profilu
@@ -28,44 +36,25 @@ export function WeeklyPlanningSettings({
         <button
           type="button"
           aria-pressed={
-            value?.weeklyTargets.speed === 2 &&
+            value?.weeklyTargets.speed === "auto" &&
             value.weeklyTargets.endurance === 1 &&
             value.minFullRestDays === 1 &&
             value.fillRestDays
           }
           onClick={() =>
             onChange({
-              weeklyTargets: { strength: 2, speed: 2, endurance: 1 },
+              weeklyTargets: { strength: 2, speed: "auto", endurance: 1 },
               fillRestDays: true,
               minFullRestDays: 1,
             })
           }
         >
-          2 siłowe · 2 sprinty · 1 bieg
+          2 siłowe · 1 bieg · sprint automatycznie
         </button>
       </div>
       {value ? (
         <div className="bw-weekly-fields">
           <p className="bw-weekly-strength">Siła A i B: 2 osobne sesje</p>
-          <label>
-            Sprinty na tydzień
-            <select
-              aria-label="Sprinty na tydzień"
-              value={value.weeklyTargets.speed}
-              onChange={(event) =>
-                onChange({
-                  ...value,
-                  weeklyTargets: {
-                    ...value.weeklyTargets,
-                    speed: Number(event.target.value) as 1 | 2,
-                  },
-                })
-              }
-            >
-              <option value={1}>1</option>
-              <option value={2}>2</option>
-            </select>
-          </label>
           <label>
             Biegi na tydzień
             <select
@@ -148,9 +137,9 @@ export function WeeklyPlanningCoverage({
         <p role="alert">Nie można odczytać pokrycia celów. Przygotuj nowy podgląd planu.</p>
       ) : null}
       {coverage.map((week, index) => {
-        const missing = (Object.keys(week.requested) as Array<keyof typeof week.requested>).some(
-          (kind) => week.planned[kind] < week.requested[kind],
-        );
+        const missing =
+          week.planned.strength < week.requested.strength ||
+          week.planned.endurance < week.requested.endurance;
         const restMissing = week.fullRestDays < preferences.minFullRestDays;
         return (
           <details key={week.startDate} open={index === 0}>
@@ -174,10 +163,17 @@ export function WeeklyPlanningCoverage({
                     { key: "endurance", label: "Bieganie" },
                   ] as const
                 ).map(({ key, label }) => (
-                  <tr key={key} data-unmet={week.planned[key] < week.requested[key] || undefined}>
+                  <tr
+                    key={key}
+                    data-unmet={
+                      (key !== "speed" && week.planned[key] < week.requested[key]) || undefined
+                    }
+                  >
                     <th scope="row">{label}</th>
                     <td>
-                      {week.planned[key]} / {week.requested[key]}
+                      {key === "speed"
+                        ? `${week.planned.speed} · automatycznie`
+                        : `${week.planned[key]} / ${week.requested[key]}`}
                     </td>
                   </tr>
                 ))}

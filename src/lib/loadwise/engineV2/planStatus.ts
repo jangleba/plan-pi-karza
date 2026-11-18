@@ -4,6 +4,7 @@ import { readinessScore } from "../readinessModel";
 import { trainingProfileRevision, trainingSetupRevision } from "../planIdentity";
 import { ENGINE_VERSION } from "./model";
 import { validateEngineSession } from "./validation";
+import type { SessionDurationMode } from "./sessionDurationPolicy";
 
 export type PlanStatusKind = "empty" | "active" | "expired" | "stale";
 export interface PlanStatus {
@@ -90,6 +91,26 @@ export function hasReadinessStop(readiness?: Readiness): boolean {
   );
 }
 
+/** What the check-in said, in one comparable string: a later edit of the answers changes it. */
+export function readinessKey(readiness: Readiness): string {
+  return JSON.stringify([
+    readiness.date,
+    readinessScore(readiness) ?? readiness.overall,
+    readiness.jointPain,
+    !!readiness.altersMovement,
+    readiness.redFlags ?? [],
+  ]);
+}
+/** A session already recalculated for exactly this check-in satisfies the "lighter plan" rule. */
+export function adjustedForReadiness(session: SessionDay, readiness?: Readiness): boolean {
+  return (
+    !!readiness &&
+    !!session.readinessAdjustment &&
+    session.readinessAdjustedDate === readiness.date &&
+    session.readinessAdjustmentKey === readinessKey(readiness)
+  );
+}
+
 /** The time budget the plan was generated with; never a silent default when the plan records one. */
 export function planTimeBudget(plan: readonly SessionDay[], fallback = 75): number {
   const first = plan.find((d) => d.engineTimeBudgetMin || d.planInputs?.minutesPerSession);
@@ -105,6 +126,7 @@ export function sessionStartIssue({
   todayIso,
   completion,
   minutesPerSession,
+  sessionDurationMode,
 }: {
   session: SessionDay;
   profile: Profile | null;
@@ -113,6 +135,7 @@ export function sessionStartIssue({
   completion?: SessionCompletion;
   /** The budget the plan was generated with (planTimeBudget); not a fixed default. */
   minutesPerSession?: number;
+  sessionDurationMode?: SessionDurationMode;
 }): string | null {
   if (executionStarted(completion)) return null;
   if (completion?.status === "missed")
@@ -132,7 +155,13 @@ export function sessionStartIssue({
   // A health stop is not solved by a new plan: the session simply must not start.
   if (profile.healthPersonalizationEnabled && readiness && hasReadinessStop(readiness))
     return "Bieżący check-in wstrzymuje trening własny. Nie rozpoczynaj tej sesji.";
-  return sessionPlanUpdateReason({ session, profile, readiness, minutesPerSession });
+  return sessionPlanUpdateReason({
+    session,
+    profile,
+    readiness,
+    minutesPerSession,
+    sessionDurationMode,
+  });
 }
 
 /**
@@ -146,11 +175,13 @@ export function sessionPlanUpdateReason({
   profile,
   readiness,
   minutesPerSession,
+  sessionDurationMode,
 }: {
   session: SessionDay;
   profile: Profile | null;
   readiness?: Readiness;
   minutesPerSession?: number;
+  sessionDurationMode?: SessionDurationMode;
 }): string | null {
   if (!ownPrescription(session) || !profile) return null;
   if (planUnavailableForAge(profile)) return null;
@@ -169,10 +200,23 @@ export function sessionPlanUpdateReason({
     const jump = session.engineV2?.exercises.some(
       (e) => e.role === "power" || e.role === "landing",
     );
-    if ((readinessScore(readiness) ?? readiness.overall) <= 4 && (!supportOnly || jump))
+    if (
+      (readinessScore(readiness) ?? readiness.overall) <= 4 &&
+      (!supportOnly || jump) &&
+      !adjustedForReadiness(session, readiness)
+    )
       return "Bieżący check-in wymaga lżejszego planu. Przygotuj go ponownie przed startem.";
   }
-  const recipeIssue = validateEngineSession(session, profile, { minutesPerSession })[0];
+  const recipeIssue = validateEngineSession(session, profile, {
+    minutesPerSession: session.checkinTimeBudgetMin ?? minutesPerSession,
+    // Callers also pass the stored numeric compatibility field for full plans.
+    // Only the explicit mode or the saved recipe determines whether that field is a limit.
+    sessionDurationMode:
+      sessionDurationMode ??
+      (session.checkinTimeBudgetMin != null
+        ? "limited"
+        : (session.engineV2?.sessionDurationMode ?? "limited")),
+  })[0];
   if (recipeIssue)
     return `Receptura wymaga poprawy przed startem: ${recipeIssue.message} Przygotuj aktualny plan.`;
   return null;

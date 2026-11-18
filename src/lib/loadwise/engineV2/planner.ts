@@ -1,3 +1,14 @@
+import {
+  automaticWeeklyTargets,
+  isAutomaticSprintTarget,
+  shouldTryExtraSprint,
+} from "../weeklyPlanningPreferences";
+import {
+  resolveSessionDurationMode,
+  serializedSessionMinutes,
+  sessionTimeBudget,
+  type SessionDurationMode,
+} from "./sessionDurationPolicy";
 import { sessionName, EXTERNAL_SESSION_NAMES } from "./sessionNames";
 import { sprintChronology, fitSprintToBudget } from "./sprintRecipe";
 import { attachCycle, cycleForWeek, cycleStartEffect } from "./cycle";
@@ -33,7 +44,7 @@ import { isPostMatchDate, postMatchMode, upperBodyOnly } from "./postMatch";
 import { buildActivation, buildRecovery, buildMobility, buildSkills } from "./support";
 import { buildEnduranceForDate, hasCurrentVerifiedMas } from "./endurance";
 import { resolveGoalPolicy, routedProfile, mainGoalTasks } from "./goalPolicy";
-import { hasReadinessStop } from "./planStatus";
+import { adjustedForReadiness, hasReadinessStop } from "./planStatus";
 import { readinessScore } from "../readinessModel";
 import { APP_MINIMUM_AGE, preparationProfile, hasVerifiedAdvancedStrength } from "./preparation";
 import { recipeTotalSeconds } from "@/lib/running/recipe";
@@ -171,7 +182,13 @@ function weekLandingsOf(days: readonly SessionDay[]): number {
   return days.flatMap(slots).reduce((n, s) => n + (s.engineV2?.plyometricContacts ?? 0), 0);
 }
 
-function render(date: string, recipe: EngineSession, p: Profile): SessionDay {
+function render(
+  date: string,
+  recipe: EngineSession,
+  p: Profile,
+  mode?: SessionDurationMode,
+): SessionDay {
+  if (mode) recipe = { ...recipe, sessionDurationMode: mode };
   const revision = trainingProfileRevision(p);
   const sections: TrainingSection[] = [];
   for (const [index, e] of (recipe.sprintRecipeVersion === 1
@@ -438,7 +455,7 @@ function progressedEndurance(
   phase: EngineSession["phase"],
   forceLight: boolean,
 ): EngineSession | null {
-  const budget = options.minutesPerSession ?? 75;
+  const budget = sessionTimeBudget(options);
   for (let step = buildWeekOf(p, options, date); step > 0; step--) {
     const recipe = plannedEndurance(p, date, phase, forceLight, step);
     if (recipe && recipe.minutes <= budget) return recipe;
@@ -463,15 +480,50 @@ function plannedEndurance(
   );
   if (!recipe || !policy.reduced || !recipe.runningRecipe) return recipe;
   // Keep an explicit return/fatigue route lighter across all three main modules.
+  capRunningTime(
+    recipe,
+    "Zmniejszono czas ze względu na zadeklarowany powrót lub ograniczenie zmęczeniem; bez rozpoznawania przyczyny zdrowotnej.",
+  );
+  return recipe;
+}
+
+/**
+ * A placed calm run shortened by the existing reduced-route rule (no block over 15 minutes),
+ * rendered again so its sections, dose and tools carry the shorter run. Null when already shorter.
+ */
+export function capEnduranceSession(session: SessionDay, p: Profile): SessionDay | null {
+  const recipe = session.engineV2;
+  if (!recipe?.runningRecipe || !recipe.roles.includes("endurance")) return null;
+  const capped = capRunningTime(
+    structuredClone(recipe),
+    "Skrócono bieg po dzisiejszym check-inie (obniżona gotowość): spokojnie, bez mocnych odcinków.",
+  );
+  if (!(capped.minutes < recipe.minutes)) return null;
+  const fresh = render(session.date, capped, p, recipe.sessionDurationMode ?? "limited");
+  return {
+    ...session,
+    ...fresh,
+    dbId: session.dbId,
+    dayDbId: session.dayDbId,
+    planDbId: session.planDbId,
+    cycleId: session.cycleId,
+    mdLabel: session.mdLabel,
+    slotLabel: session.slotLabel,
+    secondSession: session.secondSession,
+  };
+}
+
+/** The existing reduced-route rule: no running block longer than 15 minutes, as easy work. */
+const REDUCED_RUN_BLOCK_SECONDS = 15 * 60;
+function capRunningTime(recipe: EngineSession, reason: string): EngineSession {
   const running = recipe.runningRecipe;
+  if (!running) return recipe;
   for (const block of running.blocks) {
-    block.work.seconds = Math.min(block.work.seconds, 15 * 60);
+    block.work.seconds = Math.min(block.work.seconds, REDUCED_RUN_BLOCK_SECONDS);
     block.work.label = `${block.work.seconds / 60} min spokojnie`;
   }
   for (const exercise of recipe.exercises) exercise.dose.seconds = running.blocks[0].work.seconds;
-  running.reasons.push(
-    "Zmniejszono czas ze względu na zadeklarowany powrót lub ograniczenie zmęczeniem; bez rozpoznawania przyczyny zdrowotnej.",
-  );
+  running.reasons.push(reason);
   recipe.minutes = recipeTotalSeconds(running) / 60;
   return recipe;
 }
@@ -727,7 +779,7 @@ function place(
         };
       recipe = { ...recipe, ...dated };
     }
-    const budget = options.minutesPerSession ?? 75;
+    const budget = sessionTimeBudget(options);
     if (Number.isFinite(budget) && budget > 0) {
       const fitted = fitSprintToBudget(recipe, budget);
       if (!fitted)
@@ -747,7 +799,7 @@ function place(
       current.date,
       options,
       [...preceding, ...days],
-      options.minutesPerSession ?? 75,
+      sessionTimeBudget(options),
     );
     if (!final)
       return {
@@ -811,7 +863,7 @@ function place(
     }
     return { blocked: { code: gate.code, message: gate.message } };
   }
-  const session = render(current.date, recipe, p);
+  const session = render(current.date, recipe, p, resolveSessionDurationMode(options));
   session.mdLabel = current.mdLabel;
   const replacement = gate.mode === "new" ? session : { ...current, secondSession: session };
   return {
@@ -857,7 +909,7 @@ function placeResolvedEndurance(
   });
   if (!gate.allowed) return null;
   const current = days[index],
-    session = render(current.date, recipe, p);
+    session = render(current.date, recipe, p, resolveSessionDurationMode(options));
   session.mdLabel = current.mdLabel;
   const replacement = gate.mode === "new" ? session : { ...current, secondSession: session };
   return {
@@ -886,7 +938,7 @@ function placeSupport(
     d.isUnavailable ||
     !p.individualTrainingDays.includes(dayNumber) ||
     matches.has(d.date) ||
-    recipe.minutes > (options.minutesPerSession ?? 75) ||
+    recipe.minutes > sessionTimeBudget(options) ||
     own(d).some((s) => s.engineV2!.roles.some((r) => recipe.roles.includes(r)))
   )
     return null;
@@ -894,7 +946,7 @@ function placeSupport(
   if (d.secondSession) return null;
   const occupied = d.dayType === "club" || own(d).length > 0;
   if (occupied && p.doubleSessionsAllowed === "no") return null;
-  const session = render(d.date, recipe, p);
+  const session = render(d.date, recipe, p, resolveSessionDurationMode(options));
   session.mdLabel = d.mdLabel;
   return days.map((day, i) =>
     i !== index ? day : occupied ? { ...day, secondSession: session } : session,
@@ -980,7 +1032,7 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
   options = {
     ...options,
     ...(!Object.hasOwn(options, "weeklyTargets") && saved?.weeklyTargets !== undefined
-      ? { weeklyTargets: saved.weeklyTargets }
+      ? { weeklyTargets: automaticWeeklyTargets(saved.weeklyTargets) }
       : {}),
     ...(!Object.hasOwn(options, "fillRestDays") && saved?.fillRestDays !== undefined
       ? { fillRestDays: saved.fillRestDays }
@@ -1001,6 +1053,11 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
   if (!Number.isInteger(p.age) || p.age < APP_MINIMUM_AGE)
     throw new Error(`Nowe plany BallWise są dostępne od ${APP_MINIMUM_AGE} lat.`);
   if (
+    options.sessionDurationMode !== undefined &&
+    !["full", "limited"].includes(options.sessionDurationMode)
+  )
+    throw new Error("Wybierz pełną jednostkę albo jawny limit czasu.");
+  if (
     options.minutesPerSession !== undefined &&
     (!Number.isFinite(options.minutesPerSession) ||
       options.minutesPerSession < 10 ||
@@ -1012,7 +1069,7 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
     (!options.weeklyTargets ||
       typeof options.weeklyTargets !== "object" ||
       options.weeklyTargets.strength !== 2 ||
-      ![1, 2].includes(options.weeklyTargets.speed) ||
+      !["auto", 1, 2].includes(options.weeklyTargets.speed) ||
       ![1, 2].includes(options.weeklyTargets.endurance))
   )
     throw new Error("Tygodniowy cel to 2 sesje siły oraz po 1–2 sesje sprintu i wydolności.");
@@ -1311,17 +1368,22 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
         !best.some((d) => own(d).some((s) => s.engineV2!.roles.includes(role))) &&
         !(singleStrengthWeek && role.startsWith("strength"))
       ) {
-        issues.push(
-          unmetTargetIssue({
-            role,
-            recipe,
-            usable: available.some((task) => task.id === role),
-            rejections: solved.rejections[role] ?? [],
-            profile: p,
-            week,
-            date: base[0].date,
-          }),
-        );
+        const missing = unmetTargetIssue({
+          role,
+          recipe,
+          usable: available.some((task) => task.id === role),
+          rejections: solved.rejections[role] ?? [],
+          profile: p,
+          week,
+          date: base[0].date,
+        });
+        if (role === "speed" && isAutomaticSprintTarget(options.weeklyTargets?.speed)) {
+          issues.push({
+            ...missing,
+            code: "AUTO_SPRINT_CONTEXT",
+            message: `Tydzień ${week + 1}: nie dodano osobnej jednostki sprintu przy obecnym kalendarzu i warunkach. ${missing.message.replace(/^Tydzień \d+: /, "")}`,
+          });
+        } else issues.push(missing);
       }
       if (recipe)
         for (const role of recipe.missing) {
@@ -1374,7 +1436,7 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
         });
     }
     if (
-      options.weeklyTargets?.speed === 2 &&
+      shouldTryExtraSprint(p, options.weeklyTargets?.speed) &&
       best.flatMap(own).filter((s) => s.engineV2!.roles.includes("speed")).length === 1
     ) {
       const recipe = buildRunning(routedProfile(p, policy.speedGoal), "speed", phase, {
@@ -1435,7 +1497,7 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
         supportKind === "skills"
           ? buildSkills(p, phase, {
               rotation: cycle.weekIndex,
-              budget: options.minutesPerSession ?? 75,
+              budget: sessionTimeBudget(options),
               secondSession,
             })
           : buildMobility(p, phase);
@@ -1512,7 +1574,7 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
       };
       for (const kind of ["strength", "speed", "endurance"] as const) {
         const requested = options.weeklyTargets[kind];
-        if (planned[kind] >= requested) continue;
+        if (requested === "auto" || planned[kind] >= requested) continue;
         const reasons = [...new Set(targetRejections[kind].map((r) => r.message))];
         const reasonCodes = [...new Set(targetRejections[kind].map((r) => r.code))];
         issues.push({
@@ -1612,7 +1674,7 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
   const violations = validateTrainingPlan(plan, p, options);
   if (plan[0]) {
     plan[0].enginePlanIssues = [...issues, ...violations];
-    plan[0].engineTimeBudgetMin = options.minutesPerSession ?? 75;
+    plan[0].engineTimeBudgetMin = serializedSessionMinutes(options);
     plan[0].planInputs = {
       matchDates: [...(p.matchDates ?? [])].sort(),
       individualTrainingDays: [...p.individualTrainingDays].sort((a, b) => a - b),
@@ -1620,7 +1682,8 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
       clubTrainingDays: [...p.clubTrainingDays].sort((a, b) => a - b),
       unavailableEquipmentIds: [...(p.unavailableEquipmentIds ?? [])].sort(),
       equipment: [...p.equipment].sort(),
-      minutesPerSession: options.minutesPerSession ?? 75,
+      minutesPerSession: serializedSessionMinutes(options),
+      sessionDurationMode: resolveSessionDurationMode(options),
       ...(options.weeklyTargets ? { weeklyTargets: { ...options.weeklyTargets } } : {}),
       ...(options.fillRestDays !== undefined ? { fillRestDays: options.fillRestDays } : {}),
       ...(options.minFullRestDays !== undefined
@@ -1631,7 +1694,8 @@ export function generateTrainingPlan(p: Profile, options: EngineOptions): Engine
   return {
     version: ENGINE_VERSION,
     expectedPlanId: options.expectedPlanId ?? null,
-    minutesPerSession: options.minutesPerSession ?? 75,
+    minutesPerSession: serializedSessionMinutes(options),
+    sessionDurationMode: resolveSessionDurationMode(options),
     plan,
     issues: [...issues, ...violations],
     tier,
@@ -1677,6 +1741,7 @@ export function validateTrainingPlan(
         hasReadinessStop(options.readiness?.[d.date]) ||
         (!supportOnly &&
           !!options.readiness?.[d.date] &&
+          !adjustedForReadiness(s, options.readiness[d.date]) &&
           (readinessScore(options.readiness[d.date]) ?? options.readiness[d.date].overall) <= 4)
       )
         fail("READINESS_CONFLICT", d.date, "Bieżący check-in wymaga ponownego ułożenia treningu.");
@@ -1692,8 +1757,7 @@ export function validateTrainingPlan(
         !p.individualTrainingDays.includes(weekday(d.date))
       )
         fail("UNAVAILABLE", d.date, "Niedostępny termin.");
-      if (r.minutes > (options.minutesPerSession ?? 75))
-        fail("TIME_LIMIT", d.date, "Przekroczony czas.");
+      if (r.minutes > sessionTimeBudget(options)) fail("TIME_LIMIT", d.date, "Przekroczony czas.");
       if (r.sprintMetres > 240) fail("SPRINT_LIMIT", d.date, "Ponad 240 m sprintu.");
       for (const e of r.exercises) {
         if (!eligibleExercise(e.exerciseId, p, e.role))
@@ -1764,7 +1828,7 @@ export function refreshStrengthSession(
   const old = session.engineV2;
   if (!old || !old.roles.some((r) => r === "strengthA" || r === "strengthB")) return null;
   const cycle = cycleForWeek(p, options, session.date);
-  const budget = options.minutesPerSession ?? 75;
+  const budget = sessionTimeBudget(options);
   let base = strengthBase(
     p,
     old.roles.includes("strengthA") ? "A" : "B",
@@ -1781,7 +1845,7 @@ export function refreshStrengthSession(
   const recipe = finalizeStrengthRecipe(base, p, session.date, options, days, budget);
   if (!recipe) return null;
   recipe.cycle = cycle.cycle;
-  const fresh = render(session.date, recipe, p);
+  const fresh = render(session.date, recipe, p, resolveSessionDurationMode(options));
   return {
     ...session,
     ...fresh,
@@ -1831,8 +1895,15 @@ export function lighterRecipes(
     );
   else if (r.roles.includes("speed"))
     reduced = buildRunning(light, "speed", r.phase, { force: r.sprintVariant });
-  else if (r.roles.includes("endurance"))
+  else if (r.roles.includes("endurance")) {
     reduced = plannedEndurance(p, session.date, r.phase, true);
+    // The easy route can equal an already easy run: then the same reduced-route time cap applies.
+    if (reduced && !(reduced.minutes < r.minutes))
+      reduced = capRunningTime(
+        structuredClone(reduced),
+        "Skrócono bieg po dzisiejszym check-inie (obniżona gotowość): spokojnie, bez mocnych odcinków.",
+      );
+  }
   if (reduced && strength && r.postMatch) reduced = { ...reduced, postMatch: r.postMatch };
   if (reduced && reduced.minutes <= r.minutes && doseWeight(reduced) < doseWeight(r))
     out.push({ kind: "lighter", recipe: reduced });
@@ -1858,13 +1929,24 @@ export function placeRecipeOnDate(
   recipe: EngineSession,
   p: Profile,
   options: EngineOptions,
+  /** A calm run is re-resolved for the date; ask for its easy route when the caller lightens it. */
+  forceEnduranceLight = false,
 ): AdjustmentPlacement {
   const index = plan.findIndex((d) => d.date === date);
   if (index < 0) return { blocked: { code: "INVALID_DATE", message: "Brak daty w planie." } };
   const matches = new Set(
     scheduledMatchDates(p, plusDays(options.startDate, -7), plan.length + 14),
   );
-  const attempt = place(plan, index, recipe, p, options, matches, options.precedingDays ?? []);
+  const attempt = place(
+    plan,
+    index,
+    recipe,
+    p,
+    options,
+    matches,
+    options.precedingDays ?? [],
+    forceEnduranceLight,
+  );
   if (!("state" in attempt)) return { blocked: attempt.blocked };
   const before = plan[index];
   const after = attempt.state[index];

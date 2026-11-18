@@ -1,7 +1,7 @@
 import type { Profile, Readiness, SessionDay } from "../types";
 import { preparationProfile } from "./preparation";
 
-export const ENGINE_VERSION = "ballwise-v2.18";
+export const ENGINE_VERSION = "ballwise-v2.19";
 export type Tier = "foundation" | "development" | "performance";
 export type Role =
   | "knee_strength"
@@ -141,6 +141,8 @@ export interface ExerciseDecision {
   strengthStage?: "prep" | "main" | "accessory" | "cooldown";
 }
 export interface EngineSession {
+  /** Whole contextual recipe, or a time-limited variant explicitly requested by the athlete. */
+  sessionDurationMode?: import("./sessionDurationPolicy").SessionDurationMode;
   /** Adaptive two-day sports structure; exercise eligibility and dose remain individual. */
   strengthStructure?: "athletic_ab";
   /** Optional rows omitted for time, distinct from functions unavailable with the declared equipment. */
@@ -249,10 +251,11 @@ export interface Issue {
 /** Explicit weekly requests remain subject to calendar, preparation and load gates. */
 export interface WeeklyTargets {
   strength: 2;
-  speed: 1 | 2;
+  speed: "auto" | 1 | 2;
   endurance: 1 | 2;
 }
 export interface EngineOptions {
+  sessionDurationMode?: import("./sessionDurationPolicy").SessionDurationMode;
   weeklyTargets?: WeeklyTargets;
   /** Offer existing light technique/mobility recipes on otherwise unused days. */
   fillRestDays?: boolean;
@@ -283,6 +286,7 @@ export interface EngineOptions {
   lockedDays?: SessionDay[];
 }
 export interface EngineResult {
+  sessionDurationMode?: import("./sessionDurationPolicy").SessionDurationMode;
   minutesPerSession: number;
   expectedPlanId: string | null;
   version: string;

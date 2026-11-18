@@ -1,3 +1,4 @@
+import { savedSessionDurationMode } from "./sessionDurationPolicy";
 import type { Profile, Readiness, SessionCompletion, SessionDay } from "../types";
 import { sessionPrescription, trainingSetupRevision } from "../planIdentity";
 import { hasOutdatedPendingEngineWork } from "./planStatus";
@@ -101,6 +102,7 @@ export function calibratePendingRunningPlan(input: {
     asOfDate: todayIso,
     weeks: Math.ceil(plan.length / 7),
     minutesPerSession: plan[0].engineTimeBudgetMin ?? 75,
+    sessionDurationMode: savedSessionDurationMode(plan),
     previousPlan: plan,
     completions,
     lockedDays,
@@ -209,6 +211,7 @@ export function proposeRunningCalibration(
     affectedSessionIds: changes.map((c) => c.sessionId),
     candidatePlan: next,
     minutesPerSession,
+    sessionDurationMode: savedSessionDurationMode(next),
     fingerprint: fingerprintOf(
       JSON.stringify([
         id,

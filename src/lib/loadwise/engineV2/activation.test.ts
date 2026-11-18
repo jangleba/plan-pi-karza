@@ -80,6 +80,25 @@ function setup() {
 }
 
 describe("explicit training-plan activation", () => {
+  it("activates a complete recipe above 75 minutes without treating compatibility metadata as a limit", async () => {
+    const f = setup();
+    f.result = generateTrainingPlan(profile, {
+      startDate: "2026-11-02",
+      weeks: 4,
+      expectedPlanId: "observed-plan",
+    });
+    expect(f.result.minutesPerSession).toBe(75);
+    expect(
+      f.result.plan
+        .flatMap((day) => [day, day.secondSession])
+        .some((s) => (s?.durationMin ?? 0) > 75),
+    ).toBe(true);
+    const before = structuredClone(f.result);
+    const saved = await activateTrainingPlan(f.result, f.services);
+    expect(saved).toHaveLength(28);
+    expect(f.services.persist).toHaveBeenCalledOnce();
+    expect(f.result).toEqual(before);
+  });
   it("rejects evidence changed during the fresh server read before writing the preview", async () => {
     const f = setup();
     let currentEvidence = true;

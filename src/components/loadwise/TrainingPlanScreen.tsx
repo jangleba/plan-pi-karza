@@ -34,6 +34,7 @@ import {
   type WeeklyPlanningPreferences,
 } from "@/lib/loadwise/weeklyPlanningPreferences";
 import { planUnavailableForAge } from "@/lib/loadwise/agePolicy";
+import { savedSessionDurationMode } from "@/lib/loadwise/engineV2/sessionDurationPolicy";
 import "@/styles/ballwise-plan.css";
 
 /** "1 tydzień", "2 tygodnie": the length of the plan shown. */
@@ -63,9 +64,12 @@ export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}
     null,
     parseNextPlanIntent,
   );
-  const [timeChoice, setTimeChoice] = useState<{ planId: string | null; minutes: number } | null>(
-    null,
-  );
+  const [timeChoice, setTimeChoice] = useState<{
+    ownerId: string | undefined;
+    planId: string | null;
+    minutes: number;
+    mode: "full" | "limited";
+  } | null>(null);
   const planId = state.activePlanId ?? null;
   const savedWeeklyPreferences = useMemo(
     () =>
@@ -94,8 +98,18 @@ export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}
     storedMinutes <= 120
       ? storedMinutes
       : 75;
-  const minutes =
-    timeChoice?.planId === planId ? timeChoice.minutes : (intent?.minutes ?? savedBudget);
+  const currentTimeChoice =
+    timeChoice?.ownerId === user?.id && timeChoice?.planId === planId ? timeChoice : null;
+  const minutes = currentTimeChoice?.minutes ?? intent?.minutes ?? savedBudget;
+  const savedDurationMode = savedSessionDurationMode(state.plan);
+  const legacyRebuild = rebuild && !state.plan[0]?.planInputs?.sessionDurationMode;
+  const sessionDurationMode: "full" | "limited" = currentTimeChoice
+    ? currentTimeChoice.mode
+    : intent
+      ? (intent.sessionDurationMode ?? (intent.minutes == null ? "full" : "limited"))
+      : !state.plan.length || legacyRebuild
+        ? "full"
+        : savedDurationMode;
   const effectivePlan = useMemo(
     () =>
       resolveEffectivePlan(state.plan, state.modifications, {
@@ -162,7 +176,8 @@ export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}
         previousPlan: state.plan,
         completions: state.completions,
         expectedPlanId: state.activePlanId ?? null,
-        minutesPerSession: minutes,
+        sessionDurationMode,
+        minutesPerSession: sessionDurationMode === "limited" ? minutes : undefined,
         weeklyTargets: weeklyPreferences?.weeklyTargets,
         fillRestDays: weeklyPreferences?.fillRestDays,
         minFullRestDays: weeklyPreferences?.minFullRestDays,
@@ -201,6 +216,7 @@ export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}
     rebuild,
     todayIso,
     minutes,
+    sessionDurationMode,
     effectivePlan,
     status.kind,
     setRows,
@@ -219,6 +235,7 @@ export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}
           ? minutes
           : (effectivePlan[0]?.planInputs?.minutesPerSession ?? savedBudget),
         todayIso,
+        preview?.result ? sessionDurationMode : savedDurationMode,
       )
     : [];
   // The write replaces the plan from today on, so the preview names both the nearest days and
@@ -505,13 +522,20 @@ export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}
               Czas na jednostkę
               <select
                 aria-label="Czas na jednostkę"
-                value={minutes}
+                value={sessionDurationMode === "full" ? "full" : String(minutes)}
                 onChange={(e) => {
-                  setTimeChoice({ planId, minutes: Number(e.target.value) });
+                  const mode = e.target.value === "full" ? "full" : "limited";
+                  setTimeChoice({
+                    ownerId: user?.id,
+                    planId,
+                    mode,
+                    minutes: mode === "limited" ? Number(e.target.value) : savedBudget,
+                  });
                   // A new time budget is a proposal: show the preview, save only on request.
-                  if (state.plan.length && Number(e.target.value) !== savedBudget) setRebuild(true);
+                  if (state.plan.length) setRebuild(true);
                 }}
               >
+                <option value="full">Pełne jednostki · domyślnie</option>
                 {[...new Set([30, 45, 60, 75, 90, 120, minutes])]
                   .sort((a, b) => a - b)
                   .map((v) => (

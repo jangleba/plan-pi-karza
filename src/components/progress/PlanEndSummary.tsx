@@ -131,9 +131,13 @@ export function PlanEndSummary({
     everything.changes.filter((c) => overrides[c.id] ?? c.defaultConfirmed).map((c) => c.id),
   );
   const draft = draftNextPlan(profile, currentMinutes, merged, confirmed);
+  // The match is the athlete's own answer, always applied: shown as a line, not as a choice.
+  const matchChange = everything.changes.find((c) => c.kind === "match");
+  const optionalChanges = everything.changes.filter((c) => c.kind !== "match");
   const set = (patch: Partial<InterviewAnswers>) => setAnswers((a) => ({ ...a, ...patch }));
   const days = answers.days ?? profile.individualTrainingDays;
-  const minutes = answers.minutes ?? currentMinutes;
+  const selectedDuration =
+    answers.sessionDurationMode === "full" || answers.minutes === null ? "full" : answers.minutes;
   const noteBox = (index: 0 | 1 | 2, label: string) => (
     <label className="block text-xs text-muted-foreground">
       {label}
@@ -283,9 +287,16 @@ export function PlanEndSummary({
                 <select
                   aria-label="Czas na jednostkę w kolejnym planie"
                   className="ml-2 rounded border p-1"
-                  value={minutes}
-                  onChange={(e) => set({ minutes: Number(e.target.value) })}
+                  value={selectedDuration}
+                  onChange={(e) =>
+                    set(
+                      e.target.value === "full"
+                        ? { sessionDurationMode: "full", minutes: null }
+                        : { sessionDurationMode: "limited", minutes: Number(e.target.value) },
+                    )
+                  }
                 >
+                  <option value="full">Pełne jednostki</option>
                   {[...new Set<number>([...MINUTE_STEPS, currentMinutes])]
                     .sort((a, b) => a - b)
                     .map((m) => (
@@ -344,11 +355,19 @@ export function PlanEndSummary({
           {step === 4 && (
             <div className="space-y-3 border-t pt-3">
               <h3 className="text-sm font-semibold">Co zmieniamy w kolejnym planie</h3>
-              {draft.changes.length === 0 ? (
-                <p className="text-sm">Bez zmian ustawień. Plan będzie kontynuował bieżący cykl.</p>
+              <p className="text-sm">
+                {draft.sessionDurationMode === "limited"
+                  ? `Limit czasu na jednostkę: ${draft.minutes} min.`
+                  : "Pełne jednostki"}
+              </p>
+              {matchChange && <p className="text-sm">{matchChange.text}</p>}
+              {optionalChanges.length === 0 ? (
+                <p className="text-sm">
+                  Pozostałe ustawienia bez zmian. Plan będzie kontynuował bieżący cykl.
+                </p>
               ) : (
                 <ul className="space-y-2">
-                  {everything.changes.map((c) => (
+                  {optionalChanges.map((c) => (
                     <li key={c.id}>
                       <label className="flex items-start gap-2 text-sm">
                         <input

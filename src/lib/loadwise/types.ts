@@ -648,6 +648,19 @@ export interface SessionDay {
   readinessAdjustedDate?: string | null;
   readinessAdjustmentKey?: string;
   readinessOriginalSession?: SessionDay | null;
+  /**
+   * Today's own session was recalculated after the athlete's check-in (existing readiness
+   * policy: low overall score). The recipe itself is the lighter one; this records why and what
+   * changed, so the explanation survives a refresh. Absent when the full session stands.
+   */
+  readinessAdjustment?: {
+    kind: "lighter" | "compact";
+    score: number;
+    reason: string;
+    changes: string[];
+    beforeMinutes: number;
+    afterMinutes: number;
+  };
   /** „Mam mniej czasu”: planned own minutes chosen in today's check-in. */
   checkinTimeBudgetMin?: number | null;
   /** The day before today's check-in change; base for idempotent re-application. */
@@ -727,6 +740,7 @@ export interface WeekMeta {
 
 /** Schedule-relevant inputs a plan was generated from; lets the app say what changed later. */
 export interface PlanInputsSnapshot {
+  sessionDurationMode?: import("./engineV2/sessionDurationPolicy").SessionDurationMode;
   weeklyTargets?: import("./engineV2/model").WeeklyTargets;
   fillRestDays?: boolean;
   minFullRestDays?: 0 | 1 | 2;

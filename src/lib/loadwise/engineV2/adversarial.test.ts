@@ -208,7 +208,12 @@ describe("independent final-session validation", () => {
     s.engineV2!.minutes = 1;
     s.durationMin = 1;
     expect(codes(s)).toContain("STALE_DURATION");
-    expect(codes(s)).toContain("TIME_LIMIT");
+    const limitedIssues = validateEngineSession(s, profile, {
+      sessionDurationMode: "limited",
+      minutesPerSession: 75,
+    }).map((issue) => issue.code);
+    expect(limitedIssues).toContain("STALE_DURATION");
+    expect(limitedIssues).toContain("TIME_LIMIT");
   });
   it("does not trust a low-load flag on sprint work", () => {
     const s = session("speed");

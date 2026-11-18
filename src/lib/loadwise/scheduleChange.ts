@@ -26,6 +26,7 @@ export function describeScheduleChanges(
   profile: Profile,
   minutesPerSession: number,
   todayIso?: string,
+  sessionDurationMode?: "full" | "limited",
 ): ScheduleChange[] {
   if (!saved) return [];
   const out: ScheduleChange[] = [];
@@ -50,7 +51,14 @@ export function describeScheduleChanges(
       kind: "club",
       line: `Dni treningów klubowych: ${days(saved.clubTrainingDays)} → ${days(profile.clubTrainingDays)}.`,
     });
-  if (saved.minutesPerSession !== minutesPerSession)
+  const savedMode = saved.sessionDurationMode ?? "limited";
+  const currentMode = sessionDurationMode ?? savedMode;
+  if (savedMode !== currentMode)
+    out.push({
+      kind: "minutes",
+      line: `Długość jednostek: ${savedMode === "full" ? "pełne" : `limit ${saved.minutesPerSession} min`} → ${currentMode === "full" ? "pełne" : `limit ${minutesPerSession} min`}.`,
+    });
+  else if (currentMode === "limited" && saved.minutesPerSession !== minutesPerSession)
     out.push({
       kind: "minutes",
       line: `Czas na jednostkę: ${saved.minutesPerSession} → ${minutesPerSession} min.`,

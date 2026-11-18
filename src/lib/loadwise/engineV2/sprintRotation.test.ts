@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { generateTrainingPlan, validateTrainingPlan } from "./planner";
 import { DRILL_SETS, MAIN_VARIANTS, variantById } from "./sprintCatalog";
 import { sprintChronology, sprintDistance } from "./sprintRecipe";
+import type { EngineOptions } from "./model";
 import type { Profile, SessionDay } from "../types";
 
 const base = {
@@ -221,23 +222,19 @@ describe("every catalogue variant has a complete dose, instruction and counted d
       for (let block = 0; block < 4 && !seen.has(variant.id); block++) {
         const start = new Date(Date.UTC(2026, 10, 2 + block * 28)).toISOString().slice(0, 10);
         const p = withPrefs(prefs);
-        const result = generateTrainingPlan(p, {
+        const request: EngineOptions = {
           startDate: start,
           weeks: 4,
+          sessionDurationMode: "full",
           previousPlan: earlier,
           precedingDays: earlier,
-        });
+        };
+        const result = generateTrainingPlan(p, request);
         for (const s of result.plan.flatMap(slots).filter((x) => x.engineV2?.sprintVariant)) {
           seen.add(s.engineV2!.sprintVariant!.mainVariantId);
           expect(sprintDistance(s.engineV2!.exercises)).toBeLessThanOrEqual(240);
         }
-        expect(
-          validateTrainingPlan(result.plan, p, {
-            startDate: start,
-            minutesPerSession: 75,
-            precedingDays: earlier,
-          }),
-        ).toEqual([]);
+        expect(validateTrainingPlan(result.plan, p, request)).toEqual([]);
         earlier = [...earlier, ...result.plan];
       }
       expect(seen.has(variant.id)).toBe(true);
@@ -265,17 +262,17 @@ describe("every catalogue variant has a complete dose, instruction and counted d
 describe("validator guards the stored variant", () => {
   it("rejects a recipe whose stored variant or drills no longer match", () => {
     const p = base;
-    const result = generateTrainingPlan(p, { startDate: "2026-11-02", weeks: 1 });
-    expect(
-      validateTrainingPlan(result.plan, p, { startDate: "2026-11-02", minutesPerSession: 75 }),
-    ).toEqual([]);
+    const request: EngineOptions = {
+      startDate: "2026-11-02",
+      weeks: 1,
+      sessionDurationMode: "full",
+    };
+    const result = generateTrainingPlan(p, request);
+    expect(validateTrainingPlan(result.plan, p, request)).toEqual([]);
     const tampered = structuredClone(result.plan);
     const s = tampered.flatMap(slots).find((x) => x.engineV2?.sprintVariant)!;
     s.engineV2!.sprintVariant!.drillSetId = "ds_mv_dribble";
-    const issues = validateTrainingPlan(tampered, p, {
-      startDate: "2026-11-02",
-      minutesPerSession: 75,
-    });
+    const issues = validateTrainingPlan(tampered, p, request);
     expect(issues.some((i) => i.code === "SPRINT_VARIANT_MISMATCH")).toBe(true);
   });
 });

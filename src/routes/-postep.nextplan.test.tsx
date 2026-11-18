@@ -104,7 +104,9 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-it("confirmed choices go to the next preview without saving a plan; an unchanged profile is not rewritten", async () => {
+it("the next preview defaults to full sessions without rewriting the saved plan or profile", async () => {
+  const state = mocks.store.state as typeof initialState;
+  const savedPlan = JSON.stringify(state.plan);
   await click("Przygotuj kolejny plan");
   await click("Brak meczu w tym tygodniu");
   await click("Dalej");
@@ -115,8 +117,31 @@ it("confirmed choices go to the next preview without saving a plan; an unchanged
   expect(mocks.updateProfile).not.toHaveBeenCalled();
   expect(JSON.parse(localStorage.getItem(intentKey)!)).toMatchObject({
     planId: "old-cycle",
-    minutes: 60,
+    sessionDurationMode: "full",
+    minutes: null,
   });
+  expect(JSON.stringify(state.plan)).toBe(savedPlan);
+  expect(mocks.navigate).toHaveBeenCalledWith({ to: "/plan" });
+});
+
+it("passes an explicitly chosen numeric limit to the next plan preview", async () => {
+  await click("Przygotuj kolejny plan");
+  await click("Dalej");
+  await click("Dalej");
+  await act(async () => {
+    const select = host.querySelector<HTMLSelectElement>(
+      'select[aria-label="Czas na jednostkę w kolejnym planie"]',
+    )!;
+    select.value = "45";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await click("Przygotuj podgląd planu");
+  expect(JSON.parse(localStorage.getItem(intentKey)!)).toMatchObject({
+    planId: "old-cycle",
+    sessionDurationMode: "limited",
+    minutes: 45,
+  });
+  expect(mocks.updateProfile).not.toHaveBeenCalled();
   expect(mocks.navigate).toHaveBeenCalledWith({ to: "/plan" });
 });
 

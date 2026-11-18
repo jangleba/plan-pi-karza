@@ -107,6 +107,7 @@ const issuesOf = (proposal: AdjustmentProposal, p: Profile) =>
   validateTrainingPlan(proposal.candidatePlan, p, {
     startDate: TODAY,
     minutesPerSession: proposal.minutesPerSession,
+    sessionDurationMode: proposal.sessionDurationMode,
   });
 
 describe("feedback-based adjustment proposals", () => {

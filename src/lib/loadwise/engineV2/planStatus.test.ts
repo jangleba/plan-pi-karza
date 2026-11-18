@@ -7,6 +7,7 @@ import { ENGINE_VERSION } from "./model";
 import {
   getPlanStatus,
   hasOutdatedPendingEngineWork,
+  planTimeBudget,
   sessionStartIssue,
   todayTrainingState,
 } from "./planStatus";
@@ -43,6 +44,54 @@ const readiness = {
 } as unknown as Readiness;
 
 describe("read-only plan lifecycle", () => {
+  it("starts complete recipes above the old compatibility budget and still enforces explicit limited mode", () => {
+    const prepared: Profile = {
+      ...profile,
+      gymExperienceLevel: "advanced",
+      strengthTrainingMonths: 36,
+      movementCompetence: "high",
+      supervisionLevel: "full",
+      equipment: [...profile.equipment, "trap_bar", "machine", "med_ball", "nordic_setup"],
+    };
+    const full = generateTrainingPlan(prepared, { startDate: "2026-11-02", weeks: 4 }).plan;
+    const session = full
+      .flatMap((day) => [day, day.secondSession])
+      .find((s) => (s?.durationMin ?? 0) > 75)!;
+    expect(session).toBeDefined();
+    expect(
+      sessionStartIssue({
+        session,
+        profile: prepared,
+        todayIso: session.date,
+        minutesPerSession: planTimeBudget(full),
+      }),
+    ).toBeNull();
+    expect(
+      sessionStartIssue({
+        session: { ...session, checkinTimeBudgetMin: null },
+        profile: prepared,
+        todayIso: session.date,
+        minutesPerSession: planTimeBudget(full),
+      }),
+    ).toBeNull();
+    expect(
+      sessionStartIssue({
+        session,
+        profile: prepared,
+        todayIso: session.date,
+        sessionDurationMode: "limited",
+        minutesPerSession: 40,
+      }),
+    ).toContain("Rzeczywista dawka przekracza dostępny czas");
+    expect(
+      sessionStartIssue({
+        session: { ...session, checkinTimeBudgetMin: 40 },
+        profile: prepared,
+        todayIso: session.date,
+        minutesPerSession: 75,
+      }),
+    ).toContain("Rzeczywista dawka przekracza dostępny czas");
+  });
   it("requires an explicit rebuild of unstarted v2.12 work after the v2.13 upgrade", () => {
     const saved = [{ ...structuredClone(main), generatorVersion: "ballwise-v2.12" }];
     const before = structuredClone(saved);

@@ -279,7 +279,13 @@ describe("key endurance session is not silently replaced by calm runs", () => {
       .map((s) => s.runningRecipe?.method);
     // the key unit (this week's method from the rotation) stays, not only calm runs
     expect(runs.some((m) => m && m !== "easy_continuous")).toBe(true);
-    expect(r.issues.some((i) => i.code === "UNMET_WEEKLY_TARGET")).toBe(true); // what was limited is named
+    // The calendar's omitted standalone sprint is explained without imposing a numeric sprint quota.
+    expect(r.issues.some((i) => i.code === "AUTO_SPRINT_CONTEXT" && i.target === "speed")).toBe(
+      true,
+    );
+    expect(
+      r.issues.filter((i) => i.code === "UNMET_WEEKLY_TARGET" && i.target === "speed"),
+    ).toEqual([]);
   });
 });
 
@@ -340,15 +346,14 @@ describe("guided ramp-up before the first loaded lift", () => {
 
 describe("plans saved before the ramp-up note stay valid", () => {
   it("a stored session without the note passes the dose-consistency check", () => {
-    const plan = generateTrainingPlan(profile, { startDate: "2026-11-02", weeks: 1 }).plan;
+    const options = { startDate: "2026-11-02", weeks: 1, minutesPerSession: 75 };
+    const plan = generateTrainingPlan(profile, options).plan;
     const old = JSON.parse(
       JSON.stringify(plan, (k, v) =>
         k === "cue" && typeof v === "string" && v.startsWith("Przed pierwszą") ? undefined : v,
       ),
     );
     expect(JSON.stringify(old)).not.toContain("Przed pierwszą serią roboczą");
-    expect(
-      validateTrainingPlan(old, profile, { startDate: "2026-11-02", minutesPerSession: 75 }),
-    ).toEqual([]);
+    expect(validateTrainingPlan(old, profile, options)).toEqual([]);
   });
 });

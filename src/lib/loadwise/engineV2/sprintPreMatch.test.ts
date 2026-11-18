@@ -155,7 +155,7 @@ describe("sprint on the actual MD-2 date", () => {
     const expected = fitSprintToBudget(full, budget)!;
     const out = place(profile, "2026-11-20", full, budget);
     if ("blocked" in out) throw new Error(out.blocked.message);
-    expect(out.session.engineV2).toEqual(expected);
+    expect(out.session.engineV2).toEqual({ ...expected, sessionDurationMode: "limited" });
   });
 
   it("does not apply the pre-match reduction two days after a match", () => {
@@ -163,7 +163,10 @@ describe("sprint on the actual MD-2 date", () => {
     const full = buildRunning(profile, "speed", "development")!;
     const out = place(p, "2026-11-20", full);
     if ("blocked" in out) throw new Error(out.blocked.message);
-    expect(out.session.engineV2).toEqual(fitSprintToBudget(full, 75));
+    expect(out.session.engineV2).toEqual({
+      ...fitSprintToBudget(full, 75),
+      sessionDurationMode: "limited",
+    });
   });
 
   it("still blocks a sprint on MD-1 through the shared match buffer", () => {

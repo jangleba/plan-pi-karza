@@ -5,6 +5,8 @@ import { useLoadwise } from "@/lib/loadwise/store";
 import { ProfileAvatar } from "@/components/loadwise/ui";
 import { StartDashboard } from "@/components/loadwise/StartDashboard";
 import { DailyReadinessCard } from "@/components/loadwise/DailyReadinessCard";
+import { TodaySessionChoiceCard } from "@/components/loadwise/TodaySessionChoiceCard";
+import { ReadinessAdjustmentCard } from "@/components/loadwise/ReadinessAdjustmentCard";
 import { FeedbackAdjustmentCard } from "@/components/loadwise/FeedbackAdjustmentCard";
 import { ScheduleChangeCard } from "@/components/loadwise/ScheduleChangeCard";
 import { describeScheduleChanges } from "@/lib/loadwise/scheduleChange";
@@ -72,15 +74,25 @@ function StartScreen() {
       planStatus={status.kind}
       todayComplete={today.complete}
       readiness={
-        <DailyReadinessCard
-          ownerId={user?.id}
-          todayIso={todayIso}
-          enabled={state.profile?.healthPersonalizationEnabled === true}
-          value={state.readiness[todayIso]}
-          todaySession={today.session}
-          onSave={saveReadiness}
-          onManageConsent={() => void navigate({ to: "/onboarding", search: { edit: true } })}
-        />
+        <>
+          {ageBlock ? null : (
+            <TodaySessionChoiceCard
+              plan={effectivePlan}
+              todayIso={todayIso}
+              onOpenPlan={() => void navigate({ to: "/plan" })}
+            />
+          )}
+          <DailyReadinessCard
+            ownerId={user?.id}
+            todayIso={todayIso}
+            enabled={state.profile?.healthPersonalizationEnabled === true}
+            value={state.readiness[todayIso]}
+            todaySession={today.session}
+            onSave={saveReadiness}
+            onManageConsent={() => void navigate({ to: "/onboarding", search: { edit: true } })}
+          />
+          {ageBlock ? null : <ReadinessAdjustmentCard todayIso={todayIso} />}
+        </>
       }
       onToday={() =>
         void navigate({

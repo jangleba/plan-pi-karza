@@ -19,11 +19,12 @@ const answers = (patch: Partial<InterviewAnswers> = {}): InterviewAnswers => ({
 });
 
 describe("next plan interview", () => {
-  it("keeps the profile and budget when nothing changes", () => {
+  it("defaults a new plan to full sessions without changing the profile", () => {
     const draft = draftNextPlan(profile, 75, answers(), all([]));
     expect(draft.changes).toEqual([]);
     expect(draft.profileChanged).toBe(false);
     expect(draft.minutes).toBe(75);
+    expect(draft.sessionDurationMode).toBe("full");
     expect(draft.clarification).toBeNull();
   });
 
@@ -33,22 +34,28 @@ describe("next plan interview", () => {
     expect(open.changes.map((c) => c.id)).toEqual(["goal", "days", "minutes"]);
     expect(open.profile.goal).toBe("strength"); // not confirmed → nothing applied
     expect(open.minutes).toBe(75);
+    expect(open.sessionDurationMode).toBe("full");
     const done = draftNextPlan(profile, 75, a, all(["goal", "days", "minutes"]));
     expect(done.profile.goal).toBe("speed");
     expect(done.profile.individualTrainingDays).toEqual([3, 5]);
     expect(done.minutes).toBe(45);
+    expect(done.sessionDurationMode).toBe("limited");
     expect(done.changes[1].text).toContain("Wt, Cz, So → Śr, Pt");
   });
 
-  it("less time lowers the session budget by one step, and never below 30", () => {
-    const lower = draftNextPlan(profile, 75, answers({ barriers: ["time"] }), all(["minutes"]));
-    expect(lower.minutes).toBe(60);
-    expect(lower.changes[0].text).toContain("75 → 60");
-    const floor = draftNextPlan(profile, 30, answers({ barriers: ["time"] }), all(["minutes"]));
-    expect(floor.minutes).toBe(30);
-    expect(floor.changes).toEqual([]);
-    expect(floor.notes.join(" ")).toContain("najkrótszy");
-    // an explicit minutes choice beats the barrier rule
+  it("a time barrier keeps full sessions until a numeric limit is explicitly chosen", () => {
+    for (const currentMinutes of [30, 75]) {
+      const full = draftNextPlan(
+        profile,
+        currentMinutes,
+        answers({ barriers: ["time"] }),
+        all(["minutes"]),
+      );
+      expect(full.minutes).toBe(currentMinutes);
+      expect(full.sessionDurationMode).toBe("full");
+      expect(full.changes).toEqual([]);
+      expect(full.notes.join(" ")).toContain("Wybierz limit czasu");
+    }
     const explicit = draftNextPlan(
       profile,
       75,
@@ -56,6 +63,22 @@ describe("next plan interview", () => {
       all(["minutes"]),
     );
     expect(explicit.minutes).toBe(90);
+    expect(explicit.sessionDurationMode).toBe("limited");
+  });
+
+  it("confirms even a limit equal to the compatibility minutes, and full mode ignores that number", () => {
+    const limited = draftNextPlan(profile, 75, answers({ minutes: 75 }), all(["minutes"]));
+    expect(limited.sessionDurationMode).toBe("limited");
+    expect(limited.changes[0].text).toBe("Limit czasu na jednostkę: 75 min.");
+    const full = draftNextPlan(
+      profile,
+      75,
+      answers({ sessionDurationMode: "full", minutes: 45 }),
+      all(["minutes"]),
+    );
+    expect(full.sessionDurationMode).toBe("full");
+    expect(full.minutes).toBe(75);
+    expect(full.changes).toEqual([]);
   });
 
   it("missing equipment excludes only what was selected; no selection asks to choose, never guesses", () => {
@@ -92,8 +115,10 @@ describe("next plan interview", () => {
       answers({ notes: "Mniej czasu w tygodniu" }),
       all(["minutes"]),
     );
-    expect(draft.changes[0]).toMatchObject({ id: "minutes", source: "note" });
-    expect(draft.minutes).toBe(60);
+    expect(draft.changes).toEqual([]);
+    expect(draft.sessionDurationMode).toBe("full");
+    expect(draft.minutes).toBe(75);
+    expect(draft.notes.join(" ")).toContain("Wybierz limit czasu");
     const gym = draftNextPlan(profile, 75, answers({ notes: "nie mam siłowni" }), all(["gym"]));
     expect(gym.profile.hasGym).toBe(false);
   });
@@ -124,7 +149,9 @@ describe("next plan interview", () => {
       all(["minutes"]),
     );
     expect(asked.clarification).toBeNull();
-    expect(asked.minutes).toBe(60);
+    expect(asked.minutes).toBe(75);
+    expect(asked.sessionDurationMode).toBe("full");
+    expect(asked.notes.join(" ")).toContain("Wybierz limit czasu");
     const unrelated = draftNextPlan(
       profile,
       75,

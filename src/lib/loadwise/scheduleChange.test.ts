@@ -76,6 +76,22 @@ describe("schedule change proposals", () => {
     expect(describeScheduleChanges(undefined, profile, 45)).toEqual([]);
   });
 
+  it("names an explicit duration mode change without treating compatibility minutes as a full-session limit", () => {
+    const saved = { ...generate(profile)[0].planInputs!, sessionDurationMode: "full" as const };
+    expect(describeScheduleChanges(saved, profile, 30, "2026-11-03", "full")).toEqual([]);
+    expect(describeScheduleChanges(saved, profile, 30, "2026-11-03", "limited")).toEqual([
+      { kind: "minutes", line: "Długość jednostek: pełne → limit 30 min." },
+    ]);
+  });
+
+  it("describes a deliberate upgrade of a legacy time-limited plan to full sessions", () => {
+    const saved = generate(profile)[0].planInputs!;
+    const { sessionDurationMode: _legacyMode, ...legacy } = saved;
+    expect(describeScheduleChanges(legacy, profile, 75, "2026-11-03", "full")).toEqual([
+      { kind: "minutes", line: "Długość jednostek: limit 75 min → pełne." },
+    ]);
+  });
+
   it("a match that already passed is not reported as a change", () => {
     const saved = generate(profile)[0].planInputs;
     expect(

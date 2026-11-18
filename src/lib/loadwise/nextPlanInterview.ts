@@ -1,5 +1,6 @@
 import { getAllEquipmentDefinitions, resolveEquipmentId } from "./exerciseLibrary";
 import { GOAL_LABELS } from "./labels";
+import type { SessionDurationMode } from "./engineV2/sessionDurationPolicy";
 import type { Goal, Profile } from "./types";
 
 /**
@@ -31,7 +32,9 @@ export interface InterviewAnswers {
   barriers: Barrier[];
   /** null = keep the current own training days. */
   days: number[] | null;
-  /** null = keep (or lower it when time was the barrier). */
+  /** New interviews default to full sessions; old explicit numeric choices remain limits. */
+  sessionDurationMode?: SessionDurationMode;
+  /** null = full sessions unless an explicit duration mode says otherwise. */
   minutes: number | null;
   /** Equipment ids the athlete reports as unavailable. */
   unavailableEquipment: string[];
@@ -66,6 +69,9 @@ export interface Clarification {
 }
 export interface NextPlanDraft {
   profile: Profile;
+  /** Optional only for compatibility with older callers. New drafts always include it. */
+  sessionDurationMode?: SessionDurationMode;
+  /** Compatibility numeric value, ignored when the duration mode is full. */
   minutes: number;
   changes: NextPlanChange[];
   /** Hints that change nothing, shown as plain lines. */
@@ -134,8 +140,6 @@ export function readNote(text: string): NoteReading {
   return out;
 }
 
-const lowerStep = (minutes: number) => [...MINUTE_STEPS].reverse().find((m) => m < minutes) ?? null;
-
 export function ownedEquipment(profile: Profile) {
   const owned = new Set(
     (profile.equipment ?? []).flatMap((label) => {
@@ -160,6 +164,7 @@ export function draftNextPlan(
   const notes: string[] = [];
   let next: Profile = { ...profile };
   let minutes = currentMinutes;
+  let sessionDurationMode: SessionDurationMode = "full";
   const reading = readNote(answers.notes);
   const clarified = answers.noteTopic;
   const barriers = new Set<Barrier>(answers.barriers.filter((b) => b !== "none"));
@@ -222,38 +227,27 @@ export function draftNextPlan(
       },
     );
 
-  // Budget: an explicit choice wins; otherwise "no time" lowers it by one step.
-  if (answers.minutes !== null) {
-    if (answers.minutes !== currentMinutes)
-      add(
-        {
-          id: "minutes",
-          kind: "minutes",
-          source: "answer",
-          text: `Czas na jednostkę: ${currentMinutes} → ${answers.minutes} min.`,
-          defaultConfirmed: true,
-        },
-        () => {
-          minutes = answers.minutes!;
-        },
-      );
-  } else if (barriers.has("time")) {
-    const lower = lowerStep(currentMinutes);
-    if (lower)
-      add(
-        {
-          id: "minutes",
-          kind: "minutes",
-          source: reading.barriers.has("time") || clarified === "time" ? "note" : "answer",
-          text: `Mniej czasu: czas na jednostkę ${currentMinutes} → ${lower} min.`,
-          defaultConfirmed: true,
-        },
-        () => {
-          minutes = lower;
-        },
-      );
-    else notes.push("Czas na jednostkę jest już najkrótszy (30 min); nie zmieniamy go.");
-  }
+  // Only a chosen numeric limit shortens new sessions. A reported barrier is not a duration choice.
+  const requestedDurationMode =
+    answers.sessionDurationMode ?? (answers.minutes === null ? "full" : "limited");
+  if (requestedDurationMode === "limited" && answers.minutes !== null) {
+    add(
+      {
+        id: "minutes",
+        kind: "minutes",
+        source: "answer",
+        text: `Limit czasu na jednostkę: ${answers.minutes} min.`,
+        defaultConfirmed: true,
+      },
+      () => {
+        minutes = answers.minutes!;
+        sessionDurationMode = "limited";
+      },
+    );
+  } else if (barriers.has("time"))
+    notes.push(
+      "Brakowało czasu? Wybierz limit czasu w kroku 3, jeśli chcesz skrócić jednostki. Domyślnie zostają pełne.",
+    );
 
   // Equipment: only an explicit selection excludes anything.
   const already = new Set(profile.unavailableEquipmentIds ?? []);
@@ -332,6 +326,7 @@ export function draftNextPlan(
 
   return {
     profile: next,
+    sessionDurationMode,
     minutes,
     changes,
     notes,
