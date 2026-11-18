@@ -1,9 +1,9 @@
 import { Empty, PageHeader } from "./Sketch";
 
-export type Tab = "plan" | "lab" | "iq" | "fuel" | "progres";
+export type Tab = "start" | "plan" | "lab" | "iq" | "fuel" | "progres";
 
 const TABS: Array<[Tab, string]> = [
-  ["plan", "Plan"], ["lab", "Lab"], ["iq", "IQ"], ["fuel", "Fuel"], ["progres", "Progres"],
+  ["start", "Start"], ["plan", "Plan"], ["lab", "Lab"], ["iq", "IQ"], ["fuel", "Fuel"], ["progres", "Progres"],
 ];
 
 export function TabBar({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {

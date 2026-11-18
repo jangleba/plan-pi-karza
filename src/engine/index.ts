@@ -14,3 +14,5 @@ export * from "./video";
 export * from "./fuel";
 export * from "./bodyweight";
 export * from "./iq";
+export * from "./imagery";
+export * from "./track";
