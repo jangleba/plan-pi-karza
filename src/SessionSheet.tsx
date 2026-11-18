@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { EXERCISES, adaptSession, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
+import { Pitch } from "./Pitch";
+import { CueTrainer } from "./CueTrainer";
+import { EXERCISES, RECOVERY, TECHNIQUE_DRILLS, adaptSession, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
 import type { CheckIn, DayPlan, Mas } from "./engine";
 
 const KIND_TITLE: Record<string, string> = {
@@ -84,6 +86,31 @@ export function SessionSheet({
                 </div>
               </div>
             ))}
+          </>
+        ) : s?.kind === "technique" ? (
+          <>
+            <p className="text-sm text-muted">Szkice do przeglądu trenera</p>
+            <div className="mt-4 flex flex-col gap-5">
+              {TECHNIQUE_DRILLS.map((d) => (
+                <div key={d.id}>
+                  <div className="mb-2 text-sm font-medium">{d.title}</div>
+                  <Pitch drill={d} />
+                  <p className="mt-2 text-xs text-muted">{d.dose}</p>
+                  <ul className="mt-1 list-disc pl-4 text-sm">
+                    {d.points.map((p) => <li key={p}>{p}</li>)}
+                  </ul>
+                </div>
+              ))}
+              <CueTrainer />
+            </div>
+          </>
+        ) : s?.kind === "recovery" ? (
+          <>
+            <p className="text-sm text-muted">{RECOVERY.title} · ok. {RECOVERY.minutes} min</p>
+            <h3 className="mb-1 mt-4 text-sm font-semibold">Najważniejsze</h3>
+            <ul className="list-disc pl-4 text-sm">{RECOVERY.foundation.map((x) => <li key={x}>{x}</li>)}</ul>
+            <h3 className="mb-1 mt-4 text-sm font-semibold">Opcjonalnie</h3>
+            <ul className="list-disc pl-4 text-sm text-muted">{RECOVERY.optional.map((x) => <li key={x}>{x}</li>)}</ul>
           </>
         ) : (
           <p className="mt-3 text-sm text-muted">
