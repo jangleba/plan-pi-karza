@@ -140,7 +140,7 @@ function Log({ profile }: { profile: Profile }) {
           <input className={field} inputMode="decimal" placeholder="Węgle (g)" value={carb} onChange={(e) => setCarb(e.target.value)} />
           <input className={field} inputMode="decimal" placeholder="Białko (g)" value={protein} onChange={(e) => setProtein(e.target.value)} />
         </div>
-        <button onClick={add} className="w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-white">Dodaj</button>
+        <button onClick={add} className="w-full rounded-xl bg-accent py-2.5 text-sm font-medium text-white">Dodaj</button>
       </section>
       {todays.length === 0 && <Empty kind="fuel">Dziś nic jeszcze nie dodano.</Empty>}
       {todays.length > 0 && (

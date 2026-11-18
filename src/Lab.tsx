@@ -93,7 +93,7 @@ function TestCard({ test, onSaved }: { test: LabTest; onSaved: () => void }) {
             ))}
           </div>
           {error && <p className="mb-3 rounded-xl bg-red-soft p-2.5 text-sm text-red-ink">{error}</p>}
-          <button onClick={save} className="w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-white">Zapisz wynik</button>
+          <button onClick={save} className="w-full rounded-xl bg-accent py-2.5 text-sm font-medium text-white">Zapisz wynik</button>
         </div>
       )}
       {video && (test.key === "cmj" || test.key === "sprint") && (

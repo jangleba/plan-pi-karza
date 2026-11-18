@@ -52,13 +52,13 @@ export function MatchInMind({ position, onClose }: { position: Position; onClose
   const breathing = step.title === "Oddech";
 
   return (
-    <div className="fixed inset-0 z-30 flex flex-col bg-canvas px-5 pb-10 pt-14">
+    <div className="bw-sheet fixed inset-0 z-30 flex flex-col bg-canvas px-5 pb-10 pt-14">
       <div className="mb-4 flex items-center justify-between">
         <span className="text-xs uppercase tracking-wide text-muted">Mecz w głowie · {i + 1}/{steps.length}</span>
         <button onClick={onClose} className="text-sm text-muted">Zamknij</button>
       </div>
       <div className="mb-5 flex gap-1">
-        {steps.map((_, k) => <div key={k} className={`h-0.5 flex-1 rounded-full ${k <= i ? "bg-ink" : "bg-hairline"}`} />)}
+        {steps.map((_, k) => <div key={k} className={`h-0.5 flex-1 rounded-full ${k <= i ? "bg-accent" : "bg-hairline"}`} />)}
       </div>
       <h2 className="text-2xl font-semibold tracking-tight">{step.title}</h2>
       <p className="mt-2 text-base leading-relaxed text-ink/80">{step.cue}</p>
@@ -74,7 +74,7 @@ export function MatchInMind({ position, onClose }: { position: Position; onClose
       <p className="mb-4 text-center text-sm tabular-nums text-muted">{done ? "Gotowe" : `${left} s`}</p>
       <div className="flex gap-2">
         <button onClick={() => go(i - 1)} className="rounded-xl border border-hairline px-4 py-3 text-sm">Wstecz</button>
-        <button onClick={() => (done ? onClose() : setPaused(!paused))} className="flex-1 rounded-xl bg-ink py-3 text-sm font-medium text-card">
+        <button onClick={() => (done ? onClose() : setPaused(!paused))} className="flex-1 rounded-xl bg-accent py-3 text-sm font-medium text-card">
           {done ? "Zakończ" : paused ? "Wznów" : "Pauza"}
         </button>
         <button onClick={() => go(i + 1)} className="rounded-xl border border-hairline px-4 py-3 text-sm">Dalej</button>

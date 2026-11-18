@@ -29,7 +29,7 @@ export function Auth() {
       <section className="rounded-2xl bg-card p-4 border border-hairline">
         <input className={`${field} mb-3`} type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} />
         <input className={`${field} mb-3`} type="password" placeholder="Hasło (min. 8 znaków)" value={password} onChange={(e) => setPassword(e.target.value)} />
-        <button disabled={busy} onClick={submit} className="w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-white disabled:opacity-50">
+        <button disabled={busy} onClick={submit} className="w-full rounded-xl bg-accent py-2.5 text-sm font-medium text-white disabled:opacity-50">
           {mode === "in" ? "Zaloguj" : "Załóż konto"}
         </button>
       </section>

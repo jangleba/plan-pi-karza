@@ -8,6 +8,9 @@
   --color-ink: #2a2a28;
   --color-muted: #8a8578;
   --color-hairline: #e4ded2;
+  /* jeden żywy akcent: terakota */
+  --color-accent: #c2603f;
+  --color-accent-soft: #f3e0d6;
   --color-green-soft: #e4eadc;
   --color-green-ink: #4d6b52;
   --color-yellow-soft: #efe6d0;
@@ -33,3 +36,13 @@ body {
   40% { transform: scale(1.8); }
   100% { transform: scale(1); }
 }
+
+/* karty wysuwane od dołu */
+@keyframes bw-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes bw-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.bw-sheet { animation: bw-sheet-up 0.32s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.bw-backdrop { animation: bw-fade-in 0.2s ease-out; }
+/* przyciski: wyraźna reakcja na dotyk */
+button { -webkit-tap-highlight-color: transparent; transition: transform 0.12s ease, background-color 0.2s ease, color 0.2s ease; }
+button:active:not(:disabled) { transform: scale(0.96); }
+@media (prefers-reduced-motion: reduce) { .bw-sheet, .bw-backdrop { animation: none; } button:active { transform: none; } }
