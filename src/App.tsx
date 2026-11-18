@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { planWeek } from "./engine";
-import type { DayPlan, SessionKind } from "./engine";
+import type { CheckIn, DayPlan, SessionKind } from "./engine";
+import { SessionSheet } from "./SessionSheet";
 
 const KIND_LABEL: Record<SessionKind, string> = {
   strength: "Siła",
@@ -34,10 +35,13 @@ function Chip({ tone, children }: { tone: string; children: React.ReactNode }) {
   return <span className={`self-start rounded-full px-3 py-1 text-xs font-medium ${tone}`}>{children}</span>;
 }
 
-function DayRow({ day, index }: { day: DayPlan; index: number }) {
+function DayRow({ day, index, onOpen }: { day: DayPlan; index: number; onOpen: () => void }) {
   const s = day.session;
   return (
-    <li className="flex items-center gap-4 rounded-2xl bg-card px-4 py-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+    <li
+      onClick={s ? onOpen : undefined}
+      className={`flex items-center gap-4 rounded-2xl bg-card px-4 py-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${s ? "cursor-pointer active:scale-[0.99]" : ""}`}
+    >
       <div className="w-10 text-center">
         <div className="text-[11px] uppercase tracking-wide text-muted">{WEEKDAY[index]}</div>
         <div className="text-lg font-semibold">{Number(day.date.slice(8))}</div>
@@ -60,7 +64,30 @@ function DayRow({ day, index }: { day: DayPlan; index: number }) {
   );
 }
 
+const OPTIONS: Array<[1 | 2 | 3, string]> = [[1, "Słabo"], [2, "Średnio"], [3, "Dobrze"]];
+
+function Pick({ label, value, onChange }: { label: string; value: 1 | 2 | 3; onChange: (v: 1 | 2 | 3) => void }) {
+  return (
+    <div className="mb-3">
+      <div className="mb-1.5 text-xs text-muted">{label}</div>
+      <div className="flex gap-1.5 rounded-xl bg-canvas p-1">
+        {OPTIONS.map(([v, t]) => (
+          <button
+            key={v}
+            onClick={() => onChange(v)}
+            className={`flex-1 rounded-lg py-1.5 text-sm transition ${value === v ? "bg-card font-medium shadow-sm" : "text-muted"}`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function App() {
+  const [checkIn, setCheckIn] = useState<CheckIn>({ sleep: 3, feeling: 3, less: false });
+  const [open, setOpen] = useState<DayPlan | null>(null);
   const weekStart = useMemo(() => mondayOf(new Date()), []);
   // Przykładowy tydzień: mecz w sobotę, trening klubowy wt i czw.
   const plan = useMemo(() => {
@@ -78,11 +105,25 @@ export function App() {
     <main className="mx-auto max-w-md px-4 pb-16 pt-14">
       <h1 className="text-3xl font-semibold tracking-tight">Twój tydzień</h1>
       <p className="mb-6 mt-1 text-sm text-muted">Plan dopasowany do meczu.</p>
+      <section className="mb-5 rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <h2 className="mb-3 text-base font-semibold">Jak dziś?</h2>
+        <Pick label="Sen" value={checkIn.sleep} onChange={(v) => setCheckIn({ ...checkIn, sleep: v })} />
+        <Pick label="Samopoczucie" value={checkIn.feeling} onChange={(v) => setCheckIn({ ...checkIn, feeling: v })} />
+        <button
+          onClick={() => setCheckIn({ ...checkIn, less: !checkIn.less })}
+          className={`w-full rounded-xl py-2 text-sm transition ${checkIn.less ? "bg-yellow-soft font-medium text-yellow-ink" : "bg-canvas text-muted"}`}
+        >
+          Dziś mniej / brak czasu
+        </button>
+      </section>
       <ul className="flex flex-col gap-2.5">
         {plan.days.map((d, i) => (
-          <DayRow key={d.date} day={d} index={i} />
+          <DayRow key={d.date} day={d} index={i} onOpen={() => setOpen(d)} />
         ))}
       </ul>
+      {open && (
+        <SessionSheet day={open} checkIn={checkIn} weekInCycle={1} onClose={() => setOpen(null)} />
+      )}
       {plan.warnings.length > 0 && (
         <p className="mt-4 rounded-2xl bg-yellow-soft p-3 text-sm text-yellow-ink">
           {plan.warnings.join(" ")}
