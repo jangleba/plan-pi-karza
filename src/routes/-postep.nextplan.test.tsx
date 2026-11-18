@@ -126,6 +126,8 @@ it("the next preview defaults to full sessions without rewriting the saved plan 
 
 it("passes an explicitly chosen numeric limit to the next plan preview", async () => {
   await click("Przygotuj kolejny plan");
+  await click("Brak meczu w tym tygodniu");
+  await click("Dalej");
   await click("Dalej");
   await click("Dalej");
   await act(async () => {

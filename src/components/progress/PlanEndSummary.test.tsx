@@ -184,6 +184,7 @@ describe("end of plan summary and interview", () => {
   it("uses a numeric limit only after it is explicitly chosen", async () => {
     const onPrepare = await render();
     await click("Przygotuj kolejny plan");
+    await answerMatch();
     await click("Dalej");
     await click("Dalej");
     await chooseDuration("45");
@@ -197,6 +198,7 @@ describe("end of plan summary and interview", () => {
   it("lets the athlete return from a numeric limit to full sessions", async () => {
     const onPrepare = await render();
     await click("Przygotuj kolejny plan");
+    await answerMatch();
     await click("Dalej");
     await click("Dalej");
     await chooseDuration("45");
