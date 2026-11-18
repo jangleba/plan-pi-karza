@@ -2,7 +2,7 @@ import { Capacitor } from "@capacitor/core";
 import { Haptics } from "@capacitor/haptics";
 
 /** Vibration pattern in the Vibration API format: [on, off, on, ...] in ms. */
-export type VibrationPattern = number | readonly number[];
+type VibrationPattern = number | readonly number[];
 
 /** Longest single pulse we ask the phone for, so a bad pattern cannot buzz for seconds. */
 const MAX_PULSE_MS = 1000;

@@ -21,7 +21,6 @@ import {
 } from "./setLogHistory";
 
 export { previousExerciseSessions } from "./setLogHistory";
-export type { ExerciseSessionLog } from "./setLogHistory";
 
 export type SetLog = HistorySetLog;
 

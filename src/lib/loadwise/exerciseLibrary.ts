@@ -90,7 +90,7 @@ export type SessionCategory =
   | "core_robustness"
   | "mobility_prehab";
 
-export const SESSION_CATEGORIES: SessionCategory[] = [
+const SESSION_CATEGORIES: SessionCategory[] = [
   "strength_gym",
   "power_plyo",
   "speed_sprint",
@@ -137,7 +137,7 @@ export type EquipmentId =
   | "flat_markers"
   | "none";
 
-export interface EquipmentDefinition {
+interface EquipmentDefinition {
   id: EquipmentId;
   displayName: string;
   aliases: string[];
@@ -4836,13 +4836,13 @@ export function getExerciseDefinition(exerciseId: string): ExerciseDefinition | 
   return LIBRARY_INDEX.get(exerciseId);
 }
 
-export interface CanonicalReplacementIssue {
+interface CanonicalReplacementIssue {
   sourceId: string;
   targetId: string;
   problem: string;
 }
 
-export interface CanonicalReplacementValidationReport {
+interface CanonicalReplacementValidationReport {
   ok: boolean;
   issues: CanonicalReplacementIssue[];
 }
@@ -4922,14 +4922,14 @@ export function validateCanonicalReplacementChains(
   return { ok: issues.length === 0, issues };
 }
 
-export interface FoundationalSprintFlowStep {
+interface FoundationalSprintFlowStep {
   order: "A" | "C" | "B" | "D";
   exerciseId: string;
   variants: readonly ["step_in", "continuous"];
 }
 
 /** Deterministic teaching sequence; competency selection is intentionally deferred. */
-export const FOUNDATIONAL_SPRINT_FLOW: readonly FoundationalSprintFlowStep[] = [
+const FOUNDATIONAL_SPRINT_FLOW: readonly FoundationalSprintFlowStep[] = [
   { order: "A", exerciseId: "a_march", variants: ["step_in", "continuous"] },
   { order: "C", exerciseId: "c_skip", variants: ["step_in", "continuous"] },
   { order: "B", exerciseId: "b_skip", variants: ["step_in", "continuous"] },
@@ -5128,7 +5128,7 @@ export function canonicalizeGeneratedExercise(
     : hydrated;
 }
 
-export interface PersistedExerciseMigrationResult {
+interface PersistedExerciseMigrationResult {
   plan: SessionDay[];
   changed: boolean;
 }
@@ -5461,7 +5461,7 @@ export function specialistEquipmentForExercise(
 // isExerciseAllowedForProfile
 // ---------------------------------------------------------------------------
 
-export interface ExerciseAllowResult {
+interface ExerciseAllowResult {
   ok: boolean;
   reasons: string[];
 }
@@ -5612,7 +5612,7 @@ export function getExerciseRegression(
   return undefined;
 }
 
-export interface SafeAlternativeResult {
+interface SafeAlternativeResult {
   exercise: ExerciseDefinition | null;
   reason: string;
   unresolved: boolean;
@@ -5758,7 +5758,7 @@ export function validateExerciseDefinition(def: ExerciseDefinition): string[] {
   return problems;
 }
 
-export interface LibraryCompletenessReport {
+interface LibraryCompletenessReport {
   ok: boolean;
   totalExercises: number;
   issues: { id: string; problem: string }[];
@@ -5843,13 +5843,13 @@ export function validateExerciseLibraryCompleteness(): LibraryCompletenessReport
 // validateWorkoutExercises — Reguła 4: każdy trening przez ten walidator
 // ---------------------------------------------------------------------------
 
-export interface WorkoutExerciseInput {
+interface WorkoutExerciseInput {
   /** id z biblioteki (preferowane) lub sama nazwa. */
   exerciseId?: string;
   name: string;
 }
 
-export interface WorkoutValidationReport {
+interface WorkoutValidationReport {
   ok: boolean;
   replacements: { original: string; replacement: string; reason: string }[];
   unresolvedIssues: { exercise: string; reason: string }[];

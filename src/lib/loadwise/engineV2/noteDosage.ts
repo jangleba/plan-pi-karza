@@ -19,9 +19,9 @@ import {
 } from "./preparation";
 
 /** How close the athlete's REAL strength preparation is to the coach's own prescription. */
-export type NoteLevel = "full" | "standard" | "intro";
+type NoteLevel = "full" | "standard" | "intro";
 
-export interface NoteLevelDecision {
+interface NoteLevelDecision {
   level: NoteLevel;
   /** Why this level, in plain words (also shown in the plan's explanation). */
   basis: string;
@@ -94,7 +94,7 @@ const SQUAT_LIKE_TEMPO = (t: readonly [number, number, number]) => ({
   concentricSeconds: t[2],
 });
 
-export interface DoseRequest {
+interface DoseRequest {
   slot: SkeletonSlot;
   /** The reference dose of the week (heavy overrides applied). */
   ref: Ref;
@@ -105,7 +105,7 @@ export interface DoseRequest {
   p: Profile;
   phase: "adaptation" | "development" | "peak" | "deload";
 }
-export interface DoseResult {
+interface DoseResult {
   dose: Dose;
   adjustments: DoseAdjustment[];
   /** Fields the photo does not state: product defaults, not the coach's numbers. */

@@ -2,15 +2,15 @@ import { measureMasEvidence, verifiedMasKmh, masTrial } from "./masQuality";
 import type { RunningActivity, RunningIntervalResult } from "./types";
 import type { RunningRecipe } from "./recipe";
 import { MAS_ZONES, paceRangeFromMas, type PaceRange } from "./masZones";
-export { formatPaceTarget, paceRangeFromMas, type PaceRange } from "./masZones";
+export { paceRangeFromMas, type PaceRange } from "./masZones";
 
-export const FIELD_MAS_TEST_DURATION_SEC = 5 * 60;
-export const FIELD_MAS_RETEST_DAYS = 28;
+const FIELD_MAS_TEST_DURATION_SEC = 5 * 60;
+const FIELD_MAS_RETEST_DAYS = 28;
 
 export type RunningSessionMethod =
   "field_mas_test" | "easy_aerobic" | "extensive_intervals" | "tempo_intervals" | "short_hiit";
 
-export interface RunningSessionPrescription {
+interface RunningSessionPrescription {
   method: RunningSessionMethod;
   title: string;
   sessionType: string;
@@ -355,7 +355,7 @@ export function nextRunningProgressionLevel(input: {
 }
 
 /** The pinned prescription, never a newly generated recipe or the current profile. */
-export interface RunningFeedbackPrescription {
+interface RunningFeedbackPrescription {
   engineV2?: { roles: readonly string[] };
   runningRecipe?: RunningRecipe;
 }

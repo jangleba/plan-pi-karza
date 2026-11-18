@@ -3,7 +3,7 @@ import type { TrainingMethodPreferences } from "./types";
 import { GYM_DECLARED_EQUIPMENT, normalizeGymExerciseChoices } from "../gymProgramming";
 
 /** Zapisane w profilu preferencje metod (dane profilu, nie układanie treningu). */
-export const METHOD_SPECIAL_EQUIPMENT = [
+const METHOD_SPECIAL_EQUIPMENT = [
   ...GYM_DECLARED_EQUIPMENT,
   "gym_jump_lane",
   "overhead_band_station",

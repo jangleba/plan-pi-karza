@@ -62,11 +62,11 @@ export function isValidMatchMinutes(value: unknown): value is number {
 export function isNewRpe(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 10;
 }
-export function isStoredRpe(value: unknown): value is number {
+function isStoredRpe(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 10;
 }
 
-export interface EstimatedLoad {
+interface EstimatedLoad {
   /** null = brak danych (np. brak RPE, brak minut gry); nigdy 0 z braku odpowiedzi. */
   value: number | null;
   minutes: number | null;

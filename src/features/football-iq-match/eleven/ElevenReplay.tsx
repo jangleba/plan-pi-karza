@@ -18,13 +18,13 @@ const SNAP_SECONDS = 2 / 60;
 const X = (y: number) => y + E11.halfLength;
 const Y = (x: number) => x + E11.halfWidth;
 
-export const GRADE_LABEL: Record<Grade, string> = {
+const GRADE_LABEL: Record<Grade, string> = {
   good: "Dobrze",
   ok: "Do poprawy",
   poor: "Słabo",
 };
 
-export function ElevenReplay({
+function ElevenReplay({
   snapshots,
   moments,
   ty,

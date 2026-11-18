@@ -33,13 +33,13 @@ import { GymObservationPanel } from "../GymObservationPanel";
 
 export type RowStatus = "done" | "skipped" | "open";
 
-export interface Fact {
+interface Fact {
   label: string;
   value: string;
 }
 
 /** The few numbers that matter for this kind of task, each shown once. */
-export function rowFacts(row: RunnerRow, kind: TaskKind, linked: boolean): Fact[] {
+function rowFacts(row: RunnerRow, kind: TaskKind, linked: boolean): Fact[] {
   const { exercise } = row;
   const facts: Fact[] = [];
   const effort = effortLine(exercise, kind);

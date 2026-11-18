@@ -29,7 +29,7 @@ export type FpVariant = {
   start: Record<"ty" | "support" | "runner" | "d1" | "d2" | "gk", V>;
 };
 
-export const FP_VARIANT_VERSION = 1;
+const FP_VARIANT_VERSION = 1;
 const pick = <T>(r: () => number, list: readonly T[]) => list[Math.floor(r() * list.length)]!;
 
 export function makeVariant(seed: number): FpVariant {
@@ -94,7 +94,7 @@ export function variantFromId(id: string): FpVariant | null {
 }
 
 /** The problem dimensions a learner notices. Two variants differ when at least two of them change. */
-export function variantDimensions(v: FpVariant) {
+function variantDimensions(v: FpVariant) {
   return [v.press, v.closes, v.runner, v.support, v.cover, v.passer] as const;
 }
 export function changedDimensions(a: FpVariant, b: FpVariant) {

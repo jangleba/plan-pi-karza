@@ -71,28 +71,3 @@ export function lessonQuestion(s: JourneySession) {
   if (s.step === 1) return "Układ się zmienił. Co teraz pozwoli kontynuować grę?";
   return "Pomyśl o następnej akcji. Jak zachowasz wsparcie i osłonę?";
 }
-export function lessonHint(s: JourneySession) {
-  return s.definition.concept === "press-cover"
-    ? "Sprawdź piłkę, odbiorcę za Twoimi plecami i osłonę partnera. Sam doskok nie wystarczy."
-    : "Porównaj dwie przestrzenie. Który rywal może zamknąć podanie i co zostawi za sobą?";
-}
-export function lessonTakeaway(s: JourneySession) {
-  if (s.attack?.finish === "goal")
-    return s.attack.home
-      ? "Gol zamyka całą akcję. W powtórce sprawdź, który ruch otworzył podanie i skąd pojawiła się okazja do strzału."
-      : "Gol rywali. W powtórce znajdź stratę i moment, w którym zabrakło osłony.";
-  if (s.attack?.finish === "miss")
-    return "Niecelny strzał kończy akcję. Porównaj kąt uderzenia, ustawienie bramkarza i dostępną opcję podania.";
-  if (s.attack?.finish === "stopped")
-    return "Przerwano bardzo długą akcję bez rozstrzygnięcia. Nie zdobyto gola. Spróbuj zmienić kierunek gry zamiast powtarzać te same ruchy.";
-  const movedRival = s.beats
-    .flatMap((b) => b.events ?? [])
-    .find((e) => /kryjąc|za Twoim/.test(e.text));
-  if (s.outcome === "loss" || s.outcome === "blocked")
-    return "Sprawdź ponownie tor i nacisk przy przyjęciu. Miejsce wolne przy kopnięciu może zniknąć przed dojściem piłki.";
-  if (s.definition.concept === "press-cover")
-    return "Gdy wychodzisz do piłki, sprawdzaj osłonę za sobą. Po odbiorze szukaj bezpiecznego pierwszego podania.";
-  return movedRival
-    ? "Jeśli obrońca idzie za Twoim ruchem, szukaj uwolnionej linii dla partnera. Jeśli zostaje, sprawdź własne przyjęcie."
-    : "Po zagraniu lub ruchu sprawdź nowy układ. Odbiorca potrzebuje kolejnej opcji, a drużyna osłony straty.";
-}

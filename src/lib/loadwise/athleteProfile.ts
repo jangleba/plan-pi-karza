@@ -131,7 +131,7 @@ export interface AthleteTrainingProfile {
   runningProgressionLevel: number;
 }
 
-export interface WeekContext {
+interface WeekContext {
   readiness?: number;
   fatigue?: number;
   sleepQuality?: number;
@@ -151,7 +151,7 @@ export function getDevelopmentStage(age: number | null | undefined): Development
 }
 
 /** Poziom piłkarski nie jest historią treningu. Profil nie zbiera jeszcze tych lat. */
-export function getTrainingAge(_p: Partial<Profile>): number | null {
+function getTrainingAge(_p: Partial<Profile>): number | null {
   return null;
 }
 
@@ -179,7 +179,7 @@ export function getStrengthExperienceLevel(p: Partial<Profile>): GymExperienceLe
   return p.hasGym || playsRegularly ? "beginner" : "none";
 }
 
-export function getMovementCompetenceLevel(p: Partial<Profile>): CompetenceLevel {
+function getMovementCompetenceLevel(p: Partial<Profile>): CompetenceLevel {
   if (p.movementCompetence) return p.movementCompetence;
   // Domyślnie zaawansowany 16+: kontrola podstawowych ruchów („medium”), nigdy „high”
   // bez odpowiedzi — warianty specjalistyczne nadal wymagają jawnej deklaracji.
@@ -195,7 +195,7 @@ export function getMovementCompetenceLevel(p: Partial<Profile>): CompetenceLevel
  * ćwiczenia ogólnorozwojowe na każdym treningu, więc ma „medium”. Boje z obciążeniem
  * i testy maksymalne nadal wymagają jawnej kompetencji ruchowej.
  */
-export function getBodyweightCompetenceLevel(p: Partial<Profile>): CompetenceLevel {
+function getBodyweightCompetenceLevel(p: Partial<Profile>): CompetenceLevel {
   if (p.movementCompetence) return p.movementCompetence;
   const age = typeof p.age === "number" && Number.isFinite(p.age) ? p.age : null;
   const playsRegularly =
@@ -203,7 +203,7 @@ export function getBodyweightCompetenceLevel(p: Partial<Profile>): CompetenceLev
   return playsRegularly && age != null && age >= 14 ? "medium" : "low";
 }
 
-export function getCoordinationLevel(p: Partial<Profile>): CompetenceLevel {
+function getCoordinationLevel(p: Partial<Profile>): CompetenceLevel {
   // Koordynacja śledzi kompetencję ruchową, ale dzieci mają niższy pułap.
   const mc = getMovementCompetenceLevel(p);
   if (getDevelopmentStage(p.age) === "child_foundation") return "low";
@@ -233,7 +233,7 @@ function supervisionOf(p: Partial<Profile>): SupervisionLevel {
 // Profil bezpieczeństwa ćwiczeń + allow/block listy
 // ---------------------------------------------------------------------------
 
-export function getExerciseSafetyProfile(
+function getExerciseSafetyProfile(
   a: Pick<
     AthleteTrainingProfile,
     | "age"
@@ -336,7 +336,7 @@ export function getExerciseSafetyProfile(
   };
 }
 
-export function getBlockedExerciseTypes(a: AthleteTrainingProfile): ExerciseType[] {
+function getBlockedExerciseTypes(a: AthleteTrainingProfile): ExerciseType[] {
   const sp = a.exerciseSafetyProfile;
   const blocked = new Set<ExerciseType>();
 
@@ -374,7 +374,7 @@ export function getBlockedExerciseTypes(a: AthleteTrainingProfile): ExerciseType
   return [...blocked];
 }
 
-export function getAllowedExerciseTypes(a: AthleteTrainingProfile): ExerciseType[] {
+function getAllowedExerciseTypes(a: AthleteTrainingProfile): ExerciseType[] {
   const blocked = new Set(a.blockedExerciseTypes);
   const base: ExerciseType[] = [
     "bodyweight_strength",
@@ -413,7 +413,7 @@ export function getAllowedExerciseTypes(a: AthleteTrainingProfile): ExerciseType
 // Kontuzje i ból
 // ---------------------------------------------------------------------------
 
-export function getPainConstraints(p: Partial<Profile>): PainLocation[] {
+function getPainConstraints(p: Partial<Profile>): PainLocation[] {
   if (p.painLocations && p.painLocations.length) return p.painLocations;
   // Mamy tylko flagę painInjury → traktujemy jako ogólne ostrzeżenie ("other").
   if (p.painInjury) return ["other"];
@@ -701,7 +701,7 @@ export function classifyExerciseTypes(name: string): ExerciseType[] {
 // Walidacja pojedynczego ćwiczenia
 // ---------------------------------------------------------------------------
 
-export interface ExerciseValidation {
+interface ExerciseValidation {
   ok: boolean;
   blockedTypes: ExerciseType[];
   reason: string | null;

@@ -41,7 +41,7 @@ export type E11Debrief = {
   moments: Moment[];
 };
 
-export const RESULT_TEXT: Record<OutcomeKind, string> = {
+const RESULT_TEXT: Record<OutcomeKind, string> = {
   goal: "Bramka dla twojej drużyny.",
   saved: "Strzał obroniony przez bramkarza.",
   shotOff: "Strzał obok bramki.",

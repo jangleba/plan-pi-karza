@@ -17,7 +17,7 @@ export type DecisionOption = {
   label: string;
   choice: JourneyChoice;
 };
-export type DecisionSituation = "own" | "partner" | "rival" | "loose";
+type DecisionSituation = "own" | "partner" | "rival" | "loose";
 
 const MAX_OPTIONS = 4;
 /** The engine shortens runs over 32 m; staying below it keeps the saved id stable. */

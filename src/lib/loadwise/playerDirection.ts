@@ -132,13 +132,7 @@ export const DESIRED_FEELING_SHORT: Record<DesiredPitchFeeling, string> = {
 };
 
 /** Quality of the plan an answer asks for. */
-export type DirectionQuality =
-  | "strength"
-  | "speed"
-  | "agility"
-  | "endurance"
-  | "mobility"
-  | "ball";
+export type DirectionQuality = "strength" | "speed" | "agility" | "endurance" | "mobility" | "ball";
 
 export const DESIRED_FEELING_QUALITY: Record<DesiredPitchFeeling, DirectionQuality | null> = {
   fast_and_light: "speed",
@@ -165,15 +159,6 @@ export const CURRENT_FEELING_QUALITY: Record<CurrentPitchFeeling, DirectionQuali
   training_without_direction: null,
   tense_under_pressure: "ball",
   afraid_of_mistakes: "ball",
-};
-
-export const DIRECTION_QUALITY_LABELS: Record<DirectionQuality, string> = {
-  strength: "siła",
-  speed: "szybkość",
-  agility: "zwinność i hamowanie",
-  endurance: "wytrzymałość tlenowa",
-  mobility: "mobilność",
-  ball: "piłka",
 };
 
 /**

@@ -126,7 +126,7 @@ export type SceneEvent =
   | { type: "visible" }
   | { type: "context-lost" };
 
-export type AimInfo = { aim: Aim; yaw: number; point: V };
+type AimInfo = { aim: Aim; yaw: number; point: V };
 
 type Actor = ReturnType<typeof makeActor> & { holder: Group; shadow: Mesh };
 

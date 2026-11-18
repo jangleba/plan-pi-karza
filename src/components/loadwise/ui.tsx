@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link, useRouter } from "@tanstack/react-router";
-import type { Intensity, DayType } from "@/lib/loadwise/types";
+import type { Intensity } from "@/lib/loadwise/types";
 import { ShieldAlert, User } from "lucide-react";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { PageHeader } from "./PageHeader";
@@ -86,23 +86,6 @@ export function IntensityBadge({
     : intensityStyles[intensity];
 
   return <span className={`bw-status ${classes}`}>{label ?? intensity}</span>;
-}
-
-const dayTypeLabels: Record<DayType, string> = {
-  match: "Mecz",
-  "md-1": "Aktywacja przedmeczowa",
-  club: "Trening klubowy",
-  training: "Jednostka treningowa",
-  recovery: "Regeneracja",
-  rest: "Dzień wolny",
-};
-
-export function DayTypeTag({ type }: { type: DayType }) {
-  return (
-    <span className="inline-flex items-center rounded-full border border-border/80 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-      {dayTypeLabels[type]}
-    </span>
-  );
 }
 
 export function Disclaimer() {

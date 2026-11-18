@@ -67,11 +67,11 @@ const conceptMoment: Record<string, GameMoment> = {
   "overload-switch": "attack",
   "press-cover": "defend",
 };
-export function momentOf(def: JourneyDefinition): GameMoment {
+function momentOf(def: JourneyDefinition): GameMoment {
   return situationFor(def)?.moment ?? conceptMoment[def.concept ?? ""] ?? "attack";
 }
 
-export type PickerItem = {
+type PickerItem = {
   def: JourneyDefinition;
   moment: GameMoment;
   role: string;

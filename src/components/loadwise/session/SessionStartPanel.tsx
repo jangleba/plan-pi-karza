@@ -6,7 +6,7 @@ import { planTimeBudget, sessionPlanUpdateReason } from "@/lib/loadwise/engineV2
 import type { SessionDay } from "@/lib/loadwise/types";
 import { isStrengthSession, type StrengthLoadPreference } from "@/lib/loadwise/strengthCheckIn";
 
-export type StartAvailability =
+type StartAvailability =
   | "start"
   | "started"
   | "missed"

@@ -1,7 +1,7 @@
 import type { Evaluation, MatchPlayer, PlannedAction, Point, Scenario } from "./types";
 import { simulate, distance } from "./simulation";
-export type ResolvedState = { positions: Map<string, Point>; ballCarrierId: string; ball: Point };
-export const positionAfterActions = (
+type ResolvedState = { positions: Map<string, Point>; ballCarrierId: string; ball: Point };
+const positionAfterActions = (
   players: MatchPlayer[],
   actions: PlannedAction[],
   initialBallCarrierId: string,

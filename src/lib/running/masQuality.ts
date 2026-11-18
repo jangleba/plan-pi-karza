@@ -2,16 +2,6 @@ import { samplesFromRoute, distanceAt } from "./liveMetrics";
 import type { RunningActivity, RunningActivityDraft, RunningIntervalResult } from "./types";
 import { withMeasuredDistance } from "./intervals";
 
-/** GPS acceptance thresholds are product heuristics, not validation of a clinical MAS test. */
-export const MAS_GPS_POLICY = {
-  seconds: 300,
-  maxAccuracyM: 35,
-  maxGapSec: 10,
-  boundaryToleranceSec: 3,
-  minPoints: 20,
-  minKmh: 7,
-  maxKmh: 26,
-} as const;
 export interface MasTestEvidence {
   version: 1;
   recipeId: string;

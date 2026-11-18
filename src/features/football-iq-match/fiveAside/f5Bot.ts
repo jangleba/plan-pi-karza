@@ -12,7 +12,7 @@ export const quantMove = (dir: number, speed: number) => ({
   speed: Math.round(Math.max(0, Math.min(1, speed)) * 20) / 20,
 });
 
-export function createBot(style: BotStyle) {
+function createBot(style: BotStyle) {
   let move = { dir: 0, speed: 0 };
   let since = -1;
   let pressed = -1000;

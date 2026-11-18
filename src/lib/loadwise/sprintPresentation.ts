@@ -34,7 +34,7 @@ export type SprintExerciseView = {
   prescription: string;
 };
 
-export type SprintBlockView = {
+type SprintBlockView = {
   key: SprintBlockKey;
   index: string;
   title: string;
@@ -230,8 +230,9 @@ export function buildSprintRunnerBlocks(sections: TrainingSection[]): SprintBloc
 export function isSprintRunnerSession(session: SessionDay): boolean {
   if (session.engineV2) {
     const classification = classifySession(session);
-    return classification.isSpeed &&
-      (classification.isAcceleration || classification.isMaxVelocity);
+    return (
+      classification.isSpeed && (classification.isAcceleration || classification.isMaxVelocity)
+    );
   }
   if (session.speedGeneratorVersion) {
     return !session.classification || session.classification.isSpeed;

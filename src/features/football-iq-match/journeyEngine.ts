@@ -49,15 +49,10 @@ import {
   freeTacticalChoice,
   chooseTacticalJourney,
 } from "./tacticalJourney";
-import type {
-  TacticalIntent,
-  DribbleStyle,
-  ActionTiming,
-} from "./journeyTypes";
+import type { TacticalIntent, DribbleStyle, ActionTiming } from "./journeyTypes";
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
-const clamp = (value: number, lo: number, hi: number) =>
-  Math.max(lo, Math.min(hi, value));
+const clamp = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, value));
 const point = (x: number, y: number): Point => ({
   x: clamp(x, 5, 95),
   y: clamp(y, 7, 133),
@@ -91,7 +86,7 @@ const numbers: Record<IQRole, number> = {
   nine: 9,
 };
 
-export function isJourneyDefensive(definition: JourneyDefinition) {
+function isJourneyDefensive(definition: JourneyDefinition) {
   return defensiveKinds.has(definition.steps[0]);
 }
 export function createJourney(definition: JourneyDefinition): JourneySession {
@@ -122,9 +117,7 @@ export function createJourneyForRules(
   const base = anchors[definition.role];
   const side = definition.ordinal % 2 === 0 ? 1 : -1;
   const x =
-    (definition.role === "fb" || definition.role === "wing") && side === -1
-      ? 100 - base.x
-      : base.x;
+    (definition.role === "fb" || definition.role === "wing") && side === -1 ? 100 - base.x : base.x;
   const you = point(
     x + ((definition.ordinal % 3) - 1) * 3,
     base.y + ((definition.ordinal % 3) - 1) * 3,
@@ -159,27 +152,23 @@ export function createJourneyForRules(
     }
   }
   const open = definition.context === 1 ? "wide" : "support";
-  const homeNumbers = [4, 2, 6, 8, 10, 7, 9].filter(
-    (n) => n !== numbers[definition.role],
-  );
-  const players: MatchPlayer[] = Object.entries(homePositions).map(
-    ([id, p], i) => ({
-      ...p,
-      id,
-      team: "home",
-      number: id === "you" ? numbers[definition.role] : homeNumbers[i - 1],
-      role:
-        id === "you"
-          ? "Ty"
-          : id === "support"
-            ? "Wsparcie"
-            : id === "wide"
-              ? "Boczny sektor"
-              : "Przód",
-      controlled: id === "you",
-      goalkeeper: id === "you" && definition.role === "gk",
-    }),
-  );
+  const homeNumbers = [4, 2, 6, 8, 10, 7, 9].filter((n) => n !== numbers[definition.role]);
+  const players: MatchPlayer[] = Object.entries(homePositions).map(([id, p], i) => ({
+    ...p,
+    id,
+    team: "home",
+    number: id === "you" ? numbers[definition.role] : homeNumbers[i - 1],
+    role:
+      id === "you"
+        ? "Ty"
+        : id === "support"
+          ? "Wsparcie"
+          : id === "wide"
+            ? "Boczny sektor"
+            : "Przód",
+    controlled: id === "you",
+    goalkeeper: id === "you" && definition.role === "gk",
+  }));
   let opponents: Record<string, Point>;
   if (defending) {
     opponents = {
@@ -188,8 +177,7 @@ export function createJourneyForRules(
       r2: point(you.x - side * 25, you.y - 38),
       r3: point(you.x + side * 8, you.y - 35),
     };
-    if (definition.context === 1)
-      opponents.r1 = point(you.x - side * 26, you.y - 5);
+    if (definition.context === 1) opponents.r1 = point(you.x - side * 26, you.y - 5);
     if (definition.context === 2) {
       opponents.r0 = point(you.x + side * 18, you.y - 19);
       opponents.r1 = point(you.x - side * 20, you.y - 4);
@@ -197,15 +185,9 @@ export function createJourneyForRules(
   } else {
     const closed = homePositions[open === "support" ? "wide" : "support"];
     opponents = {
-      r0: point(
-        you.x + (definition.context === 2 ? -side * 9 : side * 8),
-        you.y - 9,
-      ),
+      r0: point(you.x + (definition.context === 2 ? -side * 9 : side * 8), you.y - 9),
       r1: point(closed.x + side * 3, closed.y - 2),
-      r2: point(
-        homePositions.forward.x + side * 1.5,
-        homePositions.forward.y + 2,
-      ),
+      r2: point(homePositions.forward.x + side * 1.5, homePositions.forward.y + 2),
       r3: point(you.x + side * 24, you.y - 32),
     };
   }
@@ -220,10 +202,7 @@ export function createJourneyForRules(
       definition.context === 1
         ? point(target.x + dir * 2, target.y + 1)
         : point(homePositions.forward.x - dir * 8, homePositions.forward.y + 4);
-    opponents.r2 = point(
-      homePositions.forward.x + dir * 12,
-      homePositions.forward.y - 5,
-    );
+    opponents.r2 = point(homePositions.forward.x + dir * 12, homePositions.forward.y - 5);
     opponents.r3 = point(you.x - dir * 20, you.y - 32);
   }
   Object.entries(opponents).forEach(([id, p], i) =>
@@ -247,13 +226,9 @@ export function createJourneyForRules(
   const startsWithout = defending || definition.steps[0] === "move";
   const carrierId = defending ? "r0" : startsWithout ? "support" : "you";
   const world: JourneyWorld = {
-    positions: Object.fromEntries(
-      players.map((p) => [p.id, { x: p.x, y: p.y }]),
-    ),
+    positions: Object.fromEntries(players.map((p) => [p.id, { x: p.x, y: p.y }])),
     carrierId,
-    headings: Object.fromEntries(
-      players.map((p) => [p.id, p.team === "home" ? Math.PI : 0]),
-    ),
+    headings: Object.fromEntries(players.map((p) => [p.id, p.team === "home" ? Math.PI : 0])),
     distances: Object.fromEntries(players.map((p) => [p.id, 0])),
   };
   const scenario: Scenario = {
@@ -284,24 +259,14 @@ export function createJourneyForRules(
 function segmentProjection(p: Point, a: Point, b: Point) {
   const dx = b.x - a.x,
     dy = b.y - a.y;
-  const t = clamp(
-    ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy || 1),
-    0,
-    1,
-  );
+  const t = clamp(((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy || 1), 0, 1);
   return { point: mix(a, b, t), t };
 }
 export function journeyLane(session: JourneySession, from: Point, to: Point) {
-  const enemies = session.players.filter(
-    (p) => p.team === "away" && !p.goalkeeper,
-  );
+  const enemies = session.players.filter((p) => p.team === "away" && !p.goalkeeper);
   const rows = enemies
     .map((p) => {
-      const projection = segmentProjection(
-        session.world.positions[p.id],
-        from,
-        to,
-      );
+      const projection = segmentProjection(session.world.positions[p.id], from, to);
       return {
         id: p.id,
         point: projection.point,
@@ -322,32 +287,19 @@ function nearestOpponent(session: JourneySession, p: Point) {
     }))
     .sort((a, b) => a.distance - b.distance)[0];
 }
-export function journeyOffside(
-  session: JourneySession,
-  receiver: Point,
-  ball: Point,
-): boolean {
+export function journeyOffside(session: JourneySession, receiver: Point, ball: Point): boolean {
   const line =
     session.players
       .filter((p) => p.team === "away")
       .map((p) => session.world.positions[p.id].y)
       .sort((a, b) => a - b)[1] ?? 0;
-  return (
-    receiver.y < 70 && receiver.y < ball.y - 0.4 && receiver.y < line - 0.4
-  );
+  return receiver.y < 70 && receiver.y < ball.y - 0.4 && receiver.y < line - 0.4;
 }
-function receivePoint(
-  session: JourneySession,
-  id: string,
-  delivery: BallDelivery,
-) {
+function receivePoint(session: JourneySession, id: string, delivery: BallDelivery) {
   const p = session.world.positions[id];
   if (delivery === "ground") return p;
   const dir = p.x <= 50 ? 1 : -1;
-  const attack =
-    session.players.find((player) => player.id === id)?.team === "away"
-      ? 1
-      : -1;
+  const attack = session.players.find((player) => player.id === id)?.team === "away" ? 1 : -1;
   return point(
     p.x + dir * (delivery === "cross" ? 3 : 4),
     p.y + attack * (delivery === "chip" ? 7 : 4),
@@ -364,11 +316,7 @@ export function journeyDeliveryLane(
   const rows = session.players
     .filter((p) => p.team === "away" && !p.goalkeeper)
     .map((p) => {
-      const projection = segmentProjection(
-        session.world.positions[p.id],
-        from,
-        to,
-      );
+      const projection = segmentProjection(session.world.positions[p.id], from, to);
       const height = flightHeight(delivery, length, projection.t, 2);
       // This stage models a foot/thigh interception. Heading duels need separate
       // animations and are not silently treated as ground interceptions.
@@ -377,8 +325,7 @@ export function journeyDeliveryLane(
         id: p.id,
         ...projection,
         distance: reach
-          ? (distance(session.world.positions[p.id], projection.point) * 2.6) /
-            reach
+          ? (distance(session.world.positions[p.id], projection.point) * 2.6) / reach
           : 100,
       };
     })
@@ -419,20 +366,13 @@ function passChoices(session: JourneySession): JourneyChoice[] {
   // A safe sideways/backward pass remains valid; we do not reject it merely
   // because it differs from an authored preferred route.
   if (session.definition.revision !== 2) return choices;
-  const deliveries: BallDelivery[] = [
-    "ground",
-    session.definition.delivery ?? "lofted",
-  ];
+  const deliveries: BallDelivery[] = ["ground", session.definition.delivery ?? "lofted"];
   return choices.flatMap((c) =>
     deliveries.map((delivery) => {
       const target = receivePoint(session, c.targetId!, delivery);
       const lane = journeyDeliveryLane(session, from, target, delivery);
       const pressure = nearestOpponent(session, target).distance;
-      const offside = journeyOffside(
-        session,
-        session.world.positions[c.targetId!],
-        from,
-      );
+      const offside = journeyOffside(session, session.world.positions[c.targetId!], from);
       const quality =
         offside || lane.distance < 2.6 || pressure < 2.8
           ? "error"
@@ -461,19 +401,14 @@ function passChoices(session: JourneySession): JourneyChoice[] {
   );
 }
 function returnDelivery(session: JourneySession): BallDelivery {
-  return session.definition.pattern === "air-control" ||
-    session.definition.pattern === "third-air"
+  return session.definition.pattern === "air-control" || session.definition.pattern === "third-air"
     ? (session.definition.delivery ?? "ground")
     : "ground";
 }
 
 // Use the same defender response and reception geometry as the recorded move.
 // In particular a good current passing lane may close during the run.
-function movementAssessment(
-  session: JourneySession,
-  p: Point,
-  carrying: boolean,
-) {
+function movementAssessment(session: JourneySession, p: Point, carrying: boolean) {
   const you = session.world.positions.you;
   const holder = session.world.positions[session.world.carrierId];
   const positions: Record<string, Point> = {
@@ -485,17 +420,11 @@ function movementAssessment(
     .forEach((r, i) => {
       const from = session.world.positions[r.id];
       const t = i === session.definition.context ? 0.13 : 0.055;
-      positions[r.id] = point(
-        from.x + (p.x - from.x) * t,
-        from.y + (p.y - from.y) * t,
-      );
+      positions[r.id] = point(from.x + (p.x - from.x) * t, from.y + (p.y - from.y) * t);
     });
   const predicted = { ...session, world: { ...session.world, positions } };
   const delivery = returnDelivery(session);
-  const target =
-    session.definition.revision === 2
-      ? receivePoint(predicted, "you", delivery)
-      : p;
+  const target = session.definition.revision === 2 ? receivePoint(predicted, "you", delivery) : p;
   const lane = carrying
     ? journeyLane(session, you, p)
     : journeyDeliveryLane(predicted, holder, target, delivery);
@@ -505,9 +434,7 @@ function movementAssessment(
   const quality: JourneyChoice["quality"] =
     stationary || offside || lane.distance < 2.6 || clearance < 3
       ? "error"
-      : lane.distance < 5 ||
-          clearance < 6 ||
-          (!carrying && distance(holder, p) > 48)
+      : lane.distance < 5 || clearance < 6 || (!carrying && distance(holder, p) > 48)
         ? "possible"
         : "good";
   const why = stationary
@@ -528,10 +455,7 @@ function movementAssessment(
   return { quality, why };
 }
 
-function movementChoices(
-  session: JourneySession,
-  carry: boolean,
-): JourneyChoice[] {
+function movementChoices(session: JourneySession, carry: boolean): JourneyChoice[] {
   const w = session.world,
     you = w.positions.you,
     holder = w.positions[w.carrierId];
@@ -544,10 +468,7 @@ function movementChoices(
     [24, 8],
     [0, -23],
   ].map(([x, y]) => point(you.x + x, you.y + y));
-  if (
-    (session.rulesVersion === 4 || session.definition.revision === 2) &&
-    !carry
-  ) {
+  if ((session.rulesVersion === 4 || session.definition.revision === 2) && !carry) {
     const line =
       session.players
         .filter((p) => p.team === "away")
@@ -566,18 +487,14 @@ function movementChoices(
       const clearance = nearestOpponent(session, p).distance;
       const progress = you.y - p.y;
       const supportPenalty = distance(holder, p) > 48 ? 20 : 0;
-      const offsidePenalty =
-        !carry && journeyOffside(session, p, holder) ? 100 : 0;
+      const offsidePenalty = !carry && journeyOffside(session, p, holder) ? 100 : 0;
       const score =
         Math.min(lane, 10) * 2 +
         Math.min(clearance, 14) +
         progress * 0.25 -
         supportPenalty -
         offsidePenalty;
-      const assessment =
-        session.rulesVersion === 4
-          ? movementAssessment(session, p, carry)
-          : null;
+      const assessment = session.rulesVersion === 4 ? movementAssessment(session, p, carry) : null;
       return { p, lane, clearance, score, assessment };
     })
     .sort((a, b) => {
@@ -589,13 +506,9 @@ function movementChoices(
       );
     });
   const best = ranked[0];
-  const weak =
-    ranked.filter((r) => distance(r.p, best.p) > 19).at(-1) ?? ranked.at(-1)!;
+  const weak = ranked.filter((r) => distance(r.p, best.p) > 19).at(-1) ?? ranked.at(-1)!;
   const enemy = session.world.positions[nearestOpponent(session, you).id];
-  const bad =
-    session.definition.context === 2 && distance(enemy, best.p) > 20
-      ? enemy
-      : weak.p;
+  const bad = session.definition.context === 2 && distance(enemy, best.p) > 20 ? enemy : weak.p;
   const badClear = nearestOpponent(session, bad).distance;
   if (session.rulesVersion === 4) {
     return [best.p, bad].map((p, index) => ({
@@ -615,9 +528,7 @@ function movementChoices(
     {
       id: "space:open",
       point: best.p,
-      label: carry
-        ? "Prowadź w wybrany korytarz"
-        : "Wbiegnij w wybraną przestrzeń",
+      label: carry ? "Prowadź w wybrany korytarz" : "Wbiegnij w wybraną przestrzeń",
       quality: "good",
       why: carry
         ? "Wykorzystałeś wolny korytarz bez prowadzenia prosto na rywala."
@@ -638,8 +549,7 @@ function movementChoices(
 export function journeyStep(session: JourneySession): JourneyStep {
   if (session.rulesVersion === 9) return attackStep(session);
   if (session.rulesVersion === 8) return liveStep(session);
-  if (session.rulesVersion === 6 || session.rulesVersion === 7)
-    return tacticalStep(session);
+  if (session.rulesVersion === 6 || session.rulesVersion === 7) return tacticalStep(session);
   if (session.rulesVersion === 5) return advancedStep(session);
   if (session.outcome) throw new Error("Akcja została już zakończona.");
   if (session.transition === "choose") {
@@ -701,9 +611,7 @@ export function journeyStep(session: JourneySession): JourneyStep {
             ? "Komu zagrasz teraz?"
             : "Komu podasz?",
       instruction:
-        kind === "finish"
-          ? "Dotknij partnera albo wybierz strzał."
-          : "Dotknij partnera na boisku.",
+        kind === "finish" ? "Dotknij partnera albo wybierz strzał." : "Dotknij partnera na boisku.",
       cue:
         session.definition.context === 0
           ? "Sprawdź, kto zostaje poza doskokiem."
@@ -727,13 +635,9 @@ export function journeyStep(session: JourneySession): JourneyStep {
           : point((ball.x + receiver.p.x) / 2, (ball.y + receiver.p.y) / 2 + 2);
     let other =
       kind === "press"
-        ? point(
-            ball.x + (session.definition.context === 1 ? -16 : 16),
-            ball.y + 10,
-          )
+        ? point(ball.x + (session.definition.context === 1 ? -16 : 16), ball.y + 10)
         : point(ball.x - 16, ball.y - 5);
-    if (distance(other, good) < 20)
-      other = point(good.x + (good.x < 50 ? 26 : -26), good.y + 14);
+    if (distance(other, good) < 20) other = point(good.x + (good.x < 50 ? 26 : -26), good.y + 14);
     return {
       kind,
       prompt:
@@ -771,9 +675,7 @@ export function journeyStep(session: JourneySession): JourneyStep {
   const carrying = kind === "carry";
   return {
     kind,
-    prompt: carrying
-      ? "Którym korytarzem ruszysz?"
-      : "Gdzie ruszysz bez piłki?",
+    prompt: carrying ? "Którym korytarzem ruszysz?" : "Gdzie ruszysz bez piłki?",
     instruction: "Dotknij miejsca na boisku.",
     cue: carrying
       ? "Porównaj wolną przestrzeń i możliwość reakcji rywala."
@@ -799,10 +701,7 @@ export function journeyPointChoice(
   if (session.rulesVersion === 9)
     return attackChoice(
       session,
-      intent ??
-        (session.world.carrierId === (session.controlledId ?? "you")
-          ? "carry"
-          : "move"),
+      intent ?? (session.world.carrierId === (session.controlledId ?? "you") ? "carry" : "move"),
       location,
       undefined,
       "ground",
@@ -811,10 +710,7 @@ export function journeyPointChoice(
   if (session.rulesVersion === 8)
     return liveChoice(
       session,
-      intent ??
-        (session.world.carrierId === (session.controlledId ?? "you")
-          ? "carry"
-          : "move"),
+      intent ?? (session.world.carrierId === (session.controlledId ?? "you") ? "carry" : "move"),
       location,
       undefined,
       "ground",
@@ -845,10 +741,7 @@ export function journeyPointChoice(
   if (distance(you, p) < 1) {
     quality = "error";
     why = "Pozostałeś w tym samym miejscu, bez zmiany ustawienia.";
-  } else if (
-    (kind === "carry" || kind === "move") &&
-    session.rulesVersion === 4
-  ) {
+  } else if ((kind === "carry" || kind === "move") && session.rulesVersion === 4) {
     ({ quality, why } = movementAssessment(session, p, kind === "carry"));
   } else if (kind === "carry" || kind === "move") {
     const carrying = kind === "carry";
@@ -858,9 +751,7 @@ export function journeyPointChoice(
     quality =
       offside || clearance < 3 || lane.distance < 2.6
         ? "error"
-        : clearance < 6 ||
-            lane.distance < 5 ||
-            (!carrying && distance(ball, p) > 48)
+        : clearance < 6 || lane.distance < 5 || (!carrying && distance(ball, p) > 48)
           ? "possible"
           : "good";
     why = offside
@@ -898,16 +789,8 @@ export function journeyPointChoice(
         : "Powrót ograniczył korytarz prowadzący do Twojej bramki.";
   } else {
     const receiver = session.players
-      .filter(
-        (p) =>
-          p.team === "away" &&
-          !p.goalkeeper &&
-          p.id !== session.world.carrierId,
-      )
-      .sort(
-        (a, b) =>
-          session.world.positions[b.id].y - session.world.positions[a.id].y,
-      )[0];
+      .filter((p) => p.team === "away" && !p.goalkeeper && p.id !== session.world.carrierId)
+      .sort((a, b) => session.world.positions[b.id].y - session.world.positions[a.id].y)[0];
     const receiverPoint = session.world.positions[receiver.id];
     const lane = segmentProjection(p, ball, receiverPoint);
     const laneGap = distance(p, lane.point);
@@ -940,22 +823,15 @@ export function journeyPointChoice(
   return {
     id,
     point: p,
-    label:
-      kind === "carry"
-        ? "Prowadzenie w wybrane miejsce"
-        : "Ruch w wybrane miejsce",
+    label: kind === "carry" ? "Prowadzenie w wybrane miejsce" : "Ruch w wybrane miejsce",
     quality,
     why,
   };
 }
-export function journeyChoice(
-  session: JourneySession,
-  id: string,
-): JourneyChoice | undefined {
+export function journeyChoice(session: JourneySession, id: string): JourneyChoice | undefined {
   if (session.rulesVersion === 9) return parseAttackChoice(session, id);
   if (session.rulesVersion === 8) return parseLiveChoice(session, id);
-  if (session.rulesVersion === 6 || session.rulesVersion === 7)
-    return tacticalChoice(session, id);
+  if (session.rulesVersion === 6 || session.rulesVersion === 7) return tacticalChoice(session, id);
   const authored = journeyStep(session).choices.find((c) => c.id === id);
   if (authored || !id.startsWith("free:")) return authored;
   const match = /^free:([a-z]+):(\d{1,2}\.\d{2}):(\d{1,3}\.\d{2})$/.exec(id);
@@ -977,39 +853,17 @@ export function chooseJourney(
   findAlternative = true,
 ): JourneySession {
   if (previous.rulesVersion === 9)
-    return chooseAttackJourney(
-      previous,
-      choiceId,
-      decisionSeconds,
-      findAlternative,
-    );
+    return chooseAttackJourney(previous, choiceId, decisionSeconds, findAlternative);
   if (previous.rulesVersion === 8)
-    return chooseLiveJourney(
-      previous,
-      choiceId,
-      decisionSeconds,
-      findAlternative,
-    );
+    return chooseLiveJourney(previous, choiceId, decisionSeconds, findAlternative);
   if (previous.rulesVersion === 6 || previous.rulesVersion === 7)
-    return chooseTacticalJourney(
-      previous,
-      choiceId,
-      decisionSeconds,
-      findAlternative,
-    );
+    return chooseTacticalJourney(previous, choiceId, decisionSeconds, findAlternative);
   if (previous.rulesVersion === 5)
-    return chooseAdvancedJourney(
-      previous,
-      choiceId,
-      decisionSeconds,
-      findAlternative,
-    );
-  if (previous.outcome)
-    throw new Error("Nie można dopisać decyzji po końcu akcji.");
+    return chooseAdvancedJourney(previous, choiceId, decisionSeconds, findAlternative);
+  if (previous.outcome) throw new Error("Nie można dopisać decyzji po końcu akcji.");
   const step = journeyStep(previous),
     choice = journeyChoice(previous, choiceId);
-  if (!choice)
-    throw new Error("Ten wybór nie jest dostępny w bieżącej decyzji.");
+  if (!choice) throw new Error("Ten wybór nie jest dostępny w bieżącej decyzji.");
   const session: JourneySession = {
     ...previous,
     world: clone(previous.world),
@@ -1046,16 +900,12 @@ export function chooseJourney(
     const duration = air
       ? PASS_WINDUP_SECONDS + air.flightSeconds! + air.controlSeconds!
       : kind === "pass"
-        ? Math.max(
-            PASS_WINDUP_SECONDS + (movement * 0.68) / 15 + 0.22,
-            PASS_RECOVERY_SECONDS,
-          )
+        ? Math.max(PASS_WINDUP_SECONDS + (movement * 0.68) / 15 + 0.22, PASS_RECOVERY_SECONDS)
         : kind === "hold"
           ? 0.6
           : Math.max(
               0.8,
-              (movement * 0.68) /
-                (step.kind === "cover" || step.kind === "mark" ? 3.5 : 5.2),
+              (movement * 0.68) / (step.kind === "cover" || step.kind === "mark" ? 3.5 : 5.2),
             );
     session.beats.push({
       id: `${session.definition.id}-${session.beats.length}`,
@@ -1118,9 +968,7 @@ export function chooseJourney(
     const endT = intercepted && lane.distance < 2.6 ? lane.t : 1;
     const profile = flightProfile(delivery, distance(from, to));
     const attack =
-      session.players.find((player) => player.id === receiver)?.team === "away"
-        ? 1
-        : -1;
+      session.players.find((player) => player.id === receiver)?.team === "away" ? 1 : -1;
     const controlTo = enhanced
       ? point(end.x + (end.x < 50 ? 1.2 : -1.2), end.y + attack * 1.4)
       : end;
@@ -1132,19 +980,10 @@ export function chooseJourney(
       end,
       intercepted ? "Rywal przejmuje podanie." : text,
       () => {
-        session.world.headings[fromId] = heading(
-          from,
-          end,
-          session.world.headings[fromId],
-        );
-        if (intercepted || enhanced)
-          worldMoved(session.world, receiver, controlTo);
+        session.world.headings[fromId] = heading(from, end, session.world.headings[fromId]);
+        if (intercepted || enhanced) worldMoved(session.world, receiver, controlTo);
         session.world.carrierId = receiver;
-        session.world.headings[receiver] = heading(
-          end,
-          from,
-          session.world.headings[receiver],
-        );
+        session.world.headings[receiver] = heading(end, from, session.world.headings[receiver]);
         if (enhanced) {
           for (const rival of session.players.filter(
             (p) => p.team === "away" && !p.goalkeeper && p.id !== receiver,
@@ -1153,18 +992,12 @@ export function chooseJourney(
             const gap = distance(p, end);
             // Far defenders can shift with the flight. Those near the lane or
             // landing zone keep the exact positions used by the interception check.
-            if (
-              gap > 18 &&
-              distance(p, segmentProjection(p, from, end).point) > 9
-            ) {
+            if (gap > 18 && distance(p, segmentProjection(p, from, end).point) > 9) {
               const follow = Math.min(0.08, 2 / gap);
               worldMoved(
                 session.world,
                 rival.id,
-                point(
-                  p.x + (end.x - p.x) * follow,
-                  p.y + (end.y - p.y) * follow,
-                ),
+                point(p.x + (end.x - p.x) * follow, p.y + (end.y - p.y) * follow),
               );
             }
           }
@@ -1198,10 +1031,7 @@ export function chooseJourney(
     const pressing =
       choiceId === "transition:press" ||
       (choiceId.startsWith("free:") &&
-        distance(
-          choice.point,
-          session.world.positions[session.world.carrierId],
-        ) <= 6);
+        distance(choice.point, session.world.positions[session.world.carrierId]) <= 6);
     const recovering =
       choiceId === "transition:recover" ||
       (choiceId.startsWith("free:") && !pressing && quality !== "error");
@@ -1214,47 +1044,25 @@ export function chooseJourney(
       undefined,
       session.world.positions.you,
       choice.point,
-      pressing
-        ? "Reagujesz doskokiem po stracie."
-        : "Wracasz do osłony kontry.",
+      pressing ? "Reagujesz doskokiem po stracie." : "Wracasz do osłony kontry.",
       () => worldMoved(session.world, "you", choice.point),
     );
     if (pressing && quality === "good") {
-      beat(
-        "hold",
-        holder,
-        undefined,
-        ball,
-        ball,
-        "Odbierasz piłkę w bliskim doskoku.",
-        () => {
-          worldMoved(session.world, "you", ball);
-          session.world.carrierId = "you";
-        },
-      );
+      beat("hold", holder, undefined, ball, ball, "Odbierasz piłkę w bliskim doskoku.", () => {
+        worldMoved(session.world, "you", ball);
+        session.world.carrierId = "you";
+      });
       session.outcome = "recovered";
     } else if (recovering) {
       const to = point(ball.x, Math.min(choice.point.y - 5, ball.y + 8));
-      beat(
-        "move",
-        holder,
-        undefined,
-        ball,
-        to,
-        "Rywal zatrzymuje kontrę przed Twoją osłoną.",
-        () => worldMoved(session.world, holder, to),
+      beat("move", holder, undefined, ball, to, "Rywal zatrzymuje kontrę przed Twoją osłoną.", () =>
+        worldMoved(session.world, holder, to),
       );
       session.outcome = "contained";
     } else {
       const to = point(ball.x + (ball.x < 50 ? 12 : -12), ball.y + 16);
-      beat(
-        "move",
-        holder,
-        undefined,
-        ball,
-        to,
-        "Rywal omija spóźniony doskok.",
-        () => worldMoved(session.world, holder, to),
+      beat("move", holder, undefined, ball, to, "Rywal omija spóźniony doskok.", () =>
+        worldMoved(session.world, holder, to),
       );
       session.outcome = "loss";
     }
@@ -1277,26 +1085,18 @@ export function chooseJourney(
       );
       if (session.outcome === "loss") {
         quality = "error";
-        why =
-          "Rywal przeciął tor podania. Ten sam moment jest widoczny w powtórce.";
+        why = "Rywal przeciął tor podania. Ten sam moment jest widoczny w powtórce.";
       }
       if (session.outcome === "blocked") {
         quality = "error";
-        why =
-          "Odbiorca był na spalonym w momencie zagrania. Akcja została zatrzymana.";
+        why = "Odbiorca był na spalonym w momencie zagrania. Akcja została zatrzymana.";
       }
     }
   } else if (defensiveKinds.has(step.kind)) {
     const from = clone(session.world.positions.you),
       ballId = session.world.carrierId;
-    beat(
-      "move",
-      "you",
-      undefined,
-      from,
-      choice.point,
-      "Zmiana ustawienia w obronie.",
-      () => worldMoved(session.world, "you", choice.point),
+    beat("move", "you", undefined, from, choice.point, "Zmiana ustawienia w obronie.", () =>
+      worldMoved(session.world, "you", choice.point),
     );
     const nextKind = session.definition.steps[session.step + 1];
     const lastDefensive = !defensiveKinds.has(nextKind);
@@ -1305,32 +1105,19 @@ export function chooseJourney(
     } else if (lastDefensive) {
       const from = clone(session.world.positions[ballId]);
       const to = point(from.x, from.y + 12);
-      beat(
-        "move",
-        ballId,
-        undefined,
-        from,
-        to,
-        "Rywal wykorzystuje pozostawiony korytarz.",
-        () => worldMoved(session.world, ballId, to),
+      beat("move", ballId, undefined, from, to, "Rywal wykorzystuje pozostawiony korytarz.", () =>
+        worldMoved(session.world, ballId, to),
       );
       quality = "error";
-      why =
-        "Rywal przeszedł przez odsłonięty korytarz. Zatrzymaj ten moment w analizie.";
+      why = "Rywal przeszedł przez odsłonięty korytarz. Zatrzymaj ten moment w analizie.";
       session.outcome = "blocked";
     } else {
       const receivers = session.players
         .filter((p) => p.team === "away" && !p.goalkeeper && p.id !== ballId)
         .sort(
           (a, b) =>
-            distance(
-              session.world.positions[b.id],
-              session.world.positions.you,
-            ) -
-            distance(
-              session.world.positions[a.id],
-              session.world.positions.you,
-            ),
+            distance(session.world.positions[b.id], session.world.positions.you) -
+            distance(session.world.positions[a.id], session.world.positions.you),
         );
       pass(
         ballId,
@@ -1343,8 +1130,7 @@ export function chooseJourney(
     }
   } else {
     const hadBall = session.world.carrierId === "you";
-    if (step.kind === "carry" && !hadBall)
-      throw new Error("Prowadzenie wymaga posiadania piłki.");
+    if (step.kind === "carry" && !hadBall) throw new Error("Prowadzenie wymaga posiadania piłki.");
     const from = clone(session.world.positions.you);
     const freeLane =
       hadBall && (session.rulesVersion === 4 || choiceId.startsWith("free:"))
@@ -1364,10 +1150,7 @@ export function chooseJourney(
         reactions(destination);
       },
     );
-    if (
-      hadBall &&
-      (stoppedBy || nearestOpponent(session, choice.point).distance < 3)
-    ) {
+    if (hadBall && (stoppedBy || nearestOpponent(session, choice.point).distance < 3)) {
       const rival = stoppedBy?.id ?? nearestOpponent(session, choice.point).id;
       beat(
         "hold",
@@ -1406,8 +1189,7 @@ export function chooseJourney(
           () => {},
         );
         quality = "error";
-        why =
-          "Twój ruch nie otworzył bezpiecznej linii podania. Piłka została przy partnerze.";
+        why = "Twój ruch nie otworzył bezpiecznej linii podania. Piłka została przy partnerze.";
         session.outcome = "blocked";
       } else {
         pass(
@@ -1422,8 +1204,7 @@ export function chooseJourney(
         );
         if (session.outcome === "blocked") {
           quality = "error";
-          why =
-            "W momencie podania znajdowałeś się na spalonym. Wybierz ruch z innej wysokości.";
+          why = "W momencie podania znajdowałeś się na spalonym. Wybierz ruch z innej wysokości.";
         }
       }
     }
@@ -1434,8 +1215,7 @@ export function chooseJourney(
           .filter((c) => c.id !== choiceId && c.quality === "good")
           .sort(
             (a, b) =>
-              distance(before.positions.you, b.point) -
-              distance(before.positions.you, a.point),
+              distance(before.positions.you, b.point) - distance(before.positions.you, a.point),
           )
           .find((c) => {
             const result = chooseJourney(previous, c.id, 0, false);
@@ -1457,17 +1237,11 @@ export function chooseJourney(
     alternative: quality === "good" ? null : alternative,
     firstBeat,
     lastBeat: session.beats.length - 1,
-    decisionSeconds: Number.isFinite(decisionSeconds)
-      ? Math.max(0, decisionSeconds)
-      : 0,
+    decisionSeconds: Number.isFinite(decisionSeconds) ? Math.max(0, decisionSeconds) : 0,
   };
   session.decisions.push(decision);
   session.step++;
-  if (
-    session.definition.revision === 2 &&
-    session.outcome === "loss" &&
-    !session.transition
-  ) {
+  if (session.definition.revision === 2 && session.outcome === "loss" && !session.transition) {
     session.outcome = null;
     session.transition = "choose";
   }
@@ -1476,8 +1250,7 @@ export function chooseJourney(
     session.transition !== "choose" &&
     session.step === session.definition.steps.length
   ) {
-    const gain =
-      session.initial.positions.you.y - session.world.positions.you.y;
+    const gain = session.initial.positions.you.y - session.world.positions.you.y;
     session.outcome = isJourneyDefensive(session.definition)
       ? "recovered"
       : gain > 12
@@ -1505,20 +1278,13 @@ export function journeyVerdict(session: JourneySession): EvaluationLevel {
     session.decisions.some((d) => d.quality === "error")
   )
     return "risky";
-  return session.decisions.some((d) => d.quality === "possible")
-    ? "conditional"
-    : "strong";
+  return session.decisions.some((d) => d.quality === "possible") ? "conditional" : "strong";
 }
 export function journeyDuration(session: JourneySession) {
   return session.beats.reduce((n, b) => n + b.duration, 0);
 }
-export function journeyCameraPoints(
-  session: JourneySession,
-  includeChoices = true,
-): Point[] {
-  const visibleIds = session.players
-    .filter((p) => !p.goalkeeper || p.controlled)
-    .map((p) => p.id);
+export function journeyCameraPoints(session: JourneySession, includeChoices = true): Point[] {
+  const visibleIds = session.players.filter((p) => !p.goalkeeper || p.controlled).map((p) => p.id);
   const worlds = [
     session.initial,
     session.world,
@@ -1527,9 +1293,7 @@ export function journeyCameraPoints(
   return [
     ...worlds.flatMap((world) => visibleIds.map((id) => world.positions[id])),
     ...session.beats.flatMap((beat) => [beat.from, beat.to]),
-    ...(includeChoices && !session.outcome
-      ? journeyStep(session).choices.map((c) => c.point)
-      : []),
+    ...(includeChoices && !session.outcome ? journeyStep(session).choices.map((c) => c.point) : []),
   ];
 }
 export function journeyFrame(
@@ -1537,9 +1301,7 @@ export function journeyFrame(
   players: readonly MatchPlayer[],
   clock = 0,
 ): PlaybackFrame {
-  const positions = new Map(
-    Object.entries(world.positions).map(([id, p]) => [id, { ...p }]),
-  );
+  const positions = new Map(Object.entries(world.positions).map(([id, p]) => [id, { ...p }]));
   const motions = new Map<string, PlayerMotion>(
     players.map((player) => [
       player.id,
@@ -1586,8 +1348,7 @@ function contactNear(beat: JourneyBeat, id: string, time: number) {
   for (const e of beat.events ?? []) {
     if (e.actorId !== id || !CONTACT_TYPES.has(e.type ?? "")) continue;
     if (time < e.time - TOUCH_BEFORE || time > e.time + TOUCH_AFTER) continue;
-    const frame =
-      beat.live!.find((f) => f.time >= e.time) ?? beat.live!.at(-1)!;
+    const frame = beat.live!.find((f) => f.time >= e.time) ?? beat.live!.at(-1)!;
     return {
       phase: (time - (e.time - TOUCH_BEFORE)) / (TOUCH_BEFORE + TOUCH_AFTER),
       header: e.type !== "save" && frame.height > HEADER_HEIGHT,
@@ -1611,9 +1372,7 @@ export function sampleJourneyBeat(
     frame.ballInFlight = live.a.inFlight;
     for (const player of players) {
       const id = player.id;
-      const moving =
-        distance(live.a.world.positions[id], live.b.world.positions[id]) >
-        0.002;
+      const moving = distance(live.a.world.positions[id], live.b.world.positions[id]) > 0.002;
       const motion = frame.motions.get(id)!;
       const kickTime = live.a.kicker === id ? live.a.kickTime : undefined;
       const phase = kickTime === undefined ? -1 : (live.time - kickTime) / 1.6;
@@ -1633,12 +1392,8 @@ export function sampleJourneyBeat(
               ? "move"
               : "idle",
         phase: kicking ? phase : touch ? touch.phase : undefined,
-        ...(kicking && live.a.kickDelivery
-          ? { delivery: live.a.kickDelivery }
-          : {}),
-        ...(touch && !touch.header && touch.aerial
-          ? { control: "aerial" as const }
-          : {}),
+        ...(kicking && live.a.kickDelivery ? { delivery: live.a.kickDelivery } : {}),
+        ...(touch && !touch.header && touch.aerial ? { control: "aerial" as const } : {}),
         weight: 1,
         gait: "run",
         elapsed: live.time,
@@ -1665,10 +1420,7 @@ export function sampleJourneyBeat(
         elapsed,
         duration: beat.duration,
         state: t < 1 ? "move" : "idle",
-        gait:
-          beat.revision === 2 && (d * 0.68) / beat.duration < 3.1
-            ? "walk"
-            : "run",
+        gait: beat.revision === 2 && (d * 0.68) / beat.duration < 3.1 ? "walk" : "run",
         weight: 1,
         clock: clock + elapsed,
       });
@@ -1678,22 +1430,13 @@ export function sampleJourneyBeat(
     const travel = beat.flightSeconds!,
       control = beat.controlSeconds!;
     const flight = clamp((elapsed - PASS_WINDUP_SECONDS) / travel, 0, 1);
-    const touch = clamp(
-      (elapsed - PASS_WINDUP_SECONDS - travel) / control,
-      0,
-      1,
-    );
+    const touch = clamp((elapsed - PASS_WINDUP_SECONDS - travel) / control, 0, 1);
     const angle = heading(beat.from, beat.to);
     const atFoot = (p: Point, facing: number, lateral = 0, forward = 1.8) => ({
       x: p.x + Math.sin(facing) * forward + Math.cos(facing) * lateral,
       y: p.y + Math.cos(facing) * forward - Math.sin(facing) * lateral,
     });
-    const contact = atFoot(
-      beat.from,
-      angle,
-      PASS_BALL_LATERAL,
-      PASS_BALL_FORWARD,
-    );
+    const contact = atFoot(beat.from, angle, PASS_BALL_LATERAL, PASS_BALL_FORWARD);
     const windup = clamp(elapsed / 0.2, 0, 1);
     const receiveId = beat.receiverId!;
     const receiveAt = beat.receiveAt!;
@@ -1721,16 +1464,11 @@ export function sampleJourneyBeat(
               flight * (beat.flightEnd ?? 1),
               beat.delivery === "ground" ? BALL_REST_HEIGHT : 2,
             )
-          : beat.landingHeight! +
-            (BALL_REST_HEIGHT - beat.landingHeight!) * touch;
+          : beat.landingHeight! + (BALL_REST_HEIGHT - beat.landingHeight!) * touch;
     frame.ballInFlight = elapsed > PASS_WINDUP_SECONDS && flight < 1;
-    frame.ballCarrierId =
-      flight < 1 ? beat.before.carrierId : beat.after.carrierId;
+    frame.ballCarrierId = flight < 1 ? beat.before.carrierId : beat.after.carrierId;
     const kickEnd = PASS_WINDUP_SECONDS + PASS_RECOVERY_SECONDS;
-    const weight = Math.min(
-      clamp(elapsed / 0.1, 0, 1),
-      clamp((kickEnd - elapsed) / 0.1, 0, 1),
-    );
+    const weight = Math.min(clamp(elapsed / 0.1, 0, 1), clamp((kickEnd - elapsed) / 0.1, 0, 1));
     const turn = clamp(elapsed / 0.2, 0, 1);
     const facingDelta = Math.atan2(
       Math.sin(angle - beat.before.headings[beat.actorId]),
@@ -1747,52 +1485,33 @@ export function sampleJourneyBeat(
       weight,
       delivery: beat.delivery,
     });
-    const run = clamp(
-      (elapsed - PASS_WINDUP_SECONDS) / Math.max(0.15, travel - 0.2),
-      0,
-      1,
-    );
+    const run = clamp((elapsed - PASS_WINDUP_SECONDS) / Math.max(0.15, travel - 0.2), 0, 1);
     const receiverStart = beat.before.positions[receiveId],
       receiverEnd = beat.after.positions[receiveId];
     const position =
-      flight < 1
-        ? mix(receiverStart, receiveAt, run)
-        : mix(receiveAt, receiverEnd, touch);
+      flight < 1 ? mix(receiverStart, receiveAt, run) : mix(receiveAt, receiverEnd, touch);
     frame.positions.set(receiveId, position);
-    const moving =
-      run > 0 && run < 1 && distance(receiverStart, receiveAt) > 0.1;
+    const moving = run > 0 && run < 1 && distance(receiverStart, receiveAt) > 0.1;
     const receiving = !moving && elapsed >= PASS_WINDUP_SECONDS + travel - 0.2;
     frame.motions.set(receiveId, {
       ...frame.motions.get(receiveId)!,
       moving,
       state: moving ? "move" : receiving ? "receive" : "idle",
       heading: moving ? heading(receiverStart, receiveAt) : facing,
-      distance:
-        beat.before.distances[receiveId] + distance(receiverStart, position),
+      distance: beat.before.distances[receiveId] + distance(receiverStart, position),
       elapsed: Math.max(0, elapsed - PASS_WINDUP_SECONDS),
       duration: travel,
       gait: "run",
       weight: 1,
       phase:
         flight < 1
-          ? clamp(
-              (elapsed - (PASS_WINDUP_SECONDS + travel - 0.2)) / 0.4,
-              0,
-              0.5,
-            )
+          ? clamp((elapsed - (PASS_WINDUP_SECONDS + travel - 0.2)) / 0.4, 0, 0.5)
           : 0.5 + touch * 0.5,
       control: beat.delivery === "ground" ? undefined : "aerial",
     });
   } else if (beat.kind === "pass") {
-    const flightDuration = Math.max(
-      0.15,
-      beat.duration - PASS_WINDUP_SECONDS - 0.22,
-    );
-    const flight = clamp(
-      (elapsed - PASS_WINDUP_SECONDS) / flightDuration,
-      0,
-      1,
-    );
+    const flightDuration = Math.max(0.15, beat.duration - PASS_WINDUP_SECONDS - 0.22);
+    const flight = clamp((elapsed - PASS_WINDUP_SECONDS) / flightDuration, 0, 1);
     const actor = frame.motions.get(beat.actorId)!;
     frame.motions.set(beat.actorId, {
       ...actor,
@@ -1815,22 +1534,16 @@ export function sampleJourneyBeat(
     };
     frame.ballVisual = mix(a, b, flight);
     frame.ball = mix(beat.from, beat.to, flight);
-    frame.ballHeight =
-      BALL_RADIUS + 0.05 + (beat.loft ? Math.sin(Math.PI * flight) * 5 : 0);
+    frame.ballHeight = BALL_RADIUS + 0.05 + (beat.loft ? Math.sin(Math.PI * flight) * 5 : 0);
     frame.ballInFlight = elapsed > PASS_WINDUP_SECONDS && flight < 1;
-    frame.ballCarrierId =
-      flight >= 1 ? beat.after.carrierId : beat.before.carrierId;
+    frame.ballCarrierId = flight >= 1 ? beat.after.carrierId : beat.before.carrierId;
     if (flight >= 1 && beat.receiverId) {
       const m = frame.motions.get(beat.receiverId)!;
       frame.motions.set(beat.receiverId, {
         ...m,
         heading: heading(beat.to, beat.from),
         state: "receive",
-        phase: clamp(
-          (elapsed - PASS_WINDUP_SECONDS - flightDuration) / 0.22,
-          0,
-          1,
-        ),
+        phase: clamp((elapsed - PASS_WINDUP_SECONDS - flightDuration) / 0.22, 0, 1),
         weight: 1,
       });
     }
@@ -1847,20 +1560,13 @@ export function sampleJourneyBeat(
     if (beat.revision === 2) {
       const previous = journeyFrame(beat.before, players).ballVisual;
       const blend = clamp(elapsed / Math.min(0.2, beat.duration), 0, 1);
-      frame.ballVisual = mix(
-        previous,
-        frame.ballVisual,
-        blend * blend * (3 - 2 * blend),
-      );
+      frame.ballVisual = mix(previous, frame.ballVisual, blend * blend * (3 - 2 * blend));
     }
   }
   // The exact final frame is shared by live play, review and the next decision.
   return t >= 1 ? journeyFrame(beat.after, players, clock + elapsed) : frame;
 }
-export function sampleJourney(
-  session: JourneySession,
-  seconds: number,
-): PlaybackFrame {
+export function sampleJourney(session: JourneySession, seconds: number): PlaybackFrame {
   let cursor = 0;
   for (const beat of session.beats) {
     if (seconds < cursor + beat.duration)

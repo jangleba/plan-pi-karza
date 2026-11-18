@@ -29,8 +29,8 @@ export interface FuelReminder {
   title: string;
   body: string;
 }
-export const REMINDER_ID_MIN = 1_610_000_000;
-export const REMINDER_ID_MAX = 1_619_999_999;
+const REMINDER_ID_MIN = 1_610_000_000;
+const REMINDER_ID_MAX = 1_619_999_999;
 export const isFuelNotificationId = (id: number) => id >= REMINDER_ID_MIN && id <= REMINDER_ID_MAX;
 export const reminderStorageKey = (id: string) => `ballwise:fuel-reminders:v1:${id}`;
 const validClock = (s: unknown): s is string =>
@@ -57,7 +57,7 @@ export function readReminderPreferences(
   }
 }
 
-export function reminderId(key: string): number {
+function reminderId(key: string): number {
   let h = 2166136261;
   for (const c of key) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
   return REMINDER_ID_MIN + ((h >>> 0) % 10_000_000);

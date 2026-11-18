@@ -2,7 +2,7 @@ import type { SessionDay } from "../types";
 import { dayDistance, plusDays, type WeeklyTargets } from "./model";
 import { strengthCoverageOf } from "./strengthCompleteness";
 
-export interface WeeklyTargetCoverage {
+interface WeeklyTargetCoverage {
   startDate: string;
   endDate: string;
   requested: WeeklyTargets;

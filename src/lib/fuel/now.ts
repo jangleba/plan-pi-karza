@@ -20,9 +20,6 @@ export const FUEL_FITS: ReadonlyArray<{ id: FuelFit; label: string }> = [
   { id: "store", label: "W sklepie" },
   { id: "own", label: "Mam swoje" },
 ];
-export function isFuelFit(value: unknown): value is FuelFit {
-  return value === "quick" || value === "store" || value === "own";
-}
 
 export function fuelDuration(minutes: number): string {
   if (minutes < 60) return `${minutes} min`;

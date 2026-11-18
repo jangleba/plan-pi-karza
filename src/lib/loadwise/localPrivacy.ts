@@ -1,7 +1,7 @@
 import type { LoadwiseState, Profile } from "./types";
 import { purgeTrainingQueue, redactTrainingQueueHealthData } from "./offlineTrainingQueue";
 
-export interface PrivacyStorage {
+interface PrivacyStorage {
   readonly length: number;
   key(index: number): string | null;
   getItem?(key: string): string | null;

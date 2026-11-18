@@ -89,7 +89,7 @@ function cards(items: Item[]): Card[] {
 }
 
 /** One entry per exercise of the circuit; its occurrences in every round stay separate rows. */
-export function circuitTasks(items: Item[]) {
+function circuitTasks(items: Item[]) {
   const tasks = new Map<number, Item[]>();
   for (const item of items) {
     const task = circuitOf(item)?.task ?? 1;

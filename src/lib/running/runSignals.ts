@@ -8,10 +8,10 @@ import type { RunningIntervalStep } from "./types";
  * koniec trzema. Ostatnie 3 s kroku odliczają krótkie tyknięcia.
  */
 
-export const WORK_VIBRATION = [120, 70, 120] as const;
-export const REST_VIBRATION = [450] as const;
-export const FINISH_VIBRATION = [150, 80, 150, 80, 260] as const;
-export const TICK_VIBRATION = [40] as const;
+const WORK_VIBRATION = [120, 70, 120] as const;
+const REST_VIBRATION = [450] as const;
+const FINISH_VIBRATION = [150, 80, 150, 80, 260] as const;
+const TICK_VIBRATION = [40] as const;
 
 type AudioCtx = AudioContext;
 let audio: AudioCtx | null = null;

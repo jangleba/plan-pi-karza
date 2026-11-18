@@ -94,20 +94,6 @@ body.iq-learning-focus .bw-tab-bar {
   font-weight: 550;
   max-width: 65ch;
 }
-.iqE-meta {
-  flex: none;
-  justify-content: flex-start;
-  padding: 4px 16px 8px;
-  color: #5d6873;
-  font-size: 10px;
-}
-.iqE-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #345e83;
-}
 .iqE-direction {
   margin-left: auto;
 }
@@ -126,10 +112,6 @@ body.iq-learning-focus .bw-tab-bar {
   inset: 0;
   width: 100%;
   height: 100%;
-}
-.iqE-pitch .bwiq-player-label {
-  transform: translate(-50%, -100%) scale(0.74);
-  pointer-events: auto;
 }
 .iqE-pitch .bwiq-ball-marker {
   width: 7px;
@@ -165,27 +147,6 @@ body.iq-learning-focus .bw-tab-bar {
   color: #f1f6f4;
   font-size: 13px;
   pointer-events: none;
-}
-.iqE-opening {
-  position: absolute;
-  bottom: 12px;
-  left: 12px;
-  right: 12px;
-  max-width: 450px;
-  padding: 11px 13px;
-  background: #f9fbfaf2;
-  border: 1px solid #dfe7e3;
-  border-radius: 12px;
-  pointer-events: none;
-}
-.iqE-opening span {
-  font-size: 10px;
-  color: #6c7775;
-}
-.iqE-opening p {
-  font-size: 13px;
-  margin: 4px 0 0;
-  line-height: 1.35;
 }
 .iqE-pause {
   position: absolute;
@@ -281,15 +242,6 @@ body.iq-learning-focus .bw-tab-bar {
   color: var(--iq-ink);
   box-shadow: 0 1px 3px #1b293310;
 }
-.iqE-tools {
-  flex: 1;
-  max-width: 370px;
-}
-.iqE-question {
-  font-size: 13px;
-  font-weight: 600;
-  margin: 0 0 8px;
-}
 .iqE-plan {
   justify-content: flex-start;
   min-height: 31px;
@@ -346,25 +298,6 @@ body.iq-learning-focus .bw-tab-bar {
   cursor: pointer;
   color: var(--iq-ink);
   font-size: 12px;
-}
-.iqE-reflection {
-  display: block;
-  font-size: 12px;
-  margin: 14px 0;
-  color: #65717b;
-}
-.iqE-reflection input {
-  display: block;
-  margin-top: 7px;
-  width: 100%;
-  box-sizing: border-box;
-  min-height: 44px;
-  padding: 10px;
-  font-size: 12px;
-  border: 1px solid #dce1e6;
-  border-radius: 10px;
-  background: white;
-  color: #28394a;
 }
 .iqE-error {
   border: 1px solid #d3aaa3;
@@ -538,25 +471,6 @@ body.iq-learning-focus .app-shell {
   width: 100%;
   height: 24px;
   accent-color: #315e82;
-}
-.iqE-tools button {
-  min-height: 40px;
-}
-
-.iqE-aim {
-  display: flex;
-  gap: 6px;
-  margin: 6px 0;
-}
-.iqE-aim button {
-  flex: 1;
-  min-height: 40px;
-  padding: 6px;
-  border: 1px solid #dbe1e7;
-  border-radius: 10px;
-  background: #fff;
-  color: #315574;
-  font-size: 11px;
 }
 
 .iqE-app .iqE-primary {

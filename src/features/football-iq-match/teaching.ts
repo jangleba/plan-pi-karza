@@ -1,6 +1,6 @@
 import type { Point, Scenario } from "./types";
 
-export type TacticalLesson = {
+type TacticalLesson = {
   observe: string;
   when: string;
   why: string;

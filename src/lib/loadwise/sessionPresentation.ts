@@ -117,19 +117,6 @@ export function restLine(value: string | undefined): string | null {
   return rest ? `Przerwa ${rest}` : null;
 }
 
-export function exerciseDataLineParts(e: TrainingExercise): {
-  dose: string;
-  meta: string;
-} {
-  const display = compactPrescription(e);
-  const parts = display.split(" · ");
-  const dose = parts[0] ?? "";
-  const qualifier = parts.slice(1).join(" ");
-  const rest = formatRestValue(e.restAfterPair ?? e.restAfterExercise);
-  const meta = [qualifier, rest].filter(Boolean).join(" ").trim();
-  return { dose, meta };
-}
-
 export function resolveDefinitionForExercise(e: TrainingExercise) {
   return (
     (e.exerciseId ? getExerciseDefinition(e.exerciseId) : undefined) ??

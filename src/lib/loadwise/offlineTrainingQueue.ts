@@ -537,7 +537,7 @@ async function acknowledgeDurableWrite(
 }
 
 /** Remove only obsolete versions after a confirmed foreground save. */
-export function acknowledgeTrainingWrite(
+function acknowledgeTrainingWrite(
   userId: string,
   dedupeKey: string,
   expected: StoredTrainingWrite | undefined,

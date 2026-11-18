@@ -1,7 +1,7 @@
 import type { RunningIntervalProtocol, RunningIntervalStep } from "@/lib/running/types";
 import { durationLabel, goalOf } from "./runGuideText";
 
-export interface RunningPreviewRow {
+interface RunningPreviewRow {
   id: string;
   kind: string;
   title: string;

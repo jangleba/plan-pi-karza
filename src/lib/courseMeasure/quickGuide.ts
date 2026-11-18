@@ -1,6 +1,6 @@
 import { getSkipGuide, SKIP_LANDING } from "@/lib/loadwise/skipGuides";
 
-export interface QuickGuide {
+interface QuickGuide {
   setup: string | null;
   action: string | null;
   focus: string | null;
@@ -34,16 +34,14 @@ const SHORT_GUIDES: Record<
     focus: "Biodra wysoko, kontakt pod sobą.",
   },
   a_skip_add_step: {
-    setup:
-      "Ustaw pozycję A: kolano wysoko, stopa zadarta, przeciwne ramię z przodu.",
+    setup: "Ustaw pozycję A: kolano wysoko, stopa zadarta, przeciwne ramię z przodu.",
     action:
       "Wykonaj dodatkowe odbicie na tej samej nodze podporowej, potem zmień nogi do pozycji A.",
     focus: "Dodatkowe odbicie → zmiana nóg. Powtarzaj równy rytm.",
   },
   a_skip_no_add_step: {
     setup: "Stań wysoko i ustaw naprzemienną pracę rąk.",
-    action:
-      "Prowadź kolano do wysokości biodra i zmieniaj nogi płynnie, bez dodatkowego odbicia.",
+    action: "Prowadź kolano do wysokości biodra i zmieniaj nogi płynnie, bez dodatkowego odbicia.",
     focus: "Równy rytm, biodra wysoko.",
   },
   b_skip: {
@@ -54,8 +52,7 @@ const SHORT_GUIDES: Record<
   },
   c_skip: {
     setup: "Tułów wysoko, barki rozluźnione.",
-    action:
-      "Prowadź piętę krótko pod pośladek, naprzemiennie. Wracaj stopą pod biodro.",
+    action: "Prowadź piętę krótko pod pośladek, naprzemiennie. Wracaj stopą pod biodro.",
     focus: "Krótki cykl nogi, równy rytm.",
   },
   d_skip: {
@@ -65,10 +62,8 @@ const SHORT_GUIDES: Record<
     focus: "Stopa pod sobą, bez dalekiego wykroku.",
   },
   wall_march: {
-    setup:
-      "Dłonie oprzyj o ścianę na wysokości barków. Ciało utrzymuj w jednej linii.",
-    action:
-      "Unoś naprzemiennie kolano do przodu, pchając podłoże nogą podporową.",
+    setup: "Dłonie oprzyj o ścianę na wysokości barków. Ciało utrzymuj w jednej linii.",
+    action: "Unoś naprzemiennie kolano do przodu, pchając podłoże nogą podporową.",
     focus: "Zachowaj pochylenie całego ciała; nie zginaj się w pasie.",
   },
   falling_start: {
@@ -78,24 +73,19 @@ const SHORT_GUIDES: Record<
     focus: "Pchaj podłoże za siebie i prostuj się stopniowo.",
   },
   split_stance_start: {
-    setup:
-      "Jedna stopa lekko z przodu, ciężar głównie na niej. Pochyl całe ciało.",
-    action:
-      "Odepchnij się i przyspieszaj przez cały odcinek z planu. Zmieniaj nogę startową.",
+    setup: "Jedna stopa lekko z przodu, ciężar głównie na niej. Pochyl całe ciało.",
+    action: "Odepchnij się i przyspieszaj przez cały odcinek z planu. Zmieniaj nogę startową.",
     focus: "Pierwsze kroki kieruj do przodu, bez kołysania do tyłu.",
   },
   free_acceleration_sprint: {
     setup: "Wygodny start. Rozluźnij barki.",
-    action:
-      "Przyspieszaj przez cały odcinek. Wyhamuj stopniowo za znacznikiem.",
+    action: "Przyspieszaj przez cały odcinek. Wyhamuj stopniowo za znacznikiem.",
     focus: "Pchaj podłoże za siebie; prostuj się stopniowo.",
     error: "Nie prostuj się od razu.",
   },
   flying_sprint: {
-    setup:
-      "Oddziel rozbieg, szybki odcinek i miejsce na wyhamowanie zgodnie z planem.",
-    action:
-      "Płynnie rozpędź się, przebiegnij szybki odcinek i stopniowo wyhamuj za nim.",
+    setup: "Oddziel rozbieg, szybki odcinek i miejsce na wyhamowanie zgodnie z planem.",
+    action: "Płynnie rozpędź się, przebiegnij szybki odcinek i stopniowo wyhamuj za nim.",
     focus: "Biodra wysoko, barki i twarz rozluźnione.",
   },
 };
@@ -117,31 +107,19 @@ export function resolveQuickGuide(
       error: skip.errors.join(". "),
     };
   }
-  const edited = exercise.exerciseId
-    ? SHORT_GUIDES[exercise.exerciseId]
-    : undefined;
+  const edited = exercise.exerciseId ? SHORT_GUIDES[exercise.exerciseId] : undefined;
   // Explicit session-specific steps take precedence over general summaries.
   const specific = exercise.instructionSteps
-    ?.map((step) =>
-      clean([step.title, step.description].filter(Boolean).join(" — ")),
-    )
+    ?.map((step) => clean([step.title, step.description].filter(Boolean).join(" — ")))
     .filter((step): step is string => Boolean(step));
   const steps = specific?.length
     ? specific
-    : (definition?.instructionsPl
-        ?.map(clean)
-        .filter((step): step is string => Boolean(step)) ?? []);
+    : (definition?.instructionsPl?.map(clean).filter((step): step is string => Boolean(step)) ??
+      []);
   const useEdited = !specific?.length;
   return {
-    setup:
-      clean(exercise.setup) ??
-      (useEdited ? edited?.setup : null) ??
-      steps[0] ??
-      null,
-    action:
-      (useEdited ? edited?.action : null) ??
-      steps[1] ??
-      clean(exercise.technique),
+    setup: clean(exercise.setup) ?? (useEdited ? edited?.setup : null) ?? steps[0] ?? null,
+    action: (useEdited ? edited?.action : null) ?? steps[1] ?? clean(exercise.technique),
     focus:
       (useEdited ? edited?.focus : null) ??
       clean(exercise.cue) ??

@@ -1,7 +1,8 @@
 /** Educational cues; joint angles refer to the named phase, not the entire drill. */
-export const SKIP_LANDING = "Sprowadzaj stopę blisko pod biodro. Przyjmuj kontakt sprężyście od przodu stopy; pozwól pięcie naturalnie opaść.";
+export const SKIP_LANDING =
+  "Sprowadzaj stopę blisko pod biodro. Przyjmuj kontakt sprężyście od przodu stopy; pozwól pięcie naturalnie opaść.";
 
-export interface SkipGuide {
+interface SkipGuide {
   exerciseId: string;
   title: string;
   steps: readonly [string, string, string];
@@ -48,7 +49,10 @@ export const SKIP_GUIDES: Readonly<Record<string, SkipGuide>> = {
     ],
     setup: "Tułów pionowo; pięta wraca blisko ciała, a stopa pozostaje bez rotacji.",
     focus: "Pięta do pośladka i mocno w dół tą samą linią.",
-    errors: ["Wymuszanie dotknięcia pośladka kosztem ustawienia tułowia", "Skręcanie stopy na boki"],
+    errors: [
+      "Wymuszanie dotknięcia pośladka kosztem ustawienia tułowia",
+      "Skręcanie stopy na boki",
+    ],
     imageAlt:
       "Skip C z boku: pięta do pośladka jednej nogi, przejście i druga noga; but w obrysie pośladka.",
   },

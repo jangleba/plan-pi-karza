@@ -1,18 +1,14 @@
-import type {
-  ExerciseInstructionStep,
-  SessionDay,
-  TrainingExercise,
-} from "./types";
+import type { ExerciseInstructionStep, SessionDay, TrainingExercise } from "./types";
 import { getExerciseDefinition, isApprovedCanonicalExercise } from "./exerciseLibrary";
 
-export type PlanExerciseContractIssueCode =
+type PlanExerciseContractIssueCode =
   | "empty-own-session"
   | "placeholder-exercise"
   | "invalid-exercise-id"
   | "missing-prescription"
   | "missing-execution-instructions";
 
-export interface PlanExerciseContractIssue {
+interface PlanExerciseContractIssue {
   date: string;
   slot: 1 | 2;
   code: PlanExerciseContractIssueCode;
@@ -42,7 +38,11 @@ interface ContractExercise {
 function structuredPrescription(exercise: TrainingExercise): string {
   return (
     exercise.displayPrescription?.trim() ||
-    [exercise.sets && exercise.reps ? `${exercise.sets} × ${exercise.reps}` : exercise.reps || exercise.sets]
+    [
+      exercise.sets && exercise.reps
+        ? `${exercise.sets} × ${exercise.reps}`
+        : exercise.reps || exercise.sets,
+    ]
       .concat([exercise.duration, exercise.loadTarget, exercise.rpe])
       .filter(Boolean)
       .join(" · ")
@@ -99,16 +99,11 @@ function collectSessionExercises(session: SessionDay): ContractExercise[] {
 
 function hasInstructionSteps(steps: ExerciseInstructionStep[] | undefined): boolean {
   return Boolean(
-    steps?.some(
-      (step) => step.title?.trim().length || step.description?.trim().length,
-    ),
+    steps?.some((step) => step.title?.trim().length || step.description?.trim().length),
   );
 }
 
-function validateOwnSession(
-  session: SessionDay,
-  slot: 1 | 2,
-): PlanExerciseContractIssue[] {
+function validateOwnSession(session: SessionDay, slot: 1 | 2): PlanExerciseContractIssue[] {
   if (session.dayType !== "training") {
     return [];
   }
@@ -128,9 +123,7 @@ function validateOwnSession(
   }
 
   for (const exercise of exercises) {
-    const canonical = exercise.exerciseId
-      ? getExerciseDefinition(exercise.exerciseId)
-      : undefined;
+    const canonical = exercise.exerciseId ? getExerciseDefinition(exercise.exerciseId) : undefined;
     if (!isApprovedCanonicalExercise(canonical)) {
       issues.push({
         date: session.date,
@@ -190,17 +183,14 @@ function validateOwnSession(
       code: "placeholder-exercise",
       exerciseName: exercise.name,
       message:
-        `Niedozwolony placeholder w sesji ${session.date}, slot ${slot}: ` +
-        `"${exercise.name}".`,
+        `Niedozwolony placeholder w sesji ${session.date}, slot ${slot}: ` + `"${exercise.name}".`,
     });
   }
 
   return issues;
 }
 
-export function validatePlanExerciseContract(
-  plan: SessionDay[],
-): PlanExerciseContractIssue[] {
+function validatePlanExerciseContract(plan: SessionDay[]): PlanExerciseContractIssue[] {
   const issues: PlanExerciseContractIssue[] = [];
 
   for (const day of plan) {
@@ -222,10 +212,7 @@ export function assertPlanExerciseContract(plan: SessionDay[]): void {
   }
 
   const details = issues
-    .map(
-      (issue) =>
-        `[${issue.code}] ${issue.date}, slot ${issue.slot}: ${issue.message}`,
-    )
+    .map((issue) => `[${issue.code}] ${issue.date}, slot ${issue.slot}: ${issue.message}`)
     .join("\n");
 
   throw new Error(

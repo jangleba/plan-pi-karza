@@ -47,11 +47,11 @@ export interface ModuleSnapshot {
   records: Record<string, unknown>;
   deleted: Record<string, string[]>;
 }
-export interface BackupState {
+interface BackupState {
   known: Record<string, string[]>;
   deleted: Record<string, string[]>;
 }
-export const backupStateKey = (owner: string, module: BackupModule) =>
+const backupStateKey = (owner: string, module: BackupModule) =>
   `ballwise:module-backup:state:v1:${owner}:${module}`;
 export const deviceStorageKey = (owner: string) => `ballwise:module-backup:device:v1:${owner}`;
 export function moduleKeys(module: BackupModule, owner: string): Record<string, string> {
@@ -284,7 +284,7 @@ const rowIds = (records: Record<string, unknown>) =>
       return [slot, list.map((row) => (row as { id: string }).id)];
     }),
   );
-export function readBackupState(
+function readBackupState(
   owner: string,
   module: BackupModule,
   storage: Pick<Storage, "getItem">,

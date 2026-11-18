@@ -11,7 +11,7 @@ import { strengthPreparationOverhead } from "./strengthPreparation";
 
 /** GP1 thresholds are conservative PRODUCT policy, not validated physiological cut-offs.
  * Evidence and limitations: docs/SILOWNIA-V28-PROGRESJA.md. */
-export const GYM_PROGRESSION_POLICY = {
+const GYM_PROGRESSION_POLICY = {
   version: "gym-progression-1",
   adultSuccesses: 2,
   youthSuccesses: 3,
@@ -66,7 +66,7 @@ export interface GymProgressionInput {
   observations: GymObservation[];
   bandSetups?: GymBandSetup[];
 }
-export type GymProgressionAction = "hold" | "progress" | "regress" | "deload" | "omit";
+type GymProgressionAction = "hold" | "progress" | "regress" | "deload" | "omit";
 export interface GymProgressionDecision {
   action: GymProgressionAction;
   exerciseId: string;

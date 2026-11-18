@@ -47,7 +47,7 @@ function clamp(value: number, min: number, max: number): number {
  * any score is calculated, otherwise a hidden "alters movement" answer would
  * silently force overall=1 on a record that stores no pain.
  */
-export function normalizePainAnswers<
+function normalizePainAnswers<
   T extends Pick<
     ShortReadinessInput,
     "jointPain" | "painLocation" | "painOnset" | "altersMovement"

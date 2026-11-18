@@ -26,7 +26,7 @@ import "../fiveAside/fiveAside.css";
 import "./eleven.css";
 
 type Stage = "loading" | "error" | "intro" | "play" | "debrief";
-export type ElevenIQProps = {
+type ElevenIQProps = {
   historyOwner?: string;
   onBack: () => void;
   /** Tests and QA: start from this picture. */

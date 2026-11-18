@@ -20,7 +20,7 @@ const parseMeasurements = (raw: unknown) =>
   raw.every((x) => typeof x === "number" && x >= 0.05 && x <= 4)
     ? (raw as number[])
     : undefined;
-export function VelocityCoach({ plan, context }: { plan: MethodExecution; context: string }) {
+function VelocityCoach({ plan, context }: { plan: MethodExecution; context: string }) {
   const { user } = useAuth(),
     [entry, setEntry] = useState(""),
     [limit, setLimit] = useState(plan.velocityLossLimitPct ?? 15),

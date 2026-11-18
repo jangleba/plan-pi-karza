@@ -10,13 +10,13 @@ export interface BoutProgress {
   done: number;
 }
 
-export interface Bout {
+interface Bout {
   /** 1-based set or repetition number. */
   set: number;
   side: "Lewa" | "Prawa" | null;
 }
 
-export function boutsPerSet(unilateral: boolean): number {
+function boutsPerSet(unilateral: boolean): number {
   return unilateral ? 2 : 1;
 }
 

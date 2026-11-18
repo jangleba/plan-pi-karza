@@ -137,15 +137,6 @@
   font-size: 13px;
   font-weight: 400;
 }
-.bw-plan-settings-icon {
-  flex: none;
-  width: 30px;
-  height: 30px;
-  padding: 6px;
-  border-radius: 8px;
-  color: var(--muted-foreground);
-  background: var(--muted);
-}
 .bw-plan-select {
   display: flex;
   align-items: center;
@@ -335,9 +326,6 @@
   font-size: 13px;
   line-height: 1.35;
 }
-.bw-wk-phase {
-  color: var(--muted-foreground);
-}
 .bw-wk-done {
   flex: none;
   width: 20px;
@@ -423,23 +411,11 @@
   flex-wrap: wrap;
   column-gap: 3px;
 }
-.bw-wk-category {
-  font: inherit;
-  color: inherit;
-}
 .bw-plan-status {
   border: 0;
 }
 .bw-wk-copy strong {
   font-weight: 500;
-}
-
-/* A small monochrome mark describes the prescription, never the kind of training. */
-
-/* Secondary information stays compact so the week remains the main content. */
-.bw-plan-status--compact {
-  padding: 10px 14px;
-  gap: 0;
 }
 .bw-plan-status-row,
 .bw-plan-mas-row {
@@ -458,19 +434,10 @@
   flex: none;
   font-size: 13px;
 }
-.bw-plan-status-details {
-  border-top: 1px solid var(--border);
-}
 .bw-plan-status-details > summary,
 .bw-plan-notice > summary {
   color: var(--muted-foreground);
   font-size: 13px;
-}
-.bw-plan-status-details > p,
-.bw-plan-status-details > ul {
-  margin: 0 0 10px;
-  font-size: 13px;
-  color: var(--muted-foreground);
 }
 .bw-plan-mas {
   padding: 8px 14px;
@@ -530,25 +497,6 @@
 .bw-plan-preview-meta {
   color: var(--muted-foreground);
   font-size: 13px !important;
-}
-.bw-plan-preview-details {
-  border-top: 1px solid var(--border);
-  padding-top: 4px;
-}
-.bw-plan-preview-details > summary {
-  font-size: 13px;
-}
-.bw-plan-preview-details > p,
-.bw-plan-notice-body {
-  font-size: 13px;
-  color: var(--muted-foreground);
-  line-height: 1.45;
-}
-.bw-plan-notice-body {
-  padding-bottom: 10px;
-}
-.bw-plan-notice-body p {
-  font-size: 13px;
 }
 .bw-plan-screen .bw-weekly-coverage h2 {
   font-size: 16px;

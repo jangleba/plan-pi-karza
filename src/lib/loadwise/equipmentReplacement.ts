@@ -1,23 +1,7 @@
 import type { ExerciseDefinition } from "./exerciseLibrary";
 import type { TrainingExercise } from "./types";
 
-/**
- * Dose units never convert into each other. Seconds stay seconds, metres stay
- * metres, and a repetition count is not turned into a time. When the replacement
- * measures work differently, it takes that exercise's own default dose.
- */
-export type DoseUnit = "count" | "time" | "distance" | "none";
-
 const PER_SIDE = /na stron|każd(?:ą|a) stron|po jednej stronie/i;
-
-export function doseUnit(exercise: Pick<TrainingExercise, "reps" | "duration">): DoseUnit {
-  if (exercise.duration && /\d/.test(exercise.duration)) return "time";
-  const reps = exercise.reps ?? "";
-  if (/\d\s*(?:s|sek|min)\b/i.test(reps)) return "time";
-  if (/\d\s*m\b/i.test(reps)) return "distance";
-  if (/\d/.test(reps)) return "count";
-  return "none";
-}
 
 /** Upper bound of the leading count in a prescription such as „3”, „6–8” or „4 kontakty na stronę”. */
 function leadingCount(text: string | undefined): number | undefined {
@@ -30,18 +14,10 @@ function leadingCount(text: string | undefined): number | undefined {
  * Ground contacts of ONE set equal the jumps in that set: one per jump, two per
  * jump when the prescription is per side. The number follows the repetitions.
  */
-export function groundContactsForReps(reps: string | undefined): number | undefined {
+function groundContactsForReps(reps: string | undefined): number | undefined {
   const count = leadingCount(reps);
   if (count === undefined) return undefined;
   return count * (reps && PER_SIDE.test(reps) ? 2 : 1);
-}
-
-/** Keeps a contacts value that is shown or logged equal to the repetitions it belongs to. */
-export function syncGroundContacts(exercise: TrainingExercise): TrainingExercise {
-  if (exercise.groundContacts === undefined) return exercise;
-  const contacts = groundContactsForReps(exercise.reps);
-  if (contacts === undefined || contacts === exercise.groundContacts) return exercise;
-  return { ...exercise, groundContacts: contacts };
 }
 
 function defaultDose(def: ExerciseDefinition): Partial<TrainingExercise> {
@@ -106,22 +82,4 @@ export function buildEquipmentReplacement(
   };
   next.displayPrescription = displayFor(next);
   return next;
-}
-
-/**
- * Final alignment for generated structured sections: a jump exercise shows as
- * many repetitions as it has ground contacts per set. Only mismatched values are
- * rewritten; a consistent prescription is returned unchanged.
- */
-export function alignJumpRepetitions(exercise: TrainingExercise): TrainingExercise {
-  const contacts = exercise.groundContacts;
-  if (!contacts || contacts <= 0) return exercise;
-  if (groundContactsForReps(exercise.reps) === contacts) return exercise;
-  const perSide = Boolean(exercise.reps && PER_SIDE.test(exercise.reps));
-  if (perSide && contacts % 2 !== 0) return exercise;
-  const jumps = perSide ? contacts / 2 : contacts;
-  return {
-    ...exercise,
-    reps: `${jumps} ${perSide ? "kontakty na stronę" : "kontaktów"}`,
-  };
 }

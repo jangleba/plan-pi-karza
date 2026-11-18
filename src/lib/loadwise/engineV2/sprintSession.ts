@@ -26,7 +26,7 @@ export interface SprintSessionContext {
 }
 
 /** Weekly landing budget shared with the gym (see gymProgression: 48 for 16–17, 60 for adults). */
-export const WEEKLY_LANDING_LIMIT = (age: number) => (age < 18 ? 48 : 60);
+const WEEKLY_LANDING_LIMIT = (age: number) => (age < 18 ? 48 : 60);
 const BROAD_JUMP_CONTACTS = 2 * 3;
 
 type Block = { code: string; reason: string };

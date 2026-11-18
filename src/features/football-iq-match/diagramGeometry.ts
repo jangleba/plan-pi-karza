@@ -1,7 +1,7 @@
 import type { Point } from "./types";
 
 export type DiagramSize = { width: number; height: number };
-export type DiagramView = DiagramSize & { x: number; y: number; scale: number; rotated?: boolean };
+type DiagramView = DiagramSize & { x: number; y: number; scale: number; rotated?: boolean };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
 /** The same scale on both axes: the field and its circles retain their shape. */
@@ -60,7 +60,7 @@ export type DiagramLabel = {
   priority: number;
   interactive: boolean;
 };
-export type PlacedDiagramLabel = DiagramLabel & { center: Point; radius: number };
+type PlacedDiagramLabel = DiagramLabel & { center: Point; radius: number };
 
 /** Only the badge moves. Its anchor and leader always retain the real position. */
 export function placeDiagramLabels(

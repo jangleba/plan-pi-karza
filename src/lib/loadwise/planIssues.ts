@@ -4,9 +4,9 @@ import type { Issue, LimitationCause } from "./engineV2/model";
  * Plan limitations grouped by their structural cause: one short explanation, the sessions or
  * days it touches and the right action, instead of the same technical sentence repeated.
  */
-export type IssueGroupKey = LimitationCause | "other";
+type IssueGroupKey = LimitationCause | "other";
 
-export interface IssueGroup {
+interface IssueGroup {
   key: IssueGroupKey;
   title: string;
   explanation: string;

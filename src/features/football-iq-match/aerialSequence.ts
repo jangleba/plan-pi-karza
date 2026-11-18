@@ -34,7 +34,7 @@ const foot = { lateral: 0, forward: 1.8, height: BALL_REST_HEIGHT };
 const inside = (p: Point) =>
   Number.isFinite(p.x) && Number.isFinite(p.y) && p.x >= 0 && p.x <= 100 && p.y >= 0 && p.y <= 140;
 
-export type AerialSequenceOptions = {
+type AerialSequenceOptions = {
   passerId: string;
   headerId: string;
   receiverId: string;
@@ -130,7 +130,7 @@ export function createAerialSequence(
     },
   };
 }
-export type AerialSequence = ReturnType<typeof createAerialSequence>;
+type AerialSequence = ReturnType<typeof createAerialSequence>;
 
 export function sampleAerialSequence(sequence: AerialSequence, seconds: number): PlaybackFrame {
   const s = sequence,

@@ -157,15 +157,15 @@ export function prepareMonthlyPlan(
 }
 
 /** A plan write that has not answered by then is reported instead of waiting forever. */
-export const PLAN_COMMIT_TIMEOUT_MS = 20_000;
-export const PLAN_COMMIT_TIMEOUT_MESSAGE =
+const PLAN_COMMIT_TIMEOUT_MS = 20_000;
+const PLAN_COMMIT_TIMEOUT_MESSAGE =
   "Zapis planu trwa za długo. Sprawdź internet i spróbuj ponownie.";
 
 /**
  * Assigns the final database ids (one small read) without writing. The returned plan
  * can be shown at once; `commit` sends the atomic snapshot and resolves to the same plan.
  */
-export async function stageMonthlyPlan(
+async function stageMonthlyPlan(
   userId: string,
   profile: Profile,
   plan: SessionDay[],

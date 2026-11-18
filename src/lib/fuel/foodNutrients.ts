@@ -2,7 +2,7 @@
  * Available carbohydrate approximated as total carbohydrate minus fiber.
  * These are reference compositions, not measurements of a user meal.
  * Skyr uses the named manufacturer label. Household measures are estimates. */
-export interface FoodNutrientReference {
+interface FoodNutrientReference {
   carbs: number;
   protein: number;
   fat: number;

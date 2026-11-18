@@ -2,15 +2,15 @@ export type AccountOwnerType = "athlete" | "guardian";
 export type SubscriptionPayerType = "self" | "guardian";
 export type OwnershipTransferStatus = "not_applicable" | "not_requested" | "pending" | "completed";
 
-export const MIN_PERSONALIZED_AGE = 13;
+const MIN_PERSONALIZED_AGE = 13;
 /** BallWise is offered from 16; existing younger accounts keep their data and can still edit it. */
 export const NEW_ACCOUNT_MIN_AGE = 16;
 /** Minimum age for completing onboarding: 16 for new accounts, the old floor for existing ones. */
 export function onboardingMinimumAge(existingAccountCompleted: boolean): number {
   return existingAccountCompleted ? MIN_PERSONALIZED_AGE : NEW_ACCOUNT_MIN_AGE;
 }
-export const SELF_CONSENT_AGE = 16;
-export const ADULT_AGE = 18;
+const SELF_CONSENT_AGE = 16;
+const ADULT_AGE = 18;
 
 function asUtcDate(value: string | Date): Date | null {
   if (value instanceof Date) {
@@ -47,7 +47,7 @@ export function birthDateForApproximateAge(age: number, onDate: Date = new Date(
   return `${year}-${month}-${day}`;
 }
 
-export interface AgeAccessPolicy {
+interface AgeAccessPolicy {
   age: number;
   personalizedAccountAllowed: boolean;
   guardianMustOwnAccount: boolean;

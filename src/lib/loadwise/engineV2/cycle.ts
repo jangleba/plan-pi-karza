@@ -16,7 +16,7 @@ const validDate = (date: unknown): date is string =>
   plusDays(date, 0) === date;
 
 /** Saved plan metadata owns the anchor; recalculation never starts a new block implicitly. */
-export function cycleAnchor(options: EngineOptions): string {
+function cycleAnchor(options: EngineOptions): string {
   if (options.cycleAnchorDate !== undefined) {
     if (!validDate(options.cycleAnchorDate) || options.cycleAnchorDate > options.startDate)
       throw new Error("Nieprawidłowa data początku cyklu.");
@@ -61,7 +61,7 @@ const START_REASON: Record<string, string> = {
 };
 
 /** The recommendation in force: passed explicitly, else the record stamped on the saved plan. */
-export function startRecommendation(options: EngineOptions) {
+function startRecommendation(options: EngineOptions) {
   // A new plan applies it from its own first day; a rebuild of a saved plan keeps the date that
   // plan started, so rebuilding mid-cycle never lights the "lighter start" up again.
   if (options.cycleStart?.review)

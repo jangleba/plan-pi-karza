@@ -58,7 +58,7 @@ export type F5Variant = {
   start: V[];
 };
 
-export const F5_VARIANT_VERSION = 1;
+const F5_VARIANT_VERSION = 1;
 const pick = <T>(r: () => number, list: readonly T[]) => list[Math.floor(r() * list.length)]!;
 
 /** Away player who presses the receiver: the direct opponent of his position. */

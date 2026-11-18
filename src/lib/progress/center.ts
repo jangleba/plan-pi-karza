@@ -171,7 +171,7 @@ const LIMITER_LABELS: Record<string, string> = {
   return: "Powrót po przerwie",
 };
 
-export function developmentStage(age: number | null): string {
+function developmentStage(age: number | null): string {
   return age == null ? "Kierunek z Twojego planu" : `Profil treningowy · ${age} lat`;
 }
 

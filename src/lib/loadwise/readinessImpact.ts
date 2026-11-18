@@ -7,8 +7,8 @@ import { adjustedForReadiness, hasReadinessStop } from "./engineV2/planStatus";
  * the progression apply (planStatus: stop and lighter plan; gymProgression: no load increase
  * below 7). It never invents an adjustment the engine does not make.
  */
-export type ReadinessImpactKind = "stop" | "paused" | "adjusted" | "lighter" | "hold" | "none";
-export interface ReadinessImpact {
+type ReadinessImpactKind = "stop" | "paused" | "adjusted" | "lighter" | "hold" | "none";
+interface ReadinessImpact {
   kind: ReadinessImpactKind;
   text: string;
 }

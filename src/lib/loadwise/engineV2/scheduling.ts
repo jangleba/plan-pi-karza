@@ -11,14 +11,14 @@ export interface SchedulingBlock {
   code: string;
   message: string;
 }
-export interface SchedulingTask<Recipe> {
+interface SchedulingTask<Recipe> {
   id: string;
   recipe: Recipe;
   priority: number;
 }
 export type PlacementAttempt<State> =
   { state: State; penalty?: number } | { blocked: SchedulingBlock };
-export interface ExactScheduleInput<State, Recipe> {
+interface ExactScheduleInput<State, Recipe> {
   initialState: State;
   tasks: readonly SchedulingTask<Recipe>[];
   dayCount: number;
@@ -37,7 +37,7 @@ export interface ExactScheduleInput<State, Recipe> {
   isFull?: (state: State, taskId: string) => boolean;
   tryPlace: (state: State, recipe: Recipe, dayIndex: number) => PlacementAttempt<State>;
 }
-export interface ExactScheduleResult<State> {
+interface ExactScheduleResult<State> {
   state: State;
   covered: string[];
   unmet: string[];
@@ -138,8 +138,8 @@ export function solveWeeklySchedule<State, Recipe>(
   return { ...chosen, covered, unmet, rejections, exploredNodes };
 }
 
-export type PlacementMode = "new" | "club_second" | "append_second";
-export type PlacementAssessment =
+type PlacementMode = "new" | "club_second" | "append_second";
+type PlacementAssessment =
   | { allowed: true; mode: PlacementMode; slot: 0 | 1; minutes: number }
   | { allowed: false; code: string; message: string };
 
@@ -179,7 +179,7 @@ export function hasKnownStrengthLoad(day: SessionDay, profile: Profile): boolean
   );
 }
 
-export interface PlacementConstraintInput {
+interface PlacementConstraintInput {
   days: readonly SessionDay[];
   dayIndex: number;
   recipe: EngineSession;

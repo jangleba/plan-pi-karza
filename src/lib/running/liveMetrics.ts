@@ -15,7 +15,7 @@ export interface DistanceSample {
 }
 
 /** Okno tempa: dość długie, żeby wygładzić szum GPS, dość krótkie, żeby widać zmianę. */
-export const PACE_WINDOW_SEC = 30;
+const PACE_WINDOW_SEC = 30;
 const MIN_WINDOW_DISTANCE_M = 25;
 const SLOWEST_SHOWN_PACE = 20 * 60;
 

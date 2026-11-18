@@ -4,7 +4,6 @@ import type {
   Position,
   Level,
   SeasonPhase,
-  SeasonStage,
   CompetitionLevel,
   SecondaryLimiter,
 } from "./types";
@@ -15,16 +14,6 @@ export const SEASON_PHASE_LABELS: Record<SeasonPhase, string> = {
   inseason: "W sezonie",
   transition: "Okres przejściowy / roztrenowanie",
   return_injury: "Ograniczony trening po przerwie",
-};
-
-export const SEASON_STAGE_LABELS: Record<SeasonStage, string> = {
-  season_start: "Początek sezonu",
-  season_mid: "Środek sezonu",
-  season_end: "Końcówka sezonu",
-  winter_break: "Przerwa zimowa",
-  between_rounds: "Przerwa między rundami",
-  no_match_week: "Tydzień bez meczu",
-  match_week: "Tydzień meczowy",
 };
 
 export const COMPETITION_LEVEL_LABELS: Record<CompetitionLevel, string> = {
@@ -79,28 +68,8 @@ export function isoDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-export function addDays(d: Date, n: number): Date {
-  const r = new Date(d);
-  r.setDate(r.getDate() + n);
-  return r;
-}
-
 export function parseIso(s: string): Date {
   return new Date(`${s}T00:00:00`);
-}
-
-/** ISO numer dnia tygodnia: 1=poniedziałek ... 7=niedziela */
-export function isoDayOfWeek(d: Date): number {
-  const js = d.getDay();
-  return js === 0 ? 7 : js;
-}
-
-export function dayName(d: Date): string {
-  return PL_DAYS[d.getDay()];
-}
-
-export function shortDayName(d: Date): string {
-  return PL_DAYS[d.getDay()].slice(0, 3);
 }
 
 export function formatDate(s: string): string {

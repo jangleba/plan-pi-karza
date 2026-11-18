@@ -7,7 +7,7 @@ import type { RoutePoint } from "@/lib/running/types";
  * Where the Permissions API says the permission is already granted the position is fetched on
  * its own; otherwise the player asks for it with "Włącz lokalizację".
  */
-export type LocationStatus =
+type LocationStatus =
   | "checking"
   | "needs_consent"
   | "locating"
@@ -17,11 +17,11 @@ export type LocationStatus =
   | "unavailable"
   | "unsupported";
 
-export const LOCATION_TIMEOUT_MS = 15_000;
+const LOCATION_TIMEOUT_MS = 15_000;
 /** Beyond this accuracy a position is only orientation, not a measurement. */
 export const GOOD_ACCURACY_M = 35;
 
-export function locationErrorStatus(error: unknown): LocationStatus {
+function locationErrorStatus(error: unknown): LocationStatus {
   const code = (error as { code?: number } | null)?.code;
   if (code === 1) return "denied";
   if (code === 2) return "unavailable";

@@ -5,12 +5,12 @@ import { eligibleExercise, estimateSessionSeconds } from "./exercises";
 import type { Dose, EngineSession, ExerciseDecision, Role } from "./model";
 import { trainingTier } from "./model";
 
-export type SupportKind = "activation" | "mobility" | "recovery" | "skills";
+type SupportKind = "activation" | "mobility" | "recovery" | "skills";
 type SupportPreferences = {
   activationLocation?: "field" | "gym";
   mobilityFocus?: "general" | "hip" | "ankle" | "thoracic";
 };
-export { hasDeclaredFootball, hasDeclaredWall, requiresDeclaredWall } from "./placeRequirements";
+export { hasDeclaredFootball, hasDeclaredWall } from "./placeRequirements";
 import { meetsSessionRequirements, hasDeclaredFootball } from "./placeRequirements";
 
 function usable(id: string, p: Profile): boolean {

@@ -16,7 +16,7 @@ export const REVIEWED_JUMP_PROTOCOL = "ballwise-browser-lab-2.1";
 export const GROUND_CONTACT_PROTOCOL = "ballwise-browser-lab-1.5";
 export type TestSide = "left" | "right" | null;
 
-export interface BrowserProtocol {
+interface BrowserProtocol {
   id: StoredTestId;
   title: string;
   subtitle: string;

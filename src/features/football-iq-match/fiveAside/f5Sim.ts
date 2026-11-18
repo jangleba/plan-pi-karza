@@ -43,33 +43,25 @@ import {
   type BallSample,
   type MotionBody,
 } from "../firstPerson/fpPhysics";
-import {
-  F5_PITCH,
-  PLAYER_COUNT,
-  PRESSER_FOR,
-  SLOTS,
-  slotIndex,
-  type F5Variant,
-  type Slot,
-} from "./f5Variants";
+import { F5_PITCH, PRESSER_FOR, SLOTS, slotIndex, type F5Variant, type Slot } from "./f5Variants";
 
-export { DT, TICK_HZ };
+export { DT };
 export const F5_ENGINE_VERSION = 1;
-export const MAX_TICKS = TICK_HZ * 35;
+const MAX_TICKS = TICK_HZ * 35;
 /** The fragment ends when the rivals keep the ball this long. */
-export const LOSS_LIMIT = TICK_HZ * 8;
+const LOSS_LIMIT = TICK_HZ * 8;
 const RUN_ON_TICKS = 50;
 const RESTART_HOLD = 45;
 /** Supplied "Soccer Pass" clip: 1.6 s, foot contact at frame 14 of 30 FPS, played 1.5× faster. */
 export const KICK_CLIP_SECONDS = 1.6;
-export const KICK_RATE = 1.5;
-export const KICK_CONTACT_TICKS = Math.round((14 / 30 / KICK_RATE) * TICK_HZ);
+const KICK_RATE = 1.5;
+const KICK_CONTACT_TICKS = Math.round((14 / 30 / KICK_RATE) * TICK_HZ);
 const BALL_H = 0.11;
 const AI_THINK = 10;
 const EYE = 1.68;
 
 export type Team = "home" | "away";
-export type Anim = "idle" | "run" | "kick";
+type Anim = "idle" | "run" | "kick";
 export type KickType = "pass" | "shot" | "lofted";
 
 export type F5Input =
@@ -195,7 +187,7 @@ export type SimState = {
   record: boolean;
 };
 
-export type SimOptions = { record?: boolean };
+type SimOptions = { record?: boolean };
 
 const outfield = (team: Team) => [1, 2, 3, 4].map((i) => (team === "home" ? i : i + 5));
 const keeperOf = (team: Team) => (team === "home" ? 0 : 5);
@@ -205,7 +197,7 @@ const sign = (team: Team) => (team === "home" ? 1 : -1);
 const rel = (p: V, team: Team): V => (team === "home" ? p : { x: -p.x, y: -p.y });
 const ownGoal = (team: Team): V => v(0, -sign(team) * F5_PITCH.halfLength);
 const rivalGoal = (team: Team): V => v(0, sign(team) * F5_PITCH.halfLength);
-export const inOwnBox = (p: V, team: Team) => {
+const inOwnBox = (p: V, team: Team) => {
   const r = rel(p, team);
   return r.y <= -F5_PITCH.halfLength + F5_PITCH.boxDepth && Math.abs(r.x) <= F5_PITCH.boxHalfWidth;
 };
@@ -293,7 +285,7 @@ export function createSim(variant: F5Variant, options: SimOptions = {}): SimStat
 
 // ---------- inputs ----------
 
-export function applyInput(s: SimState, input: F5Input) {
+function applyInput(s: SimState, input: F5Input) {
   if (s.phase === "done") return;
   const ty = s.players[s.ty]!;
   if (input.kind === "move") {
@@ -374,7 +366,7 @@ function finish(s: SimState, kind: OutcomeKind) {
 // ---------- reading the picture ----------
 
 /** Seconds a player needs to reach a point (sprint model from standing, plus turning). */
-export function timeToReach(p: MotionBody, to: V, reach = 0.8) {
+function timeToReach(p: MotionBody, to: V, reach = 0.8) {
   const d = Math.max(0, dist(p.pos, to) - reach);
   if (d <= 0) return 0;
   const way = headingOf(sub(to, p.pos));
@@ -1298,7 +1290,7 @@ function teamSince(s: SimState, team: Team) {
 
 // ---------- frames ----------
 
-export function frameOf(s: SimState): Frame {
+function frameOf(s: SimState): Frame {
   return {
     tick: s.tick,
     agents: s.players.map((a) => ({
@@ -1319,5 +1311,3 @@ export function frameOf(s: SimState): Frame {
     },
   };
 }
-
-export const PLAYERS = PLAYER_COUNT;

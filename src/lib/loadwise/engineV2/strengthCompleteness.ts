@@ -15,7 +15,7 @@ export const MAIN_LEG_ROLES: readonly Role[] = [
 ];
 const UPPER_ROLES: readonly Role[] = ["push", "pull"];
 
-export type StrengthCoverage =
+type StrengthCoverage =
   /** Carries the main loaded leg pattern (and, in a coaching-note session, the upper task). */
   | "full"
   /** The existing MD+1 exception: upper body and trunk only, by design. */
@@ -23,7 +23,7 @@ export type StrengthCoverage =
   /** Support work only; counts as work done, not as the slot's strength stimulus. */
   | "partial";
 
-export interface StrengthCompleteness {
+interface StrengthCompleteness {
   coverage: StrengthCoverage;
   complete: boolean;
   /** Main patterns the session does not carry (empty when complete). */
@@ -32,7 +32,7 @@ export interface StrengthCompleteness {
 
 type RecipeLike = Pick<EngineSession, "roles" | "exercises" | "postMatch" | "organization">;
 
-export function isStrengthRecipeLike(recipe: Pick<EngineSession, "roles">): boolean {
+function isStrengthRecipeLike(recipe: Pick<EngineSession, "roles">): boolean {
   return recipe.roles.some((role) => role === "strengthA" || role === "strengthB");
 }
 

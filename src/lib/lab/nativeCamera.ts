@@ -1,7 +1,7 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import type { NativeVideoCapture } from "./types";
 
-export interface BallWiseCameraCapabilities {
+interface BallWiseCameraCapabilities {
   supported: boolean;
   fps: number;
   width: number;
@@ -25,7 +25,7 @@ interface BallWiseCameraPlugin {
 
 const NativeCamera = registerPlugin<BallWiseCameraPlugin>("BallWiseCamera");
 
-export function isNativeIosLab() {
+function isNativeIosLab() {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios";
 }
 

@@ -13,7 +13,7 @@ import type { Role } from "./model";
 import type { SlotFunction } from "./coachSkeletons";
 import { FUNCTIONAL_CATALOGUE, type FunctionMetadata, type JointAction } from "./taxonomy";
 
-export interface NoteFunction {
+interface NoteFunction {
   id: SlotFunction;
   role: Role;
   label: string;
@@ -320,7 +320,7 @@ export function orderedCandidates(
  * metadata (taxonomy.ts): a candidate must have one of `contractions` and at least one of
  * `actions`. A candidate that is not catalogued is a violation, so every candidate is curated.
  */
-export const FUNCTION_RULES: Readonly<
+const FUNCTION_RULES: Readonly<
   Record<SlotFunction, { contractions: FunctionMetadata["contraction"][]; actions: JointAction[] }>
 > = {
   quad_iso: { contractions: ["isometric"], actions: ["knee_extension"] },

@@ -1,6 +1,6 @@
 import type { JumpVideo } from "./video";
 
-export interface PaintedFrame {
+interface PaintedFrame {
   width: number;
   height: number;
   aspect: number;

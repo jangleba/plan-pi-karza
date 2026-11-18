@@ -35,9 +35,7 @@ function exercisesText(session: SessionDay): string {
     : [];
   const fromExercises: ExerciseItem[] = session.exercises ?? [];
   const all = fromSections.length ? fromSections : fromExercises;
-  return all
-    .map((e) => `${e.name ?? ""} ${e.prescription ?? ""} ${e.cue ?? ""}`)
-    .join(" ");
+  return all.map((e) => `${e.name ?? ""} ${e.prescription ?? ""} ${e.cue ?? ""}`).join(" ");
 }
 
 /** Tekst nagłówka — tytuł, typ, cel. Najpewniejsze do klasyfikacji. */
@@ -65,13 +63,11 @@ const RE_ENDURANCE =
 const RE_SPEED =
   /sprint|szybko|prędko|przyspiesz|akcelerac|accelerat|first step|pierwszy krok|max(?:ymaln)?.{0,6}(?:prędko|velocity)|max velocity|flying|lotne|mechanik.{0,6}bieg|sprint mechanics|hamowan|deceler|braking|zmian.{0,6}kierunk|change of direction|\bcod\b|zwinno|agility/i;
 
-const RE_ACCELERATION =
-  /akcelerac|accelerat|przyspiesz|first step|pierwszy krok|start/i;
+const RE_ACCELERATION = /akcelerac|accelerat|przyspiesz|first step|pierwszy krok|start/i;
 const RE_MAX_VELOCITY =
   /max(?:ymaln)?.{0,6}(?:prędko|velocity)|max velocity|flying|lotne|prędkość maksymaln/i;
 const RE_DECELERATION = /hamowan|deceler|braking|wytraca/i;
-const RE_COD =
-  /zmian.{0,6}kierunk|change of direction|\bcod\b|zwinno|agility|cut |zwrot/i;
+const RE_COD = /zmian.{0,6}kierunk|change of direction|\bcod\b|zwinno|agility|cut |zwrot/i;
 
 const RE_RECOVERY = /regener|recovery|roztrenowan|odnow|chłodzen|cooldown/i;
 const RE_PREHAB = /prehab|stabiliz|robust|odporno|copenhagen|nordic|przywodzic/i;
@@ -105,8 +101,7 @@ function classifyEndurance(text: string): SessionSubcategory {
   if (has(text, /repeated tempo|powtarzan.{0,8}tempo/)) return "repeated_tempo";
   if (has(text, /aerob.{0,8}interwa|aerobic interval|tlenow.{0,8}interwa/))
     return "aerobic_intervals";
-  if (has(text, /extensive|ekstensywn|interwa|interval/))
-    return "extensive_intervals";
+  if (has(text, /extensive|ekstensywn|interwa|interval/)) return "extensive_intervals";
   if (has(text, /tempo/)) return "tempo_aerobic";
   if (has(text, /short|krótk.{0,8}aerob/)) return "short_aerobic_block";
   if (has(text, /easy run|lekki bieg|jog/)) return "easy_run";
@@ -204,11 +199,52 @@ function resolveCategory(session: SessionDay): CategoryResult {
     };
   }
 
-  if(session.trainingMethods?.recipeVersion === "47") {
-    const id=session.trainingMethods.primary;
-    if(["M26","M27","M28","M29","M30","M31"].includes(id))return {category:"endurance_conditioning",subcategory:id==="M26"?"easy_run":"extensive_intervals",sourceRule:"method47=conditioning"};
-    if(["M18","M19","M20","M21","M22","M23","M24","M25"].includes(id))return {category:"speed_sprint",subcategory:id==="M19"?"max_velocity":id==="M23"?"deceleration":id==="M24"||id==="M25"?"change_of_direction":"acceleration",sourceRule:"method47=sprint"};
-    if(["M02","M03","M04","M05","M06","M07","M08","M09","M10","M11","M12","M13","M14","M15","M17","M39"].includes(id))return {category:"gym_strength",subcategory:classifyGym(header),sourceRule:"method47=strength"};
+  if (session.trainingMethods?.recipeVersion === "47") {
+    const id = session.trainingMethods.primary;
+    if (["M26", "M27", "M28", "M29", "M30", "M31"].includes(id))
+      return {
+        category: "endurance_conditioning",
+        subcategory: id === "M26" ? "easy_run" : "extensive_intervals",
+        sourceRule: "method47=conditioning",
+      };
+    if (["M18", "M19", "M20", "M21", "M22", "M23", "M24", "M25"].includes(id))
+      return {
+        category: "speed_sprint",
+        subcategory:
+          id === "M19"
+            ? "max_velocity"
+            : id === "M23"
+              ? "deceleration"
+              : id === "M24" || id === "M25"
+                ? "change_of_direction"
+                : "acceleration",
+        sourceRule: "method47=sprint",
+      };
+    if (
+      [
+        "M02",
+        "M03",
+        "M04",
+        "M05",
+        "M06",
+        "M07",
+        "M08",
+        "M09",
+        "M10",
+        "M11",
+        "M12",
+        "M13",
+        "M14",
+        "M15",
+        "M17",
+        "M39",
+      ].includes(id)
+    )
+      return {
+        category: "gym_strength",
+        subcategory: classifyGym(header),
+        sourceRule: "method47=strength",
+      };
   }
 
   // 3) Regeneracja / prehab / mobilność — NIE liczą się jako pełna siłownia.
@@ -347,10 +383,7 @@ function resolveCategory(session: SessionDay): CategoryResult {
 
 // ───────────────────────────── Load level ─────────────────────────────
 
-function deriveLoadLevel(
-  session: SessionDay,
-  category: SessionCategory,
-): SessionLoadLevel {
+function deriveLoadLevel(session: SessionDay, category: SessionCategory): SessionLoadLevel {
   if (category === "rest") return "none";
   if (category === "recovery_prehab" || category === "mobility") return "low";
   if (category === "match") return "high";
@@ -516,8 +549,7 @@ export function classifySession(session: SessionDay): SessionClassification {
   const isGym = category === "gym_strength";
   const isEndurance = category === "endurance_conditioning";
   const isSpeed = category === "speed_sprint";
-  const isRecovery =
-    category === "recovery_prehab" && subcategory === "recovery";
+  const isRecovery = category === "recovery_prehab" && subcategory === "recovery";
   const isPrehab = category === "recovery_prehab" && subcategory === "prehab";
   const isMobility = category === "mobility";
 
@@ -527,8 +559,7 @@ export function classifySession(session: SessionDay): SessionClassification {
   const isAcceleration =
     (isSpeed && subcategory === "acceleration") ||
     (isSpeed && has(text, RE_ACCELERATION) && subcategory !== "deceleration");
-  const isDeceleration =
-    isSpeed && (subcategory === "deceleration" || subcategory === "braking");
+  const isDeceleration = isSpeed && (subcategory === "deceleration" || subcategory === "braking");
   const isMaxVelocity =
     isSpeed && (subcategory === "max_velocity" || subcategory === "flying_sprints");
   const isChangeOfDirection =
@@ -654,9 +685,7 @@ export function normalizeSessionCategory(session: SessionDay): SessionDay {
     classification,
     isClubSession: classification.isClubSession,
     isRecoveryOrPrehab:
-      classification.isRecovery ||
-      classification.isPrehab ||
-      classification.isMobility,
+      classification.isRecovery || classification.isPrehab || classification.isMobility,
   };
   if (session.secondSession) {
     normalized.secondSession = normalizeSessionCategory(session.secondSession);
@@ -700,21 +729,4 @@ export function isClubSession(session: SessionDay): boolean {
 
 export function isMatchSession(session: SessionDay): boolean {
   return classOf(session).countsAsMatch;
-}
-
-export function isRecoverySession(session: SessionDay): boolean {
-  const c = classOf(session);
-  return c.isRecovery || c.isPrehab || c.isMobility;
-}
-
-export function isHeavyLegsSession(session: SessionDay): boolean {
-  return classOf(session).isHeavyLegs;
-}
-
-export function isHeavyRunningSession(session: SessionDay): boolean {
-  return classOf(session).isHighImpactRunning;
-}
-
-export function isChangeOfDirectionSession(session: SessionDay): boolean {
-  return classOf(session).isChangeOfDirection;
 }

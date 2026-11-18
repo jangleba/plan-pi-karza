@@ -1,4 +1,4 @@
-import type { ExerciseItem, SessionCompletion, SessionDay, TrainingExercise } from "../types";
+import type { SessionCompletion, SessionDay, TrainingExercise } from "../types";
 
 export type RecoveryFocus =
   "whole" | "calves" | "hamstrings" | "quadriceps" | "hips" | "adductors" | "back";
@@ -34,70 +34,7 @@ export type PreparationVisual =
   | "march"
   | "run"
   | "bridge";
-export interface EvidenceSource {
-  id: string;
-  title: string;
-  url: string;
-  scope: string;
-}
-export const EVIDENCE: Record<string, EvidenceSource> = {
-  warmup: {
-    id: "warmup",
-    title: "McGowan i wsp., 2015 — Warm-Up Strategies",
-    url: "https://pubmed.ncbi.nlm.nih.gov/26400696/",
-    scope: "Przegląd mechanizmów i projektowania rozgrzewki; nie waliduje niniejszego zestawu.",
-  },
-  dynamic: {
-    id: "dynamic",
-    title: "Fletcher i Monte-Colombo, 2010 — rozgrzewka piłkarzy",
-    url: "https://pubmed.ncbi.nlm.nih.gov/20634747/",
-    scope:
-      "Badanie 27 piłkarzy; porównanie rozgrzewek i późniejszej sprawności. Nie dowodzi skuteczności każdego ruchu z osobna.",
-  },
-  strength: {
-    id: "strength",
-    title: "The Role of Specific Warm-up during Bench Press and Squat, 2020",
-    url: "https://pubmed.ncbi.nlm.nih.gov/32971729/",
-    scope:
-      "Badanie rozgrzewki specyficznej dla przysiadu i wyciskania; serie wprowadzające pozostają częścią treningu siłowego.",
-  },
-  recovery: {
-    id: "recovery",
-    title: "Haller i wsp., 2022 — Evidence-Based Recovery in Soccer",
-    url: "https://pubmed.ncbi.nlm.nih.gov/36196351/",
-    scope:
-      "Przegląd strategii regeneracji w piłce nożnej. Odczucia, zakres ruchu i odzyskanie sprawności są różnymi wynikami.",
-  },
-  stretch: {
-    id: "stretch",
-    title: "Cochrane — Stretching to prevent or reduce muscle soreness",
-    url: "https://www.cochrane.org/evidence/CD004577_stretching-prevent-or-reduce-muscle-soreness-after-exercise",
-    scope:
-      "12 badań; rozciąganie nie zmniejsza istotnie praktycznie opóźnionej bolesności mięśni. Nie przypisujemy mu naprawy tkanek.",
-  },
-  acsm: {
-    id: "acsm",
-    title: "Garber i wsp., 2011 — ACSM: zalecenia dotyczące ćwiczeń (w tym gibkości)",
-    url: "https://pubmed.ncbi.nlm.nih.gov/21694556/",
-    scope:
-      "Stanowisko ACSM: rozciąganie statyczne 10–30 s na powtórzenie, łącznie ok. 60 s na grupę mięśniową. Dotyczy dorosłych i gibkości ogólnej, nie regeneracji po meczu.",
-  },
-  behm: {
-    id: "behm",
-    title:
-      "Behm i wsp., 2016 — Acute effects of muscle stretching on physical performance, range of motion, and injury incidence (Appl Physiol Nutr Metab)",
-    url: "https://pubmed.ncbi.nlm.nih.gov/26642915/",
-    scope:
-      "Przegląd systematyczny: rozciąganie statyczne zwiększa zakres ruchu; 60 s lub więcej na grupę mięśniową tuż przed wysiłkiem obniża sprawność bardziej niż krócej. Dlatego pełna dawka jest w regeneracji i po treningu, nie przed sprintem.",
-  },
-  match: {
-    id: "match",
-    title: "Marqués-Jiménez i wsp., 2025 — Recovery After an Official Soccer Match",
-    url: "https://pubmed.ncbi.nlm.nih.gov/40981050/",
-    scope:
-      "Badanie amatorskich piłkarzy; część zmian utrzymywała się po 48 h. Upływ czasu nie potwierdza pełnej regeneracji konkretnej osoby.",
-  },
-};
+
 export interface PreparationExercise {
   id: string;
   name: string;
@@ -427,11 +364,7 @@ export function buildWarmupProtocol(
     note: "Dobór ruchów i dawki to praktyczna adaptacja badań rozgrzewki, a nie odtworzenie jednego przebadanego zestawu. Ruchy dynamiczne wykonuj płynnie i bez wymuszania zakresu.",
   };
 }
-export function exerciseDose(e: PreparationExercise): string {
-  if (e.doseLabel) return e.doseLabel;
-  const dose = e.seconds != null ? `${e.seconds} s` : `${e.reps ?? 1} powt.`;
-  return `${(e.sets ?? 1) > 1 ? `${e.sets} × ` : ""}${dose}${e.sides ? " / strona" : ""}`;
-}
+
 export function protocolDuration(protocol: PreparationProtocol): {
   seconds: number;
   estimated: boolean;
@@ -442,18 +375,7 @@ export function protocolDuration(protocol: PreparationProtocol): {
     estimated: steps.some((s) => s.seconds == null),
   };
 }
-export function protocolExerciseItems(protocol: PreparationProtocol): ExerciseItem[] {
-  return protocol.exercises.map((e) => ({
-    name: e.name,
-    visualId: `bwprep:${e.visual}`,
-    prescription: exerciseDose(e),
-    displayPrescription: exerciseDose(e),
-    cue: e.cues.join(" "),
-    purpose: e.mechanism,
-    technique: e.cues.join(" "),
-    rest: `${e.restSec ?? 0} s`,
-  }));
-}
+
 export interface PreparationStep {
   id: string;
   exerciseIndex: number;

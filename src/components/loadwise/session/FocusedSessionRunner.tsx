@@ -38,7 +38,7 @@ import { CourseSetup } from "./CourseSetup";
 import "./sprint-tools.css";
 import "./runner/session-runner.css";
 
-export interface StartAction {
+interface StartAction {
   checkIn?: ReactNode;
   label: string;
   busy: boolean;

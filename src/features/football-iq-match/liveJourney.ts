@@ -85,10 +85,7 @@ export function createLiveJourney(def: JourneyDefinition): JourneySession {
     .filter((p) => p.team !== teamOf(s, s.world.carrierId) && !p.goalkeeper)
     .sort(
       (a, b) =>
-        distance(
-          s.world.positions[a.id],
-          s.world.positions[s.world.carrierId],
-        ) -
+        distance(s.world.positions[a.id], s.world.positions[s.world.carrierId]) -
         distance(s.world.positions[b.id], s.world.positions[s.world.carrierId]),
     )[0];
   for (let tick = 0; tick <= 16; tick++) {
@@ -143,34 +140,21 @@ export function liveChoice(
   const actor = s.controlledId ?? "you",
     own = actor === s.world.carrierId;
   if (
-    ![
-      "pass",
-      "move",
-      "carry",
-      "cover",
-      "press",
-      "mark",
-      "wait",
-      "hold",
-      "shoot",
-    ].includes(intent)
+    !["pass", "move", "carry", "cover", "press", "mark", "wait", "hold", "shoot"].includes(intent)
   )
     throw new Error("Niedostępny ruch.");
   if (["pass", "carry", "shoot", "hold"].includes(intent) && !own)
     throw new Error("Ten zawodnik nie ma piłki. Wybierz własny ruch.");
   if (
     targetId &&
-    (!s.players.some((p) => p.id === targetId && p.team === "home") ||
-      targetId === actor)
+    (!s.players.some((p) => p.id === targetId && p.team === "home") || targetId === actor)
   )
     throw new Error("Nieprawidłowy odbiorca.");
   const p = bound(at.x, at.y);
-  if (![at.x, at.y].every(Number.isFinite))
-    throw new Error("Nieprawidłowy punkt.");
+  if (![at.x, at.y].every(Number.isFinite)) throw new Error("Nieprawidłowy punkt.");
   const from = s.world.positions[actor];
   const endpoint =
-    ["move", "carry", "cover", "press", "mark"].includes(intent) &&
-    distance(from, p) > 32
+    ["move", "carry", "cover", "press", "mark"].includes(intent) && distance(from, p) > 32
       ? lerp(from, p, 32 / distance(from, p))
       : p;
   const id = `live8:${actor}:${intent}:${delivery}:${timing}:${endpoint.x.toFixed(2)}:${endpoint.y.toFixed(2)}:${targetId ?? "space"}`;
@@ -204,10 +188,7 @@ export function parseLiveChoice(s: JourneySession, id: string) {
       id,
     );
   if (!m) return undefined;
-  if (
-    m[1] !== "you" &&
-    (m[1] !== s.world.carrierId || teamOf(s, m[1]) !== "home")
-  )
+  if (m[1] !== "you" && (m[1] !== s.world.carrierId || teamOf(s, m[1]) !== "home"))
     return undefined;
   const controlled = { ...s, controlledId: m[1] };
   try {
@@ -236,8 +217,7 @@ export function liveStep(s: JourneySession): JourneyStep {
     if (!s.players.find((p) => p.id === id)?.goalkeeper)
       choices.push(liveChoice(s, "shoot", { x: 50, y: 6 }));
   } else {
-    for (const dx of [-14, 14])
-      choices.push(liveChoice(s, "move", bound(at.x + dx, at.y - 12)));
+    for (const dx of [-14, 14]) choices.push(liveChoice(s, "move", bound(at.x + dx, at.y - 12)));
   }
   choices.push(liveChoice(s, own ? "hold" : "wait", at));
   return {
@@ -248,12 +228,7 @@ export function liveStep(s: JourneySession): JourneyStep {
     choices,
   };
 }
-function laneScore(
-  s: JourneySession,
-  from: Point,
-  to: Point,
-  team: "home" | "away",
-) {
+function laneScore(s: JourneySession, from: Point, to: Point, team: "home" | "away") {
   const nearest = Math.min(
     ...s.players
       .filter((p) => p.team !== team)
@@ -264,19 +239,14 @@ function laneScore(
   );
   return Math.min(12, nearest) + Math.min(12, pressure(s, to, team));
 }
-export function liveOpenings(s: JourneySession) {
+function liveOpenings(s: JourneySession) {
   if (teamOf(s, s.world.carrierId) !== "home") return 0;
   return s.players.filter(
     (p) =>
       p.team === "home" &&
       p.id !== s.world.carrierId &&
       !p.goalkeeper &&
-      laneScore(
-        s,
-        s.world.positions[s.world.carrierId],
-        s.world.positions[p.id],
-        "home",
-      ) > 12 &&
+      laneScore(s, s.world.positions[s.world.carrierId], s.world.positions[p.id], "home") > 12 &&
       !offside(s, s.world.carrierId, p.id),
   ).length;
 }
@@ -314,8 +284,7 @@ export function chooseLiveJourney(
   const frames: NonNullable<JourneyBeat["live"]> = [],
     events: NonNullable<JourneyBeat["events"]> = [];
   const event = (time: number, text: string) => {
-    if (!events.some((e) => e.text === text))
-      events.push({ time: +time.toFixed(3), text });
+    if (!events.some((e) => e.text === text)) events.push({ time: +time.toFixed(3), text });
   };
   let ball = { ...s.world.positions[s.world.carrierId] },
     height = BALL_REST_HEIGHT,
@@ -391,13 +360,9 @@ export function chooseLiveJourney(
       finishAt = Math.max(finishAt, flight!.end + 0.35);
     }
     const holdingTeam = teamOf(s, carrier);
-    const defenders = s.players.filter(
-      (p) => p.team !== holdingTeam && !p.goalkeeper,
-    );
+    const defenders = s.players.filter((p) => p.team !== holdingTeam && !p.goalkeeper);
     const nearest = [...defenders].sort(
-      (a, b) =>
-        distance(old.positions[a.id], ball) -
-        distance(old.positions[b.id], ball),
+      (a, b) => distance(old.positions[a.id], ball) - distance(old.positions[b.id], ball),
     )[0]?.id;
     const marker = actor === "you" ? "r1" : "r2";
     const intentions: Record<string, Point> = {};
@@ -406,10 +371,7 @@ export function chooseLiveJourney(
       let target = at,
         speed = 5.6;
       if (p.id === actor) {
-        if (
-          t >= ownDelay &&
-          ["move", "carry", "cover", "press", "mark"].includes(c.intent!)
-        )
+        if (t >= ownDelay && ["move", "carry", "cover", "press", "mark"].includes(c.intent!))
           target = c.point;
         speed = c.intent === "carry" ? 6 : 7;
       } else if (p.goalkeeper) {
@@ -421,39 +383,26 @@ export function chooseLiveJourney(
           const ahead = lerp(
             flight.from,
             flight.to,
-            clamp(
-              (t + 0.22 - flight.start) / (flight.end - flight.start),
-              0,
-              1,
-            ),
+            clamp((t + 0.22 - flight.start) / (flight.end - flight.start), 0, 1),
           );
           const near = distance(at, ahead);
           if (p.id === nearest || near < 9) target = ahead;
-          else
-            target = bound(
-              at.x + (ball.x - at.x) * 0.08,
-              at.y + (ball.y - at.y) * 0.045,
-            );
+          else target = bound(at.x + (ball.x - at.x) * 0.08, at.y + (ball.y - at.y) * 0.045);
         } else if (p.id === marker && team === holdingTeam && !ownAtStart) {
-          const follow =
-            s.definition.context === 0 ||
-            (s.definition.context === 2 && t > 0.8);
+          const follow = s.definition.context === 0 || (s.definition.context === 2 && t > 0.8);
           target = follow
             ? bound(old.positions[actor].x + 4, old.positions[actor].y - 3)
             : bound(
                 (old.positions[actor].x + ball.x) / 2,
                 Math.min(old.positions[actor].y, ball.y) - 4,
               );
-        } else if (p.id === nearest)
-          target = bound(ball.x, ball.y + direction(holdingTeam) * 1.8);
+        } else if (p.id === nearest) target = bound(ball.x, ball.y + direction(holdingTeam) * 1.8);
         else {
           const opponents = s.players.filter(
             (q) => q.team === holdingTeam && !q.goalkeeper && q.id !== carrier,
           );
           const mark = opponents.sort(
-            (a, b) =>
-              distance(at, old.positions[a.id]) -
-              distance(at, old.positions[b.id]),
+            (a, b) => distance(at, old.positions[a.id]) - distance(at, old.positions[b.id]),
           )[0];
           if (mark)
             target = bound(
@@ -462,11 +411,7 @@ export function chooseLiveJourney(
             );
         }
       } else if (p.id !== carrier || flight) {
-        if (
-          flight &&
-          t > flight.start &&
-          (p.id === flight.receiver || distance(at, ball) < 14)
-        )
+        if (flight && t > flight.start && (p.id === flight.receiver || distance(at, ball) < 14))
           target = flight.to;
         else if (p.id !== flight?.actor) {
           const base = s.initial.positions[p.id];
@@ -490,10 +435,7 @@ export function chooseLiveJourney(
         const q = old.positions[other.id],
           d = distance(at, q);
         if (d > 0.01 && d < 1.8 && distance(at, target) > 0.1)
-          target = bound(
-            target.x + (at.x - q.x) * 0.5,
-            target.y + (at.y - q.y) * 0.5,
-          );
+          target = bound(target.x + (at.x - q.x) * 0.5, target.y + (at.y - q.y) * 0.5);
       }
       const desired =
         distance(at, target) < 0.1
@@ -511,10 +453,7 @@ export function chooseLiveJourney(
         delta = distance(v, desired),
         factor = delta ? Math.min(1, acceleration / delta) : 1;
       velocity[p.id] = lerp(v, desired, factor);
-      intentions[p.id] = bound(
-        at.x + velocity[p.id].x * DT,
-        at.y + velocity[p.id].y * DT,
-      );
+      intentions[p.id] = bound(at.x + velocity[p.id].x * DT, at.y + velocity[p.id].y * DT);
     }
     for (const p of s.players) moved(s.world, p.id, intentions[p.id]);
     if (flight) {
@@ -523,10 +462,7 @@ export function chooseLiveJourney(
         f.released = true;
         f.offsidePlayers = s.players
           .filter(
-            (p) =>
-              p.team === teamOf(s, f.actor) &&
-              p.id !== f.actor &&
-              offside(s, f.actor, p.id),
+            (p) => p.team === teamOf(s, f.actor) && p.id !== f.actor && offside(s, f.actor, p.id),
           )
           .map((p) => p.id);
       }
@@ -536,10 +472,7 @@ export function chooseLiveJourney(
       const candidates = s.players
         .filter((p) => p.id !== f.actor && (!p.goalkeeper || progress > 0.8))
         .map((p) => ({ p, d: distance(s.world.positions[p.id], ball) }))
-        .filter(
-          ({ d, p }) =>
-            height < (p.goalkeeper ? 3.4 : 2.3) && d < 1.75 && progress > 0.08,
-        )
+        .filter(({ d, p }) => height < (p.goalkeeper ? 3.4 : 2.3) && d < 1.75 && progress > 0.08)
         .sort((a, b) => a.d - b.d);
       const contact = t >= f.start ? candidates[0]?.p : undefined;
       if (contact) {
@@ -547,17 +480,11 @@ export function chooseLiveJourney(
         s.world.carrierId = contact.id;
         if (teamOf(s, contact.id) !== teamOf(s, f.actor)) {
           loss = teamOf(s, contact.id) !== "home";
-          event(
-            t,
-            `Nr ${contact.number} przecina tor podania, zanim piłka dociera do celu.`,
-          );
+          event(t, `Nr ${contact.number} przecina tor podania, zanim piłka dociera do celu.`);
         } else {
           firstReceiver = contact.id;
           completedPass = true;
-          event(
-            t,
-            `Nr ${contact.number} dochodzi do piłki. Sprawdź jego kolejną opcję.`,
-          );
+          event(t, `Nr ${contact.number} dochodzi do piłki. Sprawdź jego kolejną opcję.`);
         }
         touched = true;
         flight = null;
@@ -585,10 +512,7 @@ export function chooseLiveJourney(
           flight = null;
         } else if (t > f.end + 1.2) {
           // End at an unresolved ball, not an invented completion/teleport.
-          event(
-            t,
-            "Piłka pozostaje bez kontroli. Podanie nie znalazło odbiorcy w tym fragmencie.",
-          );
+          event(t, "Piłka pozostaje bez kontroli. Podanie nie znalazło odbiorcy w tym fragmencie.");
           loss = true;
           s.world.looseBall = { ...ball };
           record(t);
@@ -601,9 +525,7 @@ export function chooseLiveJourney(
       ball = { ...at };
       height = BALL_REST_HEIGHT;
       const rivals = s.players.filter(
-        (p) =>
-          p.team !== teamOf(s, owner) &&
-          distance(s.world.positions[p.id], at) < 1.6,
+        (p) => p.team !== teamOf(s, owner) && distance(s.world.positions[p.id], at) < 1.6,
       );
       if (rivals.length && t > 0.4 && !(kick && t - kick.time < 0.5)) {
         s.world.carrierId = rivals[0].id;
@@ -619,11 +541,7 @@ export function chooseLiveJourney(
         teamOf(s, owner) === "home"
       ) {
         const options = s.players.filter(
-          (p) =>
-            p.team === "home" &&
-            p.id !== owner &&
-            !p.goalkeeper &&
-            !offside(s, owner, p.id),
+          (p) => p.team === "home" && p.id !== owner && !p.goalkeeper && !offside(s, owner, p.id),
         );
         const score = (id: string) => {
           const target = s.world.positions[id];
@@ -635,13 +553,7 @@ export function chooseLiveJourney(
         };
         const receiver = options.sort((a, b) => score(b.id) - score(a.id))[0];
         if (receiver && score(receiver.id) > 9) {
-          flight = startPass(
-            owner,
-            s.world.positions[receiver.id],
-            receiver.id,
-            "ground",
-            t,
-          );
+          flight = startPass(owner, s.world.positions[receiver.id], receiver.id, "ground", t);
           finishAt = Math.max(finishAt, flight!.end + 0.3);
           autoPassed = true;
         }
@@ -685,17 +597,14 @@ export function chooseLiveJourney(
     from: before.positions[actor],
     to: c.point,
     duration,
-    text:
-      events.at(-1)?.text ?? "Sytuacja się zmienia. Ponownie oceń możliwości.",
+    text: events.at(-1)?.text ?? "Sytuacja się zmienia. Ponownie oceń możliwości.",
     live: frames,
     events,
   };
   const openingsBefore = liveOpenings({ ...s, world: before }),
     openingsAfter = liveOpenings(s);
   const possession = teamOf(s, s.world.carrierId) === "home";
-  const gain =
-    before.positions[before.carrierId].y -
-    s.world.positions[s.world.carrierId].y;
+  const gain = before.positions[before.carrierId].y - s.world.positions[s.world.carrierId].y;
   const cover = s.players.filter(
     (p) =>
       p.team === "home" &&
@@ -706,9 +615,7 @@ export function chooseLiveJourney(
   const quality =
     loss || offsideCall
       ? "error"
-      : possession &&
-          (completedPass || openingsAfter > openingsBefore || gain > 6) &&
-          cover > 0
+      : possession && (completedPass || openingsAfter > openingsBefore || gain > 6) && cover > 0
         ? "good"
         : "possible";
   const why = offsideCall
@@ -719,15 +626,12 @@ export function chooseLiveJourney(
         ? "Rywal nadal ma piłkę. Sprawdź linię do środka i osłonę za sobą."
         : `${touched ? "Piłka trafia do nowego odbiorcy. " : "Drużyna utrzymuje piłkę. "}${openingsAfter > openingsBefore ? "Po ruchu pojawiło się więcej dostępnych linii. " : "Sprawdź dalszą opcję odbiorcy. "}${cover === 0 ? "Brakuje osłony za piłką." : "Partnerzy pozostają za piłką jako osłona."}`;
   const alternative = findAlternative
-    ? (liveStep(previous).choices.find(
-        (a) => a.id !== c.id && a.intent !== c.intent,
-      ) ?? null)
+    ? (liveStep(previous).choices.find((a) => a.id !== c.id && a.intent !== c.intent) ?? null)
     : null;
   s.beats.push(beat);
   s.decisions.push({
     index: s.step,
-    action:
-      c.intent === "pass" ? "pass" : c.intent === "carry" ? "carry" : "move",
+    action: c.intent === "pass" ? "pass" : c.intent === "carry" ? "carry" : "move",
     choiceId: c.id,
     label: c.label,
     quality,
@@ -737,10 +641,7 @@ export function chooseLiveJourney(
     alternative,
     firstBeat: s.beats.length - 1,
     lastBeat: s.beats.length - 1,
-    decisionSeconds: Math.min(
-      86400,
-      Math.max(0, Number.isFinite(seconds) ? seconds : 0),
-    ),
+    decisionSeconds: Math.min(86400, Math.max(0, Number.isFinite(seconds) ? seconds : 0)),
     actorId: actor,
   });
   s.step++;
@@ -749,16 +650,10 @@ export function chooseLiveJourney(
   if (loss || offsideCall) s.outcome = loss ? "loss" : "blocked";
   else {
     const totalGain =
-      s.initial.positions[s.initial.carrierId].y -
-      s.world.positions[s.world.carrierId].y;
-    const achieved =
-      possession && totalGain > 10 && openingsAfter > 0 && cover > 0;
+      s.initial.positions[s.initial.carrierId].y - s.world.positions[s.world.carrierId].y;
+    const achieved = possession && totalGain > 10 && openingsAfter > 0 && cover > 0;
     if ((s.step >= 2 && achieved) || s.step >= 3)
-      s.outcome = possession
-        ? achieved
-          ? "progress"
-          : "retained"
-        : "contained";
+      s.outcome = possession ? (achieved ? "progress" : "retained") : "contained";
   }
   return s;
 }
@@ -767,10 +662,7 @@ export function chooseLiveJourney(
 export function liveSample(beat: JourneyBeat, seconds: number, clock: number) {
   const rows = beat.live!;
   const time = clamp(seconds, 0, beat.duration);
-  const index = Math.min(
-    rows.length - 2,
-    Math.max(0, Math.floor(time / DT + 1e-7)),
-  );
+  const index = Math.min(rows.length - 2, Math.max(0, Math.floor(time / DT + 1e-7)));
   const a = rows[index],
     b = rows[index + 1] ?? a,
     t = b.time > a.time ? clamp((time - a.time) / (b.time - a.time), 0, 1) : 1;
@@ -783,8 +675,7 @@ export function liveSample(beat: JourneyBeat, seconds: number, clock: number) {
     );
     world.headings[id] = a.world.headings[id] + delta * t;
     world.distances[id] =
-      a.world.distances[id] +
-      (b.world.distances[id] - a.world.distances[id]) * t;
+      a.world.distances[id] + (b.world.distances[id] - a.world.distances[id]) * t;
   }
   return {
     world,

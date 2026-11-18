@@ -39,7 +39,7 @@ export function simAt(variant: FpVariant, inputs: readonly FpInput[], tick: numb
 
 /** Where a ball into space for the runner should go: ahead of him, where he arrives first
  * by the widest margin over the rivals (keeper included). */
-export function spacePoint(s: SimState): V {
+function spacePoint(s: SimState): V {
   const r = s.agents.runner;
   const ahead = len(r.vel) > 2 ? norm(r.vel) : v(0, 1);
   const base = add(r.pos, scale(r.vel, 0.4));
@@ -63,7 +63,7 @@ export function spacePoint(s: SimState): V {
   return best;
 }
 
-export function optionInputs(s: SimState, tick: number): { key: OptionKey; input: FpInput }[] {
+function optionInputs(s: SimState, tick: number): { key: OptionKey; input: FpInput }[] {
   const ty = s.agents.ty;
   const space = spacePoint(s);
   const forward = headingOf(sub(v(ty.pos.x * 0.7, ty.pos.y + 10), ty.pos));

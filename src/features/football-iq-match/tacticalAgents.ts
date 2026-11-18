@@ -18,7 +18,7 @@ import {
   teamOf,
 } from "./tacticalWorld";
 
-export type AgentOption = {
+type AgentOption = {
   intent: "pass" | "carry" | "hold" | "shoot";
   targetId?: string;
   point: Point;

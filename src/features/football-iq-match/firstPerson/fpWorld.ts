@@ -31,7 +31,7 @@ import {
 import { PITCH } from "./fpMath";
 
 /** Pitch measurements in metres. `small`: small-sided markings (no 16.5 m box, no arcs). */
-export type PitchDims = {
+type PitchDims = {
   halfWidth: number;
   halfLength: number;
   goalHalfWidth: number;
@@ -196,7 +196,7 @@ function boardTexture() {
 
 /** `day`: bright daytime sky with a tree line, floodlight masts and small stands (5v5).
  * Without it the evening look of the 3v2 lesson stays exactly as it was. */
-export type WorldOptions = { day?: boolean };
+type WorldOptions = { day?: boolean };
 
 export function buildWorld(PITCH: PitchDims = FULL_PITCH, options: WorldOptions = {}) {
   const group = new Group();
@@ -367,7 +367,6 @@ export function buildWorld(PITCH: PitchDims = FULL_PITCH, options: WorldOptions 
     },
   };
 }
-export type FpWorld = ReturnType<typeof buildWorld>;
 
 /** Tree line, floodlight masts and two small stands around a small pitch. Trees are one
  * instanced mesh per part, so the whole scenery costs a handful of draw calls. */

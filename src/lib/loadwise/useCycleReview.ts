@@ -4,7 +4,7 @@ import { loadPastCycleReviews } from "./cycleReviewData";
 import type { CycleStartRecord, SessionDay } from "./types";
 
 /** Klucz podsumowania: przegląd dotyczy jednego zakończonego cyklu. */
-export function cycleReviewKey(record: CycleStartRecord): string {
+function cycleReviewKey(record: CycleStartRecord): string {
   return record.reviewedCycleId ?? `${record.review.startDate}_${record.review.endDate}`;
 }
 

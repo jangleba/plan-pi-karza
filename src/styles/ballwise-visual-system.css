@@ -58,20 +58,6 @@ select {
 .soft-card .soft-card {
   box-shadow: none;
 }
-.hero-card {
-  background: var(--primary);
-  color: var(--primary-foreground);
-  border: 0;
-  border-radius: var(--bw-card-radius);
-  box-shadow: none;
-}
-.icon-bubble {
-  border-radius: var(--bw-control-radius);
-  background: transparent;
-  color: var(--primary);
-  border: 0;
-  box-shadow: none;
-}
 
 /* One hierarchy across Start, Plan, Fuel, Lab, Progress and Profile. */
 .bw-page-header {
@@ -177,10 +163,6 @@ select {
 .bw-dialog-overlay {
   background: oklch(0.18 0.015 255 / 0.3);
 }
-.bw-blueprint-frame {
-  border-color: var(--border);
-  background: var(--secondary);
-}
 
 /* A fixed tab bar without five competing filled cards. */
 .bw-tab-bar {
@@ -234,24 +216,6 @@ select {
 }
 .bw-tab-item:focus-visible {
   outline-offset: 0;
-}
-
-.bw-session-header {
-  padding-top: max(12px, env(safe-area-inset-top));
-}
-.bw-session-header > button {
-  margin-bottom: 8px;
-  min-height: 44px;
-}
-.bw-session-header h1 {
-  font-size: 25px;
-  font-weight: 650;
-  line-height: 1.2;
-  letter-spacing: -0.035em;
-}
-.bw-session-header .bw-session-meta {
-  gap: 8px;
-  margin-top: 10px;
 }
 .bw-session-page > .bw-session-body {
   margin-top: 16px;
@@ -367,33 +331,12 @@ select {
   color: var(--primary);
   font-size: 12px;
 }
-.bw-home-compact .bw-today-compact {
-  padding: 18px;
-  border-width: var(--bw-hairline);
-  border-radius: var(--bw-card-radius);
-}
-.bw-today-compact h2 {
-  margin-top: 8px;
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-}
-.bw-today-compact > button {
-  margin-top: 16px;
-  height: 44px;
-  border-radius: var(--bw-control-radius);
-  font-size: 14px;
-}
 .bw-home-checks,
 .bw-home-tools {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-top: 12px;
-}
-.bw-home-checks.is-single {
-  grid-template-columns: 1fr;
 }
 .bw-home-checks button,
 .bw-home-tools button {
@@ -403,13 +346,6 @@ select {
   background: var(--card);
   color: var(--primary);
   padding: 14px;
-}
-.bw-home-checks button {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 68px;
-  text-align: left;
 }
 .bw-home-checks strong,
 .bw-home-tools strong {
@@ -569,36 +505,6 @@ select {
   margin: 8px 0 0;
   color: var(--muted-foreground);
   font-size: 12px;
-}
-.bw-week-nav {
-  position: sticky;
-  top: env(safe-area-inset-top, 0px);
-  z-index: 20;
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  padding: 8px var(--bw-page-gutter);
-  border-bottom: 1px solid var(--border);
-  background: var(--background);
-}
-.bw-week-nav > div {
-  text-align: center;
-}
-.bw-week-nav strong {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-}
-.bw-week-nav small {
-  display: block;
-  font-size: 12px;
-  color: var(--muted-foreground);
-  margin-top: 2px;
-}
-.bw-week-nav button {
-  padding-inline: 12px;
-  min-width: 44px;
 }
 .premium-flow,
 .auth-premium,
@@ -842,50 +748,6 @@ select {
   font-size: 14px;
   font-weight: 600;
 }
-.bw-auth__owner {
-  min-width: 0;
-  padding: 0;
-  margin: 0;
-  border: 0;
-}
-.bw-auth__owner legend {
-  margin-bottom: 9px;
-}
-.bw-auth__owner > div {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.bw-auth__owner label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 11px 9px;
-  border: 1px solid var(--border);
-  border-radius: 11px;
-  cursor: pointer;
-}
-.bw-auth__owner label:has(:checked) {
-  border-color: var(--primary);
-  background: var(--secondary);
-}
-.bw-auth__owner input {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  accent-color: var(--primary);
-}
-.bw-auth__owner strong {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-}
-.bw-auth__owner small {
-  display: block;
-  margin-top: 3px;
-  color: var(--muted-foreground);
-  font-size: 10px;
-}
 .bw-auth__hint {
   margin: 0;
   font-size: 11px;
@@ -947,15 +809,6 @@ select {
     padding: 20px 16px;
   }
 }
-.bw-grouped-list {
-  border: var(--bw-hairline) solid var(--border);
-  border-radius: var(--bw-card-radius);
-  background: var(--card);
-  overflow: hidden;
-}
-.bw-grouped-list > * + * {
-  border-top: var(--bw-hairline) solid var(--border);
-}
 
 /* A small labelled accent, shared by intensity and real state indicators. */
 .bw-status {
@@ -975,11 +828,6 @@ select {
   font-size: 11px;
   font-weight: 500;
   line-height: 1.45;
-}
-.bw-status--success {
-  --bw-status-ink: var(--bw-success);
-  --bw-status-fill: var(--bw-success-soft);
-  --bw-status-line: var(--bw-success-line);
 }
 .bw-status--warning {
   --bw-status-ink: var(--bw-warning);
@@ -1006,12 +854,6 @@ select {
 }
 :root .bw-tone--warning {
   color: var(--bw-warning);
-}
-:root .bw-tone--error {
-  color: var(--bw-error);
-}
-:root .bw-tone--neutral {
-  color: var(--bw-neutral);
 }
 .fuel-v4 .bw-inline-error {
   border: var(--bw-hairline) solid var(--bw-error-line);
@@ -1131,24 +973,6 @@ select {
   padding: 4px 0 0;
   margin-bottom: 8px;
   font-size: 20px;
-}
-.bw-week-nav {
-  border-top: 0;
-}
-.bw-plan-day-link {
-  min-height: 72px;
-  padding: 12px 4px;
-  gap: 10px;
-}
-.bw-plan-day-title {
-  font-size: 16px;
-  line-height: 1.35;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-.bw-plan-day-meta {
-  font-size: 13px;
-  line-height: 1.5;
 }
 @media (max-width: 359px) {
   .bw-surface-sketch {

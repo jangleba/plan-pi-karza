@@ -65,10 +65,7 @@ export interface TrainingMethodDefinition {
   coachingFocus: string;
   stopRule: string;
 }
-export interface MethodEligibility {
-  allowed: boolean;
-  reasons: string[];
-}
+
 export interface MethodExecution {
   methodId: TrainingMethodId;
   mode: MethodClockMode;

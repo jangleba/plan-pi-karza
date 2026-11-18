@@ -5,7 +5,7 @@ import { trainingTier, type EngineSession } from "./model";
 import { hasCurrentVerifiedMas } from "./endurance";
 
 /** A voluntary field MAS test the engine itself prepared; no other recipe may use this id. */
-export const MAS_TEST_ID_PREFIX = "v2:mas-test:";
+const MAS_TEST_ID_PREFIX = "v2:mas-test:";
 export const MAS_TEST_SECONDS = 300;
 export const isMasTestRecipe = (run: Pick<RunningRecipe, "id" | "method"> | null | undefined) =>
   !!run && run.method === "field_mas_test" && run.id.startsWith(MAS_TEST_ID_PREFIX);

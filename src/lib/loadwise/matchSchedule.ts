@@ -52,7 +52,7 @@ export function rememberedMatchWeekday(
  * purpose: matches every week AND a saved weekday. Anything else (a single
  * match, „no fixed day”, an old profile without a weekday) gives null.
  */
-export function fixedMatchWeekday(
+function fixedMatchWeekday(
   profile: Partial<Pick<Profile, "weeklyMatches" | "usualMatchDay">>,
 ): number | null {
   const day = profile.usualMatchDay;

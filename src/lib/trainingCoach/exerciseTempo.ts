@@ -1,6 +1,6 @@
 /** Tempo is E – pause after E – C – pause after C. X is intent, never measured seconds. */
-export type TempoValue = number | "X";
-export interface TempoSpec {
+type TempoValue = number | "X";
+interface TempoSpec {
   values: [TempoValue, number, TempoValue, number];
   label: string;
 }
@@ -16,11 +16,11 @@ export interface TempoProfile {
   setup?: [number, number];
   finish?: [number, number];
 }
-export interface TempoModel {
+interface TempoModel {
   tempoProfile?: TempoProfile;
   variant?: string;
 }
-export interface TempoSegment {
+interface TempoSegment {
   key: string;
   label: string;
   durationMs: number;
@@ -29,7 +29,7 @@ export interface TempoSegment {
   to: number;
   illustrative: boolean;
 }
-export interface TempoFrame {
+interface TempoFrame {
   modelPhase: number;
   key: string;
   label: string;
@@ -39,7 +39,7 @@ export interface TempoFrame {
   complete: boolean;
   progress: number;
 }
-export interface TempoPlan {
+interface TempoPlan {
   kind: "rep" | "hold";
   source: "session" | "preview";
   totalMs: number;

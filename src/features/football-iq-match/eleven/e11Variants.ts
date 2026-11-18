@@ -67,7 +67,7 @@ export const BASE: Record<Slot, V> = {
 };
 
 /** Shirt numbers of a 4-4-2, used in every text and on the replay. */
-export const SHIRT: Record<Slot, number> = {
+const SHIRT: Record<Slot, number> = {
   gk: 1,
   rb: 2,
   lb: 3,
@@ -127,7 +127,6 @@ export type E11Variant = {
   pressDelay: number;
 };
 
-export const E11_VARIANT_VERSION = 1;
 const pick = <T>(r: () => number, list: readonly T[]) => list[Math.floor(r() * list.length)]!;
 
 export function makeVariant(seed: number, role: E11Role): E11Variant {

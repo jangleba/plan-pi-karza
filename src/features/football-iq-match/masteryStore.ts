@@ -2,7 +2,7 @@
  * Light on purpose (no IQ engine imports): the Start screen reads it too. */
 import type { ContributionProblem, DecisionAssessment, LessonAim } from "./decisionAssessment";
 import type { JourneyQuality } from "./journeyTypes";
-export const aimLabels: Record<LessonAim, string> = {
+const aimLabels: Record<LessonAim, string> = {
   progress: "Gra do przodu",
   switch: "Zmiana strony",
   counter: "Kontra",
@@ -105,9 +105,9 @@ export function focusAim(mastery: Mastery): AimProgress | null {
 
 /** Recent problems in TY's own decisions (newest last), for choosing by error type. */
 export type ProblemEntry = { problem: ContributionProblem; topicId: string };
-export const PROBLEM_WINDOW = 12;
+const PROBLEM_WINDOW = 12;
 /** A problem counts as recurring when it shows up this many times in the window. */
-export const RECURRING = 2;
+const RECURRING = 2;
 
 export const problemLabels: Record<ContributionProblem, string> = {
   "lane-closed": "podanie w zamknięty tor",
@@ -157,8 +157,7 @@ export function recurringProblem(log: ProblemEntry[]): ProblemEntry | null {
   return best;
 }
 
-export const problemsKey = (owner: string | undefined) =>
-  `ballwise:iq:problems:v1:${owner ?? "local"}`;
+const problemsKey = (owner: string | undefined) => `ballwise:iq:problems:v1:${owner ?? "local"}`;
 
 export function loadProblems(
   owner: string | undefined,

@@ -1,7 +1,7 @@
 import { addIsoDays } from "@/lib/isoDate";
 import type { SessionCompletion, SessionDay } from "./types";
 
-export const ACTIVE_SESSION_GRACE_MS = 4 * 60 * 60 * 1000;
+const ACTIVE_SESSION_GRACE_MS = 4 * 60 * 60 * 1000;
 
 function validCalendarDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;

@@ -13,23 +13,11 @@ import {
   iqScenarioBank,
 } from "./journeyBank";
 import { ADVANCED_JOURNEY_BANK_VERSION } from "./advancedJourneyBank";
-import {
-  TACTICAL_BANK_VERSION,
-  LEGACY_TACTICAL_BANK_VERSION,
-} from "./tacticalWorld";
+import { TACTICAL_BANK_VERSION, LEGACY_TACTICAL_BANK_VERSION } from "./tacticalWorld";
 import { observedReaction, forecastRival } from "./tacticalForecast";
 import { controlTacticalActor } from "./tacticalJourney";
-import {
-  chooseJourney,
-  createJourneyForRules,
-  journeyVerdict,
-} from "./journeyEngine";
-import type {
-  JourneyAttempt,
-  JourneyMode,
-  JourneySession,
-  TacticalForecast,
-} from "./journeyTypes";
+import { chooseJourney, createJourneyForRules, journeyVerdict } from "./journeyEngine";
+import type { JourneyAttempt, JourneyMode, JourneySession, TacticalForecast } from "./journeyTypes";
 
 export type JourneyDraft = {
   forecasts?: TacticalForecast[];
@@ -41,11 +29,9 @@ export type JourneyDraft = {
   choices: { id: string; seconds: number }[];
 };
 type Store = Pick<Storage, "getItem" | "setItem" | "removeItem">;
-export const MAX_JOURNEY_ATTEMPTS = 100;
-export const journeyHistoryKey = (owner: string) =>
-  `ballwise:iq:journeys:v1:${owner}`;
-export const journeyDraftKey = (owner: string) =>
-  `${journeyHistoryKey(owner)}:draft`;
+const MAX_JOURNEY_ATTEMPTS = 100;
+export const journeyHistoryKey = (owner: string) => `ballwise:iq:journeys:v1:${owner}`;
+export const journeyDraftKey = (owner: string) => `${journeyHistoryKey(owner)}:draft`;
 const key = journeyHistoryKey;
 const draftKey = journeyDraftKey;
 function announce(owner: string, key: string, value: string | null) {
@@ -86,12 +72,10 @@ function validBase(v: unknown): v is JourneyDraft {
       ...ATTACK_BANK_VERSIONS,
     ].includes(v.bankVersion) ===
       (definitionById.get(v.scenarioId)?.revision === 3) &&
-    (v.bankVersion !== "2026-10-15.1" ||
-      definitionById.get(v.scenarioId)?.revision !== 2) &&
+    (v.bankVersion !== "2026-10-15.1" || definitionById.get(v.scenarioId)?.revision !== 2) &&
     ["learn", "challenge"].includes(String(v.mode)) &&
     Array.isArray(v.choices) &&
-    v.choices.length <=
-      (ATTACK_BANK_VERSIONS.includes(v.bankVersion) ? 80 : 10) &&
+    v.choices.length <= (ATTACK_BANK_VERSIONS.includes(v.bankVersion) ? 80 : 10) &&
     v.choices.every(validChoice) &&
     (v.forecasts === undefined ||
       ([
@@ -99,9 +83,7 @@ function validBase(v: unknown): v is JourneyDraft {
         LIVE_BANK_VERSION,
         ATTACK_BANK_VERSION,
         ATTACK_BANK_VERSION_R2,
-      ].includes(
-        v.bankVersion,
-      ) &&
+      ].includes(v.bankVersion) &&
         Array.isArray(v.forecasts) &&
         v.forecasts.length <= v.choices.length &&
         v.forecasts.every(
@@ -119,15 +101,12 @@ function validBase(v: unknown): v is JourneyDraft {
             // Rules v9 asks only for the reaction; older lessons also stored a plan.
             ([ATTACK_BANK_VERSION, ATTACK_BANK_VERSION_R2].includes(String(v.bankVersion))
               ? f.plan === undefined
-              : typeof f.plan === "string" &&
-                ["support", "protect", "scan"].includes(f.plan)),
+              : typeof f.plan === "string" && ["support", "protect", "scan"].includes(f.plan)),
         ) &&
-        new Set(v.forecasts.map((f) => f.decisionIndex)).size ===
-          v.forecasts.length)) &&
+        new Set(v.forecasts.map((f) => f.decisionIndex)).size === v.forecasts.length)) &&
     v.choices.every(
       (c) =>
-        (!c.id.startsWith("free:") &&
-          !/^(?:as6:[a-z0-9-]+:)?free6:/.test(c.id)) ||
+        (!c.id.startsWith("free:") && !/^(?:as6:[a-z0-9-]+:)?free6:/.test(c.id)) ||
         ([
           "2026-10-15.3",
           JOURNEY_BANK_VERSION,
@@ -146,15 +125,9 @@ function validAttempt(v: unknown): v is JourneyAttempt {
     typeof row.createdAt === "string" &&
     Number.isFinite(Date.parse(row.createdAt)) &&
     ["strong", "conditional", "risky"].includes(String(row.verdict)) &&
-    [
-      "progress",
-      "retained",
-      "chance",
-      "blocked",
-      "loss",
-      "recovered",
-      "contained",
-    ].includes(String(row.outcome)) &&
+    ["progress", "retained", "chance", "blocked", "loss", "recovered", "contained"].includes(
+      String(row.outcome),
+    ) &&
     row.role === definitionById.get(v.scenarioId)!.role
   );
 }
@@ -185,8 +158,7 @@ export function restoreJourney(value: JourneyDraft): JourneySession {
     const forecast = value.forecasts?.find((f) => f.decisionIndex === index);
     if (forecast) {
       const actor = session.decisions.at(-1)?.actorId;
-      const controlled =
-        actor && actor !== "you" ? controlTacticalActor(before, actor) : before;
+      const controlled = actor && actor !== "you" ? controlTacticalActor(before, actor) : before;
       if (
         forecastRival(controlled)?.id !== forecast.rivalId ||
         observedReaction(session, index, forecast.rivalId) !== forecast.actual
@@ -194,8 +166,7 @@ export function restoreJourney(value: JourneyDraft): JourneySession {
         throw new Error("Prognoza nie zgadza się z przebiegiem akcji.");
     }
   }
-  if (value.forecasts?.length)
-    session.forecasts = value.forecasts.map((f) => ({ ...f }));
+  if (value.forecasts?.length) session.forecasts = value.forecasts.map((f) => ({ ...f }));
   return session;
 }
 export function loadJourneyHistory(
@@ -205,8 +176,7 @@ export function loadJourneyHistory(
   if (!owner) return [];
   const raw = storage.getItem(key(owner));
   if (!raw) return [];
-  if (raw.length > 2_000_000)
-    throw new Error("Historia jest zbyt duża do bezpiecznego odczytu.");
+  if (raw.length > 2_000_000) throw new Error("Historia jest zbyt duża do bezpiecznego odczytu.");
   const value: unknown = JSON.parse(raw);
   if (
     !Array.isArray(value) ||
@@ -231,8 +201,7 @@ export function makeJourneyAttempt(
   id: string,
   now = new Date(),
 ): JourneyAttempt {
-  if (!session.outcome)
-    throw new Error("Nie zapisujemy nieukończonej akcji jako wyniku.");
+  if (!session.outcome) throw new Error("Nie zapisujemy nieukończonej akcji jako wyniku.");
   return {
     version: 1,
     bankVersion:
@@ -254,9 +223,7 @@ export function makeJourneyAttempt(
     role: session.definition.role,
     mode,
     createdAt: now.toISOString(),
-    ...(session.forecasts?.length
-      ? { forecasts: session.forecasts.map((f) => ({ ...f })) }
-      : {}),
+    ...(session.forecasts?.length ? { forecasts: session.forecasts.map((f) => ({ ...f })) } : {}),
     choices: session.decisions.map((d) => ({
       id: d.choiceId,
       seconds: Math.min(86400, d.decisionSeconds),
@@ -367,9 +334,7 @@ export function makeJourneyDraft(
     id,
     scenarioId: session.definition.id,
     mode,
-    ...(session.forecasts?.length
-      ? { forecasts: session.forecasts.map((f) => ({ ...f })) }
-      : {}),
+    ...(session.forecasts?.length ? { forecasts: session.forecasts.map((f) => ({ ...f })) } : {}),
     choices: session.decisions.map((d) => ({
       id: d.choiceId,
       seconds: Math.min(86400, d.decisionSeconds),
@@ -383,19 +348,14 @@ export function loadJourneyDraft(
   if (!owner) return null;
   const raw = storage.getItem(draftKey(owner));
   if (!raw) return null;
-  if (raw.length > 10000)
-    throw new Error("Nieprawidłowy zapis niedokończonej akcji.");
+  if (raw.length > 10000) throw new Error("Nieprawidłowy zapis niedokończonej akcji.");
   const draft: unknown = JSON.parse(raw);
-  if (!validBase(draft))
-    throw new Error("Nie udało się odczytać niedokończonej akcji.");
+  if (!validBase(draft)) throw new Error("Nie udało się odczytać niedokończonej akcji.");
   const session = restoreJourney(draft);
   return session.outcome ? null : draft;
 }
 
-export function rawJourneyData(
-  owner: string,
-  storage: Pick<Storage, "getItem"> = localStorage,
-) {
+export function rawJourneyData(owner: string, storage: Pick<Storage, "getItem"> = localStorage) {
   return {
     history: storage.getItem(key(owner)),
     draft: storage.getItem(draftKey(owner)),
@@ -435,11 +395,7 @@ export function readJourneyBackup(input: unknown) {
     throw new Error("Kopia niedokończonej akcji zawiera już wynik.");
   return { attempts, draft: draft as JourneyDraft | null };
 }
-export function restoreJourneyBackup(
-  owner: string,
-  input: unknown,
-  storage: Store = localStorage,
-) {
+export function restoreJourneyBackup(owner: string, input: unknown, storage: Store = localStorage) {
   if (!owner) throw new Error("Zaloguj się, aby przywrócić kopię IQ.");
   const incoming = readJourneyBackup(input);
   const current = loadJourneyHistory(owner, storage);
@@ -467,14 +423,10 @@ export function restoreJourneyBackup(
     );
   const before = rawJourneyData(owner, storage);
   const historyRaw = JSON.stringify(merged);
-  const draftRaw =
-    incoming.draft && !currentDraft
-      ? JSON.stringify(incoming.draft)
-      : before.draft;
+  const draftRaw = incoming.draft && !currentDraft ? JSON.stringify(incoming.draft) : before.draft;
   try {
     storage.setItem(key(owner), historyRaw);
-    if (draftRaw !== before.draft && draftRaw !== null)
-      storage.setItem(draftKey(owner), draftRaw);
+    if (draftRaw !== before.draft && draftRaw !== null) storage.setItem(draftKey(owner), draftRaw);
   } catch (reason) {
     try {
       if (before.history === null) storage.removeItem(key(owner));
@@ -502,9 +454,7 @@ export function clearJourneyDataAfterBackup(
 ) {
   const current = rawJourneyData(owner, storage);
   if (current.history !== expected.history || current.draft !== expected.draft)
-    throw new Error(
-      "Zapis zmienił się. Pobierz aktualną kopię przed wyczyszczeniem.",
-    );
+    throw new Error("Zapis zmienił się. Pobierz aktualną kopię przed wyczyszczeniem.");
   storage.removeItem(key(owner));
   storage.removeItem(draftKey(owner));
   announce(owner, key(owner), null);

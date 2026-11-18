@@ -5,7 +5,7 @@ import {
   type DirectionQuality,
 } from "../playerDirection";
 
-export interface GoalPolicy {
+interface GoalPolicy {
   primary: Goal;
   firstAccent: DirectionQuality | null;
   reduced: boolean;

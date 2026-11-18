@@ -34,7 +34,7 @@ import {
   type StrengthLoadContext,
 } from "@/lib/loadwise/engineV2/loadAutoregulation";
 
-export type SetTableKind = "load" | "bodyweight" | "hold";
+type SetTableKind = "load" | "bodyweight" | "hold";
 type Values = { weight: string; reps: string; rir: string; value: string };
 const EMPTY: Values = { weight: "", reps: "", rir: "", value: "" };
 type Drafts = Record<string, Values>;

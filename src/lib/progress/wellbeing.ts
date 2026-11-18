@@ -5,7 +5,7 @@ import type { Readiness } from "../loadwise/types";
  * against the period before it. Compared only with the athlete's own values — no norms, no
  * diagnosis. Needs the health-data consent; the caller passes nothing without it.
  */
-export type WellbeingKey = "sleep" | "energy" | "fatigue" | "soreness";
+type WellbeingKey = "sleep" | "energy" | "fatigue" | "soreness";
 export interface WellbeingTrend {
   key: WellbeingKey;
   label: string;

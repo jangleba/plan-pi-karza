@@ -401,63 +401,6 @@ export type PlanSessionType =
   | "prehab_mobility"
   | "rest";
 
-export interface PlanSession {
-  id: string;
-  type: PlanSessionType;
-  title: string;
-  intensity: Intensity;
-  durationMin: number;
-  isClubSession: boolean;
-  isOwnSession: boolean;
-  isRecoveryOrPrehab: boolean;
-  isSupplemental: boolean;
-  exercises: ExerciseItem[];
-  source: SessionDay;
-}
-
-export interface PlanDay {
-  date: string;
-  dayOfWeek: number;
-  mdRelation: string | null;
-  sessions: PlanSession[];
-  outsideActivePlan?: boolean;
-  source: SessionDay;
-}
-
-/** Faza periodyzacji tygodnia w 4-tygodniowym bloku. */
-export type WeekPhase = "adaptation" | "development" | "peak" | "deload";
-
-export interface PlanWeek {
-  weekId: string;
-  weekNumber: number;
-  startDate: string;
-  endDate: string;
-  days: PlanDay[];
-  matchDate: string | null;
-  matchDates: string[];
-  focus: string;
-  /**
-   * Zaplanowane obciążenie tygodnia (bez korekty daily readiness).
-   * To wartość pokazywana na badge tygodnia. Alias: `plannedWeeklyLoad`.
-   */
-  loadLevel: Intensity;
-  /** Faza periodyzacji tygodnia — osobna wartość, niezależna od readiness. */
-  weekPhase: WeekPhase;
-  /** Jawny alias na zaplanowane obciążenie tygodnia (badge). */
-  plannedWeeklyLoad: Intensity;
-  reasons: string[];
-}
-
-export interface WeekStats {
-  ownTrainingCount: number;
-  clubTrainingCount: number;
-  recoveryPrehabCount: number;
-  doubleDayCount: number;
-  hasMatch: boolean;
-  matchDateLabel: string;
-  weeklyLoadLabel: Intensity;
-}
-
 /**
  * Tagi obciążenia sesji — używane przez scheduler do ochrony następstwa dni
  * (np. brak dwóch ciężkich dolnych dni z rzędu) i do opisu bodźca.

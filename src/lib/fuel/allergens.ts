@@ -1,5 +1,5 @@
 /** Product labels use their own allergen vocabulary, independently of the recipe catalogue. */
-export function normalizedFoodText(value: string): string {
+function normalizedFoodText(value: string): string {
   return value
     .toLocaleLowerCase("pl")
     .normalize("NFD")

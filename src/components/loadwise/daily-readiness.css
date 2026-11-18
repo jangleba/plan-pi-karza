@@ -68,20 +68,6 @@
   padding: 0;
   border: 0;
 }
-.bw-readiness-scale {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 96px;
-  align-items: center;
-  gap: 12px;
-  font-size: 14px;
-}
-.bw-readiness-scale small {
-  display: block;
-  margin-top: 4px;
-  color: var(--muted-foreground);
-  font-size: 11px;
-  line-height: 1.4;
-}
 .bw-readiness-card select {
   width: 100%;
   min-width: 0;

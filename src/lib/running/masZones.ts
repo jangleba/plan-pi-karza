@@ -10,7 +10,7 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-export function formatPaceTarget(secondsPerKm: number): string {
+function formatPaceTarget(secondsPerKm: number): string {
   const rounded = Math.round(secondsPerKm);
   return `${Math.floor(rounded / 60)}:${String(rounded % 60).padStart(2, "0")}/km`;
 }
@@ -63,9 +63,9 @@ export const MAS_ZONES = {
     example: "6 × 1 min biegu / 1 min truchtu",
   },
 } as const;
-export type MasZoneId = keyof typeof MAS_ZONES;
+type MasZoneId = keyof typeof MAS_ZONES;
 
-export interface MasTrainingPace {
+interface MasTrainingPace {
   id: MasZoneId;
   label: string;
   energy: string;

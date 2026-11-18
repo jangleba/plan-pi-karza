@@ -45,7 +45,7 @@ function mondayOf(iso: string): string {
   return date.toISOString().slice(0, 10);
 }
 
-export interface PlanWeekGroup {
+interface PlanWeekGroup {
   monday: string;
   days: SessionDay[];
 }

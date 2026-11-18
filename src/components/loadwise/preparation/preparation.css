@@ -110,28 +110,6 @@
   margin: 0;
   flex-shrink: 0;
 }
-.bw-prep-overview {
-  list-style: none;
-  margin: 8px 0 16px;
-  padding: 0;
-}
-.bw-prep-overview li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-bottom: 1px solid var(--prep-line);
-  padding: 8px 0;
-}
-.bw-prep-overview strong,
-.bw-prep-overview span {
-  display: block;
-  font-size: 14px;
-}
-.bw-prep-overview span {
-  font-size: 12px;
-  color: var(--prep-gray);
-  margin-top: 3px;
-}
 .bw-prep-evidence {
   margin: 14px 0;
   color: #4e6073;
@@ -171,11 +149,6 @@
   letter-spacing: 0;
   line-height: 1.5;
   margin-top: 5px;
-}
-.bw-prep-science > div {
-  border-top: 1px solid var(--prep-line);
-  padding-top: 10px;
-  margin-top: 10px;
 }
 .bw-prep-cues {
   list-style: none;
@@ -290,72 +263,6 @@
   min-height: 58px;
   font-size: 15px;
   margin: 0 0 20px;
-}
-.bw-prep-focus {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin: 20px 0;
-}
-.bw-prep-focus button {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 12px;
-  min-height: 94px;
-  border: 1px solid #d7dfe6;
-  background: white;
-  color: var(--prep-navy);
-  border-radius: 16px;
-  cursor: pointer;
-  padding: 13px 8px;
-}
-.bw-prep-focus button[aria-pressed="true"] {
-  border: 2px solid var(--prep-navy);
-  background: #f2f6f8;
-  padding: 12px 7px;
-}
-.bw-prep-focus strong {
-  font-size: 14px;
-  font-weight: 600;
-}
-.bw-prep-focus button:last-child:nth-child(odd) {
-  grid-column: 1/-1;
-  min-height: 74px;
-  flex-direction: row;
-}
-.bw-prep-selected {
-  position: absolute;
-  right: 9px;
-  top: 9px;
-}
-.bw-prep-summary {
-  display: flex;
-  justify-content: space-evenly;
-  border-top: 1px solid var(--prep-line);
-  border-bottom: 1px solid var(--prep-line);
-  padding: 15px 0;
-  font-size: 14px;
-  margin: 15px 0;
-}
-.bw-prep-preview {
-  font-size: 13px;
-  margin: 12px 0 18px;
-}
-.bw-prep-preview summary {
-  cursor: pointer;
-  min-height: 38px;
-  display: flex;
-  align-items: center;
-}
-.bw-prep-preview ol {
-  padding-left: 20px;
-  color: var(--prep-gray);
-}
-.bw-prep-preview li {
-  margin: 7px 0;
 }
 .bw-prep-after {
   text-align: center;

@@ -83,7 +83,7 @@ export function lessonAim(def: JourneyDefinition): LessonAim {
   return "progress";
 }
 
-export type DecisionKind = "own" | "partner" | "rival" | "loose";
+type DecisionKind = "own" | "partner" | "rival" | "loose";
 export type ContributionProblem =
   | "lane-closed"
   | "lane-read"
@@ -227,7 +227,7 @@ const nearestRival = (s: JourneySession, w: JourneyWorld, at: Point) =>
   );
 
 /** Facts about TY's decision `index`, measured from the saved worlds and events. */
-export function decisionFacts(session: JourneySession, index: number): DecisionFacts {
+function decisionFacts(session: JourneySession, index: number): DecisionFacts {
   const d = session.decisions[index];
   const you = d.actorId ?? "you";
   const before = d.before,
@@ -714,7 +714,7 @@ function sourceFor(session: JourneySession, problem: ContributionProblem | null)
 
 /** The consequence of the decision in two or three words, kept apart from its grade:
  * a good decision can still end in a save, a weaker one can still keep the ball. */
-export function resultLabel(f: DecisionFacts): string {
+function resultLabel(f: DecisionFacts): string {
   if (f.shot)
     return {
       goal: "Gol",

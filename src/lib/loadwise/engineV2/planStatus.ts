@@ -6,8 +6,8 @@ import { ENGINE_VERSION } from "./model";
 import { validateEngineSession } from "./validation";
 import type { SessionDurationMode } from "./sessionDurationPolicy";
 
-export type PlanStatusKind = "empty" | "active" | "expired" | "stale";
-export interface PlanStatus {
+type PlanStatusKind = "empty" | "active" | "expired" | "stale";
+interface PlanStatus {
   kind: PlanStatusKind;
   startDate: string | null;
   endDate: string | null;
