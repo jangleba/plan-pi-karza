@@ -75,10 +75,12 @@ Silnik = czysty, deterministyczny TypeScript (bez AI). Ten sam wynik dla tych sa
 ## Bieganie i MAS (runda 5)
 - Brak gotowych jednostek biegowych. Dwie główne formy: bieg ciągły i interwały (fartlek i szybkość wytrzymałościowa meczowa jako dodatki).
 - Dawkowanie na bazie MAS (maximal aerobic speed). Test: bieg 5-minutowy; MAS = dystans / 300 s (m/s; km/h = m/s x 3,6).
-- MAS liczony jednorazowo (kalkulator w aplikacji, automatycznie), powtarzany po dwóch cyklach (2 x 4–5 tyg.; do potwierdzenia, wpisano „80 tygodni").
+- MAS liczony jednorazowo (kalkulator w aplikacji, automatycznie), powtarzany co 8–10 tygodni (dwa cykle po 4–5).
 - Z MAS silnik wylicza tempo, dystans i intensywność sesji.
 - Konto wymagane (logowanie). Pierwszy etap: silnik + prosty ekran tygodnia.
 
 ## Wygląd
 - Styl Apple: basic, modern, minimalistyczny, elegancki, prosty. Ogólnie pastelowy i subtelny.
 - Kolory znaczeniowe (pastelowe): czerwony, żółty, zielony.
+- Test MAS i biegi: aplikacja z GPS odczytuje dystans i od razu liczy MAS; gdy się nie da, zawodnik wpisuje dystans ręcznie. Mapa jak w Stravie, wewnątrz treningów biegowych (etap natywny/iOS).
+- Supabase: nowy projekt, klucze poda użytkownik.
