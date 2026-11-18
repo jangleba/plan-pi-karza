@@ -56,3 +56,12 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 - „Mecz w głowie": ok. 3 min – oddech, 4 sytuacje dla pozycji z animowaną tablicą, słowo na mecz; zalecany MD-1 i w dniu meczu. Treści to moje szkice do przeglądu trenera.
 - MAS przeniesiony do jednostki biegowej. Bieganie jak w Stravie (mapa na żywo, tempo, dystans, km, prowadzenie interwałów) – następny PR.
 - Trening reakcji zostaje tylko w treningach piłkarskich.
+
+## Bieg z GPS (wdrożone)
+- W jednostce biegowej: „Rozpocznij bieg/test z GPS" – ekran jak w Stravie: trasa, czas, dystans, tempo teraz i średnie, odcinki km, fazy interwałów (praca/przerwa) z odliczaniem i tempem docelowym z MAS.
+- Test MAS z GPS: dystans po 5 minutach zapisuje MAS automatycznie (ręczny wpis nadal działa).
+- Sygnał zmiany fazy: tylko wibracja (decyzja użytkownika) – NIE działa w przeglądarce na iPhonie; zadziała w wersji natywnej iOS.
+- Mapa: Mapbox (styl light) po ustawieniu `VITE_MAPBOX_TOKEN`; bez tokenu rysunek trasy.
+- Ekran pozostaje włączony (Wake Lock); w przeglądarce GPS działa tylko przy włączonym ekranie.
+- Biegi zapisywane lokalnie (`runs`), trasa co 5. punkt.
+- Filtrowanie GPS: punkty o dokładności > 25 m i prędkości > 11 m/s odrzucane.

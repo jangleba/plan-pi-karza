@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Pitch } from "./Pitch";
 import { pushWeightLog } from "./lib/sync";
-import { MasCard, loadMas } from "./MasCard";
+import { MasCard, loadMas, saveMasDistance } from "./MasCard";
+import { RunTracker } from "./RunTracker";
 import { CueTrainer } from "./CueTrainer";
 import { EXERCISES, RECOVERY, bodyweightTemplate, drillsFor, adaptSession, addEvents, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
 import type { CheckIn, DayPlan, HistoryEvent, Level, Mas, Position, Suggestion } from "./engine";
@@ -15,6 +16,7 @@ export function SessionSheet({
   day, checkIn, weekInCycle, level, position, hasGym, onClose,
 }: { day: DayPlan; checkIn: CheckIn; weekInCycle: number; level: Level; position?: Position; hasGym: boolean; onClose: () => void }) {
   const [mas, setMas] = useState<Mas | null>(loadMas);
+  const [running, setRunning] = useState(false);
   const [log, setLog] = useState(loadLog);
   const [weights, setWeights] = useState<Record<string, string>>({});
   const [summary, setSummary] = useState<Suggestion[] | null>(null);
@@ -142,7 +144,20 @@ export function SessionSheet({
         ) : run ? (
           <>
             <p className="text-sm text-muted">{run.title}</p>
-            <MasCard onChange={setMas} />
+            <MasCard mas={mas} onChange={setMas} />
+            <button onClick={() => setRunning(true)} className="mt-3 w-full rounded-2xl bg-ink py-3 text-sm font-medium text-card">
+              {run.isTest ? "Rozpocznij test z GPS" : "Rozpocznij bieg z GPS"}
+            </button>
+            {running && (
+              <RunTracker
+                session={run}
+                onClose={() => setRunning(false)}
+                onFinish={(r) => {
+                  if (run.isTest && r.distanceAt5min) setMas(saveMasDistance(Math.round(r.distanceAt5min)));
+                  setRunning(false);
+                }}
+              />
+            )}
             {run.notes.map((n) => (
               <p key={n} className="mt-3 rounded-xl border border-hairline bg-canvas px-3 py-2 text-sm text-muted">{n}</p>
             ))}

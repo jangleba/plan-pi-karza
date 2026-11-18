@@ -12,18 +12,23 @@ export function loadMas(): Mas | null {
   }
 }
 
+/** Zapis MAS z dystansu (ręcznie lub z GPS po teście 5 min). */
+export function saveMasDistance(d: number): Mas {
+  try { localStorage.setItem("masDistance", String(d)); } catch { /* brak pamięci */ }
+  const m = calcMas(d);
+  addEvents([{ date: localISO(), type: "mas", key: "mas", value: m.kmh }]);
+  void pushMas(d);
+  return m;
+}
+
 /** MAS w jednostce biegowej: wynik testu 5 min i zapis nowego. */
-export function MasCard({ onChange }: { onChange: (m: Mas) => void }) {
-  const [mas, setMas] = useState<Mas | null>(loadMas);
+export function MasCard({ mas, onChange }: { mas: Mas | null; onChange: (m: Mas) => void }) {
   const [text, setText] = useState("");
   const save = () => {
     const d = Number(text);
     if (!(d >= 500 && d <= 2500)) return;
-    try { localStorage.setItem("masDistance", String(d)); } catch { /* brak pamięci */ }
-    const m = calcMas(d);
-    addEvents([{ date: localISO(), type: "mas", key: "mas", value: m.kmh }]);
-    void pushMas(d);
-    setMas(m); setText(""); onChange(m);
+    const m = saveMasDistance(d); setText("");
+    onChange(m);
   };
   return (
     <section className="mt-4 rounded-2xl border border-hairline bg-canvas p-3">
