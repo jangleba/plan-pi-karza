@@ -3,7 +3,8 @@ import { localISO, addDays, cycleWeekFor, levelOf, nextWeekUnlocked, planForProf
 import type { CheckIn, DayPlan, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
 import { Start } from "./Start";
-import { Backdrop, PageHeader } from "./Sketch";
+import { Backdrop } from "./Sketch";
+import { Group, LargeTitle, ListRow } from "./ui";
 import { Auth } from "./Auth";
 import { Progress } from "./Progress";
 import { Lab } from "./Lab";
@@ -26,16 +27,6 @@ const KIND_LABEL: Record<SessionKind, string> = {
   recovery: "Regeneracja",
 };
 
-/** Etykiety są neutralne; kolor niesie tylko mała kropka: ciemna = mocna praca, jasna = lekka, czerwona = mecz. */
-const KIND_DOT: Record<SessionKind, string> = {
-  strength: "#2a2a28",
-  run: "#2a2a28",
-  sprint: "#2a2a28",
-  technique: "#8a8578",
-  activation: "#c9c2b2",
-  recovery: "#c9c2b2",
-};
-
 const WEEKDAY = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
 
 function mondayOf(d: Date): string {
@@ -45,40 +36,23 @@ function mondayOf(d: Date): string {
   return copy.toISOString().slice(0, 10);
 }
 
-function Chip({ dot, children }: { dot: string; children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 self-start rounded-full border border-hairline bg-canvas px-3 py-1 text-xs font-medium text-ink">
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: dot }} />
-      {children}
-    </span>
-  );
-}
-
-function DayRow({ day, index, onOpen }: { day: DayPlan; index: number; onOpen: () => void }) {
+function DayRow({ day, index, isToday, onOpen }: { day: DayPlan; index: number; isToday: boolean; onOpen: () => void }) {
   const s = day.session;
+  const title = day.isMatch ? "Mecz" : s ? KIND_LABEL[s.kind] + (s.variant === "upper" ? " · góra" : s.variant === "light" ? " · lekko" : "") : day.isClub ? "Trening klubowy" : "Wolne";
   return (
-    <li
-      onClick={s ? onOpen : undefined}
-      className={`flex items-center gap-4 rounded-2xl bg-card px-4 py-3.5 border border-hairline ${s ? "cursor-pointer active:scale-[0.99]" : ""}`}
-    >
-      <div className="w-10 text-center">
-        <div className="text-[11px] uppercase tracking-wide text-muted">{WEEKDAY[index]}</div>
-        <div className="text-lg font-semibold">{Number(day.date.slice(8))}</div>
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        {day.isMatch && <Chip dot="#b45f55">Mecz</Chip>}
-        {day.isClub && <Chip dot="#8a8578">Trening klubowy</Chip>}
-        {s && (
-          <div className="flex flex-col">
-            <Chip dot={KIND_DOT[s.kind]}>
-              {KIND_LABEL[s.kind]}
-              {s.variant === "upper" ? " · góra" : s.variant === "light" ? " · lekki" : ""}
-            </Chip>
-          </div>
-        )}
-        {!day.isMatch && !day.isClub && !s && <span className="text-sm text-muted">Wolne</span>}
-      </div>
-    </li>
+    <ListRow
+      index={index}
+      onTap={s ? onOpen : undefined}
+      accent={day.isMatch}
+      title={<span className={!s && !day.isMatch && !day.isClub ? "text-muted" : ""}>{title}</span>}
+      sub={s && day.isClub ? "+ trening klubowy" : undefined}
+      lead={
+        <span className={`flex w-11 shrink-0 flex-col items-center rounded-2xl py-1 ${isToday ? "bg-accent text-white" : ""}`}>
+          <span className={`text-[10px] uppercase tracking-wide ${isToday ? "text-white/80" : "text-muted"}`}>{WEEKDAY[index]}</span>
+          <span className="text-lg font-semibold leading-tight tabular-nums">{Number(day.date.slice(8))}</span>
+        </span>
+      }
+    />
   );
 }
 
@@ -210,27 +184,23 @@ function Home({ profile, checkIn, initialOpen, onOpened, onReset }: {
   );
 
   return (
-    <main className="mx-auto max-w-md px-4 pb-28 pt-14">
-      <PageHeader
-        kind="plan"
-        title="Plan tygodnia"
-        sub={<button onClick={onReset} className="text-muted">Zmień profil</button>}
-      />
-      <div className="mb-3 flex gap-1.5 rounded-xl bg-card p-1 border border-hairline">
-        <button onClick={() => setViewNext(false)} className={`flex-1 rounded-lg py-1.5 text-sm ${!viewNext ? "bg-canvas font-medium" : "text-muted"}`}>Ten tydzień</button>
+    <main className="mx-auto max-w-md px-5 pb-28 pt-14">
+      <LargeTitle kind="plan" title="Plan" sub={<button onClick={onReset} className="text-muted">Zmień profil</button>} />
+      <div className="bw-rise mb-5 grid grid-cols-2 gap-1 rounded-2xl bg-hairline/70 p-1">
+        <button onClick={() => setViewNext(false)} className={`rounded-xl py-2 text-sm ${!viewNext ? "bg-card font-medium shadow-sm" : "text-muted"}`}>Ten tydzień</button>
         <button
           disabled={!unlocked}
           onClick={() => setViewNext(true)}
-          className={`flex-1 rounded-lg py-1.5 text-sm ${viewNext && unlocked ? "bg-canvas font-medium" : "text-muted"} disabled:opacity-40`}
+          className={`rounded-xl py-2 text-sm ${viewNext && unlocked ? "bg-card font-medium shadow-sm" : "text-muted"} disabled:opacity-40`}
         >
-          Kolejny tydzień{!unlocked ? " (po meczu)" : ""}
+          {unlocked ? "Kolejny" : "Kolejny po meczu"}
         </button>
       </div>
-      <ul className="flex flex-col gap-2.5">
+      <Group>
         {plan.days.map((d, i) => (
-          <DayRow key={d.date} day={d} index={i} onOpen={() => setOpen(d)} />
+          <DayRow key={`${weekStart}-${d.date}`} day={d} index={i} isToday={d.date === today()} onOpen={() => setOpen(d)} />
         ))}
-      </ul>
+      </Group>
       {open && (
         <SessionSheet day={open} checkIn={checkIn} weekInCycle={cycleWeekFor(profile, weekStart)} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")} onClose={() => setOpen(null)} />
       )}

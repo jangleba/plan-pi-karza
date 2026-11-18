@@ -1,19 +1,20 @@
 import { useState } from "react";
 import { localISO, addEvents, jumpHeightFromFlightTime, labDue, LAB_TESTS, loadHistory, series, validateLab, validateSprintSplits } from "./engine";
 import type { LabTest } from "./engine";
-import { PageHeader } from "./Sketch";
+import { Sheet } from "./Sheet";
+import { Group, LargeTitle, ListRow } from "./ui";
 import { VideoMeasure, type VideoResult } from "./VideoMeasure";
 
 const today = () => localISO();
 const num = (s: string) => Number(s.replace(",", "."));
-const field = "w-full rounded-xl bg-canvas px-3 py-2.5 text-sm outline-none";
+const field = "w-full rounded-2xl border border-hairline bg-canvas px-4 py-3.5 text-base outline-none focus:border-accent";
 
 function lastDate(keys: string[]): string | undefined {
   const ev = loadHistory().filter((e) => e.type === "lab" && keys.includes(e.key));
   return ev.map((e) => e.date).sort().pop();
 }
 
-function TestCard({ test, onSaved }: { test: LabTest; onSaved: () => void }) {
+function TestRow({ test, index, onSaved }: { test: LabTest; index: number; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
   const [vals, setVals] = useState<Record<string, string>>({});
   const [flight, setFlight] = useState(false);
@@ -64,57 +65,66 @@ function TestCard({ test, onSaved }: { test: LabTest; onSaved: () => void }) {
     : test.key === "cmj" ? [["cmj", flight ? "Czas lotu (s)" : "Wysokość (cm)"]]
     : [[test.key, `Wynik (${test.unit})`]];
 
+  const shortTitle = test.title.split(" – ")[0]!;
+  const lastValue = (() => {
+    const k = test.key === "sprint" ? "sprint-10" : test.key;
+    const v = series(loadHistory(), "lab", k).at(-1)?.value;
+    if (v === undefined) return null;
+    return test.key === "sprint" ? `${v.toFixed(2).replace(".", ",")} s / 10 m` : `${String(v).replace(".", ",")} ${test.unit}`;
+  })();
+
   return (
-    <section className="mb-3 rounded-2xl bg-card p-4 border border-hairline">
-      <button className="flex w-full items-center justify-between text-left" onClick={() => setOpen(!open)}>
-        <div>
-          <h3 className="text-sm font-semibold">{test.title}</h3>
-          <p className="text-xs text-muted">{last ? `Ostatni: ${last}` : "Jeszcze nie testowany"}</p>
-        </div>
-        {due && <span className="rounded-full border border-hairline bg-canvas px-2.5 py-1 text-xs text-muted">Do zrobienia</span>}
-      </button>
+    <>
+      <ListRow
+        index={index}
+        title={shortTitle}
+        sub={last ? `Ostatnio ${last.split("-").reverse().join(".")}` : undefined}
+        detail={due ? <span className="text-accent">Do zrobienia</span> : lastValue}
+        onTap={() => setOpen(true)}
+      />
       {open && (
-        <div className="mt-3">
-          <ul className="mb-3 list-disc pl-4 text-sm">{test.instructions.map((t) => <li key={t}>{t}</li>)}</ul>
-          {test.caveat && <p className="mb-3 rounded-xl bg-canvas p-2.5 text-xs text-muted">{test.caveat}</p>}
+        <Sheet title={test.title} onClose={() => { setOpen(false); setError(""); }}>
+          <ol className="mb-4 flex flex-col gap-2 text-sm">
+            {test.instructions.map((t, i) => (
+              <li key={t} className="flex gap-3"><span className="text-accent tabular-nums">{i + 1}</span><span>{t}</span></li>
+            ))}
+          </ol>
+          {test.caveat && <p className="mb-4 text-xs text-muted">{test.caveat}</p>}
+          {(test.key === "cmj" || test.key === "sprint") && (
+            <button onClick={() => setVideo(true)} className="mb-3 w-full rounded-2xl border border-hairline bg-canvas py-3.5 text-sm font-medium">
+              Zmierz z wideo
+            </button>
+          )}
           {test.key === "cmj" && (
             <button onClick={() => setFlight(!flight)} className="mb-3 text-xs text-muted underline">
               {flight ? "Wpisz wysokość zamiast czasu lotu" : "Mam czas lotu – przelicz na wysokość"}
             </button>
           )}
-          {(test.key === "cmj" || test.key === "sprint") && (
-            <button onClick={() => setVideo(true)} className="mb-3 w-full rounded-xl border border-hairline bg-canvas py-2 text-sm font-medium text-ink">
-              Zmierz z wideo
-            </button>
-          )}
-          <div className="mb-3 flex flex-col gap-2">
+          <div className="mb-4 flex flex-col gap-2">
             {inputs.map(([k, label]) => (
               <input key={k} className={field} inputMode="decimal" placeholder={label} value={vals[k] ?? ""} onChange={(e) => set(k, e.target.value)} />
             ))}
           </div>
-          {error && <p className="mb-3 rounded-xl bg-red-soft p-2.5 text-sm text-red-ink">{error}</p>}
-          <button onClick={save} className="w-full rounded-xl bg-accent py-2.5 text-sm font-medium text-white">Zapisz wynik</button>
-        </div>
+          {error && <p className="mb-3 text-center text-sm text-red-ink">{error}</p>}
+          <button onClick={save} className="w-full rounded-2xl bg-accent py-4 text-base font-medium text-white">Zapisz wynik</button>
+        </Sheet>
       )}
       {video && (test.key === "cmj" || test.key === "sprint") && (
         <VideoMeasure mode={test.key} onResult={applyVideo} onClose={() => setVideo(false)} />
       )}
-    </section>
+    </>
   );
 }
 
 export function Lab() {
   const [tick, setTick] = useState(0);
-  const cmj = series(loadHistory(), "lab", "cmj").at(-1);
   void tick;
   return (
-    <main className="mx-auto max-w-md px-4 pb-28 pt-14">
-      <PageHeader
-        kind="lab"
-        title="Lab"
-        sub={`Testuj co 4–5 tygodni, najlepiej w tygodniu rozładowania.${cmj ? ` Ostatni CMJ: ${cmj.value} cm.` : ""}`}
-      />
-      {LAB_TESTS.map((t) => <TestCard key={t.key} test={t} onSaved={() => setTick(tick + 1)} />)}
+    <main className="mx-auto max-w-md px-5 pb-28 pt-14">
+      <LargeTitle kind="lab" title="Lab" sub="Co 4–5 tygodni" />
+      <Group>
+        {LAB_TESTS.map((t, i) => <TestRow key={t.key} index={i} test={t} onSaved={() => setTick(tick + 1)} />)}
+      </Group>
     </main>
   );
 }
