@@ -18,15 +18,15 @@ import type {
   SessionHistoryRecord,
 } from "./types";
 
-export type SummaryTarget = "strengthA" | "strengthB" | "speed" | "endurance" | "mobility";
-export const SUMMARY_TARGETS: readonly SummaryTarget[] = [
+type SummaryTarget = "strengthA" | "strengthB" | "speed" | "endurance" | "mobility";
+const SUMMARY_TARGETS: readonly SummaryTarget[] = [
   "strengthA",
   "strengthB",
   "speed",
   "endurance",
   "mobility",
 ];
-export const TARGET_LABELS: Record<SummaryTarget, string> = {
+const TARGET_LABELS: Record<SummaryTarget, string> = {
   strengthA: "Siła A",
   strengthB: "Siła B",
   speed: "Sprint",
@@ -102,7 +102,7 @@ const LEGACY_LABELS: Array<[RegExp, SummaryTarget]> = [
   [/wydolność|wydolności/, "endurance"],
 ];
 
-export interface PlanSummaryInput {
+interface PlanSummaryInput {
   profile: Profile | null;
   /** Effective plan of the ended window. */
   plan: readonly SessionDay[];

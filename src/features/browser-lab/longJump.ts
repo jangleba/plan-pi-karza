@@ -46,7 +46,7 @@ export const longJumpSchema = z.discriminatedUnion("method", [
 export type LongJumpCalibration = z.infer<typeof longJumpSchema>;
 export type AutomaticLongJumpCalibration = z.infer<typeof automaticLongJumpSchema>;
 
-export const MAX_LONG_JUMP_UNCERTAINTY_CM = 5;
+const MAX_LONG_JUMP_UNCERTAINTY_CM = 5;
 
 const cross = (a: FloorPoint, b: FloorPoint, c: FloorPoint) =>
   (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
@@ -587,12 +587,12 @@ export function findReferenceRectangle(
   return referenceRectangles(image)[0]?.points ?? null;
 }
 
-export interface BallWiseMarkerDetection {
+interface BallWiseMarkerDetection {
   corners: AutomaticLongJumpCalibration["referenceCorners"];
   quality: number;
 }
 
-export interface BallWiseCalibrationMarkers {
+interface BallWiseCalibrationMarkers {
   start: BallWiseMarkerDetection;
   range: BallWiseMarkerDetection;
 }

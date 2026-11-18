@@ -181,7 +181,7 @@ export function InfoRow({
   );
 }
 
-export function Switch({
+function Switch({
   label,
   checked,
   onChange,

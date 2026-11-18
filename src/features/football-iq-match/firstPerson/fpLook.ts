@@ -41,10 +41,9 @@ export function pitchOf(q: Quaternion) {
   forward.set(0, 0, -1).applyQuaternion(q);
   return Math.asin(Math.max(-1, Math.min(1, forward.y)));
 }
-export const yawQuaternion = (yaw: number, out = new Quaternion()) =>
-  out.setFromAxisAngle(Y_AXIS, yaw);
+const yawQuaternion = (yaw: number, out = new Quaternion()) => out.setFromAxisAngle(Y_AXIS, yaw);
 
-export function currentScreenAngle(): number {
+function currentScreenAngle(): number {
   if (typeof window === "undefined") return 0;
   const angle = window.screen?.orientation?.angle;
   if (typeof angle === "number") return angle;
@@ -57,7 +56,7 @@ type OrientationEventCtor = typeof DeviceOrientationEvent & {
   requestPermission?: () => Promise<"granted" | "denied">;
 };
 
-export type LookOptions = {
+type LookOptions = {
   target: HTMLElement;
   onStatus?: (status: LookStatus) => void;
   /** Milliseconds without a usable sample before falling back to dragging. */

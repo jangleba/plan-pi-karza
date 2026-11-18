@@ -8,7 +8,7 @@ import type { SessionDay } from "@/lib/loadwise/types";
 import { classifySession } from "@/lib/loadwise/sessionClassification";
 import type { FuelSessionInput, SessionIntensity, SessionKind } from "./types";
 
-export const EMPTY_SESSION: FuelSessionInput = {
+const EMPTY_SESSION: FuelSessionInput = {
   kind: "none",
   intensity: null,
   durationMin: null,

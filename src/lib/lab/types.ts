@@ -4,7 +4,7 @@ export type LabTestId = "cmj" | "single_leg_cmj" | "sprint_10m" | "flying_10m" |
 export type StoredLabTestId = LabTestId | "sprint_10m_ball";
 
 export type LabSide = "left" | "right" | null;
-export type LabMarkerKind = "takeoff" | "landing" | "start" | "finish" | "entry" | "exit";
+type LabMarkerKind = "takeoff" | "landing" | "start" | "finish" | "entry" | "exit";
 export type LabGuideAxis = "horizontal" | "vertical";
 
 export interface LabMarkerDefinition {

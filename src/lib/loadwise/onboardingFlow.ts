@@ -67,7 +67,7 @@ export function validOnboardingStrength(answers: OnboardingAnswers, age?: number
 
 const WALL = /wall|rebounder|odbojnik|ściana/i;
 
-export function hasWallEquipment(equipment: readonly string[]): boolean {
+function hasWallEquipment(equipment: readonly string[]): boolean {
   return equipment.some((item) => WALL.test(item));
 }
 

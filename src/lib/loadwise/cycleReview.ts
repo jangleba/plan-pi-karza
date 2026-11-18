@@ -118,7 +118,7 @@ export interface CycleReview {
 }
 
 /** Progi reguł — jedno miejsce, opisane źródłami w CYCLE_REVIEW_SOURCES. */
-export const CYCLE_RULES = {
+const CYCLE_RULES = {
   /** ≥ 80% zaplanowanych sesji — próg „dobrej realizacji” (adherence) w badaniach programów prewencyjnych. */
   goodAdherence: 0.8,
   /** < 50% — za mało bodźca, by oceniać progres; dokładanie grozi skokiem obciążenia. */
@@ -426,7 +426,7 @@ const PHASE_LABEL: Record<SeasonPhase, string> = {
   return_injury: "powrót po kontuzji",
 };
 
-export interface CycleReviewCopy {
+interface CycleReviewCopy {
   title: string;
   /** Krótkie fakty: wykonanie, wysiłek, samopoczucie, postęp. */
   facts: string[];

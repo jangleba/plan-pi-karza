@@ -42,7 +42,6 @@ import {
 import {
   E11,
   LINE_Y,
-  PLAYER_COUNT,
   PLAYERS_PER_TEAM,
   BASE,
   ROLE_START,
@@ -55,7 +54,7 @@ import {
 
 export { DT, TICK_HZ };
 export const E11_ENGINE_VERSION = 1;
-export const MAX_TICKS = TICK_HZ * 45;
+const MAX_TICKS = TICK_HZ * 45;
 const RESTART_HOLD = 40;
 /** Soccer-pass clip: foot contact at frame 14 of 30 FPS, played 1.5× faster (as in 5v5). */
 export const KICK_CLIP_SECONDS = 1.6;
@@ -71,8 +70,8 @@ const TRACK_AFTER = 12;
 /** Rivals start to move for a played ball this many ticks after it is released. */
 const REACTION = 26;
 
-export type Team = "home" | "away";
-export type Anim = "idle" | "run" | "kick";
+type Team = "home" | "away";
+type Anim = "idle" | "run" | "kick";
 
 export type E11Input =
   /** Joystick: world heading of the movement and 0…1 of top speed (0 = stop). */
@@ -210,12 +209,11 @@ export type SimState = {
   random: () => number;
   record: boolean;
 };
-export type SimOptions = { record?: boolean };
+type SimOptions = { record?: boolean };
 
 const teamOf = (i: number): Team => (i < PLAYERS_PER_TEAM ? "home" : "away");
 const keeperOf = (team: Team) => (team === "home" ? 0 : PLAYERS_PER_TEAM);
 const GOAL_Y = E11.halfLength;
-const other = (team: Team): Team => (team === "home" ? "away" : "home");
 
 function makePlayer(index: number, pos: V): Player {
   const team = teamOf(index);
@@ -313,7 +311,7 @@ export function isOffside(p: Player, line: number): boolean {
   return p.team === "home" && p.pos.y > line + 1e-6 && p.pos.y > 0;
 }
 
-export function applyInput(s: SimState, input: E11Input) {
+function applyInput(s: SimState, input: E11Input) {
   if (s.phase === "done") return;
   const ty = s.players[s.ty]!;
   if (input.kind === "move") {
@@ -380,7 +378,7 @@ function finish(s: SimState, kind: OutcomeKind) {
 // ---------------------------------------------------------------- geometry and reading
 
 /** Smallest distance of any rival to the segment a→b, only counting those who could get there. */
-export function laneMargin(s: SimState, from: V, to: V, team: Team): number {
+function laneMargin(s: SimState, from: V, to: V, team: Team): number {
   let best = 99;
   for (const p of s.players) {
     if (p.team === team || p.keeper) continue;
@@ -390,7 +388,7 @@ export function laneMargin(s: SimState, from: V, to: V, team: Team): number {
   }
   return best;
 }
-export function nearestRival(s: SimState, at: V, team: Team, keepers = false): number {
+function nearestRival(s: SimState, at: V, team: Team, keepers = false): number {
   let best = 99;
   for (const p of s.players)
     if (p.team !== team && (keepers || !p.keeper)) best = Math.min(best, dist(p.pos, at));
@@ -995,5 +993,3 @@ export function frameOf(s: SimState): Frame {
     },
   };
 }
-export const PLAYER_TOTAL = PLAYER_COUNT;
-export { other as otherTeam };

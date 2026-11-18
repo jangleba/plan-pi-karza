@@ -14,10 +14,6 @@ export function isPlanWriteConflict(error: unknown): boolean {
   return /code: 40001\b/.test(message);
 }
 
-export function planWriteKey(parts: Array<string | number | null | undefined>): string {
-  return parts.map((part) => part ?? "-").join("|");
-}
-
 /** Returns null when this write was already rejected or is rejected now. */
 export async function guardedPlanWrite<T>(key: string, write: () => Promise<T>): Promise<T | null> {
   if (rejected.has(key)) return null;
@@ -34,10 +30,6 @@ export async function guardedPlanWrite<T>(key: string, write: () => Promise<T>):
 export function resetPlanWriteGuard() {
   rejected.clear();
   inFlight.clear();
-}
-
-export function wasPlanWriteRejected(key: string): boolean {
-  return rejected.has(key);
 }
 
 /**

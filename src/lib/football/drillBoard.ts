@@ -1,9 +1,9 @@
 import { INDIVIDUAL_FOOTBALL_DRILLS } from "../loadwise/individualFootballDrills";
 
 export { FIELD_TARGETS, FIELD_COLORS } from "../reactive-training/fieldSignals";
-export type BoardAction = "carry" | "pass" | "shoot" | "run" | "touch";
-export type Point = readonly [number, number];
-export interface DrillBoard {
+type BoardAction = "carry" | "pass" | "shoot" | "run" | "touch";
+type Point = readonly [number, number];
+interface DrillBoard {
   id: string;
   area: string;
   equipment: string;

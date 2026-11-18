@@ -6,7 +6,6 @@ import {
 } from "./definitions";
 import { assertFrameIndex, finite, LabValidationError, validateCaptureTiming } from "./timing";
 import { newLabId } from "./id";
-export { LabValidationError } from "./timing";
 import type {
   LabAttempt,
   LabMetrics,
@@ -25,7 +24,7 @@ function assertRange(value: number, min: number, max: number, message: string) {
   if (value < min - 1e-9 || value > max + 1e-9) throw new LabValidationError(message);
 }
 
-export function jumpHeightCmFromFlightTime(flightTimeSeconds: number) {
+function jumpHeightCmFromFlightTime(flightTimeSeconds: number) {
   finite(flightTimeSeconds, "Czas lotu");
   if (flightTimeSeconds <= 0) throw new LabValidationError("Czas lotu musi być dodatni.");
   const height = (GRAVITY_M_S2 * flightTimeSeconds * flightTimeSeconds * 100) / 8;

@@ -251,7 +251,7 @@ export function buildTimeline(history: CompletedSessionEntry[]): TimelineEvent[]
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 }
 
-export interface TimelineWeek {
+interface TimelineWeek {
   weekStart: string;
   events: TimelineEvent[];
 }

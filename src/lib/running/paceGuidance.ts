@@ -1,7 +1,7 @@
 export type PaceGuidance = "on_target" | "speed_up" | "slow_down" | "unavailable";
 
-export const SPEED_UP_VIBRATION = [90, 70, 90] as const;
-export const SLOW_DOWN_VIBRATION = [650] as const;
+const SPEED_UP_VIBRATION = [90, 70, 90] as const;
+const SLOW_DOWN_VIBRATION = [650] as const;
 
 export function classifyPace(
   actualSecPerKm: number | null,

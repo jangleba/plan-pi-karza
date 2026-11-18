@@ -10,7 +10,7 @@ export interface FuelFitOption {
 }
 
 /** "2 min · bez gotowania", "5 min · na wynos". */
-export function fitOptionMeta(recipe: FuelRecipe): string {
+function fitOptionMeta(recipe: FuelRecipe): string {
   const kind = recipe.noCook ? "bez gotowania" : recipe.portable ? "na wynos" : "z gotowaniem";
   return `${recipe.prepMin} min · ${kind}`;
 }

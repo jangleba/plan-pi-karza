@@ -9,9 +9,9 @@
 
 import { SKIP_GUIDES } from "./skipGuides";
 
-export type ExerciseTechniqueImageCategory = "strength" | "plyometric" | "power" | "sprint";
+type ExerciseTechniqueImageCategory = "strength" | "plyometric" | "power" | "sprint";
 
-export interface ExerciseTechniqueImage {
+interface ExerciseTechniqueImage {
   exerciseId: string;
   category: ExerciseTechniqueImageCategory;
   title: string;

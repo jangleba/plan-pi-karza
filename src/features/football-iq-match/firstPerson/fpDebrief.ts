@@ -10,7 +10,7 @@
  * free and when the partner ran. Nothing about body details, and phone orientation is never
  * described as where the player looked.
  */
-import { PITCH, angleDiff, headingOf, sub } from "./fpMath";
+import { angleDiff, headingOf, sub } from "./fpMath";
 import {
   evaluateOptions,
   OUTCOME_SCORE,
@@ -75,7 +75,7 @@ const RESULT_TEXT: Record<OutcomeKind, string> = {
   offside: "Spalony",
   timeout: "Akcja stanęła",
 };
-export const resultText = (kind: OutcomeKind) => RESULT_TEXT[kind];
+
 const DETAIL: Partial<Record<Outcome["detail"], string>> = {
   intercept: "przechwyt",
   tackle: "odbiór",
@@ -99,7 +99,7 @@ const RIVAL: Record<string, string> = {
 };
 
 /** The input that counts as TY's decision: the pass (or, without a pass, the first carry). */
-export function decisionInput(s: SimState, inputs: readonly FpInput[]): FpInput | null {
+function decisionInput(s: SimState, inputs: readonly FpInput[]): FpInput | null {
   const pass = s.events.find((e) => e.type === "pass" && e.from === "ty");
   const applied = inputs.filter((i) => i.kind === "pass" || i.kind === "carry");
   if (pass) {
@@ -302,6 +302,3 @@ export function modelInputs(variant: FpVariant, principle: PrincipleKey): FpInpu
   }
   return bestPlan ? [touch, bestPlan.input] : [touch];
 }
-
-export const isInPitch = (x: number, y: number) =>
-  Math.abs(x) <= PITCH.halfWidth && Math.abs(y) <= PITCH.halfLength;

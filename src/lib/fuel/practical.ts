@@ -39,7 +39,7 @@ export function relativeFuelTiming(minutes: number, now: number): FuelTiming | n
   return { phase: "before", startsAt: now + minutes * 60_000, presetMin: minutes };
 }
 
-export function foodPreferenceTerms(preferences: FuelPreferences): string[] {
+function foodPreferenceTerms(preferences: FuelPreferences): string[] {
   return preferences.excludedFoodIds
     .map((id) => FOOD_BY_ID[id]?.label)
     .filter((label): label is string => Boolean(label));

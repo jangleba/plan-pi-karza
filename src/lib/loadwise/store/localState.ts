@@ -1,6 +1,6 @@
 import type { ExerciseReplacement, LoadwiseState } from "../types";
 
-export function localKey(userId: string) {
+function localKey(userId: string) {
   return `loadwise:v3:${userId}`;
 }
 

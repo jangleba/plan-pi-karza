@@ -2,9 +2,9 @@ import type { SessionCompletion, SessionDay } from "@/lib/loadwise/types";
 import type { FuelSessionInput, SessionKind } from "./types";
 import { sessionFromPlan, sessionKindFrom } from "./planAdapter";
 
-export const FUEL_SCHEDULE_VERSION = 1;
+const FUEL_SCHEDULE_VERSION = 1;
 
-export interface FuelSchedulePreferences {
+interface FuelSchedulePreferences {
   version: 1;
   defaults: Partial<Record<SessionKind, string>>;
   sessions: Record<string, string>;

@@ -92,7 +92,7 @@ export function recoveryStretches(): ExerciseItem[] {
   ];
 }
 
-export interface RecoveryContent {
+interface RecoveryContent {
   warmup: ExerciseItem[];
   main: ExerciseItem[];
   accessory: ExerciseItem[];

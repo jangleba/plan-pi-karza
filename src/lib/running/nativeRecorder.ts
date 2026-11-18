@@ -32,7 +32,7 @@ export interface NativeRunState {
     stepStartedDistanceM: number;
   };
 }
-export interface RunIdentity {
+interface RunIdentity {
   ownerId: string;
   sessionId: string;
 }

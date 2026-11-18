@@ -4,7 +4,7 @@ import { minutesToFuelStart } from "./experience";
 import { FOOD_NUTRIENTS } from "./foodNutrients";
 
 export type FoodRole = "carb" | "protein" | "fruit" | "vegetable" | "fat" | "fluid";
-export interface FuelFood {
+interface FuelFood {
   id: string;
   label: string;
   aliases: string[];

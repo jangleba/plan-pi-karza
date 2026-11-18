@@ -12,15 +12,15 @@ import type { Point } from "./types";
 
 export const GENERATOR_VERSION = 1;
 
-export type VariantLayout = {
+type VariantLayout = {
   carrier: string;
   positions: Record<string, Point>;
   numbers: Record<string, number>;
 };
 
-export type TransformKind = "press" | "space" | "lane" | "free" | "line" | "you";
-export type Transform = { kind: TransformKind; detail: string };
-export type Variant = { seed: number; layout: VariantLayout; transforms: Transform[] };
+type TransformKind = "press" | "space" | "lane" | "free" | "line" | "you";
+type Transform = { kind: TransformKind; detail: string };
+type Variant = { seed: number; layout: VariantLayout; transforms: Transform[] };
 
 /** Small, well-known 32-bit PRNG; the same seed gives the same numbers everywhere. */
 export function mulberry32(seed: number) {
@@ -161,7 +161,7 @@ const TRANSFORMS: Record<TransformKind, (ctx: Ctx) => Transform | null> = {
     return { kind: "you", detail: "inne miejsce startu" };
   },
 };
-export const TRANSFORM_KINDS = Object.keys(TRANSFORMS) as TransformKind[];
+const TRANSFORM_KINDS = Object.keys(TRANSFORMS) as TransformKind[];
 
 /** Keeps the picture legal: nobody on top of anybody, and the carrier gets a first touch. */
 function settle(ctx: Ctx) {

@@ -10,7 +10,7 @@ import { POSITIONS, variantFromId, type Position } from "./f5Variants";
 import type { Grade, ProblemKey } from "./f5Debrief";
 
 export const F5_RESULT_VERSION = 1;
-export const MAX_F5_ATTEMPTS = 200;
+const MAX_F5_ATTEMPTS = 200;
 export const MAX_F5_INPUTS = 2500;
 export const f5HistoryKey = (owner: string) => `ballwise:iq:f5:v1:${owner}`;
 

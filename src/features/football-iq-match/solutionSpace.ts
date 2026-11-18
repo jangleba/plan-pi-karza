@@ -46,7 +46,7 @@ export function solutionKind(a: DecisionAssessment): SolutionKind | null {
   return "safe";
 }
 
-export type SolutionOption = {
+type SolutionOption = {
   kind: SolutionKind;
   choice: JourneyChoice;
   assessment: DecisionAssessment;

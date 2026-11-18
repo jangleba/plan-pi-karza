@@ -1821,7 +1821,7 @@ export function validateTrainingPlan(
 /* Primitives for adjustments after feedback. They reuse the generator's builders, placement
  * gate and renderer, so an adjusted session passes the same checks as a planned one. */
 
-export interface AdjustmentRecipe {
+interface AdjustmentRecipe {
   kind: "lighter" | "compact";
   recipe: EngineSession;
 }
@@ -1927,7 +1927,7 @@ export function lighterRecipes(
   return out;
 }
 
-export type AdjustmentPlacement =
+type AdjustmentPlacement =
   { plan: SessionDay[]; session: SessionDay } | { blocked: { code: string; message: string } };
 
 /** Places a recipe on a date of a flat plan through the shared gate and renderer. */

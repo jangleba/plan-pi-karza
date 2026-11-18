@@ -151,7 +151,7 @@ function fromRow(row: LabRow): LabResult {
   };
 }
 
-export function mergeLabResults(local: readonly LabResult[], cloud: readonly LabResult[]) {
+function mergeLabResults(local: readonly LabResult[], cloud: readonly LabResult[]) {
   const byId = new Map<string, LabResult>();
   for (const result of [...local, ...cloud]) {
     const previous = byId.get(result.id);

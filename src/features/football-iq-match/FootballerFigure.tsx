@@ -2,7 +2,7 @@ import type { PlayerMotion } from "./animation";
 import { RUN_STRIDE_UNITS, WALK_STRIDE_UNITS } from "./animation";
 
 /** A filled footballer silhouette for devices without WebGL; pose follows the same recorded frame. */
-export function footballerPose(motion: PlayerMotion) {
+function footballerPose(motion: PlayerMotion) {
   const phase =
     (motion.distance / (motion.gait === "walk" ? WALK_STRIDE_UNITS : RUN_STRIDE_UNITS)) *
     Math.PI *

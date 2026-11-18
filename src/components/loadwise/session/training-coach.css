@@ -14,9 +14,6 @@
   cursor: pointer;
   list-style: none;
 }
-.bw-technique-help > summary::-webkit-details-marker {
-  display: none;
-}
 .bw-technique-help > summary svg,
 .bw-technique-trigger svg {
   width: 17px;
@@ -352,52 +349,6 @@
   font-size: 10px;
   line-height: 1.45;
   text-align: center;
-}
-.bw-joint-ground {
-  stroke: var(--muted-foreground);
-  stroke-width: 1;
-  opacity: 0.45;
-}
-.bw-joint-body {
-  stroke: var(--primary);
-  stroke-width: 7;
-}
-.bw-joint-back {
-  stroke: var(--muted-foreground);
-  stroke-width: 6;
-  opacity: 0.45;
-}
-.bw-joint-arm {
-  stroke: var(--primary);
-  stroke-width: 5;
-  opacity: 0.7;
-}
-.bw-joint-head {
-  fill: var(--primary);
-}
-.bw-joint-dot {
-  fill: var(--card);
-  stroke: var(--primary);
-  stroke-width: 2;
-}
-.bw-joint-knee {
-  fill: var(--primary);
-  stroke: var(--card);
-  stroke-width: 2;
-}
-.bw-joint-arc {
-  stroke: var(--primary);
-  stroke-width: 2;
-}
-.bw-joint-angle {
-  fill: var(--primary);
-  font-size: 17px;
-  font-weight: 700;
-}
-.bw-joint-side {
-  fill: var(--muted-foreground);
-  font-size: 9px;
-  letter-spacing: 1px;
 }
 .bw-joint-cue {
   font-size: 13px;

@@ -29,12 +29,12 @@ import { changedRows, slots, todayTimeChoiceSession } from "./todaySessionTimeCh
  */
 export const READINESS_ADJUSTMENT_REASON = "[daily-checkin:readiness]";
 /** The existing policy: at or below this overall score the session asks for a lighter plan. */
-export const LOW_READINESS_SCORE = 4;
+const LOW_READINESS_SCORE = 4;
 
 const SUPPORT_ROLES = ["activation", "recovery", "mobility", "skills"];
 
 /** Only our own sole overlay is managed here; other manual changes belong to the plan editor. */
-export function readinessAdjustmentModification(
+function readinessAdjustmentModification(
   modifications: readonly SessionModification[],
 ): SessionModification | null {
   return modifications.length === 1 &&
@@ -53,7 +53,7 @@ export type ReadinessDecision =
   | { kind: "adjust"; day: SessionDay; session: SessionDay; original: SessionDay }
   | { kind: "unavailable"; reason: string };
 
-export interface ReadinessDecisionInput {
+interface ReadinessDecisionInput {
   profile: Profile;
   /** The effective plan: saved days with their overlays resolved. */
   plan: readonly SessionDay[];

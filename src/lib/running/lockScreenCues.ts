@@ -12,14 +12,14 @@ import type { RunningIntervalProtocol } from "./types";
  */
 
 /** Zakres id osobny od przypomnień Fuel (1_610_000_000–1_619_999_999). */
-export const RUN_CUE_ID_MIN = 1_620_000_000;
-export const RUN_CUE_ID_MAX = 1_620_000_999;
+const RUN_CUE_ID_MIN = 1_620_000_000;
+const RUN_CUE_ID_MAX = 1_620_000_999;
 /** iOS trzyma najwyżej 64 zaplanowane powiadomienia na aplikację. */
 const MAX_CUES = 48;
 
 export const isRunCueId = (id: number) => id >= RUN_CUE_ID_MIN && id <= RUN_CUE_ID_MAX;
 
-export function lockScreenCuesAvailable(): boolean {
+function lockScreenCuesAvailable(): boolean {
   try {
     return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable("LocalNotifications");
   } catch {
@@ -27,7 +27,7 @@ export function lockScreenCuesAvailable(): boolean {
   }
 }
 
-export interface PlannedCue {
+interface PlannedCue {
   id: number;
   at: number;
   title: string;

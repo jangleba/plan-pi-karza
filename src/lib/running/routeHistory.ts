@@ -10,9 +10,9 @@ import type { KilometerSplit, RoutePoint, RunningActivityDraft } from "./types";
 const PREFIX = "ballwise:run-history:v1:";
 export const HISTORY_LIMIT = 30;
 /** Wystarcza na mapę i międzyczasy, a mieści się w pamięci przeglądarki. */
-export const MAX_STORED_POINTS = 2500;
+const MAX_STORED_POINTS = 2500;
 
-export interface RunHistoryEntry {
+interface RunHistoryEntry {
   schema: 1;
   sessionId: string;
   date: string;

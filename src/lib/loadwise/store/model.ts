@@ -330,60 +330,6 @@ export function findSessionByDbId(plan: SessionDay[], sessionId: string): Sessio
   return null;
 }
 
-function stampDayRevision(
-  day: SessionDay,
-  revision: string | null,
-  schemaVersion: number,
-): SessionDay {
-  const stamped: SessionDay = {
-    ...day,
-    canonicalRevision: revision,
-    canonicalSchemaVersion: schemaVersion,
-  };
-  if (day.secondSession) {
-    stamped.secondSession = stampDayRevision(day.secondSession, revision, schemaVersion);
-  }
-  return stamped;
-}
-
-export function stampPlanRevision(
-  plan: SessionDay[],
-  revision: string | null,
-  schemaVersion: number,
-): SessionDay[] {
-  return plan.map((day) => stampDayRevision(day, revision, schemaVersion));
-}
-
-export function planRevisionInfo(plan: SessionDay[]): {
-  revision: string | null;
-  schemaVersion: number | null;
-  mixedRevisions: boolean;
-  mixedSchemas: boolean;
-} {
-  if (plan.length === 0) {
-    return {
-      revision: null,
-      schemaVersion: null,
-      mixedRevisions: false,
-      mixedSchemas: false,
-    };
-  }
-  const firstRevision = plan[0].canonicalRevision ?? null;
-  const firstSchema = plan[0].canonicalSchemaVersion ?? null;
-  let mixedRevisions = false;
-  let mixedSchemas = false;
-  for (const day of plan) {
-    if ((day.canonicalRevision ?? null) !== firstRevision) mixedRevisions = true;
-    if ((day.canonicalSchemaVersion ?? null) !== firstSchema) mixedSchemas = true;
-  }
-  return {
-    revision: firstRevision,
-    schemaVersion: firstSchema,
-    mixedRevisions,
-    mixedSchemas,
-  };
-}
-
 export function rowToModification(row: AnyRow): SessionModification | null {
   const rawSession = row.new_session_json as SessionDay | null;
   const session = rawSession

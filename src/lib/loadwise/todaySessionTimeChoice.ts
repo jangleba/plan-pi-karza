@@ -14,7 +14,7 @@ import { validateEngineSession } from "./engineV2/validation";
 
 export const TODAY_TIME_CHOICE_REASON = "[daily-checkin:time]";
 export const slots = (day: SessionDay) => [day, ...(day.secondSession ? [day.secondSession] : [])];
-export const executed = (session: SessionDay, completions: Record<string, SessionCompletion>) => {
+const executed = (session: SessionDay, completions: Record<string, SessionCompletion>) => {
   const log = session.dbId ? completions[session.dbId] : undefined;
   return (
     session.executionProtected ||
@@ -22,7 +22,7 @@ export const executed = (session: SessionDay, completions: Record<string, Sessio
     ["started", "completed"].includes(log?.status ?? "")
   );
 };
-export const mainWork = (session: SessionDay) =>
+const mainWork = (session: SessionDay) =>
   !!session.engineV2?.roles.some((role) =>
     ["strengthA", "strengthB", "speed", "endurance"].includes(role),
   );
@@ -53,7 +53,7 @@ export function todayTimeChoiceModification(
     : null;
 }
 
-export interface TodayTimeChoiceInput {
+interface TodayTimeChoiceInput {
   profile: Profile;
   plan: readonly SessionDay[];
   completions: Record<string, SessionCompletion>;
@@ -71,7 +71,7 @@ export interface TodayTimeChoiceProposal {
   changes: string[];
   fingerprint: string;
 }
-export type TodayTimeChoiceResult = { proposal: TodayTimeChoiceProposal } | { error: string };
+type TodayTimeChoiceResult = { proposal: TodayTimeChoiceProposal } | { error: string };
 
 function doseText(row: ExerciseDecision): string {
   const dose = row.dose;

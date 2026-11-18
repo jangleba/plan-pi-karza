@@ -50,10 +50,10 @@ import fallingStart from "@/assets/blueprints/falling_start.webp";
  * jest jawnie zapisane do grafiki → pokazujemy placeholder, nigdy cudzą grafikę.
  */
 
-export type MovementType =
+type MovementType =
   "squat" | "hinge" | "lunge" | "pull" | "jump" | "sprint" | "core" | "isometric" | "calf";
 
-export interface ExerciseVisual {
+interface ExerciseVisual {
   /** Jednoznaczny identyfikator grafiki. */
   visualId: string;
   /** Zaimportowany plik grafiki. */
@@ -73,7 +73,7 @@ export interface ExerciseVisual {
  * Biblioteka grafik — kluczowana po visualId. Każdy wpis przedstawia dokładnie
  * to ćwiczenie (lub jego bezpośrednie warianty o identycznym wzorcu ruchu).
  */
-export const visualLibrary: Record<string, ExerciseVisual> = {
+const visualLibrary: Record<string, ExerciseVisual> = {
   pin_iso_ankle: {
     visualId: "pin_iso_ankle",
     src: pinIsoAnkle,
@@ -322,14 +322,14 @@ function normalizeName(raw: string): string {
 // Dev validation report — uruchamiany tylko w dev.
 // ---------------------------------------------------------------------------
 
-export interface VisualValidationReport {
+interface VisualValidationReport {
   ok: boolean;
   totalVisuals: number;
   duplicateNames: string[];
   duplicateVisualIds: string[];
 }
 
-export function validateVisualLibrary(): VisualValidationReport {
+function validateVisualLibrary(): VisualValidationReport {
   const seenNames: Record<string, string> = {};
   const duplicateNames: string[] = [];
   const seenIds = new Set<string>();
@@ -366,7 +366,7 @@ if (import.meta.env?.DEV) {
 }
 
 /** Schludny placeholder — pokazywany zamiast cudzej grafiki. */
-export function ExerciseVisualPlaceholder() {
+function ExerciseVisualPlaceholder() {
   return (
     <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border/70 bg-muted/30 px-4 py-10 text-center">
       <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">

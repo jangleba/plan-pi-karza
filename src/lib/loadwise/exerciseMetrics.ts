@@ -3,7 +3,7 @@ import { getExerciseDefinition } from "./exerciseLibrary";
 import { GYM_EXERCISE_RULES } from "./gymStrengthExercises";
 
 /** Rodzaj pomiaru wykonania serii. */
-export type MetricKind = "load" | "time" | "distance" | "contacts" | "hold";
+type MetricKind = "load" | "time" | "distance" | "contacts" | "hold";
 
 export interface MetricField {
   id: "weight" | "reps" | "rir" | "value";

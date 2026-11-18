@@ -42,13 +42,13 @@ import {
 } from "./fpPhysics";
 
 export const FP_ENGINE_VERSION = 1;
-export { TICK_HZ, DT, canReach, ballFuture, groundSpeedFor, type BallSample };
-export const MAX_TICKS = TICK_HZ * 16;
+export { DT, groundSpeedFor };
+const MAX_TICKS = TICK_HZ * 16;
 /** Supplied "Soccer Pass" clip: 1.6 s, foot contact at frame 14 of 30 FPS.
  * A quick match pass plays it 1.5× faster; the contact frame still meets the ball. */
 export const KICK_CLIP_SECONDS = 1.6;
-export const KICK_RATE = 1.5;
-export const KICK_CONTACT_TICKS = Math.round((14 / 30 / KICK_RATE) * TICK_HZ);
+const KICK_RATE = 1.5;
+const KICK_CONTACT_TICKS = Math.round((14 / 30 / KICK_RATE) * TICK_HZ);
 const RUN_ON_TICKS = 48;
 const EYE_FOOT = 0.55;
 const POSSESSION_LIMIT = 6 * TICK_HZ;
@@ -56,9 +56,9 @@ const POSSESSION_LIMIT = 6 * TICK_HZ;
 export const ROLES = ["ty", "support", "runner", "d1", "d2", "gk"] as const;
 export type Role = (typeof ROLES)[number];
 export type Partner = "support" | "runner";
-export const ATTACKERS: readonly Role[] = ["ty", "support", "runner"];
-export const DEFENDERS: readonly Role[] = ["d1", "d2", "gk"];
-export const isDefender = (r: Role) => r === "d1" || r === "d2" || r === "gk";
+const ATTACKERS: readonly Role[] = ["ty", "support", "runner"];
+const DEFENDERS: readonly Role[] = ["d1", "d2", "gk"];
+const isDefender = (r: Role) => r === "d1" || r === "d2" || r === "gk";
 
 export type Aim = { kind: "player"; id: Partner } | { kind: "point"; x: number; y: number };
 export type FpInput =
@@ -66,7 +66,7 @@ export type FpInput =
   | { tick: number; kind: "pass"; aim: Aim; lofted?: boolean }
   | { tick: number; kind: "carry"; dir: number };
 
-export type Anim = "idle" | "run" | "kick";
+type Anim = "idle" | "run" | "kick";
 export type Agent = {
   id: Role;
   pos: V;
@@ -122,7 +122,7 @@ type Pending = {
   windupStart: number;
 } | null;
 
-export type SimOptions = {
+type SimOptions = {
   /** Execution noise is drawn from the variant seed; from this tick on, TY's actions are exact. */
   idealFrom?: number;
   record?: boolean;
@@ -243,13 +243,13 @@ export function offsideLine(s: SimState) {
   const ys = DEFENDERS.map((id) => s.agents[id].pos.y).sort((a, b) => b - a);
   return Math.max(ys[1]!, 0);
 }
-export function inBox(p: V) {
+function inBox(p: V) {
   return p.y >= PITCH.halfLength - PITCH.boxDepth && Math.abs(p.x) <= PITCH.boxHalfWidth;
 }
 const inPitch = (p: V) => Math.abs(p.x) <= PITCH.halfWidth && Math.abs(p.y) <= PITCH.halfLength;
 
 /** Earliest point on the free ball's path this player can reach first (or null). */
-export function meetPoint(a: Agent, ball: Ball | BallSample[], delay = 0, reach = 0.8, maxH = 0.6) {
+function meetPoint(a: Agent, ball: Ball | BallSample[], delay = 0, reach = 0.8, maxH = 0.6) {
   const samples = Array.isArray(ball) ? ball : ballFuture(ball);
   for (const sample of samples) {
     if (sample.h > maxH) continue;
@@ -261,7 +261,7 @@ export function meetPoint(a: Agent, ball: Ball | BallSample[], delay = 0, reach 
 
 // ---------- inputs ----------
 
-export function applyInput(s: SimState, input: FpInput) {
+function applyInput(s: SimState, input: FpInput) {
   if (s.phase === "done" || s.outcome) return;
   if (input.kind === "touch") {
     if (s.phase === "build" || s.phase === "incoming") s.armedTouch = input.dir;
@@ -942,7 +942,7 @@ function judgeTime(s: SimState) {
 
 // ---------- frames ----------
 
-export function frameOf(s: SimState): Frame {
+function frameOf(s: SimState): Frame {
   return {
     tick: s.tick,
     agents: ROLES.map((id) => {
@@ -966,8 +966,6 @@ export function frameOf(s: SimState): Frame {
     },
   };
 }
-
-export const roleIndex = (id: Role) => ROLES.indexOf(id);
 
 /** Internals for unit tests only. */
 export const __test = { moveAgent };

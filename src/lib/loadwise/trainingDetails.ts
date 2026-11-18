@@ -1,6 +1,6 @@
 import type { TrainingExercise } from "./types";
 
-export type TrainingFields = { weight: string; reps: string; rir: string; value: string };
+type TrainingFields = { weight: string; reps: string; rir: string; value: string };
 
 /** Form drafts contain user input, never completed sets or estimated measurements. */
 export function parseTrainingFields(value: unknown): TrainingFields | undefined {
@@ -39,7 +39,11 @@ export function parseTrainingNumber(raw: string): number | null {
   return Number.isFinite(value) && value >= 0 ? value : null;
 }
 
-export function validateTrainingFields(values: TrainingFields, kind: string, weightOptional = false): string | null {
+export function validateTrainingFields(
+  values: TrainingFields,
+  kind: string,
+  weightOptional = false,
+): string | null {
   for (const id of kind === "load"
     ? (["weight", "reps", "rir"] as const)
     : (["value", "rir"] as const)) {
@@ -72,7 +76,7 @@ export function exerciseDose(exercise: TrainingExercise): string {
   );
 }
 
-export type ExerciseProgress = {
+type ExerciseProgress = {
   done: Record<string, boolean>;
   started: boolean;
   currentBlockIdx: number;

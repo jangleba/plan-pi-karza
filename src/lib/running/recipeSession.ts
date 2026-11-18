@@ -74,7 +74,7 @@ function intensityText(intensity: RunIntensity): string {
 }
 
 /** Jedna linijka dawki bloku, np. „4 × 3 min, przerwa 3 min truchtu”. */
-export function blockDoseText(block: RunRecipeBlock): string {
+function blockDoseText(block: RunRecipeBlock): string {
   if (block.sets === 1 && block.repsPerSet === 1) return block.work.label;
   const reps = block.work.distanceM
     ? `${block.repsPerSet} × sprint ${block.work.distanceM} m`
@@ -178,7 +178,7 @@ export function recipeSections(recipe: RunningRecipe): SessionDay["sections"] {
   };
 }
 
-export function recipeSummary(recipe: RunningRecipe): string {
+function recipeSummary(recipe: RunningRecipe): string {
   return recipe.blocks.map(blockDoseText).join(" · ");
 }
 

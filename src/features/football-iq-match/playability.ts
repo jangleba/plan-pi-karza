@@ -74,7 +74,7 @@ export function sampleChoices(s: JourneySession): JourneyChoice[] {
 }
 
 /** What a choice is, coarsely: the same action to the same player or 10 m cell. */
-export function choiceClass(c: JourneyChoice) {
+function choiceClass(c: JourneyChoice) {
   const where = c.targetId ?? `${Math.round(c.point.x / 10)}:${Math.round(c.point.y / 10)}`;
   return `${c.intent ?? "move"}:${c.delivery ?? ""}:${where}`;
 }

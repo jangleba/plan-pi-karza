@@ -19,7 +19,7 @@ export interface SprintEnv {
   phase: string;
 }
 
-export interface MainVariant {
+interface MainVariant {
   id: string;
   goal: SprintGoal;
   exerciseId: string;
@@ -393,7 +393,7 @@ export const MAIN_VARIANTS: readonly MainVariant[] = [
 ];
 
 /** Three complementary drills per set; a session repeats exactly this triple in each round. */
-export interface DrillSet {
+interface DrillSet {
   spaceM?: number;
   id: string;
   groups: Array<"start" | "max_velocity" | "directional">;
@@ -469,11 +469,6 @@ export const DRILL_SETS: readonly DrillSet[] = [
     why: "pozycja → częstotliwość → sprężystość",
   },
 ];
-
-export interface Choice<T> {
-  item: T;
-  why: string[];
-}
 
 /** Rotation: avoid the last used, then the least used, then catalogue order. */
 export function rotate<T extends { id: string }>(

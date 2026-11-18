@@ -1,6 +1,6 @@
 import { sameTrial, validatedResult, type BrowserResult } from "./results";
 
-export const MAX_STORED_RESULTS = 300;
+const MAX_STORED_RESULTS = 300;
 export class CorruptHistoryError extends Error {}
 const keyFor = (owner: string) => `ballwise.browser-lab.v1:${encodeURIComponent(owner)}`;
 type Store = Pick<Storage, "getItem" | "setItem" | "removeItem">;

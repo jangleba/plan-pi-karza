@@ -29,7 +29,7 @@ function finiteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-export function isRoutePoint(value: unknown): value is RoutePoint {
+function isRoutePoint(value: unknown): value is RoutePoint {
   if (!value || typeof value !== "object") return false;
   const point = value as Record<string, unknown>;
   return (

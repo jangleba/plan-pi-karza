@@ -4,7 +4,7 @@ import type { TrainingBlock, TrainingExercise } from "./types";
  * Name of the way a group of exercises is performed together (superset,
  * contrast pair, complex, circuit). The screen says what to do, not why.
  */
-export interface BlockMethod {
+interface BlockMethod {
   name: string;
 }
 

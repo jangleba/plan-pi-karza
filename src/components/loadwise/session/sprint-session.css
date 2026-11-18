@@ -12,55 +12,12 @@
   border-radius: var(--bw-card-radius);
   background: var(--card);
 }
-.bw-sprint-goal {
-  padding: 16px;
-  background: var(--muted);
-}
-.bw-sprint-goal-label {
-  color: var(--muted-foreground);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-.bw-sprint-goal-title {
-  margin-top: 5px;
-  font-size: 21px;
-  line-height: 1.3;
-  font-weight: 600;
-  letter-spacing: -0.5px;
-}
-.bw-sprint-goal-meta {
-  margin-top: 5px;
-  color: var(--muted-foreground);
-  font-size: 12px;
-}
-.bw-sprint-session-info {
-  margin-top: 10px;
-  color: var(--muted-foreground);
-  font-size: 11px;
-}
-.bw-sprint-session-info summary {
-  cursor: pointer;
-  min-height: 28px;
-}
-.bw-sprint-session-info p {
-  margin-top: 4px;
-  line-height: 1.5;
-}
 .bw-course-setup {
   padding: 4px 12px;
 }
 .bw-course-setup summary::-webkit-details-marker,
 .bw-quick-guide summary::-webkit-details-marker {
   display: none;
-}
-.bw-course-badge {
-  border-radius: 10px;
-  padding: 9px 16px;
-  background: var(--primary);
-  color: var(--primary-foreground);
-  font-size: 12px;
-  font-weight: 600;
 }
 .bw-course-setup > div {
   border-top: 1px solid var(--border);
@@ -125,26 +82,6 @@
   line-height: 1.35;
   letter-spacing: -0.4px;
 }
-.bw-sprint-complete {
-  display: flex;
-  min-height: 46px;
-  width: 100%;
-  justify-content: center;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  color: var(--primary);
-  background: var(--card);
-  font-size: 13px;
-  font-weight: 650;
-}
-.bw-sprint-complete[aria-pressed="true"] {
-  color: var(--muted-foreground);
-  background: var(--muted);
-}
 .bw-sprint-action {
   position: sticky;
   bottom: max(12px, env(safe-area-inset-bottom));
@@ -159,72 +96,6 @@
   background: var(--muted);
   color: var(--muted-foreground);
   opacity: 1;
-}
-
-.bw-quick-guide {
-  margin-top: 10px;
-  border-radius: 14px;
-  background: var(--muted);
-  padding: 12px 14px;
-  color: var(--foreground);
-}
-.bw-quick-guide summary {
-  list-style: none;
-  cursor: pointer;
-}
-.bw-guide-heading {
-  display: flex;
-  min-height: 24px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-.bw-guide-badge {
-  border-radius: 7px;
-  background: color-mix(in oklab, var(--primary) 13%, var(--card));
-  color: var(--primary);
-  font-size: 11px;
-  font-weight: 650;
-  padding: 3px 8px;
-}
-.bw-guide-chevron {
-  width: 14px;
-  height: 14px;
-  color: var(--muted-foreground);
-  transition: transform 150ms ease;
-}
-.bw-quick-guide[open] .bw-guide-chevron {
-  transform: rotate(180deg);
-}
-.bw-guide-focus {
-  display: block;
-  margin-top: 8px;
-  font-size: 14px;
-  line-height: 1.5;
-  font-weight: 650;
-  letter-spacing: -0.15px;
-}
-.bw-quick-guide dl {
-  margin-top: 12px;
-}
-.bw-quick-guide dl > div {
-  display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
-  gap: 10px;
-  padding: 12px 0;
-  border-top: 1px solid var(--border);
-  font-size: 12px;
-  line-height: 1.55;
-}
-.bw-quick-guide dl > div:last-child {
-  padding-bottom: 0;
-}
-.bw-quick-guide dt {
-  font-weight: 650;
-}
-.bw-quick-guide dd {
-  margin: 0;
-  overflow-wrap: anywhere;
 }
 .bw-sprint-rest {
   display: flex;
@@ -335,12 +206,6 @@
 /* Skip cards: full width, illustration first, three short instructions. */
 .bw-skip-stage {
   padding: 0 16px;
-}
-.bw-skip-rhythm {
-  padding: 14px 0;
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--muted-foreground);
 }
 .bw-skip-card {
   min-width: 0;

@@ -13,7 +13,7 @@ function publicEnv(name: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-export const LEGAL_CONFIG = {
+const LEGAL_CONFIG = {
   administratorName: publicEnv("VITE_LEGAL_ADMIN_NAME"),
   businessAddress: publicEnv("VITE_LEGAL_BUSINESS_ADDRESS"),
   registryDetails: publicEnv("VITE_LEGAL_REGISTRY_DETAILS"),
@@ -39,7 +39,7 @@ const requiredLegalValues = [
   LEGAL_CONFIG.trialDescription,
 ];
 
-export const LEGAL_CONFIGURATION_COMPLETE = requiredLegalValues.every(Boolean);
+const LEGAL_CONFIGURATION_COMPLETE = requiredLegalValues.every(Boolean);
 export const LEGAL_RELEASE_BLOCKED =
   publicEnv("VITE_RELEASE_MODE") === "production" && !LEGAL_CONFIGURATION_COMPLETE;
 
@@ -58,7 +58,7 @@ export const PLACEHOLDER_NOTICE = LEGAL_CONFIGURATION_COMPLETE
   ? ""
   : "WERSJA TESTOWA: publikacja wymaga pełnych danych administratora, retencji, regionu danych oraz warunków subskrypcji.";
 
-export interface ConsentDef {
+interface ConsentDef {
   type: string;
   required: boolean;
   title: string;
@@ -82,15 +82,13 @@ export const CONSENTS: ConsentDef[] = [
     type: "health_data",
     required: false,
     title: "Personalizacja na podstawie danych o zdrowiu (opcjonalna)",
-    text:
-      "Wyrażam wyraźną zgodę na przetwarzanie danych o gotowości i zdrowiu: snu, energii, zmęczenia, bolesności, stresu, motywacji, bólu oraz — jeśli sam je podam — alergii i nietolerancji żywnościowych. Dane służą wyłącznie personalizacji treningu i bezpieczeństwu Fuel. Po osobnym zaznaczeniu w panelu kopii mogę również wysłać na swoje konto własne notatki zawierające dane o zdrowiu. Brak zgody nie blokuje aplikacji; plan pozostanie ostrożny, a Fuel poprosi o każdorazowe potwierdzenie składników.",
+    text: "Wyrażam wyraźną zgodę na przetwarzanie danych o gotowości i zdrowiu: snu, energii, zmęczenia, bolesności, stresu, motywacji, bólu oraz — jeśli sam je podam — alergii i nietolerancji żywnościowych. Dane służą wyłącznie personalizacji treningu i bezpieczeństwu Fuel. Po osobnym zaznaczeniu w panelu kopii mogę również wysłać na swoje konto własne notatki zawierające dane o zdrowiu. Brak zgody nie blokuje aplikacji; plan pozostanie ostrożny, a Fuel poprosi o każdorazowe potwierdzenie składników.",
   },
   {
     type: "marketing",
     required: false,
     title: "Informacje marketingowe (opcjonalne)",
-    text:
-      "Chcę otrzymywać informacje marketingowe dotyczące BallWise. Zgodę mogę wycofać w dowolnym momencie.",
+    text: "Chcę otrzymywać informacje marketingowe dotyczące BallWise. Zgodę mogę wycofać w dowolnym momencie.",
   },
 ];
 

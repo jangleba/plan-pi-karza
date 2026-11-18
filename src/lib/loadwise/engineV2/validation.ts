@@ -74,7 +74,7 @@ const FUNCTIONS = new Set([
 ]);
 type NumericDose = Dose & { postRestSeconds?: number };
 
-export interface DerivedSessionLoad {
+interface DerivedSessionLoad {
   minutes: number;
   sprintMetres: number;
   highLower: boolean;

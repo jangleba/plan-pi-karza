@@ -10,8 +10,8 @@ import { FUEL_TARGETS_VERSION } from "./dayTargets";
  */
 export type MatchParticipation = "full" | "part" | "bench";
 export type PreExerciseTolerance = "good" | "sensitive";
-export type MatchStepId = "pre_meal" | "pre_snack" | "during" | "post_snack" | "post_meal";
-export type MatchStepStatus = "past" | "now" | "next" | "later";
+type MatchStepId = "pre_meal" | "pre_snack" | "during" | "post_snack" | "post_meal";
+type MatchStepStatus = "past" | "now" | "next" | "later";
 
 export interface MatchFuelStep {
   id: MatchStepId;

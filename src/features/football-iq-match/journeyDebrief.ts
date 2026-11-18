@@ -33,7 +33,7 @@ export const IQ_COACHING_SOURCES = [
   },
 ];
 type MatchRule = { signal: string; action: string; exception: string; reminder: string };
-export type JourneyDebrief = {
+type JourneyDebrief = {
   decisionIndex: number;
   moment: string;
   observation: string;

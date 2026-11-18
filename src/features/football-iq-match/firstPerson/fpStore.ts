@@ -9,7 +9,7 @@ import { variantFromId } from "./fpVariants";
 import type { Grade, PrincipleKey } from "./fpDebrief";
 
 export const FP_RESULT_VERSION = 1;
-export const MAX_FP_ATTEMPTS = 300;
+const MAX_FP_ATTEMPTS = 300;
 export const fpHistoryKey = (owner: string) => `ballwise:iq:fp:v1:${owner}`;
 
 export type FpAttempt = {
@@ -45,7 +45,7 @@ function validInput(i: unknown): i is FpInput {
   return aim.kind === "point" && Number.isFinite(aim.x) && Number.isFinite(aim.y);
 }
 
-export function validFpAttempt(row: unknown): row is FpAttempt {
+function validFpAttempt(row: unknown): row is FpAttempt {
   if (!row || typeof row !== "object") return false;
   const r = row as Record<string, unknown>;
   return (

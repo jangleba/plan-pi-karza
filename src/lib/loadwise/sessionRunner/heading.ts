@@ -6,7 +6,7 @@ import { professionalSessionTitle } from "../labels";
  * The category moves from the unified title ("Siła: całe ciało B") into the
  * meta line, so the title is not repeated and stays short.
  */
-export interface SessionHeading {
+interface SessionHeading {
   title: string;
   category: string | null;
   meta: string[];

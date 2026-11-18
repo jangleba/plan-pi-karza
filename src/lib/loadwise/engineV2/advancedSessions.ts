@@ -50,7 +50,6 @@ export type PairKind =
   | "trunk"
   | "accessory";
 
-export type { NoteLevel } from "./noteDosage";
 export { noteLevel } from "./noteDosage";
 
 /**
@@ -83,15 +82,15 @@ export const ADVANCED_TEMPLATES: Partial<Record<AdvancedTemplateId, Template>> =
 };
 
 /** The reference dose of the week: the second (heavier) message of Day 1 overrides what it states. */
-export const weekRef = (slot: SkeletonSlot, heavy: boolean): Ref =>
+const weekRef = (slot: SkeletonSlot, heavy: boolean): Ref =>
   heavy && slot.heavy?.ref ? { ...slot.ref, ...slot.heavy.ref } : slot.ref;
 /** The coach's own exercise for the slot in that week: the one a substitute is measured against. */
-export const coachExercise = (slot: SkeletonSlot, heavy: boolean): string =>
+const coachExercise = (slot: SkeletonSlot, heavy: boolean): string =>
   (heavy ? slot.heavy?.prefer : undefined) ??
   slot.prefer?.[0] ??
   NOTE_FUNCTIONS[slot.fn].candidates[0];
 /** Exercises that can stand for the slot, the coach's own first, then the function's equivalents. */
-export const slotCandidates = (slot: SkeletonSlot, heavy: boolean): string[] =>
+const slotCandidates = (slot: SkeletonSlot, heavy: boolean): string[] =>
   orderedCandidates(
     NOTE_FUNCTIONS[slot.fn],
     slot.prefer ?? [],
@@ -117,7 +116,7 @@ export const pairTitle = (kind: PairKind) => KIND_TITLE[kind] ?? "Superseria";
 export const ADVANCED_CONTACT_LIMIT = (age: number) => (age < 18 ? 30 : 48);
 
 /** A concrete reason the note sessions do not apply to a profile; null when they do. */
-export interface NoteIneligibility {
+interface NoteIneligibility {
   code: string;
   message: string;
 }
@@ -174,7 +173,7 @@ export function advancedSessionsEligible(p: Profile, _phase?: EngineSession["pha
  * Two A and two B notes alternate by block rotation; a power, speed or agility goal starts with
  * the more reactive note, a strength or general goal with the heavier one.
  */
-export function advancedTemplateFor(variant: "A" | "B", rotation: number, p?: Profile): Template {
+function advancedTemplateFor(variant: "A" | "B", rotation: number, p?: Profile): Template {
   const goal = p ? resolveGoalPolicy(p).strengthGoal : "strength";
   const reactiveFirst = ["power", "speed", "agility"].includes(goal);
   const pair =
@@ -252,7 +251,7 @@ function templateLimitation(
   };
 }
 
-export interface AdvancedAttempt {
+interface AdvancedAttempt {
   session: EngineSession | null;
   /** Set when the first-choice note was replaced or no note could be built. */
   path?: StrengthPathNote;
@@ -600,7 +599,7 @@ export function shortenAdvanced(recipe: EngineSession, budget: number): EngineSe
  * rests the full round rest. An exercise with more sets than its later partners does its
  * extra sets alone (`pairedSets`) and rests the round rest after them (`soloRestSeconds`).
  */
-export function layoutGroup(rows: ExerciseDecision[], roundRestSeconds: number, transition = 30) {
+function layoutGroup(rows: ExerciseDecision[], roundRestSeconds: number, transition = 30) {
   rows.forEach((row, i) => {
     const later = Math.max(0, ...rows.slice(i + 1).map((r) => r.dose.sets));
     const d = { ...row.dose };

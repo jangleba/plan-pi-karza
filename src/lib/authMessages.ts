@@ -1,4 +1,4 @@
-export type AuthAction = "login" | "register";
+type AuthAction = "login" | "register";
 
 interface AuthMessageRule {
   patterns: RegExp[];

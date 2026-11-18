@@ -24,7 +24,7 @@ export interface RunnerStep {
   rows: RunnerRow[];
 }
 
-export const SECTION_LABELS: Record<string, string> = {
+const SECTION_LABELS: Record<string, string> = {
   warmup: "Rozgrzewka",
   prep: "Przygotowanie",
   main: "Część główna",
@@ -92,7 +92,7 @@ export function firstOpenStepIndex(
   return index >= 0 ? index : Math.max(0, steps.length - 1);
 }
 
-export interface RunnerProgress {
+interface RunnerProgress {
   done: number;
   skipped: number;
   total: number;

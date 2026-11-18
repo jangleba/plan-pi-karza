@@ -132,7 +132,7 @@ const executed = (s: SessionDay, c: Record<string, SessionCompletion>) => {
 };
 
 /** Everything that identifies the feedback; storing the same value again keeps the same id. */
-export function feedbackSignature(c: SessionCompletion): string {
+function feedbackSignature(c: SessionCompletion): string {
   return [
     c.rpe,
     effectiveActivityTags(c).join("+"),

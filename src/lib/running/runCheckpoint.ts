@@ -2,7 +2,7 @@ import type { RunningActivityDraft } from "./types";
 import type { NativeRunState } from "./nativeRecorder";
 
 const PREFIX = "ballwise:run-draft:v1:";
-export interface BrowserRunCheckpoint {
+interface BrowserRunCheckpoint {
   schema: 1;
   ownerId: string;
   sessionId: string;

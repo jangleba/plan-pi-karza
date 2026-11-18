@@ -39,7 +39,7 @@ import "../firstPerson/firstPerson.css";
 import "./fiveAside.css";
 
 type Stage = "loading" | "error" | "intro" | "ready" | "play" | "replay" | "debrief";
-export type FiveAsideIQProps = {
+type FiveAsideIQProps = {
   historyOwner?: string;
   onBack: () => void;
   onOpenClassic?: () => void;

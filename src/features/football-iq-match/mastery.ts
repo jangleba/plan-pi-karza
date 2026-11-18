@@ -23,7 +23,7 @@ import { playableSituationBank } from "./situationBank";
 
 export * from "./masteryStore";
 
-export type NextSituation = {
+type NextSituation = {
   def: JourneyDefinition;
   progress: AimProgress;
   reason: string;

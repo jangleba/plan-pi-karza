@@ -1,5 +1,5 @@
 import type { MethodExecution } from "./types";
-export interface MethodClockState {
+interface MethodClockState {
   phase: "idle" | "work" | "rest" | "done";
   round: number;
   repetition: number;

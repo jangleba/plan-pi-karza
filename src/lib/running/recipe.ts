@@ -81,7 +81,7 @@ export interface RunningRecipe {
   reducedFrom?: number;
 }
 
-export function recipeMainSeconds(recipe: Pick<RunningRecipe, "blocks">): number {
+function recipeMainSeconds(recipe: Pick<RunningRecipe, "blocks">): number {
   return recipe.blocks.reduce((sum, block) => {
     const reps = block.sets * block.repsPerSet;
     const recoveries = block.sets * Math.max(0, block.repsPerSet - 1);
@@ -99,16 +99,6 @@ export function recipeTotalSeconds(
   recipe: Pick<RunningRecipe, "blocks" | "warmup" | "cooldown">,
 ): number {
   return recipe.warmup.seconds + recipeMainSeconds(recipe) + recipe.cooldown.seconds;
-}
-
-/** Minuty ciężkiej pracy (bez przerw) — do bilansu tygodnia. */
-export function recipeHardSeconds(recipe: Pick<RunningRecipe, "blocks">): number {
-  return recipe.blocks.reduce(
-    (sum, block) =>
-      sum +
-      (block.intensity.zone === "easy" ? 0 : block.sets * block.repsPerSet * block.work.seconds),
-    0,
-  );
 }
 
 export function isRunningRecipe(value: unknown): value is RunningRecipe {
@@ -133,30 +123,6 @@ export function isRunningRecipe(value: unknown): value is RunningRecipe {
     Number.isFinite(recipe.warmup?.seconds) &&
     Number.isFinite(recipe.cooldown?.seconds)
   );
-}
-
-/** Stabilny identyfikator receptury: te same liczby → ten sam id. */
-export function recipeIdentity(recipe: Omit<RunningRecipe, "id">): string {
-  const text = JSON.stringify([
-    recipe.method,
-    recipe.level,
-    recipe.paceSource,
-    recipe.warmup.seconds,
-    recipe.cooldown.seconds,
-    recipe.blocks.map((b) => [
-      b.sets,
-      b.repsPerSet,
-      b.work.seconds,
-      b.work.distanceM ?? null,
-      b.recovery.seconds,
-      b.setRest?.seconds ?? null,
-      b.intensity.rpe,
-      b.intensity.pace?.label ?? null,
-    ]),
-  ]);
-  let hash = 2166136261;
-  for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 16777619);
-  return `run-${recipe.method}-${(hash >>> 0).toString(16)}`;
 }
 
 export function formatClock(seconds: number): string {

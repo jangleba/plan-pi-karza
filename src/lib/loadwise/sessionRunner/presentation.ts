@@ -32,7 +32,7 @@ const doseText = (e: TrainingExercise) =>
 const isTimedText = (text: string) => /\d\s*(?:s|sek\w*|min\w*)\b/i.test(text);
 
 /** Power, plyometric and landing work is judged by quality, never by reps in reserve. */
-export function isPowerTask(exercise: TrainingExercise): boolean {
+function isPowerTask(exercise: TrainingExercise): boolean {
   if (exercise.exerciseId === "gym_step_brake") return true;
   const definition = definitionOf(exercise);
   if (definition && ["power", "plyometric"].includes(definition.category)) return true;

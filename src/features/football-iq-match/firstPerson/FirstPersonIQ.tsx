@@ -7,14 +7,7 @@ import { ArrowLeft, Crosshair, LayoutGrid, Pause, Play, RotateCcw } from "lucide
 import { vibrate } from "@/lib/haptics";
 import { backupIqNow, cloudBackupEnabled } from "../iqCloud";
 import { createFpScene, type FpScene, type SceneEvent } from "./fpScene";
-import {
-  runSim,
-  FP_ENGINE_VERSION,
-  type FpInput,
-  type Frame,
-  type Phase,
-  type SimState,
-} from "./fpSim";
+import { runSim, FP_ENGINE_VERSION, type FpInput, type Phase, type SimState } from "./fpSim";
 import { makeVariant, nextVariantSeed, siblingSeed, type FpVariant } from "./fpVariants";
 import {
   buildDebrief,
@@ -36,7 +29,7 @@ import type { LookStatus } from "./fpLook";
 import "./firstPerson.css";
 
 type Stage = "loading" | "error" | "intro" | "ready" | "play" | "replay" | "debrief";
-export type FirstPersonIQProps = {
+type FirstPersonIQProps = {
   historyOwner?: string;
   onBack: () => void;
   onOpenClassic?: () => void;
@@ -536,6 +529,3 @@ export function FirstPersonIQ({
     </div>
   );
 }
-
-/** Frames of a finished run (for tests and QA). */
-export const framesOf = (sim: SimState): Frame[] => sim.frames;

@@ -19,7 +19,7 @@ export const FUEL_TARGETS_VERSION = "fuel-targets-1";
 
 export type FuelDayType =
   "rest" | "light" | "moderate" | "heavy" | "match_prep" | "match" | "match_recovery";
-export type NonTrainingActivity = "low" | "moderate" | "high";
+type NonTrainingActivity = "low" | "moderate" | "high";
 
 export interface FuelActivity {
   /** Session identity: a duplicate import of the same session counts once. */
@@ -32,7 +32,7 @@ export interface FuelActivity {
   playedMinutes?: number | null;
 }
 
-export interface FuelTargetInput {
+interface FuelTargetInput {
   age: number;
   /** Only with the Fuel Precision consent; otherwise the guidance stays in portions. */
   weightKg: number | null;

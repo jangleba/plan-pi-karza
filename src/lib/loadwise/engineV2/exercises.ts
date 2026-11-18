@@ -124,7 +124,7 @@ const ownedEquipment = (p: Profile) => [
   ...new Set([...p.equipment, ...(p.trainingMethodPreferences?.declaredEquipment ?? [])]),
 ];
 /** Gated equipment the exercise needs and the profile does not declare. */
-export function missingGatedEquipment(id: string, p: Profile): string[] {
+function missingGatedEquipment(id: string, p: Profile): string[] {
   const d = getExerciseDefinition(id);
   if (!d) return [];
   const equipment = ownedEquipment(p);
@@ -366,7 +366,7 @@ export function buildStrength(
     : buildStrengthBase(p, variant, phase, rotation);
 }
 
-export function buildAthleticStrength(
+function buildAthleticStrength(
   p: Profile,
   variant: "A" | "B",
   phase: EngineSession["phase"],

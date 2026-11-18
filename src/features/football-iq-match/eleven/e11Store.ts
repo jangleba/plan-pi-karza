@@ -1,7 +1,7 @@
 /** Saved results of the 11v11 lesson: a separate, versioned key (the other IQ history is not
  * touched). Every attempt keeps its variant, engine version and inputs, so it can be played
  * again and checked: debrief and replay come from the same deterministic simulator. */
-import { E11_ENGINE_VERSION, type E11Input, type OutcomeKind } from "./e11Sim";
+import { type E11Input, type OutcomeKind } from "./e11Sim";
 import { makeVariant, ROLES, type E11Role, type E11Variant } from "./e11Variants";
 import type { Grade, ProblemKey, TimingKind } from "./e11Debrief";
 
@@ -120,4 +120,3 @@ export function variantFromId(id: string): E11Variant | null {
   const m = /^e11-(mid|fwd|def)-(\d+)$/.exec(id);
   return m ? makeVariant(Number(m[2]), m[1] as E11Role) : null;
 }
-export const E11_RESULT_ENGINE = E11_ENGINE_VERSION;

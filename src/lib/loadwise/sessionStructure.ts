@@ -29,7 +29,7 @@ function section(s: Omit<TrainingSection, "id">): TrainingSection {
  * deterministic suffix, so IDs that were already unique (and any history
  * recorded against them) stay exactly as they were.
  */
-export function ensureUniqueExerciseIds(sections: TrainingSection[]): TrainingSection[] {
+function ensureUniqueExerciseIds(sections: TrainingSection[]): TrainingSection[] {
   const seen = new Set<string>();
   return sections.map((section) => ({
     ...section,

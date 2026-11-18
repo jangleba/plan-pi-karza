@@ -2,9 +2,9 @@ import type { SeasonPhase, SeasonStage, Profile } from "./types";
 import { localToday, parseIso } from "./labels";
 
 /** Status spójności stanu sezonu z kalendarzem. */
-export type SeasonValidationStatus = "ok" | "invalid" | "incomplete" | "override";
+type SeasonValidationStatus = "ok" | "invalid" | "incomplete" | "override";
 
-export interface SeasonStateInput {
+interface SeasonStateInput {
   seasonPhase: SeasonPhase | null;
   seasonStage: SeasonStage | null;
   nextMatchDate: string | null;
@@ -14,7 +14,7 @@ export interface SeasonStateInput {
   today?: Date;
 }
 
-export interface SeasonValidationResult {
+interface SeasonValidationResult {
   status: SeasonValidationStatus;
   /** Komunikat po polsku do pokazania użytkownikowi (lub null). */
   message: string | null;
@@ -24,7 +24,7 @@ export interface SeasonValidationResult {
   needsConfirm: boolean;
 }
 
-export const SEASON_MISMATCH_MESSAGE =
+const SEASON_MISMATCH_MESSAGE =
   "Wybrany okres sezonu nie pasuje do aktualnej daty i fazy rozgrywek. " +
   "Popraw okres albo wybierz tryb niestandardowego sezonu.";
 
@@ -60,10 +60,7 @@ function daysUntil(today: Date, iso: string | null): number | null {
  * Sugeruje okres sezonu na podstawie kalendarza i daty meczu.
  * Data meczu i kontekst rozgrywkowy mają pierwszeństwo nad domyślnym miesiącem.
  */
-export function suggestSeasonPhase(
-  today: Date,
-  nextMatchDate: string | null,
-): SeasonPhase {
+function suggestSeasonPhase(today: Date, nextMatchDate: string | null): SeasonPhase {
   const month = today.getMonth() + 1;
   const dToMatch = daysUntil(today, nextMatchDate);
   const matchSoon = dToMatch != null && dToMatch >= 0 && dToMatch <= 14;
@@ -86,9 +83,7 @@ export function suggestSeasonPhase(
  * Sprawdza spójność stanu sezonu z kalendarzem i datą meczu.
  * Blokuje niemożliwe kombinacje, prosi o brakujące dane, sugeruje poprawkę.
  */
-export function validateSeason(
-  input: SeasonStateInput,
-): SeasonValidationResult {
+export function validateSeason(input: SeasonStateInput): SeasonValidationResult {
   const today = input.today ?? localToday();
   const suggestion = suggestSeasonPhase(today, input.nextMatchDate);
 
@@ -118,18 +113,12 @@ export function validateSeason(
   let invalid = !plausible.includes(input.seasonPhase);
 
   // "Środek rundy" tylko gdy faktycznie trwa runda (w sezonie).
-  if (
-    input.seasonStage === "season_mid" &&
-    input.seasonPhase !== "inseason"
-  ) {
+  if (input.seasonStage === "season_mid" && input.seasonPhase !== "inseason") {
     invalid = true;
   }
 
   // Przerwa zimowa tylko w miesiącach zimowych.
-  if (
-    input.seasonStage === "winter_break" &&
-    !WINTER_MONTHS.includes(month)
-  ) {
+  if (input.seasonStage === "winter_break" && !WINTER_MONTHS.includes(month)) {
     invalid = true;
   }
 
@@ -154,8 +143,7 @@ export function validateSeason(
   if (input.seasonPhase === "inseason" && !input.nextMatchDate) {
     return {
       status: "incomplete",
-      message:
-        "Wybrano grę w sezonie — podaj datę najbliższego meczu, aby plan był wiarygodny.",
+      message: "Wybrano grę w sezonie — podaj datę najbliższego meczu, aby plan był wiarygodny.",
       suggestion,
       needsConfirm: false,
     };

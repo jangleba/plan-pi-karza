@@ -544,43 +544,6 @@
   font-size: 10px;
   margin-bottom: 3px;
 }
-.iq-journey .iqJ-choices {
-  display: grid;
-  gap: 7px;
-  margin-top: 10px;
-}
-.iq-journey .iqJ-choice {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 48px;
-  min-width: 0;
-  padding: 6px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  color: var(--foreground);
-  background: var(--card);
-  font-size: 12px;
-}
-.iqJ-choice > strong {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  flex: none;
-  border-radius: 8px;
-  background: var(--secondary);
-  color: var(--primary);
-  font-size: 12px;
-}
-.iqJ-choice > span {
-  font-size: 11px;
-}
-.iq-journey .iqJ-choice:active {
-  background: var(--secondary);
-  border-color: var(--primary);
-}
 .iq-journey .iqJ-actions {
   margin-top: 3px;
 }
@@ -692,22 +655,6 @@
   color: var(--muted-foreground);
   font-size: 10px;
   line-height: 1.4;
-}
-.iqJ-resume {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 0 8px;
-  margin-bottom: 6px;
-  background: var(--secondary);
-  border-radius: 10px;
-  font-size: 10px;
-}
-.iqJ-resume .iqJ-text {
-  flex: none;
-  font-size: 10px;
-  color: var(--primary);
 }
 .iqJ-choices[data-count="5"] .iqJ-choice {
   flex-direction: column;
@@ -875,37 +822,10 @@
   grid-row: 4;
   grid-column: 1 / -1;
 }
-.iqL-situation {
-  grid-row: 5;
-  grid-column: 1 / -1;
-  margin: 7px 0 0;
-  color: var(--muted-foreground);
-  font-size: 12px;
-  line-height: 1.4;
-}
 .iqL-lesson .iqJ-board-meta {
   min-height: 44px;
   padding: 0 14px;
   font-size: 10px;
-}
-.iqL-tools {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-.iqL-tools button {
-  display: grid;
-  place-items: center;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 4px;
-  background: transparent;
-  color: var(--primary);
-  font-size: 11px;
-}
-.iqL-tools [aria-pressed="true"] {
-  background: var(--secondary);
-  border-radius: 9px;
 }
 .iq-journey .iqL-footer {
   flex: 0 0 auto;
@@ -989,22 +909,6 @@
   margin-top: 4px !important;
   font-size: 11px !important;
   line-height: 1.35 !important;
-}
-.iqL-option-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.iqL-option-title select {
-  max-width: 125px;
-  min-height: 44px;
-  padding: 2px 5px;
-  font-size: 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--primary);
-  background: var(--card);
 }
 .iqL-commit {
   display: flex;
@@ -1178,25 +1082,6 @@
   margin: 0 !important;
   font-size: 12px !important;
 }
-.iqS-choice-tools {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-.iqS-choice-tools > select {
-  max-width: 55%;
-  min-height: 44px;
-  padding: 4px 8px;
-  border: var(--bw-hairline, 1px) solid var(--border);
-  border-radius: 10px;
-  color: var(--primary);
-  background: var(--card);
-  font-size: 12px;
-}
-.iqS-choice-tools > button {
-  margin-left: auto;
-}
 .iqS-staged[data-iq-phase="feedback"] .iqJ-kicker {
   color: var(--bw-warning, var(--primary));
 }
@@ -1247,9 +1132,6 @@
   justify-content: center;
 }
 .iqS-intent > button span {
-  display: none;
-}
-.iqS-choice-tools:empty {
   display: none;
 }
 @media (orientation: portrait) and (max-height: 700px) {

@@ -1,7 +1,7 @@
 import type { Profile } from "../types";
 import type { Tier } from "./model";
 
-export interface ProgrammingPreparation {
+interface ProgrammingPreparation {
   tier: Tier;
   source: "explicit_strength" | "onboarding";
   /** A volume category, never proof of months, lifting technique or supervision. */

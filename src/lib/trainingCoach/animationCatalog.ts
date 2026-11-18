@@ -3,7 +3,7 @@ import movementIdentities from "./movement-identities.json";
 import { INSTRUCTION_ONLY_GYM_IDS } from "@/lib/loadwise/gymProgramming";
 import { GYM_EXERCISE_EXPANSIONS } from "@/lib/loadwise/gymExerciseExpansions";
 
-export interface AnimationCatalogEntry {
+interface AnimationCatalogEntry {
   id: string;
   title: string;
   sourceUrl?: string;

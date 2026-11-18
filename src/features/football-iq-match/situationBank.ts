@@ -423,7 +423,7 @@ export const situations: Situation[] = [
 ];
 
 const contexts = ["Prowadzisz 1:0", "Remis 0:0", "Przegrywasz 0:1"] as const;
-export const SITUATION_CONCEPT = "situation" as const;
+const SITUATION_CONCEPT = "situation" as const;
 
 /** Small, deterministic change per context so the three variants differ on the pitch. */
 export function situationLayout(def: JourneyDefinition): Layout | undefined {
@@ -466,7 +466,7 @@ export const authoredSituationBank: JourneyDefinition[] = situations.flatMap((s,
 );
 
 /** The definition of one seeded variant of situation number `i` (also used by the search). */
-export function variantDefinition(s: Situation, i: number, seed: number): JourneyDefinition {
+function variantDefinition(s: Situation, i: number, seed: number): JourneyDefinition {
   const context = (seed % 3) as 0 | 1 | 2;
   return {
     ...authored(s, i, context),

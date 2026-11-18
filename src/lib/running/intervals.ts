@@ -246,7 +246,7 @@ export function intervalRemainingLabel(
 }
 
 /** Krótszych odcinków GPS telefonu nie mierzy wiarygodnie — nie oceniamy ich tempa. */
-export const MIN_PACE_EVIDENCE_SEC = 60;
+const MIN_PACE_EVIDENCE_SEC = 60;
 
 export function buildIntervalResult(input: {
   step: RunningIntervalStep;

@@ -2,29 +2,6 @@
   overflow-x: clip;
   padding-bottom: calc(100px + env(safe-area-inset-bottom));
 }
-.bw-session-66 .bw-session-header {
-  padding-top: max(16px, env(safe-area-inset-top));
-  margin-bottom: 16px;
-}
-.bw-session-66 .bw-session-header h1 {
-  font-size: 23px;
-  line-height: 1.2;
-  max-width: 95%;
-}
-.bw-session-66 .bw-session-header .bw-surface-sketch {
-  opacity: 0.035;
-}
-.bw-session-settings {
-  font-size: 13px;
-  color: var(--muted-foreground);
-}
-.bw-session-settings > summary {
-  padding: 8px 0;
-  cursor: pointer;
-}
-.bw-session-settings > div {
-  margin: 10px 0;
-}
 .bw-session-primary {
   display: flex;
   width: 100%;
@@ -47,11 +24,6 @@
   line-height: 1.55;
   color: var(--muted-foreground);
   overflow-wrap: anywhere;
-}
-.bw-focused-runner {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
 }
 .bw-focus-navigation,
 .bw-focus-browse {
@@ -102,18 +74,6 @@
   margin: 10px 0 4px;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
-}
-.bw-technique-open {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  margin: 10px 0 14px;
-  color: var(--primary);
-  font-size: 13px;
-}
-.bw-technique-open svg:last-child {
-  margin-left: auto;
 }
 .bw-focus-card .bw-training-inline {
   padding: 0;
@@ -375,10 +335,6 @@
 .bw-focus-tile .bw-focus-dose {
   margin-top: 6px;
 }
-.bw-focus-tile .bw-technique-open {
-  min-height: 36px;
-  margin: 4px 0 0;
-}
 .bw-focus-tile[data-done] {
   opacity: 0.6;
 }
@@ -493,22 +449,6 @@
   width: 18px;
   height: 18px;
 }
-.bw-session-v2 .bw-training-tools {
-  margin-top: 20px;
-  border-top: 1px solid var(--border);
-  padding-top: 4px;
-}
-.bw-session-v2 .bw-training-tools > summary {
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  font-size: 14px;
-  color: var(--muted-foreground);
-  cursor: pointer;
-}
-.bw-session-v2 .bw-training-tools[open] > * + * {
-  margin-top: 12px;
-}
 /* One plain entry to the session options (no fold-out section). */
 .bw-unit-options {
   display: inline-flex;
@@ -561,33 +501,6 @@
 .bw-unit-options-sheet .grid {
   margin-top: 12px;
 }
-.bw-run-test-option {
-  margin-top: 16px;
-  border-radius: 16px;
-  background: var(--muted);
-  padding: 14px 16px;
-  display: grid;
-  gap: 8px;
-}
-.bw-run-test-option h3 {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 15px;
-  font-weight: 600;
-}
-.bw-run-test-option p {
-  font-size: 13px;
-  line-height: 1.45;
-  color: var(--muted-foreground);
-}
-.bw-run-test-option button {
-  min-height: 44px;
-  border-radius: 999px;
-  background: var(--card);
-  font-size: 14px;
-  font-weight: 600;
-}
 
 /* Licznik biegu: jeden duży czas, etap i cel. */
 .bw-run-clock {
@@ -622,10 +535,6 @@
   border-radius: 999px;
   color: var(--muted-foreground);
 }
-.bw-run-clock-rep {
-  font-size: 15px;
-  font-weight: 550;
-}
 .bw-run-clock .bw-run-readout {
   font-size: clamp(64px, 24vw, 104px);
   line-height: 1;
@@ -642,42 +551,12 @@
   color: var(--muted-foreground);
   font-variant-numeric: tabular-nums;
 }
-.bw-run-clock-progress {
-  width: 100%;
-  height: 4px;
-  border-radius: 999px;
-  background: var(--muted);
-  overflow: hidden;
-  margin-top: 12px;
-}
-.bw-run-clock-progress > span {
-  display: block;
-  height: 100%;
-  background: var(--bw-run-accent);
-  transition: width 0.2s linear;
-}
-.bw-run-clock-actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 18px;
-  margin-top: 16px;
-}
 .bw-run-clock-main {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   min-width: 150px;
-}
-.bw-run-clock-icon {
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 999px;
-  background: var(--muted);
-  color: var(--foreground);
 }
 .bw-run-clock-icon:disabled,
 .bw-run-clock-main:disabled {

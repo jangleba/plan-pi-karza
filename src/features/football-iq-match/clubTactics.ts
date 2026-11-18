@@ -6,8 +6,8 @@
 import type { Level, Position } from "@/lib/loadwise/types";
 
 /** 1: one clear trigger, 2: trigger + condition, 3: reads two lines at once. */
-export type CueTier = 1 | 2 | 3;
-export type ClubCue = { topic: string; label: string; tier: CueTier; text: string };
+type CueTier = 1 | 2 | 3;
+type ClubCue = { topic: string; label: string; tier: CueTier; text: string };
 
 type Topic = { label: string; positions: Position[]; cues: [CueTier, string][] };
 

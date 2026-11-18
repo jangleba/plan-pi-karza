@@ -1,16 +1,13 @@
 import type { JourneySession } from "./journeyTypes";
 import type { PlannedAction } from "./types";
 import { distance } from "./tacticalWorld";
-export const replayColors = {
+const replayColors = {
   ball: "#f3cf73",
   run: "#78c7fa",
   rival: "#ff9b87",
 };
 /** Only observed paths, shown in analysis; never a recommended solution before choosing. */
-export function attackReplay(
-  session: JourneySession,
-  index: number,
-): PlannedAction[] {
+export function attackReplay(session: JourneySession, index: number): PlannedAction[] {
   const beat = session.beats[index];
   if (!beat) return [];
   const rows = beat.live ?? [];
@@ -28,8 +25,7 @@ export function attackReplay(
   const flights: (typeof rows)[] = [];
   for (const row of rows) {
     if (row.inFlight) {
-      if (!flights.length || flights.at(-1)!.at(-1)!.kicker !== row.kicker)
-        flights.push([]);
+      if (!flights.length || flights.at(-1)!.at(-1)!.kicker !== row.kicker) flights.push([]);
       flights.at(-1)!.push(row);
     }
   }
@@ -53,11 +49,7 @@ export function attackReplay(
         distance(beat.before.positions[a.id], beat.before.positions[actor]) -
         distance(beat.before.positions[b.id], beat.before.positions[actor]),
     )[0];
-  if (
-    rival &&
-    distance(beat.before.positions[rival.id], beat.after.positions[rival.id]) >
-      2
-  )
+  if (rival && distance(beat.before.positions[rival.id], beat.after.positions[rival.id]) > 2)
     actions.push({
       id: "analysis-rival",
       type: "cover",

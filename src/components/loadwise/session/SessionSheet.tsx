@@ -8,13 +8,8 @@ import "./session-sheet.css";
 const loadView = () => import("./SessionDetailView");
 const SessionDetailView = lazy(() => loadView().then((m) => ({ default: m.SessionDetailView })));
 
-/** Warms the session panel code before the athlete taps a training. */
-export function prepareSessionSheet() {
-  void loadView().catch(() => undefined);
-}
-
 import type { SessionSheetSearch } from "./sessionSheetSearch";
-export { parseSessionSheetSearch, type SessionSheetSearch } from "./sessionSheetSearch";
+export { parseSessionSheetSearch } from "./sessionSheetSearch";
 
 type Search = Record<string, unknown>;
 const withTarget = (prev: Search, target: SessionTarget | null): Search => ({

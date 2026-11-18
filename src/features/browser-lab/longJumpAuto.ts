@@ -8,7 +8,6 @@ import {
   type AutomaticLongJumpCalibration,
 } from "./longJump";
 import { orientStartMarker, takeoffEdgeFromMarkers } from "./markerGeometry";
-export { takeoffEdgeFromMarkers } from "./markerGeometry";
 
 export interface PoseFrame extends DetectedPose {
   frameIndex: number;

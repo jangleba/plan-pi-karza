@@ -12,7 +12,7 @@ export function videoPrecision(fps: number) {
   return "Więcej klatek · 120/240 FPS";
 }
 
-export interface TimedSample {
+interface TimedSample {
   cts: number;
   timescale: number;
   duration: number;

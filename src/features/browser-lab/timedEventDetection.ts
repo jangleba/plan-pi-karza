@@ -17,7 +17,7 @@ export interface TimedEventProposal {
   method: "pose-proposal-v1";
   focus: { start: [number, number]; end: [number, number]; turn?: [number, number] };
 }
-export const medianOf = (values: number[]) => {
+const medianOf = (values: number[]) => {
   const sorted = [...values].sort((a, b) => a - b),
     mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;

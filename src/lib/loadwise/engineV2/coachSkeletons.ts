@@ -66,7 +66,7 @@ export interface Ref {
   unspecified?: readonly ("sets" | "reps" | "holds")[];
 }
 
-export type BlockGoal =
+type BlockGoal =
   | "primer_reactive"
   | "ballistic_lift"
   | "heavy_lower_reactive"

@@ -22,8 +22,8 @@ import {
 export const TICK_HZ = 60;
 export const DT = 1 / TICK_HZ;
 export const GRAVITY = 9.81;
-export const ROLL_DECEL = 1.6;
-export const ROLL_DRAG = 0.012;
+const ROLL_DECEL = 1.6;
+const ROLL_DRAG = 0.012;
 
 /** What the movement model needs from a player. */
 export type MotionBody = {
@@ -134,7 +134,7 @@ export function advanceBall(p: V, vel: V, h: number, vh: number, dt: number) {
 }
 
 export type BallSample = { t: number; p: V; h: number };
-export type FreeBall = { pos: V; vel: V; h: number; vh: number };
+type FreeBall = { pos: V; vel: V; h: number; vh: number };
 /** Where the free ball will be over the next seconds (same physics as the step). */
 export function ballFuture(ball: FreeBall, seconds = 3.2, step = 0.05): BallSample[] {
   const out: BallSample[] = [];

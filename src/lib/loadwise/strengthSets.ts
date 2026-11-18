@@ -58,7 +58,7 @@ export function rowsToStrengthSets(
   return out;
 }
 
-export async function loadStrengthSetRows(
+async function loadStrengthSetRows(
   userId: string,
   fromDate: string,
   toDate: string,

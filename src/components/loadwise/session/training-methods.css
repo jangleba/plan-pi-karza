@@ -1,39 +1,3 @@
-.bw-method-trigger {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  width: 100%;
-  padding: 0.85rem 1rem;
-  text-align: left;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--card);
-  font-size: 0.84rem;
-  color: var(--foreground);
-}
-.bw-method-trigger > span {
-  flex: 1;
-}
-.bw-method-trigger small {
-  display: block;
-  color: var(--muted-foreground);
-  font-size: 0.75rem;
-  margin-top: 0.15rem;
-}
-.bw-method-sheet {
-  max-width: 40rem;
-  margin: auto;
-}
-.bw-method-sheet p,
-.bw-method-sheet small {
-  font-size: 0.82rem;
-  line-height: 1.5;
-  color: var(--muted-foreground);
-}
-.bw-method-sheet fieldset {
-  border: 0;
-  padding: 0;
-}
 .bw-method-sheet label,
 .bw-method-clock label {
   display: flex;
@@ -54,32 +18,6 @@
   background: var(--background);
   font-size: 0.85rem;
 }
-.bw-method-sheet details {
-  border-top: 1px solid var(--border);
-  padding: 0.85rem 0;
-}
-.bw-method-sheet summary {
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 500;
-  list-style: none;
-}
-.bw-method-sheet summary::after {
-  content: "＋";
-  float: right;
-  font-weight: 400;
-}
-.bw-method-sheet details[open] > summary::after {
-  content: "−";
-}
-.bw-method-option {
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--border);
-}
-.bw-method-option h3 {
-  font-weight: 600;
-  font-size: 0.9rem;
-}
 .bw-method-option button,
 .bw-method-save,
 .bw-method-clock button {
@@ -91,26 +29,9 @@
   font-weight: 500;
   background: var(--card);
 }
-.bw-method-option button {
-  margin-top: 0.6rem;
-}
-.bw-method-save {
-  width: 100%;
-  background: var(--primary);
-  color: var(--primary-foreground);
-  margin: 0.8rem 0;
-}
 .bw-method-option button:disabled,
 .bw-method-clock button:disabled {
   opacity: 0.45;
-}
-.bw-method-status {
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  margin-right: 6px;
-  background: #378367;
 }
 .bw-method-status[data-available="false"] {
   background: #b27935;
@@ -180,21 +101,3 @@
 .bw-method-clock form button {
   flex-shrink: 0;
 }
-.bw-method-reflection {
-  border-left: 2px solid #a9bdcd;
-  padding: 0.2rem 0.8rem;
-  font-size: 0.82rem;
-  color: var(--muted-foreground);
-  margin: 1rem 0;
-}
-.bw-method-source-list {
-  overflow-wrap: anywhere;
-}
-.bw-method-source-list a {
-  display: block;
-  font-size: 0.74rem;
-  margin: 0.5rem 0;
-  color: var(--primary);
-}
-
-.bw-method-sheet input[type="number"],.bw-method-sheet select{min-width:0;flex:0 1 7rem;width:7rem}.bw-method-sheet input[type="checkbox"]{accent-color:var(--primary)}

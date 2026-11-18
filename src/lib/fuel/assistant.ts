@@ -1,9 +1,9 @@
 export type FuelMoment = "before" | "after" | "ordinary";
 export type FuelLoadBand = "low" | "moderate" | "high";
 
-export type IngredientRole = "carb" | "protein" | "fruit" | "vegetable" | "fluid" | "fat";
+type IngredientRole = "carb" | "protein" | "fruit" | "vegetable" | "fluid" | "fat";
 
-export interface FuelIngredient {
+interface FuelIngredient {
   id: string;
   label: string;
   aliases: string[];
@@ -12,12 +12,12 @@ export interface FuelIngredient {
   heavy?: boolean;
 }
 
-export interface ParsedFuelIngredients {
+interface ParsedFuelIngredients {
   items: FuelIngredient[];
   unknown: string[];
 }
 
-export interface FuelMealSuggestion {
+interface FuelMealSuggestion {
   id: string;
   title: string;
   why: string;

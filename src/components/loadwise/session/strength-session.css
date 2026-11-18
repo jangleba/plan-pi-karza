@@ -224,14 +224,6 @@
   font-size: 13px;
   color: var(--muted-foreground);
 }
-.bw-exercise-options > .bw-quick-guide,
-.bw-exercise-options > .bw-load-advice {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  flex-basis: 100%;
-}
 .bw-exercise-options summary {
   min-height: 44px;
   display: flex;
@@ -243,21 +235,6 @@
 }
 .bw-exercise-options summary::-webkit-details-marker {
   display: none;
-}
-.bw-exercise-options .bw-guide-badge {
-  padding: 0;
-  background: none;
-  font-size: 13px;
-  color: var(--muted-foreground);
-}
-.bw-exercise-options .bw-quick-guide dl {
-  padding: 0 0 8px;
-  font-size: 13px;
-}
-.bw-load-advice p {
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--foreground);
 }
 .bw-equipment-change {
   margin: 0 14px 10px;
@@ -319,23 +296,6 @@
 .bw-training-list summary:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
-}
-.bw-training-page {
-  max-width: 540px;
-  margin: auto;
-}
-.bw-training-page .bw-training-tools {
-  margin-top: 24px;
-  border-top: 1px solid var(--border);
-  padding-top: 8px;
-}
-.bw-training-tools > summary {
-  cursor: pointer;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  font-size: 13px;
-  color: var(--muted-foreground);
 }
 @media (prefers-reduced-motion: reduce) {
   .bw-exercise-open svg {
@@ -500,14 +460,6 @@
 }
 .bw-strength-experience-trigger:active {
   background: var(--secondary);
-}
-.bw-activity-illustration {
-  display: grid;
-  place-items: center;
-  min-height: 150px;
-  color: var(--primary);
-  background: var(--secondary);
-  border-radius: 14px;
 }
 .bw-exercise-detail-media .bw-prep-illustration {
   max-height: 190px;

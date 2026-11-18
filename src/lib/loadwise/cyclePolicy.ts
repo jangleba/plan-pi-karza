@@ -22,13 +22,15 @@ export interface CycleStartPolicy {
 }
 
 /** Skutek rekomendacji na receptury nowego cyklu (jedno miejsce, czytane przez silnik). */
-export interface CycleStartEffect {
+interface CycleStartEffect {
   /** Główne ćwiczenie siłowe w dawce utrzymaniowej; brak akcentu siły maksymalnej i progresji skoków. */
   hold: boolean;
   /** Inne ćwiczenia siłowe z tych samych grup, stałe w całym cyklu. */
   rotate: boolean;
 }
-export function cycleStartEffectOf(kind: CycleRecommendationKind | null | undefined): CycleStartEffect {
+export function cycleStartEffectOf(
+  kind: CycleRecommendationKind | null | undefined,
+): CycleStartEffect {
   return {
     hold: kind === "consistency" || kind === "maintain",
     rotate: kind === "vary",

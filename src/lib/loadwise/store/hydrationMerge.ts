@@ -18,7 +18,7 @@ export function mergeHydratedRecord<T>(
   return merged;
 }
 
-export function hasLocalPlanChanges(current: LoadwiseState, baseline: LoadwiseState): boolean {
+function hasLocalPlanChanges(current: LoadwiseState, baseline: LoadwiseState): boolean {
   return (
     current.profile !== baseline.profile ||
     current.plan !== baseline.plan ||

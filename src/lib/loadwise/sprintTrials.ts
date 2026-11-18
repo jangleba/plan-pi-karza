@@ -1,6 +1,6 @@
 import type { HistorySetLog } from "./setLogHistory";
 
-export interface TrialConditions {
+interface TrialConditions {
   distanceM: number;
   startType: "standing" | "flying";
   method: "manual_stopwatch" | "video_reviewed";
@@ -19,7 +19,7 @@ export function trialConditions(log: HistorySetLog): TrialConditions | null {
   return { distanceM: log.distanceM, startType: log.startType, method: log.measurementMethod };
 }
 
-export type TrialComparison =
+type TrialComparison =
   | { comparable: true }
   | { comparable: false; reason: "unknown_conditions" | "distance" | "start" | "method" };
 

@@ -83,7 +83,7 @@ type Spell = {
 };
 
 /** TY's spells with the ball (from receiving to giving it away), read from the events. */
-export function tySpells(s: SimState): Spell[] {
+function tySpells(s: SimState): Spell[] {
   const spells: Spell[] = [];
   const ev = s.events;
   for (let i = 0; i < ev.length; i++) {
@@ -226,7 +226,7 @@ function movedAway(s: SimState, spell: Spell) {
 }
 
 /** After the team lost the ball: did you close the ball down or get goal side within 2 s? */
-export function reactionAfterLoss(s: SimState): "good" | "poor" | null {
+function reactionAfterLoss(s: SimState): "good" | "poor" | null {
   const loss = s.events.find(
     (e, i) => e.type === "possession" && e.team === "away" && i > 1 && e.tick > 30,
   );

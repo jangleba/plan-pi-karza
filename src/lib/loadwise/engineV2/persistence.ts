@@ -4,7 +4,7 @@ import { ENGINE_VERSION } from "./model";
 import type { SessionDay } from "../types";
 
 /** Minor number of "ballwise-v2.N"; null for anything else. */
-export function generatorMinor(version: string): number | null {
+function generatorMinor(version: string): number | null {
   const match = /^ballwise-v2\.(\d+)$/.exec(version);
   return match ? Number(match[1]) : null;
 }

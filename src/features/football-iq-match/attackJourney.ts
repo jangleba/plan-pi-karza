@@ -83,10 +83,7 @@ export function createAttackJourney(def: JourneyDefinition): JourneySession {
   if (def.role === "wing" && def.concept === "third-player") {
     for (const p of s.players)
       if (!p.goalkeeper)
-        s.world.positions[p.id] = bound(
-          s.world.positions[p.id].x,
-          s.world.positions[p.id].y + 22,
-        );
+        s.world.positions[p.id] = bound(s.world.positions[p.id].x, s.world.positions[p.id].y + 22);
     s.players = s.players.map((p) => ({ ...p, ...s.world.positions[p.id] }));
   }
   const layout = situationLayout(def);
@@ -112,10 +109,7 @@ export function createAttackJourney(def: JourneyDefinition): JourneySession {
     .filter((p) => p.team !== teamOf(s, s.world.carrierId) && !p.goalkeeper)
     .sort(
       (a, b) =>
-        distance(
-          s.world.positions[a.id],
-          s.world.positions[s.world.carrierId],
-        ) -
+        distance(s.world.positions[a.id], s.world.positions[s.world.carrierId]) -
         distance(s.world.positions[b.id], s.world.positions[s.world.carrierId]),
     )[0];
   for (let tick = 0; tick <= 16; tick++) {
@@ -203,14 +197,11 @@ export function attackChoice(
       (intent === "mark" && targetId === s.world.carrierId))
   )
     throw new Error("Nieprawidłowy odbiorca.");
-  const p =
-    intent === "shoot" ? { x: clamp(at.x, 36, 64), y: 0 } : bound(at.x, at.y);
-  if (![at.x, at.y].every(Number.isFinite))
-    throw new Error("Nieprawidłowy punkt.");
+  const p = intent === "shoot" ? { x: clamp(at.x, 36, 64), y: 0 } : bound(at.x, at.y);
+  if (![at.x, at.y].every(Number.isFinite)) throw new Error("Nieprawidłowy punkt.");
   const from = s.world.positions[actor];
   const endpoint =
-    ["move", "carry", "cover", "press", "mark"].includes(intent) &&
-    distance(from, p) > 32
+    ["move", "carry", "cover", "press", "mark"].includes(intent) && distance(from, p) > 32
       ? lerp(from, p, 32 / distance(from, p))
       : p;
   const id = `attack9:${actor}:${intent}:${delivery}:${timing}:${endpoint.x.toFixed(2)}:${endpoint.y.toFixed(2)}:${targetId ?? "space"}`;
@@ -251,10 +242,7 @@ export function parseAttackChoice(s: JourneySession, id: string) {
       id,
     );
   if (!m) return undefined;
-  if (
-    m[1] !== "you" &&
-    (m[1] !== s.world.carrierId || teamOf(s, m[1]) !== "home")
-  )
+  if (m[1] !== "you" && (m[1] !== s.world.carrierId || teamOf(s, m[1]) !== "home"))
     return undefined;
   const controlled = { ...s, controlledId: m[1] };
   try {
@@ -283,8 +271,7 @@ export function attackStep(s: JourneySession): JourneyStep {
     if (!s.players.find((p) => p.id === id)?.goalkeeper)
       choices.push(attackChoice(s, "shoot", { x: 50, y: 6 }));
   } else {
-    for (const dx of [-14, 14])
-      choices.push(attackChoice(s, "move", bound(at.x + dx, at.y - 12)));
+    for (const dx of [-14, 14]) choices.push(attackChoice(s, "move", bound(at.x + dx, at.y - 12)));
   }
   choices.push(attackChoice(s, own ? "hold" : "wait", at));
   return {
@@ -295,12 +282,7 @@ export function attackStep(s: JourneySession): JourneyStep {
     choices,
   };
 }
-function laneScore(
-  s: JourneySession,
-  from: Point,
-  to: Point,
-  team: "home" | "away",
-) {
+function laneScore(s: JourneySession, from: Point, to: Point, team: "home" | "away") {
   const nearest = Math.min(
     ...s.players
       .filter((p) => p.team !== team)
@@ -316,18 +298,11 @@ const HEADER_REACH = 3.1;
 /** Above this, a contact is a header rather than a chest or foot touch. */
 export const HEADER_HEIGHT = 2.3;
 /** Clearance of the ground lane, ignoring the rival who presses the passer. */
-function groundLane(
-  s: JourneySession,
-  from: Point,
-  to: Point,
-  team: "home" | "away",
-) {
+function groundLane(s: JourneySession, from: Point, to: Point, team: "home" | "away") {
   return Math.min(
     25,
     ...s.players
-      .filter(
-        (p) => p.team !== team && distance(s.world.positions[p.id], from) > 3,
-      )
+      .filter((p) => p.team !== team && distance(s.world.positions[p.id], from) > 3)
       .map((p) => {
         const line = segment(s.world.positions[p.id], from, to);
         return line.t > 0.1 && line.t < 0.9 ? line.gap : 25;
@@ -356,19 +331,14 @@ export function naturalDelivery(
   if (length >= 12 && groundLane(s, from, to, team) < 2) return "chip";
   return "ground";
 }
-export function attackOpenings(s: JourneySession) {
+function attackOpenings(s: JourneySession) {
   if (teamOf(s, s.world.carrierId) !== "home") return 0;
   return s.players.filter(
     (p) =>
       p.team === "home" &&
       p.id !== s.world.carrierId &&
       !p.goalkeeper &&
-      laneScore(
-        s,
-        s.world.positions[s.world.carrierId],
-        s.world.positions[p.id],
-        "home",
-      ) > 12 &&
+      laneScore(s, s.world.positions[s.world.carrierId], s.world.positions[p.id], "home") > 12 &&
       !offside(s, s.world.carrierId, p.id),
   ).length;
 }
@@ -502,9 +472,7 @@ export function chooseAttackJourney(
         ? {
             kicker: kick.actor,
             kickTime: kick.time,
-            ...(kick.delivery !== "ground"
-              ? { kickDelivery: kick.delivery }
-              : {}),
+            ...(kick.delivery !== "ground" ? { kickDelivery: kick.delivery } : {}),
           }
         : {}),
     });
@@ -528,25 +496,14 @@ export function chooseAttackJourney(
       t >= ownDelay + DT
     ) {
       const to = c.targetId ? old.positions[c.targetId] : c.point;
-      flight = startPass(
-        actor,
-        to,
-        c.targetId,
-        c.delivery ?? "ground",
-        t,
-        c.intent === "shoot",
-      );
+      flight = startPass(actor, to, c.targetId, c.delivery ?? "ground", t, c.intent === "shoot");
       ownPassStarted = true;
       finishAt = Math.max(finishAt, flight!.end + 0.35);
     }
     const holdingTeam = teamOf(s, carrier);
-    const defenders = s.players.filter(
-      (p) => p.team !== holdingTeam && !p.goalkeeper,
-    );
+    const defenders = s.players.filter((p) => p.team !== holdingTeam && !p.goalkeeper);
     const nearest = [...defenders].sort(
-      (a, b) =>
-        distance(old.positions[a.id], ball) -
-        distance(old.positions[b.id], ball),
+      (a, b) => distance(old.positions[a.id], ball) - distance(old.positions[b.id], ball),
     )[0]?.id;
     const marks: Record<string, string> = {};
     const remaining = s.players.filter(
@@ -565,10 +522,7 @@ export function chooseAttackJourney(
       flight && !flight.receiver
         ? s.players
             .filter(
-              (p) =>
-                p.team === teamOf(s, flight!.actor) &&
-                p.id !== flight!.actor &&
-                !p.goalkeeper,
+              (p) => p.team === teamOf(s, flight!.actor) && p.id !== flight!.actor && !p.goalkeeper,
             )
             .sort(
               (a, b) =>
@@ -583,10 +537,7 @@ export function chooseAttackJourney(
       let target = at,
         speed = 5.6;
       if (p.id === actor) {
-        if (
-          t >= ownDelay &&
-          ["move", "carry", "cover", "press", "mark"].includes(c.intent!)
-        )
+        if (t >= ownDelay && ["move", "carry", "cover", "press", "mark"].includes(c.intent!))
           target = c.point;
         speed = c.intent === "carry" ? 6 : 7;
         // A press or a mark with a named rival follows him: the press goes at the ball from
@@ -616,7 +567,10 @@ export function chooseAttackJourney(
             .map((q) => old.positions[q.id])
             .sort((a, b) => distance(a, at) - distance(b, at))[0];
           const d = near ? Math.max(0.1, distance(near, at)) : 1;
-          target = near && d < 4 ? bound(at.x + ((at.x - near.x) / d) * 1.5, at.y + ((at.y - near.y) / d) * 1.5) : at;
+          target =
+            near && d < 4
+              ? bound(at.x + ((at.x - near.x) / d) * 1.5, at.y + ((at.y - near.y) / d) * 1.5)
+              : at;
           speed = 2;
         }
       } else if (p.goalkeeper && p.id !== carrier) {
@@ -640,31 +594,20 @@ export function chooseAttackJourney(
           const ahead = lerp(
             flight.from,
             flight.to,
-            clamp(
-              (t + 0.22 - flight.start) / (flight.end - flight.start),
-              0,
-              1,
-            ),
+            clamp((t + 0.22 - flight.start) / (flight.end - flight.start), 0, 1),
           );
           const near = distance(at, ahead);
           if (p.id === nearest || near < 9) target = ahead;
-          else
-            target = bound(
-              at.x + (ball.x - at.x) * 0.08,
-              at.y + (ball.y - at.y) * 0.045,
-            );
+          else target = bound(at.x + (ball.x - at.x) * 0.08, at.y + (ball.y - at.y) * 0.045);
         } else if (p.id === marker && team === holdingTeam && !ownAtStart) {
-          const follow =
-            s.definition.context === 0 ||
-            (s.definition.context === 2 && t > 0.8);
+          const follow = s.definition.context === 0 || (s.definition.context === 2 && t > 0.8);
           target = follow
             ? bound(old.positions[actor].x + 4, old.positions[actor].y - 3)
             : bound(
                 (old.positions[actor].x + ball.x) / 2,
                 Math.min(old.positions[actor].y, ball.y) - 4,
               );
-        } else if (p.id === nearest)
-          target = bound(ball.x, ball.y + direction(holdingTeam) * 1.8);
+        } else if (p.id === nearest) target = bound(ball.x, ball.y + direction(holdingTeam) * 1.8);
         else {
           const mark = s.players.find((q) => q.id === marks[p.id]);
           if (mark)
@@ -674,30 +617,13 @@ export function chooseAttackJourney(
             );
         }
       } else if (p.id !== carrier || flight) {
-        if (
-          flight &&
-          t > flight.start &&
-          (p.id === flight.receiver || p.id === chasingReceiver)
-        )
+        if (flight && t > flight.start && (p.id === flight.receiver || p.id === chasingReceiver))
           target = flight.to;
         else if (p.id !== flight?.actor) {
           const dir = direction(p.team);
           const slot =
-            p.id === "anchor"
-              ? 18
-              : p.id === "forward"
-                ? -17
-                : p.id === "wide"
-                  ? -3
-                  : -10;
-          const lateral =
-            p.id === "wide"
-              ? at.x < 50
-                ? 10
-                : 90
-              : p.id === "forward"
-                ? 50
-                : at.x;
+            p.id === "anchor" ? 18 : p.id === "forward" ? -17 : p.id === "wide" ? -3 : -10;
+          const lateral = p.id === "wide" ? (at.x < 50 ? 10 : 90) : p.id === "forward" ? 50 : at.x;
           const candidates = [
             at,
             bound(at.x + (at.x < 50 ? -8 : 8), at.y + dir * 5),
@@ -707,11 +633,7 @@ export function chooseAttackJourney(
           const spacing = (q: Point) =>
             s.players
               .filter((o) => o.team === p.team && o.id !== p.id)
-              .reduce(
-                (n, o) =>
-                  n + Math.max(0, 8 - distance(q, old.positions[o.id])) * 2,
-                0,
-              );
+              .reduce((n, o) => n + Math.max(0, 8 - distance(q, old.positions[o.id])) * 2, 0);
           const score = (q: Point) =>
             -spacing(q) +
             laneScore(s, ball, q, p.team) -
@@ -745,10 +667,7 @@ export function chooseAttackJourney(
         const q = old.positions[other.id],
           d = distance(at, q);
         if (d > 0.01 && d < 1.8 && distance(at, target) > 0.1)
-          target = bound(
-            target.x + (at.x - q.x) * 0.5,
-            target.y + (at.y - q.y) * 0.5,
-          );
+          target = bound(target.x + (at.x - q.x) * 0.5, target.y + (at.y - q.y) * 0.5);
       }
       const desired =
         distance(at, target) < 0.1
@@ -766,10 +685,7 @@ export function chooseAttackJourney(
         delta = distance(v, desired),
         factor = delta ? Math.min(1, acceleration / delta) : 1;
       velocity[p.id] = lerp(v, desired, factor);
-      intentions[p.id] = bound(
-        at.x + velocity[p.id].x * DT,
-        at.y + velocity[p.id].y * DT,
-      );
+      intentions[p.id] = bound(at.x + velocity[p.id].x * DT, at.y + velocity[p.id].y * DT);
     }
     for (const p of s.players) moved(s.world, p.id, intentions[p.id]);
     if (flight) {
@@ -778,10 +694,7 @@ export function chooseAttackJourney(
         f.released = true;
         f.offsidePlayers = s.players
           .filter(
-            (p) =>
-              p.team === teamOf(s, f.actor) &&
-              p.id !== f.actor &&
-              offside(s, f.actor, p.id),
+            (p) => p.team === teamOf(s, f.actor) && p.id !== f.actor && offside(s, f.actor, p.id),
           )
           .map((p) => p.id);
       }
@@ -792,14 +705,9 @@ export function chooseAttackJourney(
         : flightHeight(f.delivery, distance(f.from, f.to), progress);
       if (f.shot && t >= f.start) {
         const goalY = teamOf(s, f.actor) === "home" ? 2.35 : 137.65;
-        const crossed =
-          teamOf(s, f.actor) === "home" ? ball.y <= goalY : ball.y >= goalY;
+        const crossed = teamOf(s, f.actor) === "home" ? ball.y <= goalY : ball.y >= goalY;
         if (crossed) {
-          const fraction = clamp(
-            (goalY - f.from.y) / (f.to.y - f.from.y),
-            0,
-            1,
-          );
+          const fraction = clamp((goalY - f.from.y) / (f.to.y - f.from.y), 0, 1);
           const atLine = lerp(f.from, f.to, fraction);
           const valid = atLine.x > 42.65 && atLine.x < 57.35 && height < 3.58;
           terminal = valid ? "goal" : "miss";
@@ -821,9 +729,7 @@ export function chooseAttackJourney(
         }
       }
       const candidates = s.players
-        .filter(
-          (p) => p.id !== f.actor && (!p.goalkeeper || t > f.start + 0.17),
-        )
+        .filter((p) => p.id !== f.actor && (!p.goalkeeper || t > f.start + 0.17))
         .map((p) => ({ p, d: distance(s.world.positions[p.id], ball) }))
         .filter(
           ({ d, p }) =>
@@ -851,11 +757,7 @@ export function chooseAttackJourney(
                 : height > HEADER_HEIGHT
                   ? `Nr ${contact.number} wybija piłkę głową.`
                   : `Nr ${contact.number} przecina tor podania, zanim piłka dociera do celu.`,
-            f.shot && contact.goalkeeper
-              ? "save"
-              : f.shot
-                ? "block"
-                : "interception",
+            f.shot && contact.goalkeeper ? "save" : f.shot ? "block" : "interception",
             contact.id,
             f.shot ? f.actor : (f.receiver ?? f.actor),
           );
@@ -889,8 +791,7 @@ export function chooseAttackJourney(
           completedPass = !loss;
           firstReceiver = !loss ? s.world.carrierId : "";
           offsideCall = !!f.offsidePlayers?.includes(s.world.carrierId);
-          if (offsideCall)
-            offsider = { id: s.world.carrierId, passer: f.actor };
+          if (offsideCall) offsider = { id: s.world.carrierId, passer: f.actor };
           event(
             t,
             loss
@@ -935,27 +836,20 @@ export function chooseAttackJourney(
       ball = { ...at };
       height = BALL_REST_HEIGHT;
       const rivals = s.players.filter(
-        (p) =>
-          p.team !== teamOf(s, owner) &&
-          distance(s.world.positions[p.id], at) < 1.15,
+        (p) => p.team !== teamOf(s, owner) && distance(s.world.positions[p.id], at) < 1.15,
       );
       // Rev. 3: only a defender between the ball and his own goal, or one meeting a
       // slow/standing carrier, wins the ball; a defender chasing from behind does not.
       const winner = reactive
         ? rivals.find((r) => {
             const goalY = r.team === "home" ? 140 : 0;
-            const goalSide =
-              Math.abs(s.world.positions[r.id].y - goalY) < Math.abs(at.y - goalY);
+            const goalSide = Math.abs(s.world.positions[r.id].y - goalY) < Math.abs(at.y - goalY);
             // A shielding player keeps the ball through the first 1.2 s of contact.
             if (owner === actor && c.intent === "shield" && t < 1.2) return false;
             return goalSide || Math.hypot(velocity[owner].x, velocity[owner].y) < 2.5;
           })
         : rivals[0];
-      if (
-        winner &&
-        t > lastContact + 0.6 &&
-        !(kick && t - kick.time < 0.5)
-      ) {
+      if (winner && t > lastContact + 0.6 && !(kick && t - kick.time < 0.5)) {
         s.world.carrierId = winner.id;
         loss = winner.team !== "home";
         lastContact = t;
@@ -982,9 +876,7 @@ export function chooseAttackJourney(
           Math.abs(at.x - 50) < 28 &&
           !s.players.find((p) => p.id === owner)?.goalkeeper
         ) {
-          const keeper = s.players.find(
-            (p) => p.goalkeeper && p.team !== ownerTeam,
-          )!;
+          const keeper = s.players.find((p) => p.goalkeeper && p.team !== ownerTeam)!;
           const targetX = s.world.positions[keeper.id].x >= 50 ? 44.1 : 55.9;
           flight = startPass(
             owner,
@@ -1000,10 +892,7 @@ export function chooseAttackJourney(
         } else {
           const options = s.players.filter(
             (p) =>
-              p.team === ownerTeam &&
-              p.id !== owner &&
-              !p.goalkeeper &&
-              !offside(s, owner, p.id),
+              p.team === ownerTeam && p.id !== owner && !p.goalkeeper && !offside(s, owner, p.id),
           );
           // Rev. 3: a receiver is judged where his run takes him (0.8 s ahead), so a run
           // that has just started already changes the carrier's choice.
@@ -1034,8 +923,7 @@ export function chooseAttackJourney(
                   .filter((r) => r.space >= 2.5)
                   .sort((a, b) => b.space - a.space)[0]?.p
               : undefined;
-          const receiver =
-            crossTo ?? options.sort((a, b) => score(b.id) - score(a.id))[0];
+          const receiver = crossTo ?? options.sort((a, b) => score(b.id) - score(a.id))[0];
           if (receiver && (crossTo || score(receiver.id) > 10)) {
             const target = s.world.positions[receiver.id],
               v = velocity[receiver.id];
@@ -1108,17 +996,14 @@ export function chooseAttackJourney(
     from: before.positions[actor],
     to: c.point,
     duration,
-    text:
-      events.at(-1)?.text ?? "Sytuacja się zmienia. Ponownie oceń możliwości.",
+    text: events.at(-1)?.text ?? "Sytuacja się zmienia. Ponownie oceń możliwości.",
     live: frames,
     events,
   };
   const openingsBefore = attackOpenings({ ...s, world: before }),
     openingsAfter = attackOpenings(s);
   const possession = teamOf(s, s.world.carrierId) === "home";
-  const gain =
-    before.positions[before.carrierId].y -
-    s.world.positions[s.world.carrierId].y;
+  const gain = before.positions[before.carrierId].y - s.world.positions[s.world.carrierId].y;
   const cover = s.players.filter(
     (p) =>
       p.team === "home" &&
@@ -1129,9 +1014,7 @@ export function chooseAttackJourney(
   const quality =
     loss || offsideCall
       ? "error"
-      : possession &&
-          (completedPass || openingsAfter > openingsBefore || gain > 6) &&
-          cover > 0
+      : possession && (completedPass || openingsAfter > openingsBefore || gain > 6) && cover > 0
         ? "good"
         : "possible";
   const why =
@@ -1149,9 +1032,7 @@ export function chooseAttackJourney(
               ? "Rywal ma piłkę. Akcja trwa: zamknij podanie, wróć do osłony i szukaj odbioru."
               : `${touched ? "Piłka trafia do nowego odbiorcy. " : "Drużyna utrzymuje piłkę. "}${openingsAfter > openingsBefore ? "Po ruchu pojawiło się więcej dostępnych linii. " : "Sprawdź dalszą opcję odbiorcy. "}${cover === 0 ? "Brakuje osłony za piłką." : "Partnerzy pozostają za piłką jako osłona."}`;
   const alternative = findAlternative
-    ? (attackStep(previous).choices.find(
-        (a) => a.id !== c.id && a.intent !== c.intent,
-      ) ?? null)
+    ? (attackStep(previous).choices.find((a) => a.id !== c.id && a.intent !== c.intent) ?? null)
     : null;
   s.beats.push(beat);
   s.decisions.push({
@@ -1173,10 +1054,7 @@ export function chooseAttackJourney(
     alternative,
     firstBeat: s.beats.length - 1,
     lastBeat: s.beats.length - 1,
-    decisionSeconds: Math.min(
-      86400,
-      Math.max(0, Number.isFinite(seconds) ? seconds : 0),
-    ),
+    decisionSeconds: Math.min(86400, Math.max(0, Number.isFinite(seconds) ? seconds : 0)),
     actorId: actor,
   });
   s.step++;
@@ -1184,12 +1062,7 @@ export function chooseAttackJourney(
   s.attack!.elapsed += duration;
   if (terminal) {
     s.attack!.finish = terminal;
-    s.outcome =
-      terminal === "goal"
-        ? goalTeam === "home"
-          ? "chance"
-          : "loss"
-        : "blocked";
+    s.outcome = terminal === "goal" ? (goalTeam === "home" ? "chance" : "loss") : "blocked";
     if (terminal === "goal") s.attack![goalTeam === "home" ? "home" : "away"]++;
   } else if (s.step >= 80 || s.attack!.elapsed >= 240) {
     // An explicit safety stop is never presented as a completed/scored attack.

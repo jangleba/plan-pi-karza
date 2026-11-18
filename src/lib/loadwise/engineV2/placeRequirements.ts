@@ -43,14 +43,14 @@ export function hasDeclaredWall(profile: Profile): boolean {
 }
 
 /** Wall requirements live in the canonical solo-drill metadata, including goalkeeper tasks. */
-export function requiresDeclaredWall(exerciseId: string): boolean {
+function requiresDeclaredWall(exerciseId: string): boolean {
   const drill = INDIVIDUAL_FOOTBALL_DRILLS.find((entry) => entry.id === exerciseId);
   return !!drill && "wall" in drill && drill.wall === true;
 }
 
 /** Jumps and landings need open floor, not a pitch: the declared gym jump zone (6 × 3 m) is enough. */
 const GYM_LANE_ROLES = new Set<string>(["power", "landing"]);
-export function hasGymJumpLane(profile: Profile): boolean {
+function hasGymJumpLane(profile: Profile): boolean {
   return (
     profile.hasGym &&
     [...profile.equipment, ...(profile.trainingMethodPreferences?.declaredEquipment ?? [])].some(
@@ -60,7 +60,7 @@ export function hasGymJumpLane(profile: Profile): boolean {
   );
 }
 
-export type RequirementIssue =
+type RequirementIssue =
   | "partner"
   | "ball"
   | "wall"

@@ -15,7 +15,7 @@ import {
  * it shows exactly this exercise and variant. Without a matching drawing the
  * text stays and the gap is named — no other movement is shown instead.
  */
-export interface HowTo {
+interface HowTo {
   objective: string | null;
   cue: string | null;
   stop: string | null;

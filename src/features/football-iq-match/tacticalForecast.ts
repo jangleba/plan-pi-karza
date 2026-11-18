@@ -11,7 +11,7 @@ export const planLabels = {
   protect: "Sprawdzę osłonę po ewentualnej stracie",
   scan: "Sprawdzę ponownie grę do przodu",
 } as const;
-export const actualReactionLabels = {
+const actualReactionLabels = {
   ...reactionLabels,
   mixed: "Zareagował jednocześnie na piłkę i Twój ruch — brak jednoznacznego rozstrzygnięcia",
 } as const;
@@ -30,7 +30,7 @@ export function forecastRival(s: JourneySession) {
 }
 
 /** Window (s) after the decision in which the rival's first reaction is read (rules v9). */
-export const REACTION_WINDOW = 2;
+const REACTION_WINDOW = 2;
 const REACTION_MIN = 1.5;
 
 /** Rules v9: read the reaction from the live samples in the first seconds after the
@@ -143,7 +143,7 @@ export const predictionLabels = {
 
 /** Rules v9: did TY still have the ball when the reaction was read? Then moving to TY
  * and moving to the ball are the same move. */
-export function keptBallDuringReaction(s: JourneySession, decisionIndex: number) {
+function keptBallDuringReaction(s: JourneySession, decisionIndex: number) {
   const decision = s.decisions[decisionIndex];
   const actor = decision?.actorId ?? "you";
   const frames = decision

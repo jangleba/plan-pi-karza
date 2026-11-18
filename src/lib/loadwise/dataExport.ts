@@ -4,7 +4,7 @@ import { exportLocalUserData } from "./localPrivacy";
 import { exportTrainingQueue } from "./offlineTrainingQueue";
 import { readAllPages } from "./pagination";
 
-export const USER_DATA_SOURCES = [
+const USER_DATA_SOURCES = [
   "profiles",
   "athlete_profiles",
   "onboarding_answers",
@@ -41,7 +41,7 @@ export interface DataExportPage {
   data: Record<string, unknown>[] | null;
   error: { code?: string; message?: string } | null;
 }
-export interface ExportAccount {
+interface ExportAccount {
   id: string;
   email?: string;
   phone?: string;
