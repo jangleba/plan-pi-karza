@@ -71,3 +71,14 @@ Silnik = czysty, deterministyczny TypeScript (bez AI). Ten sam wynik dla tych sa
 
 ## Do sprawdzenia
 - Czy telefon nadaje się do pomiaru czasu/dystansu sprintu 15–30 m (GPS 1 Hz jest zbyt zgrubny; alternatywy: pomiar z wideo, ręczny wpis czasu).
+
+## Bieganie i MAS (runda 5)
+- Brak gotowych jednostek biegowych. Dwie główne formy: bieg ciągły i interwały (fartlek i szybkość wytrzymałościowa meczowa jako dodatki).
+- Dawkowanie na bazie MAS (maximal aerobic speed). Test: bieg 5-minutowy; MAS = dystans / 300 s (m/s; km/h = m/s x 3,6).
+- MAS liczony jednorazowo (kalkulator w aplikacji, automatycznie), powtarzany po dwóch cyklach (2 x 4–5 tyg.; do potwierdzenia, wpisano „80 tygodni").
+- Z MAS silnik wylicza tempo, dystans i intensywność sesji.
+- Konto wymagane (logowanie). Pierwszy etap: silnik + prosty ekran tygodnia.
+
+## Wygląd
+- Styl Apple: basic, modern, minimalistyczny, elegancki, prosty. Ogólnie pastelowy i subtelny.
+- Kolory znaczeniowe (pastelowe): czerwony, żółty, zielony.
