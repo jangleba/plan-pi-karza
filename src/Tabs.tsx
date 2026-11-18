@@ -14,9 +14,10 @@ export function TabBar({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void
           <button
             key={t}
             onClick={() => onChange(t)}
-            className={`flex-1 py-3 text-xs transition ${tab === t ? "font-semibold text-ink" : "text-muted"}`}
+            className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-xs transition ${tab === t ? "font-semibold text-accent" : "text-muted"}`}
           >
             {label}
+            <span className={`h-1 w-1 rounded-full ${tab === t ? "bg-accent" : "bg-transparent"}`} />
           </button>
         ))}
       </div>

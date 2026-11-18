@@ -145,7 +145,7 @@ export function RunTracker({ session, onClose, onFinish }: {
   const at5 = elapsed >= 300_000 ? distanceAt(track, 300_000) : null;
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-canvas">
+    <div className="bw-sheet fixed inset-0 z-40 flex flex-col bg-canvas">
       <div className="relative h-[42vh] w-full overflow-hidden border-b border-hairline bg-hairline/50">
         {TOKEN ? <MapView points={track.points} /> : <RouteSketch points={track.points} />}
         <button onClick={() => { stopGps(); onClose(); }} className="absolute right-3 top-3 z-[500] rounded-full bg-card/90 px-3 py-1 text-sm text-muted">Zamknij</button>
@@ -201,11 +201,11 @@ export function RunTracker({ session, onClose, onFinish }: {
       </div>
 
       <div className="flex gap-2 px-5 pb-8 pt-3">
-        {status === "ready" && <button onClick={start} className="flex-1 rounded-2xl bg-ink py-3.5 text-base font-medium text-card">Start</button>}
+        {status === "ready" && <button onClick={start} className="flex-1 rounded-2xl bg-accent py-3.5 text-base font-medium text-card">Start</button>}
         {status === "running" && <button onClick={pause} className="flex-1 rounded-2xl border border-hairline bg-card py-3.5 text-base">Pauza</button>}
-        {status === "paused" && <button onClick={start} className="flex-1 rounded-2xl bg-ink py-3.5 text-base font-medium text-card">Wznów</button>}
+        {status === "paused" && <button onClick={start} className="flex-1 rounded-2xl bg-accent py-3.5 text-base font-medium text-card">Wznów</button>}
         {(status === "running" || status === "paused") && (
-          <button onClick={finish} className="flex-1 rounded-2xl bg-ink py-3.5 text-base font-medium text-card">Zakończ</button>
+          <button onClick={finish} className="flex-1 rounded-2xl bg-accent py-3.5 text-base font-medium text-card">Zakończ</button>
         )}
         {status === "done" && (
           <button
@@ -213,7 +213,7 @@ export function RunTracker({ session, onClose, onFinish }: {
               saveRun(track, elapsed);
               onFinish({ distanceM: track.distanceM, elapsedMs: elapsed, distanceAt5min: at5 });
             }}
-            className="flex-1 rounded-2xl bg-ink py-3.5 text-base font-medium text-card"
+            className="flex-1 rounded-2xl bg-accent py-3.5 text-base font-medium text-card"
           >
             {session.isTest && at5 ? "Zapisz MAS i bieg" : "Zapisz bieg"}
           </button>

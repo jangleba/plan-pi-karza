@@ -21,7 +21,7 @@ function Chips<T extends string | number>({
           key={String(v)}
           type="button"
           onClick={() => onToggle(v)}
-          className={`rounded-full px-3.5 py-1.5 text-sm transition ${value.includes(v) ? "bg-ink font-medium text-card" : "bg-canvas text-muted"}`}
+          className={`rounded-full px-3.5 py-1.5 text-sm transition ${value.includes(v) ? "bg-accent font-medium text-card" : "bg-canvas text-muted"}`}
         >
           {t}
         </button>
@@ -88,7 +88,7 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
         <button
           type="button"
           onClick={() => setLimited(!limited)}
-          className={`mb-1 w-full rounded-xl py-2 text-sm ${limited ? "bg-ink font-medium text-card" : "bg-canvas text-muted"}`}
+          className={`mb-1 w-full rounded-xl py-2 text-sm ${limited ? "bg-accent font-medium text-card" : "bg-canvas text-muted"}`}
         >
           Mam mało dni na siłownię
         </button>
@@ -98,7 +98,7 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
           {errors.map((e) => <li key={e}>{e}</li>)}
         </ul>
       )}
-      <button onClick={submit} className="mt-5 w-full rounded-2xl bg-ink py-3 text-sm font-medium text-white">
+      <button onClick={submit} className="mt-5 w-full rounded-2xl bg-accent py-3 text-sm font-medium text-white">
         Zacznij
       </button>
     </main>

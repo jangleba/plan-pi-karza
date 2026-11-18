@@ -74,7 +74,6 @@ function DayRow({ day, index, onOpen }: { day: DayPlan; index: number; onOpen: (
               {KIND_LABEL[s.kind]}
               {s.variant === "upper" ? " · góra" : s.variant === "light" ? " · lekki" : ""}
             </Chip>
-            {s.reason && <p className="mt-1 text-xs text-muted">{s.reason}</p>}
           </div>
         )}
         {!day.isMatch && !day.isClub && !s && <span className="text-sm text-muted">Wolne</span>}
@@ -144,8 +143,12 @@ function Gate() {
 function Main() {
   const [tab, setTab] = useState<Tab>("start");
   const [checkIn, setCheckInState] = useState<CheckIn>(loadCheckIn);
+  const [checkedIn, setCheckedIn] = useState(() => {
+    try { return localStorage.getItem(`checkIn:${today()}`) !== null; } catch { return false; }
+  });
   const setCheckIn = (c: CheckIn) => {
     setCheckInState(c);
+    setCheckedIn(true);
     store(`checkIn:${today()}`, JSON.stringify(c));
     void pushCheckIn(today(), c);
   };
@@ -169,7 +172,7 @@ function Main() {
       <Backdrop />
       <div className="relative">
       {tab === "start" && (
-        <Start profile={profile} checkIn={checkIn} onCheckIn={setCheckIn} onOpenDay={(d) => { setTab("plan"); setOpenDay(d); }} />
+        <Start profile={profile} checkIn={checkIn} checkedIn={checkedIn} onCheckIn={setCheckIn} />
       )}
       {tab === "plan" && (
         <Home profile={profile} checkIn={checkIn} initialOpen={openDay} onOpened={() => setOpenDay(null)} onReset={() => {
@@ -217,7 +220,7 @@ function Home({ profile, checkIn, initialOpen, onOpened, onReset }: {
       <PageHeader
         kind="plan"
         title="Plan tygodnia"
-        sub={<>Plan dopasowany do meczu. <button onClick={onReset} className="underline">Zmień profil</button></>}
+        sub={<button onClick={onReset} className="text-muted">Zmień profil</button>}
       />
       <div className="mb-3 flex gap-1.5 rounded-xl bg-card p-1 border border-hairline">
         <button onClick={() => setViewNext(false)} className={`flex-1 rounded-lg py-1.5 text-sm ${!viewNext ? "bg-canvas font-medium" : "text-muted"}`}>Ten tydzień</button>

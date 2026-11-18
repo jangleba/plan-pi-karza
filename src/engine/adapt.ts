@@ -70,3 +70,12 @@ export function adaptSession(t: SessionTemplate, c: CheckIn, deload = false): Ad
   }
   return { name: t.name, blocks, notes };
 }
+
+/**
+ * Gotowość 0–100 z check-inu (do pierścienia na Starcie).
+ * Sen i samopoczucie po równo; „dziś mniej" obniża o 10. Skala orientacyjna, nie medyczna.
+ */
+export function readinessScore(c: CheckIn): number {
+  const base = 40 + ((c.sleep - 1) + (c.feeling - 1)) * 15; // 40–100
+  return Math.max(0, base - (c.less ? 10 : 0));
+}

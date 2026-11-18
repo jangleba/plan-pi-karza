@@ -85,7 +85,7 @@ export function VideoMeasure({ mode, onResult, onClose }: { mode: Mode; onResult
 
   const btn = "flex-1 rounded-xl bg-canvas py-2 text-sm";
   return (
-    <div className="fixed inset-0 z-30 flex flex-col bg-card p-4 pb-8">
+    <div className="bw-sheet fixed inset-0 z-30 flex flex-col bg-card p-4 pb-8">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Pomiar z wideo</h2>
         <button onClick={onClose} className="text-sm text-muted">Zamknij</button>
@@ -104,7 +104,7 @@ export function VideoMeasure({ mode, onResult, onClose }: { mode: Mode; onResult
           <div className="mt-3 flex items-center gap-2 text-sm">
             <span className="text-muted">Klatki/s</span>
             {FPS_OPTIONS.map((f) => (
-              <button key={f} onClick={() => changeFps(f)} className={`rounded-lg px-2.5 py-1 ${fps === f ? "bg-ink text-white" : "bg-canvas"}`}>{f}</button>
+              <button key={f} onClick={() => changeFps(f)} className={`rounded-lg px-2.5 py-1 ${fps === f ? "bg-accent text-white" : "bg-canvas"}`}>{f}</button>
             ))}
             <button onClick={detectFps} className="ml-auto text-xs text-muted underline">Wykryj</button>
           </div>
@@ -121,7 +121,7 @@ export function VideoMeasure({ mode, onResult, onClose }: { mode: Mode; onResult
             {marks.length > 0 && <div className="mt-1 text-xs text-muted">Zaznaczone klatki: {marks.map((t) => Math.floor(t * fps)).join(", ")}</div>}
           </div>
           <div className="mt-3 flex gap-2">
-            <button onClick={mark} className="flex-1 rounded-xl bg-ink py-3 text-sm font-medium text-white">Zaznacz tę klatkę</button>
+            <button onClick={mark} className="flex-1 rounded-xl bg-accent py-3 text-sm font-medium text-white">Zaznacz tę klatkę</button>
             {marks.length > 0 && <button onClick={() => setMarks(marks.slice(0, -1))} className="rounded-xl bg-canvas px-4 text-sm">Cofnij</button>}
           </div>
         </>

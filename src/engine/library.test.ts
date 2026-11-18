@@ -42,3 +42,12 @@ describe("check-in", () => {
     expect(a.notes.length).toBeGreaterThan(0);
   });
 });
+
+import { readinessScore } from "./adapt";
+describe("gotowość", () => {
+  it("od 40 do 100, „dziś mniej” −10", () => {
+    expect(readinessScore({ sleep: 3, feeling: 3, less: false })).toBe(100);
+    expect(readinessScore({ sleep: 1, feeling: 1, less: false })).toBe(40);
+    expect(readinessScore({ sleep: 2, feeling: 3, less: true })).toBe(75);
+  });
+});

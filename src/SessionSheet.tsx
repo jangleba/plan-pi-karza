@@ -66,8 +66,8 @@ export function SessionSheet({
 
   if (summary) {
     return (
-      <div className="fixed inset-0 z-30 flex items-end bg-black/25">
-        <div className="max-h-[85vh] w-full overflow-y-auto rounded-t-3xl bg-card p-5 pb-10 shadow-xl">
+      <div className="bw-backdrop fixed inset-0 z-30 flex items-end bg-black/25">
+        <div className="bw-sheet max-h-[85vh] w-full overflow-y-auto rounded-t-3xl bg-card p-5 pb-10 shadow-xl">
           <h2 className="text-xl font-semibold">Dobra robota</h2>
           <p className="mb-4 text-sm text-muted">Propozycje na następną sesję.</p>
           {summary.map((sug) => (
@@ -76,7 +76,7 @@ export function SessionSheet({
               <div className="text-xs text-muted">{sug.from} kg · {sug.text}</div>
               {sug.to !== sug.from ? (
                 <div className="mt-2 flex gap-2">
-                  <button onClick={() => decide(sug, true)} className="flex-1 rounded-xl bg-ink py-1.5 text-sm font-medium text-card">Przyjmij {sug.to} kg</button>
+                  <button onClick={() => decide(sug, true)} className="flex-1 rounded-xl bg-accent py-1.5 text-sm font-medium text-card">Przyjmij {sug.to} kg</button>
                   <button onClick={() => decide(sug, false)} className="flex-1 rounded-xl bg-card py-1.5 text-sm text-muted">Zostaję</button>
                 </div>
               ) : (
@@ -90,9 +90,9 @@ export function SessionSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-30 flex items-end bg-black/25" onClick={onClose}>
+    <div className="bw-backdrop fixed inset-0 z-30 flex items-end bg-black/25" onClick={onClose}>
       <div
-        className="max-h-[85vh] w-full overflow-y-auto rounded-t-3xl bg-card p-5 pb-10 shadow-xl"
+        className="bw-sheet max-h-[85vh] w-full overflow-y-auto rounded-t-3xl bg-card p-5 pb-10 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-black/10" />
@@ -145,7 +145,7 @@ export function SessionSheet({
           <>
             <p className="text-sm text-muted">{run.title}</p>
             <MasCard mas={mas} onChange={setMas} />
-            <button onClick={() => setRunning(true)} className="mt-3 w-full rounded-2xl bg-ink py-3 text-sm font-medium text-card">
+            <button onClick={() => setRunning(true)} className="mt-3 w-full rounded-2xl bg-accent py-3 text-sm font-medium text-card">
               {run.isTest ? "Rozpocznij test z GPS" : "Rozpocznij bieg z GPS"}
             </button>
             {running && (
@@ -207,7 +207,7 @@ export function SessionSheet({
         )}
         <button
           onClick={finish}
-          className="mt-6 w-full rounded-2xl bg-ink py-3 text-sm font-medium text-white"
+          className="mt-6 w-full rounded-2xl bg-accent py-3 text-sm font-medium text-white"
         >
           Koniec sesji
         </button>

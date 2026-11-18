@@ -1,97 +1,109 @@
 import { useState } from "react";
-import { localISO, planForProfile, strainOf, weekStartOf } from "./engine";
+import { levelOf, localISO, planForProfile, readinessScore, strainOf, weekInCycle, weekStartOf } from "./engine";
 import type { CheckIn, DayPlan, Profile, SessionKind } from "./engine";
-import { PageHeader } from "./Sketch";
-import { MatchInMind, imageryMinutes } from "./MatchInMind";
+import { Sheet } from "./Sheet";
+import { SessionSheet } from "./SessionSheet";
+import { MatchInMind } from "./MatchInMind";
 
-const OPTIONS: Array<[1 | 2 | 3, string]> = [[1, "Słabo"], [2, "Średnio"], [3, "Dobrze"]];
 const KIND: Record<SessionKind, string> = {
-  strength: "Siła", run: "Bieganie", sprint: "Sprint", technique: "Technika z piłką", activation: "Aktywacja", recovery: "Regeneracja",
+  strength: "Siła", run: "Bieganie", sprint: "Sprint", technique: "Technika", activation: "Aktywacja", recovery: "Regeneracja",
 };
+const LEVELS: Array<[1 | 2 | 3, string]> = [[1, "Słabo"], [2, "Średnio"], [3, "Dobrze"]];
+const STRAIN = { none: "Pełna sesja", light: "Trochę lżej", heavy: "Wyraźnie lżej" } as const;
 
-function Pick({ label, value, onChange }: { label: string; value: 1 | 2 | 3; onChange: (v: 1 | 2 | 3) => void }) {
+/** Pierścień gotowości; dotknięcie otwiera check-in. */
+function Ring({ value, done, onTap }: { value: number; done: boolean; onTap: () => void }) {
+  const r = 70, c = 2 * Math.PI * r;
   return (
-    <div className="mb-3">
-      <div className="mb-1.5 text-xs text-muted">{label}</div>
-      <div className="flex gap-1.5 rounded-xl bg-canvas p-1">
-        {OPTIONS.map(([v, t]) => (
+    <button onClick={onTap} className="relative mx-auto block h-48 w-48" aria-label="Check-in">
+      <svg viewBox="0 0 160 160" className="h-full w-full -rotate-90">
+        <circle cx="80" cy="80" r={r} fill="none" stroke="var(--color-hairline)" strokeWidth="10" />
+        <circle cx="80" cy="80" r={r} fill="none" stroke="var(--color-accent)" strokeWidth="10" strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={done ? c * (1 - value / 100) : c} style={{ transition: "stroke-dashoffset 0.8s ease" }} />
+      </svg>
+      <span className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-5xl font-semibold tabular-nums tracking-tight">{done ? value : "?"}</span>
+        <span className="mt-1 text-xs text-muted">{done ? "gotowość" : "dotknij"}</span>
+      </span>
+    </button>
+  );
+}
+
+function Choice({ label, value, onChange }: { label: string; value: 1 | 2 | 3; onChange: (v: 1 | 2 | 3) => void }) {
+  return (
+    <div className="mb-5">
+      <div className="mb-2 text-sm text-muted">{label}</div>
+      <div className="grid grid-cols-3 gap-2">
+        {LEVELS.map(([v, t]) => (
           <button key={v} onClick={() => onChange(v)}
-            className={`flex-1 rounded-lg py-1.5 text-sm transition ${value === v ? "bg-card font-medium shadow-sm" : "text-muted"}`}>{t}</button>
+            className={`rounded-2xl py-3.5 text-sm font-medium ${value === v ? "bg-accent text-white" : "bg-canvas text-ink"}`}>{t}</button>
         ))}
       </div>
     </div>
   );
 }
 
-const STRAIN_TEXT = {
-  none: "Dziś pełna sesja zgodnie z planem.",
-  light: "Dziś lżej: mniej serii, ten sam plan.",
-  heavy: "Dziś wyraźnie lżej: łatwiejsze ćwiczenia i krótsza sesja.",
-} as const;
-
-function phaseText(d: DayPlan): string {
-  if (d.isMatch) return "Dzień meczu";
-  const m = /^MD-(\d)$/.exec(d.phase);
-  if (m) return `Mecz za ${m[1]} ${m[1] === "1" ? "dzień" : "dni"}`;
-  if (d.phase === "MD+1") return "Dzień po meczu";
-  return "";
+function Row({ title, detail, onTap }: { title: string; detail?: string; onTap?: () => void }) {
+  return (
+    <button onClick={onTap} disabled={!onTap}
+      className="flex w-full items-center justify-between border-b border-hairline py-4 text-left last:border-0 disabled:active:scale-100">
+      <span className="text-base font-medium">{title}</span>
+      <span className="flex items-center gap-2 text-sm text-muted">{detail}{onTap && <span className="text-accent">›</span>}</span>
+    </button>
+  );
 }
 
-export function Start({ profile, checkIn, onCheckIn, onOpenDay }: {
-  profile: Profile; checkIn: CheckIn; onCheckIn: (c: CheckIn) => void; onOpenDay: (d: DayPlan) => void;
+function matchIn(d: DayPlan): string | null {
+  if (d.isMatch) return "Dziś mecz";
+  const m = /^MD-(\d)$/.exec(d.phase);
+  return m ? `Mecz za ${m[1]} ${m[1] === "1" ? "dzień" : "dni"}` : null;
+}
+
+export function Start({ profile, checkIn, checkedIn, onCheckIn }: {
+  profile: Profile; checkIn: CheckIn; checkedIn: boolean; onCheckIn: (c: CheckIn) => void;
 }) {
-  const [imagery, setImagery] = useState(false);
-  const todayISO = localISO();
-  const day = planForProfile(profile, weekStartOf(todayISO)).days.find((d) => d.date === todayISO);
-  const matchSoon = !!day && (day.isMatch || day.phase === "MD-1");
+  const [sheet, setSheet] = useState<"checkin" | "session" | "mind" | null>(null);
+  const today = localISO();
+  const ws = weekStartOf(today);
+  const day = planForProfile(profile, ws).days.find((d) => d.date === today);
 
   return (
-    <main className="mx-auto max-w-md px-4 pb-28 pt-14">
-      <PageHeader kind="start" title="Dziś" sub={new Date().toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" })} />
+    <main className="mx-auto max-w-md px-5 pb-28 pt-14">
+      <p className="text-sm text-muted">{new Date().toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" })}</p>
+      <h1 className="mb-8 text-[32px] font-semibold tracking-tight">Dziś</h1>
 
-      <section className="mb-4 rounded-2xl border border-hairline bg-card p-4">
-        <h2 className="mb-3 text-base font-semibold">Jak się czujesz?</h2>
-        <Pick label="Sen" value={checkIn.sleep} onChange={(v) => onCheckIn({ ...checkIn, sleep: v })} />
-        <Pick label="Samopoczucie" value={checkIn.feeling} onChange={(v) => onCheckIn({ ...checkIn, feeling: v })} />
-        <button onClick={() => onCheckIn({ ...checkIn, less: !checkIn.less })}
-          className={`w-full rounded-xl py-2 text-sm transition ${checkIn.less ? "bg-ink font-medium text-card" : "bg-canvas text-muted"}`}>
-          Dziś mniej / brak czasu
-        </button>
-        <p className="mt-3 text-sm text-muted">{STRAIN_TEXT[strainOf(checkIn)]}</p>
-      </section>
+      <Ring value={readinessScore(checkIn)} done={checkedIn} onTap={() => setSheet("checkin")} />
+      <p className="mb-8 mt-3 text-center text-sm text-muted">{checkedIn ? STRAIN[strainOf(checkIn)] : "Jak się czujesz?"}</p>
 
-      {day && (
-        <button onClick={() => day.session && onOpenDay(day)}
-          className="mb-4 flex w-full items-center justify-between rounded-2xl border border-hairline bg-card p-4 text-left">
-          <div>
-            <div className="text-xs text-muted">{phaseText(day) || "Dzisiejsza sesja"}{day.isClub ? " · trening klubowy" : ""}</div>
-            <div className="mt-0.5 text-base font-semibold">
-              {day.isMatch ? "Mecz" : day.session ? KIND[day.session.kind] : "Wolne"}
-            </div>
-            {day.session?.reason && <div className="mt-0.5 text-xs text-muted">{day.session.reason}</div>}
-          </div>
-          {day.session && <span className="shrink-0 whitespace-nowrap text-sm text-muted">Otwórz ›</span>}
-        </button>
+      <div className="rounded-3xl border border-hairline bg-card px-5">
+        {day && (
+          <Row
+            title={day.isMatch ? "Mecz" : day.session ? KIND[day.session.kind] : "Wolne"}
+            detail={day.isClub ? "+ klub" : undefined}
+            onTap={day.session ? () => setSheet("session") : undefined}
+          />
+        )}
+        <Row title="Mecz w głowie" detail="3 min" onTap={() => setSheet("mind")} />
+        {day && matchIn(day) && <Row title={matchIn(day)!} />}
+      </div>
+
+      {sheet === "checkin" && (
+        <Sheet title="Jak się czujesz?" onClose={() => setSheet(null)}>
+          <Choice label="Sen" value={checkIn.sleep} onChange={(v) => onCheckIn({ ...checkIn, sleep: v })} />
+          <Choice label="Samopoczucie" value={checkIn.feeling} onChange={(v) => onCheckIn({ ...checkIn, feeling: v })} />
+          <button onClick={() => onCheckIn({ ...checkIn, less: !checkIn.less })}
+            className={`mb-6 w-full rounded-2xl py-3.5 text-sm font-medium ${checkIn.less ? "bg-accent text-white" : "bg-canvas text-ink"}`}>
+            Dziś mniej
+          </button>
+          <button onClick={() => { onCheckIn(checkIn); setSheet(null); }} className="w-full rounded-2xl bg-ink py-4 text-base font-medium text-card">Gotowe</button>
+        </Sheet>
       )}
-
-      <section className="rounded-2xl border border-hairline bg-card p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-base font-semibold">Mecz w głowie</h2>
-            <p className="mt-1 text-sm text-muted">
-              {imageryMinutes(profile.position)} min prowadzonej wizualizacji akcji Twojej pozycji.
-              {matchSoon ? " Najlepszy moment to dziś." : " Najlepiej dzień przed meczem i w dniu meczu."}
-            </p>
-          </div>
-        </div>
-        <button onClick={() => setImagery(true)}
-          className={`mt-3 w-full rounded-xl py-2.5 text-sm font-medium ${matchSoon ? "bg-ink text-card" : "border border-hairline bg-canvas text-ink"}`}>
-          Zacznij
-        </button>
-        <p className="mt-2 text-[11px] text-muted">Treści to szkice do przeglądu trenera.</p>
-      </section>
-
-      {imagery && <MatchInMind position={profile.position} onClose={() => setImagery(false)} />}
+      {sheet === "session" && day && (
+        <SessionSheet day={day} checkIn={checkIn} weekInCycle={weekInCycle(profile.startDate, ws)}
+          level={levelOf(profile.age, profile.strengthYears)} position={profile.position}
+          hasGym={profile.equipment.includes("gym")} onClose={() => setSheet(null)} />
+      )}
+      {sheet === "mind" && <MatchInMind position={profile.position} onClose={() => setSheet(null)} />}
     </main>
   );
 }
