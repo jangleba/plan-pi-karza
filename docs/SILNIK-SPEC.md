@@ -60,3 +60,7 @@ Silnik = czysty, deterministyczny TypeScript (bez AI). Ten sam wynik dla tych sa
 - Poziom zawodnika rośnie z kombinacji stażu i wyników.
 - Profil: masa ciała (bez wzrostu).
 - Platforma: podgląd w Lovable (web), docelowo iOS (Capacitor).
+
+## Sprint (runda 4)
+- Źródło: `docs/SESJE-SPRINT-TRENERA.md`. Kolejność: skipy → przejścia → drille techniczne → przyspieszenia → prędkość maksymalna → akcesoria wg celu (hamowanie, łuk, COD, plyo).
+- Bez partnera. Szukanie partnera – późniejsza funkcja.
