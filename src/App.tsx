@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
-import { calcMas, datesForWeek, formatPace, levelOf, planWeek } from "./engine";
+import { useEffect, useMemo, useState } from "react";
+import { calcMas, datesForWeek, formatPace, levelOf, planWeek, weekInCycle } from "./engine";
 import type { CheckIn, DayPlan, Mas, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
+import { Auth } from "./Auth";
+import { supabase } from "./lib/supabase";
 import { SessionSheet } from "./SessionSheet";
 
 const KIND_LABEL: Record<SessionKind, string> = {
@@ -140,11 +142,25 @@ function loadProfile(): Profile | null {
 }
 
 export function App() {
+  const [session, setSession] = useState<"loading" | "out" | "in">(supabase ? "loading" : "in");
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data }) => setSession(data.session ? "in" : "out"));
+    const { data } = supabase.auth.onAuthStateChange((_e, sess) => setSession(sess ? "in" : "out"));
+    return () => data.subscription.unsubscribe();
+  }, []);
+  if (session === "loading") return null;
+  if (session === "out") return <Auth />;
+  return <Gate />;
+}
+
+function Gate() {
   const [profile, setProfile] = useState<Profile | null>(loadProfile);
   if (!profile) {
     return (
       <Onboarding
-        onDone={(p) => {
+        onDone={(raw) => {
+          const p = { ...raw, startDate: new Date().toISOString().slice(0, 10) };
           try { localStorage.setItem("profile", JSON.stringify(p)); } catch { /* brak pamięci */ }
           setProfile(p);
         }}
@@ -205,7 +221,7 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
         ))}
       </ul>
       {open && (
-        <SessionSheet day={open} checkIn={checkIn} weekInCycle={1} mas={mas} level={levelOf(profile.age, profile.strengthYears)} onClose={() => setOpen(null)} />
+        <SessionSheet day={open} checkIn={checkIn} weekInCycle={weekInCycle(profile.startDate, weekStart)} mas={mas} level={levelOf(profile.age, profile.strengthYears)} onClose={() => setOpen(null)} />
       )}
       {plan.warnings.length > 0 && (
         <p className="mt-4 rounded-2xl bg-yellow-soft p-3 text-sm text-yellow-ink">

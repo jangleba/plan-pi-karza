@@ -100,3 +100,9 @@ Silnik = czysty, deterministyczny TypeScript (bez AI). Ten sam wynik dla tych sa
 - 1RM szacowany wg Epleya z kg i zaplanowanych powtórzeń; przy ćwiczeniach z %1RM pokazuje ≈ kg.
 - Sugestia: +2,5% dolne partie/moc, +1,25 kg góra; bez dodawania przy gorszym check-inie i w tygodniu rozładowania.
 - Pozycja wpływa tylko na treningi boiskowe i lekko na biegowe, NIE na siłownię (do wdrożenia).
+
+## Cykl i logowanie (wdrożone częściowo)
+- Numer tygodnia w cyklu 5-tygodniowym liczony od daty rozpoczęcia (`profile.startDate`).
+- Logowanie e-mail + hasło (Supabase) włącza się, gdy ustawione są `VITE_SUPABASE_URL` i `VITE_SUPABASE_PUBLISHABLE_KEY`; bez nich aplikacja działa lokalnie.
+- Schemat bazy: `supabase/migrations/0001_init.sql` (profil, testy MAS, dziennik kg, check-iny; RLS po `auth.uid()`).
+- Do zrobienia: synchronizacja profilu, MAS, dziennika i check-inu z bazą (dziś nadal localStorage).

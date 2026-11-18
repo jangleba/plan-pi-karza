@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { datesForWeek, levelOf, validateProfile } from "./profile";
+import { datesForWeek, levelOf, validateProfile, weekInCycle } from "./profile";
 
 describe("profil", () => {
   it("poziom ze stażu i wieku", () => {
@@ -17,5 +17,12 @@ describe("profil", () => {
   });
   it("daty tygodnia z dni tygodnia", () => {
     expect(datesForWeek("2026-11-16", [1, 5])).toEqual(["2026-11-17", "2026-11-21"]);
+  });
+  it("numer tygodnia w cyklu od daty startu", () => {
+    expect(weekInCycle("2026-11-18", "2026-11-16")).toBe(1);
+    expect(weekInCycle("2026-11-18", "2026-11-23")).toBe(2);
+    expect(weekInCycle("2026-11-18", "2026-12-14")).toBe(5);
+    expect(weekInCycle("2026-11-18", "2026-12-21")).toBe(1);
+    expect(weekInCycle(undefined, "2026-12-21")).toBe(1);
   });
 });

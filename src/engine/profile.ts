@@ -16,6 +16,8 @@ export interface Profile {
   matchWeekdays: number[];
   /** Mało dni na siłownię – siła pełna także dzień po meczu. */
   limitedGymAccess: boolean;
+  /** Data rozpoczęcia planu (ISO) – od niej liczony cykl 5-tygodniowy. */
+  startDate?: string;
 }
 
 export const MIN_AGE = 16;
@@ -45,4 +47,14 @@ export function validateProfile(p: Partial<Profile>): string[] {
 
 export function datesForWeek(weekStart: string, weekdays: number[]): string[] {
   return weekdays.map((d) => addDays(weekStart, d));
+}
+
+/** Numer tygodnia w cyklu 5-tygodniowym (1–5) od tygodnia rozpoczęcia. */
+export function weekInCycle(startDate: string | undefined, weekStart: string): number {
+  if (!startDate) return 1;
+  const start = new Date(Date.parse(startDate));
+  const dow = (start.getUTCDay() + 6) % 7;
+  const startMonday = Date.parse(startDate) - dow * 86_400_000;
+  const weeks = Math.floor((Date.parse(weekStart) - startMonday) / (7 * 86_400_000));
+  return (((weeks % 5) + 5) % 5) + 1;
 }
