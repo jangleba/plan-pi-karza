@@ -405,6 +405,8 @@ export function FocusedSessionRunner({
           />
         ) : (
           <>
+            {/* The one action of an unstarted session comes first, then the list it starts. */}
+            {startAction}
             {previewNote && <p className="bw-runner-note">{previewNote}</p>}
             <SessionPlanList
               steps={steps}
@@ -417,7 +419,7 @@ export function FocusedSessionRunner({
             />
           </>
         )}
-        {startAction}
+        {opened ? startAction : null}
       </div>
     );
   }

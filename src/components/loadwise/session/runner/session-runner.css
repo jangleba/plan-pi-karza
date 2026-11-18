@@ -250,7 +250,14 @@
   gap: 8px;
   margin: 0 -16px;
   padding: 20px 16px calc(12px + env(safe-area-inset-bottom));
-  background: linear-gradient(to bottom, transparent, var(--background) 20px);
+  background: var(--background);
+}
+/* On the list the action sits at the top: visible the moment the session opens. */
+.bw-runner[data-view="list"] .bw-runner-start {
+  position: static;
+  margin: 0 0 12px;
+  padding: 0;
+  background: none;
 }
 
 /* Active */

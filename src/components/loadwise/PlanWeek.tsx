@@ -125,7 +125,7 @@ function Exercises({ session }: { session: SessionDay }) {
 }
 
 /**
- * One calendar week at a time: a quiet seven-day strip, then an inset list of days.
+ * One calendar week at a time: the days of the week, and under each the trainings of that day.
  * Training rows open the session; rest days stay short and muted.
  */
 export function PlanWeek({
@@ -153,13 +153,6 @@ export function PlanWeek({
   if (!week) return null;
   const sunday = new Date(`${week.monday}T12:00:00Z`);
   sunday.setUTCDate(sunday.getUTCDate() + 6);
-  const strip = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(`${week.monday}T12:00:00Z`);
-    d.setUTCDate(d.getUTCDate() + i);
-    const iso = d.toISOString().slice(0, 10);
-    const day = week.days.find((x) => x.date === iso);
-    return { iso, day };
-  });
   return (
     <section className="bw-wk" aria-label="Tydzień planu">
       <div className="bw-wk-head">
@@ -186,20 +179,6 @@ export function PlanWeek({
           <ChevronRight aria-hidden="true" />
         </button>
       </div>
-      <ol className="bw-wk-strip" aria-hidden="true">
-        {strip.map(({ iso, day }) => (
-          <li
-            key={iso}
-            data-today={iso === todayIso || undefined}
-            data-train={(day && !isFullRestDay(day)) || undefined}
-            data-match={day?.dayType === "match" || undefined}
-          >
-            <span>{WEEKDAY[parts(iso).dow]}</span>
-            <b>{parts(iso).d}</b>
-            <i />
-          </li>
-        ))}
-      </ol>
       <ul className="bw-wk-days">
         {week.days.map((d) => {
           const sessions = [d, ...(d.secondSession ? [d.secondSession] : [])];
