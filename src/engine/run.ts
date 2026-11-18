@@ -50,15 +50,15 @@ export function masTestSession(): RunSession {
   };
 }
 
-/**
- * Sesja biegowa z MAS. Objętość: długie interwały, intensywność: 15/15,
- * rozładowanie: spokojny bieg ciągły. Wartości to hipoteza robocza do przeglądu.
- */
 /** Pozycja lekko zmienia objętość interwałów: pomocnik +1 powtórzenie, bramkarz −1. */
 export function positionRepDelta(position: Position | undefined): number {
   return position === "pomocnik" ? 1 : position === "bramkarz" ? -1 : 0;
 }
 
+/**
+ * Sesja biegowa z MAS. Objętość: długie interwały, intensywność: 15/15,
+ * rozładowanie: spokojny bieg ciągły. Wartości to hipoteza robocza do przeglądu.
+ */
 export function runSession(mas: Mas, phase: MesoPhase, level: Level, c?: CheckIn, position?: Position): RunSession {
   const l = LVL[level];
   const strain = c ? strainOf(c) : "none";

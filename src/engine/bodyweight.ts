@@ -26,7 +26,7 @@ export function rung(key: LadderKey, level: Level, phase: MesoPhase): string {
   return ladder[i]!;
 }
 
-const UNI = new Set(["split-squat", "bulgarian-split-squat", "assisted-pistol", "pistol-squat", "sl-glute-bridge", "sl-rdl-bw", "sl-hop", "sl-calf-raise"]);
+const UNI = new Set(["split-squat", "bulgarian-split-squat", "assisted-pistol", "pistol-squat", "sl-glute-bridge", "sl-rdl-bw", "sl-hop", "sl-calf-raise", "copenhagen"]);
 
 export function bodyweightTemplate(level: Level, phase: MesoPhase): SessionTemplate {
   const reps = (id: string, volume: number, intensity: number) => {

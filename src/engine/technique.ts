@@ -83,8 +83,8 @@ export const POSITION_DRILLS: Drill[] = [
 /** Ćwiczenia dla pozycji najpierw, potem wspólne. */
 export function drillsFor(position: Position | undefined): Drill[] {
   const all = [...POSITION_DRILLS, ...TECHNIQUE_DRILLS];
-  const rel = (d: Drill) => (d.positions ? (position && d.positions.includes(position) ? 0 : 2) : 1);
-  return all.filter((d) => !d.positions || (position && d.positions.includes(position))).sort((a, b) => rel(a) - rel(b));
+  const forMe = all.filter((d) => !d.positions || (position && d.positions.includes(position)));
+  return [...forMe.filter((d) => d.positions), ...forMe.filter((d) => !d.positions)];
 }
 
 export interface RecoverySession {

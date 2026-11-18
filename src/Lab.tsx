@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { addEvents, jumpHeightFromFlightTime, labDue, LAB_TESTS, loadHistory, series, validateLab, validateSprintSplits } from "./engine";
+import { localISO, addEvents, jumpHeightFromFlightTime, labDue, LAB_TESTS, loadHistory, series, validateLab, validateSprintSplits } from "./engine";
 import type { LabTest } from "./engine";
 import { VideoMeasure, type VideoResult } from "./VideoMeasure";
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localISO();
 const num = (s: string) => Number(s.replace(",", "."));
 const field = "w-full rounded-xl bg-canvas px-3 py-2.5 text-sm outline-none";
 

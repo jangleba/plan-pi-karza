@@ -16,6 +16,7 @@ export function VideoMeasure({ mode, onResult, onClose }: { mode: Mode; onResult
   const [url, setUrl] = useState<string | null>(null);
   const [fps, setFps] = useState(120);
   const [frame, setFrame] = useState(0);
+  // znaczniki w sekundach filmu: zmiana fps nie psuje już zapisanych pozycji
   const [marks, setMarks] = useState<number[]>([]);
   const [note, setNote] = useState("");
 
@@ -46,7 +47,7 @@ export function VideoMeasure({ mode, onResult, onClose }: { mode: Mode; onResult
         v.pause();
         v.playbackRate = 1;
         const est = estimateFps(times);
-        if (est) { const s = snapFps(est); setFps(s); setNote(`Wykryto ok. ${s} klatek/s.`); }
+        if (est) { const s = snapFps(est); changeFps(s); setNote(`Wykryto ok. ${s} klatek/s.`); }
         else setNote("Nie udało się wykryć – wybierz fps ręcznie.");
       }
     };
@@ -57,14 +58,23 @@ export function VideoMeasure({ mode, onResult, onClose }: { mode: Mode; onResult
     void v.play();
   };
 
+  const changeFps = (f: number) => {
+    const v = ref.current;
+    setFps(f);
+    if (v) setFrame(Math.floor(v.currentTime * f));
+  };
+
   const mark = () => {
-    const next = [...marks, frame];
+    const v = ref.current;
+    if (!v) return;
+    const next = [...marks, v.currentTime];
+    const frames = next.map((t) => Math.floor(t * fps));
     setMarks(next);
     setNote("");
     if (next.length === STEPS[mode].length) {
       try {
-        if (mode === "cmj") onResult({ flightTime: flightTimeFromFrames(next[0]!, next[1]!, fps) });
-        else onResult({ splits: splitsFromFrames(next[0]!, next.slice(1), fps) });
+        if (mode === "cmj") onResult({ flightTime: flightTimeFromFrames(frames[0]!, frames[1]!, fps) });
+        else onResult({ splits: splitsFromFrames(frames[0]!, frames.slice(1), fps) });
         onClose();
       } catch (e) {
         setNote(e instanceof Error ? e.message : "Błąd pomiaru");
@@ -94,7 +104,7 @@ export function VideoMeasure({ mode, onResult, onClose }: { mode: Mode; onResult
           <div className="mt-3 flex items-center gap-2 text-sm">
             <span className="text-muted">Klatki/s</span>
             {FPS_OPTIONS.map((f) => (
-              <button key={f} onClick={() => setFps(f)} className={`rounded-lg px-2.5 py-1 ${fps === f ? "bg-ink text-white" : "bg-canvas"}`}>{f}</button>
+              <button key={f} onClick={() => changeFps(f)} className={`rounded-lg px-2.5 py-1 ${fps === f ? "bg-ink text-white" : "bg-canvas"}`}>{f}</button>
             ))}
             <button onClick={detectFps} className="ml-auto text-xs text-muted underline">Wykryj</button>
           </div>
@@ -108,7 +118,7 @@ export function VideoMeasure({ mode, onResult, onClose }: { mode: Mode; onResult
           <div className="mt-4 rounded-2xl bg-canvas p-3 text-sm">
             <div className="text-xs text-muted">Zaznacz klatkę ({marks.length + 1}/{STEPS[mode].length})</div>
             <div className="font-medium">{STEPS[mode][marks.length]}</div>
-            {marks.length > 0 && <div className="mt-1 text-xs text-muted">Zaznaczone: {marks.join(", ")}</div>}
+            {marks.length > 0 && <div className="mt-1 text-xs text-muted">Zaznaczone klatki: {marks.map((t) => Math.floor(t * fps)).join(", ")}</div>}
           </div>
           <div className="mt-3 flex gap-2">
             <button onClick={mark} className="flex-1 rounded-xl bg-ink py-3 text-sm font-medium text-white">Zaznacz tę klatkę</button>

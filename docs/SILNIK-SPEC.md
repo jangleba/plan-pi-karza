@@ -114,6 +114,6 @@ Silnik = czysty, deterministyczny TypeScript (bez AI). Ten sam wynik dla tych sa
 
 ## Luki silnika zamknięte (runda 7)
 - Siła bez siłowni: drabinki trudności (docs/BEZ-SILOWNI.md), wybierane, gdy w profilu brak „pełnej siłowni".
-- Pozycja: wpływa tylko na sprint (skrzydłowy/napastnik – prędkość, pozostali – przyspieszenie i COD, co 3. tydzień zamiana), lekko na bieganie (pomocnik +1, bramkarz −1 powtórzenie) i na dobór ćwiczeń z piłką. NIE na siłę.
+- Pozycja: wpływa tylko na sprint (skrzydłowy/napastnik – prędkość, pozostali – przyspieszenie i COD, co 2. tydzień zamiana), lekko na bieganie (pomocnik +1, bramkarz −1 powtórzenie) i na dobór ćwiczeń z piłką. NIE na siłę.
 - Plan uwzględnia mecze z sąsiednich tygodni (poprawne MD+1/MD-1 na granicy tygodni).
 - Kolejny tydzień odblokowuje się po dacie ostatniego meczu bieżącego tygodnia.

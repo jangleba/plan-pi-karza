@@ -64,9 +64,9 @@ export function matchesAround(weekStart: string, weekdays: number[]): string[] {
   return [-7, 0, 7].flatMap((off) => datesForWeek(addDays(weekStart, off), weekdays));
 }
 
-/** Kolejny tydzień odblokowuje się dopiero po dacie ostatniego meczu bieżącego tygodnia. */
+/** Kolejny tydzień odblokowuje się w dniu ostatniego meczu bieżącego tygodnia (aplikacja nie zna godziny meczu). */
 export function nextWeekUnlocked(weekStart: string, matchWeekdays: number[], todayISO: string): boolean {
   if (!matchWeekdays.length) return false;
   const last = datesForWeek(weekStart, matchWeekdays).sort().pop()!;
-  return todayISO > last;
+  return todayISO >= last;
 }

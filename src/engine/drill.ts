@@ -1,3 +1,5 @@
+import type { Position } from "./profile";
+
 /** Model ćwiczenia z diagramem boiska (współrzędne w metrach). */
 export type ArrowStyle = "run" | "dribble" | "pass" | "shot";
 export type Tone = "green" | "yellow" | "red" | "blue";
@@ -11,8 +13,6 @@ export interface Arrow {
   /** Kolejność w serii (1, 2, 3…). */
   step?: number;
 }
-
-import type { Position } from "./profile";
 
 export interface Drill {
   id: string;

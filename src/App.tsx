@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { addDays, calcMas, datesForWeek, formatPace, levelOf, matchesAround, nextWeekUnlocked, planWeek, weekInCycle } from "./engine";
+import { localISO, addDays, calcMas, datesForWeek, formatPace, levelOf, matchesAround, nextWeekUnlocked, planWeek, weekInCycle } from "./engine";
 import type { CheckIn, DayPlan, Mas, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
 import { Auth } from "./Auth";
@@ -160,7 +160,7 @@ export function App() {
   return <Gate />;
 }
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localISO();
 
 function store(key: string, value: string) {
   try { localStorage.setItem(key, value); } catch { /* brak pamięci */ }
@@ -203,7 +203,7 @@ function Main() {
     return (
       <Onboarding
         onDone={(raw) => {
-          const p = { ...raw, startDate: new Date().toISOString().slice(0, 10) };
+          const p = { ...raw, startDate: localISO() };
           store("profile", JSON.stringify(p));
           void pushProfile(p);
           setProfile(p);
@@ -238,7 +238,7 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
     void pushCheckIn(today(), c);
   };
   const [open, setOpen] = useState<DayPlan | null>(null);
-  const thisWeek = useMemo(() => mondayOf(new Date()), []);
+  const thisWeek = mondayOf(new Date());
   const unlocked = nextWeekUnlocked(thisWeek, profile.matchWeekdays, today());
   const [viewNext, setViewNext] = useState(false);
   const weekStart = viewNext && unlocked ? addDays(thisWeek, 7) : thisWeek;

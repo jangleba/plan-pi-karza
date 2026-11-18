@@ -1,4 +1,4 @@
-import { weekStartOf } from "./week";
+import { addDays, weekStartOf } from "./week";
 
 export type EventType = "session" | "strength" | "mas" | "lab";
 
@@ -39,15 +39,23 @@ export function trend(values: number[], better: Better = "higher"): { tone: Tren
   return { tone, pct };
 }
 
-/** Liczba wykonanych sesji w tygodniach (klucz = poniedziałek), rosnąco. */
-export function sessionsPerWeek(events: HistoryEvent[]): Array<{ date: string; value: number }> {
+/**
+ * Liczba wykonanych sesji w tygodniach (klucz = poniedziałek), rosnąco, z zerami dla tygodni bez sesji.
+ * `beforeWeek` pomija bieżący, niepełny tydzień, żeby trend nie spadał do „regresu" we wtorek.
+ */
+export function sessionsPerWeek(events: HistoryEvent[], beforeWeek?: string): Array<{ date: string; value: number }> {
   const counts = new Map<string, number>();
   for (const e of events) {
     if (e.type !== "session") continue;
     const w = weekStartOf(e.date);
+    if (beforeWeek && w >= beforeWeek) continue;
     counts.set(w, (counts.get(w) ?? 0) + 1);
   }
-  return [...counts.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, value]) => ({ date, value }));
+  const weeks = [...counts.keys()].sort();
+  if (!weeks.length) return [];
+  const out: Array<{ date: string; value: number }> = [];
+  for (let w = weeks[0]!; w <= weeks[weeks.length - 1]!; w = addDays(w, 7)) out.push({ date: w, value: counts.get(w) ?? 0 });
+  return out;
 }
 
 export function loadHistory(): HistoryEvent[] {
@@ -59,8 +67,11 @@ export function loadHistory(): HistoryEvent[] {
   }
 }
 
+/** Dopisuje zdarzenia; ponowny zapis tego samego (data, typ, klucz) zastępuje poprzedni zamiast dublować. */
 export function addEvents(events: HistoryEvent[]): HistoryEvent[] {
-  const all = [...loadHistory(), ...events];
+  const id = (e: HistoryEvent) => `${e.date}|${e.type}|${e.key}`;
+  const incoming = new Set(events.map(id));
+  const all = [...loadHistory().filter((e) => !incoming.has(id(e))), ...events];
   try {
     localStorage.setItem("history", JSON.stringify(all));
   } catch {

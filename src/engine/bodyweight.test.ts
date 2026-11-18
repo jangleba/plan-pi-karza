@@ -17,6 +17,11 @@ describe("siła bez siłowni", () => {
     expect(rung("squat", "advanced", "intensity")).toBe("pistol-squat");
     expect(rung("squat", "intermediate", "deload")).toBe("split-squat");
   });
+  it("copenhagen i plank boczny mają zapis na stronę", () => {
+    const items = bodyweightTemplate("intermediate", "volume").blocks.flatMap((b) => b.items);
+    expect(items.find((i) => i.exerciseId === "copenhagen")!.reps).toContain("/ nogę");
+    expect(items.find((i) => i.exerciseId === "side-plank")!.reps).toContain("s / stronę");
+  });
   it("drabinka nie wychodzi poza zakres", () => {
     expect(rung("pull", "advanced", "intensity")).toBe("archer-row");
     expect(rung("push", "beginner", "deload")).toBe("incline-push-up");

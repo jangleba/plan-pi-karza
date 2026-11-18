@@ -1,3 +1,4 @@
+import type { Position } from "./profile";
 /**
  * Biblioteka ćwiczeń i szablony sesji z notatek trenera
  * (docs/SESJE-SILOWE-TRENERA.md, docs/SESJE-SPRINT-TRENERA.md).
@@ -168,8 +169,6 @@ export const TEMPLATES: SessionTemplate[] = [
   },
 ];
 
-import type { Position } from "./profile";
-
 export type MesoPhase = "volume" | "intensity" | "deload";
 
 /** Cykl 5 tygodni: 2× objętość, 2× intensywność, rozładowanie. */
@@ -180,7 +179,7 @@ export function mesoPhase(weekInCycle: number): MesoPhase {
 
 /**
  * Pozycja wpływa tylko na sprint: skrzydłowy i napastnik – więcej prędkości liniowej
- * (sprint-b), pozostali – przyspieszenie i zmiana kierunku (sprint-a); co trzeci tydzień drugi wariant.
+ * (sprint-b), pozostali – przyspieszenie i zmiana kierunku (sprint-a); co drugi tydzień drugi wariant (tygodnie 2 i 4 cyklu).
  * Siły (siłownia) pozycja NIE zmienia.
  */
 export function sprintTemplateFor(position: Position | undefined, weekInCycle: number): SessionTemplate | undefined {
@@ -189,7 +188,7 @@ export function sprintTemplateFor(position: Position | undefined, weekInCycle: n
   const speedFirst = position === "skrzydlowy" || position === "napastnik";
   const primary = speedFirst ? b : a;
   const other = speedFirst ? a : b;
-  return weekInCycle % 3 === 0 ? other : primary;
+  return weekInCycle % 2 === 0 ? other : primary;
 }
 
 export function templateFor(

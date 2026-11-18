@@ -42,14 +42,16 @@ describe("luki silnika", () => {
     expect(phaseOf("2026-11-28", m)).toBe("MD-1");
   });
   it("kolejny tydzień odblokowany dopiero po ostatnim meczu", () => {
-    expect(nextWeekUnlocked("2026-11-16", [5], "2026-11-21")).toBe(false);
-    expect(nextWeekUnlocked("2026-11-16", [5], "2026-11-22")).toBe(true);
+    expect(nextWeekUnlocked("2026-11-16", [5], "2026-11-20")).toBe(false);
+    expect(nextWeekUnlocked("2026-11-16", [5], "2026-11-21")).toBe(true);
+    expect(nextWeekUnlocked("2026-11-16", [6], "2026-11-22")).toBe(true); // mecz w niedzielę
     expect(nextWeekUnlocked("2026-11-16", [1, 5], "2026-11-18")).toBe(false);
   });
-  it("sprint wg pozycji: skrzydłowy prędkość, pomocnik przyspieszenie i COD; co 3. tydzień zamiana", () => {
+  it("sprint wg pozycji: skrzydłowy prędkość, pomocnik przyspieszenie i COD; co 2. tydzień zamiana", () => {
     expect(sprintTemplateFor("skrzydlowy", 1)!.id).toBe("sprint-b");
     expect(sprintTemplateFor("pomocnik", 1)!.id).toBe("sprint-a");
-    expect(sprintTemplateFor("skrzydlowy", 3)!.id).toBe("sprint-a");
+    expect(sprintTemplateFor("skrzydlowy", 2)!.id).toBe("sprint-a");
+    expect(sprintTemplateFor("skrzydlowy", 5)!.id).toBe("sprint-b");
   });
   it("bieganie: pomocnik +1, bramkarz −1 powtórzenie", () => {
     expect(positionRepDelta("pomocnik")).toBe(1);

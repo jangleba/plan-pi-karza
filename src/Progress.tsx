@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { EXERCISES, loadHistory, series, sessionsPerWeek, trend } from "./engine";
+import { EXERCISES, loadHistory, localISO, series, sessionsPerWeek, trend, weekStartOf } from "./engine";
 import type { Better, EventType, HistoryEvent } from "./engine";
 import { LineChart, TREND_HEX } from "./LineChart";
 
@@ -42,7 +42,7 @@ function Card({
 export function Progress({ refreshKey }: { refreshKey?: number }) {
   const events: HistoryEvent[] = useMemo(loadHistory, [refreshKey]);
   const strengthKeys = [...new Set(events.filter((e) => e.type === "strength").map((e) => e.key))];
-  const weeks = sessionsPerWeek(events);
+  const weeks = sessionsPerWeek(events, weekStartOf(localISO()));
   const empty = events.length === 0;
 
   return (

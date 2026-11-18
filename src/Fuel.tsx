@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
-import { SHOP, adviceAround, dailyTargets, datesForWeek, hoursUntil, levelOf, matchesAround, planWeek, weekStartOf } from "./engine";
+import { localISO, SHOP, adviceAround, dailyTargets, datesForWeek, hoursUntil, levelOf, matchesAround, planWeek, weekStartOf } from "./engine";
 import type { ActivityKind, DayKind, Goal, Profile, Tip } from "./engine";
 
 type Mode = "now" | "shop" | "log";
 interface Meal { date: string; time: string; name: string; carb: number; protein: number }
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localISO();
 const field = "w-full rounded-xl bg-canvas px-3 py-2.5 text-sm outline-none";
 
 function load<T>(key: string, fallback: T): T {
@@ -74,7 +74,7 @@ function Now({ profile }: { profile: Profile }) {
         <p className="mt-3 text-sm font-medium">{label}</p>
       </section>
       {tips.map((t) => <TipCard key={t.title} t={t} />)}
-      {kind === "match" && hours > -4 && hours < 4 && (
+      {kind === "match" && hours > -2 && hours <= 1 && (
         <TipCard t={{ title: "W trakcie meczu", body: "Węglowodany w płynie lub żelu, regularnie.", amount: "30–60 g na godzinę", uefa: true }} />
       )}
     </>
