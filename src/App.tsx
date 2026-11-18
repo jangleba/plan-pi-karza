@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { planWeek } from "./engine";
-import type { CheckIn, DayPlan, SessionKind } from "./engine";
+import { calcMas, formatPace, planWeek } from "./engine";
+import type { CheckIn, DayPlan, Mas, SessionKind } from "./engine";
 import { SessionSheet } from "./SessionSheet";
 
 const KIND_LABEL: Record<SessionKind, string> = {
@@ -85,7 +85,53 @@ function Pick({ label, value, onChange }: { label: string; value: 1 | 2 | 3; onC
   );
 }
 
+function loadDistance(): number | null {
+  try {
+    const v = Number(localStorage.getItem("masDistance"));
+    return v > 0 ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+function MasCard({ distance, onSave }: { distance: number | null; onSave: (d: number) => void }) {
+  const [text, setText] = useState("");
+  const mas: Mas | null = distance ? calcMas(distance) : null;
+  return (
+    <section className="mb-5 rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <h2 className="mb-1 text-base font-semibold">Twoje MAS</h2>
+      {mas ? (
+        <p className="text-sm text-muted">
+          {mas.kmh.toFixed(1)} km/h · tempo {formatPace(mas.paceSecPerKm)} ({distance} m w 5 min)
+        </p>
+      ) : (
+        <p className="text-sm text-muted">Wpisz dystans z biegu 5-minutowego.</p>
+      )}
+      <div className="mt-3 flex gap-2">
+        <input
+          inputMode="numeric"
+          placeholder="dystans w metrach"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          className="min-w-0 flex-1 rounded-xl bg-canvas px-3 py-2 text-sm outline-none"
+        />
+        <button
+          onClick={() => {
+            const d = Number(text);
+            if (d >= 500 && d <= 2500) { onSave(d); setText(""); }
+          }}
+          className="rounded-xl bg-ink px-4 py-2 text-sm font-medium text-white"
+        >
+          Zapisz
+        </button>
+      </div>
+    </section>
+  );
+}
+
 export function App() {
+  const [distance, setDistance] = useState<number | null>(loadDistance);
+  const mas = useMemo(() => (distance ? calcMas(distance) : null), [distance]);
   const [checkIn, setCheckIn] = useState<CheckIn>({ sleep: 3, feeling: 3, less: false });
   const [open, setOpen] = useState<DayPlan | null>(null);
   const weekStart = useMemo(() => mondayOf(new Date()), []);
@@ -105,6 +151,13 @@ export function App() {
     <main className="mx-auto max-w-md px-4 pb-16 pt-14">
       <h1 className="text-3xl font-semibold tracking-tight">Twój tydzień</h1>
       <p className="mb-6 mt-1 text-sm text-muted">Plan dopasowany do meczu.</p>
+      <MasCard
+        distance={distance}
+        onSave={(d) => {
+          setDistance(d);
+          try { localStorage.setItem("masDistance", String(d)); } catch { /* brak pamięci */ }
+        }}
+      />
       <section className="mb-5 rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
         <h2 className="mb-3 text-base font-semibold">Jak dziś?</h2>
         <Pick label="Sen" value={checkIn.sleep} onChange={(v) => setCheckIn({ ...checkIn, sleep: v })} />
@@ -122,7 +175,7 @@ export function App() {
         ))}
       </ul>
       {open && (
-        <SessionSheet day={open} checkIn={checkIn} weekInCycle={1} onClose={() => setOpen(null)} />
+        <SessionSheet day={open} checkIn={checkIn} weekInCycle={1} mas={mas} onClose={() => setOpen(null)} />
       )}
       {plan.warnings.length > 0 && (
         <p className="mt-4 rounded-2xl bg-yellow-soft p-3 text-sm text-yellow-ink">

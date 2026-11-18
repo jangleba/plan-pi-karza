@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { EXERCISES, adaptSession, mesoPhase, templateFor } from "./engine";
-import type { CheckIn, DayPlan } from "./engine";
+import { EXERCISES, adaptSession, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
+import type { CheckIn, DayPlan, Mas } from "./engine";
 
 const KIND_TITLE: Record<string, string> = {
   strength: "Siła", run: "Bieganie", sprint: "Sprint",
@@ -8,12 +8,13 @@ const KIND_TITLE: Record<string, string> = {
 };
 
 export function SessionSheet({
-  day, checkIn, weekInCycle, onClose,
-}: { day: DayPlan; checkIn: CheckIn; weekInCycle: number; onClose: () => void }) {
+  day, checkIn, weekInCycle, mas, onClose,
+}: { day: DayPlan; checkIn: CheckIn; weekInCycle: number; mas: Mas | null; onClose: () => void }) {
   const [weights, setWeights] = useState<Record<string, string>>({});
   const s = day.session;
   const module = s?.kind === "strength" || s?.kind === "sprint" ? s.kind : null;
   const found = module ? templateFor(module, weekInCycle) : null;
+  const run = s?.kind === "run" ? (mas ? runSession(mas, mesoPhase(weekInCycle), "intermediate", checkIn) : masTestSession()) : null;
   const adapted = found ? adaptSession(found.template, checkIn, found.deload) : null;
 
   return (
@@ -64,11 +65,37 @@ export function SessionSheet({
               ))}
             </ol>
           </>
+        ) : run ? (
+          <>
+            <p className="text-sm text-muted">{run.title}</p>
+            {run.notes.map((n) => (
+              <p key={n} className="mt-3 rounded-xl bg-yellow-soft px-3 py-2 text-sm text-yellow-ink">{n}</p>
+            ))}
+            <div className="mt-4 rounded-2xl bg-canvas p-3 text-sm">
+              <div className="text-xs text-muted">Rozgrzewka</div>
+              <div>{run.warmup}</div>
+            </div>
+            {run.blocks.map((b) => (
+              <div key={b.label} className="mt-3 rounded-2xl bg-canvas p-3 text-sm">
+                <div className="font-medium">{b.label}</div>
+                <div className="text-xs text-muted">
+                  {b.reps > 1 ? `${b.sets > 1 ? `${b.sets} serie × ` : ""}${b.reps} powt. · praca ${b.workS} s, przerwa ${b.restS} s` : `${Math.round(b.workS / 60)} min`}
+                  {" · "}tempo {b.paceText} · ok. {b.distanceM} m {b.reps > 1 ? "na odcinek" : ""}
+                </div>
+              </div>
+            ))}
+          </>
         ) : (
           <p className="mt-3 text-sm text-muted">
             Szablon tej sesji jest w przygotowaniu.
           </p>
         )}
+        <button
+          onClick={onClose}
+          className="mt-6 w-full rounded-2xl bg-ink py-3 text-sm font-medium text-white"
+        >
+          Koniec sesji
+        </button>
       </div>
     </div>
   );

@@ -84,3 +84,8 @@ Silnik = czysty, deterministyczny TypeScript (bez AI). Ten sam wynik dla tych sa
 - Kolory znaczeniowe (pastelowe): czerwony, żółty, zielony.
 - Test MAS i biegi: aplikacja z GPS odczytuje dystans i od razu liczy MAS; gdy się nie da, zawodnik wpisuje dystans ręcznie. Mapa jak w Stravie, wewnątrz treningów biegowych (etap natywny/iOS).
 - Supabase: nowy projekt, klucze poda użytkownik.
+
+## Wdrożone (runda 6)
+- Bieganie z MAS: objętość = interwały długie (90% MAS), intensywność = 15/15 (105%), rozładowanie lub mocny check-in = bieg ciągły 65%. Bez wyniku MAS ekran pokazuje test 5 min. Wartości robocze do przeglądu.
+- Wpis wykonania: jeden przycisk „Koniec sesji". Sugestia kg tylko po sesji (do zrobienia).
+- Kolejny tydzień pojawia się dopiero po dacie meczu (do zrobienia).
