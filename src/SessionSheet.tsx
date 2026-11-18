@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Pitch } from "./Pitch";
 import { CueTrainer } from "./CueTrainer";
-import { EXERCISES, RECOVERY, TECHNIQUE_DRILLS, adaptSession, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
-import type { CheckIn, DayPlan, Level, Mas } from "./engine";
+import { EXERCISES, RECOVERY, TECHNIQUE_DRILLS, adaptSession, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
+import type { CheckIn, DayPlan, Level, Mas, Suggestion } from "./engine";
 
 const KIND_TITLE: Record<string, string> = {
   strength: "Siła", run: "Bieganie", sprint: "Sprint",
@@ -12,12 +12,68 @@ const KIND_TITLE: Record<string, string> = {
 export function SessionSheet({
   day, checkIn, weekInCycle, mas, level, onClose,
 }: { day: DayPlan; checkIn: CheckIn; weekInCycle: number; mas: Mas | null; level: Level; onClose: () => void }) {
+  const [log, setLog] = useState(loadLog);
   const [weights, setWeights] = useState<Record<string, string>>({});
+  const [summary, setSummary] = useState<Suggestion[] | null>(null);
   const s = day.session;
   const module = s?.kind === "strength" || s?.kind === "sprint" ? s.kind : null;
   const found = module ? templateFor(module, weekInCycle) : null;
   const run = s?.kind === "run" ? (mas ? runSession(mas, mesoPhase(weekInCycle), level, checkIn) : masTestSession()) : null;
   const adapted = found ? adaptSession(found.template, checkIn, found.deload) : null;
+
+  const finish = () => {
+    if (!adapted || !found) { onClose(); return; }
+    const strain = strainOf(checkIn);
+    const next = { ...log };
+    const out: Suggestion[] = [];
+    adapted.blocks.forEach((b, bi) =>
+      b.items.forEach((i, ii) => {
+        const kg = Number((weights[`${bi}-${ii}`] ?? "").replace(",", "."));
+        if (!(kg > 0) || !EXERCISES[i.exerciseId]?.loaded) return;
+        next[i.exerciseId] = { kg, reps: firstNumber(i.reps), date: day.date };
+        const sug = suggestNext(i.exerciseId, kg, strain, found.deload);
+        if (sug) out.push(sug);
+      }),
+    );
+    setLog(next);
+    saveLog(next);
+    if (out.length) setSummary(out); else onClose();
+  };
+
+  const decide = (sug: Suggestion, accept: boolean) => {
+    const next = { ...log };
+    const cur = next[sug.exerciseId];
+    if (cur) next[sug.exerciseId] = { ...cur, next: accept ? sug.to : sug.from };
+    setLog(next);
+    saveLog(next);
+    setSummary((summary ?? []).filter((x) => x !== sug));
+    if ((summary ?? []).length <= 1) onClose();
+  };
+
+  if (summary) {
+    return (
+      <div className="fixed inset-0 z-10 flex items-end bg-black/25">
+        <div className="max-h-[85vh] w-full overflow-y-auto rounded-t-3xl bg-card p-5 pb-10 shadow-xl">
+          <h2 className="text-xl font-semibold">Dobra robota</h2>
+          <p className="mb-4 text-sm text-muted">Propozycje na następną sesję.</p>
+          {summary.map((sug) => (
+            <div key={sug.exerciseId} className="mb-3 rounded-2xl bg-canvas p-3">
+              <div className="text-sm font-medium">{EXERCISES[sug.exerciseId]?.name}</div>
+              <div className="text-xs text-muted">{sug.from} kg · {sug.text}</div>
+              {sug.to !== sug.from ? (
+                <div className="mt-2 flex gap-2">
+                  <button onClick={() => decide(sug, true)} className="flex-1 rounded-xl bg-green-soft py-1.5 text-sm font-medium text-green-ink">Przyjmij {sug.to} kg</button>
+                  <button onClick={() => decide(sug, false)} className="flex-1 rounded-xl bg-card py-1.5 text-sm text-muted">Zostaję</button>
+                </div>
+              ) : (
+                <button onClick={() => decide(sug, false)} className="mt-2 w-full rounded-xl bg-card py-1.5 text-sm text-muted">OK</button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-10 flex items-end bg-black/25" onClick={onClose}>
@@ -41,20 +97,24 @@ export function SessionSheet({
                   {b.items.map((i, ii) => {
                     const e = EXERCISES[i.exerciseId];
                     const key = `${bi}-${ii}`;
+                    const prev = log[i.exerciseId];
+                    const placeholder = prev ? String(prev.next ?? prev.kg) : "kg";
+                    const rm = prev ? estimate1RM(prev.kg, prev.reps) : null;
+                    const target = i.pctRM && rm ? Math.round(rm * ((i.pctRM[0] + i.pctRM[1]) / 200) * 2) / 2 : null;
                     return (
                       <div key={key} className="flex items-center justify-between gap-3 py-1.5">
                         <div className="min-w-0">
                           <div className="text-sm font-medium">{e?.name ?? i.exerciseId}</div>
                           <div className="text-xs text-muted">
                             {i.sets} × {i.reps}
-                            {i.pctRM ? ` · ${i.pctRM[0]}–${i.pctRM[1]}% maks.` : ""}
+                            {i.pctRM ? ` · ${i.pctRM[0]}–${i.pctRM[1]}% maks.${target ? ` (≈ ${target} kg)` : ""}` : ""}
                             {i.note ? ` · ${i.note}` : ""}
                           </div>
                         </div>
                         {e?.loaded && (
                           <input
                             inputMode="decimal"
-                            placeholder="kg"
+                            placeholder={placeholder}
                             value={weights[key] ?? ""}
                             onChange={(ev) => setWeights({ ...weights, [key]: ev.target.value })}
                             className="w-16 rounded-lg bg-card px-2 py-1.5 text-right text-sm outline-none"
@@ -118,7 +178,7 @@ export function SessionSheet({
           </p>
         )}
         <button
-          onClick={onClose}
+          onClick={finish}
           className="mt-6 w-full rounded-2xl bg-ink py-3 text-sm font-medium text-white"
         >
           Koniec sesji

@@ -94,3 +94,9 @@ Silnik = czysty, deterministyczny TypeScript (bez AI). Ten sam wynik dla tych sa
 - Pola: wiek (16+), staż siłowy, masa, pozycja, sprzęt, dni klubowe, dni meczu (maks. 2), „mało dni na siłownię". Zapis lokalny (do czasu logowania).
 - Poziom ze stażu i wieku: progi TYMCZASOWE (staż <1 / 1–3 / >3 lat, 16–17 lat o stopień niżej) – do ustalenia.
 - Pozycja i sprzęt są zapisane w profilu, ale silnik jeszcze z nich nie korzysta.
+
+## Dziennik kg i sugestia (wdrożone)
+- Wpis kg per ćwiczenie siłowe; „Koniec sesji" zapisuje i pokazuje propozycje na następną sesję (Przyjmij / Zostaję).
+- 1RM szacowany wg Epleya z kg i zaplanowanych powtórzeń; przy ćwiczeniach z %1RM pokazuje ≈ kg.
+- Sugestia: +2,5% dolne partie/moc, +1,25 kg góra; bez dodawania przy gorszym check-inie i w tygodniu rozładowania.
+- Pozycja wpływa tylko na treningi boiskowe i lekko na biegowe, NIE na siłownię (do wdrożenia).

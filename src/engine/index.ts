@@ -7,3 +7,4 @@ export * from "./run";
 export * from "./drill";
 export * from "./technique";
 export * from "./profile";
+export * from "./progress";
