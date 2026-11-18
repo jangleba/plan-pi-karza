@@ -416,6 +416,7 @@ function buildFromTemplate(
       layoutGroup(rows, roundRest);
       pairs.push({
         label: labels[pairs.length],
+        no: block.id,
         kind: block.pair as PairKind,
         exerciseIds: rows.map((r) => r.exerciseId),
         transitionSeconds: 30,
@@ -620,6 +621,24 @@ export function layoutGroup(rows: ExerciseDecision[], roundRestSeconds: number, 
     row.dose = d;
   });
 }
+
+/**
+ * The exercise as the coach wrote it, without its dose: "Back Squat 4x2 (4-1-x)" → "Back Squat".
+ * Only a line that names an exercise with its dose counts; the summary photo's lines ("góra do 5
+ * powtórzeń", "akcesoria") describe a task and keep the library's exercise name.
+ */
+export const coachNameOf = (text: string): string | null => {
+  if (!/\d\s*x\s*\d/i.test(text)) return null;
+  const name = text
+    .replace(/\s+\d+\s*x\s*\d.*$/i, "")
+    .replace(/\s*\(.*$/, "")
+    .trim();
+  return name || null;
+};
+
+/** The label of the n-th exercise of a group: the coach's own (3a, 3b), else A1, A2. */
+export const pairLabelAt = (pair: { label: string; no?: string }, index: number): string =>
+  pair.no ? `${pair.no}${"abcdefgh"[index]}` : `${pair.label}${index + 1}`;
 
 export function resyncAdvancedGroups(recipe: EngineSession): EngineSession {
   const pairs: NonNullable<EngineSession["complexPairs"]> = [];

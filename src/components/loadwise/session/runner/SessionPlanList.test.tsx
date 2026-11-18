@@ -62,7 +62,7 @@ describe("superset header in the session list", () => {
     expect(linked.length).toBeGreaterThan(1);
     const first = linkedSummary(linked[0]);
     const pair = session.engineV2!.complexPairs![0];
-    expect(first.letter).toBe(pair.label);
+    expect(first.letter).toBe(pair.no ?? pair.label);
     expect(first.rounds).toMatch(/^\d+ rund(y|a)?$/);
     expect(first.rest).toContain("30 s między");
     expect(first.rest).toContain("po rundzie");

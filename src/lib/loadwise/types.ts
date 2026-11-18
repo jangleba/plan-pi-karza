@@ -313,6 +313,8 @@ export interface TrainingExercise {
   speedRole?: SpeedRole;
   label?: string; // A1 | A2 | B1 | B2 ...
   name: string;
+  /** The exercise as the coach wrote it in the note (not for a substitute); shown instead of the library name. */
+  coachName?: string;
   /** Krótko: co ćwiczenie rozwija i dlaczego znajduje się w sesji. */
   purpose?: string;
   /** Krótkie ustawienie startowe pokazywane w bibliotece ćwiczeń. */

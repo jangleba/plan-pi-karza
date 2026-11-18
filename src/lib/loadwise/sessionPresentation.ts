@@ -138,6 +138,7 @@ export function resolveDefinitionForExercise(e: TrainingExercise) {
 }
 
 export function canonicalExerciseName(e: TrainingExercise): string {
+  if (e.coachName) return e.coachName;
   const definition = resolveDefinitionForExercise(e);
   const name =
     (definition && e.engineDose

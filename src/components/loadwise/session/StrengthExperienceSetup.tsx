@@ -4,17 +4,8 @@ import { ChevronRight, SlidersHorizontal } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { hasStrengthExperience, type StrengthExperience } from "@/lib/loadwise/strengthExperience";
-import {
-  EQUIPMENT_REGISTRY,
-  getExerciseDefinition,
-  resolveEquipmentId,
-} from "@/lib/loadwise/exerciseLibrary";
-import {
-  GYM_DECLARED_EQUIPMENT,
-  GYM_EXERCISE_OPTIONS,
-  type GymExerciseSlot,
-} from "@/lib/loadwise/gymProgramming";
-import { exerciseName } from "@/lib/loadwise/engineV2/sessionNames";
+import { EQUIPMENT_REGISTRY, resolveEquipmentId } from "@/lib/loadwise/exerciseLibrary";
+import { GYM_DECLARED_EQUIPMENT } from "@/lib/loadwise/gymProgramming";
 import { getGymEquipmentMode } from "@/lib/loadwise/athleteProfile";
 import "./training-coach.css";
 
@@ -238,58 +229,31 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
                 <option value="full">Trener prowadzi i nadzoruje sesję</option>
               </select>
             </label>
-            {profile.hasGym && (
+            {!profile.hasGym && (
               <label>
-                Układ jednostki
+                Organizacja siły
                 <select
+                  value={draft.trainingMethodPreferences?.strength ?? "auto"}
                   disabled={saving}
-                  value={draft.trainingMethodPreferences?.gymTemplate ?? "athletic_ab"}
                   onChange={(e) =>
                     setDraft((d) => ({
                       ...d,
                       trainingMethodPreferences: {
                         ...d.trainingMethodPreferences,
-                        gymTemplate: e.target.value as TrainingMethodPreferences["gymTemplate"],
+                        strength: e.target.value as "auto" | "M08" | "M09" | "M13" | "M14",
+                        coachedIsometricPrimer: false,
                       },
                     }))
                   }
                 >
-                  <option value="athletic_ab">Sportowe A/B · dopasowane</option>
-                  <option value="balanced">Klasyczne całe ciało · A/B</option>
-                  <option value="paired_power">Specjalistyczne pary mocy</option>
+                  <option value="auto">Automatyczna</option>
+                  <option value="M08">Klastry w głównym ćwiczeniu</option>
+                  <option value="M09">Kontrast siła–moc</option>
+                  <option value="M13">Siła z izometrią utrzymywaną</option>
+                  <option value="M14">Nadzorowana izometria przed treningiem</option>
                 </select>
-                {(draft.trainingMethodPreferences?.gymTemplate ?? "athletic_ab") ===
-                  "athletic_ab" && (
-                  <span className="text-sm">
-                    Dwa osobne dni: przygotowanie, moc lub lądowanie, siła i uzupełnienie.
-                    Ćwiczenia, serie i przerwy zależą od Twojego przygotowania, sprzętu i meczów.
-                  </span>
-                )}
               </label>
             )}
-            <label>
-              Organizacja siły
-              <select
-                value={draft.trainingMethodPreferences?.strength ?? "auto"}
-                disabled={saving}
-                onChange={(e) =>
-                  setDraft((d) => ({
-                    ...d,
-                    trainingMethodPreferences: {
-                      ...d.trainingMethodPreferences,
-                      strength: e.target.value as "auto" | "M08" | "M09" | "M13" | "M14",
-                      coachedIsometricPrimer: false,
-                    },
-                  }))
-                }
-              >
-                <option value="auto">Automatyczna</option>
-                <option value="M08">Klastry w głównym ćwiczeniu</option>
-                <option value="M09">Kontrast siła–moc</option>
-                <option value="M13">Siła z izometrią utrzymywaną</option>
-                <option value="M14">Nadzorowana izometria przed treningiem</option>
-              </select>
-            </label>
             {profile.hasGym && (
               <details>
                 <summary>Sprzęt i warianty siłowni</summary>
@@ -343,73 +307,6 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
                     );
                   })}
                 </fieldset>
-                {draft.trainingMethodPreferences?.gymTemplate !== "paired_power" && (
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      disabled={saving}
-                      checked={draft.trainingMethodPreferences?.upperBodyContrast === true}
-                      onChange={(e) =>
-                        setDraft((d) => ({
-                          ...d,
-                          trainingMethodPreferences: {
-                            ...d.trainingMethodPreferences,
-                            upperBodyContrast: e.target.checked,
-                            ...(e.target.checked
-                              ? {
-                                  gymExercises: {
-                                    ...d.trainingMethodPreferences?.gymExercises,
-                                    upperPower: "med_ball_throw",
-                                  },
-                                }
-                              : {}),
-                          },
-                        }))
-                      }
-                    />
-                    Kontrast góry ciała · wyciskanie i rzut sprzed klatki
-                    <span className="text-sm">
-                      Opcja dla przygotowanych dorosłych z trenerem: 2 rundy, po 4 min przerwy przed
-                      rzutem.
-                    </span>
-                  </label>
-                )}
-                {draft.trainingMethodPreferences?.gymTemplate !== "paired_power" &&
-                  Object.entries(GYM_EXERCISE_OPTIONS).map(([slot, options]) => (
-                    <label key={slot}>
-                      {options.label}
-                      <select
-                        disabled={saving}
-                        value={
-                          draft.trainingMethodPreferences?.gymExercises?.[
-                            slot as GymExerciseSlot
-                          ] ?? "auto"
-                        }
-                        onChange={(e) =>
-                          setDraft((d) => {
-                            const gymExercises = { ...d.trainingMethodPreferences?.gymExercises };
-                            if (e.target.value === "auto")
-                              delete gymExercises[slot as GymExerciseSlot];
-                            else gymExercises[slot as GymExerciseSlot] = e.target.value;
-                            return {
-                              ...d,
-                              trainingMethodPreferences: {
-                                ...d.trainingMethodPreferences,
-                                gymExercises,
-                              },
-                            };
-                          })
-                        }
-                      >
-                        <option value="auto">Dobierz automatycznie</option>
-                        {options.ids.map((id) => (
-                          <option value={id} key={id}>
-                            {exerciseName(id, getExerciseDefinition(id)?.name ?? id)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  ))}
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"

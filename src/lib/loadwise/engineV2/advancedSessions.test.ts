@@ -156,7 +156,7 @@ describe("gym sessions follow the athlete's four notes", () => {
       for (const [i, step] of linked.entries()) {
         const group = s.engineV2!.complexPairs![i];
         expect(step.rows.map((r) => r.exercise.label)).toEqual(
-          group.exerciseIds.map((_, n) => `${group.label}${n + 1}`),
+          group.exerciseIds.map((_, n) => `${group.no}${"abcdefgh"[n]}`),
         );
         expect(step.rows[0].block.executionProtocol).toBe("superset-rounds-v1");
         const last = step.rows.length - 1;
@@ -167,6 +167,27 @@ describe("gym sessions follow the athlete's four notes", () => {
         );
       }
       expect(s.structuredSections!.map((x) => x.type)).toEqual(["warmup", "main"]);
+    }
+  });
+
+  it("shows the coach's own numbering and exercise names: a numbered group is a superset", () => {
+    for (const s of strength(plan)) {
+      const main = s.structuredSections!.find((x) => x.type === "main")!;
+      const groups = main.blocks.filter((b) => b.exercises.length > 1);
+      expect(groups.length).toBeGreaterThan(0);
+      for (const block of groups) {
+        const no = block.exercises[0].label!.slice(0, -1);
+        expect(block.exercises.map((e) => e.label)).toEqual(
+          block.exercises.map((_, n) => `${no}${"abcdefgh"[n]}`),
+        );
+        expect(block.title).toMatch(new RegExp(`^(Superseria|Seria) ${no} · `));
+        // Two exercises under one number are a superset.
+        if (block.exercises.length === 2) expect(block.title).toMatch(/^Superseria /);
+        expect(block.blockType).toBe("superset");
+      }
+      // An exercise the coach named keeps the coach's name, not a library rewrite.
+      const named = main.blocks.flatMap((b) => b.exercises).filter((e) => e.coachName);
+      for (const e of named) expect(e.name).toBe(e.coachName);
     }
   });
 

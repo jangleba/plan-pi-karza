@@ -5288,9 +5288,9 @@ export function hydrateTrainingExerciseFromDefinition(
   return {
     ...exercise,
     exerciseId: canonical.id,
-    name: exercise.engineDose
-      ? exerciseName(canonical.id, canonical.name)
-      : canonical.displayNamePl,
+    name:
+      exercise.coachName ??
+      (exercise.engineDose ? exerciseName(canonical.id, canonical.name) : canonical.displayNamePl),
     purpose: exercise.purpose ?? fallbackPurpose(canonical),
     visualId: exercise.visualId ?? canonical.id,
     instructionSteps:

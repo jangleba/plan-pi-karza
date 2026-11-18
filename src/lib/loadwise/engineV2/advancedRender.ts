@@ -1,6 +1,6 @@
 import type { TrainingSection } from "../types";
 import type { EngineSession } from "./model";
-import { pairTitle } from "./advancedSessions";
+import { pairLabelAt, pairTitle } from "./advancedSessions";
 
 /**
  * Advanced sessions keep the order of the notes: preparation, then the pairs and single tasks in
@@ -25,12 +25,12 @@ export function renderComplexPairs(sections: TrainingSection[], recipe: EngineSe
     );
     if (blocks.length < 2 || blocks.some((b) => !b)) continue;
     const found = blocks as NonNullable<(typeof blocks)[number]>[];
-    found.forEach((b, i) => (b.exercises[0].label = `${pair.label}${i + 1}`));
+    found.forEach((b, i) => (b.exercises[0].label = pairLabelAt(pair, i)));
     found[found.length - 1].exercises[0].restAfterPair = `${pair.roundRestSeconds} s`;
     const at = main.blocks.indexOf(found[0]);
     const merged = {
       ...found[0],
-      title: `${found.length === 2 ? "Para" : "Seria"} ${pair.label} · ${pairTitle(pair.kind)}`,
+      title: `${found.length === 2 ? "Superseria" : "Seria"} ${pair.no ?? pair.label} · ${pairTitle(pair.kind)}`,
       blockType: "superset" as const,
       executionProtocol: "superset-rounds-v1" as const,
       restAfterBlock: `${pair.roundRestSeconds} s`,
