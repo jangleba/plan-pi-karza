@@ -64,37 +64,6 @@ export function planWeeks(plan: SessionDay[]): PlanWeekGroup[] {
 const isRest = (s: SessionDay) => s.dayType === "rest" && !s.engineV2;
 const isFullRestDay = (s: SessionDay) => isRest(s) && !s.secondSession && !s.externalCommitment;
 
-/** Prescribed intensity only; club/match placeholders do not establish an observed load. */
-function LoadMark({ session }: { session: SessionDay }) {
-  if (isRest(session)) return null;
-  const level =
-    session.externalCommitment || ["club", "match"].includes(session.dayType)
-      ? null
-      : ({ niska: 1, umiarkowana: 2, wysoka: 3 } as const)[session.intensity];
-  const label = level
-    ? `Planowana intensywność: ${["niska", "umiarkowana", "wysoka"][level - 1]}`
-    : "Planowana intensywność nieokreślona";
-  return (
-    <span
-      className="bw-wk-load"
-      data-level={level ?? "unknown"}
-      role="img"
-      aria-label={label}
-      title={label}
-    >
-      <span className="bw-wk-load-bars" aria-hidden="true">
-        {[1, 2, 3].map((bar) => (
-          <i key={bar} data-filled={(level !== null && bar <= level) || undefined} />
-        ))}
-      </span>
-      {/* The load is never shown by bars alone. */}
-      <span className="bw-wk-load-text" aria-hidden="true">
-        {level ? ["Lekko", "Umiarkowanie", "Mocno"][level - 1] : "—"}
-      </span>
-    </span>
-  );
-}
-
 function Exercises({ session }: { session: SessionDay }) {
   const blocks = session.structuredSections?.flatMap((x) => x.blocks) ?? [];
   if (!blocks.length) return null;
@@ -155,30 +124,34 @@ export function PlanWeek({
   sunday.setUTCDate(sunday.getUTCDate() + 6);
   return (
     <section className="bw-wk" aria-label="Tydzień planu">
-      <div className="bw-wk-head">
-        <button
-          type="button"
-          aria-label="Poprzedni tydzień"
-          disabled={index === 0}
-          onClick={() => setChosen(index - 1)}
-        >
-          <ChevronLeft aria-hidden="true" />
-        </button>
-        <div>
-          <strong>
-            Tydzień {index + 1} z {weeks.length}
-          </strong>
-          <small>{plRange(week.monday, sunday.toISOString().slice(0, 10))}</small>
+      {weeks.length > 1 ? (
+        <div className="bw-wk-head">
+          <button
+            type="button"
+            aria-label="Poprzedni tydzień"
+            disabled={index === 0}
+            onClick={() => setChosen(index - 1)}
+          >
+            <ChevronLeft aria-hidden="true" />
+          </button>
+          <div>
+            <strong>
+              Tydzień {index + 1} z {weeks.length}
+            </strong>
+            <small>{plRange(week.monday, sunday.toISOString().slice(0, 10))}</small>
+          </div>
+          <button
+            type="button"
+            aria-label="Następny tydzień"
+            disabled={index === weeks.length - 1}
+            onClick={() => setChosen(index + 1)}
+          >
+            <ChevronRight aria-hidden="true" />
+          </button>
         </div>
-        <button
-          type="button"
-          aria-label="Następny tydzień"
-          disabled={index === weeks.length - 1}
-          onClick={() => setChosen(index + 1)}
-        >
-          <ChevronRight aria-hidden="true" />
-        </button>
-      </div>
+      ) : (
+        <p className="bw-wk-range">{plRange(week.monday, sunday.toISOString().slice(0, 10))}</p>
+      )}
       <ul className="bw-wk-days">
         {week.days.map((d) => {
           const sessions = [d, ...(d.secondSession ? [d.secondSession] : [])];
@@ -204,18 +177,15 @@ export function PlanWeek({
                       <span className="bw-wk-copy">
                         <strong>{rest ? "Odpoczynek" : heading.title}</strong>
                         {!rest && (
-                          <small>
-                            <span className="bw-session-kind" data-tone={appearance.tone}>
-                              {heading.category ?? appearance.label}
-                            </span>
-                            {s.durationMin > 0 && <span>{Math.round(s.durationMin)} min</span>}
-                            <LoadMark session={s} />
+                          <small className="bw-wk-meta">
+                            {[
+                              heading.category ?? appearance.label,
+                              s.durationMin > 0 ? `${Math.round(s.durationMin)} min` : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
                           </small>
                         )}
-                        {s.engineV2?.cycle &&
-                        ["deload", "reentry", "review"].includes(s.engineV2.cycle.state) ? (
-                          <small className="bw-wk-phase">{s.blockPhaseLabel}</small>
-                        ) : null}
                       </span>
                       {done && <Check className="bw-wk-done" aria-label="Wykonane" />}
                     </>

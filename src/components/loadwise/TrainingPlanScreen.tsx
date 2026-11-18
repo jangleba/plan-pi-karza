@@ -25,9 +25,9 @@ import { planEvidenceIssue, planEvidenceKey } from "@/lib/loadwise/planEvidence"
 import { useTrainingWriteStatus } from "@/lib/loadwise/useTrainingWriteStatus";
 import { hasUnresolvedTrainingWrites } from "@/lib/loadwise/offlineTrainingQueue";
 import { runningCalibrationMessage } from "@/lib/loadwise/engineV2/runningCalibrationStatus";
-import { ArrowRight, ChevronRight, SlidersHorizontal, X } from "lucide-react";
+import { ArrowRight, ChevronRight, X } from "lucide-react";
 import { PlanWeek, plDate } from "./PlanWeek";
-import { NextWeekGate } from "./NextWeekGate";
+import { NextWeekRow, NextWeekSheet } from "./NextWeekSheet";
 import type { NextPlanDraft } from "@/lib/loadwise/nextPlanInterview";
 import { PlanLimitations } from "./PlanLimitations";
 import { WeeklyPlanningSettings, WeeklyPlanningCoverage } from "./WeeklyPlanningSettings";
@@ -39,6 +39,12 @@ import { planUnavailableForAge } from "@/lib/loadwise/agePolicy";
 import { savedSessionDurationMode } from "@/lib/loadwise/engineV2/sessionDurationPolicy";
 import "@/styles/ballwise-plan.css";
 
+const addIsoDays = (iso: string, n: number) => {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
 /** "1 tydzień", "2 tygodnie": the length of the plan shown. */
 function planLength(days: number): string {
   const weeks = Math.max(1, Math.round(days / 7));
@@ -46,7 +52,10 @@ function planLength(days: number): string {
 }
 
 /** Preview, explicit activation and execution of the versioned training plan. */
-export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}) {
+export function PlanScreen({
+  autoUpdate = false,
+  openSettings = false,
+}: { autoUpdate?: boolean; openSettings?: boolean } = {}) {
   const gymEvidence = useGymEvidence();
   const { state, todayIso, hydrated, syncing, activatePlanV2, updateProfile } = useLoadwise();
   const navigate = useNavigate();
@@ -59,7 +68,8 @@ export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}
   const liveEvidence = useRef({ gym: gymEvidence, ownerId: user?.id });
   liveEvidence.current = { gym: gymEvidence, ownerId: user?.id };
   const [rebuildRequested, setRebuild] = useState(autoUpdate);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  // Plan settings are not part of the plan screen; Profile opens them (`?ustawienia=1`).
+  const [settingsOpen, setSettingsOpen] = useState(openSettings);
   // Choices confirmed in Progress (time budget); a different saved plan voids them.
   const intentState = useTrainingLocalState<NextPlanIntent | null>(
     trainingStorageKey("next-plan-intent", user?.id),
@@ -325,20 +335,20 @@ export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}
         </div>
       </div>
     );
-  // Everything that is not the week itself lives behind one settings button.
-  const attention =
-    status.kind === "stale" ||
-    status.kind === "expired" ||
-    Boolean(runningMessage) ||
-    issues.length > 0;
   const statusTitle =
     status.kind === "expired"
       ? "Cykl zakończony"
       : status.kind === "stale"
         ? "Plan wymaga odświeżenia"
         : "Zapisany plan";
-  // A finished week is followed by the question about the next match, asked right here.
-  const showGate = status.kind === "expired" && !preview && Boolean(state.profile) && hydrated;
+  // The next week opens from a row under the week, only when the date allows it (the week is
+  // over); its sheet asks for the next match first.
+  const [nextOpen, setNextOpen] = useState(false);
+  const nextAllowed = status.kind === "expired";
+  const lastPlanDay = effectivePlan.at(-1)?.date ?? todayIso;
+  const nextFrom = nextAllowed ? todayIso : addIsoDays(lastPlanDay, 1);
+  const showNext =
+    status.kind !== "empty" && !preview && Boolean(state.profile) && hydrated && plan.length > 0;
   async function prepareNextWeek(draft: NextPlanDraft) {
     if (draft.profileChanged) await updateProfile(draft.profile);
     const mode = draft.sessionDurationMode ?? "limited";
@@ -348,6 +358,7 @@ export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}
       minutes: mode === "full" ? null : draft.minutes,
       createdAt: new Date().toISOString(),
     });
+    setNextOpen(false);
     setRebuild(true);
   }
   const startRebuild = () => {
@@ -360,24 +371,7 @@ export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}
   };
   return (
     <div className="bw-plan-screen pb-6">
-      <AppHeader
-        title="Plan"
-        sketch="pitch"
-        right={
-          state.profile ? (
-            <button
-              type="button"
-              className="bw-plan-settings-button"
-              aria-label={attention ? "Ustawienia planu, wymagają uwagi" : "Ustawienia planu"}
-              aria-expanded={settingsOpen}
-              onClick={() => setSettingsOpen(true)}
-            >
-              <SlidersHorizontal aria-hidden="true" />
-              {attention ? <i aria-hidden="true" /> : null}
-            </button>
-          ) : undefined
-        }
-      />
+      <AppHeader title="Plan" brand={false} />
       <div className="bw-plan-stack">
         {!hydrated || syncing ? (
           <p role="status" className="bw-plan-quiet">
@@ -441,14 +435,6 @@ export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}
         {!state.profile && hydrated ? (
           <p className="bw-plan-quiet">Uzupełnij profil, aby przygotować plan.</p>
         ) : null}
-        {showGate && state.profile ? (
-          <NextWeekGate
-            profile={state.profile}
-            from={todayIso}
-            currentMinutes={savedBudget}
-            onPrepare={prepareNextWeek}
-          />
-        ) : null}
         {plan.length > 0 ? (
           <PlanWeek
             plan={plan}
@@ -458,7 +444,19 @@ export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}
             onOpen={open}
           />
         ) : null}
+        {showNext ? (
+          <NextWeekRow allowed={nextAllowed} from={nextFrom} onOpen={() => setNextOpen(true)} />
+        ) : null}
       </div>
+      {nextOpen && nextAllowed && state.profile ? (
+        <NextWeekSheet
+          profile={state.profile}
+          from={todayIso}
+          currentMinutes={savedBudget}
+          onPrepare={prepareNextWeek}
+          onClose={() => setNextOpen(false)}
+        />
+      ) : null}
       {state.profile ? (
         <PlanSettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)}>
           <section className="bw-plan-card bw-plan-status" aria-label="Stan planu">
