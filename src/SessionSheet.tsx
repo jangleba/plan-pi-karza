@@ -72,7 +72,7 @@ export function SessionSheet({
               <div className="text-xs text-muted">{sug.from} kg · {sug.text}</div>
               {sug.to !== sug.from ? (
                 <div className="mt-2 flex gap-2">
-                  <button onClick={() => decide(sug, true)} className="flex-1 rounded-xl bg-green-soft py-1.5 text-sm font-medium text-green-ink">Przyjmij {sug.to} kg</button>
+                  <button onClick={() => decide(sug, true)} className="flex-1 rounded-xl bg-ink py-1.5 text-sm font-medium text-card">Przyjmij {sug.to} kg</button>
                   <button onClick={() => decide(sug, false)} className="flex-1 rounded-xl bg-card py-1.5 text-sm text-muted">Zostaję</button>
                 </div>
               ) : (
@@ -99,7 +99,7 @@ export function SessionSheet({
               {adapted.name}{found?.deload ? " · rozładowanie" : ""}
             </p>
             {adapted.notes.map((n) => (
-              <p key={n} className="mt-3 rounded-xl bg-yellow-soft px-3 py-2 text-sm text-yellow-ink">{n}</p>
+              <p key={n} className="mt-3 rounded-xl border border-hairline bg-canvas px-3 py-2 text-sm text-muted">{n}</p>
             ))}
             <ol className="mt-4 flex flex-col gap-3">
               {adapted.blocks.map((b, bi) => (
@@ -141,7 +141,7 @@ export function SessionSheet({
           <>
             <p className="text-sm text-muted">{run.title}</p>
             {run.notes.map((n) => (
-              <p key={n} className="mt-3 rounded-xl bg-yellow-soft px-3 py-2 text-sm text-yellow-ink">{n}</p>
+              <p key={n} className="mt-3 rounded-xl border border-hairline bg-canvas px-3 py-2 text-sm text-muted">{n}</p>
             ))}
             <div className="mt-4 rounded-2xl bg-canvas p-3 text-sm">
               <div className="text-xs text-muted">Rozgrzewka</div>

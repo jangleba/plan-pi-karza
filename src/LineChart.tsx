@@ -1,10 +1,10 @@
 import type { TrendTone } from "./engine";
 
 export const TREND_HEX: Record<TrendTone, string> = {
-  green: "#34a06a",
-  orange: "#e8923a",
-  red: "#d85a5a",
-  neutral: "#8e8e93",
+  green: "#5f8a67",
+  orange: "#c98a4b",
+  red: "#b45f55",
+  neutral: "#9a958a",
 };
 
 export interface Point { label: string; value: number }
@@ -22,7 +22,7 @@ export function LineChart({ points, tone, unit = "" }: { points: Point[]; tone: 
   const last = points[points.length - 1]!;
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Wykres liniowy">
-      <line x1={PX} x2={W - PX} y1={H - PY} y2={H - PY} stroke="#e5e5ea" strokeWidth="1" />
+      <line x1={PX} x2={W - PX} y1={H - PY} y2={H - PY} stroke="#e4ded2" strokeWidth="1" />
       <path d={d} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
       {points.map((p, i) => (
         <circle key={i} cx={x(i)} cy={y(p.value)} r={i === points.length - 1 ? 4 : 2.5} fill={color} />

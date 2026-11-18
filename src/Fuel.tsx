@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Empty, PageHeader } from "./Sketch";
 import { localISO, SHOP, adviceAround, dailyTargets, datesForWeek, hoursUntil, levelOf, matchesAround, planWeek, weekStartOf } from "./engine";
 import type { ActivityKind, DayKind, Goal, Profile, Tip } from "./engine";
 
@@ -17,10 +18,10 @@ function save(key: string, v: unknown) {
 
 function TipCard({ t }: { t: Tip }) {
   return (
-    <div className="mb-2.5 rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+    <div className="mb-2.5 rounded-2xl bg-card p-4 border border-hairline">
       <div className="flex items-baseline justify-between gap-2">
         <h3 className="text-sm font-semibold">{t.title}</h3>
-        {t.amount && <span className="rounded-full bg-green-soft px-2.5 py-0.5 text-xs font-medium text-green-ink">{t.amount}</span>}
+        {t.amount && <span className="rounded-full border border-hairline bg-canvas px-2.5 py-0.5 text-xs font-medium text-ink">{t.amount}</span>}
       </div>
       <p className="mt-1 text-sm text-muted">{t.body}</p>
       {t.amount && <p className="mt-1 text-[11px] text-muted">{t.uefa ? "Zalecenie UEFA dla piłkarzy" : "Orientacyjnie"}</p>}
@@ -56,7 +57,7 @@ function Now({ profile }: { profile: Profile }) {
   const label = hours >= 0 ? `Za ${hours.toFixed(1).replace(".", ",")} h` : `${(-hours).toFixed(1).replace(".", ",")} h temu`;
   return (
     <>
-      <section className="mb-4 rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <section className="mb-4 rounded-2xl bg-card p-4 border border-hairline">
         <div className="mb-3 flex gap-1.5 rounded-xl bg-canvas p-1">
           {([["session", "Trening"], ["match", "Mecz"]] as Array<[ActivityKind, string]>).map(([k, t]) => (
             <button key={k} onClick={() => setKind(k)} className={`flex-1 rounded-lg py-1.5 text-sm ${kind === k ? "bg-card font-medium shadow-sm" : "text-muted"}`}>{t}</button>
@@ -83,7 +84,7 @@ function Now({ profile }: { profile: Profile }) {
 
 function Shop() {
   const block = (title: string, items: readonly string[]) => (
-    <section className="mb-3 rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+    <section className="mb-3 rounded-2xl bg-card p-4 border border-hairline">
       <h3 className="mb-2 text-sm font-semibold">{title}</h3>
       <ul className="list-disc pl-4 text-sm">{items.map((i) => <li key={i}>{i}</li>)}</ul>
     </section>
@@ -117,12 +118,12 @@ function Log({ profile }: { profile: Profile }) {
   const bar = (label: string, v: number, [lo, hi]: [number, number]) => (
     <div className="mb-3">
       <div className="mb-1 flex justify-between text-xs text-muted"><span>{label}</span><span>{v} / {lo}–{hi} g</span></div>
-      <div className="h-2 rounded-full bg-canvas"><div className="h-2 rounded-full bg-green-soft" style={{ width: `${Math.min(100, (v / hi) * 100)}%`, background: v >= lo ? "#34a06a" : "#f0cf6b" }} /></div>
+      <div className="h-1.5 rounded-full bg-canvas"><div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, (v / hi) * 100)}%`, background: v >= lo ? "#5f8a67" : "#c9c2b2" }} /></div>
     </div>
   );
   return (
     <>
-      <section className="mb-4 rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <section className="mb-4 rounded-2xl bg-card p-4 border border-hairline">
         <div className="mb-3 flex gap-1.5 rounded-xl bg-canvas p-1">
           {([["maintain", "Utrzymanie"], ["gain", "Masa"], ["lose", "Redukcja"]] as Array<[Goal, string]>).map(([g, t]) => (
             <button key={g} onClick={() => setGoal(g)} className={`flex-1 rounded-lg py-1.5 text-sm ${goal === g ? "bg-card font-medium shadow-sm" : "text-muted"}`}>{t}</button>
@@ -132,7 +133,7 @@ function Log({ profile }: { profile: Profile }) {
         {bar("Białko", sum("protein"), targets.proteinG)}
         <p className="text-xs text-muted">{targets.note} Białko: 1,6–2,2 g/kg dziennie, w 3–4 posiłkach (UEFA). Cel zawodnika przesuwa tylko położenie w zakresie (orientacyjnie).</p>
       </section>
-      <section className="mb-4 rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <section className="mb-4 rounded-2xl bg-card p-4 border border-hairline">
         <h3 className="mb-3 text-sm font-semibold">Dodaj posiłek</h3>
         <input className={`${field} mb-2`} placeholder="Co zjadłeś" value={name} onChange={(e) => setName(e.target.value)} />
         <div className="mb-3 flex gap-2">
@@ -141,8 +142,9 @@ function Log({ profile }: { profile: Profile }) {
         </div>
         <button onClick={add} className="w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-white">Dodaj</button>
       </section>
+      {todays.length === 0 && <Empty kind="fuel">Dziś nic jeszcze nie dodano.</Empty>}
       {todays.length > 0 && (
-        <ul className="rounded-2xl bg-card p-4 text-sm shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <ul className="rounded-2xl bg-card p-4 text-sm border border-hairline">
           {todays.map((m, i) => (
             <li key={i} className="flex justify-between py-1"><span>{m.time} · {m.name}</span><span className="text-muted">{m.carb} / {m.protein} g</span></li>
           ))}
@@ -156,9 +158,8 @@ export function Fuel({ profile }: { profile: Profile }) {
   const [mode, setMode] = useState<Mode>("now");
   return (
     <main className="mx-auto max-w-md px-4 pb-28 pt-14">
-      <h1 className="text-3xl font-semibold tracking-tight">Fuel</h1>
-      <p className="mb-5 mt-1 text-sm text-muted">Jedzenie wokół treningu i meczu.</p>
-      <div className="mb-5 flex gap-1.5 rounded-xl bg-card p-1 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <PageHeader kind="fuel" title="Fuel" sub="Jedzenie wokół treningu i meczu." />
+      <div className="mb-5 flex gap-1.5 rounded-xl bg-card p-1 border border-hairline">
         {([["now", "Teraz"], ["shop", "Sklep"], ["log", "Dziennik"]] as Array<[Mode, string]>).map(([m, t]) => (
           <button key={m} onClick={() => setMode(m)} className={`flex-1 rounded-lg py-1.5 text-sm ${mode === m ? "bg-canvas font-medium" : "text-muted"}`}>{t}</button>
         ))}

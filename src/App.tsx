@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { localISO, addDays, calcMas, datesForWeek, formatPace, levelOf, matchesAround, nextWeekUnlocked, planWeek, weekInCycle } from "./engine";
 import type { CheckIn, DayPlan, Mas, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
+import { Backdrop, PageHeader } from "./Sketch";
 import { Auth } from "./Auth";
 import { Progress } from "./Progress";
 import { Lab } from "./Lab";
@@ -24,14 +25,14 @@ const KIND_LABEL: Record<SessionKind, string> = {
   recovery: "Regeneracja",
 };
 
-/** Kolory znaczeniowe: zielony = mocna praca, żółty = lekka, czerwony = mecz. */
-const KIND_TONE: Record<SessionKind, string> = {
-  strength: "bg-green-soft text-green-ink",
-  run: "bg-green-soft text-green-ink",
-  sprint: "bg-green-soft text-green-ink",
-  technique: "bg-blue-soft text-blue-ink",
-  activation: "bg-yellow-soft text-yellow-ink",
-  recovery: "bg-yellow-soft text-yellow-ink",
+/** Etykiety są neutralne; kolor niesie tylko mała kropka: ciemna = mocna praca, jasna = lekka, czerwona = mecz. */
+const KIND_DOT: Record<SessionKind, string> = {
+  strength: "#2a2a28",
+  run: "#2a2a28",
+  sprint: "#2a2a28",
+  technique: "#8a8578",
+  activation: "#c9c2b2",
+  recovery: "#c9c2b2",
 };
 
 const WEEKDAY = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
@@ -43,8 +44,13 @@ function mondayOf(d: Date): string {
   return copy.toISOString().slice(0, 10);
 }
 
-function Chip({ tone, children }: { tone: string; children: React.ReactNode }) {
-  return <span className={`self-start rounded-full px-3 py-1 text-xs font-medium ${tone}`}>{children}</span>;
+function Chip({ dot, children }: { dot: string; children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 self-start rounded-full border border-hairline bg-canvas px-3 py-1 text-xs font-medium text-ink">
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: dot }} />
+      {children}
+    </span>
+  );
 }
 
 function DayRow({ day, index, onOpen }: { day: DayPlan; index: number; onOpen: () => void }) {
@@ -52,18 +58,18 @@ function DayRow({ day, index, onOpen }: { day: DayPlan; index: number; onOpen: (
   return (
     <li
       onClick={s ? onOpen : undefined}
-      className={`flex items-center gap-4 rounded-2xl bg-card px-4 py-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${s ? "cursor-pointer active:scale-[0.99]" : ""}`}
+      className={`flex items-center gap-4 rounded-2xl bg-card px-4 py-3.5 border border-hairline ${s ? "cursor-pointer active:scale-[0.99]" : ""}`}
     >
       <div className="w-10 text-center">
         <div className="text-[11px] uppercase tracking-wide text-muted">{WEEKDAY[index]}</div>
         <div className="text-lg font-semibold">{Number(day.date.slice(8))}</div>
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        {day.isMatch && <Chip tone="bg-red-soft text-red-ink">Mecz</Chip>}
-        {day.isClub && <Chip tone="bg-blue-soft text-blue-ink">Trening klubowy</Chip>}
+        {day.isMatch && <Chip dot="#b45f55">Mecz</Chip>}
+        {day.isClub && <Chip dot="#8a8578">Trening klubowy</Chip>}
         {s && (
           <div className="flex flex-col">
-            <Chip tone={KIND_TONE[s.kind]}>
+            <Chip dot={KIND_DOT[s.kind]}>
               {KIND_LABEL[s.kind]}
               {s.variant === "upper" ? " · góra" : s.variant === "light" ? " · lekki" : ""}
             </Chip>
@@ -110,7 +116,7 @@ function MasCard({ distance, onSave }: { distance: number | null; onSave: (d: nu
   const [text, setText] = useState("");
   const mas: Mas | null = distance ? calcMas(distance) : null;
   return (
-    <section className="mb-5 rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+    <section className="mb-5 rounded-2xl bg-card p-4 border border-hairline">
       <h2 className="mb-1 text-base font-semibold">Twoje MAS</h2>
       {mas ? (
         <p className="text-sm text-muted">
@@ -215,7 +221,9 @@ function Main() {
     );
   }
   return (
-    <>
+    <div className="relative min-h-screen">
+      <Backdrop />
+      <div className="relative z-10">
       {tab === "plan" && (
         <Home profile={profile} onReset={() => {
           try { localStorage.removeItem("profile"); } catch { /* brak pamięci */ }
@@ -230,8 +238,9 @@ function Main() {
       )}
       {tab === "fuel" && <Fuel profile={profile} />}
       {tab === "progres" && <Progress />}
+      </div>
       <TabBar tab={tab} onChange={setTab} />
-    </>
+    </div>
   );
 }
 
@@ -263,10 +272,11 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
 
   return (
     <main className="mx-auto max-w-md px-4 pb-28 pt-14">
-      <h1 className="text-3xl font-semibold tracking-tight">Twój tydzień</h1>
-      <p className="mb-6 mt-1 text-sm text-muted">
-        Plan dopasowany do meczu. <button onClick={onReset} className="underline">Zmień profil</button>
-      </p>
+      <PageHeader
+        kind="plan"
+        title="Twój tydzień"
+        sub={<>Plan dopasowany do meczu. <button onClick={onReset} className="underline">Zmień profil</button></>}
+      />
       <MasCard
         distance={distance}
         onSave={(d) => {
@@ -276,18 +286,18 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
           void pushMas(d);
         }}
       />
-      <section className="mb-5 rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <section className="mb-5 rounded-2xl bg-card p-4 border border-hairline">
         <h2 className="mb-3 text-base font-semibold">Jak dziś?</h2>
         <Pick label="Sen" value={checkIn.sleep} onChange={(v) => setCheckIn({ ...checkIn, sleep: v })} />
         <Pick label="Samopoczucie" value={checkIn.feeling} onChange={(v) => setCheckIn({ ...checkIn, feeling: v })} />
         <button
           onClick={() => setCheckIn({ ...checkIn, less: !checkIn.less })}
-          className={`w-full rounded-xl py-2 text-sm transition ${checkIn.less ? "bg-yellow-soft font-medium text-yellow-ink" : "bg-canvas text-muted"}`}
+          className={`w-full rounded-xl py-2 text-sm transition ${checkIn.less ? "bg-ink font-medium text-card" : "bg-canvas text-muted"}`}
         >
           Dziś mniej / brak czasu
         </button>
       </section>
-      <div className="mb-3 flex gap-1.5 rounded-xl bg-card p-1 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <div className="mb-3 flex gap-1.5 rounded-xl bg-card p-1 border border-hairline">
         <button onClick={() => setViewNext(false)} className={`flex-1 rounded-lg py-1.5 text-sm ${!viewNext ? "bg-canvas font-medium" : "text-muted"}`}>Ten tydzień</button>
         <button
           disabled={!unlocked}
@@ -306,7 +316,7 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
         <SessionSheet day={open} checkIn={checkIn} weekInCycle={weekInCycle(profile.startDate, weekStart)} mas={mas} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")} onClose={() => setOpen(null)} />
       )}
       {plan.warnings.length > 0 && (
-        <p className="mt-4 rounded-2xl bg-yellow-soft p-3 text-sm text-yellow-ink">
+        <p className="mt-4 rounded-2xl border border-hairline bg-canvas p-3 text-sm text-muted">
           {plan.warnings.join(" ")}
         </p>
       )}

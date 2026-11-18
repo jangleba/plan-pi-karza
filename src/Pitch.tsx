@@ -35,7 +35,7 @@ export function Pitch({ drill }: { drill: Drill }) {
     <figure className="m-0">
       <svg
         viewBox={`${-PAD} ${-PAD} ${w + PAD * 2} ${h + PAD * 2}`}
-        className="w-full rounded-2xl bg-green-soft"
+        className="w-full rounded-2xl bg-hairline"
         role="img"
         aria-label={drill.title}
       >

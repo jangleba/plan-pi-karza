@@ -16,7 +16,7 @@ export function TacticalBoard({ snap, verdict }: { snap: Snapshot; verdict: Verd
   const best = target(snap, verdict.best);
   const same = verdict.chosen === verdict.best;
   return (
-    <svg viewBox={`${X0} -2 ${W} ${H + 4}`} className="w-full rounded-2xl bg-green-soft" role="img" aria-label="Tablica taktyczna">
+    <svg viewBox={`${X0} -2 ${W} ${H + 4}`} className="w-full rounded-2xl bg-hairline" role="img" aria-label="Tablica taktyczna">
       <defs>
         <marker id="ah" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="3.5" markerHeight="3.5" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="context-stroke" /></marker>
       </defs>

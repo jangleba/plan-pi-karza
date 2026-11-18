@@ -1,3 +1,5 @@
+import { Empty, PageHeader } from "./Sketch";
+
 export type Tab = "plan" | "lab" | "iq" | "fuel" | "progres";
 
 const TABS: Array<[Tab, string]> = [
@@ -6,7 +8,7 @@ const TABS: Array<[Tab, string]> = [
 
 export function TabBar({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-black/5 bg-white/85 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+    <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-hairline bg-card/90 pb-[env(safe-area-inset-bottom)] backdrop-blur">
       <div className="mx-auto flex max-w-md">
         {TABS.map(([t, label]) => (
           <button
@@ -25,9 +27,8 @@ export function TabBar({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void
 export function Soon({ title, text }: { title: string; text: string }) {
   return (
     <main className="mx-auto max-w-md px-4 pb-28 pt-14">
-      <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
-      <p className="mb-6 mt-1 text-sm text-muted">{text}</p>
-      <p className="rounded-2xl bg-card p-4 text-sm text-muted shadow-[0_1px_2px_rgba(0,0,0,0.04)]">W budowie.</p>
+      <PageHeader kind="iq" title={title} sub={text} />
+      <Empty kind="iq">W budowie.</Empty>
     </main>
   );
 }

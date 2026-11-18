@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { EXERCISES, loadHistory, localISO, series, sessionsPerWeek, trend, weekStartOf } from "./engine";
 import type { Better, EventType, HistoryEvent } from "./engine";
 import { LineChart, TREND_HEX } from "./LineChart";
+import { Empty, PageHeader } from "./Sketch";
 
 interface Metric { title: string; type: EventType; key: string; unit: string; better: Better; fmt?: (v: number) => number }
 
@@ -19,7 +20,7 @@ function Card({
 }: { title: string; points: Array<{ date: string; value: number }>; better: Better; unit: string }) {
   const t = trend(points.map((p) => p.value), better);
   return (
-    <section className="mb-3 rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+    <section className="mb-3 rounded-2xl bg-card p-4 border border-hairline">
       <div className="mb-1 flex items-baseline justify-between">
         <h3 className="text-sm font-semibold">{title}</h3>
         {t && (
@@ -47,12 +48,11 @@ export function Progress({ refreshKey }: { refreshKey?: number }) {
 
   return (
     <main className="mx-auto max-w-md px-4 pb-28 pt-14">
-      <h1 className="text-3xl font-semibold tracking-tight">Progres</h1>
-      <p className="mb-6 mt-1 text-sm text-muted">Zielony – postęp, pomarańczowy i czerwony – regres.</p>
+      <PageHeader kind="progres" title="Progres" sub="Zielony – postęp, pomarańczowy i czerwony – regres." />
       {empty && (
-        <p className="mb-4 rounded-2xl bg-yellow-soft p-3 text-sm text-yellow-ink">
-          Brak danych. Wykresy pojawią się po pierwszych sesjach i testach.
-        </p>
+        <div className="mb-4">
+          <Empty kind="progres">Wykresy pojawią się po pierwszych sesjach i testach.</Empty>
+        </div>
       )}
       <h2 className="mb-2 text-xs uppercase tracking-wide text-muted">Regularność</h2>
       <Card title="Sesje w tygodniu" points={weeks} better="higher" unit="" />
