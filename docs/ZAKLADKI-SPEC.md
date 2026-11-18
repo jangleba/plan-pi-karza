@@ -21,3 +21,9 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 ## Progres
 - Wykresy liniowe (nie słupkowe), kolor wg trendu: zielony – progres, pomarańczowy – lekki regres, czerwony – wyraźny regres.
 - Źródła: laby, siła, bieganie, piłka, wykonane sesje, regularność.
+
+## Wdrożone: nawigacja i Progres
+- Pasek zakładek na dole; Lab, IQ, Fuel mają na razie ekran „W budowie".
+- Progres: wykresy liniowe z kolorem wg trendu (ostatnia wartość vs średnia z do 3 poprzednich: ≥+1% zielony, do −1% szary, do −5% pomarańczowy, poniżej czerwony; dla czasów odwrotnie).
+- Historia (sesje, szac. 1RM, MAS) zapisywana lokalnie; NIE jest jeszcze synchronizowana z bazą.
+- Kolejność prac: Lab → Fuel → IQ. Testy Lab co 4–5 tygodni (przypomnienie w planie); porównanie tylko z samym sobą. Fuel uwzględnia masę i cel oraz pory sesji i meczu.

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pitch } from "./Pitch";
 import { pushWeightLog } from "./lib/sync";
 import { CueTrainer } from "./CueTrainer";
-import { EXERCISES, RECOVERY, TECHNIQUE_DRILLS, adaptSession, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
+import { EXERCISES, RECOVERY, TECHNIQUE_DRILLS, adaptSession, addEvents, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
 import type { CheckIn, DayPlan, Level, Mas, Suggestion } from "./engine";
 
 const KIND_TITLE: Record<string, string> = {
@@ -23,6 +23,7 @@ export function SessionSheet({
   const adapted = found ? adaptSession(found.template, checkIn, found.deload) : null;
 
   const finish = () => {
+    if (s) addEvents([{ date: day.date, type: "session", key: s.kind, value: 1 }]);
     if (!adapted || !found) { onClose(); return; }
     const strain = strainOf(checkIn);
     const next = { ...log };
@@ -32,6 +33,7 @@ export function SessionSheet({
         const kg = Number((weights[`${bi}-${ii}`] ?? "").replace(",", "."));
         if (!(kg > 0) || !EXERCISES[i.exerciseId]?.loaded) return;
         next[i.exerciseId] = { kg, reps: firstNumber(i.reps), date: day.date };
+        addEvents([{ date: day.date, type: "strength", key: i.exerciseId, value: Math.round(estimate1RM(kg, firstNumber(i.reps)) * 10) / 10 }]);
         const sug = suggestNext(i.exerciseId, kg, strain, found.deload);
         if (sug) out.push(sug);
       }),

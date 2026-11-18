@@ -3,9 +3,11 @@ import { calcMas, datesForWeek, formatPace, levelOf, planWeek, weekInCycle } fro
 import type { CheckIn, DayPlan, Mas, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
 import { Auth } from "./Auth";
+import { Progress } from "./Progress";
+import { Soon, TabBar, type Tab } from "./Tabs";
 import { supabase } from "./lib/supabase";
 import { pullAll, pushCheckIn, pushMas, pushProfile } from "./lib/sync";
-import { loadLog, saveLog } from "./engine";
+import { addEvents, loadLog, saveLog } from "./engine";
 import { SessionSheet } from "./SessionSheet";
 
 const KIND_LABEL: Record<SessionKind, string> = {
@@ -193,6 +195,7 @@ function Gate() {
 }
 
 function Main() {
+  const [tab, setTab] = useState<Tab>("plan");
   const [profile, setProfile] = useState<Profile | null>(loadProfile);
   if (!profile) {
     return (
@@ -206,10 +209,21 @@ function Main() {
       />
     );
   }
-  return <Home profile={profile} onReset={() => {
-    try { localStorage.removeItem("profile"); } catch { /* brak pamięci */ }
-    setProfile(null);
-  }} />;
+  return (
+    <>
+      {tab === "plan" && (
+        <Home profile={profile} onReset={() => {
+          try { localStorage.removeItem("profile"); } catch { /* brak pamięci */ }
+          setProfile(null);
+        }} />
+      )}
+      {tab === "lab" && <Soon title="Lab" text="Testy CMJ, skok w dal, sprint i wydolność." />}
+      {tab === "iq" && <Soon title="IQ" text="Taktyka: decyzje na boisku." />}
+      {tab === "fuel" && <Soon title="Fuel" text="Odżywianie wokół treningu i meczu." />}
+      {tab === "progres" && <Progress />}
+      <TabBar tab={tab} onChange={setTab} />
+    </>
+  );
 }
 
 function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
@@ -236,7 +250,7 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
   );
 
   return (
-    <main className="mx-auto max-w-md px-4 pb-16 pt-14">
+    <main className="mx-auto max-w-md px-4 pb-28 pt-14">
       <h1 className="text-3xl font-semibold tracking-tight">Twój tydzień</h1>
       <p className="mb-6 mt-1 text-sm text-muted">
         Plan dopasowany do meczu. <button onClick={onReset} className="underline">Zmień profil</button>
@@ -246,6 +260,7 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
         onSave={(d) => {
           setDistance(d);
           store("masDistance", String(d));
+          addEvents([{ date: today(), type: "mas", key: "mas", value: calcMas(d).kmh }]);
           void pushMas(d);
         }}
       />
