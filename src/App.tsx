@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { localISO, addDays, calcMas, datesForWeek, formatPace, levelOf, matchesAround, nextWeekUnlocked, planWeek, weekInCycle } from "./engine";
 import type { CheckIn, DayPlan, Mas, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
@@ -6,6 +6,9 @@ import { Auth } from "./Auth";
 import { Progress } from "./Progress";
 import { Lab } from "./Lab";
 import { Fuel } from "./Fuel";
+
+// Three.js ładowane dopiero po wejściu w zakładkę IQ
+const IQ = lazy(() => import("./IQ"));
 import { Soon, TabBar, type Tab } from "./Tabs";
 import { supabase } from "./lib/supabase";
 import { pullAll, pushCheckIn, pushMas, pushProfile } from "./lib/sync";
@@ -220,7 +223,11 @@ function Main() {
         }} />
       )}
       {tab === "lab" && <Lab />}
-      {tab === "iq" && <Soon title="IQ" text="Taktyka: decyzje na boisku." />}
+      {tab === "iq" && (
+        <Suspense fallback={<Soon title="IQ" text="Ładowanie sceny…" />}>
+          <IQ />
+        </Suspense>
+      )}
       {tab === "fuel" && <Fuel profile={profile} />}
       {tab === "progres" && <Progress />}
       <TabBar tab={tab} onChange={setTab} />

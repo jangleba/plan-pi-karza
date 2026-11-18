@@ -13,3 +13,4 @@ export * from "./lab";
 export * from "./video";
 export * from "./fuel";
 export * from "./bodyweight";
+export * from "./iq";
