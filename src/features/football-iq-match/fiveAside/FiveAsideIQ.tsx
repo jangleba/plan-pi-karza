@@ -6,9 +6,10 @@
  * Everything runs locally; no AI requests during play. Nothing on screen shows the right
  * move while you play. */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Crosshair, Eye, LayoutGrid, Pause, Play, RotateCcw, User } from "lucide-react";
+import { ArrowLeft, Crosshair, LayoutGrid, Pause, Play, RotateCcw } from "lucide-react";
 import { vibrate } from "@/lib/haptics";
 import { backupIqNow, cloudBackupEnabled } from "../iqCloud";
+import { LandscapeGate, useLandscape } from "../LandscapeGate";
 import {
   createF5Scene,
   type F5Scene,
@@ -43,6 +44,7 @@ export type FiveAsideIQProps = {
   onBack: () => void;
   onOpenClassic?: () => void;
   onOpenThreeVsTwo?: () => void;
+  onOpenEleven?: () => void;
   /** Tests and QA: start from this variant seed and position. */
   initialSeed?: number;
   initialPosition?: Position;
@@ -56,7 +58,6 @@ const CHOICE_LABEL: Record<Grade, string> = {
 };
 const newId = () => `f5-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 const positionKey = (owner?: string) => `ballwise:iq:f5:position:v1:${owner ?? "guest"}`;
-const VIEW_KEY = "ballwise:iq:f5:view:v1";
 const HOLD_FULL_MS = 900;
 
 /** Line icons for the action buttons (drawn here, no external assets). */
@@ -120,12 +121,9 @@ function savedPosition(owner?: string): Position {
     return "left";
   }
 }
+/** The game is played from behind your player (third person); the eye view is not offered. */
 function savedView(): F5View {
-  try {
-    return localStorage.getItem(VIEW_KEY) === "behind" ? "behind" : "eye";
-  } catch {
-    return "eye";
-  }
+  return "behind";
 }
 async function lockLandscape() {
   // Only where the system supports it (Android, some browsers in full screen). iOS ignores it.
@@ -151,6 +149,7 @@ export function FiveAsideIQ({
   onBack,
   onOpenClassic,
   onOpenThreeVsTwo,
+  onOpenEleven,
   initialSeed,
   initialPosition,
 }: FiveAsideIQProps) {
@@ -170,7 +169,6 @@ export function FiveAsideIQ({
   const variant = useMemo(() => makeVariant(seed, position), [seed, position]);
   const [hud, setHud] = useState<HudState["mode"]>("wait");
   const [lookStatus, setLookStatus] = useState<LookStatus>("drag");
-  const [view, setView] = useState<F5View>(savedView);
   const [paused, setPaused] = useState(false);
   const [charging, setCharging] = useState<KickType | null>(null);
   const [debrief, setDebrief] = useState<F5Debrief | null>(null);
@@ -180,6 +178,14 @@ export function FiveAsideIQ({
   const holdStart = useRef(0);
   const stageRef = useRef(stage);
   stageRef.current = stage;
+  // Played with the phone on its side: upright, the game waits (paused) behind a notice.
+  const landscape = useLandscape();
+  const needsLandscape = stage === "ready" || stage === "play" || stage === "replay";
+  useEffect(() => {
+    if (landscape || stage !== "play") return;
+    sceneRef.current?.setPaused(true);
+    setPaused(true);
+  }, [landscape, stage]);
 
   const onSceneEvent = useCallback((e: F5SceneEvent) => {
     switch (e.type) {
@@ -314,20 +320,6 @@ export function FiveAsideIQ({
   useEffect(() => {
     if (stage === "intro") sceneRef.current?.preview(variant);
   }, [stage, variant]);
-
-  // First person or from behind: changes only the camera, never the game or the result.
-  const toggleView = () => {
-    setView((current) => {
-      const next: F5View = current === "eye" ? "behind" : "eye";
-      sceneRef.current?.setView(next);
-      try {
-        localStorage.setItem(VIEW_KEY, next);
-      } catch {
-        /* private mode: the choice holds for this visit */
-      }
-      return next;
-    });
-  };
 
   const choosePosition = (next: Position) => {
     if (next === position) return;
@@ -467,7 +459,6 @@ export function FiveAsideIQ({
         e.preventDefault();
         defend("tackle");
       } else if (k === "c") sceneRef.current?.recenterForward();
-      else if (k === "v") toggleView();
     };
     const up = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
@@ -530,6 +521,7 @@ export function FiveAsideIQ({
       data-hud={hud}
     >
       <div ref={hostRef} className="fp-stage" />
+      <LandscapeGate active={needsLandscape && !landscape} />
 
       <header className="fp-top f5-top">
         <div className="f5-pill f5-crumb">
@@ -615,8 +607,13 @@ export function FiveAsideIQ({
               {summary.goodTouches}
             </p>
           )}
-          {(onOpenThreeVsTwo || onOpenClassic) && (
+          {(onOpenEleven || onOpenThreeVsTwo || onOpenClassic) && (
             <div className="f5-links">
+              {onOpenEleven && (
+                <button type="button" onClick={onOpenEleven}>
+                  Gra 11 na 11
+                </button>
+              )}
               {onOpenThreeVsTwo && (
                 <button type="button" onClick={onOpenThreeVsTwo}>
                   Lekcja 3 na 2
@@ -644,7 +641,10 @@ export function FiveAsideIQ({
             Prawy kciuk: Podaj, Strzel, Górą. Im dłużej trzymasz, tym mocniej; piłka leci tam, gdzie
             patrzysz. Bez piłki: Doskok i Odbiór.
           </p>
-          <p className="fp-meta">Na komputerze: WASD, J K L, E i spacja, C centruje widok.</p>
+          <p className="fp-meta">
+            Na komputerze: WASD, J K L, E i spacja, C centruje widok. Grasz z widoku zza pleców,
+            telefonem ustawionym poziomo.
+          </p>
           <button type="button" className="fp-primary" onClick={start}>
             Start
           </button>
@@ -674,15 +674,6 @@ export function FiveAsideIQ({
               onClick={() => sceneRef.current?.recenterForward()}
             >
               <Crosshair size={20} />
-            </button>
-            <button
-              type="button"
-              className="f5-recenter"
-              aria-label={view === "eye" ? "Widok zza pleców" : "Widok z oczu"}
-              aria-pressed={view === "behind"}
-              onClick={toggleView}
-            >
-              {view === "eye" ? <User size={20} /> : <Eye size={20} />}
             </button>
           </div>
           <div

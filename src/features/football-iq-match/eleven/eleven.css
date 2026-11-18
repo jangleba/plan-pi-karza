@@ -1,0 +1,383 @@
+/* 11v11 lesson: the picture fills the screen (landscape), the interface stays minimal. */
+.e11-root {
+  --f5-glass: rgba(30, 58, 44, 0.78);
+  --f5-glass-soft: rgba(30, 58, 44, 0.42);
+  --f5-edge: rgba(235, 245, 238, 0.55);
+}
+.e11-root .fp-card {
+  max-width: 560px;
+}
+.e11-roles {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.e11-roles button,
+.e11-hints button {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1.5px solid var(--fp-line);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+.e11-roles button[aria-pressed="true"],
+.e11-hints button[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.7);
+}
+.e11-hints {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Number chips over team-mates (DOM moved by the scene every frame). */
+.e11-chips {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.e11-chip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  min-width: 36px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  background: rgba(30, 58, 44, 0.78);
+  color: #f3f7f4;
+  font: 600 14px var(--bw-font-family, system-ui, sans-serif);
+  pointer-events: auto;
+  touch-action: none;
+  will-change: transform;
+}
+.e11-chip[data-state="on"] {
+  background: rgba(60, 130, 90, 0.9);
+}
+.e11-chip[data-state="off"] {
+  background: rgba(186, 70, 80, 0.92);
+}
+.e11-clock {
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--f5-glass);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+
+/* Controls: left thumb moves, right thumb chooses the kind of pass and shoots. */
+.e11-stick {
+  position: absolute;
+  left: max(22px, env(safe-area-inset-left));
+  bottom: max(22px, env(safe-area-inset-bottom));
+  width: 128px;
+  height: 128px;
+  border-radius: 999px;
+  border: 1.5px solid var(--f5-edge);
+  background: var(--f5-glass-soft);
+  touch-action: none;
+}
+.e11-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 54px;
+  height: 54px;
+  margin: -27px 0 0 -27px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  background: rgba(196, 226, 204, 0.82);
+  pointer-events: none;
+}
+.e11-actions {
+  position: absolute;
+  right: max(20px, env(safe-area-inset-right));
+  bottom: max(22px, env(safe-area-inset-bottom));
+  display: grid;
+  justify-items: end;
+  gap: 12px;
+}
+.e11-mode {
+  display: inline-flex;
+  border-radius: 999px;
+  border: 1.5px solid var(--f5-edge);
+  background: var(--f5-glass);
+  overflow: hidden;
+}
+.e11-mode button {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: #f3f7f4;
+  font: 500 14px var(--bw-font-family, system-ui, sans-serif);
+}
+.e11-mode button[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.22);
+}
+.e11-shot {
+  width: 88px;
+  height: 88px;
+  border-radius: 999px;
+  border: 1.5px solid var(--f5-edge);
+  background: var(--f5-glass);
+  color: #f3f7f4;
+  font: 600 16px var(--bw-font-family, system-ui, sans-serif);
+}
+.e11-shot:disabled,
+.e11-chip:disabled {
+  opacity: 0.45;
+}
+.e11-hint {
+  position: absolute;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  max-width: 40vw;
+  text-align: center;
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+
+/* Debrief: the replay from above and the explanation. */
+.e11-debrief {
+  position: absolute;
+  inset: 0;
+  padding: max(58px, env(safe-area-inset-top) + 50px) max(14px, env(safe-area-inset-right)) 74px
+    max(14px, env(safe-area-inset-left));
+  overflow: auto;
+  background: #1c2a33;
+}
+.e11-replay {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(250px, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+@media (orientation: portrait) {
+  .e11-replay {
+    grid-template-columns: 1fr;
+  }
+}
+.e11-main {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-width: 0;
+  position: sticky;
+  top: 0;
+}
+.e11-side {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  min-width: 0;
+}
+.e11-pitch {
+  width: 100%;
+  height: auto;
+  max-height: calc(100dvh - 150px);
+  border-radius: 14px;
+  background: #1f3b2b;
+}
+.e11-grass {
+  fill: #2c5a3c;
+}
+.e11-marks rect,
+.e11-marks line,
+.e11-marks circle {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.55);
+  stroke-width: 0.25;
+}
+.e11-marks .e11-goal {
+  stroke-width: 0.4;
+}
+.e11-offzone {
+  fill: rgba(220, 90, 100, 0.12);
+}
+.e11-line {
+  stroke: #fff;
+  stroke-width: 0.35;
+  stroke-dasharray: 1.2 0.8;
+}
+.e11-line-focus {
+  stroke: #ffd7a8;
+  stroke-dasharray: none;
+  opacity: 0.8;
+}
+.e11-arrow {
+  stroke: #ffe9a8;
+  stroke-width: 0.35;
+  stroke-dasharray: 0.9 0.7;
+}
+.e11-home {
+  fill: #7cc0ea;
+}
+.e11-away {
+  fill: #a94357;
+}
+.e11-num {
+  font:
+    600 1.45px system-ui,
+    sans-serif;
+  fill: #10202c;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.e11-away + .e11-num {
+  fill: #fff;
+}
+.e11-focus {
+  fill: none;
+  stroke: #ffe9a8;
+  stroke-width: 0.3;
+}
+.e11-you {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 0.35;
+}
+.e11-ball {
+  fill: #fff;
+  stroke: #10202c;
+  stroke-width: 0.15;
+}
+.e11-transport {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+}
+.e11-transport input {
+  width: 100%;
+}
+.e11-round {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1.5px solid var(--f5-edge);
+  background: var(--f5-glass);
+  color: #f3f7f4;
+  display: grid;
+  place-items: center;
+}
+.e11-speed {
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--fp-line);
+  background: transparent;
+  color: inherit;
+}
+.e11-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  min-width: 52px;
+  text-align: right;
+}
+.e11-moments {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.e11-moments button {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  text-align: left;
+  border-radius: 12px;
+  border: 1px solid var(--fp-line);
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  font: inherit;
+}
+.e11-moments button[data-open] {
+  border-color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.12);
+}
+.e11-moments button span {
+  grid-column: 1 / -1;
+  font-size: 14px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.9);
+}
+.e11-moments small {
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+.e11-panel {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--f5-glass);
+}
+.e11-panel h2 {
+  margin: 0;
+  font-size: 17px;
+}
+.e11-row p,
+.e11-tip {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.e11-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.e11-grade {
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #10202c;
+}
+.e11-grade[data-grade="good"] {
+  background: #bfe6cf;
+}
+.e11-grade[data-grade="ok"] {
+  background: #f7dcc0;
+}
+.e11-grade[data-grade="poor"] {
+  background: #f2c4c9;
+}
+.e11-tip {
+  padding-top: 10px;
+  border-top: 1px solid var(--fp-line);
+}
+.e11-debrief-actions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 10px max(14px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) 14px;
+  background: rgba(28, 42, 51, 0.96);
+}
+
+/* The title pill stays above the debrief. */
+.e11-root .fp-top {
+  z-index: 5;
+}
