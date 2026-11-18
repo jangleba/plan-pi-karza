@@ -51,3 +51,12 @@ Silnik = czysty, deterministyczny TypeScript (bez AI). Ten sam wynik dla tych sa
 - Bez siłowni: osobna lista ćwiczeń z progresją trudności.
 - Zamiana ćwiczenia w trakcie sesji: „idealny zamiennik" (ta sama partia, wzorzec ruchu, dostępny sprzęt).
 - Przeniesienie opuszczonej sesji: dopasowane do celu i tygodnia, z zachowaniem reguł MD-x.
+
+## Ustalenia – runda 3
+- Mezocykl 4–5 tyg.: fale objętość → intensywność → rozładowanie.
+- 1RM wyliczany z ciężaru i powtórzeń (bez testu).
+- Dobór ćwiczeń lżejszych dla OUN/stawów oparty na badaniach; ukryty przed zawodnikiem (tagi wewnętrzne, dopasowanie automatyczne).
+- Wpis: kg tylko przy ćwiczeniach siłowych. Plyo/skoki – progresja automatyczna (drabinka trudności) z rosnącym poziomem.
+- Poziom zawodnika rośnie z kombinacji stażu i wyników.
+- Profil: masa ciała (bez wzrostu).
+- Platforma: podgląd w Lovable (web), docelowo iOS (Capacitor).
