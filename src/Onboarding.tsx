@@ -69,7 +69,7 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
     <main className="mx-auto max-w-md px-4 pb-16 pt-14">
       <h1 className="text-3xl font-semibold tracking-tight">Zaczynamy</h1>
       <p className="mb-6 mt-1 text-sm text-muted">Kilka pytań, żeby dopasować plan.</p>
-      <section className="rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <section className="rounded-2xl bg-card p-4 border border-hairline">
         <Field label="Wiek"><input className={input} inputMode="numeric" value={age} onChange={(e) => setAge(e.target.value)} /></Field>
         <Field label="Staż treningu siłowego (lata)"><input className={input} inputMode="decimal" value={years} onChange={(e) => setYears(e.target.value)} /></Field>
         <Field label="Masa ciała (kg)"><input className={input} inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)} /></Field>

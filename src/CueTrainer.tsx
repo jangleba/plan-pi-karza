@@ -39,7 +39,7 @@ export function CueTrainer() {
   }, [running, mode, everyS]);
 
   return (
-    <section className="rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+    <section className="rounded-2xl bg-card p-4 border border-hairline">
       <h3 className="mb-3 text-base font-semibold">Bodziec</h3>
       <div
         className="mb-3 flex h-40 items-center justify-center rounded-2xl text-7xl font-semibold"

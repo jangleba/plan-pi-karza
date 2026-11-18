@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { localISO, addDays, calcMas, datesForWeek, formatPace, levelOf, matchesAround, nextWeekUnlocked, planWeek, weekInCycle } from "./engine";
 import type { CheckIn, DayPlan, Mas, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
+import { Backdrop, PageHeader } from "./Sketch";
 import { Auth } from "./Auth";
 import { Progress } from "./Progress";
 import { Lab } from "./Lab";
@@ -52,7 +53,7 @@ function DayRow({ day, index, onOpen }: { day: DayPlan; index: number; onOpen: (
   return (
     <li
       onClick={s ? onOpen : undefined}
-      className={`flex items-center gap-4 rounded-2xl bg-card px-4 py-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${s ? "cursor-pointer active:scale-[0.99]" : ""}`}
+      className={`flex items-center gap-4 rounded-2xl bg-card px-4 py-3.5 border border-hairline ${s ? "cursor-pointer active:scale-[0.99]" : ""}`}
     >
       <div className="w-10 text-center">
         <div className="text-[11px] uppercase tracking-wide text-muted">{WEEKDAY[index]}</div>
@@ -110,7 +111,7 @@ function MasCard({ distance, onSave }: { distance: number | null; onSave: (d: nu
   const [text, setText] = useState("");
   const mas: Mas | null = distance ? calcMas(distance) : null;
   return (
-    <section className="mb-5 rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+    <section className="mb-5 rounded-2xl bg-card p-4 border border-hairline">
       <h2 className="mb-1 text-base font-semibold">Twoje MAS</h2>
       {mas ? (
         <p className="text-sm text-muted">
@@ -215,7 +216,9 @@ function Main() {
     );
   }
   return (
-    <>
+    <div className="relative min-h-screen">
+      <Backdrop />
+      <div className="relative z-10">
       {tab === "plan" && (
         <Home profile={profile} onReset={() => {
           try { localStorage.removeItem("profile"); } catch { /* brak pamięci */ }
@@ -230,8 +233,9 @@ function Main() {
       )}
       {tab === "fuel" && <Fuel profile={profile} />}
       {tab === "progres" && <Progress />}
+      </div>
       <TabBar tab={tab} onChange={setTab} />
-    </>
+    </div>
   );
 }
 
@@ -263,10 +267,11 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
 
   return (
     <main className="mx-auto max-w-md px-4 pb-28 pt-14">
-      <h1 className="text-3xl font-semibold tracking-tight">Twój tydzień</h1>
-      <p className="mb-6 mt-1 text-sm text-muted">
-        Plan dopasowany do meczu. <button onClick={onReset} className="underline">Zmień profil</button>
-      </p>
+      <PageHeader
+        kind="plan"
+        title="Twój tydzień"
+        sub={<>Plan dopasowany do meczu. <button onClick={onReset} className="underline">Zmień profil</button></>}
+      />
       <MasCard
         distance={distance}
         onSave={(d) => {
@@ -276,7 +281,7 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
           void pushMas(d);
         }}
       />
-      <section className="mb-5 rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <section className="mb-5 rounded-2xl bg-card p-4 border border-hairline">
         <h2 className="mb-3 text-base font-semibold">Jak dziś?</h2>
         <Pick label="Sen" value={checkIn.sleep} onChange={(v) => setCheckIn({ ...checkIn, sleep: v })} />
         <Pick label="Samopoczucie" value={checkIn.feeling} onChange={(v) => setCheckIn({ ...checkIn, feeling: v })} />
@@ -287,7 +292,7 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
           Dziś mniej / brak czasu
         </button>
       </section>
-      <div className="mb-3 flex gap-1.5 rounded-xl bg-card p-1 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <div className="mb-3 flex gap-1.5 rounded-xl bg-card p-1 border border-hairline">
         <button onClick={() => setViewNext(false)} className={`flex-1 rounded-lg py-1.5 text-sm ${!viewNext ? "bg-canvas font-medium" : "text-muted"}`}>Ten tydzień</button>
         <button
           disabled={!unlocked}

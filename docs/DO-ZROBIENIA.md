@@ -14,3 +14,8 @@
 - Supabase: klucze, migracja 0001_init.sql, synchronizacja historii, Labu i Fuel.
 - Lab: automat wykrywania odbicia/lądowania (model pozy) – czeka na nagranie CMJ.
 - Do przeglądu przez trenera: dawki biegowe, drabinki bez siłowni, szkice techniki, zamienniki ćwiczeń, progi poziomu.
+
+## Wygląd – wdrożone (2026-11-18)
+- Paleta ciepły beż i grafit, stonowane kolory znaczeniowe, cienkie obramowania zamiast cieni.
+- Cienkie szkice liniowe w nagłówku każdej zakładki (`src/Sketch.tsx`), w pustych stanach i ledwo widoczny wzór boiska w tle.
+- Do dopracowania po Twojej ocenie na telefonie: rozmiar i charakter szkiców, siła tła, kolory kostek na boisku (wciąż nasycone, bo muszą się różnić).

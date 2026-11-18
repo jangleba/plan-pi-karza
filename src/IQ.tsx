@@ -5,6 +5,7 @@ import {
 } from "./engine";
 import type { Snapshot, Vec, Verdict } from "./engine";
 import { TacticalBoard } from "./TacticalBoard";
+import { PageHeader } from "./Sketch";
 
 const SPEED = 6;
 const FIELD = { w: 105, h: 68 };
@@ -47,7 +48,7 @@ export default function IQ() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     el.appendChild(renderer.domElement);
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xdce9fb);
+    scene.background = new THREE.Color(0xe9e4d8);
     const cam = new THREE.PerspectiveCamera(60, 1, 0.1, 400);
     scene.add(new THREE.HemisphereLight(0xffffff, 0x88aa88, 1.0));
     const sun = new THREE.DirectionalLight(0xffffff, 0.6); sun.position.set(30, 60, 20); scene.add(sun);
@@ -148,10 +149,9 @@ export default function IQ() {
 
   return (
     <main className="mx-auto max-w-md px-4 pb-28 pt-14">
-      <h1 className="text-3xl font-semibold tracking-tight">IQ</h1>
-      <p className="mb-4 mt-1 text-sm text-muted">{S.title}. {S.brief}</p>
+      <PageHeader kind="iq" title="IQ" sub={<>{S.title}. {S.brief}</>} />
       <div className="relative">
-        <div ref={mount} className="h-[52vh] w-full overflow-hidden rounded-2xl bg-blue-soft" />
+        <div ref={mount} className="h-[52vh] w-full overflow-hidden rounded-2xl bg-hairline" />
         <Joystick onChange={(x, y) => { joy.current = { x, y }; }} />
         <div className="absolute bottom-4 right-4 flex flex-col gap-2">
           <button onClick={() => { act.current = "pass"; }} className="rounded-full bg-white/90 px-5 py-3 text-sm font-medium shadow">Podanie</button>
@@ -160,7 +160,7 @@ export default function IQ() {
         <span className="absolute left-3 top-3 rounded-full bg-white/80 px-2 py-0.5 text-[11px] text-muted">{fps} fps</span>
       </div>
       {result && (
-        <section className="mt-4 rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <section className="mt-4 rounded-2xl bg-card p-4 border border-hairline">
           <h2 className="mb-2 text-base font-semibold">Tablica taktyczna</h2>
           <TacticalBoard snap={result.snap} verdict={result.verdict} />
           <p className="mt-3 text-sm">{result.verdict.summary}</p>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { localISO, addEvents, jumpHeightFromFlightTime, labDue, LAB_TESTS, loadHistory, series, validateLab, validateSprintSplits } from "./engine";
 import type { LabTest } from "./engine";
+import { PageHeader } from "./Sketch";
 import { VideoMeasure, type VideoResult } from "./VideoMeasure";
 
 const today = () => localISO();
@@ -64,7 +65,7 @@ function TestCard({ test, onSaved }: { test: LabTest; onSaved: () => void }) {
     : [[test.key, `Wynik (${test.unit})`]];
 
   return (
-    <section className="mb-3 rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+    <section className="mb-3 rounded-2xl bg-card p-4 border border-hairline">
       <button className="flex w-full items-center justify-between text-left" onClick={() => setOpen(!open)}>
         <div>
           <h3 className="text-sm font-semibold">{test.title}</h3>
@@ -108,10 +109,11 @@ export function Lab() {
   void tick;
   return (
     <main className="mx-auto max-w-md px-4 pb-28 pt-14">
-      <h1 className="text-3xl font-semibold tracking-tight">Lab</h1>
-      <p className="mb-6 mt-1 text-sm text-muted">
-        Testuj co 4–5 tygodni, najlepiej w tygodniu rozładowania.{cmj ? ` Ostatni CMJ: ${cmj.value} cm.` : ""}
-      </p>
+      <PageHeader
+        kind="lab"
+        title="Lab"
+        sub={`Testuj co 4–5 tygodni, najlepiej w tygodniu rozładowania.${cmj ? ` Ostatni CMJ: ${cmj.value} cm.` : ""}`}
+      />
       {LAB_TESTS.map((t) => <TestCard key={t.key} test={t} onSaved={() => setTick(tick + 1)} />)}
     </main>
   );

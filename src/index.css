@@ -2,18 +2,20 @@
 
 @theme {
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
-  --color-canvas: #f5f5f7;
-  --color-card: #ffffff;
-  --color-ink: #1d1d1f;
-  --color-muted: #86868b;
-  --color-green-soft: #d9f2e1;
-  --color-green-ink: #2f7d4f;
-  --color-yellow-soft: #fff1c9;
-  --color-yellow-ink: #8a6a12;
-  --color-red-soft: #fbdcdc;
-  --color-red-ink: #a23b3b;
-  --color-blue-soft: #dce9fb;
-  --color-blue-ink: #2f5f9e;
+  /* ciepły beż i grafit; kolory znaczeniowe stonowane */
+  --color-canvas: #f4f0e8;
+  --color-card: #fbf9f4;
+  --color-ink: #2a2a28;
+  --color-muted: #8a8578;
+  --color-hairline: #e4ded2;
+  --color-green-soft: #e4eadc;
+  --color-green-ink: #4d6b52;
+  --color-yellow-soft: #efe6d0;
+  --color-yellow-ink: #7a6532;
+  --color-red-soft: #ecdad4;
+  --color-red-ink: #8d4a41;
+  --color-blue-soft: #e2e5e5;
+  --color-blue-ink: #4a5a66;
 }
 
 html, body, #root { min-height: 100%; }

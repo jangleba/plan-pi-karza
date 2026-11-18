@@ -26,7 +26,7 @@ export function Auth() {
     <main className="mx-auto max-w-md px-4 pt-24">
       <h1 className="text-3xl font-semibold tracking-tight">Ballwise</h1>
       <p className="mb-6 mt-1 text-sm text-muted">{mode === "in" ? "Zaloguj się" : "Załóż konto"}</p>
-      <section className="rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <section className="rounded-2xl bg-card p-4 border border-hairline">
         <input className={`${field} mb-3`} type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} />
         <input className={`${field} mb-3`} type="password" placeholder="Hasło (min. 8 znaków)" value={password} onChange={(e) => setPassword(e.target.value)} />
         <button disabled={busy} onClick={submit} className="w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-white disabled:opacity-50">
