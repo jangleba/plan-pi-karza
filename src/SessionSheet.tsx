@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Pitch } from "./Pitch";
+import { pushWeightLog } from "./lib/sync";
 import { CueTrainer } from "./CueTrainer";
 import { EXERCISES, RECOVERY, TECHNIQUE_DRILLS, adaptSession, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
 import type { CheckIn, DayPlan, Level, Mas, Suggestion } from "./engine";
@@ -37,6 +38,7 @@ export function SessionSheet({
     );
     setLog(next);
     saveLog(next);
+    void pushWeightLog(next);
     if (out.length) setSummary(out); else onClose();
   };
 
@@ -46,6 +48,7 @@ export function SessionSheet({
     if (cur) next[sug.exerciseId] = { ...cur, next: accept ? sug.to : sug.from };
     setLog(next);
     saveLog(next);
+    void pushWeightLog(next);
     setSummary((summary ?? []).filter((x) => x !== sug));
     if ((summary ?? []).length <= 1) onClose();
   };

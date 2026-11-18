@@ -4,6 +4,8 @@ import type { CheckIn, DayPlan, Mas, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
 import { Auth } from "./Auth";
 import { supabase } from "./lib/supabase";
+import { pullAll, pushCheckIn, pushMas, pushProfile } from "./lib/sync";
+import { loadLog, saveLog } from "./engine";
 import { SessionSheet } from "./SessionSheet";
 
 const KIND_LABEL: Record<SessionKind, string> = {
@@ -154,14 +156,51 @@ export function App() {
   return <Gate />;
 }
 
+const today = () => new Date().toISOString().slice(0, 10);
+
+function store(key: string, value: string) {
+  try { localStorage.setItem(key, value); } catch { /* brak pamięci */ }
+}
+
+function loadCheckIn(): CheckIn {
+  try {
+    const raw = localStorage.getItem(`checkIn:${today()}`);
+    if (raw) return JSON.parse(raw) as CheckIn;
+  } catch { /* użyj domyślnego */ }
+  return { sleep: 3, feeling: 3, less: false };
+}
+
 function Gate() {
+  const [ready, setReady] = useState(!supabase);
+  useEffect(() => {
+    if (!supabase) return;
+    let alive = true;
+    (async () => {
+      const r = await pullAll(today());
+      if (r && alive) {
+        if (r.profile) store("profile", JSON.stringify(r.profile));
+        else { const local = loadProfile(); if (local) void pushProfile(local); }
+        if (r.masDistance) store("masDistance", String(r.masDistance));
+        if (Object.keys(r.weightLog).length) saveLog({ ...loadLog(), ...r.weightLog });
+        if (r.checkIn) store(`checkIn:${today()}`, JSON.stringify(r.checkIn));
+      }
+      if (alive) setReady(true);
+    })();
+    return () => { alive = false; };
+  }, []);
+  if (!ready) return null;
+  return <Main />;
+}
+
+function Main() {
   const [profile, setProfile] = useState<Profile | null>(loadProfile);
   if (!profile) {
     return (
       <Onboarding
         onDone={(raw) => {
           const p = { ...raw, startDate: new Date().toISOString().slice(0, 10) };
-          try { localStorage.setItem("profile", JSON.stringify(p)); } catch { /* brak pamięci */ }
+          store("profile", JSON.stringify(p));
+          void pushProfile(p);
           setProfile(p);
         }}
       />
@@ -176,7 +215,12 @@ function Gate() {
 function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
   const [distance, setDistance] = useState<number | null>(loadDistance);
   const mas = useMemo(() => (distance ? calcMas(distance) : null), [distance]);
-  const [checkIn, setCheckIn] = useState<CheckIn>({ sleep: 3, feeling: 3, less: false });
+  const [checkIn, setCheckInState] = useState<CheckIn>(loadCheckIn);
+  const setCheckIn = (c: CheckIn) => {
+    setCheckInState(c);
+    store(`checkIn:${today()}`, JSON.stringify(c));
+    void pushCheckIn(today(), c);
+  };
   const [open, setOpen] = useState<DayPlan | null>(null);
   const weekStart = useMemo(() => mondayOf(new Date()), []);
   const plan = useMemo(
@@ -201,7 +245,8 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
         distance={distance}
         onSave={(d) => {
           setDistance(d);
-          try { localStorage.setItem("masDistance", String(d)); } catch { /* brak pamięci */ }
+          store("masDistance", String(d));
+          void pushMas(d);
         }}
       />
       <section className="mb-5 rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">

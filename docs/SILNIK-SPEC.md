@@ -106,3 +106,8 @@ Silnik = czysty, deterministyczny TypeScript (bez AI). Ten sam wynik dla tych sa
 - Logowanie e-mail + hasło (Supabase) włącza się, gdy ustawione są `VITE_SUPABASE_URL` i `VITE_SUPABASE_PUBLISHABLE_KEY`; bez nich aplikacja działa lokalnie.
 - Schemat bazy: `supabase/migrations/0001_init.sql` (profil, testy MAS, dziennik kg, check-iny; RLS po `auth.uid()`).
 - Do zrobienia: synchronizacja profilu, MAS, dziennika i check-inu z bazą (dziś nadal localStorage).
+
+## Synchronizacja (kod gotowy, NIEPRZETESTOWANA z prawdziwą bazą)
+- Local-first: zapis lokalny, potem cichy zapis do Supabase (`src/lib/sync.ts`); po zalogowaniu pobranie profilu, MAS, dziennika kg i dzisiejszego check-inu.
+- Mapowanie wierszy ma testy (`src/lib/sync-map.test.ts`); zapytania sieciowe wymagają kluczy i migracji `0001_init.sql`.
+- Check-in dnia zapisuje się lokalnie i przetrwa odświeżenie strony.
