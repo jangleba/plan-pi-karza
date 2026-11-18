@@ -24,7 +24,8 @@ const CIRCUIT: BlockMethod = {
   name: "Obwód",
 };
 
-const PAIR_LABEL = /^[A-Z]\d$/;
+/** "A1", "A2" or the coach's own "3a", "3b". */
+const PAIR_LABEL = /^(?:[A-Z]\d|\d{1,2}[a-h])$/;
 
 /**
  * A block whose exercises are done back to back, not one after another set by set.
@@ -38,7 +39,7 @@ export function isLinkedBlock(block: TrainingBlock): boolean {
   const labels = block.exercises.map((exercise) => exercise.label ?? "");
   return (
     labels.every((label) => PAIR_LABEL.test(label)) &&
-    new Set(labels.map((label) => label[0])).size === 1 &&
+    new Set(labels.map((label) => label.slice(0, -1))).size === 1 &&
     block.exercises.some((exercise) => exercise.restAfterPair)
   );
 }
@@ -51,11 +52,14 @@ export function blockMethod(block: TrainingBlock): BlockMethod | null {
 /** Label shown before each exercise of a linked block (A1, A2 …), derived when missing. */
 export function linkedLabel(block: TrainingBlock, exercise: TrainingExercise): string | null {
   if (!isLinkedBlock(block)) return null;
-  if (exercise.label && /^[A-Z]\d$/.test(exercise.label)) return exercise.label;
+  if (exercise.label && PAIR_LABEL.test(exercise.label)) return exercise.label;
   const position = block.exercises.findIndex((item) => item.id === exercise.id);
-  const letter = block.exercises.find((item) => item.label && /^[A-Z]\d$/.test(item.label))
-    ?.label?.[0];
-  return position < 0 ? null : `${letter ?? "A"}${position + 1}`;
+  const known = block.exercises.find((item) => item.label && PAIR_LABEL.test(item.label))?.label;
+  if (position < 0) return null;
+  // A coach's group ("3a") continues with letters, a lettered pair ("A1") with numbers.
+  return known && /^\d/.test(known)
+    ? `${known.slice(0, -1)}${"abcdefgh"[position]}`
+    : `${known?.[0] ?? "A"}${position + 1}`;
 }
 
 /** What follows the exercise inside its linked block: the partner or the rest. */
@@ -65,7 +69,9 @@ export function linkedNextStep(block: TrainingBlock, exercise: TrainingExercise)
   const next = block.exercises[position + 1];
   if (next) {
     const label = linkedLabel(block, next);
-    const pause = exercise.restAfterExercise?.replace(/\s*do\s+[A-Z]\d.*$/i, "").trim();
+    const pause = exercise.restAfterExercise
+      ?.replace(/\s*do\s+(?:[A-Z]\d|\d{1,2}[a-h]).*$/i, "")
+      .trim();
     return `Potem ${label}${pause ? ` po ${pause}` : " od razu"}.`;
   }
   const rest = exercise.restAfterPair || block.restAfterBlock;

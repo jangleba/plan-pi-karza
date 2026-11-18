@@ -41,7 +41,7 @@ export function linkedSummary(step: RunnerStep): {
   const block = step.rows[0].block;
   const first = step.rows[0].exercise;
   const last = step.rows[step.rows.length - 1].exercise;
-  const letter = linkedLabel(block, first)?.[0] ?? "A";
+  const letter = linkedLabel(block, first)?.slice(0, -1) || "A";
   // The group runs as many rounds as its longest exercise.
   const sets = Math.max(
     ...step.rows.map((row) => Number(String(row.exercise.sets ?? "").match(/\d+/)?.[0])),

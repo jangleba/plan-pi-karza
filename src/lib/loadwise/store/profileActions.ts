@@ -7,6 +7,7 @@ import {
   type ProfileSaveStage,
 } from "../profileSave";
 import { trainingProfileRevision } from "../planIdentity";
+import { withCoachNotesOnly } from "../gymNotesOnly";
 import { supabase } from "@/integrations/supabase/client";
 import {
   encodeStrengthExperience,
@@ -380,8 +381,11 @@ export function createProfileActions(
             movementCompetence: clean.movementCompetence,
             supervisionLevel: clean.supervisionLevel,
             clubStrengthDays: clean.clubStrengthDays,
-            trainingMethodPreferences:
-              clean.trainingMethodPreferences ?? current.profile.trainingMethodPreferences,
+            trainingMethodPreferences: withCoachNotesOnly({
+              hasGym: current.profile.hasGym,
+              trainingMethodPreferences:
+                clean.trainingMethodPreferences ?? current.profile.trainingMethodPreferences,
+            }).trainingMethodPreferences,
             serverProfileUpdatedAt: profileUpdatedAt,
             onboardingRevision: trainingProfileRevision({ ...current.profile, ...clean }),
           }

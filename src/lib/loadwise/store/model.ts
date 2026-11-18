@@ -2,6 +2,7 @@ import { trainingProfileRevision } from "../planIdentity";
 import type { RunningActivity, RunningActivityDraft } from "@/lib/running/types";
 import type { Dispatch, SetStateAction } from "react";
 import { ageOnDate } from "../agePolicy";
+import { withCoachNotesOnly } from "../gymNotesOnly";
 import { decodeStrengthExperience, type StrengthExperience } from "../strengthExperience";
 import { normalizeMatchDates } from "../matchSchedule";
 import { normalizeActivityTags } from "../sessionFeedback";
@@ -317,7 +318,8 @@ export function buildProfile(
     runningProgressionLevel: Number(ath.running_progression_level ?? 0),
     runningProgressionUpdatedAt: (ath.running_progression_updated_at as string | null) ?? null,
   };
-  return { ...profile, onboardingRevision: trainingProfileRevision(profile) };
+  const notesOnly = withCoachNotesOnly(profile);
+  return { ...notesOnly, onboardingRevision: trainingProfileRevision(notesOnly) };
 }
 
 export function findSessionByDbId(plan: SessionDay[], sessionId: string): SessionDay | null {

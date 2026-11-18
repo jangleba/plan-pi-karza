@@ -28,7 +28,7 @@ import {
 import { GYM_EXERCISE_RULES } from "../gymStrengthExercises";
 import { maximalStrengthEligible } from "./strengthPolicy";
 import { gymDoseWithinBounds } from "./gymProgression";
-import { ADVANCED_CONTACT_LIMIT, advancedSessionsEligible } from "./advancedSessions";
+import { ADVANCED_CONTACT_LIMIT, advancedSessionsEligible, pairLabelAt } from "./advancedSessions";
 import { MAIN_LEG_ROLES } from "./strengthCompleteness";
 import { UPPER_CONTRAST, upperContrastIneligibility } from "./upperContrast";
 import { parseRestDuration } from "../restTimer";
@@ -559,7 +559,7 @@ export function validateEngineSession(
       labels.add(pair.label);
       const rendered = session.structuredSections
         ?.flatMap((sec) => sec.blocks)
-        .find((block) => block.exercises.some((e) => e.label === `${pair.label}1`));
+        .find((block) => block.exercises.some((e) => e.label === pairLabelAt(pair, 0)));
       if (
         !rendered ||
         rendered.executionProtocol !== "superset-rounds-v1" ||

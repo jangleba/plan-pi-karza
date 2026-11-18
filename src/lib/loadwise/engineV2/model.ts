@@ -1,7 +1,7 @@
 import type { Profile, Readiness, SessionDay } from "../types";
 import { preparationProfile } from "./preparation";
 
-export const ENGINE_VERSION = "ballwise-v2.19";
+export const ENGINE_VERSION = "ballwise-v2.20";
 export type Tier = "foundation" | "development" | "performance";
 export type Role =
   | "knee_strength"
@@ -202,6 +202,8 @@ export interface EngineSession {
   /** Groups of a note session (1a → 1b → 1c): 30 s transitions, then the round rest. */
   complexPairs?: {
     label: string;
+    /** The coach's own number of the group ("3" for 3a + 3b), when it comes from a note. */
+    no?: string;
     kind: import("./advancedSessions").PairKind;
     exerciseIds: string[];
     transitionSeconds: number;

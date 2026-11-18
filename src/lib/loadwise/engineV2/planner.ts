@@ -57,6 +57,7 @@ import {
   progressAdvanced,
   shortenAdvanced,
   withoutAdvancedRows,
+  coachNameOf,
 } from "./advancedSessions";
 import { advancedSectionType, renderComplexPairs } from "./advancedRender";
 import { athleticSectionType } from "./athleticRender";
@@ -271,6 +272,7 @@ function render(
           ? `Runda ${d.sequenceStep.round}/${d.sequenceStep.rounds} · odcinek ${d.sequenceStep.attempt}/${d.sequenceStep.attempts}`
           : undefined,
       engineDose: d,
+      ...coachNaming(e),
       ...(recipe.strengthPreparationVersion === 1 && e.role === "warmup"
         ? { preparationOnly: true as const }
         : {}),
@@ -533,6 +535,12 @@ function capRunningTime(recipe: EngineSession, reason: string): EngineSession {
  * settle the final dose first (focus, then verified progression), only then fit the time budget.
  * When the full session does not fit, the existing compact variant is tried; otherwise null.
  */
+/** A note row done with the coach's own exercise shows the coach's own name. */
+function coachNaming(e: { noteSlot?: { text: string }; substituteFor?: string }) {
+  const name = e.noteSlot && !e.substituteFor ? coachNameOf(e.noteSlot.text) : null;
+  return name ? { coachName: name, name } : {};
+}
+
 export function finalizeStrengthRecipe(
   base: EngineSession,
   p: Profile,

@@ -35,33 +35,24 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-it("shows adaptive sports A/B directly and persists an explicit structure choice", async () => {
+it("offers a gym player no layout, method, exercise or contrast choice: only the coach's notes", async () => {
   await act(async () => root.render(<StrengthExperienceSetup />));
   await act(async () => host.querySelector("button")!.click());
-  const structure = [...host.querySelectorAll("label")]
-    .find((el) => el.textContent?.trim().startsWith("Układ jednostki"))!
-    .querySelector("select")!;
-  expect(structure.value).toBe("athletic_ab");
-  expect(structure.closest("details")).toBeNull();
-  expect(host.textContent).toContain("Dwa osobne dni");
-  await act(async () => {
-    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(
-      structure,
-      "balanced",
-    );
-    structure.dispatchEvent(new Event("change", { bubbles: true }));
-  });
-  expect(m.save).not.toHaveBeenCalled();
-  await act(async () =>
-    [...host.querySelectorAll("button")]
-      .find((b) => b.textContent === "Zapisz odpowiedzi")!
-      .click(),
-  );
-  const payload = decodeStrengthExperience(encodeStrengthExperience(m.save.mock.calls[0][0]));
-  expect(payload.trainingMethodPreferences?.gymTemplate).toBe("balanced");
+  const labels = [...host.querySelectorAll("label")].map((el) => el.textContent?.trim() ?? "");
+  for (const gone of [
+    "Układ jednostki",
+    "Organizacja siły",
+    "Martwy ciąg / RDL",
+    "Kontrast góry ciała",
+  ])
+    expect(labels.some((text) => text.startsWith(gone))).toBe(false);
+  expect(host.textContent).not.toContain("Sportowe A/B");
+  expect(host.querySelectorAll("option[value='athletic_ab']")).toHaveLength(0);
+  // What stays: the equipment the gym really has.
+  expect(labels.some((text) => text.startsWith("Wyposażenie siłowni"))).toBe(true);
 });
 
-it("lets the athlete actually declare trap bar/Nordic stations and save usable exercise choices", async () => {
+it("lets the athlete actually declare trap bar/Nordic stations", async () => {
   await act(async () => root.render(<StrengthExperienceSetup />));
   await act(async () => host.querySelector("button")!.click());
   const checkbox = (label: string) =>
@@ -70,16 +61,6 @@ it("lets the athlete actually declare trap bar/Nordic stations and save usable e
       .querySelector<HTMLInputElement>("input")!;
   await act(async () => checkbox("Trap bar").click());
   await act(async () => checkbox("Stanowisko nordic").click());
-  const hinge = [...host.querySelectorAll("label")]
-    .find((el) => el.textContent?.trim().startsWith("Martwy ciąg / RDL"))!
-    .querySelector("select")!;
-  await act(async () => {
-    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(
-      hinge,
-      "trap_bar_deadlift",
-    );
-    hinge.dispatchEvent(new Event("change", { bubbles: true }));
-  });
   expect(m.save).not.toHaveBeenCalled();
   await act(async () =>
     [...host.querySelectorAll("button")]
@@ -99,7 +80,6 @@ it("lets the athlete actually declare trap bar/Nordic stations and save usable e
     "nordic_setup",
   ]);
   expect(payload.trainingMethodPreferences?.gymEquipmentMode).toBe("selected");
-  expect(payload.trainingMethodPreferences?.gymExercises?.hinge).toBe("trap_bar_deadlift");
   expect(m.profile!.equipment).toEqual([]);
 });
 
@@ -127,22 +107,4 @@ it("makes a deliberate only-selected equipment choice survive save and reload", 
   const payload = decodeStrengthExperience(encodeStrengthExperience(m.save.mock.calls[0][0]));
   expect(payload.trainingMethodPreferences?.gymEquipmentMode).toBe("selected");
   expect(payload.trainingMethodPreferences?.declaredEquipment).toEqual(["dumbbell"]);
-});
-
-it("saves the optional press/chest-pass contrast as an explicit choice", async () => {
-  await act(async () => root.render(<StrengthExperienceSetup />));
-  await act(async () => host.querySelector("button")!.click());
-  const contrast = [...host.querySelectorAll("label")]
-    .find((el) => el.textContent?.trim().startsWith("Kontrast góry ciała"))!
-    .querySelector<HTMLInputElement>("input")!;
-  expect(contrast.checked).toBe(false);
-  await act(async () => contrast.click());
-  await act(async () =>
-    [...host.querySelectorAll("button")]
-      .find((b) => b.textContent === "Zapisz odpowiedzi")!
-      .click(),
-  );
-  const payload = decodeStrengthExperience(encodeStrengthExperience(m.save.mock.calls[0][0]));
-  expect(payload.trainingMethodPreferences?.upperBodyContrast).toBe(true);
-  expect(payload.trainingMethodPreferences?.gymExercises?.upperPower).toBe("med_ball_throw");
 });
