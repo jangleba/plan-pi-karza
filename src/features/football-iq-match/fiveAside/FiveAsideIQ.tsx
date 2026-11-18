@@ -44,6 +44,7 @@ export type FiveAsideIQProps = {
   onBack: () => void;
   onOpenClassic?: () => void;
   onOpenThreeVsTwo?: () => void;
+  onOpenEleven?: () => void;
   /** Tests and QA: start from this variant seed and position. */
   initialSeed?: number;
   initialPosition?: Position;
@@ -148,6 +149,7 @@ export function FiveAsideIQ({
   onBack,
   onOpenClassic,
   onOpenThreeVsTwo,
+  onOpenEleven,
   initialSeed,
   initialPosition,
 }: FiveAsideIQProps) {
@@ -605,8 +607,13 @@ export function FiveAsideIQ({
               {summary.goodTouches}
             </p>
           )}
-          {(onOpenThreeVsTwo || onOpenClassic) && (
+          {(onOpenEleven || onOpenThreeVsTwo || onOpenClassic) && (
             <div className="f5-links">
+              {onOpenEleven && (
+                <button type="button" onClick={onOpenEleven}>
+                  Gra 11 na 11
+                </button>
+              )}
               {onOpenThreeVsTwo && (
                 <button type="button" onClick={onOpenThreeVsTwo}>
                   Lekcja 3 na 2

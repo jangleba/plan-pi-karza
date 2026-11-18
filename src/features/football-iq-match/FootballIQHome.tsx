@@ -7,18 +7,25 @@ import type { LearningJourney as LearningJourneyType } from "./LearningJourney";
 const LearningJourney = lazy(() =>
   import("./LearningJourney").then((m) => ({ default: m.LearningJourney })),
 );
+const ElevenIQ = lazy(() => import("./eleven/ElevenIQ").then((m) => ({ default: m.ElevenIQ })));
 const FirstPersonIQ = lazy(() =>
   import("./firstPerson/FirstPersonIQ").then((m) => ({ default: m.FirstPersonIQ })),
 );
 type Props = ComponentProps<typeof LearningJourneyType>;
 
 export function FootballIQHome(props: Props) {
-  const [mode, setMode] = useState<"five" | "three" | "board">("five");
+  const [mode, setMode] = useState<"five" | "three" | "eleven" | "board">("five");
   const loading = <div className="p-6 text-sm text-muted-foreground">Ładowanie sytuacji…</div>;
   if (mode === "board")
     return (
       <Suspense fallback={loading}>
         <LearningJourney {...props} onBack={() => setMode("five")} />
+      </Suspense>
+    );
+  if (mode === "eleven")
+    return (
+      <Suspense fallback={loading}>
+        <ElevenIQ historyOwner={props.historyOwner} onBack={() => setMode("five")} />
       </Suspense>
     );
   if (mode === "three")
@@ -37,6 +44,7 @@ export function FootballIQHome(props: Props) {
       onBack={() => props.onBack?.()}
       onOpenClassic={() => setMode("board")}
       onOpenThreeVsTwo={() => setMode("three")}
+      onOpenEleven={() => setMode("eleven")}
     />
   );
 }

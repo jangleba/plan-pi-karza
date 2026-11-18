@@ -103,7 +103,7 @@ try {
     args: ["--no-sandbox", "--enable-unsafe-swiftshader", "--use-angle=swiftshader"],
   });
   const page = await browser.newPage({
-    viewport: { width: 390, height: 780 },
+    viewport: { width: 844, height: 390 },
     deviceScaleFactor: 2,
   });
   page.on("pageerror", (e) => {
@@ -150,17 +150,13 @@ try {
   report.receivedAfterMs = Date.now() - t0;
   await page.evaluate(() => window.__f5Scene.setPaused(true));
   await page.screenshot({ path: path.join(shots, "03-with-ball-390.png") });
-  // View from behind: the button switches it, the game state stays as it was.
-  const tickBefore = await page.evaluate(() => window.__f5Scene.debugState().tick);
-  await page.getByRole("button", { name: "Widok zza pleców" }).click();
-  await wait(400);
-  await page.screenshot({ path: path.join(shots, "03b-from-behind-390.png") });
+  // The game is played from behind your player: there is no eye view to switch to.
   ensure(
-    (await page.evaluate(() => window.__f5Scene.debugState().tick)) === tickBefore,
-    "Changing the view must not move the paused game",
+    (await page.getByRole("button", { name: "Widok z oczu" }).count()) === 0,
+    "There must be no eye view toggle",
   );
-  await page.getByRole("button", { name: "Widok z oczu" }).click();
-  report.viewToggle = true;
+  await page.screenshot({ path: path.join(shots, "03b-from-behind-844.png") });
+  report.viewToggle = false;
   await page.evaluate(() => window.__f5Scene.setPaused(false));
 
   // 4. Joystick: run, then look around with the finger: the run direction must not change.
@@ -257,7 +253,7 @@ try {
         requestAnimationFrame(tick);
       }),
   );
-  await page.setViewportSize({ width: 390, height: 780 });
+  // The game is played on its side: it stays in landscape to the end.
 
   // 8. The fragment ends by itself; replay from above; debrief; saved once.
   const t1 = Date.now();

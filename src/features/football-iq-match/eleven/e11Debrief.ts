@@ -199,7 +199,7 @@ export function buildDebrief(s: SimState): E11Debrief {
       };
       choice = {
         grade: outcome === "intercepted" || outcome === "tackled" ? "ok" : "good",
-        text: "Podanie za linię obrony w momencie ruchu partnera to właściwa decyzja przeciwko wysokiej linii.",
+        text: "Podanie za linię obrony w momencie ruchu partnera to właściwa decyzja przy tym ustawieniu obrony.",
       };
     } else {
       // A pass to feet.
