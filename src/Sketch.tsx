@@ -1,11 +1,20 @@
 import type { ReactNode } from "react";
 
-export type SketchKind = "plan" | "lab" | "iq" | "fuel" | "progres";
+export type SketchKind = "start" | "plan" | "lab" | "iq" | "fuel" | "progres";
 
 const P = { fill: "none", stroke: "currentColor", strokeWidth: 1.3, strokeLinecap: "round", strokeLinejoin: "round" } as const;
 
 /** Delikatne szkice liniowe (jeden kolor, cienka kreska). */
 const DRAWINGS: Record<SketchKind, ReactNode> = {
+  // wschód słońca nad linią boiska
+  start: (
+    <g {...P}>
+      <path d="M14 44 a18 18 0 0 1 36 0" />
+      <path d="M32 18 v-6 M16 26 l-4 -4 M48 26 l4 -4 M8 40 h-4 M60 40 h-4" />
+      <path d="M4 50 h56" />
+      <path d="M10 56 h44" strokeDasharray="1 3" />
+    </g>
+  ),
   // piłka i dwa stożki
   plan: (
     <g {...P}>
@@ -92,7 +101,7 @@ export function Empty({ kind, children }: { kind: SketchKind; children: ReactNod
 export function Backdrop() {
   return (
     <svg
-      className="pointer-events-none fixed inset-0 -z-0 h-full w-full text-ink opacity-[0.03]"
+      className="pointer-events-none fixed inset-0 -z-10 h-full w-full text-ink opacity-[0.03]"
       viewBox="0 0 400 800"
       preserveAspectRatio="xMidYMid slice"
       aria-hidden="true"

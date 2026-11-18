@@ -1,7 +1,8 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
-import { localISO, addDays, calcMas, datesForWeek, formatPace, levelOf, matchesAround, nextWeekUnlocked, planWeek, weekInCycle } from "./engine";
-import type { CheckIn, DayPlan, Mas, Profile, SessionKind } from "./engine";
+import { localISO, addDays, datesForWeek, levelOf, matchesAround, nextWeekUnlocked, planWeek, weekInCycle } from "./engine";
+import type { CheckIn, DayPlan, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
+import { Start } from "./Start";
 import { Backdrop, PageHeader } from "./Sketch";
 import { Auth } from "./Auth";
 import { Progress } from "./Progress";
@@ -12,8 +13,8 @@ import { Fuel } from "./Fuel";
 const IQ = lazy(() => import("./IQ"));
 import { Soon, TabBar, type Tab } from "./Tabs";
 import { supabase } from "./lib/supabase";
-import { pullAll, pushCheckIn, pushMas, pushProfile } from "./lib/sync";
-import { addEvents, loadLog, saveLog } from "./engine";
+import { pullAll, pushCheckIn, pushProfile } from "./lib/sync";
+import { loadLog, saveLog } from "./engine";
 import { SessionSheet } from "./SessionSheet";
 
 const KIND_LABEL: Record<SessionKind, string> = {
@@ -82,71 +83,6 @@ function DayRow({ day, index, onOpen }: { day: DayPlan; index: number; onOpen: (
   );
 }
 
-const OPTIONS: Array<[1 | 2 | 3, string]> = [[1, "Słabo"], [2, "Średnio"], [3, "Dobrze"]];
-
-function Pick({ label, value, onChange }: { label: string; value: 1 | 2 | 3; onChange: (v: 1 | 2 | 3) => void }) {
-  return (
-    <div className="mb-3">
-      <div className="mb-1.5 text-xs text-muted">{label}</div>
-      <div className="flex gap-1.5 rounded-xl bg-canvas p-1">
-        {OPTIONS.map(([v, t]) => (
-          <button
-            key={v}
-            onClick={() => onChange(v)}
-            className={`flex-1 rounded-lg py-1.5 text-sm transition ${value === v ? "bg-card font-medium shadow-sm" : "text-muted"}`}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function loadDistance(): number | null {
-  try {
-    const v = Number(localStorage.getItem("masDistance"));
-    return v > 0 ? v : null;
-  } catch {
-    return null;
-  }
-}
-
-function MasCard({ distance, onSave }: { distance: number | null; onSave: (d: number) => void }) {
-  const [text, setText] = useState("");
-  const mas: Mas | null = distance ? calcMas(distance) : null;
-  return (
-    <section className="mb-5 rounded-2xl bg-card p-4 border border-hairline">
-      <h2 className="mb-1 text-base font-semibold">Twoje MAS</h2>
-      {mas ? (
-        <p className="text-sm text-muted">
-          {mas.kmh.toFixed(1)} km/h · tempo {formatPace(mas.paceSecPerKm)} ({distance} m w 5 min)
-        </p>
-      ) : (
-        <p className="text-sm text-muted">Wpisz dystans z biegu 5-minutowego.</p>
-      )}
-      <div className="mt-3 flex gap-2">
-        <input
-          inputMode="numeric"
-          placeholder="dystans w metrach"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          className="min-w-0 flex-1 rounded-xl bg-canvas px-3 py-2 text-sm outline-none"
-        />
-        <button
-          onClick={() => {
-            const d = Number(text);
-            if (d >= 500 && d <= 2500) { onSave(d); setText(""); }
-          }}
-          className="rounded-xl bg-ink px-4 py-2 text-sm font-medium text-white"
-        >
-          Zapisz
-        </button>
-      </div>
-    </section>
-  );
-}
-
 function loadProfile(): Profile | null {
   try {
     const raw = localStorage.getItem("profile");
@@ -206,7 +142,14 @@ function Gate() {
 }
 
 function Main() {
-  const [tab, setTab] = useState<Tab>("plan");
+  const [tab, setTab] = useState<Tab>("start");
+  const [checkIn, setCheckInState] = useState<CheckIn>(loadCheckIn);
+  const setCheckIn = (c: CheckIn) => {
+    setCheckInState(c);
+    store(`checkIn:${today()}`, JSON.stringify(c));
+    void pushCheckIn(today(), c);
+  };
+  const [openDay, setOpenDay] = useState<DayPlan | null>(null);
   const [profile, setProfile] = useState<Profile | null>(loadProfile);
   if (!profile) {
     return (
@@ -222,11 +165,14 @@ function Main() {
     );
   }
   return (
-    <div className="relative min-h-screen">
+    <div className="relative isolate min-h-screen">
       <Backdrop />
-      <div className="relative z-10">
+      <div className="relative">
+      {tab === "start" && (
+        <Start profile={profile} checkIn={checkIn} onCheckIn={setCheckIn} onOpenDay={(d) => { setTab("plan"); setOpenDay(d); }} />
+      )}
       {tab === "plan" && (
-        <Home profile={profile} onReset={() => {
+        <Home profile={profile} checkIn={checkIn} initialOpen={openDay} onOpened={() => setOpenDay(null)} onReset={() => {
           try { localStorage.removeItem("profile"); } catch { /* brak pamięci */ }
           setProfile(null);
         }} />
@@ -245,16 +191,11 @@ function Main() {
   );
 }
 
-function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
-  const [distance, setDistance] = useState<number | null>(loadDistance);
-  const mas = useMemo(() => (distance ? calcMas(distance) : null), [distance]);
-  const [checkIn, setCheckInState] = useState<CheckIn>(loadCheckIn);
-  const setCheckIn = (c: CheckIn) => {
-    setCheckInState(c);
-    store(`checkIn:${today()}`, JSON.stringify(c));
-    void pushCheckIn(today(), c);
-  };
-  const [open, setOpen] = useState<DayPlan | null>(null);
+function Home({ profile, checkIn, initialOpen, onOpened, onReset }: {
+  profile: Profile; checkIn: CheckIn; initialOpen: DayPlan | null; onOpened: () => void; onReset: () => void;
+}) {
+  const [open, setOpen] = useState<DayPlan | null>(initialOpen);
+  useEffect(() => { if (initialOpen) onOpened(); }, [initialOpen, onOpened]);
   const thisWeek = mondayOf(new Date());
   const unlocked = nextWeekUnlocked(thisWeek, profile.matchWeekdays, today());
   const [viewNext, setViewNext] = useState(false);
@@ -275,29 +216,9 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
     <main className="mx-auto max-w-md px-4 pb-28 pt-14">
       <PageHeader
         kind="plan"
-        title="Twój tydzień"
+        title="Plan tygodnia"
         sub={<>Plan dopasowany do meczu. <button onClick={onReset} className="underline">Zmień profil</button></>}
       />
-      <MasCard
-        distance={distance}
-        onSave={(d) => {
-          setDistance(d);
-          store("masDistance", String(d));
-          addEvents([{ date: today(), type: "mas", key: "mas", value: calcMas(d).kmh }]);
-          void pushMas(d);
-        }}
-      />
-      <section className="mb-5 rounded-2xl bg-card p-4 border border-hairline">
-        <h2 className="mb-3 text-base font-semibold">Jak dziś?</h2>
-        <Pick label="Sen" value={checkIn.sleep} onChange={(v) => setCheckIn({ ...checkIn, sleep: v })} />
-        <Pick label="Samopoczucie" value={checkIn.feeling} onChange={(v) => setCheckIn({ ...checkIn, feeling: v })} />
-        <button
-          onClick={() => setCheckIn({ ...checkIn, less: !checkIn.less })}
-          className={`w-full rounded-xl py-2 text-sm transition ${checkIn.less ? "bg-ink font-medium text-card" : "bg-canvas text-muted"}`}
-        >
-          Dziś mniej / brak czasu
-        </button>
-      </section>
       <div className="mb-3 flex gap-1.5 rounded-xl bg-card p-1 border border-hairline">
         <button onClick={() => setViewNext(false)} className={`flex-1 rounded-lg py-1.5 text-sm ${!viewNext ? "bg-canvas font-medium" : "text-muted"}`}>Ten tydzień</button>
         <button
@@ -314,7 +235,7 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
         ))}
       </ul>
       {open && (
-        <SessionSheet day={open} checkIn={checkIn} weekInCycle={weekInCycle(profile.startDate, weekStart)} mas={mas} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")} onClose={() => setOpen(null)} />
+        <SessionSheet day={open} checkIn={checkIn} weekInCycle={weekInCycle(profile.startDate, weekStart)} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")} onClose={() => setOpen(null)} />
       )}
       {plan.warnings.length > 0 && (
         <p className="mt-4 rounded-2xl border border-hairline bg-canvas p-3 text-sm text-muted">

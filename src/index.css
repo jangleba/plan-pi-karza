@@ -26,3 +26,10 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
+
+/* oddech: 4 s wdech, 6 s wydech */
+@keyframes bw-breathe {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.8); }
+  100% { transform: scale(1); }
+}

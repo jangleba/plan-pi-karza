@@ -49,3 +49,10 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 - Silnik decyzji (`src/engine/iq.ts`): czysty TypeScript, 6 testów; spalony, zablokowany tor, wolność adresata, szansa strzału. Model jest uproszczony (reguły, nie dane meczowe).
 - NIE ma jeszcze: dośrodkowania, kiwania, więcej scenariuszy, animacji piłki i zawodników (na razie walce), poziomów trudności.
 - NIE sprawdzone na telefonie: fps zmierzono tylko w przeglądarce bez GPU (60 fps), co nie mówi nic o urządzeniach mobilnych.
+
+## Start i „Mecz w głowie" (wdrożone)
+- Zakładki: Start · Plan · Lab · IQ · Fuel · Progres.
+- Start: check-in (główny element) z jednym zdaniem, co zmienia w sesji; mała karta „Dziś" (MD-x, rodzaj sesji, przejście do sesji); „Mecz w głowie".
+- „Mecz w głowie": ok. 3 min – oddech, 4 sytuacje dla pozycji z animowaną tablicą, słowo na mecz; zalecany MD-1 i w dniu meczu. Treści to moje szkice do przeglądu trenera.
+- MAS przeniesiony do jednostki biegowej. Bieganie jak w Stravie (mapa na żywo, tempo, dystans, km, prowadzenie interwałów) – następny PR.
+- Trening reakcji zostaje tylko w treningach piłkarskich.

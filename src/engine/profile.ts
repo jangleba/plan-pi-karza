@@ -1,5 +1,5 @@
 import type { Level } from "./types";
-import { addDays } from "./week";
+import { addDays, planWeek } from "./week";
 
 export type Position = "bramkarz" | "obronca" | "pomocnik" | "skrzydlowy" | "napastnik";
 export type Equipment = "gym" | "bodyweight" | "field";
@@ -69,4 +69,15 @@ export function nextWeekUnlocked(weekStart: string, matchWeekdays: number[], tod
   if (!matchWeekdays.length) return false;
   const last = datesForWeek(weekStart, matchWeekdays).sort().pop()!;
   return todayISO >= last;
+}
+
+/** Plan tygodnia dla profilu (wspólny dla Startu, Planu i Fuel). */
+export function planForProfile(profile: Profile, weekStart: string) {
+  return planWeek({
+    weekStart,
+    matches: matchesAround(weekStart, profile.matchWeekdays),
+    clubDays: datesForWeek(weekStart, profile.clubWeekdays),
+    level: levelOf(profile.age, profile.strengthYears),
+    limitedGymAccess: profile.limitedGymAccess,
+  });
 }
