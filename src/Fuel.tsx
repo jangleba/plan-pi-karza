@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
-import { Empty, PageHeader } from "./Sketch";
+import { Empty } from "./Sketch";
+import { Sheet } from "./Sheet";
+import { Group, LargeTitle, ListRow, MiniRing } from "./ui";
 import { localISO, SHOP, adviceAround, dailyTargets, hoursUntil, planForProfile, weekStartOf } from "./engine";
 import type { ActivityKind, DayKind, Goal, Profile, Tip } from "./engine";
 
@@ -93,7 +95,7 @@ function Shop() {
   );
 }
 
-function Log({ profile }: { profile: Profile }) {
+function Log({ profile, onChange }: { profile: Profile; onChange: () => void }) {
   const [goal, setGoalState] = useState<Goal>(() => load<Goal>("fuelGoal", "maintain"));
   const [meals, setMeals] = useState<Meal[]>(() => load<Meal[]>("meals", []));
   const [name, setName] = useState(""); const [carb, setCarb] = useState(""); const [protein, setProtein] = useState("");
@@ -102,17 +104,17 @@ function Log({ profile }: { profile: Profile }) {
   const todays = meals.filter((m) => m.date === today());
   const sum = (k: "carb" | "protein") => todays.reduce((a, m) => a + m[k], 0);
 
-  const setGoal = (g: Goal) => { setGoalState(g); save("fuelGoal", g); };
+  const setGoal = (g: Goal) => { setGoalState(g); save("fuelGoal", g); onChange(); };
   const add = () => {
     if (!name.trim()) return;
     const now = new Date();
     const next = [...meals, { date: today(), time: now.toTimeString().slice(0, 5), name: name.trim(), carb: Number(carb.replace(",", ".")) || 0, protein: Number(protein.replace(",", ".")) || 0 }];
-    setMeals(next); save("meals", next); setName(""); setCarb(""); setProtein("");
+    setMeals(next); save("meals", next); setName(""); setCarb(""); setProtein(""); onChange();
   };
   const bar = (label: string, v: number, [lo, hi]: [number, number]) => (
     <div className="mb-3">
       <div className="mb-1 flex justify-between text-xs text-muted"><span>{label}</span><span>{v} / {lo}–{hi} g</span></div>
-      <div className="h-1.5 rounded-full bg-canvas"><div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, (v / hi) * 100)}%`, background: v >= lo ? "#5f8a67" : "#c9c2b2" }} /></div>
+      <div className="h-1.5 rounded-full bg-canvas"><div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, (v / hi) * 100)}%`, background: "var(--color-accent)" }} /></div>
     </div>
   );
   return (
@@ -125,7 +127,7 @@ function Log({ profile }: { profile: Profile }) {
         </div>
         {bar("Węglowodany", sum("carb"), targets.carbG)}
         {bar("Białko", sum("protein"), targets.proteinG)}
-        <p className="text-xs text-muted">{targets.note} Białko: 1,6–2,2 g/kg dziennie, w 3–4 posiłkach (UEFA). Cel zawodnika przesuwa tylko położenie w zakresie (orientacyjnie).</p>
+        <p className="text-xs text-muted">Białko 1,6–2,2 g/kg dziennie w 3–4 posiłkach (UEFA).</p>
       </section>
       <section className="mb-4 rounded-2xl bg-card p-4 border border-hairline">
         <h3 className="mb-3 text-sm font-semibold">Dodaj posiłek</h3>
@@ -149,18 +151,32 @@ function Log({ profile }: { profile: Profile }) {
 }
 
 export function Fuel({ profile }: { profile: Profile }) {
-  const [mode, setMode] = useState<Mode>("now");
+  const [sheet, setSheet] = useState<Mode | null>(null);
+  const [tick, setTick] = useState(0);
+  void tick;
+  const day = dayKindOf(profile);
+  const targets = dailyTargets(profile.weightKg, day, load<Goal>("fuelGoal", "maintain"));
+  const todays = load<Meal[]>("meals", []).filter((m) => m.date === today());
+  const sum = (k: "carb" | "protein") => todays.reduce((a, m) => a + m[k], 0);
+  const carb = sum("carb"), protein = sum("protein");
+
   return (
-    <main className="mx-auto max-w-md px-4 pb-28 pt-14">
-      <PageHeader kind="fuel" title="Fuel" sub="Jedzenie wokół treningu i meczu." />
-      <div className="mb-5 flex gap-1.5 rounded-xl bg-card p-1 border border-hairline">
-        {([["now", "Teraz"], ["shop", "Sklep"], ["log", "Dziennik"]] as Array<[Mode, string]>).map(([m, t]) => (
-          <button key={m} onClick={() => setMode(m)} className={`flex-1 rounded-lg py-1.5 text-sm ${mode === m ? "bg-canvas font-medium" : "text-muted"}`}>{t}</button>
-        ))}
+    <main className="mx-auto max-w-md px-5 pb-28 pt-14">
+      <LargeTitle kind="fuel" title="Fuel" sub="Dziś" />
+      <div className="bw-rise mb-8 flex justify-center gap-10">
+        <MiniRing value={carb / targets.carbG[0]} label="Węglowodany" center={<>{carb}<span className="text-xs text-muted">g</span></>} />
+        <MiniRing value={protein / targets.proteinG[0]} label="Białko" center={<>{protein}<span className="text-xs text-muted">g</span></>} />
       </div>
-      {mode === "now" && <Now profile={profile} />}
-      {mode === "shop" && <Shop />}
-      {mode === "log" && <Log profile={profile} />}
+      <Group>
+        <ListRow index={1} title="Przed i po wysiłku" sub="Co zjeść teraz" onTap={() => setSheet("now")} />
+        <ListRow index={2} title="Dziennik" detail={`${todays.length} ${todays.length === 1 ? "posiłek" : "posiłki"}`} onTap={() => setSheet("log")} />
+        <ListRow index={3} title="Zakupy" sub="Co kupić, czego unikać" onTap={() => setSheet("shop")} />
+      </Group>
+      <p className="px-1 text-xs text-muted">Cel dzienny: {targets.carbG[0]}–{targets.carbG[1]} g węglowodanów, {targets.proteinG[0]}–{targets.proteinG[1]} g białka.</p>
+
+      {sheet === "now" && <Sheet title="Przed i po wysiłku" onClose={() => setSheet(null)}><Now profile={profile} /></Sheet>}
+      {sheet === "log" && <Sheet title="Dziennik" onClose={() => setSheet(null)}><Log profile={profile} onChange={() => setTick((t) => t + 1)} /></Sheet>}
+      {sheet === "shop" && <Sheet title="Zakupy" onClose={() => setSheet(null)}><Shop /></Sheet>}
     </main>
   );
 }
