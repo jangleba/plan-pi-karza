@@ -12,6 +12,8 @@ export interface Arrow {
   step?: number;
 }
 
+import type { Position } from "./profile";
+
 export interface Drill {
   id: string;
   title: string;
@@ -24,6 +26,8 @@ export interface Drill {
   goal: string;
   dose: string;
   points: string[];
+  /** Pozycje, dla których ćwiczenie jest szczególnie ważne (puste = dla wszystkich). */
+  positions?: Position[];
   /** Źródło treści (uzupełniane po researchu). */
   source: string;
 }

@@ -1,4 +1,5 @@
 import type { Drill } from "./drill";
+import type { Position } from "./profile";
 
 /**
  * Szkice ćwiczeń technicznych solo (bez partnera) oparte na typowych układach
@@ -44,6 +45,47 @@ export const TECHNIQUE_DRILLS: Drill[] = [
     source: "Zig-zag cone dribbling (sportsessionplanner.com, plan dla początkujących).",
   },
 ];
+
+export const POSITION_DRILLS: Drill[] = [
+  {
+    id: "run-in-finish",
+    title: "Wbiegnięcie w pole karne i strzał",
+    field: { width: 24, height: 22, kind: "half" },
+    cones: [{ x: 4, y: 17, color: "red" }, { x: 12, y: 12, color: "yellow" }],
+    arrows: [
+      { style: "run", points: [{ x: 4, y: 20 }, { x: 4, y: 17 }, { x: 12, y: 12 }], step: 1 },
+      { style: "shot", points: [{ x: 12, y: 12 }, { x: 12, y: 2 }], step: 2 },
+    ],
+    goals: [{ x: 12, y: 1, width: 7 }],
+    goal: "Ruch za obronę i wykończenie.",
+    dose: "4 serie × 4 powtórzenia, przerwa 90 s",
+    points: ["Zmień tempo przy stożku.", "Strzał po pierwszym kontakcie."],
+    positions: ["napastnik", "skrzydlowy"],
+    source: "Szkic własny (do przeglądu trenera).",
+  },
+  {
+    id: "wall-passing",
+    title: "Podanie i pierwszy kontakt o ścianę",
+    field: { width: 12, height: 10, kind: "patch" },
+    cones: [{ x: 3, y: 8, color: "green" }, { x: 9, y: 8, color: "green" }],
+    arrows: [
+      { style: "pass", points: [{ x: 6, y: 7 }, { x: 6, y: 1 }], step: 1 },
+      { style: "run", points: [{ x: 3, y: 8 }, { x: 9, y: 8 }], step: 2 },
+    ],
+    goal: "Pierwszy kontakt i podanie bez partnera.",
+    dose: "4 serie × 40 s, przerwa 45 s",
+    points: ["Przyjęcie w kierunku następnego ruchu.", "Zmieniaj nogę."],
+    positions: ["pomocnik", "obronca"],
+    source: "Szkic własny (do przeglądu trenera).",
+  },
+];
+
+/** Ćwiczenia dla pozycji najpierw, potem wspólne. */
+export function drillsFor(position: Position | undefined): Drill[] {
+  const all = [...POSITION_DRILLS, ...TECHNIQUE_DRILLS];
+  const rel = (d: Drill) => (d.positions ? (position && d.positions.includes(position) ? 0 : 2) : 1);
+  return all.filter((d) => !d.positions || (position && d.positions.includes(position))).sort((a, b) => rel(a) - rel(b));
+}
 
 export interface RecoverySession {
   title: string;

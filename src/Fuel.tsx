@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { SHOP, adviceAround, dailyTargets, datesForWeek, hoursUntil, planWeek, levelOf, weekStartOf } from "./engine";
+import { SHOP, adviceAround, dailyTargets, datesForWeek, hoursUntil, levelOf, matchesAround, planWeek, weekStartOf } from "./engine";
 import type { ActivityKind, DayKind, Goal, Profile, Tip } from "./engine";
 
 type Mode = "now" | "shop" | "log";
@@ -32,7 +32,7 @@ function dayKindOf(profile: Profile): DayKind {
   const ws = weekStartOf(today());
   const plan = planWeek({
     weekStart: ws,
-    matches: datesForWeek(ws, profile.matchWeekdays),
+    matches: matchesAround(ws, profile.matchWeekdays),
     clubDays: datesForWeek(ws, profile.clubWeekdays),
     level: levelOf(profile.age, profile.strengthYears),
     limitedGymAccess: profile.limitedGymAccess,

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { calcMas, datesForWeek, formatPace, levelOf, planWeek, weekInCycle } from "./engine";
+import { addDays, calcMas, datesForWeek, formatPace, levelOf, matchesAround, nextWeekUnlocked, planWeek, weekInCycle } from "./engine";
 import type { CheckIn, DayPlan, Mas, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
 import { Auth } from "./Auth";
@@ -238,12 +238,15 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
     void pushCheckIn(today(), c);
   };
   const [open, setOpen] = useState<DayPlan | null>(null);
-  const weekStart = useMemo(() => mondayOf(new Date()), []);
+  const thisWeek = useMemo(() => mondayOf(new Date()), []);
+  const unlocked = nextWeekUnlocked(thisWeek, profile.matchWeekdays, today());
+  const [viewNext, setViewNext] = useState(false);
+  const weekStart = viewNext && unlocked ? addDays(thisWeek, 7) : thisWeek;
   const plan = useMemo(
     () =>
       planWeek({
         weekStart,
-        matches: datesForWeek(weekStart, profile.matchWeekdays),
+        matches: matchesAround(weekStart, profile.matchWeekdays),
         clubDays: datesForWeek(weekStart, profile.clubWeekdays),
         level: levelOf(profile.age, profile.strengthYears),
         limitedGymAccess: profile.limitedGymAccess,
@@ -277,13 +280,23 @@ function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
           Dziś mniej / brak czasu
         </button>
       </section>
+      <div className="mb-3 flex gap-1.5 rounded-xl bg-card p-1 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <button onClick={() => setViewNext(false)} className={`flex-1 rounded-lg py-1.5 text-sm ${!viewNext ? "bg-canvas font-medium" : "text-muted"}`}>Ten tydzień</button>
+        <button
+          disabled={!unlocked}
+          onClick={() => setViewNext(true)}
+          className={`flex-1 rounded-lg py-1.5 text-sm ${viewNext && unlocked ? "bg-canvas font-medium" : "text-muted"} disabled:opacity-40`}
+        >
+          Kolejny tydzień{!unlocked ? " (po meczu)" : ""}
+        </button>
+      </div>
       <ul className="flex flex-col gap-2.5">
         {plan.days.map((d, i) => (
           <DayRow key={d.date} day={d} index={i} onOpen={() => setOpen(d)} />
         ))}
       </ul>
       {open && (
-        <SessionSheet day={open} checkIn={checkIn} weekInCycle={weekInCycle(profile.startDate, weekStart)} mas={mas} level={levelOf(profile.age, profile.strengthYears)} onClose={() => setOpen(null)} />
+        <SessionSheet day={open} checkIn={checkIn} weekInCycle={weekInCycle(profile.startDate, weekStart)} mas={mas} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")} onClose={() => setOpen(null)} />
       )}
       {plan.warnings.length > 0 && (
         <p className="mt-4 rounded-2xl bg-yellow-soft p-3 text-sm text-yellow-ink">

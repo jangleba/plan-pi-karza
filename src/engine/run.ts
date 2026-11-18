@@ -1,6 +1,7 @@
 import { type Mas, formatPace, intervalDistanceM, speedAtPercent } from "./mas";
 import { type MesoPhase } from "./library";
 import type { Level } from "./types";
+import type { Position } from "./profile";
 import { type CheckIn, strainOf } from "./adapt";
 
 export interface RunBlock {
@@ -53,7 +54,12 @@ export function masTestSession(): RunSession {
  * Sesja biegowa z MAS. Objętość: długie interwały, intensywność: 15/15,
  * rozładowanie: spokojny bieg ciągły. Wartości to hipoteza robocza do przeglądu.
  */
-export function runSession(mas: Mas, phase: MesoPhase, level: Level, c?: CheckIn): RunSession {
+/** Pozycja lekko zmienia objętość interwałów: pomocnik +1 powtórzenie, bramkarz −1. */
+export function positionRepDelta(position: Position | undefined): number {
+  return position === "pomocnik" ? 1 : position === "bramkarz" ? -1 : 0;
+}
+
+export function runSession(mas: Mas, phase: MesoPhase, level: Level, c?: CheckIn, position?: Position): RunSession {
   const l = LVL[level];
   const strain = c ? strainOf(c) : "none";
   const notes: string[] = [];
@@ -67,12 +73,12 @@ export function runSession(mas: Mas, phase: MesoPhase, level: Level, c?: CheckIn
     if (strain === "heavy") notes.push("Spokojny bieg zamiast interwałów, bo dziś ciężej.");
   } else if (phase === "volume") {
     title = "Interwały długie";
-    const reps = [3, 4, 5][l]!;
+    const reps = Math.max(2, [3, 4, 5][l]! + positionRepDelta(position));
     blocks = [block(mas, "3 min pracy", 90, 180, 120, reps)];
     notes.push("Rozbieg 10 min, na koniec 5 min truchtu.");
   } else {
     title = "Interwały 15/15";
-    const reps = [8, 10, 12][l]!;
+    const reps = Math.max(4, [8, 10, 12][l]! + positionRepDelta(position));
     blocks = [block(mas, "15 s pracy / 15 s trucht", 105, 15, 15, reps, 2)];
   }
   if (strain === "light") {
