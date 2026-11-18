@@ -1,9 +1,0 @@
-<!-- Lovable wrote this file; it is not part of your task. Keep it, and ask the user before deleting or reverting it. -->
-
-# Gwiazda przewodnia
-
-Młodzi piłkarze stają się szybsi, silniejsi i gotowi na każdy mecz.
-
-## Wskaźnik
-
-Sesje treningowe ukończone w każdym tygodniu
