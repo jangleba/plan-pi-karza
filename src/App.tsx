@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { calcMas, formatPace, planWeek } from "./engine";
-import type { CheckIn, DayPlan, Mas, SessionKind } from "./engine";
+import { calcMas, datesForWeek, formatPace, levelOf, planWeek } from "./engine";
+import type { CheckIn, DayPlan, Mas, Profile, SessionKind } from "./engine";
+import { Onboarding } from "./Onboarding";
 import { SessionSheet } from "./SessionSheet";
 
 const KIND_LABEL: Record<SessionKind, string> = {
@@ -129,28 +130,57 @@ function MasCard({ distance, onSave }: { distance: number | null; onSave: (d: nu
   );
 }
 
+function loadProfile(): Profile | null {
+  try {
+    const raw = localStorage.getItem("profile");
+    return raw ? (JSON.parse(raw) as Profile) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function App() {
+  const [profile, setProfile] = useState<Profile | null>(loadProfile);
+  if (!profile) {
+    return (
+      <Onboarding
+        onDone={(p) => {
+          try { localStorage.setItem("profile", JSON.stringify(p)); } catch { /* brak pamięci */ }
+          setProfile(p);
+        }}
+      />
+    );
+  }
+  return <Home profile={profile} onReset={() => {
+    try { localStorage.removeItem("profile"); } catch { /* brak pamięci */ }
+    setProfile(null);
+  }} />;
+}
+
+function Home({ profile, onReset }: { profile: Profile; onReset: () => void }) {
   const [distance, setDistance] = useState<number | null>(loadDistance);
   const mas = useMemo(() => (distance ? calcMas(distance) : null), [distance]);
   const [checkIn, setCheckIn] = useState<CheckIn>({ sleep: 3, feeling: 3, less: false });
   const [open, setOpen] = useState<DayPlan | null>(null);
   const weekStart = useMemo(() => mondayOf(new Date()), []);
-  // Przykładowy tydzień: mecz w sobotę, trening klubowy wt i czw.
-  const plan = useMemo(() => {
-    const at = (n: number) => new Date(Date.parse(weekStart) + n * 86_400_000).toISOString().slice(0, 10);
-    return planWeek({
-      weekStart,
-      matches: [at(5)],
-      clubDays: [at(1), at(3)],
-      level: "intermediate",
-      limitedGymAccess: false,
-    });
-  }, [weekStart]);
+  const plan = useMemo(
+    () =>
+      planWeek({
+        weekStart,
+        matches: datesForWeek(weekStart, profile.matchWeekdays),
+        clubDays: datesForWeek(weekStart, profile.clubWeekdays),
+        level: levelOf(profile.age, profile.strengthYears),
+        limitedGymAccess: profile.limitedGymAccess,
+      }),
+    [weekStart, profile],
+  );
 
   return (
     <main className="mx-auto max-w-md px-4 pb-16 pt-14">
       <h1 className="text-3xl font-semibold tracking-tight">Twój tydzień</h1>
-      <p className="mb-6 mt-1 text-sm text-muted">Plan dopasowany do meczu.</p>
+      <p className="mb-6 mt-1 text-sm text-muted">
+        Plan dopasowany do meczu. <button onClick={onReset} className="underline">Zmień profil</button>
+      </p>
       <MasCard
         distance={distance}
         onSave={(d) => {
@@ -175,7 +205,7 @@ export function App() {
         ))}
       </ul>
       {open && (
-        <SessionSheet day={open} checkIn={checkIn} weekInCycle={1} mas={mas} onClose={() => setOpen(null)} />
+        <SessionSheet day={open} checkIn={checkIn} weekInCycle={1} mas={mas} level={levelOf(profile.age, profile.strengthYears)} onClose={() => setOpen(null)} />
       )}
       {plan.warnings.length > 0 && (
         <p className="mt-4 rounded-2xl bg-yellow-soft p-3 text-sm text-yellow-ink">

@@ -89,3 +89,8 @@ Silnik = czysty, deterministyczny TypeScript (bez AI). Ten sam wynik dla tych sa
 - Bieganie z MAS: objętość = interwały długie (90% MAS), intensywność = 15/15 (105%), rozładowanie lub mocny check-in = bieg ciągły 65%. Bez wyniku MAS ekran pokazuje test 5 min. Wartości robocze do przeglądu.
 - Wpis wykonania: jeden przycisk „Koniec sesji". Sugestia kg tylko po sesji (do zrobienia).
 - Kolejny tydzień pojawia się dopiero po dacie meczu (do zrobienia).
+
+## Onboarding i profil (wdrożone)
+- Pola: wiek (16+), staż siłowy, masa, pozycja, sprzęt, dni klubowe, dni meczu (maks. 2), „mało dni na siłownię". Zapis lokalny (do czasu logowania).
+- Poziom ze stażu i wieku: progi TYMCZASOWE (staż <1 / 1–3 / >3 lat, 16–17 lat o stopień niżej) – do ustalenia.
+- Pozycja i sprzęt są zapisane w profilu, ale silnik jeszcze z nich nie korzysta.

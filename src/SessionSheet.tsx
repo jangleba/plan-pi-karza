@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pitch } from "./Pitch";
 import { CueTrainer } from "./CueTrainer";
 import { EXERCISES, RECOVERY, TECHNIQUE_DRILLS, adaptSession, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
-import type { CheckIn, DayPlan, Mas } from "./engine";
+import type { CheckIn, DayPlan, Level, Mas } from "./engine";
 
 const KIND_TITLE: Record<string, string> = {
   strength: "Siła", run: "Bieganie", sprint: "Sprint",
@@ -10,13 +10,13 @@ const KIND_TITLE: Record<string, string> = {
 };
 
 export function SessionSheet({
-  day, checkIn, weekInCycle, mas, onClose,
-}: { day: DayPlan; checkIn: CheckIn; weekInCycle: number; mas: Mas | null; onClose: () => void }) {
+  day, checkIn, weekInCycle, mas, level, onClose,
+}: { day: DayPlan; checkIn: CheckIn; weekInCycle: number; mas: Mas | null; level: Level; onClose: () => void }) {
   const [weights, setWeights] = useState<Record<string, string>>({});
   const s = day.session;
   const module = s?.kind === "strength" || s?.kind === "sprint" ? s.kind : null;
   const found = module ? templateFor(module, weekInCycle) : null;
-  const run = s?.kind === "run" ? (mas ? runSession(mas, mesoPhase(weekInCycle), "intermediate", checkIn) : masTestSession()) : null;
+  const run = s?.kind === "run" ? (mas ? runSession(mas, mesoPhase(weekInCycle), level, checkIn) : masTestSession()) : null;
   const adapted = found ? adaptSession(found.template, checkIn, found.deload) : null;
 
   return (
