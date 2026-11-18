@@ -236,49 +236,6 @@
   color: var(--muted-foreground);
   opacity: 0.4;
 }
-.bw-wk-strip {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  margin: 0;
-  padding: 10px 6px;
-  border-radius: 16px;
-  background: var(--card);
-  list-style: none;
-}
-.bw-wk-strip li {
-  display: grid;
-  justify-items: center;
-  gap: 4px;
-}
-.bw-wk-strip span {
-  color: var(--muted-foreground);
-  font-size: 11px;
-  font-weight: 500;
-}
-.bw-wk-strip b {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  place-items: center;
-  border-radius: 999px;
-  font-size: 16px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-.bw-wk-strip li[data-today] b {
-  background: var(--foreground);
-  color: var(--card);
-  font-weight: 600;
-}
-.bw-wk-strip i {
-  width: 5px;
-  height: 5px;
-  border-radius: 999px;
-  background: transparent;
-}
-.bw-wk-strip li[data-train] i {
-  background: var(--muted-foreground);
-}
 .bw-wk-days {
   margin: 0;
   padding: 0;
@@ -816,4 +773,108 @@
   min-height: 44px;
   display: flex;
   align-items: center;
+}
+
+/* Next week: the match question comes first; everything else is optional. */
+.bw-gate {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+.bw-gate header h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 600;
+}
+.bw-gate header p {
+  margin: 2px 0 0;
+  color: var(--muted-foreground);
+  font-size: 14px;
+}
+.bw-gate-step {
+  display: grid;
+  gap: 8px;
+}
+.bw-gate-step h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+}
+.bw-gate-days,
+.bw-gate-chips {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.bw-gate-days button {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-height: 56px;
+  padding: 6px 0;
+  border-radius: 14px;
+  background: var(--secondary);
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+.bw-gate-days span {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.bw-gate-days b {
+  font-size: 17px;
+  font-weight: 500;
+}
+.bw-gate-chips button {
+  min-height: 44px;
+  border-radius: 12px;
+  background: var(--secondary);
+  color: var(--foreground);
+  font-size: 14px;
+}
+.bw-gate-none {
+  min-height: 44px;
+  border-radius: 14px;
+  background: var(--secondary);
+  color: var(--foreground);
+  font-size: 15px;
+}
+.bw-gate button[aria-pressed="true"] {
+  background: var(--foreground);
+  color: var(--card);
+}
+.bw-gate button[aria-pressed="true"] span {
+  color: inherit;
+}
+.bw-gate-changes {
+  display: grid;
+  gap: 12px;
+}
+.bw-gate-changes summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--muted-foreground);
+  font-size: 15px;
+  cursor: pointer;
+}
+.bw-gate-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 15px;
+}
+.bw-gate-select select {
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: 12px;
+  background: var(--secondary);
+}
+.bw-gate-hint {
+  margin: -6px 0 0;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  text-align: center;
 }

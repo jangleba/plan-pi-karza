@@ -332,24 +332,61 @@ it("restores the saved time budget when rejecting a preview before changing week
   expect(mock.activate.mock.calls[0][0].minutesPerSession).toBe(75);
 });
 
-it("recognizes an expired cycle and prepares today's next window only on request", async () => {
+it("after a finished week the next one opens only after the match date is answered", async () => {
+  const state = mock.store.state as LoadwiseState;
+  const old = generateTrainingPlan(state.profile!, { startDate: "2026-10-05", weeks: 4 }).plan;
+  mock.store.state = {
+    ...state,
+    activePlanId: "old-cycle",
+    plan: old,
+    profile: { ...state.profile!, matchDate: null, matchDates: [] },
+  };
+  mock.store.updateProfile = vi.fn(async () => undefined);
+  await act(async () => root.render(<PlanScreen />));
+  expect(host.textContent).toContain("Cykl zakończony");
+  const gate = host.querySelector<HTMLElement>('[aria-label="Kolejny tydzień"]')!;
+  expect(gate).not.toBeNull();
+  const prepare = () =>
+    [...gate.querySelectorAll("button")].find((b) => b.textContent === "Przygotuj tydzień")!;
+  // Without the match answer there is no way forward, and nothing is prepared or saved.
+  expect(prepare().disabled).toBe(true);
+  expect(host.textContent).not.toContain("Twój plan · 1 tydzień");
+  expect(mock.navigate).not.toHaveBeenCalled();
+  expect(mock.activate).not.toHaveBeenCalled();
+  // "No match" is an answer too.
+  await act(async () =>
+    [...gate.querySelectorAll("button")]
+      .find((b) => b.textContent === "Bez meczu w tym tygodniu")!
+      .click(),
+  );
+  expect(prepare().disabled).toBe(false);
+  await act(async () => prepare().click());
+  expect(host.textContent).toContain("Twój plan · 1 tydzień");
+  expect(host.querySelector('[aria-label="Kolejny tydzień"]')).toBeNull();
+  expect(mock.activate).not.toHaveBeenCalled();
+});
+
+it("saves the chosen match day with the next week", async () => {
   const state = mock.store.state as LoadwiseState;
   const old = generateTrainingPlan(state.profile!, { startDate: "2026-10-05", weeks: 4 }).plan;
   mock.store.state = { ...state, activePlanId: "old-cycle", plan: old };
+  const updateProfile = vi.fn(async () => undefined);
+  mock.store.updateProfile = updateProfile;
   await act(async () => root.render(<PlanScreen />));
-  expect(host.textContent).toContain("Cykl zakończony");
-  expect(host.textContent).not.toContain("Twój plan · 1 tydzień");
-  expect(mock.activate).not.toHaveBeenCalled();
-  // The next week is never prepared here: the question about its match comes first (Progress).
+  const gate = host.querySelector<HTMLElement>('[aria-label="Kolejny tydzień"]')!;
+  const saturday = [...gate.querySelectorAll<HTMLButtonElement>(".bw-gate-days button")].find((b) =>
+    b.textContent?.startsWith("so"),
+  )!;
+  await act(async () => saturday.click());
   await act(async () =>
-    [...host.querySelectorAll("button")]
-      .find((b) => b.textContent === "Przygotuj kolejny plan")!
+    [...gate.querySelectorAll("button")]
+      .find((b) => b.textContent === "Przygotuj tydzień")!
       .click(),
   );
-  expect(mock.navigate).toHaveBeenCalledWith({ to: "/postep" });
-  expect(host.textContent).not.toContain("Twój plan · 1 tydzień");
-  expect((mock.store.state as LoadwiseState).plan).toBe(old);
-  expect(mock.activate).not.toHaveBeenCalled();
+  expect(updateProfile).toHaveBeenCalledTimes(1);
+  const saved = (updateProfile.mock.calls[0] as unknown as [{ matchDates: string[] }])[0];
+  expect(saved.matchDates).toHaveLength(1);
+  expect(new Date(`${saved.matchDates[0]}T12:00:00Z`).getUTCDay()).toBe(6);
 });
 
 it("offers an explicit profile update and lets the player return to the saved snapshot", async () => {

@@ -153,7 +153,9 @@ describe("plan week", () => {
     expect(days[0].hasAttribute("data-rest")).toBe(false);
     expect(days[1].hasAttribute("data-rest")).toBe(false);
     expect(days[2].hasAttribute("data-rest")).toBe(true);
-    expect(host.querySelectorAll(".bw-wk-strip [data-train]")).toHaveLength(2);
+    // The week is just its days: no second, duplicate row of dates above them.
+    expect(host.querySelector(".bw-wk-strip")).toBeNull();
+    expect(days).toHaveLength(3);
     await act(async () => days[0].querySelector<HTMLButtonElement>("button")!.click());
     expect(onOpen).toHaveBeenCalledWith(club, 1);
     await act(async () => days[1].querySelector<HTMLButtonElement>("button")!.click());

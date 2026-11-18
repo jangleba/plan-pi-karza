@@ -596,6 +596,16 @@ describe("ekran treningu", () => {
     expect(onStart).toHaveBeenCalledOnce();
   });
 
+  it("podgląd: akcja startu jest nad listą ćwiczeń, widoczna od razu po wejściu", async () => {
+    await render(false);
+    const start = host.querySelector(".bw-runner-start")!;
+    const list = host.querySelector(".bw-rplan-row")!;
+    expect(start).not.toBeNull();
+    // Start comes before the first exercise in document order (it is not a footer below the list).
+    expect(start.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(host.querySelectorAll(".bw-runner-start")).toHaveLength(1);
+  });
+
   it("podgląd: wybranie ćwiczenia pokazuje plan i „Jak wykonać?”; animacja tylko po otwarciu", async () => {
     await render(false);
     await click(containing("Most biodrowy"));

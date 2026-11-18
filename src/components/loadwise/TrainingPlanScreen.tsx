@@ -27,6 +27,8 @@ import { hasUnresolvedTrainingWrites } from "@/lib/loadwise/offlineTrainingQueue
 import { runningCalibrationMessage } from "@/lib/loadwise/engineV2/runningCalibrationStatus";
 import { ArrowRight, ChevronRight, SlidersHorizontal, X } from "lucide-react";
 import { PlanWeek, plDate } from "./PlanWeek";
+import { NextWeekGate } from "./NextWeekGate";
+import type { NextPlanDraft } from "@/lib/loadwise/nextPlanInterview";
 import { PlanLimitations } from "./PlanLimitations";
 import { WeeklyPlanningSettings, WeeklyPlanningCoverage } from "./WeeklyPlanningSettings";
 import {
@@ -46,7 +48,7 @@ function planLength(days: number): string {
 /** Preview, explicit activation and execution of the versioned training plan. */
 export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}) {
   const gymEvidence = useGymEvidence();
-  const { state, todayIso, hydrated, syncing, activatePlanV2 } = useLoadwise();
+  const { state, todayIso, hydrated, syncing, activatePlanV2, updateProfile } = useLoadwise();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false),
     [error, setError] = useState<string | null>(null);
@@ -335,11 +337,22 @@ export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}
       : status.kind === "stale"
         ? "Plan wymaga odświeżenia"
         : "Zapisany plan";
+  // A finished week is followed by the question about the next match, asked right here.
+  const showGate = status.kind === "expired" && !preview && Boolean(state.profile) && hydrated;
+  async function prepareNextWeek(draft: NextPlanDraft) {
+    if (draft.profileChanged) await updateProfile(draft.profile);
+    const mode = draft.sessionDurationMode ?? "limited";
+    intentState.setValue({
+      planId: state.activePlanId ?? null,
+      sessionDurationMode: mode,
+      minutes: mode === "full" ? null : draft.minutes,
+      createdAt: new Date().toISOString(),
+    });
+    setRebuild(true);
+  }
   const startRebuild = () => {
-    // A finished plan is followed by the question about the next match, asked in Progress.
     if (status.kind === "expired") {
       setSettingsOpen(false);
-      void navigate({ to: "/postep" });
       return;
     }
     setRebuild(true);
@@ -428,6 +441,14 @@ export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}
         {!state.profile && hydrated ? (
           <p className="bw-plan-quiet">Uzupełnij profil, aby przygotować plan.</p>
         ) : null}
+        {showGate && state.profile ? (
+          <NextWeekGate
+            profile={state.profile}
+            from={todayIso}
+            currentMinutes={savedBudget}
+            onPrepare={prepareNextWeek}
+          />
+        ) : null}
         {plan.length > 0 ? (
           <PlanWeek
             plan={plan}
@@ -453,8 +474,8 @@ export function PlanScreen({ autoUpdate = false }: { autoUpdate?: boolean } = {}
             </div>
             {!preview?.result && status.kind === "expired" ? (
               <p>
-                Cykl zakończony{status.endDate ? ` · ${plDate(status.endDate, true)}` : ""}.
-                Przygotuj kolejny tydzień: najpierw potwierdź datę meczu w Postępie.
+                Cykl zakończony{status.endDate ? ` · ${plDate(status.endDate, true)}` : ""}. Kolejny
+                tydzień przygotujesz po potwierdzeniu daty meczu w karcie „Kolejny tydzień”.
               </p>
             ) : null}
             {!preview?.result && status.kind === "stale" ? (
