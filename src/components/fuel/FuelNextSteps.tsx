@@ -4,13 +4,13 @@ import {
   Bell,
   Check,
   ChevronRight,
-  Droplet,
   GlassWater,
   PackageCheck,
   ShoppingBag,
   SlidersHorizontal,
   Utensils,
 } from "lucide-react";
+import { WaterGlass } from "./FuelSketches";
 import { fuelDayGuide, fuelDayPriority } from "@/lib/fuel/guidance";
 import type { FuelContext, FuelDeviceData, FuelTiming } from "@/lib/fuel/experience";
 
@@ -84,14 +84,14 @@ export function FuelNextSteps({
         <p className="mt-2 text-sm text-muted-foreground">{dayPriority.text}</p>
       </section>
       <section className="fuel-water" aria-label="Woda">
-        <Droplet size={24} aria-hidden="true" className="fuel-water-icon" />
+        <WaterGlass ml={guide.drinkMl} />
         <div className="fuel-water-body">
           <p className="fuel-water-head">
             <strong>Woda</strong>
             <span className="tabular-nums">{guide.drinkMl} ml dziś</span>
           </p>
           {added !== null && (
-            <p className="fuel-water-added" role="status">
+            <p className="fuel-water-added" role="status" key={guide.drinkMl}>
               <Check size={16} aria-hidden="true" /> Dodano {added} ml
             </p>
           )}

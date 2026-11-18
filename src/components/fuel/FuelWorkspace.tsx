@@ -19,6 +19,7 @@ import { FuelPanels, downloadFuelFile, type FuelPanelName } from "./FuelPanels";
 import { StoreCheckSheet } from "./StoreCheckSheet";
 import { FuelDayDetails, FuelMatchPlan, FuelQuestions, type FuelQuestion } from "./FuelDayCard";
 import { FoodSafetySheet } from "./FoodSafetySheet";
+import { MealSketches } from "./FuelSketches";
 import { fuelDayTargets, fuelTargetInputFor } from "@/lib/fuel/dayTargets";
 import { kickoffFrom, matchFuelPlan } from "@/lib/fuel/matchPlan";
 import type { SessionCompletion, SessionDay } from "@/lib/loadwise/types";
@@ -1142,7 +1143,13 @@ export function FuelWorkspace({
         </section>
         {phaseIndex >= 0 && !(timing.phase === "before" && minutes === null) && (
           <section className="fuel-timeline" aria-label="Pora jedzenia">
-            <ol>
+            <ol
+              style={
+                {
+                  "--fuel-progress": phases.length > 1 ? phaseIndex / (phases.length - 1) : 0,
+                } as React.CSSProperties
+              }
+            >
               {phases.map((item, i) => (
                 <li
                   key={item.id}
@@ -1180,6 +1187,7 @@ export function FuelWorkspace({
                 />
               </button>
             </div>
+            <MealSketches foodIds={hero.lines.map((line) => line.foodId)} />
             <h3>{hero.title}</h3>
             <p className="fuel-v4-ingredients fuel-now-portion" aria-label="Orientacyjna porcja">
               {hero.lines.map((line, i) => (
@@ -1292,13 +1300,15 @@ export function FuelWorkspace({
                 aria-pressed={fit === option.id}
                 onClick={() => chooseFit(option.id)}
               >
-                {option.id === "quick" ? (
-                  <Clock3 size={24} aria-hidden="true" />
-                ) : option.id === "store" ? (
-                  <ShoppingCart size={24} aria-hidden="true" />
-                ) : (
-                  <SlidersHorizontal size={24} aria-hidden="true" />
-                )}
+                <span className="fuel-fit-icon" data-fit={option.id} aria-hidden="true">
+                  {option.id === "quick" ? (
+                    <Clock3 size={22} />
+                  ) : option.id === "store" ? (
+                    <ShoppingCart size={22} />
+                  ) : (
+                    <SlidersHorizontal size={22} />
+                  )}
+                </span>
                 {option.label}
               </button>
             ))}
