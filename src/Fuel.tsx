@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Empty, PageHeader } from "./Sketch";
-import { localISO, SHOP, adviceAround, dailyTargets, datesForWeek, hoursUntil, levelOf, matchesAround, planWeek, weekStartOf } from "./engine";
+import { localISO, SHOP, adviceAround, dailyTargets, hoursUntil, planForProfile, weekStartOf } from "./engine";
 import type { ActivityKind, DayKind, Goal, Profile, Tip } from "./engine";
 
 type Mode = "now" | "shop" | "log";
@@ -31,13 +31,7 @@ function TipCard({ t }: { t: Tip }) {
 
 function dayKindOf(profile: Profile): DayKind {
   const ws = weekStartOf(today());
-  const plan = planWeek({
-    weekStart: ws,
-    matches: matchesAround(ws, profile.matchWeekdays),
-    clubDays: datesForWeek(ws, profile.clubWeekdays),
-    level: levelOf(profile.age, profile.strengthYears),
-    limitedGymAccess: profile.limitedGymAccess,
-  });
+  const plan = planForProfile(profile, ws);
   const d = plan.days.find((x) => x.date === today());
   if (!d) return "light";
   if (d.isMatch) return "match";

@@ -25,9 +25,13 @@ export function SessionSheet({
   const found = module
     ? module === "strength" && !hasGym
       ? { template: bodyweightTemplate(level, mesoPhase(weekInCycle)), deload: mesoPhase(weekInCycle) === "deload" }
-      : templateFor(module, weekInCycle, position)
+      : (() => {
+          const t = templateFor(module, weekInCycle, position);
+          // lekki sprint (dzień przed meczem, przerwa w sezonie) = mniej serii
+          return t && s?.variant === "light" ? { ...t, deload: true } : t;
+        })()
     : null;
-  const run = s?.kind === "run" ? (mas ? runSession(mas, mesoPhase(weekInCycle), level, checkIn, position) : masTestSession()) : null;
+  const run = s?.kind === "run" ? (mas ? runSession(mas, s?.variant === "light" ? "deload" : mesoPhase(weekInCycle), level, checkIn, position) : masTestSession()) : null;
   const adapted = found ? adaptSession(found.template, checkIn, found.deload) : null;
 
   const finish = () => {

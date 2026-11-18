@@ -46,3 +46,8 @@ body {
 button { -webkit-tap-highlight-color: transparent; transition: transform 0.12s ease, background-color 0.2s ease, color 0.2s ease; }
 button:active:not(:disabled) { transform: scale(0.96); }
 @media (prefers-reduced-motion: reduce) { .bw-sheet, .bw-backdrop { animation: none; } button:active { transform: none; } }
+
+/* kolejny krok onboardingu wjeżdża z prawej */
+@keyframes bw-step-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
+.bw-step { animation: bw-step-in 0.28s ease-out; }
+@media (prefers-reduced-motion: reduce) { .bw-step { animation: none; } }

@@ -72,7 +72,17 @@ const REASONS: Record<string, string> = {
   "activation:MD-1": "Aktywacja przed meczem.",
 };
 
+const KIND_PL: Record<keyof typeof PREFERRED, string> = {
+  strength: "siła", run: "bieganie", sprint: "sprint", technique: "technika",
+};
+
+/** Dodatkowa sesja wynikająca z celu (powrót po przerwie nie dodaje sesji – zmienia fazę cyklu). */
+export function goalExtra(goal: WeekInput["goal"]): "sprint" | "strength" | "run" | null {
+  return goal === "speed" ? "sprint" : goal === "strength" ? "strength" : goal === "endurance" ? "run" : null;
+}
+
 function variantFor(kind: SessionKind, phase: Phase, input: WeekInput): SessionVariant {
+  if (input.season === "offseason" && (kind === "sprint" || kind === "run")) return "light";
   if (kind === "sprint" && phase === "MD-1") return "light";
   if (kind === "strength" && phase === "MD+1") {
     return input.level === "advanced" || input.limitedGymAccess ? "full" : "upper";
@@ -82,12 +92,15 @@ function variantFor(kind: SessionKind, phase: Phase, input: WeekInput): SessionV
 
 export function planWeek(input: WeekInput): WeekPlan {
   const warnings: string[] = [];
+  const season = input.season ?? "inseason";
+  // w przerwie między sezonami nie ma meczów
+  const matches = season === "offseason" ? [] : input.matches;
   const days: DayPlan[] = Array.from({ length: 7 }, (_, i) => {
     const date = addDays(input.weekStart, i);
     return {
       date,
-      phase: phaseOf(date, input.matches),
-      isMatch: input.matches.includes(date),
+      phase: phaseOf(date, matches),
+      isMatch: matches.includes(date),
       isClub: input.clubDays.includes(date),
       session: null,
     };
@@ -119,13 +132,19 @@ export function planWeek(input: WeekInput): WeekPlan {
     return false;
   };
 
-  const required: Array<keyof typeof PREFERRED> = ["strength", "sprint", "run", "technique"];
+  // Minimum: siła, sprint, bieg. Cel dodaje jedną sesję: w okresie przygotowawczym
+  // jest obowiązkowa (przed techniką), w sezonie tylko gdy zostanie wolny dzień.
+  const extra = goalExtra(input.goal);
+  const mustExtra = season === "preseason" && extra;
+  const required: Array<keyof typeof PREFERRED> = ["strength", "sprint", "run"];
+  if (mustExtra) required.push(extra);
   for (const kind of required) {
-    const ok = place(kind, PREFERRED[kind]);
-    if (!ok && kind !== "technique") {
-      warnings.push(`Brak miejsca na sesję: ${kind} (minimum tygodnia niespełnione).`);
+    if (!place(kind, PREFERRED[kind])) {
+      warnings.push(`Brak miejsca na sesję: ${KIND_PL[kind]} (minimum tygodnia niespełnione).`);
     }
   }
+  place("technique", PREFERRED.technique);
+  if (extra && !mustExtra) place(extra, PREFERRED[extra]);
 
   // Regeneracja w dniu po meczu, jeśli dzień pusty.
   place("recovery", ["MD+1"]);

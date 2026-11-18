@@ -26,3 +26,9 @@
 - Nie usuwać `.lovable/project.json`, `vite.config.ts` z konfiguracją Lovable ani `bun.lock`.
 - „Not Found" w podglądzie: Lovable otwierał zapamiętany adres starej aplikacji (np. /start). Trasa `src/routes/$.tsx` pokazuje aplikację pod każdym adresem.
 - Przepływ pracy: PR-y scalane przez „Squash and merge"; przed każdym nowym PR gałąź jest synchronizowana z main, żeby nie było konfliktów.
+
+## Onboarding (2026-11-18)
+- Kroki: powitanie → O Tobie (imię, wiek, masa, pozycja) → Sezon i cel (moment w sezonie, cel, poziom rozgrywek) → Trening (staż, sprzęt, mało dni na siłownię) → Twój tydzień (dni klubowe, mecz/sparing).
+- Wpływ na silnik: sezon (przygotowawczy: sparingi opcjonalne, sesja z celu obowiązkowa; w sezonie: MD-x, sesja z celu gdy jest wolny dzień; przerwa: bez meczów, 1× siła, 1× lekki bieg, 1× lekki sprint), cel (szybkość +sprint, siła +siła, wydolność +bieg, powrót: 2 pierwsze tygodnie rozładowania).
+- DO USTALENIA: wpływ poziomu rozgrywek (polskie ligi) na silnik – na razie tylko zapis w profilu.
+- Do doprecyzowania z użytkownikiem: szczegóły meczu/sparingów w okresie przygotowawczym.
