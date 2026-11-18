@@ -5,6 +5,7 @@ import { Onboarding } from "./Onboarding";
 import { Auth } from "./Auth";
 import { Progress } from "./Progress";
 import { Lab } from "./Lab";
+import { Fuel } from "./Fuel";
 import { Soon, TabBar, type Tab } from "./Tabs";
 import { supabase } from "./lib/supabase";
 import { pullAll, pushCheckIn, pushMas, pushProfile } from "./lib/sync";
@@ -220,7 +221,7 @@ function Main() {
       )}
       {tab === "lab" && <Lab />}
       {tab === "iq" && <Soon title="IQ" text="Taktyka: decyzje na boisku." />}
-      {tab === "fuel" && <Soon title="Fuel" text="Odżywianie wokół treningu i meczu." />}
+      {tab === "fuel" && <Fuel profile={profile} />}
       {tab === "progres" && <Progress />}
       <TabBar tab={tab} onChange={setTab} />
     </>

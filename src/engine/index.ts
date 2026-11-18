@@ -11,3 +11,4 @@ export * from "./progress";
 export * from "./history";
 export * from "./lab";
 export * from "./video";
+export * from "./fuel";

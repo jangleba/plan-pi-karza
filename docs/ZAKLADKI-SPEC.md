@@ -37,3 +37,8 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 - fps: wybór ręczny (30/60/120/240) lub „Wykryj" (spowolnione odtwarzanie, średnia różnica czasu klatek).
 - Sprawdzone na sztucznych filmach (30/60/120 kl./s) w Chromium. NIE sprawdzone na prawdziwych nagraniach iPhone'a (zwolnione tempo może mieć inną oś czasu w pliku).
 - Automatyczne wykrywanie odbicia i lądowania: jeszcze nie wdrożone.
+
+## Wdrożone: Fuel
+- Teraz: wybór Trening/Mecz, „Przede mną / Już po", godzina startu; porady z ilościami z masy ciała (źródła i niezweryfikowane elementy: docs/ZRODLA-FUEL.md).
+- Sklep: co kupić, co ograniczyć, szybkie opcje (praktyczne, nie badania).
+- Dziennik: cel (utrzymanie/masa/redukcja), cele dzienne węglowodanów i białka wg dnia z planu, ręczny wpis posiłków; dane lokalne.
