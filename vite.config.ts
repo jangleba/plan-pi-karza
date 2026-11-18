@@ -1,11 +1,7 @@
-import { defineConfig } from "vitest/config";
-import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
+// Szablon Lovable (TanStack Start). @lovable.dev/vite-tanstack-config zawiera już:
+// tanstackStart, viteReact, tailwindcss, tsConfigPaths, nitro (build), componentTagger (dev),
+// wstrzykiwanie VITE_*, alias @ i wykrywanie sandboxa podglądu (port/host).
+// NIE dodawaj tych wtyczek ręcznie – zdublowane wtyczki psują podgląd.
+import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  // Podgląd Lovable oczekuje serwera na porcie 8080 i hoście "::".
-  server: { host: "::", port: 8080 },
-  preview: { host: "::", port: 8080 },
-  test: { include: ["src/**/*.test.ts"] },
-});
+export default defineConfig({});

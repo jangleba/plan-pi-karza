@@ -19,3 +19,8 @@
 - Paleta ciepły beż i grafit, stonowane kolory znaczeniowe, cienkie obramowania zamiast cieni.
 - Cienkie szkice liniowe w nagłówku każdej zakładki (`src/Sketch.tsx`), w pustych stanach i ledwo widoczny wzór boiska w tle.
 - Do dopracowania po Twojej ocenie na telefonie: rozmiar i charakter szkiców, siła tła, kolory kostek na boisku (wciąż nasycone, bo muszą się różnić).
+
+## Lovable: podgląd (2026-11-18)
+- Przyczyna „Couldn't update the preview": projekt Lovable jest z szablonu TanStack Start (`.lovable/project.json`), a nowa aplikacja była zwykłym Vite bez `@lovable.dev/vite-tanstack-config`.
+- Naprawa: przywrócony szablon (TanStack Start, konfiguracja Lovable, wersje paczek jak w ostatniej działającej wersji, bun.lock). Aplikacja renderowana tylko w przeglądarce (`ClientOnly`).
+- Nie usuwać `.lovable/project.json`, `vite.config.ts` z konfiguracją Lovable ani `bun.lock`.

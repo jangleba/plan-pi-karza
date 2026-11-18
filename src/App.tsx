@@ -216,6 +216,7 @@ function Main() {
           store("profile", JSON.stringify(p));
           void pushProfile(p);
           setProfile(p);
+          window.scrollTo(0, 0);
         }}
       />
     );
@@ -239,7 +240,7 @@ function Main() {
       {tab === "fuel" && <Fuel profile={profile} />}
       {tab === "progres" && <Progress />}
       </div>
-      <TabBar tab={tab} onChange={setTab} />
+      <TabBar tab={tab} onChange={(t) => { setTab(t); window.scrollTo(0, 0); }} />
     </div>
   );
 }
