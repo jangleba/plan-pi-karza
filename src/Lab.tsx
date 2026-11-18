@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { addEvents, jumpHeightFromFlightTime, labDue, LAB_TESTS, loadHistory, series, validateLab, validateSprintSplits } from "./engine";
 import type { LabTest } from "./engine";
+import { VideoMeasure, type VideoResult } from "./VideoMeasure";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const num = (s: string) => Number(s.replace(",", "."));
@@ -16,10 +17,25 @@ function TestCard({ test, onSaved }: { test: LabTest; onSaved: () => void }) {
   const [vals, setVals] = useState<Record<string, string>>({});
   const [flight, setFlight] = useState(false);
   const [error, setError] = useState("");
+  const [video, setVideo] = useState(false);
   const keys = test.key === "sprint" ? ["sprint-10", "sprint-20", "sprint-30"] : [test.key];
   const last = lastDate(keys);
   const due = labDue(last, today());
   const set = (k: string, v: string) => setVals({ ...vals, [k]: v });
+
+  const applyVideo = (r: VideoResult) => {
+    if (r.flightTime !== undefined) {
+      setFlight(true);
+      set("cmj", (Math.round(r.flightTime * 1000) / 1000).toString());
+    } else if (r.splits) {
+      const next = { ...vals };
+      ["sprint-10", "sprint-20", "sprint-30"].forEach((k, i) => {
+        const v = r.splits![i];
+        if (v !== undefined) next[k] = (Math.round(v * 1000) / 1000).toString();
+      });
+      setVals(next);
+    }
+  };
 
   const save = () => {
     const out: Array<{ key: string; value: number }> = [];
@@ -65,6 +81,11 @@ function TestCard({ test, onSaved }: { test: LabTest; onSaved: () => void }) {
               {flight ? "Wpisz wysokość zamiast czasu lotu" : "Mam czas lotu – przelicz na wysokość"}
             </button>
           )}
+          {(test.key === "cmj" || test.key === "sprint") && (
+            <button onClick={() => setVideo(true)} className="mb-3 w-full rounded-xl bg-blue-soft py-2 text-sm font-medium text-blue-ink">
+              Zmierz z wideo
+            </button>
+          )}
           <div className="mb-3 flex flex-col gap-2">
             {inputs.map(([k, label]) => (
               <input key={k} className={field} inputMode="decimal" placeholder={label} value={vals[k] ?? ""} onChange={(e) => set(k, e.target.value)} />
@@ -73,6 +94,9 @@ function TestCard({ test, onSaved }: { test: LabTest; onSaved: () => void }) {
           {error && <p className="mb-3 rounded-xl bg-red-soft p-2.5 text-sm text-red-ink">{error}</p>}
           <button onClick={save} className="w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-white">Zapisz wynik</button>
         </div>
+      )}
+      {video && (test.key === "cmj" || test.key === "sprint") && (
+        <VideoMeasure mode={test.key} onResult={applyVideo} onClose={() => setVideo(false)} />
       )}
     </section>
   );

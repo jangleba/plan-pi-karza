@@ -31,3 +31,9 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 ## Wdrożone: Lab (wpis ręczny)
 - 4 testy z instrukcjami (źródła: `docs/ZRODLA-LAB.md`), walidacja zakresów, przelicznik czasu lotu na wysokość (h = g·t²/8), splity sprintu muszą rosnąć, znacznik „Do zrobienia" po 5 tygodniach.
 - Wyniki trafiają do Progresu. Wideo (ręczne klatki i automat) – następny etap Labu.
+
+## Wdrożone: wideo w Labie (ręczne klatki)
+- CMJ i sprint: wczytanie filmu, przesuwanie klatka po klatce (−10/−1/+1/+10), zaznaczenie odbicia i lądowania lub startu i 10/20/30 m; wynik trafia do pól wpisu.
+- fps: wybór ręczny (30/60/120/240) lub „Wykryj" (spowolnione odtwarzanie, średnia różnica czasu klatek).
+- Sprawdzone na sztucznych filmach (30/60/120 kl./s) w Chromium. NIE sprawdzone na prawdziwych nagraniach iPhone'a (zwolnione tempo może mieć inną oś czasu w pliku).
+- Automatyczne wykrywanie odbicia i lądowania: jeszcze nie wdrożone.
