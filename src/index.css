@@ -2,23 +2,26 @@
 
 @theme {
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
-  /* ciepły beż i grafit; kolory znaczeniowe stonowane */
-  --color-canvas: #f4f0e8;
-  --color-card: #fbf9f4;
-  --color-ink: #2a2a28;
-  --color-muted: #8a8578;
-  --color-hairline: #e4ded2;
-  /* jeden żywy akcent: terakota */
-  --color-accent: #c2603f;
-  --color-accent-soft: #f3e0d6;
-  --color-green-soft: #e4eadc;
-  --color-green-ink: #4d6b52;
-  --color-yellow-soft: #efe6d0;
-  --color-yellow-ink: #7a6532;
-  --color-red-soft: #ecdad4;
-  --color-red-ink: #8d4a41;
-  --color-blue-soft: #e2e5e5;
-  --color-blue-ink: #4a5a66;
+  /* pastelowy błękit → granat */
+  --color-canvas: #eef4fb;
+  --color-card: #ffffff;
+  --color-ink: #1b2a41;
+  --color-muted: #6b7a90;
+  --color-hairline: #dbe5f1;
+  --color-accent: #2f5d8c;
+  --color-accent-soft: #dcebfa;
+  --color-sky: #7fb2e5;
+  --color-navy: #23395b;
+  --color-club: #4caf7a;
+  --color-club-soft: #dff3e7;
+  --color-green-soft: #dff3e7;
+  --color-green-ink: #2e7a51;
+  --color-yellow-soft: #fdf1d6;
+  --color-yellow-ink: #8a6a12;
+  --color-red-soft: #f8e0e0;
+  --color-red-ink: #a2403f;
+  --color-blue-soft: #dcebfa;
+  --color-blue-ink: #2f5d8c;
 }
 
 html, body, #root { min-height: 100%; }
@@ -56,3 +59,30 @@ button:active:not(:disabled) { transform: scale(0.96); }
 @keyframes bw-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .bw-rise { animation: bw-rise 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 @media (prefers-reduced-motion: reduce) { .bw-rise { animation: none; } }
+
+/* gradient błękit → granat: przyciski główne i wyróżnienia */
+.bw-grad { background-image: linear-gradient(135deg, var(--color-sky) 0%, var(--color-accent) 55%, var(--color-navy) 100%); }
+.bw-grad-soft { background-image: linear-gradient(160deg, #dcebfa 0%, #eef4fb 60%); }
+
+/* wybór „podskakuje” */
+@keyframes bw-pop { 0% { transform: scale(0.94); } 55% { transform: scale(1.05); } 100% { transform: scale(1); } }
+.bw-pop { animation: bw-pop 0.32s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+/* kroki: dalej z prawej, wstecz z lewej */
+@keyframes bw-step-back { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: translateX(0); } }
+.bw-step-back { animation: bw-step-back 0.28s ease-out; }
+
+/* animowane szkice onboardingu */
+@keyframes bw-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes bw-shadow { 0%, 100% { transform: scaleX(1); opacity: 0.35; } 50% { transform: scaleX(0.7); opacity: 0.18; } }
+@keyframes bw-draw { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+@keyframes bw-lift { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes bw-fill { 0% { opacity: 0.15; transform: scaleY(0.4); } 60%, 100% { opacity: 1; transform: scaleY(1); } }
+.bw-bounce { animation: bw-bounce 1.2s ease-in-out infinite; transform-box: fill-box; }
+.bw-shadow { animation: bw-shadow 1.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.bw-draw { stroke-dasharray: 100; animation: bw-draw 1.4s ease-out both; }
+.bw-lift { animation: bw-lift 1.6s ease-in-out infinite; transform-box: fill-box; }
+.bw-fill { animation: bw-fill 1.2s ease-out both; transform-box: fill-box; transform-origin: bottom; }
+@media (prefers-reduced-motion: reduce) {
+  .bw-pop, .bw-step-back, .bw-bounce, .bw-shadow, .bw-draw, .bw-lift, .bw-fill { animation: none; }
+}

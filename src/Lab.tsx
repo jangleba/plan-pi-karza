@@ -95,7 +95,7 @@ function TestRow({ test, index, onSaved }: { test: LabTest; index: number; onSav
           {test.caveat && <p className="mb-4 text-xs text-muted">{test.caveat}</p>}
           {(test.key === "cmj" || test.key === "sprint") && (
             <>
-              <button onClick={() => setCamera(true)} className="mb-2 w-full rounded-2xl bg-accent py-4 text-base font-medium text-white">
+              <button onClick={() => setCamera(true)} className="mb-2 w-full rounded-2xl bw-grad py-4 text-base font-medium text-white">
                 {test.key === "cmj" ? "Nagraj skok" : "Nagraj sprint"}
               </button>
               <button onClick={() => setVideo(true)} className="mb-4 w-full py-2 text-sm text-muted">Wgraj film z galerii</button>
@@ -112,7 +112,7 @@ function TestRow({ test, index, onSaved }: { test: LabTest; index: number; onSav
             ))}
           </div>
           {error && <p className="mb-3 text-center text-sm text-red-ink">{error}</p>}
-          <button onClick={save} className="w-full rounded-2xl bg-accent py-4 text-base font-medium text-white">Zapisz wynik</button>
+          <button onClick={save} className="w-full rounded-2xl bw-grad py-4 text-base font-medium text-white">Zapisz wynik</button>
         </Sheet>
       )}
       {video && (test.key === "cmj" || test.key === "sprint") && (

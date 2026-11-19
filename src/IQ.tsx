@@ -48,7 +48,7 @@ export default function IQ() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     el.appendChild(renderer.domElement);
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xe9e4d8);
+    scene.background = new THREE.Color(0xe3edf8);
     const cam = new THREE.PerspectiveCamera(60, 1, 0.1, 400);
     scene.add(new THREE.HemisphereLight(0xffffff, 0x88aa88, 1.0));
     const sun = new THREE.DirectionalLight(0xffffff, 0.6); sun.position.set(30, 60, 20); scene.add(sun);

@@ -40,3 +40,8 @@
 - Przeglądarka na iPhonie: zwykle do 60 kl./s (±ok. 2 cm na klatkę przy CMJ 30 cm). 240 kl./s tylko w wersji iOS.
 - ZABLOKOWANE: wersja natywna iOS (240 kl./s, gotowa wtyczka w historii: native/ballwise-camera w 4f05c9d) – użytkownik nie ma Maca; darmowe konto Apple.
 - DO ZROBIENIA: skok w dal z wideo ze znacznikiem 1 m (kalibracja), automatyczny sprint (start na sygnał, meta z ruchu tułowia).
+
+## Wygląd niebieski i onboarding v2 (2026-11-19)
+- Paleta: pastelowy błękit → granat (gradient na przyciskach głównych, pierścieniu i wybranych opcjach), klub na zielono.
+- Onboarding bez przewijania (sprawdzone przy wysokości 520 px), liga z listy od dołu, kalendarz tygodnia: wolny / klub / mecz / brak (dzień niedostępny – silnik nie układa w nim treningów), zawsze „Mecz", nie „Sparing".
+- Animacje: przesuwanie kroków (dalej z prawej, wstecz z lewej), „podskakujące" wybory, animowany szkic na każdym kroku, ekran przejścia „Układam Twój tydzień" i płynne wejście na Start.

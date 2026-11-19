@@ -149,7 +149,7 @@ export function SessionSheet({
           <>
             <p className="text-sm text-muted">{run.title}</p>
             <MasCard mas={mas} onChange={setMas} />
-            <button onClick={() => setRunning(true)} className="mt-3 w-full rounded-2xl bg-accent py-3 text-sm font-medium text-card">
+            <button onClick={() => setRunning(true)} className="mt-3 w-full rounded-2xl bw-grad py-3 text-sm font-medium text-card">
               {run.isTest ? "Rozpocznij test z GPS" : "Rozpocznij bieg z GPS"}
             </button>
             {running && (
@@ -211,7 +211,7 @@ export function SessionSheet({
         )}
         <button
           onClick={finish}
-          className="mt-6 w-full rounded-2xl bg-accent py-3 text-sm font-medium text-white"
+          className="mt-6 w-full rounded-2xl bw-grad py-3 text-sm font-medium text-white"
         >
           Koniec sesji
         </button>
