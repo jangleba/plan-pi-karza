@@ -98,7 +98,11 @@ export interface Item {
   note?: string;
   pctRM?: [number, number];
 }
-export interface Block { items: Item[] }
+export interface Block {
+  /** Nazwa bloku pokazywana zawodnikowi (np. „Aktywacja”). Ćwiczenia w bloku robi się na zmianę: a → b → c. */
+  title?: string;
+  items: Item[];
+}
 export interface SessionTemplate {
   id: string;
   name: string;
@@ -118,12 +122,12 @@ export const TEMPLATES: SessionTemplate[] = [
     module: "strength",
     phase: "intensity",
     blocks: [
-      { items: [it("knee-iso-push", 3, "5 × 1 s / nogę"), it("sl-box-jump", 3, "3 / nogę")] },
-      { items: [it("hang-power-clean", 3, "3")] },
-      { items: [it("back-squat", 4, "2", { note: "tempo 4-1-x" }), it("depth-jump-hurdle", 4, "2")] },
-      { items: [it("bench-press", 4, "2", { pctRM: [90, 95] }), it("facepull", 3, "8")] },
-      { items: [it("bb-row", 3, "3"), it("sl-straight-leg-ht", 3, "3 / nogę")] },
-      { items: [it("slider-leg-curl", 3, "4", { note: "tempo 3-1-x" }), it("seated-sl-calf", 3, "12 / nogę"), it("banded-hip-flexion", 3, "5 / nogę")] },
+      { title: "Aktywacja", items: [it("knee-iso-push", 3, "5 × 1 s / nogę"), it("sl-box-jump", 3, "3 / nogę")] },
+      { title: "Moc", items: [it("hang-power-clean", 3, "3")] },
+      { title: "Siła nóg + skok", items: [it("back-squat", 4, "2", { note: "tempo 4-1-x" }), it("depth-jump-hurdle", 4, "2")] },
+      { title: "Góra", items: [it("bench-press", 4, "2", { pctRM: [90, 95] }), it("facepull", 3, "8")] },
+      { title: "Plecy i biodra", items: [it("bb-row", 3, "3"), it("sl-straight-leg-ht", 3, "3 / nogę")] },
+      { title: "Dodatki", items: [it("slider-leg-curl", 3, "4", { note: "tempo 3-1-x" }), it("seated-sl-calf", 3, "12 / nogę"), it("banded-hip-flexion", 3, "5 / nogę")] },
     ],
   },
   {
@@ -132,12 +136,12 @@ export const TEMPLATES: SessionTemplate[] = [
     module: "strength",
     phase: "volume",
     blocks: [
-      { items: [it("knee-iso-push", 3, "5 × 1 s / nogę"), it("sl-box-jump", 3, "3 / nogę")] },
-      { items: [it("hang-power-clean", 4, "3")] },
-      { items: [it("back-squat", 5, "3", { note: "tempo 4-1-x" }), it("depth-jump-hurdle", 4, "3")] },
-      { items: [it("bench-press", 5, "4", { pctRM: [80, 85] }), it("facepull", 3, "10")] },
-      { items: [it("bb-row", 3, "5"), it("sl-straight-leg-ht", 3, "5 / nogę")] },
-      { items: [it("slider-leg-curl", 3, "6", { note: "tempo 3-1-x" }), it("seated-sl-calf", 3, "12 / nogę"), it("banded-hip-flexion", 3, "8 / nogę")] },
+      { title: "Aktywacja", items: [it("knee-iso-push", 3, "5 × 1 s / nogę"), it("sl-box-jump", 3, "3 / nogę")] },
+      { title: "Moc", items: [it("hang-power-clean", 4, "3")] },
+      { title: "Siła nóg + skok", items: [it("back-squat", 5, "3", { note: "tempo 4-1-x" }), it("depth-jump-hurdle", 4, "3")] },
+      { title: "Góra", items: [it("bench-press", 5, "4", { pctRM: [80, 85] }), it("facepull", 3, "10")] },
+      { title: "Plecy i biodra", items: [it("bb-row", 3, "5"), it("sl-straight-leg-ht", 3, "5 / nogę")] },
+      { title: "Dodatki", items: [it("slider-leg-curl", 3, "6", { note: "tempo 3-1-x" }), it("seated-sl-calf", 3, "12 / nogę"), it("banded-hip-flexion", 3, "8 / nogę")] },
     ],
   },
   {
@@ -146,11 +150,11 @@ export const TEMPLATES: SessionTemplate[] = [
     module: "sprint",
     phase: "sprint",
     blocks: [
-      { items: [it("skip-przejscia", 2, "30 m")] },
-      { items: [it("skip-a-b-d", 2, "30 m")] },
-      { items: [it("resisted-first-step", 2, "3 / stronę"), it("resisted-sprint", 2, "20 m"), it("sprint-30", 3, "30 m")] },
-      { items: [it("cod-turnover", 3, "10 m / stronę", { note: "80–90% prędkości, uwaga na mechanikę" }), it("deceleration", 3, "10 m rozbiegu")] },
-      { items: [it("sl-jumps-llrr", 2, "LL-RR-LL-RR"), it("heiden-jumps", 2, "5 / stronę")] },
+      { title: "Skipy – przejścia", items: [it("skip-przejscia", 2, "30 m")] },
+      { title: "Drille", items: [it("skip-a-b-d", 2, "30 m")] },
+      { title: "Przyspieszenie", items: [it("resisted-first-step", 2, "3 / stronę"), it("resisted-sprint", 2, "20 m"), it("sprint-30", 3, "30 m")] },
+      { title: "Zmiana kierunku", items: [it("cod-turnover", 3, "10 m / stronę", { note: "80–90% prędkości, uwaga na mechanikę" }), it("deceleration", 3, "10 m rozbiegu")] },
+      { title: "Skoki", items: [it("sl-jumps-llrr", 2, "LL-RR-LL-RR"), it("heiden-jumps", 2, "5 / stronę")] },
     ],
   },
   {
@@ -159,12 +163,12 @@ export const TEMPLATES: SessionTemplate[] = [
     module: "sprint",
     phase: "sprint",
     blocks: [
-      { items: [it("skip-przejscia", 1, "30 m"), it("ankling", 1, "30 m")] },
-      { items: [it("skip-a-b-d", 1, "30 m")] },
-      { items: [it("pogo-jumps", 3, "6"), it("sl-jumps-llrr", 2, "LL-RR-LL-RR")] },
-      { items: [it("resisted-sprint", 4, "15 m")] },
-      { items: [it("sprint-30", 5, "30 m")] },
-      { items: [it("curve-run", 4, "dłuższy łuk / stronę")] },
+      { title: "Przejścia i ankling", items: [it("skip-przejscia", 1, "30 m"), it("ankling", 1, "30 m")] },
+      { title: "Drille", items: [it("skip-a-b-d", 1, "30 m")] },
+      { title: "Skoki", items: [it("pogo-jumps", 3, "6"), it("sl-jumps-llrr", 2, "LL-RR-LL-RR")] },
+      { title: "Przyspieszenie z oporem", items: [it("resisted-sprint", 4, "15 m")] },
+      { title: "Sprint 30 m", items: [it("sprint-30", 5, "30 m")] },
+      { title: "Łuk", items: [it("curve-run", 4, "dłuższy łuk / stronę")] },
     ],
   },
 ];

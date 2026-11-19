@@ -42,7 +42,7 @@ function DayRow({ day, index, isToday, onOpen }: { day: DayPlan; index: number; 
   return (
     <ListRow
       index={index}
-      onTap={s ? onOpen : undefined}
+      onTap={s || day.isClub ? onOpen : undefined}
       accent={day.isMatch}
       title={<span className={(!s && !day.isMatch && !day.isClub) || day.isOff ? "text-muted" : ""}>{title}</span>}
       sub={s && day.isClub ? "+ trening klubowy" : undefined}

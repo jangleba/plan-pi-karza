@@ -4,6 +4,8 @@ import { Sheet } from "./Sheet";
 import { pushWeightLog } from "./lib/sync";
 import { MasCard, loadMas, saveMasDistance } from "./MasCard";
 import { RunTracker } from "./RunTracker";
+import { SessionBlocks } from "./SessionBlocks";
+import { ExerciseSheet } from "./exercises/ExerciseSheet";
 import { CueTrainer } from "./CueTrainer";
 import { EXERCISES, RECOVERY, bodyweightTemplate, drillsFor, adaptSession, addEvents, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
 import type { CheckIn, DayPlan, HistoryEvent, Level, Mas, Position, Suggestion } from "./engine";
@@ -22,6 +24,9 @@ export function SessionSheet({
   const [weights, setWeights] = useState<Record<string, string>>({});
   const [summary, setSummary] = useState<Suggestion[] | null>(null);
   const s = day.session;
+  const [info, setInfo] = useState<{ id: string; note?: string } | null>(null);
+  const both = !!s && day.isClub;
+  const [view, setView] = useState<"own" | "club">(s ? "own" : "club");
   const module = s?.kind === "strength" || s?.kind === "sprint" ? s.kind : null;
   const found = module
     ? module === "strength" && !hasGym
@@ -91,9 +96,19 @@ export function SessionSheet({
     );
   }
 
+
+  const club = view === "club" || !s;
   return (
-    <Sheet title={s ? KIND_TITLE[s.kind] : "Dzień"} onClose={onClose}>
-        {adapted ? (
+    <>
+    <Sheet title={club ? "Trening klubowy" : KIND_TITLE[s.kind]} onClose={onClose}>
+        {both && <DayTabs own={KIND_TITLE[s!.kind]!} view={view} onView={setView} />}
+        {club ? (
+          <div className="min-h-[34vh]">
+            <p className="mt-3 text-[15px] leading-snug">Ten trening prowadzi trener klubu.</p>
+            <p className="mt-2 text-sm text-muted">Planuję najwyżej dwa treningi dziennie: klubowy i jeden indywidualny.</p>
+            {!s && <button onClick={onClose} className="mt-6 w-full rounded-2xl bw-grad py-4 text-base font-medium text-white">OK</button>}
+          </div>
+        ) : adapted ? (
           <>
             <p className="text-sm text-muted">
               {adapted.name}{found?.deload ? " · rozładowanie" : ""}
@@ -101,41 +116,7 @@ export function SessionSheet({
             {adapted.notes.map((n) => (
               <p key={n} className="mt-3 rounded-xl border border-hairline bg-canvas px-3 py-2 text-sm text-muted">{n}</p>
             ))}
-            <ol className="mt-4 flex flex-col gap-3">
-              {adapted.blocks.map((b, bi) => (
-                <li key={bi} className="rounded-2xl bg-canvas p-3">
-                  {b.items.map((i, ii) => {
-                    const e = EXERCISES[i.exerciseId];
-                    const key = `${bi}-${ii}`;
-                    const prev = log[i.exerciseId];
-                    const placeholder = prev ? String(prev.next ?? prev.kg) : "kg";
-                    const rm = prev ? estimate1RM(prev.kg, prev.reps) : null;
-                    const target = i.pctRM && rm ? Math.round(rm * ((i.pctRM[0] + i.pctRM[1]) / 200) * 2) / 2 : null;
-                    return (
-                      <div key={key} className="flex items-center justify-between gap-3 py-1.5">
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium">{e?.name ?? i.exerciseId}</div>
-                          <div className="text-xs text-muted">
-                            {i.sets} × {i.reps}
-                            {i.pctRM ? ` · ${i.pctRM[0]}–${i.pctRM[1]}% maks.${target ? ` (≈ ${target} kg)` : ""}` : ""}
-                            {i.note ? ` · ${i.note}` : ""}
-                          </div>
-                        </div>
-                        {e?.loaded && (
-                          <input
-                            inputMode="decimal"
-                            placeholder={placeholder}
-                            value={weights[key] ?? ""}
-                            onChange={(ev) => setWeights({ ...weights, [key]: ev.target.value })}
-                            className="w-16 rounded-lg bg-card px-2 py-1.5 text-right text-sm outline-none"
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-                </li>
-              ))}
-            </ol>
+            <SessionBlocks blocks={adapted.blocks} mode={module === "sprint" ? "sequence" : "alternate"} log={log} weights={weights} onWeight={(k, v) => setWeights({ ...weights, [k]: v })} onOpen={(id, note) => setInfo({ id, note })} />
           </>
         ) : run ? (
           <>
@@ -201,12 +182,27 @@ export function SessionSheet({
             Szablon tej sesji jest w przygotowaniu.
           </p>
         )}
-        <button
-          onClick={finish}
-          className="mt-6 w-full rounded-2xl bw-grad py-4 text-base font-medium text-white"
-        >
-          Koniec sesji
-        </button>
+        {!club && (
+          <button
+            onClick={finish}
+            className="mt-6 w-full rounded-2xl bw-grad py-4 text-base font-medium text-white"
+          >
+            Koniec sesji
+          </button>
+        )}
     </Sheet>
+    {info && <ExerciseSheet id={info.id} note={info.note} onClose={() => setInfo(null)} />}
+    </>
+  );
+}
+
+/** Przełącznik dnia z dwoma treningami: indywidualny / klubowy. */
+function DayTabs({ own, view, onView }: { own: string; view: "own" | "club"; onView: (v: "own" | "club") => void }) {
+  const cls = (on: boolean) => `rounded-xl py-1.5 text-sm ${on ? "bg-card font-medium shadow-sm" : "text-muted"}`;
+  return (
+    <div className="mb-3 grid grid-cols-2 gap-1 rounded-2xl bg-hairline/70 p-1">
+      <button onClick={() => onView("own")} className={cls(view === "own")}>{own}</button>
+      <button onClick={() => onView("club")} className={cls(view === "club")}>Klub</button>
+    </div>
   );
 }
