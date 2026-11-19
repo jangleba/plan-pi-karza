@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Pitch } from "./Pitch";
+import { Sheet } from "./Sheet";
 import { pushWeightLog } from "./lib/sync";
 import { MasCard, loadMas, saveMasDistance } from "./MasCard";
 import { RunTracker } from "./RunTracker";
@@ -70,9 +71,7 @@ export function SessionSheet({
 
   if (summary) {
     return (
-      <div className="bw-backdrop fixed inset-0 z-30 flex items-end bg-black/25">
-        <div className="bw-sheet max-h-[85vh] w-full overflow-y-auto rounded-t-3xl bg-card p-5 pb-10 shadow-xl">
-          <h2 className="text-xl font-semibold">Dobra robota</h2>
+      <Sheet title="Dobra robota" onClose={onClose}>
           <p className="mb-4 text-sm text-muted">Propozycje na następną sesję.</p>
           {summary.map((sug) => (
             <div key={sug.exerciseId} className="mb-3 rounded-2xl bg-canvas p-3">
@@ -88,19 +87,12 @@ export function SessionSheet({
               )}
             </div>
           ))}
-        </div>
-      </div>
+      </Sheet>
     );
   }
 
   return (
-    <div className="bw-backdrop fixed inset-0 z-30 flex items-end bg-black/25" onClick={onClose}>
-      <div
-        className="bw-sheet max-h-[85vh] w-full overflow-y-auto rounded-t-3xl bg-card p-5 pb-10 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-black/10" />
-        <h2 className="text-xl font-semibold">{s ? KIND_TITLE[s.kind] : "Dzień"}</h2>
+    <Sheet title={s ? KIND_TITLE[s.kind] : "Dzień"} onClose={onClose}>
         {adapted ? (
           <>
             <p className="text-sm text-muted">
@@ -211,11 +203,10 @@ export function SessionSheet({
         )}
         <button
           onClick={finish}
-          className="mt-6 w-full rounded-2xl bw-grad py-3 text-sm font-medium text-white"
+          className="mt-6 w-full rounded-2xl bw-grad py-4 text-base font-medium text-white"
         >
           Koniec sesji
         </button>
-      </div>
-    </div>
+    </Sheet>
   );
 }

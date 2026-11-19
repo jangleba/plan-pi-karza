@@ -25,7 +25,7 @@ export const LAB_TESTS: LabTest[] = [
       "Ręce na biodrach, szybki przysiad i wyskok. Ląduj na prostych nogach.",
       "3 próby, zapisz najlepszą.",
     ],
-    caveat: "Metoda czasu lotu jest zgodna z płytą dynamometryczną w badaniach; moc szczytowa z aplikacji jest mniej wiarygodna.",
+    caveat: "Wynik z czasu lotu nie zależy od odległości telefonu.",
   },
   {
     key: "broad-jump",
@@ -57,7 +57,7 @@ export const LAB_TESTS: LabTest[] = [
       "Rytm z oficjalnej ścieżki dźwiękowej, start 10 km/h; test kończysz po dwóch spóźnieniach.",
       "Zapisz łączny dystans w metrach.",
     ],
-    caveat: "Tabele prędkości w źródłach się różnią – użyj oficjalnej ścieżki dźwiękowej. MAS z biegu 5 min jest osobno na ekranie Plan.",
+    caveat: "Użyj oficjalnej ścieżki dźwiękowej Yo-Yo IR1.",
   },
 ];
 

@@ -65,3 +65,10 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 - Ekran pozostaje włączony (Wake Lock); w przeglądarce GPS działa tylko przy włączonym ekranie.
 - Biegi zapisywane lokalnie (`runs`), trasa co 5. punkt.
 - Filtrowanie GPS: punkty o dokładności > 25 m i prędkości > 11 m/s odrzucane.
+
+## IQ – grafika v2 (2026-11-19)
+- Scena: murawa z pasami koszenia, pełne linie (pola karne, bramkowe, łuki, punkty), bramki z siatką, niebo i mgła w oddali, miękkie cienie, tonowanie kolorów.
+- Zawodnicy: sylwetki (nogi, spodenki, koszulka, ręce, głowa) z animacją biegu i obrotem w stronę ruchu; my – granat, koledzy – błękit, rywale – czerwień, bramkarz – żółty.
+- Rozgrywka: ekran startowy z opisem sytuacji, licznik czasu, przerywana linia celowania z pulsującym pierścieniem i nazwą adresata, lot piłki po podaniu/strzale, płynna kamera.
+- Wynik: tablica taktyczna (pasy, linie, linia spalonego, Twój wybór vs lepsza opcja z legendą) w karcie od dołu.
+- NIE sprawdzone na telefonie (wydajność cieni i grafiki) – sprawdzone w przeglądarce bez GPU.

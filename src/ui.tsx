@@ -1,9 +1,28 @@
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { Sketch, type SketchKind } from "./Sketch";
 
-/** Duży tytuł jak w aplikacjach Apple, z małym szkicem. */
+/** Po przewinięciu dużego tytułu pokazuje się mały, rozmyty pasek u góry – jak w iOS. */
+function useScrolledPast(px: number): boolean {
+  const [past, setPast] = useState(false);
+  useEffect(() => {
+    let raf = 0;
+    const on = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => setPast(window.scrollY > px)); };
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => { window.removeEventListener("scroll", on); cancelAnimationFrame(raf); };
+  }, [px]);
+  return past;
+}
+
+/** Duży tytuł jak w aplikacjach Apple, z małym szkicem i zwijanym paskiem przy przewijaniu. */
 export function LargeTitle({ title, sub, kind }: { title: string; sub?: ReactNode; kind?: SketchKind }) {
+  const past = useScrolledPast(56);
   return (
+    <>
+    <div aria-hidden={!past}
+      className={`fixed inset-x-0 top-0 z-20 border-b bg-card/80 pt-[env(safe-area-inset-top)] backdrop-blur-xl backdrop-saturate-150 transition-all duration-200 ${past ? "border-hairline/80 opacity-100" : "pointer-events-none border-transparent opacity-0"}`}>
+      <div className="mx-auto max-w-md py-3 text-center text-[15px] font-semibold">{title}</div>
+    </div>
     <header className="bw-rise mb-6 flex items-end justify-between gap-3">
       <div>
         {sub && <p className="text-sm text-muted">{sub}</p>}
@@ -11,6 +30,7 @@ export function LargeTitle({ title, sub, kind }: { title: string; sub?: ReactNod
       </div>
       {kind && <Sketch kind={kind} className="h-12 w-12" />}
     </header>
+    </>
   );
 }
 
