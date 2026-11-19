@@ -48,6 +48,8 @@ export interface WeekInput {
   /** Domyślnie „w sezonie". */
   season?: Season;
   goal?: SeasonGoal;
+  /** Drugi cel: dodatkowa sesja tylko, gdy zostanie wolne miejsce. */
+  goal2?: SeasonGoal;
   /** Dni niedostępne (ISO). */
   offDays?: string[];
 }

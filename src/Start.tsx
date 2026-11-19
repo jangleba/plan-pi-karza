@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { cycleWeekFor, levelOf, localISO, planForProfile, readinessScore, strainOf, weekStartOf } from "./engine";
-import type { CheckIn, DayPlan, Profile, SessionKind } from "./engine";
+import { FEEL_NOW, cycleWeekFor, feelDue, levelOf, loadFeelings, localISO, planForProfile, readinessScore, saveFeeling, strainOf, weekStartOf } from "./engine";
+import type { CheckIn, DayPlan, FeelNow, Profile, SessionKind } from "./engine";
 import { Sheet } from "./Sheet";
 import { SessionSheet } from "./SessionSheet";
 import { MatchInMind } from "./MatchInMind";
@@ -67,7 +67,11 @@ function matchIn(d: DayPlan): string | null {
 export function Start({ profile, checkIn, checkedIn, onCheckIn }: {
   profile: Profile; checkIn: CheckIn; checkedIn: boolean; onCheckIn: (c: CheckIn) => void;
 }) {
-  const [sheet, setSheet] = useState<"checkin" | "session" | "mind" | null>(null);
+  const [sheet, setSheet] = useState<"checkin" | "session" | "mind" | "feel" | null>(null);
+  const [feel, setFeel] = useState<FeelNow[]>([]);
+  const [feelTick, setFeelTick] = useState(0);
+  void feelTick;
+  const feelings = loadFeelings();
   const today = localISO();
   const ws = weekStartOf(today);
   const day = planForProfile(profile, ws).days.find((d) => d.date === today);
@@ -89,6 +93,7 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn }: {
           />
         )}
         <Row title="Mecz w głowie" detail="3 min" onTap={() => setSheet("mind")} />
+        {feelDue(feelings.at(-1), today) && <Row title="Jak czujesz się na boisku?" detail="co 5 tyg." onTap={() => { setFeel([]); setSheet("feel"); }} />}
         {day && matchIn(day) && <Row title={matchIn(day)!} />}
       </div>
 
@@ -109,6 +114,23 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn }: {
           hasGym={profile.equipment.includes("gym")} onClose={() => setSheet(null)} />
       )}
       {sheet === "mind" && <MatchInMind position={profile.position} onClose={() => setSheet(null)} />}
+      {sheet === "feel" && (
+        <Sheet title="Jak czujesz się na boisku?" onClose={() => setSheet(null)}>
+          <div className="mb-6 flex flex-col gap-2">
+            {FEEL_NOW.map(([v, t]) => {
+              const on = feel.includes(v);
+              return (
+                <button key={`${v}-${on}`} onClick={() => setFeel(on ? feel.filter((x) => x !== v) : [...feel, v])}
+                  className={`flex items-center justify-between rounded-2xl px-4 py-3.5 text-left ${on ? "bw-pop bw-sel font-semibold" : "border border-hairline bg-card"}`}>
+                  {t}<span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${on ? "bg-accent text-white" : "border border-hairline"}`}>{on ? "✓" : ""}</span>
+                </button>
+              );
+            })}
+          </div>
+          <button onClick={() => { saveFeeling({ date: today, now: feel }); setFeelTick((x) => x + 1); setSheet(null); }}
+            className="bw-grad w-full rounded-2xl py-4 text-base font-medium text-white">{feel.length ? "Zapisz" : "Wszystko gra – zapisz"}</button>
+        </Sheet>
+      )}
     </main>
   );
 }

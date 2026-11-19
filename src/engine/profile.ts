@@ -16,6 +16,8 @@ export interface Profile {
   /** Domyślnie „w sezonie" (stare profile). */
   season?: Season;
   goal?: SeasonGoal;
+  /** Drugi cel (dodatkowy). */
+  goal2?: SeasonGoal;
   league?: League;
   age: number;
   /** Lata regularnego treningu siłowego. */
@@ -96,6 +98,7 @@ export function planForProfile(profile: Profile, weekStart: string) {
     limitedGymAccess: profile.limitedGymAccess,
     season: profile.season,
     goal: profile.goal,
+    goal2: profile.goal2,
   });
 }
 

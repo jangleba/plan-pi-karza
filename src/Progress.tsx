@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { EXERCISES, loadHistory, localISO, series, sessionsPerWeek, trend, weekStartOf } from "./engine";
+import { EXERCISES, FEEL_NOW, feelChange, loadFeelings, loadHistory, localISO, series, sessionsPerWeek, trend, weekStartOf } from "./engine";
 import type { Better, EventType, HistoryEvent } from "./engine";
 import { LineChart, TREND_HEX } from "./LineChart";
 import { Empty, PageHeader } from "./Sketch";
@@ -40,6 +40,34 @@ function Card({
   );
 }
 
+const FEEL_LABEL = Object.fromEntries(FEEL_NOW) as Record<string, string>;
+
+/** Jak zawodnik czuje się na boisku: pierwsza vs ostatnia odpowiedź. */
+function FeelSection() {
+  const all = loadFeelings();
+  if (!all.length) return null;
+  const first = all[0]!, last = all[all.length - 1]!;
+  const ch = all.length > 1 ? feelChange(first, last) : null;
+  return (
+    <>
+      <h2 className="mb-2 text-xs uppercase tracking-wide text-muted">Na boisku</h2>
+      <section className="mb-3 rounded-2xl border border-hairline bg-card p-4 text-sm">
+        {ch ? (
+          <>
+            {ch.better.map((f) => <p key={f} className="text-green-ink">Lepiej: już nie „{FEEL_LABEL[f]}”</p>)}
+            {ch.worse.map((f) => <p key={f} className="text-red-ink">Nowe: „{FEEL_LABEL[f]}”</p>)}
+            {!ch.better.length && !ch.worse.length && <p className="text-muted">Bez zmian od {first.date.split("-").reverse().join(".")}.</p>}
+          </>
+        ) : (
+          <p className="text-muted">
+            {last.now.length ? last.now.map((f) => FEEL_LABEL[f]).join(", ") : "Bez problemów"} · pytanie wróci za 5 tygodni.
+          </p>
+        )}
+      </section>
+    </>
+  );
+}
+
 export function Progress({ refreshKey }: { refreshKey?: number }) {
   const events: HistoryEvent[] = useMemo(loadHistory, [refreshKey]);
   const strengthKeys = [...new Set(events.filter((e) => e.type === "strength").map((e) => e.key))];
@@ -54,6 +82,7 @@ export function Progress({ refreshKey }: { refreshKey?: number }) {
           <Empty kind="progres">Wykresy pojawią się po pierwszych sesjach i testach.</Empty>
         </div>
       )}
+      <FeelSection />
       <h2 className="mb-2 text-xs uppercase tracking-wide text-muted">Regularność</h2>
       <Card title="Sesje w tygodniu" points={weeks} better="higher" unit="" />
       <h2 className="mb-2 mt-5 text-xs uppercase tracking-wide text-muted">Siła (szac. 1RM)</h2>
