@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { FEEL_NOW, addDays, feelDue, loadFeelings, loadMatches, localISO, matchDue, matchSummary, readinessScore, saveFeeling, strainOf } from "./engine";
-import type { CheckIn, FeelNow, MatchEntry, Profile } from "./engine";
+import { FEEL_NOW, feelDue, loadFeelings, localISO, readinessScore, saveFeeling, strainOf } from "./engine";
+import type { CheckIn, FeelNow, Profile } from "./engine";
 import { Sheet } from "./Sheet";
 import { MatchInMind } from "./MatchInMind";
-import { MatchLog, ResultDot } from "./MatchLog";
 import { Group, ListRow } from "./ui";
 
 const LEVELS: Array<[1 | 2 | 3, string]> = [[1, "Słabo"], [2, "Średnio"], [3, "Dobrze"]];
@@ -63,18 +62,12 @@ function Choice({ label, value, onChange }: { label: string; value: 1 | 2 | 3; o
 export function Start({ profile, checkIn, checkedIn, onCheckIn }: {
   profile: Profile; checkIn: CheckIn; checkedIn: boolean; onCheckIn: (c: CheckIn) => void;
 }) {
-  const [sheet, setSheet] = useState<"checkin" | "mind" | "feel" | "log" | null>(null);
-  const [matches, setMatches] = useState<MatchEntry[]>(loadMatches);
-  /** Data, od której Dziennik otwiera się od razu w formularzu (przypomnienie po meczu). */
-  const [logDate, setLogDate] = useState<string | undefined>();
+  const [sheet, setSheet] = useState<"checkin" | "mind" | "feel" | null>(null);
   const [feel, setFeel] = useState<FeelNow[]>([]);
   const [feelTick, setFeelTick] = useState(0);
   void feelTick;
   const feelings = loadFeelings();
   const today = localISO();
-  const season = matchSummary(matches, today);
-  const due = (profile.season ?? "inseason") === "offseason" ? null : matchDue(profile.matchWeekdays, matches, today);
-  const openLog = (date?: string) => { setLogDate(date); setSheet("log"); };
 
   return (
     <main className="mx-auto max-w-md px-5 pb-32 pt-14">
@@ -87,13 +80,8 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn }: {
       </section>
 
       <Group>
-        {due && <ListRow index={1} accent title="Jak poszedł mecz?" sub={due === addDays(today, -1) ? "wczoraj" : "przedwczoraj"} onTap={() => openLog(due)} />}
-        <ListRow index={2} title="Dziennik meczów"
-          sub={season.count ? `Sezon: ${season.count} ${season.count === 1 ? "mecz" : "meczów"}${season.avgRating !== null ? ` · śr. ${String(season.avgRating).replace(".", ",")}` : ""}` : "Wynik, ocena, co poszło dobrze"}
-          detail={season.form.length ? <span className="flex gap-1">{season.form.map((r, i) => <ResultDot key={i} r={r} size={20} />)}</span> : undefined}
-          onTap={() => openLog()} />
-        <ListRow index={3} title="Mecz w głowie" detail="3 min" onTap={() => setSheet("mind")} />
-        {feelDue(feelings.at(-1), today) && <ListRow index={4} title="Jak czujesz się na boisku?" detail="co 5 tyg." onTap={() => { setFeel([]); setSheet("feel"); }} />}
+        <ListRow index={1} title="Mecz w głowie" detail="3 min" onTap={() => setSheet("mind")} />
+        {feelDue(feelings.at(-1), today) && <ListRow index={2} title="Jak czujesz się na boisku?" detail="co 5 tyg." onTap={() => { setFeel([]); setSheet("feel"); }} />}
       </Group>
 
       {sheet === "checkin" && (
@@ -107,7 +95,6 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn }: {
           <button onClick={() => { onCheckIn(checkIn); setSheet(null); }} className="w-full bw-grad rounded-2xl py-4 text-base font-medium">Gotowe</button>
         </Sheet>
       )}
-      {sheet === "log" && <MatchLog profile={profile} matches={matches} startDate={logDate} onChange={setMatches} onClose={() => { setSheet(null); setLogDate(undefined); }} />}
       {sheet === "mind" && <MatchInMind position={profile.position} onClose={() => setSheet(null)} />}
       {sheet === "feel" && (
         <Sheet title="Jak czujesz się na boisku?" onClose={() => setSheet(null)}>
