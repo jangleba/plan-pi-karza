@@ -142,7 +142,7 @@ export function VideoMeasure({ mode, onResult, onClose, src, srcFps, auto }: {
         )}
         {!pending && (
           <div className="flex flex-col gap-2">
-            <button onClick={() => { onResult({ flightTime: analysis.flightS }); onClose(); }} className="w-full rounded-2xl bw-grad py-4 text-base font-medium text-white">Zatwierdź</button>
+            <button onClick={() => { onResult({ flightTime: analysis.flightS }); onClose(); }} className="w-full rounded-2xl bw-grad py-4 text-base font-medium">Zatwierdź</button>
             <button onClick={() => { setAnalysis(null); setMarks([]); setTimeout(() => seekFrame(Math.max(0, analysis.takeoff - 3)), 50); }}
               className="w-full rounded-2xl border border-hairline bg-canvas py-3.5 text-sm">Popraw ręcznie</button>
           </div>
@@ -188,7 +188,7 @@ export function VideoMeasure({ mode, onResult, onClose, src, srcFps, auto }: {
             {marks.length > 0 && <div className="mt-1 text-xs text-muted">Zaznaczone klatki: {marks.map((t) => Math.floor(t * fps)).join(", ")}</div>}
           </div>
           <div className="mt-3 flex gap-2">
-            <button onClick={mark} className="flex-1 rounded-xl bw-grad py-3 text-sm font-medium text-white">Zaznacz tę klatkę</button>
+            <button onClick={mark} className="flex-1 rounded-xl bw-grad py-3 text-sm font-medium">Zaznacz tę klatkę</button>
             {marks.length > 0 && <button onClick={() => setMarks(marks.slice(0, -1))} className="rounded-xl bg-canvas px-4 text-sm">Cofnij</button>}
           </div>
         </>

@@ -114,7 +114,7 @@ function Portion({ sel, setSel, onAdd, onClose }: { sel: { food: Food; g: number
         <div className="rounded-2xl bg-canvas py-3"><div className="text-xl font-semibold tabular-nums">{m.protein}</div><div className="text-xs text-muted">g białka</div></div>
       </div>
       <p className="mt-3 text-[11px] text-muted">{food.source === "off" ? "Dane z Open Food Facts – sprawdź z etykietą." : "Wartości orientacyjne z tabel składu żywności."}</p>
-      <button disabled={g <= 0} onClick={() => onAdd({ name: `${label} · ${amountText(food, g)}`, carb: m.carb, protein: m.protein })} className="mt-5 w-full rounded-2xl bw-grad py-4 text-base font-medium text-white disabled:opacity-40">Dodaj</button>
+      <button disabled={g <= 0} onClick={() => onAdd({ name: `${label} · ${amountText(food, g)}`, carb: m.carb, protein: m.protein })} className="mt-5 w-full rounded-2xl bw-grad py-4 text-base font-medium disabled:opacity-40">Dodaj</button>
     </Sheet>
   );
 }

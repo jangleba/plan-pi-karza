@@ -201,11 +201,11 @@ export function RunTracker({ session, onClose, onFinish }: {
       </div>
 
       <div className="flex gap-2 px-5 pb-8 pt-3">
-        {status === "ready" && <button onClick={start} className="flex-1 rounded-2xl bw-grad py-3.5 text-base font-medium text-white">Start</button>}
+        {status === "ready" && <button onClick={start} className="flex-1 rounded-2xl bw-grad py-3.5 text-base font-medium">Start</button>}
         {status === "running" && <button onClick={pause} className="flex-1 rounded-2xl border border-hairline bg-card py-3.5 text-base">Pauza</button>}
-        {status === "paused" && <button onClick={start} className="flex-1 rounded-2xl bw-grad py-3.5 text-base font-medium text-white">Wznów</button>}
+        {status === "paused" && <button onClick={start} className="flex-1 rounded-2xl bw-grad py-3.5 text-base font-medium">Wznów</button>}
         {(status === "running" || status === "paused") && (
-          <button onClick={finish} className="flex-1 rounded-2xl bw-grad py-3.5 text-base font-medium text-white">Zakończ</button>
+          <button onClick={finish} className="flex-1 rounded-2xl bw-grad py-3.5 text-base font-medium">Zakończ</button>
         )}
         {status === "done" && (
           <button
@@ -213,7 +213,7 @@ export function RunTracker({ session, onClose, onFinish }: {
               saveRun(track, elapsed);
               onFinish({ distanceM: track.distanceM, elapsedMs: elapsed, distanceAt5min: at5 });
             }}
-            className="flex-1 rounded-2xl bw-grad py-3.5 text-base font-medium text-white"
+            className="flex-1 rounded-2xl bw-grad py-3.5 text-base font-medium"
           >
             {session.isTest && at5 ? "Zapisz MAS i bieg" : "Zapisz bieg"}
           </button>

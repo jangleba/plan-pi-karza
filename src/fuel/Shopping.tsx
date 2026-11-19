@@ -44,7 +44,7 @@ export function Shopping({ profile, goal, today, onClose }: { profile: Profile; 
               const on = checked.includes(l.foodId);
               return (
                 <button key={l.foodId} onClick={() => toggle(l.foodId)} className="flex w-full items-center gap-3 border-b border-hairline/70 py-3 text-left last:border-0">
-                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] ${on ? "border-ink bg-ink text-white" : "border-hairline bg-card"}`}>{on ? "✓" : ""}</span>
+                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] ${on ? "bw-grad border-transparent" : "border-hairline bg-card"}`}>{on ? "✓" : ""}</span>
                   <span className={`flex-1 text-[15px] ${on ? "text-muted line-through" : ""}`}>{l.name}</span>
                   <span className="text-sm tabular-nums text-muted">{l.text}</span>
                 </button>

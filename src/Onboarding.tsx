@@ -54,7 +54,7 @@ function Tile({ on, onTap, title, sub, badge }: { on: boolean; onTap: () => void
         <span className={`block text-[15px] ${on ? "font-semibold" : "font-medium text-ink"}`}>{title}</span>
         {sub && <span className={`block text-xs ${on ? "text-accent/75" : "text-muted"}`}>{sub}</span>}
       </span>
-      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition ${on ? "bg-accent text-white" : "border border-hairline"}`}>
+      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition ${on ? "bw-grad" : "border border-hairline"}`}>
         {on ? badge ?? "✓" : ""}
       </span>
     </button>
@@ -180,7 +180,7 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
         <h1 className="bw-rise mt-8 text-[44px] font-semibold leading-none tracking-tight text-ink" style={{ animationDelay: "80ms" }}>Ballwise</h1>
         <p className="bw-rise mt-4 text-lg text-muted" style={{ animationDelay: "160ms" }}>Trening, który układa się wokół Twojego meczu.</p>
         <div className="flex-1" />
-        <button onClick={next} className="bw-grad w-full rounded-2xl py-4 text-base font-medium text-white shadow-sm">Zaczynamy</button>
+        <button onClick={next} className="bw-grad w-full rounded-2xl py-4 text-base font-medium shadow-sm">Zaczynamy</button>
       </main>
     );
   }
@@ -312,7 +312,7 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
       </div>
 
       {error && <p className="bw-pop mt-2 shrink-0 text-center text-sm text-red-ink">{error}</p>}
-      <button onClick={next} className="bw-grad mt-3 w-full shrink-0 rounded-2xl py-3.5 text-base font-medium text-white shadow-sm">
+      <button onClick={next} className="bw-grad mt-3 w-full shrink-0 rounded-2xl py-3.5 text-base font-medium shadow-sm">
         {step === last ? "Gotowe" : "Dalej"}
       </button>
 

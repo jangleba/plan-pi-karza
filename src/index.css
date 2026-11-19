@@ -11,6 +11,11 @@
   --color-accent: #2f6fb3;
   --color-accent-soft: #e8f1fc;
   --color-sel-border: #c9def6;
+  /* przyciski: pastelowy błękit (między błękitem a bielą) z ciemnoniebieskim tekstem */
+  --color-btn: #dbe9fa;
+  --color-btn-press: #cde1f7;
+  --color-btn-line: #c3d9f3;
+  --color-btn-ink: #1f4d80;
   --color-sky: #8ec1f0;
   --color-navy: #1d1d1f;
   --color-club: #2e9e62;
@@ -62,8 +67,9 @@ button:active:not(:disabled) { transform: scale(0.96); }
 @media (prefers-reduced-motion: reduce) { .bw-rise { animation: none; } }
 
 /* gradient błękit → granat: przyciski główne i wyróżnienia */
-/* przycisk główny: grafit (nazwa klasy zostaje dla zgodności) */
-.bw-grad { background-color: var(--color-ink); }
+/* przycisk główny: pastelowy błękit w całej aplikacji (nazwa klasy zostaje dla zgodności) */
+.bw-grad { background-color: var(--color-btn); color: var(--color-btn-ink); box-shadow: inset 0 0 0 1px var(--color-btn-line); }
+.bw-grad:active:not(:disabled) { background-color: var(--color-btn-press); }
 /* zaznaczenie: bardzo jasny błękit, widoczny na bieli */
 .bw-sel { background-color: var(--color-accent-soft); color: var(--color-accent); box-shadow: inset 0 0 0 1px var(--color-sel-border); }
 .bw-grad-soft { background-color: var(--color-canvas); }

@@ -31,7 +31,7 @@ export function SlotSheet({ slot, dayIndex, eaten, onEat, onOther, onUndo, onClo
               ))}
             </ul>
             {!eaten && (
-              <button onClick={() => onEat(idea)} className={`mt-3 w-full rounded-xl py-2.5 text-sm font-medium ${i === 0 ? "bw-grad text-white" : "border border-hairline bg-card"}`}>Zjadłem to</button>
+              <button onClick={() => onEat(idea)} className={`mt-3 w-full rounded-xl py-2.5 text-sm font-medium ${i === 0 ? "bw-grad" : "border border-hairline bg-card"}`}>Zjadłem to</button>
             )}
           </section>
         ))}

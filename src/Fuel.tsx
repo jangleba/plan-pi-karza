@@ -88,7 +88,7 @@ export function Fuel({ profile }: { profile: Profile }) {
             </button>
           )}
           <div className="mt-4 flex gap-2">
-            <button onClick={() => nextIdeas[0] && eatIdea(next, nextIdeas[0])} className="flex-1 rounded-2xl bw-grad py-3.5 text-[15px] font-medium text-white">Zjedzone</button>
+            <button onClick={() => nextIdeas[0] && eatIdea(next, nextIdeas[0])} className="flex-1 rounded-2xl bw-grad py-3.5 text-[15px] font-medium">Zjedzone</button>
             <button onClick={() => openSlot(next.id)} className="rounded-2xl border border-hairline bg-card px-5 py-3.5 text-[15px]">Inne pomysły</button>
           </div>
         </section>
@@ -125,11 +125,11 @@ export function Fuel({ profile }: { profile: Profile }) {
         </div>
         <div className="flex gap-2">
           <button onClick={() => addWater(-WATER_STEP)} disabled={water <= 0} aria-label="Cofnij szklankę" className="h-10 w-10 rounded-full border border-hairline bg-canvas text-lg disabled:opacity-40">−</button>
-          <button onClick={() => addWater(WATER_STEP)} className="rounded-full bw-grad px-4 text-sm font-medium text-white">+ szklanka</button>
+          <button onClick={() => addWater(WATER_STEP)} className="rounded-full bw-grad px-4 text-sm font-medium">+ szklanka</button>
         </div>
       </section>
 
-      <button onClick={() => { setForSlot(undefined); setSheet("add"); }} className="bw-rise mb-6 w-full rounded-2xl bw-grad py-4 text-base font-medium text-white">Dodaj jedzenie</button>
+      <button onClick={() => { setForSlot(undefined); setSheet("add"); }} className="bw-rise mb-6 w-full rounded-2xl bw-grad py-4 text-base font-medium">Dodaj jedzenie</button>
 
       <Group>
         <ListRow index={1} title="Dziennik" detail={`${meals.length} ${meals.length === 1 ? "pozycja" : "pozycji"}`} onTap={() => setSheet("journal")} />

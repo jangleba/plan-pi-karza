@@ -84,7 +84,7 @@ export function SessionSheet({
               <div className="text-xs text-muted">{sug.from} kg · {sug.text}</div>
               {sug.to !== sug.from ? (
                 <div className="mt-2 flex gap-2">
-                  <button onClick={() => decide(sug, true)} className="flex-1 rounded-xl bg-ink py-1.5 text-sm font-medium text-white">Przyjmij {sug.to} kg</button>
+                  <button onClick={() => decide(sug, true)} className="flex-1 rounded-xl bw-grad py-1.5 text-sm font-medium">Przyjmij {sug.to} kg</button>
                   <button onClick={() => decide(sug, false)} className="flex-1 rounded-xl bg-card py-1.5 text-sm text-muted">Zostaję</button>
                 </div>
               ) : (
@@ -106,7 +106,7 @@ export function SessionSheet({
           <div className="min-h-[34vh]">
             <p className="mt-3 text-[15px] leading-snug">Ten trening prowadzi trener klubu.</p>
             <p className="mt-2 text-sm text-muted">Planuję najwyżej dwa treningi dziennie: klubowy i jeden indywidualny.</p>
-            {!s && <button onClick={onClose} className="mt-6 w-full rounded-2xl bw-grad py-4 text-base font-medium text-white">OK</button>}
+            {!s && <button onClick={onClose} className="mt-6 w-full rounded-2xl bw-grad py-4 text-base font-medium">OK</button>}
           </div>
         ) : adapted ? (
           <>
@@ -122,7 +122,7 @@ export function SessionSheet({
           <>
             <p className="text-sm text-muted">{run.title}</p>
             <MasCard mas={mas} onChange={setMas} />
-            <button onClick={() => setRunning(true)} className="mt-3 w-full rounded-2xl bw-grad py-3 text-sm font-medium text-white">
+            <button onClick={() => setRunning(true)} className="mt-3 w-full rounded-2xl bw-grad py-3 text-sm font-medium">
               {run.isTest ? "Rozpocznij test z GPS" : "Rozpocznij bieg z GPS"}
             </button>
             {running && (
@@ -185,7 +185,7 @@ export function SessionSheet({
         {!club && (
           <button
             onClick={finish}
-            className="mt-6 w-full rounded-2xl bw-grad py-4 text-base font-medium text-white"
+            className="mt-6 w-full rounded-2xl bw-grad py-4 text-base font-medium"
           >
             Koniec sesji
           </button>

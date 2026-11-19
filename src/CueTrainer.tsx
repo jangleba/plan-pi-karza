@@ -57,7 +57,7 @@ export function CueTrainer() {
         Co {everyS} s
         <input type="range" min={1} max={6} value={everyS} onChange={(e) => setEveryS(Number(e.target.value))} />
       </label>
-      <button onClick={() => setRunning(!running)} className="w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-white">
+      <button onClick={() => setRunning(!running)} className="w-full rounded-xl bw-grad py-2.5 text-sm font-medium">
         {running ? "Stop" : "Start"}
       </button>
     </section>
