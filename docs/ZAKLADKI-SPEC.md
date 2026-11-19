@@ -183,3 +183,7 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 - **Losowanie** (`tools/Draw.tsx`): kolor (2–4), numer (1–3…6), strona (lewa/prawa), kierunek (2/4); dotknięcie ekranu losuje kolejny wynik, nigdy nie powtarza poprzedniego, historia ostatnich wyników.
 - Poziomo: gdy telefon jest ustawiony pionowo, ekran narzędzia jest obrócony o 90° (Safari nie pozwala wymusić orientacji), po obróceniu telefonu wraca normalny pełny ekran. Ekran nie gaśnie (Wake Lock), jeśli przeglądarka pozwala; wibracja nie działa w Safari na iPhonie.
 - NIE sprawdzone na telefonie (obrót ekranu, dźwięk, wibracja, Wake Lock) – w przeglądarce komputerowej sprawdzone tylko wygląd i logika.
+
+## Start – tylko to, czego nie ma w zakładkach (2026-11-19, korekta)
+- Decyzja użytkownika: na Starcie nic nie może powtarzać zakładek. Usunięte: karta „Dziś” (sesja – jest w Planie), pasek tygodnia (Plan), skrót do posiłku (Fuel). Zostały: check-in z pierścieniem gotowości (bez zmian), „Mecz w głowie” i okresowe pytanie „Jak czujesz się na boisku?” (nie ma ich w żadnej zakładce).
+- Do wymyślenia: coś zupełnie nowego na Start (propozycje i wybór z użytkownikiem).
