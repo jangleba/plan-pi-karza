@@ -377,7 +377,7 @@ export default function IQ() {
   const hint = poss === "foe" ? "Rywal z piłką – dobiegnij i odbierz" : poss === "loose" ? "Piłka luźna" : poss === "mate" ? "Piłka u kolegi" : null;
 
   return (
-    <main className="mx-auto max-w-md px-5 pb-28 pt-14">
+    <main className="mx-auto max-w-md px-5 pb-32 pt-14">
       <LargeTitle kind="iq" title="IQ" sub="Wyjście spod pressingu + kontratak" />
       <div className="relative overflow-hidden rounded-3xl border border-hairline bg-hairline shadow-sm">
         <div ref={mount} className="h-[58vh] min-h-[340px] w-full" />

@@ -146,7 +146,7 @@ export function Lab() {
   const [tick, setTick] = useState(0);
   void tick;
   return (
-    <main className="mx-auto max-w-md px-5 pb-28 pt-14">
+    <main className="mx-auto max-w-md px-5 pb-32 pt-14">
       <LargeTitle kind="lab" title="Lab" sub="Co 4–5 tygodni" />
       <Group>
         {LAB_TESTS.map((t, i) => <TestRow key={t.key} index={i} test={t} onSaved={() => setTick(tick + 1)} />)}
