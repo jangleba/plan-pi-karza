@@ -12,17 +12,19 @@ import {
 } from "./state";
 import { useClubs, useRadar } from "./useRadar";
 import { clubsForPlayer, loadSent, type Club, type ClubView } from "./clubs";
-import { ClubCard, Inquiry } from "./ClubUi";
+import { Ball, ClubCard, Envelope, Inquiry } from "./ClubUi";
+import { RadarViz } from "./RadarViz";
+import { tintOf } from "./viz";
 
 type View = { t: "list" } | { t: "detail"; id: string } | { t: "setup" } | { t: "inquiry"; id: string };
 
-const pill = "rounded-full bg-canvas px-2.5 py-1 text-xs text-ink";
+const pill = "rounded-full bg-white/80 px-2.5 py-1 text-xs text-ink";
 
 function Card({ e, saved, nowMs, onDetail, onSave }: { e: Evaluation; saved: boolean; nowMs: number; onDetail: () => void; onSave: () => void }) {
   const l = e.listing, s = nextSessionText(e), pos = positionText(l.positions), dist = distanceText(e.distanceKm);
   return (
-    <article className="bw-rise rounded-3xl border border-hairline bg-card p-5">
-      <div className="text-xs text-muted">{kindLabel(l.kind)}</div>
+    <article className={`bw-rise bw-t${tintOf(l.id)} bw-tint rounded-3xl p-5`}>
+      <div className="bw-tint-ink text-xs font-semibold opacity-80">{kindLabel(l.kind)}</div>
       <h3 className="mt-0.5 text-[17px] font-semibold leading-snug">{s.when}{s.more > 0 && <span className="ml-2 text-xs font-normal text-muted">+{s.more} {s.more === 1 ? "termin" : "terminy"}</span>}</h3>
       <p className="mt-0.5 text-sm text-muted">{l.organizer} · {l.city ?? "miejscowość nieznana"}{dist ? ` · ${dist}` : ""}</p>
       <div className="mt-3 flex flex-wrap gap-1.5">
@@ -184,77 +186,91 @@ export function Radar({ profile, onProfile }: { profile: Profile; onProfile: (p:
 
   const title = view?.t === "setup" ? "Kryteria" : view?.t === "detail" ? "Szczegóły" : view?.t === "inquiry" ? "Zapytanie do klubu" : "Piłkarskie szanse";
   const openClubs = () => { setStartTab("clubs"); setView({ t: "list" }); };
+  const sentCount = Object.keys(sent).length;
+  const clubsReady = clubsFeed.feed.state === "ok";
+  const canShowClubs = clubsReady && (prefs.radiusKm === null || !!prefs.place);
   return (
     <section className="mb-6" aria-label="Piłkarskie szanse">
-      <div className="mb-1 flex items-baseline justify-between px-1">
-        <h2 className="text-[19px] font-semibold tracking-tight">Piłkarskie szanse</h2>
-        <button onClick={() => setView({ t: "setup" })} className="text-sm text-accent">Kryteria</button>
+      <div className="mb-2 flex items-center justify-between gap-2 px-1">
+        <div className="flex items-center gap-2">
+          <h2 className="text-[20px] font-semibold tracking-tight">Piłkarskie szanse</h2>
+          {sentCount > 0 && <span className="bw-pop flex items-center gap-1 rounded-full bg-mint px-2.5 py-1 text-xs font-semibold text-mint-ink"><Envelope className="h-3.5 w-3.5" />{sentCount}</span>}
+        </div>
+        <button onClick={() => setView({ t: "setup" })} className="rounded-full bg-lav px-3.5 py-1.5 text-sm font-semibold text-lav-ink">Kryteria</button>
       </div>
-      <p className="mb-3 px-1 text-xs text-muted">{criteriaParts(facts).join(" · ")}</p>
+      <div className="mb-3 flex flex-wrap gap-1.5 px-1">
+        {criteriaParts(facts).map((p, i) => <span key={p} className={`bw-t${(i + 1) % 6} bw-tint bw-tint-ink rounded-full px-2.5 py-1 text-xs font-medium`}>{p}</span>)}
+      </div>
 
-      {feed.state === "loading" && <div className="h-24 animate-pulse rounded-3xl bg-hairline/60" aria-label="Ładowanie ofert" />}
-      {feed.state === "unconfigured" && <p className="rounded-3xl border border-hairline bg-card p-5 text-sm text-muted">Radar nie jest jeszcze połączony z serwerem. Reszta aplikacji działa bez zmian.</p>}
+      <RadarViz place={prefs.place} radiusKm={prefs.radiusKm} clubs={canShowClubs ? clubViews : []} sent={sent}
+        scanning={feed.state !== "unconfigured"} onPick={(id) => setView({ t: "inquiry", id })} onSetup={() => setView({ t: "setup" })} />
+      <div className="mb-4 mt-3 flex flex-wrap justify-center gap-1.5" role="group" aria-label="Promień">
+        {([25, 50, 100, 200, null] as const).map((r) => (
+          <button key={String(r)} aria-pressed={prefs.radiusKm === r} onClick={() => setPrefs({ ...prefs, radiusKm: r })}
+            className={`rounded-full px-3 py-1.5 text-sm ${prefs.radiusKm === r ? "bw-sel bw-pop font-semibold" : "bg-white text-ink ring-1 ring-hairline"}`}>{radiusLabel(r)}</button>
+        ))}
+      </div>
+
+      {feed.state === "loading" && clubsFeed.feed.state === "loading" && <p className="mb-3 text-center text-sm text-muted">Radar nasłuchuje…</p>}
+      {feed.state === "unconfigured" && <p className="mb-3 rounded-3xl bg-peach p-5 text-sm text-peach-ink">Radar nie jest jeszcze połączony z serwerem – zobacz jak będzie wyglądał, a kluby pojawią się po konfiguracji. Reszta aplikacji działa bez zmian.</p>}
       {feed.state === "error" && (
-        <div className="rounded-3xl border border-hairline bg-card p-5 text-sm">
-          <p className="text-muted">Nie udało się pobrać ofert (błąd połączenia).</p>
-          <button onClick={() => void reload()} className="mt-3 rounded-2xl bg-canvas px-4 py-2.5 font-medium">Spróbuj ponownie</button>
+        <div className="mb-3 rounded-3xl bg-pink p-5 text-sm">
+          <p className="text-pink-ink">Nie udało się pobrać ofert (błąd połączenia).</p>
+          <button onClick={() => void reload()} className="mt-3 rounded-2xl bg-white px-4 py-2.5 font-medium">Spróbuj ponownie</button>
         </div>
       )}
-      {degraded && <p className="mb-3 rounded-2xl bg-canvas px-4 py-3 text-xs text-muted">Aktualizacja ofert z części źródeł chwilowo nie działa – pokazujemy tylko oferty sprawdzone w ciągu ostatnich 48 godzin.</p>}
+      {degraded && <p className="mb-3 rounded-2xl bg-lemon px-4 py-3 text-xs text-lemon-ink">Aktualizacja ofert z części źródeł chwilowo nie działa – pokazujemy tylko oferty sprawdzone w ciągu ostatnich 48 godzin.</p>}
 
       {hasOffers && !hasBirth(facts) && (
-        <div className="rounded-3xl border border-hairline bg-card p-5">
-          <p className="text-sm text-muted">Uzupełnij datę urodzenia – oferty dobieramy do rocznika i nie pokazujemy ofert dla niewłaściwego wieku.</p>
-          <button onClick={() => setView({ t: "setup" })} className="bw-grad mt-3 rounded-2xl px-5 py-3 text-sm font-medium">Uzupełnij dane</button>
+        <div className="mb-3 rounded-3xl bg-lav p-5">
+          <p className="text-sm text-lav-ink">Uzupełnij datę urodzenia – oferty dobieramy do rocznika i nie pokazujemy ofert dla niewłaściwego wieku.</p>
+          <button onClick={() => setView({ t: "setup" })} className="mt-3 rounded-2xl bg-white px-5 py-3 text-sm font-semibold">Uzupełnij dane</button>
         </div>
       )}
       {hasOffers && hasBirth(facts) && missing.includes("place") && (
-        <div className="rounded-3xl border border-hairline bg-card p-5">
-          <p className="text-sm text-muted">Wybierz miejscowość (ręcznie, bez GPS) albo ustaw „cała Polska”.</p>
-          <button onClick={() => setView({ t: "setup" })} className="bw-grad mt-3 rounded-2xl px-5 py-3 text-sm font-medium">Wybierz miejscowość</button>
+        <div className="mb-3 rounded-3xl bg-lav p-5">
+          <p className="text-sm text-lav-ink">Wybierz miejscowość (ręcznie, bez GPS) albo ustaw „cała Polska”.</p>
+          <button onClick={() => setView({ t: "setup" })} className="mt-3 rounded-2xl bg-white px-5 py-3 text-sm font-semibold">Wybierz miejscowość</button>
         </div>
       )}
-
       {hasOffers && missing.length === 0 && (
-        <>
+        <div className="mb-4">
           {matches.length > 0 ? (
             <div className="flex flex-col gap-3">
               {matches.slice(0, 2).map((e) => <Card key={e.listing.id} e={e} saved={saved.some((s) => s.id === e.listing.id)} nowMs={nowMs} onDetail={() => setView({ t: "detail", id: e.listing.id })} onSave={() => toggle(e.listing)} />)}
-              <button onClick={() => setView({ t: "list" })} className="rounded-2xl border border-hairline bg-card py-3.5 text-sm font-medium">Zobacz wszystkie{matches.length > 2 ? ` (${matches.length})` : ""}</button>
+              <button onClick={() => setView({ t: "list" })} className="rounded-2xl bg-white py-3.5 text-sm font-semibold ring-1 ring-hairline">Zobacz wszystkie oferty{matches.length > 2 ? ` (${matches.length})` : ""}</button>
             </div>
           ) : (
-            <div className="rounded-3xl border border-hairline bg-card p-5">
-              <p className="text-sm text-muted">
-                {gaps ? "Część ofert wymaga uzupełnienia danych profilu."
-                  : `Brak pasujących ofert${prefs.radiusKm !== null ? ` w promieniu ${prefs.radiusKm} km` : ""}.`}
-              </p>
-              {!gaps && next !== undefined && (
-                <button onClick={() => setPrefs({ ...prefs, radiusKm: next })} className="bw-grad mt-3 rounded-2xl px-5 py-3 text-sm font-medium">Zwiększ promień: {radiusLabel(next)}</button>
-              )}
-              {gaps && <button onClick={() => setView({ t: "setup" })} className="bw-grad mt-3 rounded-2xl px-5 py-3 text-sm font-medium">Uzupełnij dane</button>}
-              {saved.length > 0 && <button onClick={() => setView({ t: "list" })} className="mt-3 block text-sm text-accent">Zapisane oferty ({saved.length})</button>}
+            <div className="rounded-3xl bg-lemon p-5">
+              <p className="text-sm text-lemon-ink">{gaps ? "Część ofert wymaga uzupełnienia danych profilu." : `Brak pasujących ofert${prefs.radiusKm !== null ? ` w promieniu ${prefs.radiusKm} km` : ""}.`}</p>
+              {!gaps && next !== undefined && <button onClick={() => setPrefs({ ...prefs, radiusKm: next })} className="mt-3 rounded-2xl bg-white px-5 py-3 text-sm font-semibold">Zwiększ promień: {radiusLabel(next)}</button>}
+              {gaps && <button onClick={() => setView({ t: "setup" })} className="mt-3 rounded-2xl bg-white px-5 py-3 text-sm font-semibold">Uzupełnij dane</button>}
             </div>
           )}
-        </>
+        </div>
       )}
 
-      {clubsFeed.feed.state !== "loading" && !(feed.state === "unconfigured") && (
-        <div className="mt-5">
-          <h3 className="mb-1 px-1 text-xs uppercase tracking-wide text-muted">Kluby, do których możesz napisać</h3>
+      {clubsFeed.feed.state !== "loading" && feed.state !== "unconfigured" && (
+        <div>
+          <div className="mb-1 flex items-center justify-between px-1">
+            <h3 className="text-sm font-semibold">Kluby, do których możesz napisać</h3>
+            {canShowClubs && clubViews.length > 0 && <span className="bw-pop rounded-full bg-mint px-2.5 py-0.5 text-xs font-semibold text-mint-ink">{clubViews.length}</span>}
+          </div>
           <p className="mb-3 px-1 text-xs text-muted">Radar na bieżąco szuka klubów i sprawdza ich oficjalne adresy. Zapytanie wysyłasz Ty, ze swojej poczty.</p>
-          {clubsFeed.feed.state === "error" && <div className="rounded-3xl border border-hairline bg-card p-5 text-sm"><p className="text-muted">Nie udało się pobrać listy klubów (błąd połączenia).</p><button onClick={() => void clubsFeed.reload()} className="mt-3 rounded-2xl bg-canvas px-4 py-2.5 font-medium">Spróbuj ponownie</button></div>}
-          {clubsFeed.feed.state === "ok" && prefs.radiusKm !== null && !prefs.place && (
-            <div className="rounded-3xl border border-hairline bg-card p-5"><p className="text-sm text-muted">Wybierz miejscowość (ręcznie, bez GPS) albo ustaw „cała Polska”, by zobaczyć kluby w okolicy.</p><button onClick={() => setView({ t: "setup" })} className="bw-grad mt-3 rounded-2xl px-5 py-3 text-sm font-medium">Wybierz miejscowość</button></div>
+          {clubsFeed.feed.state === "error" && <div className="rounded-3xl bg-pink p-5 text-sm"><p className="text-pink-ink">Nie udało się pobrać listy klubów (błąd połączenia).</p><button onClick={() => void clubsFeed.reload()} className="mt-3 rounded-2xl bg-white px-4 py-2.5 font-medium">Spróbuj ponownie</button></div>}
+          {clubsReady && !canShowClubs && (
+            <div className="rounded-3xl bg-lav p-5"><p className="text-sm text-lav-ink">Wybierz miejscowość (ręcznie, bez GPS) albo ustaw „cała Polska”, by zobaczyć kluby w okolicy.</p><button onClick={() => setView({ t: "setup" })} className="mt-3 rounded-2xl bg-white px-5 py-3 text-sm font-semibold">Wybierz miejscowość</button></div>
           )}
-          {clubsFeed.feed.state === "ok" && (prefs.radiusKm === null || prefs.place) && (clubViews.length > 0 ? (
+          {canShowClubs && (clubViews.length > 0 ? (
             <div className="flex flex-col gap-3">
               {clubViews.slice(0, 2).map((v) => <ClubCard key={v.club.id} v={v} sentAt={sent[v.club.id]} nowMs={nowMs} onWrite={() => setView({ t: "inquiry", id: v.club.id })} />)}
-              <button onClick={openClubs} className="rounded-2xl border border-hairline bg-card py-3.5 text-sm font-medium">Zobacz kluby{clubViews.length > 2 ? ` (${clubViews.length})` : ""}</button>
+              <button onClick={openClubs} className="rounded-2xl bg-white py-3.5 text-sm font-semibold ring-1 ring-hairline">Zobacz kluby{clubViews.length > 2 ? ` (${clubViews.length})` : ""}</button>
             </div>
           ) : (
-            <div className="rounded-3xl border border-hairline bg-card p-5">
-              <p className="text-sm text-muted">{clubList.length === 0 ? "Radar zbiera kluby – na razie nie ma jeszcze zweryfikowanych adresów." : `Brak klubów z zweryfikowanym adresem${prefs.radiusKm !== null ? ` w promieniu ${prefs.radiusKm} km` : ""}.`}</p>
-              {clubList.length > 0 && next !== undefined && <button onClick={() => setPrefs({ ...prefs, radiusKm: next })} className="bw-grad mt-3 rounded-2xl px-5 py-3 text-sm font-medium">Zwiększ promień: {radiusLabel(next)}</button>}
+            <div className="rounded-3xl bg-accent-soft p-5 text-center">
+              <span className="bw-float mx-auto block w-fit text-accent"><Ball className="h-12 w-12" /></span>
+              <p className="mt-2 text-sm text-accent">{clubList.length === 0 ? "Radar szuka klubów w całej Polsce – na razie nie ma jeszcze zweryfikowanych adresów. Zaglądaj tu, kluby pojawiają się na bieżąco." : `Brak klubów z zweryfikowanym adresem${prefs.radiusKm !== null ? ` w promieniu ${prefs.radiusKm} km` : ""}.`}</p>
+              {clubList.length > 0 && next !== undefined && <button onClick={() => setPrefs({ ...prefs, radiusKm: next })} className="mt-3 rounded-2xl bg-white px-5 py-3 text-sm font-semibold">Zwiększ promień: {radiusLabel(next)}</button>}
             </div>
           ))}
         </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { localISO } from "../engine";
 import type { Profile } from "../engine";
 import { LISTING_KINDS, type ListingKind } from "./lib";
+import { CardFields, useCardForm } from "./ClubUi";
 import { RADII, type RadarPrefs, type Radius } from "./prefs";
 import { radiusLabel } from "./state";
 
@@ -24,6 +25,7 @@ export function RadarSetup({ profile, prefs, onProfile, onPrefs, onDone }: {
   profile: Profile; prefs: RadarPrefs; onProfile: (p: Profile) => void; onPrefs: (p: RadarPrefs) => void; onDone: () => void;
 }) {
   const today = localISO();
+  const card = useCardForm(profile.name ?? "");
   const [yearOnly, setYearOnly] = useState(!profile.birthDate && !!profile.birthYear);
   const [query, setQuery] = useState(prefs.place?.name ?? "");
   const [hits, setHits] = useState<PlaceHit[]>([]);
@@ -93,6 +95,8 @@ export function RadarSetup({ profile, prefs, onProfile, onPrefs, onDone }: {
         </div>
         <p className="mt-1 text-xs text-muted">Bez wyboru – wszystkie rodzaje.</p>
       </Field>
+
+      <div className="mb-5"><CardFields card={card} withPurpose={false} /></div>
 
       <button onClick={onDone} className="bw-grad w-full rounded-2xl py-4 text-base font-medium">Gotowe</button>
     </>
