@@ -38,17 +38,17 @@ function mondayOf(d: Date): string {
 
 function DayRow({ day, index, isToday, onOpen }: { day: DayPlan; index: number; isToday: boolean; onOpen: () => void }) {
   const s = day.session;
-  const title = day.isMatch ? "Mecz" : s ? KIND_LABEL[s.kind] + (s.variant === "upper" ? " · góra" : s.variant === "light" ? " · lekko" : "") : day.isClub ? "Trening klubowy" : "Wolne";
+  const title = day.isOff ? "Niedostępny" : day.isMatch ? "Mecz" : s ? KIND_LABEL[s.kind] + (s.variant === "upper" ? " · góra" : s.variant === "light" ? " · lekko" : "") : day.isClub ? "Trening klubowy" : "Wolne";
   return (
     <ListRow
       index={index}
       onTap={s ? onOpen : undefined}
       accent={day.isMatch}
-      title={<span className={!s && !day.isMatch && !day.isClub ? "text-muted" : ""}>{title}</span>}
+      title={<span className={(!s && !day.isMatch && !day.isClub) || day.isOff ? "text-muted" : ""}>{title}</span>}
       sub={s && day.isClub ? "+ trening klubowy" : undefined}
       lead={
-        <span className={`flex w-11 shrink-0 flex-col items-center rounded-2xl py-1 ${isToday ? "bg-accent text-white" : ""}`}>
-          <span className={`text-[10px] uppercase tracking-wide ${isToday ? "text-white/80" : "text-muted"}`}>{WEEKDAY[index]}</span>
+        <span className={`flex w-11 shrink-0 flex-col items-center rounded-2xl py-1 ${isToday ? "bw-sel" : ""}`}>
+          <span className={`text-[10px] uppercase tracking-wide ${isToday ? "text-accent/80" : "text-muted"}`}>{WEEKDAY[index]}</span>
           <span className="text-lg font-semibold leading-tight tabular-nums">{Number(day.date.slice(8))}</span>
         </span>
       }
@@ -136,13 +136,14 @@ function Main() {
           store("profile", JSON.stringify(p));
           void pushProfile(p);
           setProfile(p);
+          setTab("start");
           window.scrollTo(0, 0);
         }}
       />
     );
   }
   return (
-    <div className="relative isolate min-h-screen">
+    <div className="bw-backdrop relative isolate min-h-screen">
       <Backdrop />
       <div className="relative">
       {tab === "start" && (

@@ -2,23 +2,27 @@
 
 @theme {
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
-  /* ciepły beż i grafit; kolory znaczeniowe stonowane */
-  --color-canvas: #f4f0e8;
-  --color-card: #fbf9f4;
-  --color-ink: #2a2a28;
-  --color-muted: #8a8578;
-  --color-hairline: #e4ded2;
-  /* jeden żywy akcent: terakota */
-  --color-accent: #c2603f;
-  --color-accent-soft: #f3e0d6;
-  --color-green-soft: #e4eadc;
-  --color-green-ink: #4d6b52;
-  --color-yellow-soft: #efe6d0;
-  --color-yellow-ink: #7a6532;
-  --color-red-soft: #ecdad4;
-  --color-red-ink: #8d4a41;
-  --color-blue-soft: #e2e5e5;
-  --color-blue-ink: #4a5a66;
+  /* złamana biel, grafit; zaznaczenia w bardzo jasnym błękicie */
+  --color-canvas: #f7f8fa;
+  --color-card: #ffffff;
+  --color-ink: #1d1d1f;
+  --color-muted: #6e6e73;
+  --color-hairline: #e6e8ec;
+  --color-accent: #2f6fb3;
+  --color-accent-soft: #e8f1fc;
+  --color-sel-border: #c9def6;
+  --color-sky: #8ec1f0;
+  --color-navy: #1d1d1f;
+  --color-club: #2e9e62;
+  --color-club-soft: #e6f5ec;
+  --color-green-soft: #e6f5ec;
+  --color-green-ink: #2e7a51;
+  --color-yellow-soft: #fdf3dc;
+  --color-yellow-ink: #8a6a12;
+  --color-red-soft: #fbe7e6;
+  --color-red-ink: #b3423d;
+  --color-blue-soft: #e8f1fc;
+  --color-blue-ink: #2f6fb3;
 }
 
 html, body, #root { min-height: 100%; }
@@ -56,3 +60,33 @@ button:active:not(:disabled) { transform: scale(0.96); }
 @keyframes bw-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .bw-rise { animation: bw-rise 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 @media (prefers-reduced-motion: reduce) { .bw-rise { animation: none; } }
+
+/* gradient błękit → granat: przyciski główne i wyróżnienia */
+/* przycisk główny: grafit (nazwa klasy zostaje dla zgodności) */
+.bw-grad { background-color: var(--color-ink); }
+/* zaznaczenie: bardzo jasny błękit, widoczny na bieli */
+.bw-sel { background-color: var(--color-accent-soft); color: var(--color-accent); box-shadow: inset 0 0 0 1px var(--color-sel-border); }
+.bw-grad-soft { background-color: var(--color-canvas); }
+
+/* wybór „podskakuje” */
+@keyframes bw-pop { 0% { transform: scale(0.94); } 55% { transform: scale(1.05); } 100% { transform: scale(1); } }
+.bw-pop { animation: bw-pop 0.32s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+/* kroki: dalej z prawej, wstecz z lewej */
+@keyframes bw-step-back { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: translateX(0); } }
+.bw-step-back { animation: bw-step-back 0.28s ease-out; }
+
+/* animowane szkice onboardingu */
+@keyframes bw-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes bw-shadow { 0%, 100% { transform: scaleX(1); opacity: 0.35; } 50% { transform: scaleX(0.7); opacity: 0.18; } }
+@keyframes bw-draw { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+@keyframes bw-lift { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes bw-fill { 0% { opacity: 0.15; transform: scaleY(0.4); } 60%, 100% { opacity: 1; transform: scaleY(1); } }
+.bw-bounce { animation: bw-bounce 1.2s ease-in-out infinite; transform-box: fill-box; }
+.bw-shadow { animation: bw-shadow 1.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.bw-draw { stroke-dasharray: 100; animation: bw-draw 1.4s ease-out both; }
+.bw-lift { animation: bw-lift 1.6s ease-in-out infinite; transform-box: fill-box; }
+.bw-fill { animation: bw-fill 1.2s ease-out both; transform-box: fill-box; transform-origin: bottom; }
+@media (prefers-reduced-motion: reduce) {
+  .bw-pop, .bw-step-back, .bw-bounce, .bw-shadow, .bw-draw, .bw-lift, .bw-fill { animation: none; }
+}

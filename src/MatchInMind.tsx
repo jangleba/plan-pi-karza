@@ -12,14 +12,14 @@ function Board({ step }: { step: ImageryStep }) {
   const me = step.path?.[0];
   return (
     <svg viewBox={`${x0 - 1} -1 55 70`} className="w-full rounded-2xl bg-hairline/60" aria-hidden="true">
-      <rect x="0" y="0" width="105" height="68" fill="none" stroke="#fbf9f4" strokeWidth="0.5" />
-      <line x1="52.5" x2="52.5" y1="0" y2="68" stroke="#fbf9f4" strokeWidth="0.4" />
-      <rect x="88.5" y="13.8" width="16.5" height="40.3" fill="none" stroke="#fbf9f4" strokeWidth="0.4" />
-      <rect x="0" y="13.8" width="16.5" height="40.3" fill="none" stroke="#fbf9f4" strokeWidth="0.4" />
-      {step.ball && <path d={d(step.ball)} fill="none" stroke="#8a8578" strokeWidth="0.5" strokeDasharray="1.4 1" />}
-      {step.path && step.path.length > 1 && <path d={d(step.path)} fill="none" stroke="#2a2a28" strokeWidth="0.5" />}
+      <rect x="0" y="0" width="105" height="68" fill="none" stroke="#ffffff" strokeWidth="0.5" />
+      <line x1="52.5" x2="52.5" y1="0" y2="68" stroke="#ffffff" strokeWidth="0.4" />
+      <rect x="88.5" y="13.8" width="16.5" height="40.3" fill="none" stroke="#ffffff" strokeWidth="0.4" />
+      <rect x="0" y="13.8" width="16.5" height="40.3" fill="none" stroke="#ffffff" strokeWidth="0.4" />
+      {step.ball && <path d={d(step.ball)} fill="none" stroke="#6b7a90" strokeWidth="0.5" strokeDasharray="1.4 1" />}
+      {step.path && step.path.length > 1 && <path d={d(step.path)} fill="none" stroke="#1b2a41" strokeWidth="0.5" />}
       {me && step.path && (
-        <circle r="1.6" fill="#2a2a28">
+        <circle r="1.6" fill="#1b2a41">
           <animateMotion dur={`${Math.min(6, step.seconds / 4)}s`} repeatCount="indefinite" path={d(step.path)} />
         </circle>
       )}
@@ -74,7 +74,7 @@ export function MatchInMind({ position, onClose }: { position: Position; onClose
       <p className="mb-4 text-center text-sm tabular-nums text-muted">{done ? "Gotowe" : `${left} s`}</p>
       <div className="flex gap-2">
         <button onClick={() => go(i - 1)} className="rounded-xl border border-hairline px-4 py-3 text-sm">Wstecz</button>
-        <button onClick={() => (done ? onClose() : setPaused(!paused))} className="flex-1 rounded-xl bg-accent py-3 text-sm font-medium text-card">
+        <button onClick={() => (done ? onClose() : setPaused(!paused))} className="flex-1 rounded-xl bw-grad py-3 text-sm font-medium text-white">
           {done ? "Zakończ" : paused ? "Wznów" : "Pauza"}
         </button>
         <button onClick={() => go(i + 1)} className="rounded-xl border border-hairline px-4 py-3 text-sm">Dalej</button>

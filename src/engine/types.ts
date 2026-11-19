@@ -26,6 +26,8 @@ export interface DayPlan {
   phase: Phase;
   isMatch: boolean;
   isClub: boolean;
+  /** Dzień całkowicie niedostępny: żadnych treningów indywidualnych. */
+  isOff?: boolean;
   /** Maksymalnie jedna sesja indywidualna (klubowy + 1 indywidualny = 2 w dniu). */
   session: IndividualSession | null;
 }
@@ -46,6 +48,8 @@ export interface WeekInput {
   /** Domyślnie „w sezonie". */
   season?: Season;
   goal?: SeasonGoal;
+  /** Dni niedostępne (ISO). */
+  offDays?: string[];
 }
 
 export interface WeekPlan {

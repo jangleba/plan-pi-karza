@@ -67,3 +67,20 @@ describe("profil: nowe pola", () => {
     expect(p.days.filter((d) => d.session?.kind === "sprint")).toHaveLength(2);
   });
 });
+
+describe("dni niedostępne", () => {
+  it("w dzień niedostępny nie ma żadnej sesji indywidualnej", () => {
+    const off = ["2026-11-16", "2026-11-18"];
+    const p = planWeek({ ...base, offDays: off });
+    for (const d of p.days.filter((x) => off.includes(x.date))) {
+      expect(d.isOff).toBe(true);
+      expect(d.session).toBeNull();
+    }
+  });
+  it("za mało dni: ostrzeżenie zamiast sesji w dzień niedostępny", () => {
+    const off = ["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20"];
+    const p = planWeek({ ...base, offDays: off });
+    expect(p.days.filter((d) => off.includes(d.date)).every((d) => d.session === null)).toBe(true);
+    expect(p.warnings.length).toBeGreaterThan(0);
+  });
+});

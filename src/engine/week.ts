@@ -102,6 +102,7 @@ export function planWeek(input: WeekInput): WeekPlan {
       phase: phaseOf(date, matches),
       isMatch: matches.includes(date),
       isClub: input.clubDays.includes(date),
+      isOff: input.offDays?.includes(date) ?? false,
       session: null,
     };
   });
@@ -115,7 +116,7 @@ export function planWeek(input: WeekInput): WeekPlan {
       for (const clubPass of [false, true]) {
         for (let i = 0; i < days.length; i++) {
           const d = days[i]!;
-          if (d.session || d.isMatch || d.phase !== wantPhase) continue;
+          if (d.session || d.isMatch || d.isOff || d.phase !== wantPhase) continue;
           if (d.isClub !== clubPass) continue;
           if (!allowedKinds(d.phase).includes(kind)) continue;
           if (HARD.includes(kind) && neighbourHas(i, kind)) continue;

@@ -39,7 +39,7 @@ export function MasCard({ mas, onChange }: { mas: Mas | null; onChange: (m: Mas)
       <div className="mt-2 flex gap-2">
         <input inputMode="numeric" placeholder="dystans w metrach" value={text} onChange={(e) => setText(e.target.value)}
           className="min-w-0 flex-1 rounded-xl bg-card px-3 py-2 text-sm outline-none" />
-        <button onClick={save} className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-card">Zapisz</button>
+        <button onClick={save} className="rounded-xl bg-ink px-4 py-2 text-sm font-medium text-white">Zapisz</button>
       </div>
     </section>
   );

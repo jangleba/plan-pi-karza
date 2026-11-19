@@ -36,8 +36,8 @@ function RouteSketch({ points }: { points: GeoPoint[] }) {
   const last = n[n.length - 1]!;
   return (
     <svg viewBox="0 0 100 100" className="h-full w-full">
-      <path d={d} fill="none" stroke="#2a2a28" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={last.x} cy={last.y} r="2" fill="#2a2a28" />
+      <path d={d} fill="none" stroke="#1b2a41" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={last.x} cy={last.y} r="2" fill="#1b2a41" />
     </svg>
   );
 }
@@ -58,7 +58,7 @@ function MapView({ points }: { points: GeoPoint[] }) {
         attribution: "© Mapbox © OpenStreetMap",
         maxZoom: 19,
       }).addTo(m);
-      const line = L.polyline([], { color: "#2a2a28", weight: 4 }).addTo(m);
+      const line = L.polyline([], { color: "#1b2a41", weight: 4 }).addTo(m);
       map.current = { setLatLngs: (p) => line.setLatLngs(p), follow: (p) => m.setView(p, m.getZoom(), { animate: true }) };
       destroy = () => m.remove();
     })();
@@ -201,11 +201,11 @@ export function RunTracker({ session, onClose, onFinish }: {
       </div>
 
       <div className="flex gap-2 px-5 pb-8 pt-3">
-        {status === "ready" && <button onClick={start} className="flex-1 rounded-2xl bg-accent py-3.5 text-base font-medium text-card">Start</button>}
+        {status === "ready" && <button onClick={start} className="flex-1 rounded-2xl bw-grad py-3.5 text-base font-medium text-white">Start</button>}
         {status === "running" && <button onClick={pause} className="flex-1 rounded-2xl border border-hairline bg-card py-3.5 text-base">Pauza</button>}
-        {status === "paused" && <button onClick={start} className="flex-1 rounded-2xl bg-accent py-3.5 text-base font-medium text-card">Wznów</button>}
+        {status === "paused" && <button onClick={start} className="flex-1 rounded-2xl bw-grad py-3.5 text-base font-medium text-white">Wznów</button>}
         {(status === "running" || status === "paused") && (
-          <button onClick={finish} className="flex-1 rounded-2xl bg-accent py-3.5 text-base font-medium text-card">Zakończ</button>
+          <button onClick={finish} className="flex-1 rounded-2xl bw-grad py-3.5 text-base font-medium text-white">Zakończ</button>
         )}
         {status === "done" && (
           <button
@@ -213,7 +213,7 @@ export function RunTracker({ session, onClose, onFinish }: {
               saveRun(track, elapsed);
               onFinish({ distanceM: track.distanceM, elapsedMs: elapsed, distanceAt5min: at5 });
             }}
-            className="flex-1 rounded-2xl bg-accent py-3.5 text-base font-medium text-card"
+            className="flex-1 rounded-2xl bw-grad py-3.5 text-base font-medium text-white"
           >
             {session.isTest && at5 ? "Zapisz MAS i bieg" : "Zapisz bieg"}
           </button>

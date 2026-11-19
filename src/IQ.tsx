@@ -48,7 +48,7 @@ export default function IQ() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     el.appendChild(renderer.domElement);
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xe9e4d8);
+    scene.background = new THREE.Color(0xe3edf8);
     const cam = new THREE.PerspectiveCamera(60, 1, 0.1, 400);
     scene.add(new THREE.HemisphereLight(0xffffff, 0x88aa88, 1.0));
     const sun = new THREE.DirectionalLight(0xffffff, 0.6); sun.position.set(30, 60, 20); scene.add(sun);
@@ -164,7 +164,7 @@ export default function IQ() {
           <h2 className="mb-2 text-base font-semibold">Tablica taktyczna</h2>
           <TacticalBoard snap={result.snap} verdict={result.verdict} />
           <p className="mt-3 text-sm">{result.verdict.summary}</p>
-          <button onClick={() => reset.current()} className="mt-3 w-full rounded-xl bg-accent py-2.5 text-sm font-medium text-white">Jeszcze raz</button>
+          <button onClick={() => reset.current()} className="mt-3 w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-white">Jeszcze raz</button>
         </section>
       )}
     </main>

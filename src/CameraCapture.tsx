@@ -94,7 +94,7 @@ export function CameraCapture({ orientation, autoStopS, onDone, onClose }: {
       </div>
       <div className="relative z-10 p-6 pb-10">
         {!recording && count === null && (
-          <button disabled={!okOrientation || !!error} onClick={start} className="w-full rounded-2xl bg-accent py-4 text-base font-medium text-white disabled:opacity-40">
+          <button disabled={!okOrientation || !!error} onClick={start} className="w-full rounded-2xl bw-grad py-4 text-base font-medium text-white disabled:opacity-40">
             Start (odliczanie 5 s)
           </button>
         )}

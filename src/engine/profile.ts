@@ -26,6 +26,8 @@ export interface Profile {
   /** Dni tygodnia 0 = poniedziałek … 6 = niedziela. */
   clubWeekdays: number[];
   matchWeekdays: number[];
+  /** Dni całkowicie niedostępne (0 = pon). */
+  offWeekdays?: number[];
   /** Mało dni na siłownię – siła pełna także dzień po meczu. */
   limitedGymAccess: boolean;
   /** Data rozpoczęcia planu (ISO) – od niej liczony cykl 5-tygodniowy. */
@@ -89,6 +91,7 @@ export function planForProfile(profile: Profile, weekStart: string) {
     weekStart,
     matches: matchesAround(weekStart, profile.matchWeekdays),
     clubDays: datesForWeek(weekStart, profile.clubWeekdays),
+    offDays: datesForWeek(weekStart, profile.offWeekdays ?? []),
     level: levelOf(profile.age, profile.strengthYears),
     limitedGymAccess: profile.limitedGymAccess,
     season: profile.season,

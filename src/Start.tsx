@@ -17,8 +17,13 @@ function Ring({ value, done, onTap }: { value: number; done: boolean; onTap: () 
   return (
     <button onClick={onTap} className="relative mx-auto block h-48 w-48" aria-label="Check-in">
       <svg viewBox="0 0 160 160" className="h-full w-full -rotate-90">
+        <defs>
+          <linearGradient id="bw-ring" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#8ec1f0" /><stop offset="100%" stopColor="#2f6fb3" />
+          </linearGradient>
+        </defs>
         <circle cx="80" cy="80" r={r} fill="none" stroke="var(--color-hairline)" strokeWidth="10" />
-        <circle cx="80" cy="80" r={r} fill="none" stroke="var(--color-accent)" strokeWidth="10" strokeLinecap="round"
+        <circle cx="80" cy="80" r={r} fill="none" stroke="url(#bw-ring)" strokeWidth="10" strokeLinecap="round"
           strokeDasharray={c} strokeDashoffset={done ? c * (1 - value / 100) : c} style={{ transition: "stroke-dashoffset 0.8s ease" }} />
       </svg>
       <span className="absolute inset-0 flex flex-col items-center justify-center">
@@ -36,7 +41,7 @@ function Choice({ label, value, onChange }: { label: string; value: 1 | 2 | 3; o
       <div className="grid grid-cols-3 gap-2">
         {LEVELS.map(([v, t]) => (
           <button key={v} onClick={() => onChange(v)}
-            className={`rounded-2xl py-3.5 text-sm font-medium ${value === v ? "bg-accent text-white" : "bg-canvas text-ink"}`}>{t}</button>
+            className={`rounded-2xl py-3.5 text-sm font-medium ${value === v ? "bw-sel" : "bg-canvas text-ink"}`}>{t}</button>
         ))}
       </div>
     </div>
@@ -92,10 +97,10 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn }: {
           <Choice label="Sen" value={checkIn.sleep} onChange={(v) => onCheckIn({ ...checkIn, sleep: v })} />
           <Choice label="Samopoczucie" value={checkIn.feeling} onChange={(v) => onCheckIn({ ...checkIn, feeling: v })} />
           <button onClick={() => onCheckIn({ ...checkIn, less: !checkIn.less })}
-            className={`mb-6 w-full rounded-2xl py-3.5 text-sm font-medium ${checkIn.less ? "bg-accent text-white" : "bg-canvas text-ink"}`}>
+            className={`mb-6 w-full rounded-2xl py-3.5 text-sm font-medium ${checkIn.less ? "bw-sel" : "bg-canvas text-ink"}`}>
             Dziś mniej
           </button>
-          <button onClick={() => { onCheckIn(checkIn); setSheet(null); }} className="w-full rounded-2xl bg-ink py-4 text-base font-medium text-card">Gotowe</button>
+          <button onClick={() => { onCheckIn(checkIn); setSheet(null); }} className="w-full bw-grad rounded-2xl py-4 text-base font-medium text-white">Gotowe</button>
         </Sheet>
       )}
       {sheet === "session" && day && (
