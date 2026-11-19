@@ -135,7 +135,7 @@ function Composer({ onSave, onFoods, onBack, onClose }: { onSave: (items: FavMea
         {Ctor ? <button onClick={dictate} className={`rounded-full px-4 py-2 text-sm font-medium ${listening ? "bw-sel" : "bw-grad"}`}>{listening ? "Słucham… (dotknij, by zakończyć)" : "🎤 Dyktuj"}</button> : <span className="text-xs text-muted">Dyktowanie: użyj mikrofonu na klawiaturze telefonu.</span>}
         {text && <button onClick={() => { setText(""); setItems([]); setUnknown([]); }} className="text-sm text-muted">Wyczyść</button>}
       </div>
-      <p className="mt-2 text-[11px] text-muted">Rozpoznawanie jest proste: rozumiem listę produktów z ilościami (np. „150 g”, „dwa jajka”, „pół banana”). Dźwięk przetwarza przeglądarka (Apple/Google).</p>
+      <p className="mt-2 text-[11px] text-muted">Rozpoznawanie jest proste: rozumiem listę produktów z ilościami (np. „150 g”, „dwa jajka”, „pół banana”). Dyktowanie używa rozpoznawania mowy przeglądarki: dźwięk może być przetwarzany na serwerach jej dostawcy (np. Apple lub Google), a nie tylko na telefonie. Aplikacja go nie zapisuje; możesz wpisać tekst ręcznie.</p>
 
       {items.length > 0 && (
         <div className="mt-4 rounded-2xl bg-canvas px-4">

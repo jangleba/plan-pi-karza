@@ -5,6 +5,8 @@ import { addDays, localISO } from "./engine";
 import type { Goal, Profile } from "./engine";
 import { matchBag } from "./engine/bag";
 import { ideasWithFavorites } from "./engine/favorites";
+import { avoidFor, filterIdeas, hasDietPrefs } from "./engine/allergens";
+import { DietSheet } from "./fuel/Diet";
 import { buildDayPlan, fmtTime, nextSlot, toMin, untilText, type ScaledIdea, type Slot } from "./engine/mealplan";
 import { Around } from "./fuel/Around";
 import { Bag } from "./fuel/Bag";
@@ -15,9 +17,9 @@ import { Journal } from "./fuel/Journal";
 import { Shopping } from "./fuel/Shopping";
 import { SlotSheet } from "./fuel/SlotSheet";
 import { activitiesFor, asActivities, dayInfoFor, defaultStart } from "./fuel/day";
-import { loadBag, loadFavs, loadGoal, loadMeals, loadWater, saveFavs, saveGoal, saveMeals, saveStart, saveWater, type Meal } from "./fuel/store";
+import { loadBag, loadDiet, loadFavs, loadGoal, loadMeals, loadWater, saveDiet, saveFavs, saveGoal, saveMeals, saveStart, saveWater, type Meal } from "./fuel/store";
 
-type Sheetk = "add" | "slot" | "journal" | "shop" | "around" | "goal" | "bag" | "fav";
+type Sheetk = "add" | "slot" | "journal" | "shop" | "around" | "goal" | "bag" | "fav" | "diet";
 const WATER_STEP = 250;
 const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
 const nowHHMM = () => fmtTime(nowMin());
@@ -46,7 +48,11 @@ export function Fuel({ profile }: { profile: Profile }) {
   const { next, missed } = nextSlot(plan.slots, done, nowMin());
   const missedIds = new Set(missed.map((s) => s.id));
   const favs = loadFavs();
-  const nextIdeas = next ? ideasWithFavorites(next, 0, favs) : [];
+  const diet = loadDiet();
+  const avoid = avoidFor(diet);
+  // propozycje nigdy nie zawierają znanego konfliktu z alergenami/dietą użytkownika; brak danych o produkcie ≠ „bezpieczny”
+  const ideasFor = (s: Slot) => filterIdeas(ideasWithFavorites(s, 0, favs, avoid), diet).shown.map((x) => x.idea);
+  const nextIdeas = next ? ideasFor(next) : [];
   // torba meczowa: w dniu meczu i dzień wcześniej (wtedy się pakujemy)
   const matchDate = info.match ? date : info.kind === "pre-match" ? addDays(date, 1) : null;
   const matchPlan = matchDate ? (info.match ? plan : buildDayPlan({ day: "match", weightKg: profile.weightKg, goal, activities: [{ kind: "match", time: defaultStart("match", false) }] })) : null;
@@ -89,7 +95,8 @@ export function Fuel({ profile }: { profile: Profile }) {
         <MiniRing small value={eaten("fat") / plan.fatTotal} label="Tłuszcz" center={<>{eaten("fat")}<span className="text-[10px] text-muted">g</span></>} />
         <MiniRing small value={water / plan.hydrationMl} label="Woda" center={<>{litres(water)}<span className="text-[10px] text-muted">l</span></>} />
       </div>
-      <p className="-mt-3 mb-6 text-center text-xs text-muted">Cel dziś: {plan.carbTotal} g węgli · {plan.proteinTotal} g białka · {plan.fatTotal} g tłuszczu · {litres(plan.hydrationMl)} l wody</p>
+      <p className="-mt-3 mb-6 text-center text-xs text-muted">Orientacyjny cel dziś: {plan.carbTotal} g węgli · {plan.proteinTotal} g białka · {plan.fatTotal} g tłuszczu · {litres(plan.hydrationMl)} l wody</p>
+      <p className="-mt-4 mb-6 text-center text-[11px] text-muted">Liczone z masy ciała i planu treningów – to nie jest indywidualne zapotrzebowanie.</p>
 
       {next ? (
         <section className="bw-rise mb-6 rounded-3xl border border-hairline bg-card p-5">
@@ -121,7 +128,7 @@ export function Fuel({ profile }: { profile: Profile }) {
       <Group label="Plan dnia">
         {plan.slots.map((s, i) => {
           const isDone = done.has(s.id);
-          const first = ideasWithFavorites(s, 0, favs)[0];
+          const first = ideasFor(s)[0];
           return (
             <ListRow
               key={s.id}
@@ -165,18 +172,20 @@ export function Fuel({ profile }: { profile: Profile }) {
         <ListRow index={3} title="Ulubione i źródła" sub={favs.foods.length + favs.meals.length > 0 ? `${favs.foods.length} produktów · ${favs.meals.length} posiłków` : "Białko, węgle, tłuszcze – i Twoje ulubione"} onTap={() => setSheet("fav")} />
         <ListRow index={4} title="Przed i po wysiłku" sub="Co zjeść o dowolnej porze" onTap={() => setSheet("around")} />
         <ListRow index={5} title="Cel żywieniowy" detail={GOAL_LABEL[goal]} onTap={() => setSheet("goal")} />
+        <ListRow index={6} title="Alergeny i ograniczenia" detail={hasDietPrefs(diet) ? "ustawione" : undefined} sub="Pomysły z unikanymi składnikami są ukrywane" onTap={() => setSheet("diet")} />
       </Group>
-      <p className="px-1 text-xs text-muted">Liczby UEFA dotyczą meczu; podział na sesje i posiłki jest orientacyjny. To nie jest porada dietetyczna. Dane produktów: USDA FoodData Central, Open Food Facts.</p>
+      <p className="px-1 text-xs text-muted">Liczby UEFA dotyczą meczu; podział na sesje i posiłki jest orientacyjny. To nie jest porada dietetyczna ani ocena bezpieczeństwa produktów (alergie – sprawdzaj skład na etykiecie). Dane produktów: USDA FoodData Central, Open Food Facts.</p>
 
       {sheet === "add" && <AddFood onAdd={(m) => { addMeal(m, forSlot); setSheet(null); }} onClose={() => setSheet(null)} />}
       {sheet === "slot" && slot && (
-        <SlotSheet slot={slot} dayIndex={0} favs={favs} eaten={done.has(slot.id)} onEat={(idea) => eatIdea(slot, idea)} onOther={() => { setForSlot(slot.id); setSheet("add"); }} onUndo={() => undoSlot(slot.id)} onClose={() => setSheet(null)} />
+        <SlotSheet slot={slot} dayIndex={0} favs={favs} diet={diet} onDiet={() => setSheet("diet")} eaten={done.has(slot.id)} onEat={(idea) => eatIdea(slot, idea)} onOther={() => { setForSlot(slot.id); setSheet("add"); }} onUndo={() => undoSlot(slot.id)} onClose={() => setSheet(null)} />
       )}
       {sheet === "journal" && <Journal meals={meals} onRemove={removeMeal} onClose={() => setSheet(null)} />}
       {sheet === "shop" && <Shopping profile={profile} goal={goal} today={date} onClose={() => setSheet(null)} />}
       {sheet === "around" && <Sheet title="Przed i po wysiłku" onClose={() => setSheet(null)}><Around profile={profile} /></Sheet>}
       {sheet === "fav" && <FavoritesSheet favs={favs} onChange={(f) => { saveFavs(f); refresh(); }} onClose={() => setSheet(null)} />}
       {sheet === "bag" && bag && matchDate && <Bag groups={bag} date={matchDate} onChange={refresh} onClose={() => setSheet(null)} />}
+      {sheet === "diet" && <DietSheet prefs={diet} onChange={(d) => { saveDiet(d); refresh(); }} onClose={() => setSheet(null)} />}
       {sheet === "goal" && <GoalSheet goal={goal} onPick={(g: Goal) => { saveGoal(g); setSheet(null); refresh(); }} onClose={() => setSheet(null)} />}
     </main>
   );

@@ -13,7 +13,18 @@ export interface LabTest {
   instructions: string[];
   /** Maksymalnie jedna linijka o ograniczeniach metody. */
   caveat?: string;
+  /** Jawne ograniczenia pomiaru z nagrania (pokazywane przy wyniku); brak dla testów wpisywanych ręcznie. */
+  limits?: string[];
 }
+
+/** Opis pochodzenia wyniku (nie nazywamy oszacowania z nagrania „pomiarem”). */
+export const METHOD_LABEL: Record<"video_estimate" | "manual_entry", string> = {
+  video_estimate: "oszacowanie z nagrania – nie jest to walidowany pomiar",
+  manual_entry: "wpisane ręcznie",
+};
+
+/** Wspólna uwaga o badaniach innych aplikacji: nie przenosimy ich wyników na algorytm tej aplikacji. */
+export const VALIDATION_NOTE = "Badania innych aplikacji (np. My Jump 2, MySprint) opisują ich własne metody i sprzęt. Nie oznaczają, że wynik z tej aplikacji ma taką samą dokładność – ten algorytm nie został u nas zwalidowany względem płyty siłowej ani fotokomórek.";
 
 export const LAB_TESTS: LabTest[] = [
   {
@@ -26,6 +37,11 @@ export const LAB_TESTS: LabTest[] = [
       "3 próby, zapisz najlepszą.",
     ],
     caveat: "Wynik z czasu lotu nie zależy od odległości telefonu.",
+    limits: [
+      "To oszacowanie z nagrania (czas lotu → wysokość), a nie walidowany pomiar.",
+      "Dokładność zależy od liczby klatek na sekundę (jedna klatka to kilka ms, czyli około centymetra lub więcej), kadru, oświetlenia i wykrycia stóp.",
+      "Automatyczne wykrycie odbicia i lądowania bywa błędne – sprawdź klatki i popraw ręcznie. Zmiana techniki lądowania (np. ugięte nogi) zawyża wynik.",
+    ],
   },
   {
     key: "broad-jump",
@@ -47,6 +63,11 @@ export const LAB_TESTS: LabTest[] = [
       "2–3 próby, przerwa 3–5 min.",
     ],
     caveat: "Jedna klatka przy 60 kl./s to ok. 17 ms.",
+    limits: [
+      "Czasy odczytane z klatek filmu to oszacowanie, a nie pomiar fotokomórkami.",
+      "Wynik zależy od klatek na sekundę, ustawienia telefonu prostopadle do toru i tego, którą klatkę uznasz za start i metę; na odcinkach 10 m różnica jednej klatki jest wyraźna.",
+      "Wyniki porównuj tylko ze sobą, przy tym samym sprzęcie i ustawieniu kamery.",
+    ],
   },
   {
     key: "yoyo-ir1",

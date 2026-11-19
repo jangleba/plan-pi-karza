@@ -4,9 +4,10 @@ import { addDays } from "../engine";
 import type { Goal, Profile } from "../engine";
 import { buildDayPlan, shoppingList } from "../engine/mealplan";
 import { ideasWithFavorites } from "../engine/favorites";
+import { avoidFor, filterIdeas } from "../engine/allergens";
 import { ShopTips } from "./Around";
 import { activitiesFor, asActivities, dayInfoFor } from "./day";
-import { loadChecked, loadFavs, saveChecked } from "./store";
+import { loadChecked, loadDiet, loadFavs, saveChecked } from "./store";
 
 const GROUP: Record<string, string> = { carb: "Zboża i skrobia", protein: "Białko", dairy: "Nabiał", fat: "Tłuszcze (oliwa, orzechy, awokado)", fruit: "Owoce", veg: "Warzywa", other: "Inne" };
 
@@ -21,8 +22,9 @@ export function Shopping({ profile, goal, today, onClose }: { profile: Profile; 
       const info = dayInfoFor(profile, iso);
       return buildDayPlan({ day: info.kind, weightKg: profile.weightKg, goal, activities: asActivities(activitiesFor(info, iso)) });
     });
-    const favs = loadFavs();
-    return shoppingList(plans, (slot, di) => ideasWithFavorites(slot, di, favs)[0]);
+    const favs = loadFavs(), diet = loadDiet();
+    // lista zakupów z pierwszych pomysłów bez znanego konfliktu z alergenami/dietą użytkownika
+    return shoppingList(plans, (slot, di) => filterIdeas(ideasWithFavorites(slot, di, favs, avoidFor(diet)), diet).shown[0]?.idea);
   }, [days, profile, goal, today]);
 
   const toggle = (id: string) => {
@@ -55,7 +57,7 @@ export function Shopping({ profile, goal, today, onClose }: { profile: Profile; 
           </div>
         </section>
       ))}
-      <p className="text-xs text-muted">{left === 0 ? "Wszystko w koszyku." : `Do kupienia: ${left}.`} Ilości z pierwszych pomysłów na każdy posiłek (orientacyjnie, surowe produkty).</p>
+      <p className="text-xs text-muted">{left === 0 ? "Wszystko w koszyku." : `Do kupienia: ${left}.`} Ilości z pierwszych pomysłów na każdy posiłek (orientacyjnie, surowe produkty). Przy alergii sprawdzaj skład produktów w sklepie.</p>
       <div className="mt-3 flex gap-4 text-sm">
         <button onClick={() => { setChecked([]); saveChecked([]); }} className="text-accent">Wyczyść zaznaczenia</button>
         <button onClick={() => setTips(!tips)} className="text-accent">{tips ? "Ukryj podpowiedzi" : "Czego unikać"}</button>

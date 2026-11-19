@@ -4,6 +4,7 @@ import type { CheckIn, Profile } from "./engine";
 import type { PrivateProfile } from "./lib/private";
 import { Sheet } from "./Sheet";
 import { Radar } from "./radar/Radar";
+import { LegalSheet } from "./legal/LegalUi";
 
 const LEVELS: Array<[1 | 2 | 3, string]> = [[1, "Słabo"], [2, "Średnio"], [3, "Dobrze"]];
 const STRAIN = { none: "Pełna sesja", light: "Trochę lżej", heavy: "Wyraźnie lżej" } as const;
@@ -39,7 +40,7 @@ function Ring({ value, done, onTap }: { value: number; done: boolean; onTap: () 
       </svg>
       <span className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-[44px] font-semibold tabular-nums tracking-tight">{done ? shown : "?"}</span>
-        <span className="mt-1 text-xs text-muted">{done ? "gotowość" : "dotknij"}</span>
+        <span className="mt-1 text-xs text-muted">{done ? "gotowość (orientacyjnie)" : "dotknij"}</span>
       </span>
     </button>
   );
@@ -63,6 +64,7 @@ export function Start({ profile, birth, checkIn, checkedIn, onCheckIn, onBirth, 
   profile: Profile; birth: PrivateProfile; checkIn: CheckIn; checkedIn: boolean; onCheckIn: (c: CheckIn) => void; onBirth: (b: PrivateProfile) => void; onSettings: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [safety, setSafety] = useState(false);
 
   return (
     <main className="mx-auto max-w-md px-5 pb-32 pt-14">
@@ -75,10 +77,15 @@ export function Start({ profile, birth, checkIn, checkedIn, onCheckIn, onBirth, 
       <section className="bw-rise mb-6 rounded-3xl border border-hairline bg-card px-5 py-5">
         <Ring value={readinessScore(checkIn)} done={checkedIn} onTap={() => setOpen(true)} />
         <p className="mt-3 text-center text-sm text-muted">{checkedIn ? STRAIN[strainOf(checkIn)] : "Jak się czujesz? Dotknij, by odpowiedzieć"}</p>
+        <p className="mt-2 text-center text-[11px] leading-snug text-muted">
+          Wynik jest orientacyjny, liczony z Twojej odpowiedzi (sen, samopoczucie), bez gwarancji. Przy bólu lub złym samopoczuciu odpuść.{" "}
+          <button onClick={() => setSafety(true)} className="underline">Zasady bezpieczeństwa</button>
+        </p>
       </section>
 
       <Radar profile={profile} birth={birth} onBirth={onBirth} />
 
+      {safety && <LegalSheet kind="safety" onClose={() => setSafety(false)} />}
       {open && (
         <Sheet title="Jak się czujesz?" onClose={() => setOpen(false)}>
           <Choice label="Sen" value={checkIn.sleep} onChange={(v) => onCheckIn({ ...checkIn, sleep: v })} />

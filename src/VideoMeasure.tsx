@@ -134,10 +134,12 @@ export function VideoMeasure({ mode, onResult, onClose, src, srcFps, auto }: {
           <div className="flex flex-1 flex-col items-center justify-center text-center">
             <span className="text-6xl font-semibold tabular-nums tracking-tight">{jumpHeightFromFlightTime(analysis.flightS).toFixed(1).replace(".", ",")}</span>
             <span className="mt-1 text-sm text-muted">cm · czas lotu {(analysis.flightS * 1000).toFixed(0)} ms</span>
+            <span className="mt-2 rounded-full bg-canvas px-3 py-1 text-xs font-medium text-ink">Oszacowanie z nagrania, nie walidowany pomiar</span>
             <span className="mt-3 text-xs text-muted">
               Dokładność ok. ±{heightErrorCm(analysis.flightS, fps).toFixed(1).replace(".", ",")} cm na klatkę ({fps} kl./s)
               {analysis.confidence < 0.7 ? " · niska pewność – sprawdź ręcznie" : ""}
             </span>
+            <span className="mt-2 max-w-xs text-[11px] leading-snug text-muted">Automatyczne wykrycie bywa błędne – jeśli zaznaczone klatki się nie zgadzają, wybierz „Popraw ręcznie”.</span>
           </div>
         )}
         {!pending && (

@@ -145,9 +145,9 @@ export function topSources(macro: Macro, n = 10): Source[] {
  * Pomysły na posiłek z uwzględnieniem ulubionych: najpierw gotowe ulubione posiłki pasujące do rodzaju posiłku,
  * potem pomysły z ulubionych produktów (dobrane gramy), na końcu standardowe.
  */
-export function ideasWithFavorites(slot: Slot, dayIndex: number, favs: Favorites): ScaledIdea[] {
-  const base = ideasFor(slot, dayIndex);
+export function ideasWithFavorites(slot: Slot, dayIndex: number, favs: Favorites, avoid?: (foodId: string) => boolean): ScaledIdea[] {
+  const base = ideasFor(slot, dayIndex, avoid);
   const meals = favs.meals.filter((m) => m.pool === slot.pool).map(mealToIdea);
-  const products = favoriteIdeas(slot.pool, favs.foods, dayIndex + slot.variant).map((i): ScaledIdea => ({ ...scaleIdea(i, slot.carb, slot.protein, { topUp: slot.pool !== "during" }), fav: "products" }));
+  const products = favoriteIdeas(slot.pool, favs.foods, dayIndex + slot.variant).map((i): ScaledIdea => ({ ...scaleIdea(i, slot.carb, slot.protein, { topUp: slot.pool !== "during", ...(avoid ? { avoid } : {}) }), fav: "products" }));
   return [...meals, ...products, ...base];
 }

@@ -9,7 +9,12 @@ export interface HistoryEvent {
   /** session: rodzaj sesji; strength: id ćwiczenia (1RM); mas: "mas"; lab: id testu. */
   key: string;
   value: number;
+  /** Tylko dla testów Lab: skąd wynik (oszacowanie z nagrania a wpisanie ręczne). Brak = nieznane (starsze zapisy). */
+  method?: LabMethod;
 }
+
+/** Oszacowanie z nagrania telefonem NIE jest walidowanym pomiarem (jak płyta siłowa czy fotokomórki). */
+export type LabMethod = "video_estimate" | "manual_entry";
 
 export type TrendTone = "green" | "orange" | "red" | "neutral";
 export type Better = "higher" | "lower";

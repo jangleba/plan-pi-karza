@@ -18,8 +18,8 @@ export function DraftBanner() {
   return (
     <div className="mb-4 rounded-2xl bg-lemon px-4 py-3 text-xs leading-snug text-lemon-ink" role="note">
       <b>Wersja robocza – wymaga uzupełnienia i zatwierdzenia prawnego.</b>{" "}
-      {r.missingOperator.length > 0 && <>Brak danych operatora: {r.missingOperator.map((f) => OPERATOR_LABEL[f].toLowerCase()).join(", ")}. </>}
-      {r.unapproved.length > 0 && <>Niezatwierdzone dokumenty: {r.unapproved.map((k) => DOC_TITLE[k].toLowerCase()).join(", ")}. </>}
+      {r.missingOperator.length > 0 && <>Brak danych operatora: {r.missingOperator.map((f) => OPERATOR_LABEL[f]).join("; ")}. </>}
+      {r.unapproved.length > 0 && <>Niezatwierdzone dokumenty: {r.unapproved.map((k) => DOC_TITLE[k]).join("; ")}. </>}
       {isDevLegalMode() ? "Tryb deweloperski: konta można zakładać do testów." : "Zakładanie kont jest wyłączone do czasu uzupełnienia."}
     </div>
   );
