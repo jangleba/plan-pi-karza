@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import type { PGlite } from "@electric-sql/pglite";
-import { ADMIN, U1, U2, asRole, freshDb } from "../radar/pg";
+import { ADMIN, U1, U2, asRole, freshDb } from "../test/pg";
 
 let db: PGlite;
 const GUARD = "00000000-0000-0000-0000-0000000000a1"; // opiekun (osobne konto)
@@ -10,7 +10,7 @@ const profile = (over: Record<string, unknown> = {}) => JSON.stringify({ name: "
 
 beforeAll(async () => {
   db = await freshDb();
-  await db.exec(`insert into auth.users (id) values ('${U1}'), ('${U2}'), ('${ADMIN}'), ('${GUARD}'); insert into radar_admins (user_id) values ('${ADMIN}')`);
+  await db.exec(`insert into auth.users (id) values ('${U1}'), ('${U2}'), ('${ADMIN}'), ('${GUARD}'); insert into app_admins (user_id) values ('${ADMIN}')`);
 }, 60_000);
 
 describe("kontrakt profilu na serwerze: wiek i brak daty urodzenia", () => {
@@ -193,7 +193,7 @@ describe("eksport i usuwanie", () => {
   it("eksport zawiera wszystkie magazyny TYLKO zalogowanego użytkownika i nie zawiera skrótów tokenów", async () => {
     await q("insert into profiles (user_id, data) values ($1, $2::jsonb) on conflict (user_id) do update set data = excluded.data", [U1, profile()]);
     const e = (await as(U1, () => q<{ e: Record<string, unknown> }>("select export_my_data() as e"))).rows[0]!.e;
-    expect(Object.keys(e).sort()).toEqual(["ageDeclarations", "agreements", "checkIns", "consents", "exportedAt", "guardianConfirmations", "masTests", "paidAccess", "profile", "radarSaved", "weightLog"]);
+    expect(Object.keys(e).sort()).toEqual(["ageDeclarations", "agreements", "checkIns", "consents", "exportedAt", "guardianConfirmations", "masTests", "paidAccess", "profile", "weightLog"]);
     expect((e.agreements as unknown[]).length).toBeGreaterThanOrEqual(2);
     expect((e.consents as unknown[]).length).toBe(2);
     expect(JSON.stringify(e)).not.toMatch(/token_hash|revoke_token|user_id|[0-9a-f]{64}/);
@@ -202,7 +202,7 @@ describe("eksport i usuwanie", () => {
   });
 
   it("usunięcie obejmuje wszystkie magazyny użytkownika, nie rusza cudzych, jest idempotentne i zostawia log bez danych osobowych", async () => {
-    const tables = ["radar_saved", "paid_access", "guardian_confirmations", "consent_events", "agreement_events", "age_declarations", "check_ins", "weight_log", "mas_tests", "profiles"];
+    const tables = ["paid_access", "guardian_confirmations", "consent_events", "agreement_events", "age_declarations", "check_ins", "weight_log", "mas_tests", "profiles"];
     const count = async (u: string) => (await q<{ n: number }>(tables.map((t) => `select count(*)::int as n from ${t} where user_id = '${u}'`).join(" union all "))).rows.reduce((s, r) => s + r.n, 0);
     const u2Before = await count(U2);
     expect(await count(U1)).toBeGreaterThan(5);

@@ -31,20 +31,26 @@ const CRON_STUBS = `
   create function vault.create_secret(p_secret text, p_name text) returns text language sql as $$ insert into vault.secrets values (p_name, p_secret) returning p_name $$;
 `;
 
-export async function freshDb(extra: string[] = []): Promise<PGlite> {
+/**
+ * Pełna historia migracji (0001–…). `upTo` zatrzymuje stosowanie przed wskazaną migracją (np. do testów przejścia),
+ * `withSchedules` dodaje atrapy pg_cron/pg_net/Vault i migrację 0003 (harmonogram radaru) w jej właściwym miejscu.
+ */
+export async function freshDb(opts: { upTo?: string; withSchedules?: boolean } = {}): Promise<PGlite> {
   const db = new PGlite();
   await db.exec(STUBS);
-  if (extra.length) await db.exec(CRON_STUBS);
-  await db.exec(file("0001_init.sql"));
-  await db.exec(file("0002_radar.sql"));
-  await db.exec(file("0004_radar_clubs.sql"));
-  await db.exec(file("0005_privacy_account.sql"));
-  await db.exec(file("0006_radar_confirmation.sql"));
-  for (const f of extra) await db.exec(file(f).replace(/create extension if not exists \w+;/g, ""));
+  if (opts.withSchedules) await db.exec(CRON_STUBS);
+  const all = ["0001_init.sql", "0002_radar.sql", ...(opts.withSchedules ? ["0003_radar_schedules.sql"] : []), "0004_radar_clubs.sql", "0005_privacy_account.sql", "0006_radar_confirmation.sql", "0007_remove_radar.sql", ...MIGRATIONS_AFTER];
+  for (const f of all) {
+    if (opts.upTo && f.startsWith(opts.upTo)) break;
+    await db.exec(file(f).replace(/create extension if not exists \w+;/g, ""));
+  }
   // domyślnie funkcje/tabele w public mają uprawnienia właściciela; nadajemy jak w Supabase (RLS i tak pilnuje dostępu)
   await db.exec("grant select, insert, update, delete on all tables in schema public to anon, authenticated, service_role");
   return db;
 }
+
+/** Migracje po usunięciu radaru (dopisywane w miarę rozwoju). */
+const MIGRATIONS_AFTER: string[] = [];
 
 export async function asRole<T>(db: PGlite, role: "anon" | "authenticated" | "service_role", uid: string | null, fn: () => Promise<T>): Promise<T> {
   await db.exec(`set role ${role}; select set_config('request.jwt.claim.sub', '${uid ?? ""}', false)`);

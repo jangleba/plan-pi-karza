@@ -94,7 +94,7 @@ export function copyScope(from: Scope, to: Scope, opts: { overwrite?: boolean; k
 /** Klucze używane przez wcześniejsze wersje aplikacji (bez przestrzeni). */
 const LEGACY_EXACT = new Set([
   "profile", "history", "weightLog", "masDistance", "feelings", "runs", "meals", "fuelGoal", "fuelRecents", "shopChecked", "fuelFavs",
-  "iqAttempts", "stimOpts", "radarPrefs", "radarSaved", "radarInquiry", "radarSent",
+  "iqAttempts", "stimOpts",
 ]);
 const LEGACY_PREFIX = ["checkIn:", "water:", "fuelStart:", "bag:", "warmup:", "bench:"];
 const isLegacyKey = (k: string) => LEGACY_EXACT.has(k) || LEGACY_PREFIX.some((p) => k.startsWith(p));
@@ -120,4 +120,22 @@ export function migrateLegacy(): { moved: string[]; dropped: string[]; alreadyDo
   }
   try { st.setItem(META_MIGRATED, new Date().toISOString()); } catch { /* brak pamięci */ }
   return { moved, dropped, alreadyDone: false };
+}
+
+/**
+ * Moduły usunięte z aplikacji: ich dane lokalne (m.in. zapisane oferty, wizytówka z imieniem i telefonem) są trwale kasowane
+ * z wszystkich przestrzeni (gość i konta) oraz ze starych, nieprzestrzennych kluczy. Wykonywane raz (znacznik w pamięci).
+ */
+const REMOVED_KEY = /^(?:bw:(?:guest|u:[^:]+):)?radar[A-Za-z]*$/;
+const META_PURGED = `${PREFIX}meta:purged-radar-v1`;
+export function purgeRemovedFeatures(): { removed: string[]; alreadyDone: boolean } {
+  const st = raw();
+  if (!st) return { removed: [], alreadyDone: true };
+  if (st.getItem(META_PURGED)) return { removed: [], alreadyDone: true };
+  const keys: string[] = [];
+  for (let i = 0; i < st.length; i++) { const k = st.key(i); if (k && REMOVED_KEY.test(k)) keys.push(k); }
+  const removed: string[] = [];
+  for (const k of keys) { try { st.removeItem(k); removed.push(k); } catch { /* brak pamięci – zostaje do następnego uruchomienia */ } }
+  if (removed.length === keys.length) { try { st.setItem(META_PURGED, new Date().toISOString()); } catch { /* brak pamięci */ } }
+  return { removed, alreadyDone: false };
 }

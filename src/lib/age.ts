@@ -1,8 +1,42 @@
-import { ageRangeOn } from "../../supabase/functions/_shared/radar/eligibility";
-import { isISODate } from "../../supabase/functions/_shared/radar/time";
+const ymd = (iso: string) => ({ y: Number(iso.slice(0, 4)), m: Number(iso.slice(5, 7)), d: Number(iso.slice(8, 10)) });
+const isLeap = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+
+export function isISODate(s: unknown): s is string {
+  if (typeof s !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const t = Date.parse(`${s}T00:00:00Z`);
+  return Number.isFinite(t) && new Date(t).toISOString().slice(0, 10) === s;
+}
+
+/** Ukończone lata w dniu `asOf` dla ustalonej daty urodzin w danym roku. W dniu urodzin wiek już się zwiększa. */
+function completedYears(b: { y: number }, asOf: { y: number; m: number; d: number }, bm: number, bd: number): number {
+  const before = asOf.m < bm || (asOf.m === bm && asOf.d < bd);
+  return asOf.y - b.y - (before ? 1 : 0);
+}
 
 /**
- * JEDNA funkcja kwalifikacji wieku dla całej aplikacji (onboarding, zmiana danych, odczyt zapisanego profilu, radar).
+ * Zakres możliwych ukończonych lat [min, max] w dniu `asOfISO`:
+ *  – znana pełna data: jedna wartość (dla 29.02 w roku niewysokosowym liczymy obie konwencje: 28.02 i 1.03),
+ *  – znany tylko rok: od 1 stycznia do 31 grudnia, więc zwykle dwie wartości,
+ *  – brak danych: null.
+ */
+export function ageRangeOn(facts: { birthDate?: string | null; birthYear?: number | null }, asOfISO: string): [number, number] | null {
+  const a = ymd(asOfISO);
+  if (facts.birthDate) {
+    const b = ymd(facts.birthDate);
+    const variants = b.m === 2 && b.d === 29 && !isLeap(a.y) ? [[2, 28], [3, 1]] : [[b.m, b.d]];
+    const ages = variants.map(([bm, bd]) => completedYears(b, a, bm!, bd!));
+    return [Math.min(...ages), Math.max(...ages)];
+  }
+  if (facts.birthYear) {
+    const jan = completedYears({ y: facts.birthYear }, a, 1, 1);
+    const dec = completedYears({ y: facts.birthYear }, a, 12, 31);
+    return [Math.min(jan, dec), Math.max(jan, dec)];
+  }
+  return null;
+}
+
+/**
+ * JEDNA funkcja kwalifikacji wieku dla całej aplikacji (onboarding, zmiana danych, odczyt zapisanego profilu).
  * Zasady:
  *  – pełna data urodzenia rozstrzyga i ma pierwszeństwo przed deklaracją (sprzeczność jest zgłaszana),
  *  – sam rocznik NIE jest dowodem ukończenia 16 lat, jeśli wynik zależy od dnia urodzin (nie podstawiamy 1 stycznia),
