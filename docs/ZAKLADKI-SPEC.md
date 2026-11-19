@@ -151,3 +151,10 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 - Wnioski: do 3 zdań z liczb (nowy rekord, największa zmiana z 8 tygodni ≥ 2%, realizacja planu z najczęściej pomijanym rodzajem, odżywianie) – bez zgadywania przyczyn.
 - Odżywianie: z ostatnich 14 dni dni z wpisami w Fuel – ile razy ≥ 85% celu węglowodanów/białka/wody (cele z planu dnia, orientacyjne); dni bez wpisów liczone osobno, poniżej 3 dni z wpisami brak wniosków.
 - Ograniczenia: dane tylko lokalne; plan z przeszłości liczony wg dzisiejszych ustawień profilu (zmiana profilu zmienia ocenę starych tygodni); treningi klubowe nie są zapisywane w historii (tylko indywidualne); pomiary z Lab/MAS/siły zależą od tego, co zawodnik zapisał.
+
+## Fuel – tryb meczowy: torba i odliczanie (2026-11-19)
+- W dniu meczu i dzień wcześniej (wtedy się pakujemy) w Fuel pojawia się „Torba meczowa” z postępem (np. 3 z 17). Lista kontrolna w trzech grupach: Sprzęt, Jedzenie i picie, Drobiazgi; zaznaczenia zapisane lokalnie po dacie meczu.
+- Jedzenie i picie wynikają z planu dnia meczu: woda (ok. 30% dziennej puli), napój/żel/banan na przerwę (posiłek „w trakcie meczu”), przekąska przed i po meczu – tylko produkty, które da się zabrać (`engine/bag.ts`, testy). Dzień przed meczem używany jest plan z domyślną godziną 15:00.
+- Sprzęt i drobiazgi to ogólna lista kontrolna (nie z badań) – do uzupełnienia wg wymagań klubu; zimą (listopad–marzec) dochodzą ciepła bluza i czapka, latem krem z filtrem.
+- W dniu meczu karta godziny startu pokazuje odliczanie do meczu.
+- Poza zakresem (wymagają klucza API Claude, jeszcze niezałożonego): zdjęcie talerza, głos do ulubionych posiłków, zdjęcie lodówki.

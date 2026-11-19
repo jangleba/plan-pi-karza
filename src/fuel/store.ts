@@ -37,3 +37,7 @@ export function pushRecent(r: Recent): void {
 
 export const loadChecked = (): string[] => read<string[]>("shopChecked", []);
 export const saveChecked = (c: string[]) => write("shopChecked", c);
+
+/** Zaznaczone rzeczy w torbie meczowej (po dacie meczu). */
+export const loadBag = (date: string): string[] => read<string[]>(`bag:${date}`, []);
+export const saveBag = (date: string, ids: string[]) => write(`bag:${date}`, ids);
