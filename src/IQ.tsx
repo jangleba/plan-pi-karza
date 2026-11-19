@@ -27,7 +27,9 @@ export default function IQ() {
   useEffect(() => {
     const el = mount.current!;
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // jakość startowa; obniżana automatycznie, jeśli telefon nie wyrabia 60 kl./s
+    let dpr = Math.min(window.devicePixelRatio, 1.75);
+    renderer.setPixelRatio(dpr);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -83,6 +85,7 @@ export default function IQ() {
 
     const camPos = new THREE.Vector3(player.x - 10, 5.2, player.y);
     const camLook = new THREE.Vector3(player.x + 10, 0.6, player.y);
+    const target = new THREE.Vector3(), look = new THREE.Vector3();
     const resize = () => { const w = el.clientWidth, h = el.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); };
     resize();
     const ro = new ResizeObserver(resize); ro.observe(el);
@@ -102,9 +105,21 @@ export default function IQ() {
     };
 
     let last = performance.now(), raf = 0, clockAcc = 0;
+    let lastAim: string | null = null;
+    let perfFrames = 0, perfTime = 0, perfStep = 0;
     const loop = (now: number) => {
       raf = requestAnimationFrame(loop);
-      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      const raw = (now - last) / 1000; last = now;
+      const dt = Math.min(0.05, raw);
+      if (document.hidden) return;
+      // adaptacja jakości: co ok. 1,5 s sprawdzamy średni czas klatki
+      perfFrames++; perfTime += raw;
+      if (perfFrames >= 90) {
+        const avg = perfTime / perfFrames;
+        if (avg > 0.022 && perfStep === 0 && dpr > 1) { dpr = 1; renderer.setPixelRatio(dpr); resize(); perfStep = 1; }
+        else if (avg > 0.026 && perfStep <= 1 && sun.castShadow) { sun.castShadow = false; perfStep = 2; }
+        perfFrames = 0; perfTime = 0;
+      }
       const ph = phaseRef.current;
 
       let jx = joy.current.x, jy = joy.current.y;
@@ -173,11 +188,13 @@ export default function IQ() {
         pos.setXYZ(0, player.x, 0.05, player.y); pos.setXYZ(1, aimMate.pos.x, 0.05, aimMate.pos.y); pos.needsUpdate = true;
         aimLine.computeLineDistances();
       }
-      setAimName(showAim ? aimMate!.name : null);
+      // stan Reacta tylko przy zmianie – bez przerysowywania interfejsu w każdej klatce
+      const aimNow = showAim ? aimMate!.name : null;
+      if (aimNow !== lastAim) { lastAim = aimNow; setAimName(aimNow); }
 
       // kamera płynnie za zawodnikiem, światło i cienie podążają za akcją
-      const target = new THREE.Vector3(player.x - 10, 5.2, player.y);
-      const look = new THREE.Vector3(player.x + 12, 0.6, player.y);
+      target.set(player.x - 10, 5.2, player.y);
+      look.set(player.x + 12, 0.6, player.y);
       const a = 1 - Math.exp(-dt * 5);
       camPos.lerp(target, a); camLook.lerp(look, a);
       cam.position.copy(camPos); cam.lookAt(camLook);

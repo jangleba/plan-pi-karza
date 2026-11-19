@@ -112,7 +112,15 @@ function TestRow({ test, index, onSaved }: { test: LabTest; index: number; onSav
             ))}
           </div>
           {error && <p className="mb-3 text-center text-sm text-red-ink">{error}</p>}
-          <button onClick={save} className="w-full rounded-2xl bw-grad py-4 text-base font-medium text-white">Zapisz wynik</button>
+          {(() => {
+            const has = inputs.some(([k]) => (vals[k] ?? "").trim() !== "");
+            return (
+              <button onClick={save} disabled={!has}
+                className={`w-full rounded-2xl py-4 text-base font-medium transition ${has ? "bw-grad text-white" : "bg-hairline text-muted"}`}>
+                Zapisz wynik
+              </button>
+            );
+          })()}
         </Sheet>
       )}
       {video && (test.key === "cmj" || test.key === "sprint") && (

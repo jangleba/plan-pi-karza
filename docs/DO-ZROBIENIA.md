@@ -53,3 +53,10 @@
 - Silnik: drugi cel dodaje sesję tylko, gdy zostanie wolne miejsce (bez ostrzeżeń).
 - „Jak czujesz się na boisku?" wraca na Starcie co 5 tygodni; Progres pokazuje zmianę (pierwsza vs ostatnia odpowiedź).
 - Pytanie o stres/pewność siebie celowo pominięte (decyzja użytkownika).
+
+## Dopracowanie całości (2026-11-19)
+- Płynność: IQ nie aktualizuje stanu Reacta w każdej klatce; jakość grafiki obniża się sama, gdy telefon nie wyrabia (najpierw rozdzielczość, potem cienie); brak renderowania w ukrytej karcie przeglądarki; brak tworzenia obiektów w pętli kamery.
+- Karty od dołu (wspólny komponent): przeciągnięcie uchwytu w dół zamyka, animowane zamykanie, blokada przewijania tła, bezpieczny margines dołu (iPhone). Okno sesji przeniesione na wspólną kartę.
+- Pasek zakładek z ikonami liniowymi (styl SF Symbols), rozmyte tło; zwijany nagłówek po przewinięciu (jak w iOS); płynne przejście między zakładkami; szkielet ładowania IQ.
+- Progres w nowym stylu (pigułki trendu, legenda, metryki bez pomiarów w jednej liście); Start na wspólnych wierszach; liczba gotowości „dolicza się".
+- Detale: brak „gumki" strony, zaznaczenie i fokus w kolorze akcentu, kursor w akcencie, przycisk „Zapisz wynik" aktywny dopiero po wpisaniu wyniku.

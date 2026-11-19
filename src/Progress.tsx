@@ -2,7 +2,8 @@ import { useMemo } from "react";
 import { EXERCISES, FEEL_NOW, feelChange, loadFeelings, loadHistory, localISO, series, sessionsPerWeek, trend, weekStartOf } from "./engine";
 import type { Better, EventType, HistoryEvent } from "./engine";
 import { LineChart, TREND_HEX } from "./LineChart";
-import { Empty, PageHeader } from "./Sketch";
+import { Empty } from "./Sketch";
+import { Group, LargeTitle, ListRow } from "./ui";
 
 interface Metric { title: string; type: EventType; key: string; unit: string; better: Better; fmt?: (v: number) => number }
 
@@ -20,11 +21,11 @@ function Card({
 }: { title: string; points: Array<{ date: string; value: number }>; better: Better; unit: string }) {
   const t = trend(points.map((p) => p.value), better);
   return (
-    <section className="mb-3 rounded-2xl bg-card p-4 border border-hairline">
+    <section className="bw-rise mb-3 rounded-3xl border border-hairline bg-card px-5 pb-3 pt-4">
       <div className="mb-1 flex items-baseline justify-between">
-        <h3 className="text-sm font-semibold">{title}</h3>
+        <h3 className="text-[15px] font-semibold">{title}</h3>
         {t && (
-          <span className="text-xs font-medium" style={{ color: TREND_HEX[t.tone] }}>
+          <span className="rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums" style={{ color: TREND_HEX[t.tone], background: `${TREND_HEX[t.tone]}14` }}>
             {t.pct >= 0 ? "+" : ""}{t.pct.toFixed(1)}%
           </span>
         )}
@@ -50,8 +51,8 @@ function FeelSection() {
   const ch = all.length > 1 ? feelChange(first, last) : null;
   return (
     <>
-      <h2 className="mb-2 text-xs uppercase tracking-wide text-muted">Na boisku</h2>
-      <section className="mb-3 rounded-2xl border border-hairline bg-card p-4 text-sm">
+      <h2 className="mb-2 px-1 text-xs uppercase tracking-wide text-muted">Na boisku</h2>
+      <section className="bw-rise mb-6 rounded-3xl border border-hairline bg-card px-5 py-4 text-[15px]">
         {ch ? (
           <>
             {ch.better.map((f) => <p key={f} className="text-green-ink">Lepiej: już nie „{FEEL_LABEL[f]}”</p>)}
@@ -74,28 +75,41 @@ export function Progress({ refreshKey }: { refreshKey?: number }) {
   const weeks = sessionsPerWeek(events, weekStartOf(localISO()));
   const empty = events.length === 0;
 
+  const label = (t: string) => <h2 className="mb-2 mt-6 px-1 text-xs uppercase tracking-wide text-muted">{t}</h2>;
+  const labSeries = LABS.map((m) => ({ m, pts: series(events, m.type, m.key) }));
+  const measured = labSeries.filter((x) => x.pts.length > 0);
+  const missing = labSeries.filter((x) => x.pts.length === 0);
+  const mas = series(events, "mas", "mas");
+  const legend: Array<[string, string]> = [[TREND_HEX.green, "postęp"], [TREND_HEX.orange, "lekki spadek"], [TREND_HEX.red, "regres"]];
+
   return (
-    <main className="mx-auto max-w-md px-4 pb-28 pt-14">
-      <PageHeader kind="progres" title="Progres" sub="Zielony – postęp, pomarańczowy i czerwony – regres." />
+    <main className="mx-auto max-w-md px-5 pb-28 pt-14">
+      <LargeTitle kind="progres" title="Progres" sub="Twoje trendy" />
+      <div className="bw-rise mb-6 flex gap-4 px-1 text-xs text-muted">
+        {legend.map(([c, t]) => <span key={t} className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: c }} />{t}</span>)}
+      </div>
       {empty && (
-        <div className="mb-4">
+        <div className="mb-6">
           <Empty kind="progres">Wykresy pojawią się po pierwszych sesjach i testach.</Empty>
         </div>
       )}
       <FeelSection />
-      <h2 className="mb-2 text-xs uppercase tracking-wide text-muted">Regularność</h2>
+      {label("Regularność")}
       <Card title="Sesje w tygodniu" points={weeks} better="higher" unit="" />
-      <h2 className="mb-2 mt-5 text-xs uppercase tracking-wide text-muted">Siła (szac. 1RM)</h2>
-      {strengthKeys.length === 0 && <p className="mb-3 text-sm text-muted">Wpisz kg w sesji siłowej.</p>}
+      {strengthKeys.length > 0 && label("Siła · szacowane 1RM")}
       {strengthKeys.map((k) => (
         <Card key={k} title={EXERCISES[k]?.name ?? k} points={series(events, "strength", k)} better="higher" unit=" kg" />
       ))}
-      <h2 className="mb-2 mt-5 text-xs uppercase tracking-wide text-muted">Bieganie</h2>
-      <Card title="MAS" points={series(events, "mas", "mas")} better="higher" unit=" km/h" />
-      <h2 className="mb-2 mt-5 text-xs uppercase tracking-wide text-muted">Lab</h2>
-      {LABS.map((m) => (
-        <Card key={m.key} title={m.title} points={series(events, m.type, m.key)} better={m.better} unit={m.unit} />
-      ))}
+      {mas.length > 0 && <>{label("Bieganie")}<Card title="MAS" points={mas} better="higher" unit=" km/h" /></>}
+      {measured.length > 0 && label("Lab")}
+      {measured.map(({ m, pts }) => <Card key={m.key} title={m.title} points={pts} better={m.better} unit={m.unit} />)}
+      {missing.length > 0 && (
+        <Group label="Jeszcze bez pomiarów">
+          {missing.map(({ m }, i) => <ListRow key={m.key} index={i} title={m.title} detail="Lab" />)}
+          {strengthKeys.length === 0 && <ListRow index={missing.length} title="Siła" detail="kg w sesji" />}
+          {mas.length === 0 && <ListRow index={missing.length + 1} title="MAS" detail="test 5 min" />}
+        </Group>
+      )}
     </main>
   );
 }

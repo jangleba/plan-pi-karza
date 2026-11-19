@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FEEL_NOW, cycleWeekFor, feelDue, levelOf, loadFeelings, localISO, planForProfile, readinessScore, saveFeeling, strainOf, weekStartOf } from "./engine";
 import type { CheckIn, DayPlan, FeelNow, Profile, SessionKind } from "./engine";
 import { Sheet } from "./Sheet";
 import { SessionSheet } from "./SessionSheet";
 import { MatchInMind } from "./MatchInMind";
+import { Group, ListRow } from "./ui";
 
 const KIND: Record<SessionKind, string> = {
   strength: "Siła", run: "Bieganie", sprint: "Sprint", technique: "Technika", activation: "Aktywacja", recovery: "Regeneracja",
@@ -12,8 +13,27 @@ const LEVELS: Array<[1 | 2 | 3, string]> = [[1, "Słabo"], [2, "Średnio"], [3, 
 const STRAIN = { none: "Pełna sesja", light: "Trochę lżej", heavy: "Wyraźnie lżej" } as const;
 
 /** Pierścień gotowości; dotknięcie otwiera check-in. */
+/** Liczba „doliczająca się” do celu (easeOutCubic). */
+function useCountUp(to: number, run: boolean, ms = 800): number {
+  const [v, setV] = useState(run ? 0 : to);
+  useEffect(() => {
+    if (!run) { setV(to); return; }
+    let raf = 0;
+    const from = 0, t0 = performance.now();
+    const step = (now: number) => {
+      const k = Math.min(1, (now - t0) / ms);
+      setV(Math.round(from + (to - from) * (1 - (1 - k) ** 3)));
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [to, run, ms]);
+  return v;
+}
+
 function Ring({ value, done, onTap }: { value: number; done: boolean; onTap: () => void }) {
   const r = 70, c = 2 * Math.PI * r;
+  const shown = useCountUp(value, done);
   return (
     <button onClick={onTap} className="relative mx-auto block h-48 w-48" aria-label="Check-in">
       <svg viewBox="0 0 160 160" className="h-full w-full -rotate-90">
@@ -27,7 +47,7 @@ function Ring({ value, done, onTap }: { value: number; done: boolean; onTap: () 
           strokeDasharray={c} strokeDashoffset={done ? c * (1 - value / 100) : c} style={{ transition: "stroke-dashoffset 0.8s ease" }} />
       </svg>
       <span className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-5xl font-semibold tabular-nums tracking-tight">{done ? value : "?"}</span>
+        <span className="text-5xl font-semibold tabular-nums tracking-tight">{done ? shown : "?"}</span>
         <span className="mt-1 text-xs text-muted">{done ? "gotowość" : "dotknij"}</span>
       </span>
     </button>
@@ -45,16 +65,6 @@ function Choice({ label, value, onChange }: { label: string; value: 1 | 2 | 3; o
         ))}
       </div>
     </div>
-  );
-}
-
-function Row({ title, detail, onTap }: { title: string; detail?: string; onTap?: () => void }) {
-  return (
-    <button onClick={onTap} disabled={!onTap}
-      className="flex w-full items-center justify-between border-b border-hairline py-4 text-left last:border-0 disabled:active:scale-100">
-      <span className="text-base font-medium">{title}</span>
-      <span className="flex items-center gap-2 text-sm text-muted">{detail}{onTap && <span className="text-accent">›</span>}</span>
-    </button>
   );
 }
 
@@ -84,18 +94,20 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn }: {
       <Ring value={readinessScore(checkIn)} done={checkedIn} onTap={() => setSheet("checkin")} />
       <p className="mb-8 mt-3 text-center text-sm text-muted">{checkedIn ? STRAIN[strainOf(checkIn)] : "Jak się czujesz?"}</p>
 
-      <div className="rounded-3xl border border-hairline bg-card px-5">
+      <Group>
         {day && (
-          <Row
-            title={day.isMatch ? "Mecz" : day.session ? KIND[day.session.kind] : "Wolne"}
+          <ListRow
+            index={0}
+            title={day.isOff ? "Dzień wolny od treningu" : day.isMatch ? "Mecz" : day.session ? KIND[day.session.kind] : "Wolne"}
+            sub={day.session?.reason || undefined}
             detail={day.isClub ? "+ klub" : undefined}
             onTap={day.session ? () => setSheet("session") : undefined}
           />
         )}
-        <Row title="Mecz w głowie" detail="3 min" onTap={() => setSheet("mind")} />
-        {feelDue(feelings.at(-1), today) && <Row title="Jak czujesz się na boisku?" detail="co 5 tyg." onTap={() => { setFeel([]); setSheet("feel"); }} />}
-        {day && matchIn(day) && <Row title={matchIn(day)!} />}
-      </div>
+        <ListRow index={1} title="Mecz w głowie" detail="3 min" onTap={() => setSheet("mind")} />
+        {feelDue(feelings.at(-1), today) && <ListRow index={2} title="Jak czujesz się na boisku?" detail="co 5 tyg." onTap={() => { setFeel([]); setSheet("feel"); }} />}
+        {day && matchIn(day) && <ListRow index={3} title={matchIn(day)!} />}
+      </Group>
 
       {sheet === "checkin" && (
         <Sheet title="Jak się czujesz?" onClose={() => setSheet(null)}>

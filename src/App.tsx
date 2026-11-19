@@ -12,7 +12,7 @@ import { Fuel } from "./Fuel";
 
 // Three.js ładowane dopiero po wejściu w zakładkę IQ
 const IQ = lazy(() => import("./IQ"));
-import { Soon, TabBar, type Tab } from "./Tabs";
+import { Skeleton, TabBar, type Tab } from "./Tabs";
 import { supabase } from "./lib/supabase";
 import { pullAll, pushCheckIn, pushProfile } from "./lib/sync";
 import { loadLog, saveLog } from "./engine";
@@ -145,7 +145,7 @@ function Main() {
   return (
     <div className="bw-backdrop relative isolate min-h-screen">
       <Backdrop />
-      <div className="relative">
+      <div key={tab} className="bw-tab relative">
       {tab === "start" && (
         <Start profile={profile} checkIn={checkIn} checkedIn={checkedIn} onCheckIn={setCheckIn} />
       )}
@@ -157,7 +157,7 @@ function Main() {
       )}
       {tab === "lab" && <Lab />}
       {tab === "iq" && (
-        <Suspense fallback={<Soon title="IQ" text="Ładowanie sceny…" />}>
+        <Suspense fallback={<Skeleton title="IQ" />}>
           <IQ />
         </Suspense>
       )}
