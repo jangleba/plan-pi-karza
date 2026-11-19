@@ -4,6 +4,8 @@ import type { HistoryEvent, Metric, Profile, Range } from "./engine";
 import { KIND_PL, fmtValue } from "./engine/progress2";
 import { Empty } from "./Sketch";
 import { LargeTitle } from "./ui";
+import { VARIANTS, attemptStats, createScenario } from "./engine/sim";
+import { loadAttempts } from "./iq/attempts-store";
 import { TREND_HEX } from "./progress/trend";
 import { Heatmap } from "./progress/Heatmap";
 import { KindSheet, RangeTabs } from "./progress/KindSheet";
@@ -99,7 +101,9 @@ export function Progress({ profile, refreshKey }: { profile: Profile; refreshKey
   const nutDays = useMemo(() => nutritionDays(profile, today, 14), [profile, today]);
   const nut = nutritionSummary(nutDays);
   const notes = insights({ events, metrics, today, adherence: recent, kinds, nutrition: nut });
-  const empty = events.length === 0;
+  const attempts = useMemo(loadAttempts, [refreshKey]);
+  const iq = useMemo(() => { const names = createScenario(0).agents; return attemptStats(attempts, (id) => names.find((a) => a.id === id)?.name ?? id); }, [attempts]);
+  const empty = events.length === 0 && attempts.length === 0;
   const legend: Array<[string, string]> = [[TREND_HEX.green, "postęp"], [TREND_HEX.orange, "lekki spadek"], [TREND_HEX.red, "regres"]];
 
   return (
@@ -199,6 +203,38 @@ export function Progress({ profile, refreshKey }: { profile: Profile; refreshKey
           <p className="text-sm text-muted">Za mało wpisów na wnioski ({nut.logged} z {nut.total} dni). Dodawaj posiłki w Fuel – po 3 dniach pojawi się podsumowanie.</p>
         )}
       </section>
+
+      {iq && (
+        <>
+          {label("IQ · wyjście spod pressingu")}
+          <section className={`${card} px-5 py-4`}>
+            <div className="mb-4 flex items-end justify-between">
+              <div>
+                <div className="text-[34px] font-semibold leading-none tabular-nums">{iq.cleanPct}<span className="text-base font-normal text-muted">%</span></div>
+                <div className="mt-1 text-xs text-muted">wyjść bez straty · {iq.clean} z {iq.total} prób</div>
+              </div>
+              {iq.lastPct !== null && <div className="text-right"><div className="text-[22px] font-semibold leading-none tabular-nums">{iq.lastPct}%</div><div className="mt-1 text-xs text-muted">ostatnie 5 prób</div></div>}
+            </div>
+            <div className="mb-4 flex flex-wrap gap-1.5" aria-label="Ostatnie próby">
+              {attempts.slice(-14).map((a, i) => (
+                <span key={i} title={a.cls} className={`h-4 w-4 rounded-full ${a.cls === "clean" ? "bg-btn shadow-[inset_0_0_0_1px_var(--color-btn-line)]" : a.cls === "recovered" ? "border border-btn-line bg-card" : "border border-dashed border-muted/60 bg-card"}`} />
+              ))}
+            </div>
+            <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted">
+              <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-btn shadow-[inset_0_0_0_1px_var(--color-btn-line)]" />bez straty</span>
+              <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full border border-btn-line" />strata odzyskana</span>
+              <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full border border-dashed border-muted/60" />strata i kontra</span>
+            </div>
+            <ul className="space-y-1.5 border-t border-hairline pt-3 text-[15px]">
+              {iq.byVariant.map((v) => (
+                <li key={v.variant} className="flex justify-between"><span>{VARIANTS[v.variant]?.title ?? `Wariant ${v.variant + 1}`}</span><span className="tabular-nums text-muted">{v.clean} z {v.total}</span></li>
+              ))}
+            </ul>
+            {iq.mistake && <p className="mt-3 border-l-2 border-btn-line pl-3 text-[15px] leading-snug">Najczęstszy błąd: {iq.mistake.text} ({iq.mistake.count}×).</p>}
+            <p className="mt-3 text-[11px] text-muted">Bez punktów: liczy się, czy wyszedłeś z pressingu bez straty piłki.</p>
+          </section>
+        </>
+      )}
 
       <FeelSection />
 

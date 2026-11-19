@@ -151,3 +151,19 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 - Wnioski: do 3 zdań z liczb (nowy rekord, największa zmiana z 8 tygodni ≥ 2%, realizacja planu z najczęściej pomijanym rodzajem, odżywianie) – bez zgadywania przyczyn.
 - Odżywianie: z ostatnich 14 dni dni z wpisami w Fuel – ile razy ≥ 85% celu węglowodanów/białka/wody (cele z planu dnia, orientacyjne); dni bez wpisów liczone osobno, poniżej 3 dni z wpisami brak wniosków.
 - Ograniczenia: dane tylko lokalne; plan z przeszłości liczony wg dzisiejszych ustawień profilu (zmiana profilu zmienia ocenę starych tygodni); treningi klubowe nie są zapisywane w historii (tylko indywidualne); pomiary z Lab/MAS/siły zależą od tego, co zawodnik zapisał.
+
+## Fuel – tryb meczowy: torba i odliczanie (2026-11-19)
+- W dniu meczu i dzień wcześniej (wtedy się pakujemy) w Fuel pojawia się „Torba meczowa” z postępem (np. 3 z 17). Lista kontrolna w trzech grupach: Sprzęt, Jedzenie i picie, Drobiazgi; zaznaczenia zapisane lokalnie po dacie meczu.
+- Jedzenie i picie wynikają z planu dnia meczu: woda (ok. 30% dziennej puli), napój/żel/banan na przerwę (posiłek „w trakcie meczu”), przekąska przed i po meczu – tylko produkty, które da się zabrać (`engine/bag.ts`, testy). Dzień przed meczem używany jest plan z domyślną godziną 15:00.
+- Sprzęt i drobiazgi to ogólna lista kontrolna (nie z badań) – do uzupełnienia wg wymagań klubu; zimą (listopad–marzec) dochodzą ciepła bluza i czapka, latem krem z filtrem.
+- W dniu meczu karta godziny startu pokazuje odliczanie do meczu.
+- Poza zakresem (wymagają klucza API Claude, jeszcze niezałożonego): zdjęcie talerza, głos do ulubionych posiłków, zdjęcie lodówki.
+
+## IQ – nauka po akcji (2026-11-19, etap 3 z 3)
+- Po rozstrzygnięciu akcji arkusz wyniku ma: kategorię (**Wyjście udane** – bez straty piłki; **Strata odzyskana**; **Strata i kontra**), jedno zdanie o końcu akcji, **powtórkę z góry** i **„Co robić” w 3 krokach**; przyciski „Kolejna próba: <następny wariant>” i „Jeszcze raz: <ten wariant>”. Bez punktów.
+- Powtórka (`src/iq/ReplayBoard.tsx`, `engine/sim/replay.ts`): nagrane pozycje 17 zawodników i piłki co 0,1 s, odtwarzanie (1× / 0,5×), suwak czasu, znaczniki zdarzeń, podpis bieżącego zdarzenia, ślad piłki, pierścień przy posiadaczu. W chwili decyzji tory podań do kolegów: zielone ✓ – piłka zostaje u nas przez 6 s, czerwone ✕ – przecięte.
+- „Co by zadziałało” (`engine/sim/coach.ts`, `rateOptions`): migawka świata z chwili decyzji (0,5 s przed podaniem albo 1 s przed stratą), dla każdego kolegi symulacja podania z użytkownikiem stojącym w miejscu; ocena: czy piłka została u nas przez 6 s, o ile metrów do przodu, kto i kiedy przeciął. Uproszczenie: nie uwzględnia ruchu użytkownika po podaniu; to symulacja prototypu, nie dane meczowe.
+- Trzy kroki (krótkie, konkretne): 1 **Czytaj pressing** (opis ustawienia + kto wolny, a kto przecięty), 2 **Twój wybór** (porównanie z tym, co zadziałało; przy stracie przed podaniem – jak szybko pressing się zamyka), 3 **Po zagraniu / Po stracie** (ruszaj w wolną przestrzeń i bądź trzecim zawodnikiem; po stracie bez wślizgu, opóźniaj, bo z tyłu kontra 3 na 2). Zasady ogólne z docs/ZRODLA-IQ.md – DO PRZEGLĄDU TRENERA.
+- Kolejna próba z wariantem: warianty rywala (pressing 2 napastników → wysoki blok → niski blok) wracają cyklicznie.
+- Progres → „IQ · wyjście spod pressingu” (`engine/sim/attempts.ts`): % wyjść bez straty (wszystkie i ostatnie 5), ostatnie 14 prób, wyniki wg wariantu, najczęstszy błąd (od 2 powtórzeń), np. „podanie do: Napastnik (3×)”. Próby zapisywane lokalnie (`iqAttempts`, do 300).
+- NIE sprawdzone na telefonie; ocena opcji jest uproszczona (patrz wyżej).

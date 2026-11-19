@@ -1,19 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { Sheet } from "./Sheet";
 import { Group, LargeTitle, ListRow, MiniRing } from "./ui";
-import { localISO } from "./engine";
+import { addDays, localISO } from "./engine";
 import type { Goal, Profile } from "./engine";
-import { buildDayPlan, fmtTime, ideasFor, nextSlot, untilText, type ScaledIdea, type Slot } from "./engine/mealplan";
+import { matchBag } from "./engine/bag";
+import { buildDayPlan, fmtTime, ideasFor, nextSlot, toMin, untilText, type ScaledIdea, type Slot } from "./engine/mealplan";
 import { Around } from "./fuel/Around";
+import { Bag } from "./fuel/Bag";
 import { AddFood, type NewMeal } from "./fuel/AddFood";
 import { GOAL_LABEL, GoalSheet } from "./fuel/Goal";
 import { Journal } from "./fuel/Journal";
 import { Shopping } from "./fuel/Shopping";
 import { SlotSheet } from "./fuel/SlotSheet";
-import { activitiesFor, asActivities, dayInfoFor } from "./fuel/day";
-import { loadGoal, loadMeals, loadWater, saveGoal, saveMeals, saveStart, saveWater, type Meal } from "./fuel/store";
+import { activitiesFor, asActivities, dayInfoFor, defaultStart } from "./fuel/day";
+import { loadBag, loadGoal, loadMeals, loadWater, saveGoal, saveMeals, saveStart, saveWater, type Meal } from "./fuel/store";
 
-type Sheetk = "add" | "slot" | "journal" | "shop" | "around" | "goal";
+type Sheetk = "add" | "slot" | "journal" | "shop" | "around" | "goal" | "bag";
 const WATER_STEP = 250;
 const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
 const nowHHMM = () => fmtTime(nowMin());
@@ -42,6 +44,13 @@ export function Fuel({ profile }: { profile: Profile }) {
   const { next, missed } = nextSlot(plan.slots, done, nowMin());
   const missedIds = new Set(missed.map((s) => s.id));
   const nextIdeas = next ? ideasFor(next, 0) : [];
+  // torba meczowa: w dniu meczu i dzień wcześniej (wtedy się pakujemy)
+  const matchDate = info.match ? date : info.kind === "pre-match" ? addDays(date, 1) : null;
+  const matchPlan = matchDate ? (info.match ? plan : buildDayPlan({ day: "match", weightKg: profile.weightKg, goal, activities: [{ kind: "match", time: defaultStart("match", false) }] })) : null;
+  const bag = matchPlan && matchDate ? matchBag(matchPlan, matchDate) : null;
+  const bagTotal = bag ? bag.reduce((s, g) => s + g.items.length, 0) : 0;
+  const bagDone = matchDate && bag ? bag.reduce((s, g) => s + g.items.filter((i) => loadBag(matchDate).includes(i.id)).length, 0) : 0;
+  
 
   const addMeal = (m: NewMeal, slot?: string) => {
     saveMeals([...allMeals, { id: uid(), date, time: nowHHMM(), name: m.name, carb: m.carb, protein: m.protein, fat: m.fat, slot } satisfies Meal]);
@@ -64,7 +73,7 @@ export function Fuel({ profile }: { profile: Profile }) {
         <div className="bw-rise mb-5 overflow-hidden rounded-2xl border border-hairline bg-card">
           {activities.map((a) => (
             <label key={a.key} className="flex items-center justify-between border-b border-hairline px-4 py-3 text-sm last:border-0">
-              <span className="text-muted">{a.label}</span>
+              <span className="text-muted">{a.label}{a.kind === "match" && toMin(a.time) - nowMin() > 0 ? <span className="block text-xs text-accent">{untilText(toMin(a.time) - nowMin())}</span> : null}</span>
               <input type="time" value={a.time} onChange={(e) => { if (e.target.value) { saveStart(date, e.target.value, a.key); refresh(); } }} className="rounded-lg bg-canvas px-2 py-1 font-medium tabular-nums outline-none" />
             </label>
           ))}
@@ -135,6 +144,16 @@ export function Fuel({ profile }: { profile: Profile }) {
         </div>
       </section>
 
+      {bag && (
+        <button onClick={() => setSheet("bag")} className="bw-rise mb-6 flex w-full items-center justify-between rounded-2xl border border-hairline bg-card px-4 py-3 text-left">
+          <span>
+            <span className="block text-sm font-medium">Torba meczowa{info.match ? "" : " – na jutro"}</span>
+            <span className="block text-xs tabular-nums text-muted">{bagDone} z {bagTotal} spakowane</span>
+          </span>
+          <span className="text-accent">›</span>
+        </button>
+      )}
+
       <button onClick={() => { setForSlot(undefined); setSheet("add"); }} className="bw-rise mb-6 w-full rounded-2xl bw-grad py-4 text-base font-medium">Dodaj jedzenie</button>
 
       <Group>
@@ -152,6 +171,7 @@ export function Fuel({ profile }: { profile: Profile }) {
       {sheet === "journal" && <Journal meals={meals} onRemove={removeMeal} onClose={() => setSheet(null)} />}
       {sheet === "shop" && <Shopping profile={profile} goal={goal} today={date} onClose={() => setSheet(null)} />}
       {sheet === "around" && <Sheet title="Przed i po wysiłku" onClose={() => setSheet(null)}><Around profile={profile} /></Sheet>}
+      {sheet === "bag" && bag && matchDate && <Bag groups={bag} date={matchDate} onChange={refresh} onClose={() => setSheet(null)} />}
       {sheet === "goal" && <GoalSheet goal={goal} onPick={(g: Goal) => { saveGoal(g); setSheet(null); refresh(); }} onClose={() => setSheet(null)} />}
     </main>
   );
