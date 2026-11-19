@@ -46,3 +46,10 @@
 - Onboarding bez przewijania (sprawdzone przy wysokości 520 px), liga z listy od dołu, kalendarz tygodnia: wolny / klub / mecz / brak (dzień niedostępny – silnik nie układa w nim treningów), zawsze „Mecz", nie „Sparing".
 - Animacje: przesuwanie kroków (dalej z prawej, wstecz z lewej), „podskakujące" wybory, animowany szkic na każdym kroku, ekran przejścia „Układam Twój tydzień" i płynne wejście na Start.
 - 2026-11-19 (poprawka): bez gradientów. Tło złamana biel (#f7f8fa), karty białe, tekst grafit, główne przyciski grafitowe, zaznaczenia w bardzo jasnym błękicie (#e8f1fc, tekst #2f6fb3, cienka obwódka), klub jasnozielony.
+
+## Onboarding v3 (2026-11-19)
+- Bez wpisywania liczb: koła jak w iOS (wiek, masa, staż); duże kafle wyboru na całą szerokość z animacją i znacznikiem (✓ lub kolejność 1/2).
+- Kroki: O Tobie → Na boisku (pozycja, „jak czujesz się teraz" – za wolny / pojedynki / brak pary) → Jak chcesz się czuć? (cel główny i dodatkowy, podpowiedziane z odpowiedzi) → Sezon → Trening → Twój tydzień.
+- Silnik: drugi cel dodaje sesję tylko, gdy zostanie wolne miejsce (bez ostrzeżeń).
+- „Jak czujesz się na boisku?" wraca na Starcie co 5 tygodni; Progres pokazuje zmianę (pierwsza vs ostatnia odpowiedź).
+- Pytanie o stres/pewność siebie celowo pominięte (decyzja użytkownika).

@@ -90,3 +90,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
 @media (prefers-reduced-motion: reduce) {
   .bw-pop, .bw-step-back, .bw-bounce, .bw-shadow, .bw-draw, .bw-lift, .bw-fill { animation: none; }
 }
+
+/* koło wyboru: bez paska przewijania, wygaszone brzegi */
+.bw-wheel { scrollbar-width: none; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent); }
+.bw-wheel::-webkit-scrollbar { display: none; }

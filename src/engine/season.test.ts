@@ -84,3 +84,28 @@ describe("dni niedostępne", () => {
     expect(p.warnings.length).toBeGreaterThan(0);
   });
 });
+
+import { feelChange, feelDue, suggestGoals } from "./feel";
+describe("drugi cel i samopoczucie na boisku", () => {
+  it("drugi cel dodaje sesję, gdy jest miejsce (bez ostrzeżeń)", () => {
+    const one = planWeek({ ...base, matches: [], season: "preseason", goal: "speed" });
+    const two = planWeek({ ...base, matches: [], season: "preseason", goal: "speed", goal2: "strength" });
+    expect(count(two, "strength")).toBe(count(one, "strength") + 1);
+    expect(two.warnings).toEqual([]);
+  });
+  it("drugi cel taki sam jak pierwszy nie dubluje sesji", () => {
+    const a = planWeek({ ...base, goal: "speed" });
+    const b = planWeek({ ...base, goal: "speed", goal2: "speed" });
+    expect(count(b, "sprint")).toBe(count(a, "sprint"));
+  });
+  it("odpowiedzi podpowiadają cele w kolejności, maks. dwa", () => {
+    expect(suggestGoals(["duels", "slow", "stamina"])).toEqual(["strength", "speed"]);
+    expect(suggestGoals([])).toEqual([]);
+  });
+  it("pytanie wraca po 5 tygodniach i pokazuje zmianę", () => {
+    expect(feelDue(undefined, "2026-11-19")).toBe(true);
+    expect(feelDue({ date: "2026-11-01", now: [] }, "2026-11-19")).toBe(false);
+    expect(feelDue({ date: "2026-10-01", now: [] }, "2026-11-19")).toBe(true);
+    expect(feelChange({ date: "a", now: ["slow", "duels"] }, { date: "b", now: ["duels", "stamina"] })).toEqual({ better: ["slow"], worse: ["stamina"] });
+  });
+});

@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { LEAGUES, MIN_AGE } from "./engine";
-import type { Equipment, League, Position, Profile, Season, SeasonGoal } from "./engine";
+import { FEEL_NOW, LEAGUES, MIN_AGE, saveFeeling, suggestGoals } from "./engine";
+import type { Equipment, FeelNow, League, Position, Profile, Season, SeasonGoal } from "./engine";
+import { Wheel } from "./Wheel";
 import { Sheet } from "./Sheet";
 
 const DAYS = ["Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"];
@@ -8,11 +9,17 @@ const POSITIONS: Array<[Position, string]> = [
   ["bramkarz", "Bramkarz"], ["obronca", "Obrońca"], ["pomocnik", "Pomocnik"], ["skrzydlowy", "Skrzydłowy"], ["napastnik", "Napastnik"],
 ];
 const SEASONS: Array<[Season, string, string]> = [
-  ["preseason", "Przygotowania", "Budujemy formę"],
-  ["inseason", "Sezon", "Plan wokół meczu"],
-  ["offseason", "Przerwa", "Utrzymanie, lżej"],
+  ["preseason", "Okres przygotowawczy", "Budujemy formę"],
+  ["inseason", "W trakcie sezonu", "Plan wokół meczu"],
+  ["offseason", "Przerwa", "Utrzymanie formy, lżej"],
 ];
-const GOALS: Array<[SeasonGoal, string]> = [["speed", "Szybkość"], ["strength", "Siła"], ["endurance", "Wydolność"], ["return", "Powrót po przerwie"]];
+const GOALS: Array<[SeasonGoal, string, string]> = [
+  ["speed", "Szybszy", "Wygrywać starty i powroty"],
+  ["strength", "Silniejszy", "Wygrywać pojedynki"],
+  ["endurance", "Wytrzymalszy", "Mieć parę do końca"],
+  ["return", "W formie po przerwie", "Spokojny powrót"],
+];
+const range = (a: number, b: number, step = 1) => Array.from({ length: Math.floor((b - a) / step) + 1 }, (_, i) => a + i * step);
 const EQUIPMENT: Array<[Equipment, string]> = [["gym", "Siłownia"], ["bodyweight", "Masa ciała"], ["field", "Boisko / bieżnia"]];
 
 /** Stan dnia w kalendarzu tygodnia. */
@@ -38,13 +45,19 @@ function Pick({ on, onTap, children, className = "" }: { on: boolean; onTap: () 
   );
 }
 
-function Chips<T extends string>({ options, value, onToggle }: { options: Array<[T, string]>; value: T[]; onToggle: (v: T) => void }) {
+/** Duży kafel wyboru: znacznik po prawej (✓ albo numer kolejności). */
+function Tile({ on, onTap, title, sub, badge }: { on: boolean; onTap: () => void; title: string; sub?: string; badge?: string }) {
   return (
-    <div className="flex flex-wrap gap-2">
-      {options.map(([v, t]) => (
-        <Pick key={v} on={value.includes(v)} onTap={() => onToggle(v)} className="rounded-full px-3.5 py-2 text-sm font-medium">{t}</Pick>
-      ))}
-    </div>
+    <button key={on ? "on" : "off"} type="button" onClick={onTap}
+      className={`flex w-full items-center gap-3 rounded-2xl px-4 py-2.5 text-left ${on ? "bw-pop bw-sel" : "border border-hairline bg-card"}`}>
+      <span className="min-w-0 flex-1">
+        <span className={`block text-[15px] ${on ? "font-semibold" : "font-medium text-ink"}`}>{title}</span>
+        {sub && <span className={`block text-xs ${on ? "text-accent/75" : "text-muted"}`}>{sub}</span>}
+      </span>
+      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition ${on ? "bg-accent text-white" : "border border-hairline"}`}>
+        {on ? badge ?? "✓" : ""}
+      </span>
+    </button>
   );
 }
 
@@ -110,31 +123,30 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState<1 | -1>(1);
   const [name, setName] = useState("");
-  const [age, setAge] = useState("");
-  const [weight, setWeight] = useState("");
+  const [age, setAge] = useState(18);
+  const [weight, setWeight] = useState(75);
   const [position, setPosition] = useState<Position | undefined>();
+  const [feelNow, setFeelNow] = useState<FeelNow[]>([]);
+  const [goals, setGoals] = useState<SeasonGoal[]>([]);
   const [season, setSeason] = useState<Season | undefined>();
-  const [goal, setGoal] = useState<SeasonGoal | undefined>();
   const [league, setLeague] = useState<League | undefined>();
   const [leagueSheet, setLeagueSheet] = useState(false);
-  const [years, setYears] = useState("");
+  const [years, setYears] = useState(1);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [limited, setLimited] = useState(false);
   const [days, setDays] = useState<DayState[]>(Array(7).fill("free"));
   const [error, setError] = useState("");
   const [building, setBuilding] = useState<Profile | null>(null);
 
-  const ageN = Number(age), weightN = Number(weight.replace(",", ".")), yearsN = Number(years.replace(",", "."));
-  const idx = (s: DayState) => days.map((d, i) => (d === s ? i : -1)).filter((i) => i >= 0);
+  const idx = (st: DayState) => days.map((d, i) => (d === st ? i : -1)).filter((i) => i >= 0);
   const matches = idx("match");
   const checks: Array<() => string | null> = [
     () => null,
-    () => !name.trim() ? "Podaj imię."
-      : !(ageN >= MIN_AGE) ? `Aplikacja jest dla zawodników od ${MIN_AGE} lat.`
-      : !(weightN >= 40 && weightN <= 160) ? "Podaj masę ciała (40–160 kg)."
-      : !position ? "Wybierz pozycję." : null,
-    () => !season ? "Wybierz moment w sezonie." : !goal ? "Wybierz cel." : !league ? "Wybierz poziom rozgrywek." : null,
-    () => years === "" || !(yearsN >= 0) ? "Podaj staż treningu siłowego." : !equipment.length ? "Wybierz, gdzie trenujesz." : null,
+    () => !name.trim() ? "Podaj imię." : null,
+    () => !position ? "Wybierz pozycję." : null,
+    () => !goals.length ? "Wybierz przynajmniej jeden cel." : null,
+    () => !season ? "Wybierz moment w sezonie." : !league ? "Wybierz poziom rozgrywek." : null,
+    () => !equipment.length ? "Wybierz, gdzie trenujesz." : null,
     () => season === "inseason" && !matches.length ? "Zaznacz dzień meczu."
       : matches.length > 2 ? "Maksymalnie dwa mecze w tygodniu."
       : idx("off").length > 4 ? "Zostaw przynajmniej 3 dni na trening." : null,
@@ -145,13 +157,19 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
   const next = () => {
     const e = checks[step]!();
     if (e) { setError(e); return; }
+    // cele podpowiedziane z odpowiedzi „jak się czujesz”, jeśli jeszcze nic nie wybrano
+    if (step === 2 && !goals.length) setGoals(suggestGoals(feelNow));
     if (step < last) { go(step + 1); return; }
     setBuilding({
-      name: name.trim(), age: ageN, weightKg: weightN, position: position!, season, goal, league,
-      strengthYears: yearsN, equipment, limitedGymAccess: limited,
+      name: name.trim(), age, weightKg: weight, position: position!, season, goal: goals[0], goal2: goals[1], league,
+      strengthYears: years, equipment, limitedGymAccess: limited,
       clubWeekdays: idx("club"), matchWeekdays: season === "offseason" ? [] : matches, offWeekdays: idx("off"),
     });
+    saveFeeling({ date: new Date().toLocaleDateString("sv-SE"), now: feelNow });
   };
+
+  const toggleGoal = (g: SeasonGoal) =>
+    setGoals(goals.includes(g) ? goals.filter((x) => x !== g) : goals.length >= 2 ? [goals[0]!, g] : [...goals, g]);
 
   if (building) return <Building name={building.name ?? ""} onDone={() => onDone(building)} />;
 
@@ -167,15 +185,16 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
     );
   }
 
-  const titles = ["", "O Tobie", "Sezon i cel", "Trening", "Twój tydzień"];
+  const titles = ["", "O Tobie", "Na boisku", "Jak chcesz się czuć?", "Sezon", "Trening", "Twój tydzień"];
+  const art = [1, 1, 1, 2, 2, 3, 4][step]!;
   const seasonOff = season === "offseason";
 
   return (
     <main className="bw-grad-soft mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden px-5 pb-5 pt-5">
       <div className="mb-4 flex items-center gap-3">
-        <button onClick={() => go(step - 1)} className="text-sm text-muted" aria-label="Wstecz">‹</button>
-        <div className="flex flex-1 gap-1.5">
-          {[1, 2, 3, 4].map((k) => (
+        <button onClick={() => go(step - 1)} className="px-1 text-lg text-muted" aria-label="Wstecz">‹</button>
+        <div className="flex flex-1 gap-1">
+          {range(1, last).map((k) => (
             <div key={k} className="h-1 flex-1 overflow-hidden rounded-full bg-hairline">
               <div className="h-full rounded-full bg-accent transition-all duration-500" style={{ width: k <= step ? "100%" : "0%" }} />
             </div>
@@ -186,34 +205,58 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
       <div key={step} className={`${dir === 1 ? "bw-step" : "bw-step-back"} flex min-h-0 flex-1 flex-col overflow-y-auto`}>
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-[26px] font-semibold tracking-tight text-ink">{titles[step]}</h1>
-          <StepArt step={step} />
+          <StepArt step={art} />
         </div>
 
         {step === 1 && (
           <div className="flex flex-col gap-4">
             <div><Label>Imię</Label><input className={input} value={name} onChange={(e) => setName(e.target.value)} autoComplete="given-name" /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Wiek</Label><input className={input} inputMode="numeric" value={age} onChange={(e) => setAge(e.target.value)} /></div>
-              <div><Label>Masa (kg)</Label><input className={input} inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <Wheel label="Wiek" values={range(MIN_AGE, 45)} value={age} onChange={setAge} />
+              <Wheel label="Masa" values={range(45, 130)} value={weight} onChange={setWeight} format={(v) => `${v} kg`} />
             </div>
-            <div><Label>Pozycja</Label><Chips options={POSITIONS} value={position ? [position] : []} onToggle={setPosition} /></div>
           </div>
         )}
 
         {step === 2 && (
           <div className="flex flex-col gap-4">
             <div>
-              <Label>Moment w sezonie</Label>
+              <Label>Pozycja</Label>
               <div className="grid grid-cols-3 gap-2">
-                {SEASONS.map(([v, t, d]) => (
-                  <Pick key={v} on={season === v} onTap={() => setSeason(v)} className="rounded-2xl px-2 py-2.5 text-center">
-                    <div className="text-sm font-semibold">{t}</div>
-                    <div className={`mt-0.5 text-[11px] leading-tight ${season === v ? "text-accent/80" : "text-muted"}`}>{d}</div>
-                  </Pick>
+                {POSITIONS.map(([v, t]) => (
+                  <Pick key={v} on={position === v} onTap={() => setPosition(v)} className="rounded-2xl px-1 py-2.5 text-[13px] font-medium">{t}</Pick>
                 ))}
               </div>
             </div>
-            <div><Label>Cel na sezon</Label><Chips options={GOALS} value={goal ? [goal] : []} onToggle={setGoal} /></div>
+            <div>
+              <Label>Jak czujesz się teraz na boisku? (możesz kilka)</Label>
+              <div className="flex flex-col gap-1.5">
+                {FEEL_NOW.map(([v, t]) => (
+                  <Tile key={v} on={feelNow.includes(v)} onTap={() => setFeelNow(toggle(feelNow, v))} title={t} />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="flex flex-col gap-2">
+            <p className="mb-1 text-xs text-muted">Pierwszy wybór to cel główny, drugi – dodatkowy.</p>
+            {GOALS.map(([v, t, d]) => (
+              <Tile key={v} on={goals.includes(v)} onTap={() => toggleGoal(v)} title={t} sub={d}
+                badge={goals.indexOf(v) === 0 ? "1" : "2"} />
+            ))}
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="flex flex-col gap-4">
+            <div>
+              <Label>Moment w sezonie</Label>
+              <div className="flex flex-col gap-1.5">
+                {SEASONS.map(([v, t, d]) => <Tile key={v} on={season === v} onTap={() => setSeason(v)} title={t} sub={d} />)}
+              </div>
+            </div>
             <div>
               <Label>Poziom rozgrywek</Label>
               <button onClick={() => setLeagueSheet(true)} className="flex w-full items-center justify-between rounded-2xl border border-hairline bg-card px-4 py-3 text-left">
@@ -224,16 +267,24 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
           </div>
         )}
 
-        {step === 3 && (
+        {step === 5 && (
           <div className="flex flex-col gap-4">
-            <div><Label>Staż treningu siłowego (lata)</Label><input className={input} inputMode="decimal" value={years} onChange={(e) => setYears(e.target.value)} /></div>
-            <div><Label>Gdzie trenujesz</Label><Chips options={EQUIPMENT} value={equipment} onToggle={(v) => setEquipment(toggle(equipment, v))} /></div>
-            <Pick on={limited} onTap={() => setLimited(!limited)} className="w-full rounded-2xl py-3 text-sm font-medium">Mam mało dni na siłownię</Pick>
+            <Wheel label="Staż treningu siłowego" values={range(0, 15)} value={years} onChange={setYears}
+              format={(v) => (v === 0 ? "mniej niż rok" : `${v} ${v === 1 ? "rok" : v < 5 ? "lata" : "lat"}`)} />
+            <div>
+              <Label>Gdzie trenujesz</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {EQUIPMENT.map(([v, t]) => (
+                  <Pick key={v} on={equipment.includes(v)} onTap={() => setEquipment(toggle(equipment, v))} className="rounded-2xl px-1 py-3 text-[13px] font-medium">{t}</Pick>
+                ))}
+              </div>
+            </div>
+            <Tile on={limited} onTap={() => setLimited(!limited)} title="Mam mało dni na siłownię" />
           </div>
         )}
 
-        {step === 4 && (
-          <div className="flex flex-col gap-4">
+        {step === 6 && (
+          <div className="flex flex-col gap-5">
             <p className="text-sm text-muted">Dotknij dzień: wolny → klub → mecz → brak (dzień niedostępny).</p>
             <div className="grid grid-cols-7 gap-1.5">
               {days.map((d, i) => {
@@ -254,7 +305,7 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
               <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-club-soft shadow-[inset_0_0_0_1px_#bfe5cf]" />klub</span>
               {!seasonOff && <span className="flex items-center gap-1.5"><span className="bw-sel h-2.5 w-2.5 rounded-full" />mecz</span>}
-              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-hairline" />niedostępny – bez naszych treningów</span>
+              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-hairline" />brak – bez naszych treningów</span>
             </div>
           </div>
         )}

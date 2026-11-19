@@ -146,6 +146,8 @@ export function planWeek(input: WeekInput): WeekPlan {
   }
   place("technique", PREFERRED.technique);
   if (extra && !mustExtra) place(extra, PREFERRED[extra]);
+  const extra2 = input.goal2 !== input.goal ? goalExtra(input.goal2) : null;
+  if (extra2) place(extra2, PREFERRED[extra2]);
 
   // Regeneracja w dniu po meczu, jeśli dzień pusty.
   place("recovery", ["MD+1"]);
