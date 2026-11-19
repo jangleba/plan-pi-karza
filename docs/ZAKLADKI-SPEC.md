@@ -79,3 +79,11 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 - Różne odcienie skóry i włosów; postawa: obrońca ugięte kolana, bramkarz gotowość; oddech w miejscu.
 - Animacja: cykl biegu (udo, kolano, praca rąk ze zgiętym łokciem, pochylenie tułowia, podskok), kopnięcie przy podaniu i strzale; kamera bliżej zawodnika.
 - Wydajność: geometrie i materiały współdzielone, cienie tylko z większych części; ok. 220 wywołań rysowania i 28 tys. trójkątów na klatkę.
+
+## IQ – ruch nóg bez ślizgania (2026-11-19, plan A, punkty 1–5)
+- Analiza na podstawie wyciągu „BallWise-Ruch-Animacje-Claude.zip" (zakres: aktualne IQ, main 312ce29). Zmierzone przed zmianą: stopa „stojąca” sunęła 2,7 m/s w truchcie i 8,4 m/s w biegu; maks. zgięcie kolana w podporze (odwrócona faza); stopa nigdy nie dotykała murawy (1,4–1,7 cm nad); próg 0,4 m/s bez przejścia.
+- Nowe `src/iq/gait.ts` (czysta matematyka, testy w `gait.test.ts`): faza z przebytej drogi; stopa podporowa przesuwa się względem bioder z prędkością biegu (w świecie stoi); dwuczłonowa kinematyka odwrotna (biodro–kolano) do celu stopy; miednica z ułożenia nóg (dwa obniżenia na cykl, zawsze w zasięgu); wygładzona prędkość i płynne mieszanie bieg ↔ postawa; kolano w podporze lekko ugięte.
+- Sylwetka: staw skokowy (but płasko w podporze), pochylenie tylko tułowia od bioder (grupa „upper”).
+- Testy: przy 1,5–7 m/s stopa w podporze < 0,1 m/s względem ziemi i ±1 cm od murawy; start/zatrzymanie nie szybsze niż równy bieg; po zatrzymaniu stopy pod biodrami; IK trafia w cel.
+- Parametry (kadencja, długość podporu, wysokość wymachu) to założenia wizualne, nie zweryfikowany model biomechaniczny.
+- Następny krok (punkty 6–8): świat w trakcie lotu piłki, kopnięcie z kontaktem, prowadzenie piłki.
