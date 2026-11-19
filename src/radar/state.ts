@@ -1,15 +1,17 @@
 import type { Profile } from "../engine";
+import type { PrivateProfile } from "../lib/private";
 import type { Evaluation, ListingKind, PlayerFacts, SortKey } from "./lib";
 import { LISTING_KINDS, matchesOnly, sortEvaluations } from "./lib";
 import { POSITION_LABEL } from "../engine/profile";
 import { RADII, type RadarPrefs, type Radius } from "./prefs";
 
 /** Dane zawodnika do dopasowania, z istniejącego profilu (bez duplikowania daty urodzenia) i wyborów radaru. */
-export function playerFacts(profile: Profile, prefs: RadarPrefs): PlayerFacts {
+export function playerFacts(profile: Profile, birth: PrivateProfile, prefs: RadarPrefs): PlayerFacts {
   return {
-    birthDate: profile.birthDate ?? null,
-    birthYear: profile.birthDate ? null : profile.birthYear ?? null,
+    birthDate: birth.birthDate ?? null,
+    birthYear: birth.birthDate ? null : birth.birthYear ?? null,
     position: profile.position ?? null,
+    category: prefs.category ?? null,
     place: prefs.place,
     radiusKm: prefs.radiusKm,
     kinds: prefs.kinds,
@@ -40,6 +42,7 @@ export function criteriaParts(f: PlayerFacts): string[] {
   const year = f.birthDate ? f.birthDate.slice(0, 4) : f.birthYear ? String(f.birthYear) : null;
   if (year) parts.push(`rocznik ${year}`);
   if (f.position) parts.push(POSITION_LABEL[f.position].toLowerCase());
+  if (f.category) parts.push(f.category === "male" ? "kategoria: chłopcy" : "kategoria: dziewczęta");
   parts.push(f.radiusKm === null ? "cała Polska" : f.place ? `${f.place.name} ${f.radiusKm} km` : `${f.radiusKm} km`);
   parts.push(f.kinds.length ? f.kinds.map((k) => LISTING_KINDS.find(([x]) => x === k)![1].toLowerCase()).join(", ") : "wszystkie rodzaje");
   return parts;
@@ -67,4 +70,10 @@ export function visibleList(evals: Evaluation[], f: ListFilters): Evaluation[] {
 /** Czy brak ofert wynika z braków w profilu zawodnika (a nie z braku dopasowań). */
 export function profileGaps(evals: Evaluation[]): boolean {
   return evals.some((e) => e.live && e.result === "NEEDS_INFORMATION" && e.reasons.some((r) => ["birth_year_missing", "needs_birthday", "position_missing", "place_missing"].includes(r)));
+}
+
+/** Oferty, które nie są „pasuje”, ale wymagają kontaktu z organizatorem: tylko wyjątek za zgodą / brak informacji o kategorii (bez braków w profilu). */
+export function needsOrganizerCheck(evals: Evaluation[]): Evaluation[] {
+  const OK = new Set(["consent_exception", "audience_missing"]);
+  return evals.filter((e) => e.live && e.result === "NEEDS_INFORMATION" && e.reasons.length > 0 && e.reasons.every((r) => OK.has(r)));
 }

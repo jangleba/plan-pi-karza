@@ -10,8 +10,10 @@ import { DrawTool } from "./tools/Draw";
 import { StimuliTool } from "./tools/Stimuli";
 import { Group, ListRow } from "./ui";
 import { CueTrainer } from "./CueTrainer";
-import { EXERCISES, RECOVERY, bodyweightTemplate, drillsFor, adaptSession, addEvents, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
-import type { CheckIn, DayPlan, HistoryEvent, Level, Mas, Position, Suggestion } from "./engine";
+import { EXERCISES, RECOVERY, applyChoice, bodyweightTemplate, drillsFor, adaptSession, addEvents, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
+import type { CheckIn, Choice, Completion, DayPlan, HistoryEvent, Level, Mas, Position, Suggestion } from "./engine";
+
+interface ConfirmRow { exerciseId: string; kg: number; planned: string; plannedReps: number }
 
 const KIND_TITLE: Record<string, string> = {
   strength: "Siła", run: "Bieganie", sprint: "Sprint",
@@ -26,6 +28,9 @@ export function SessionSheet({
   const [log, setLog] = useState(loadLog);
   const [weights, setWeights] = useState<Record<string, string>>({});
   const [summary, setSummary] = useState<Suggestion[] | null>(null);
+  // krok pośredni: zawodnik sam potwierdza, jak poszło (samo „koniec sesji” i wpisane kg nie są potwierdzeniem wykonania)
+  const [confirm, setConfirm] = useState<ConfirmRow[] | null>(null);
+  const [report, setReport] = useState<Record<string, Completion>>({});
   const s = day.session;
   const [info, setInfo] = useState<{ id: string; note?: string } | null>(null);
   const [tool, setTool] = useState<"stim" | "draw" | null>(null);
@@ -44,33 +49,50 @@ export function SessionSheet({
   const run = s?.kind === "run" ? (mas ? runSession(mas, s?.variant === "light" ? "deload" : mesoPhase(weekInCycle), level, checkIn, position) : masTestSession()) : null;
   const adapted = found ? adaptSession(found.template, checkIn, found.deload) : null;
 
+  /** Ćwiczenia z wpisanym ciężarem: to, co zawodnik ZGŁOSIŁ (plan sesji jest osobno). */
+  const reported = (): ConfirmRow[] => {
+    const rows: ConfirmRow[] = [];
+    adapted?.blocks.forEach((b, bi) => b.items.forEach((i, ii) => {
+      const kg = Number((weights[`${bi}-${ii}`] ?? "").replace(",", "."));
+      if (!(kg > 0) || !EXERCISES[i.exerciseId]?.loaded) return;
+      rows.push({ exerciseId: i.exerciseId, kg, planned: `${i.sets} × ${i.reps}`, plannedReps: firstNumber(i.reps) });
+    }));
+    return rows;
+  };
+
   const finish = () => {
+    if (!adapted || !found) { addEvents(s ? [{ date: day.date, type: "session", key: s.kind, value: 1 }] : []); onClose(); return; }
+    const rows = reported();
+    if (rows.length === 0) { save(rows); return; }
+    setConfirm(rows);
+  };
+
+  /** Zapis sesji. Wartość 1RM i propozycje zwiększenia powstają wyłącznie z POTWIERDZONEGO wykonania (`report`). */
+  const save = (rows: ConfirmRow[]) => {
     const events: HistoryEvent[] = s ? [{ date: day.date, type: "session", key: s.kind, value: 1 }] : [];
     if (!adapted || !found) { addEvents(events); onClose(); return; }
     const strain = strainOf(checkIn);
     const next = { ...log };
     const out: Suggestion[] = [];
-    adapted.blocks.forEach((b, bi) =>
-      b.items.forEach((i, ii) => {
-        const kg = Number((weights[`${bi}-${ii}`] ?? "").replace(",", "."));
-        if (!(kg > 0) || !EXERCISES[i.exerciseId]?.loaded) return;
-        next[i.exerciseId] = { kg, reps: firstNumber(i.reps), date: day.date };
-        events.push({ date: day.date, type: "strength", key: i.exerciseId, value: Math.round(estimate1RM(kg, firstNumber(i.reps)) * 10) / 10 });
-        const sug = suggestNext(i.exerciseId, kg, strain, found.deload);
-        if (sug) out.push(sug);
-      }),
-    );
+    for (const r of rows) {
+      const completion = report[r.exerciseId];
+      next[r.exerciseId] = { kg: r.kg, reps: r.plannedReps, date: day.date, ...(completion ? { completion } : {}) };
+      if (completion === "all") events.push({ date: day.date, type: "strength", key: r.exerciseId, value: Math.round(estimate1RM(r.kg, r.plannedReps) * 10) / 10 });
+      const sug = suggestNext(r.exerciseId, r.kg, strain, found.deload, completion);
+      if (sug) out.push(sug);
+    }
     addEvents(events);
     setLog(next);
     saveLog(next);
     void pushWeightLog(next);
+    setConfirm(null);
     if (out.length) setSummary(out); else onClose();
   };
 
-  const decide = (sug: Suggestion, accept: boolean) => {
+  const decide = (sug: Suggestion, choice: Choice) => {
     const next = { ...log };
     const cur = next[sug.exerciseId];
-    if (cur) next[sug.exerciseId] = { ...cur, next: accept ? sug.to : sug.from };
+    if (cur) next[sug.exerciseId] = applyChoice(cur, sug, choice);
     setLog(next);
     saveLog(next);
     void pushWeightLog(next);
@@ -78,22 +100,47 @@ export function SessionSheet({
     if ((summary ?? []).length <= 1) onClose();
   };
 
+  if (confirm) {
+    const OPTIONS: Array<[Completion, string]> = [["all", "Wszystkie powtórzenia, dobra technika"], ["partial", "Nie wszystkie powtórzenia"], ["stopped", "Przerwałem(-am): zmęczenie lub dyskomfort"]];
+    return (
+      <Sheet title="Jak poszło?" onClose={onClose}>
+        <p className="mb-1 text-sm text-muted">Zaznacz, co faktycznie zrobiłeś(-aś). Propozycję zwiększenia ciężaru pokażemy tylko, gdy potwierdzisz wszystkie powtórzenia z dobrą techniką.</p>
+        <p className="mb-4 text-xs text-muted">Ból, zawroty głowy lub osłabienie: przerwij ćwiczenie. Jeśli objawy nie mijają, skonsultuj się z lekarzem.</p>
+        {confirm.map((r) => (
+          <div key={r.exerciseId} className="mb-3 rounded-2xl bg-canvas p-3">
+            <div className="text-sm font-medium">{EXERCISES[r.exerciseId]?.name}</div>
+            <div className="text-xs text-muted">Plan: {r.planned} · wpisano: {r.kg} kg</div>
+            <div className="mt-2 flex flex-col gap-1.5" role="radiogroup" aria-label={`Wykonanie: ${EXERCISES[r.exerciseId]?.name}`}>
+              {OPTIONS.map(([c, t]) => (
+                <button key={c} role="radio" aria-checked={report[r.exerciseId] === c} onClick={() => setReport({ ...report, [r.exerciseId]: c })}
+                  className={`rounded-xl px-3 py-2 text-left text-sm ${report[r.exerciseId] === c ? "bw-sel font-medium" : "bg-card text-ink"}`}>{t}</button>
+              ))}
+            </div>
+          </div>
+        ))}
+        <button onClick={() => save(confirm)} className="mt-2 w-full rounded-2xl bw-grad py-4 text-base font-medium">Zapisz</button>
+        <p className="mt-2 text-center text-xs text-muted">Bez zaznaczenia ciężar zostaje bez zmian i nie liczymy z niego siły maksymalnej.</p>
+      </Sheet>
+    );
+  }
+
   if (summary) {
     return (
       <Sheet title="Dobra robota" onClose={onClose}>
-          <p className="mb-4 text-sm text-muted">Propozycje na następną sesję.</p>
+          <p className="mb-4 text-sm text-muted">Propozycje na następną sesję – to ostrożne podpowiedzi, wybór należy do Ciebie.</p>
           {summary.map((sug) => (
             <div key={sug.exerciseId} className="mb-3 rounded-2xl bg-canvas p-3">
               <div className="text-sm font-medium">{EXERCISES[sug.exerciseId]?.name}</div>
               <div className="text-xs text-muted">{sug.from} kg · {sug.text}</div>
-              {sug.to !== sug.from ? (
-                <div className="mt-2 flex gap-2">
-                  <button onClick={() => decide(sug, true)} className="flex-1 rounded-xl bw-grad py-1.5 text-sm font-medium">Przyjmij {sug.to} kg</button>
-                  <button onClick={() => decide(sug, false)} className="flex-1 rounded-xl bg-card py-1.5 text-sm text-muted">Zostaję</button>
+              <div className="mt-2 flex flex-col gap-1.5">
+                {sug.options.includes("raise") && <button onClick={() => decide(sug, "raise")} className="rounded-xl bw-grad py-2 text-sm font-medium">Zwiększam do {sug.to} kg</button>}
+                <button onClick={() => decide(sug, "stay")} className="rounded-xl bg-card py-2 text-sm">Zostaję przy {sug.from} kg</button>
+                {sug.lowerTo && <button onClick={() => decide(sug, "lower")} className="rounded-xl bg-card py-2 text-sm">Obniżam do {sug.lowerTo} kg</button>}
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button onClick={() => decide(sug, "swap")} className="rounded-xl bg-card py-2 text-sm text-muted">Zmienię ćwiczenie</button>
+                  <button onClick={() => decide(sug, "skip")} className="rounded-xl bg-card py-2 text-sm text-muted">Pomijam</button>
                 </div>
-              ) : (
-                <button onClick={() => decide(sug, false)} className="mt-2 w-full rounded-xl bg-card py-1.5 text-sm text-muted">OK</button>
-              )}
+              </div>
             </div>
           ))}
       </Sheet>

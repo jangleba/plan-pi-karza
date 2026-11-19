@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { localISO, addEvents, jumpHeightFromFlightTime, labDue, LAB_TESTS, loadHistory, series, validateLab, validateSprintSplits } from "./engine";
-import type { LabTest } from "./engine";
+import { localISO, addEvents, jumpHeightFromFlightTime, labDue, LAB_TESTS, loadHistory, METHOD_LABEL, series, validateLab, validateSprintSplits, VALIDATION_NOTE } from "./engine";
+import type { LabMethod, LabTest } from "./engine";
 import { Sheet } from "./Sheet";
 import { Group, LargeTitle, ListRow } from "./ui";
 import { VideoMeasure, type VideoResult } from "./VideoMeasure";
@@ -23,15 +23,18 @@ function TestRow({ test, index, onSaved }: { test: LabTest; index: number; onSav
   const [video, setVideo] = useState(false);
   const [camera, setCamera] = useState(false);
   const [recording, setRecording] = useState<Recording | null>(null);
+  // skąd pochodzi wpisana wartość: z analizy nagrania (oszacowanie) albo wpisana/poprawiona ręcznie
+  const [method, setMethod] = useState<LabMethod>("manual_entry");
   const keys = test.key === "sprint" ? ["sprint-10", "sprint-20", "sprint-30"] : [test.key];
   const last = lastDate(keys);
   const due = labDue(last, today());
-  const set = (k: string, v: string) => setVals({ ...vals, [k]: v });
+  const set = (k: string, v: string) => { setVals({ ...vals, [k]: v }); setMethod("manual_entry"); }; // ręczna zmiana = wynik wpisany ręcznie
 
   const applyVideo = (r: VideoResult) => {
+    setMethod("video_estimate");
     if (r.flightTime !== undefined) {
       setFlight(true);
-      set("cmj", (Math.round(r.flightTime * 1000) / 1000).toString());
+      setVals({ ...vals, cmj: (Math.round(r.flightTime * 1000) / 1000).toString() });
     } else if (r.splits) {
       const next = { ...vals };
       ["sprint-10", "sprint-20", "sprint-30"].forEach((k, i) => {
@@ -59,8 +62,8 @@ function TestRow({ test, index, onSaved }: { test: LabTest; index: number; onSav
       if (e) { setError(e); return; }
     }
     if (!out.length) { setError("Wpisz przynajmniej jeden wynik."); return; }
-    addEvents(out.map((o) => ({ date: today(), type: "lab" as const, key: o.key, value: o.value })));
-    setError(""); setVals({}); setOpen(false); onSaved();
+    addEvents(out.map((o) => ({ date: today(), type: "lab" as const, key: o.key, value: o.value, method })));
+    setError(""); setVals({}); setMethod("manual_entry"); setOpen(false); onSaved();
   };
 
   const inputs: Array<[string, string]> =
@@ -73,7 +76,8 @@ function TestRow({ test, index, onSaved }: { test: LabTest; index: number; onSav
     const k = test.key === "sprint" ? "sprint-10" : test.key;
     const v = series(loadHistory(), "lab", k).at(-1)?.value;
     if (v === undefined) return null;
-    return test.key === "sprint" ? `${v.toFixed(2).replace(".", ",")} s / 10 m` : `${String(v).replace(".", ",")} ${test.unit}`;
+    const approx = loadHistory().filter((e) => e.type === "lab" && e.key === k).at(-1)?.method === "video_estimate" ? "≈ " : ""; // ≈ = oszacowanie z nagrania
+    return test.key === "sprint" ? `${approx}${v.toFixed(2).replace(".", ",")} s / 10 m` : `${approx}${String(v).replace(".", ",")} ${test.unit}`;
   })();
 
   return (
@@ -92,7 +96,14 @@ function TestRow({ test, index, onSaved }: { test: LabTest; index: number; onSav
               <li key={t} className="flex gap-3"><span className="text-accent tabular-nums">{i + 1}</span><span>{t}</span></li>
             ))}
           </ol>
-          {test.caveat && <p className="mb-4 text-xs text-muted">{test.caveat}</p>}
+          {test.caveat && <p className="mb-3 text-xs text-muted">{test.caveat}</p>}
+          {test.limits && (
+            <details className="mb-4 rounded-2xl bg-canvas px-4 py-3 text-xs text-muted">
+              <summary className="cursor-pointer font-medium text-ink">Ograniczenia pomiaru z nagrania</summary>
+              <ul className="mt-2 list-disc pl-4 leading-snug">{test.limits.map((l) => <li key={l}>{l}</li>)}</ul>
+              <p className="mt-2 leading-snug">{VALIDATION_NOTE}</p>
+            </details>
+          )}
           {(test.key === "cmj" || test.key === "sprint") && (
             <>
               <button onClick={() => setCamera(true)} className="mb-2 w-full rounded-2xl bw-grad py-4 text-base font-medium">
@@ -111,6 +122,7 @@ function TestRow({ test, index, onSaved }: { test: LabTest; index: number; onSav
               <input key={k} className={field} inputMode="decimal" placeholder={label} value={vals[k] ?? ""} onChange={(e) => set(k, e.target.value)} />
             ))}
           </div>
+          {inputs.some(([k]) => (vals[k] ?? "").trim() !== "") && <p className="mb-3 text-center text-xs text-muted">Źródło wyniku: {METHOD_LABEL[method]}</p>}
           {error && <p className="mb-3 text-center text-sm text-red-ink">{error}</p>}
           {(() => {
             const has = inputs.some(([k]) => (vals[k] ?? "").trim() !== "");

@@ -116,6 +116,75 @@ describe("kategorie, niejednoznaczność, wyjątki", () => {
   });
 });
 
+describe("wyjątek wymagający zgody organizatora: zgodny rocznik NIE daje MATCH, gdy zakres wyjątku jest niejasny", () => {
+  const ex = "udział po akceptacji trenera prowadzącego";
+  it("zakres nieznany (także dane zapisane wcześniej, bez pola zakresu) → NEEDS_INFORMATION, nie pass", () => {
+    const r = q({ ...years(2011), consentException: ex }, player({ birthDate: "2011-05-10" }));
+    expect(r.outcome).toBe("unknown");
+    expect(r.reasons).toEqual(["consent_exception"]);
+    expect(q({ ...years(2011), consentException: ex, consentScope: "unknown" }, player({ birthDate: "2011-05-10" })).outcome).toBe("unknown");
+  });
+  it("zgoda wymagana od wszystkich (scope all) → NEEDS_INFORMATION mimo zgodnego rocznika", () => {
+    expect(q({ ...years(2011), consentException: ex, consentScope: "all" }, player({ birthDate: "2011-05-10" })).outcome).toBe("unknown");
+  });
+  it("wyjątek wyłącznie dla osób spoza kryteriów (outside_base): spełniający kryteria = pass; spoza kryteriów nadal NIE jest automatycznie spełniony", () => {
+    const e: Eligibility = { ...years(2011), consentException: "młodsi za zgodą trenera", consentScope: "outside_base" };
+    expect(q(e, player({ birthDate: "2011-05-10" })).outcome).toBe("pass");
+    const out = q(e, player({ birthDate: "2013-05-10" }));
+    expect(out.outcome).toBe("fail");
+    expect(out.reasons).toEqual(["birth_year_out", "consent_exception"]);
+  });
+  it("zwykły dokument przy zapisie (np. zgoda rodzica) to nie wyjątek kwalifikacji: nie zmienia wyniku", () => {
+    const e: Eligibility = { ...years(2011), requiredDocuments: ["zgoda rodzica", "badania lekarskie"] };
+    expect(q(e, player({ birthDate: "2011-05-10" })).outcome).toBe("pass");
+  });
+  it("na poziomie sesji: MATCH niemożliwy przy nierozstrzygniętym wyjątku", () => {
+    const ses = session("2026-11-25", { ...years(2011), consentException: ex });
+    const r = qualifySession(listing({ sessions: [ses] }), ses, player());
+    expect(r.result).toBe("NEEDS_INFORMATION");
+    expect(r.reasons).toEqual(["consent_exception"]);
+  });
+});
+
+describe("kategoria rozgrywek: chłopcy / dziewczęta / mieszane", () => {
+  const withAud = (audience: Eligibility["audience"], over: Eligibility = {}) => {
+    const ses = session("2026-11-25", { ...years(2011), ...(audience ? { audience } : {}), ...over });
+    return { ses, l: listing({ sessions: [ses] }) };
+  };
+  it("źródło ogranicza do dziewcząt: zawodnik z wybraną kategorią męską = NO_MATCH, żeńską = MATCH", () => {
+    const { ses, l } = withAud("female");
+    expect(qualifySession(l, ses, player({ category: "male" })).result).toBe("NO_MATCH");
+    expect(qualifySession(l, ses, player({ category: "male" })).reasons).toEqual(["audience_out"]);
+    expect(qualifySession(l, ses, player({ category: "female" })).result).toBe("MATCH");
+  });
+  it("źródło ogranicza do chłopców: kategoria żeńska = NO_MATCH", () => {
+    const { ses, l } = withAud("male");
+    expect(qualifySession(l, ses, player({ category: "female" })).result).toBe("NO_MATCH");
+    expect(qualifySession(l, ses, player({ category: "male" })).result).toBe("MATCH");
+  });
+  it("ograniczenie w źródle, a zawodnik nie wybrał kategorii → NEEDS_INFORMATION (nie zgadujemy)", () => {
+    const { ses, l } = withAud("female");
+    const r = qualifySession(l, ses, player({ category: null }));
+    expect(r.result).toBe("NEEDS_INFORMATION");
+    expect(r.reasons).toEqual(["audience_missing"]);
+  });
+  it("brak informacji w źródle ≠ „dla wszystkich”: przy wybranej kategorii to NEEDS_INFORMATION; wprost „mixed” = MATCH", () => {
+    const none = withAud(undefined), unknown = withAud("unknown"), mixed = withAud("mixed");
+    expect(qualifySession(none.l, none.ses, player({ category: "female" })).result).toBe("NEEDS_INFORMATION");
+    expect(qualifySession(unknown.l, unknown.ses, player({ category: "male" })).reasons).toEqual(["audience_missing"]);
+    expect(qualifySession(mixed.l, mixed.ses, player({ category: "female" })).result).toBe("MATCH");
+  });
+  it("bez wybranej kategorii i bez ograniczenia w źródle kategoria nie wpływa na wynik", () => {
+    const none = withAud(undefined);
+    expect(qualifySession(none.l, none.ses, player({ category: null })).result).toBe("MATCH");
+  });
+  it("pewne wykluczenie kategorią wygrywa z brakiem danych; kategoria sesji dziedziczy z ogłoszenia", () => {
+    const ses = session("2026-11-25", years(2011));
+    const l = listing({ sessions: [ses], eligibility: { audience: "female" } });
+    expect(qualifySession(l, ses, player({ category: "male" })).result).toBe("NO_MATCH");
+  });
+});
+
 describe("kwalifikacja sesji: pozycja, tryb, rodzaj, odległość", () => {
   const ses = session("2026-11-25", years(2011));
   const base = () => listing({ sessions: [ses] });

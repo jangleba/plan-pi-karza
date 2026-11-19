@@ -1,15 +1,17 @@
 import type { Favorites } from "../engine/favorites";
 import type { Food } from "../engine/foods";
 import type { Goal } from "../engine";
+import { scoped } from "../lib/store";
+import { ALLERGENS, NO_DIET, type Allergen, type Diet, type DietPrefs } from "../engine/allergens";
 
 /** Dziennik, woda, godziny i zakupy – zapis lokalny (do czasu konta). Klucze zgodne z poprzednią wersją Fuel („meals”, „fuelGoal”). */
 export interface Meal { id: string; date: string; time: string; name: string; carb: number; protein: number; fat?: number; slot?: string }
 
 function read<T>(key: string, fallback: T): T {
-  try { const v = localStorage.getItem(key); return v ? (JSON.parse(v) as T) : fallback; } catch { return fallback; }
+  try { const v = scoped.getItem(key); return v ? (JSON.parse(v) as T) : fallback; } catch { return fallback; }
 }
 function write(key: string, v: unknown): void {
-  try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* brak pamięci */ }
+  try { scoped.setItem(key, JSON.stringify(v)); } catch { /* brak pamięci */ }
 }
 
 export function loadMeals(): Meal[] {
@@ -49,3 +51,13 @@ export const loadFavs = (): Favorites => {
   return { foods: Array.isArray(v.foods) ? v.foods : [], meals: Array.isArray(v.meals) ? v.meals : [] };
 };
 export const saveFavs = (f: Favorites) => write("fuelFavs", f);
+
+/** Alergeny, dieta i własne wykluczenia: zostają na urządzeniu (w przestrzeni bieżącego konta/gościa). */
+export function loadDiet(): DietPrefs {
+  const v = read<Partial<DietPrefs>>("fuelDiet", {});
+  const diet: Diet = v.diet === "vegetarian" || v.diet === "vegan" ? v.diet : "none";
+  const allergens = (Array.isArray(v.allergens) ? v.allergens : []).filter((a): a is Allergen => (ALLERGENS as string[]).includes(a as string));
+  const custom = (Array.isArray(v.custom) ? v.custom : []).filter((w): w is string => typeof w === "string" && w.trim().length >= 2).map((w) => w.trim().slice(0, 40)).slice(0, 20);
+  return { ...NO_DIET, allergens, diet, custom };
+}
+export const saveDiet = (d: DietPrefs) => write("fuelDiet", d);

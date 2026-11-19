@@ -1,4 +1,5 @@
-import type { ListingKind } from "./lib";
+import type { ListingKind, PlayerCategory } from "./lib";
+import { scoped } from "../lib/store";
 
 export const RADII = [25, 50, 100, 200, null] as const;
 export type Radius = (typeof RADII)[number];
@@ -9,24 +10,26 @@ export interface RadarPrefs {
   radiusKm: Radius;
   /** Pusta lista = wszystkie rodzaje. */
   kinds: ListingKind[];
+  /** Kategoria rozgrywek wybrana jawnie przez zawodnika (opcjonalnie); null = bez filtra. Zostaje na urządzeniu. */
+  category: PlayerCategory | null;
 }
 
-export const DEFAULT_PREFS: RadarPrefs = { place: null, radiusKm: 100, kinds: [] };
+export const DEFAULT_PREFS: RadarPrefs = { place: null, radiusKm: 100, kinds: [], category: null };
 
 const KEY = "radarPrefs";
 
 export function loadPrefs(): RadarPrefs {
   try {
-    const v = JSON.parse(localStorage.getItem(KEY) ?? "null") as Partial<RadarPrefs> | null;
+    const v = JSON.parse(scoped.getItem(KEY) ?? "null") as Partial<RadarPrefs> | null;
     if (!v) return DEFAULT_PREFS;
     const place = v.place && typeof v.place.lat === "number" && typeof v.place.lon === "number" && typeof v.place.name === "string" ? v.place : null;
     const radiusKm = (RADII as readonly unknown[]).includes(v.radiusKm) ? (v.radiusKm as Radius) : 100;
-    return { place, radiusKm, kinds: Array.isArray(v.kinds) ? v.kinds : [] };
+    return { place, radiusKm, kinds: Array.isArray(v.kinds) ? v.kinds : [], category: v.category === "male" || v.category === "female" ? v.category : null };
   } catch {
     return DEFAULT_PREFS;
   }
 }
 
 export function savePrefs(p: RadarPrefs): void {
-  try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* brak pamięci */ }
+  try { scoped.setItem(KEY, JSON.stringify(p)); } catch { /* brak pamięci */ }
 }

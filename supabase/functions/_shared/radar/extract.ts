@@ -1,6 +1,6 @@
 import { dedupeSessions } from "./dedup.ts";
 import { lookupPlace } from "./geo.ts";
-import { isISODate, warsawDayEndExclusive, warsawInstant } from "./time.ts";
+import { isISODate, warsawDayEndExclusive, warsawInstant, warsawStartOfDay } from "./time.ts";
 import {
   LISTING_KINDS, POSITIONS, type AgeLimit, type BirthYearRule, type CostState, type Eligibility, type ListingKind, type Position, type PositionRule,
   type SignupMode, type SignupStatus,
@@ -46,7 +46,10 @@ export interface ListingDraft {
   indefinite: boolean;
   signupClosesAt: string | null;
   publishedAt: string | null;
-  organizerUpdatedAt: string | null;
+  /** Data aktualizacji STRONY podana na stronie. To nie jest potwierdzenie aktualności ogłoszenia przez organizatora. */
+  pageUpdatedAt: string | null;
+  /** Jawne oświadczenie organizatora o aktualności ogłoszenia (data + cytat); tylko wtedy ustawiamy „potwierdzone przez organizatora”. */
+  organizerConfirmation: { date: string; evidence: string } | null;
   evidence: Array<{ field: string; quote: string }>;
 }
 
@@ -69,10 +72,30 @@ export function quoteSupported(quote: unknown, sourceText: string): boolean {
   return parts.every((p) => text.includes(p));
 }
 
+/**
+ * Minimalizacja danych wysyłanych do zewnętrznego modelu: adresy e-mail i numery telefonów (dane kontaktowe osób, np. trenerów)
+ * nie są potrzebne do odczytu terminów i zasad naboru, więc są usuwane PRZED wysłaniem. Cytaty weryfikujemy względem tego samego
+ * (zredagowanego) tekstu, więc model nie może „cytować” usuniętych danych.
+ */
+export function redactContacts(text: string): string {
+  return text
+    .replace(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/g, "[e-mail usunięty]")
+    .replace(/(?<![\d])(?:\+|00)?\d{2}[ .\-]?\d{3}[ .\-]?\d{3}[ .\-]?\d{3}(?![\d])/g, "[telefon usunięty]")
+    .replace(/(?<![\d])(?:\+|00)?(?:48)?[ .\-]?\d{3}[ .\-]\d{3}[ .\-]\d{3}(?![\d])/g, "[telefon usunięty]")
+    .replace(/(?<![\d])\d{3}[ .\-]?\d{2}[ .\-]?\d{2}[ .\-]?\d{2}(?![\d])/g, "[telefon usunięty]")
+    .replace(/(?<![\d])\(?\d{2}\)?[ .\-]?\d{3}[ .\-]\d{2}[ .\-]\d{2}(?![\d])/g, "[telefon usunięty]"); // numer stacjonarny z kierunkowym
+}
+
 const str = (v: unknown, max = 300): string | null => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const KINDS = new Set<string>(LISTING_KINDS.map(([k]) => k));
 const SIGNUP = new Set(["open", "closed", "cancelled", "full", "unknown"]);
+
+const AUDIENCE_TERMS: Record<"male" | "female" | "mixed", RegExp> = {
+  male: /ch[łl]opc|ch[łl]opak|m[ęe]sk|m[ęe][żz]czyzn|\bpanów\b|\bpanowie\b/i,
+  female: /dziewcz|dziewczyn|kobiec|kobiet|żeńsk|zenska|juniork|\bpanie\b/i,
+  mixed: /koedukac|mieszan|dziewcz\w*\s+(?:i|oraz)\s+ch[łl]opc|ch[łl]opc\w*\s+(?:i|oraz)\s+dziewcz|zarówno\s+(?:dziewcz|ch[łl]opc)|dla\s+wszystkich\s+(?:dzieci|zawodnik)/i,
+};
 
 /** Cyfry z `n` występują w cytacie (obrona przed zmyślonym rocznikiem/wiekiem). */
 const inQuote = (n: number, quote: string): boolean => new RegExp(`(?<!\\d)${n}(?!\\d)`).test(quote);
@@ -88,7 +111,18 @@ function normalizeEligibility(raw: unknown, source: string, nowYear: number, iss
   const e: Eligibility = {};
   const bad = (problem: string) => { issues.push({ field: `${where}.eligibility`, problem }); return { ambiguous: problem } as Eligibility; };
   if (str(raw.category_label, 40)) e.categoryLabel = str(raw.category_label, 40)!;
-  if (str(raw.consent_exception, 200)) e.consentException = str(raw.consent_exception, 200)!;
+  if (str(raw.consent_exception, 200)) {
+    e.consentException = str(raw.consent_exception, 200)!;
+    // Zakres „tylko spoza kryteriów” łagodzi wynik, więc wymaga własnego, zweryfikowanego cytatu; w przeciwnym razie zakres jest nieznany.
+    const scopeEv = str(raw.consent_evidence, 400);
+    e.consentScope = raw.consent_scope === "outside_base" && scopeEv && quoteSupported(scopeEv, source) ? "outside_base" : raw.consent_scope === "all" ? "all" : "unknown";
+  }
+  // zwykłe dokumenty przy zapisie (zgoda rodzica, badania): informacja dla zawodnika, nie warunek kwalifikacji
+  const docs = (Array.isArray(raw.required_documents) ? raw.required_documents : []).map((d) => str(d, 80)).filter((d): d is string => !!d).slice(0, 5);
+  if (docs.length) e.requiredDocuments = docs;
+  // kategoria rozgrywek: tylko z cytatem, który faktycznie zawiera określenie kategorii (nigdy z imienia, zdjęcia ani domysłu)
+  const audEv = str(raw.audience_evidence, 400);
+  if ((raw.audience === "male" || raw.audience === "female" || raw.audience === "mixed") && audEv && quoteSupported(audEv, source) && AUDIENCE_TERMS[raw.audience].test(audEv)) e.audience = raw.audience;
   if (str(raw.ambiguous, 300)) e.ambiguous = str(raw.ambiguous, 300)!;
 
   const years: BirthYearRule[] = [];
@@ -124,6 +158,9 @@ const cleanSummary = (s: string | null, fallback: string): string => {
   return (t.length >= 10 ? t : fallback).slice(0, 240);
 };
 
+/** Jawne oświadczenie o aktualności („oferta aktualna na dzień…”, „potwierdzamy…”, „nabór nadal trwa”). Sama data zmiany strony nim nie jest. */
+const CONFIRMATION_WORDS = /(aktualn[eayio]\s+(?:na|w|według|wg)|stan\s+na|potwierdzam|potwierdzamy|potwierdzon|nadal\s+(?:trwa|prowadzimy|przyjmujemy|aktualn)|wciąż\s+(?:trwa|przyjmujemy|aktualn))/i;
+
 const timeOk = (t: unknown): t is string => typeof t === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
 
 export function normalizeExtraction(raw: unknown, sourceText: string, nowMs: number): NormalizeResult {
@@ -156,7 +193,16 @@ export function normalizeExtraction(raw: unknown, sourceText: string, nowMs: num
     return d && isISODate(d) ? d : null;
   };
   const publishedAt = dateField("published_at", raw.published_at);
-  const updatedAt = dateField("organizer_updated_at", raw.organizer_updated_at);
+  // Data aktualizacji STRONY (np. „Zaktualizowano: ...”) to inne zdarzenie niż potwierdzenie aktualności ogłoszenia przez organizatora.
+  const pageUpdatedAt = dateField("page_updated_at", raw.page_updated_at ?? raw.organizer_updated_at);
+  let organizerConfirmation: ListingDraft["organizerConfirmation"] = null;
+  if (isObj(raw.organizer_confirmation)) {
+    const d = str(raw.organizer_confirmation.value, 20), ev = str(raw.organizer_confirmation.evidence, 600);
+    if (d && isISODate(d) && warsawStartOfDay(d) <= nowMs && ev && quoteSupported(ev, sourceText) && CONFIRMATION_WORDS.test(ev)) {
+      organizerConfirmation = { date: d, evidence: ev };
+      evidence.push({ field: "organizer_confirmation", quote: ev });
+    } else issues.push({ field: "organizer_confirmation", problem: "brak jawnego oświadczenia organizatora o aktualności (samo „zaktualizowano” nim nie jest)" });
+  }
 
   const st = quoted("signup_status", raw.signup_status);
   const signupStatus = (st && SIGNUP.has(st) ? st : "unknown") as SignupStatus;
@@ -222,7 +268,7 @@ export function normalizeExtraction(raw: unknown, sourceText: string, nowMs: num
   const draft: ListingDraft = {
     kind: kind ?? "inne", organizer: organizer ?? "", summary: cleanSummary(str(raw.summary, 600), `${organizer ?? "Organizator"}: ${kind ?? "ogłoszenie"}`),
     city: cityRaw, venue, lat: place?.lat ?? null, lon: place?.lon ?? null, positions, signupMode, signupStatus, costState, costPln,
-    requirementsText: requirements, eligibility: defaultElig, sessions: finalSessions, indefinite, signupClosesAt, publishedAt, organizerUpdatedAt: updatedAt, evidence,
+    requirementsText: requirements, eligibility: defaultElig, sessions: finalSessions, indefinite, signupClosesAt, publishedAt, pageUpdatedAt, organizerConfirmation, evidence,
   };
   return { draft, issues, reviewReasons: [...new Set(review)] };
 }
@@ -237,7 +283,10 @@ Zawsze wywołaj narzędzie record_listing. Zasady:
 - Każdy dzień, rocznik lub kategoria wiekowa to ODRĘBNA sesja z własnymi zasadami. Nie łącz różnych dni i roczników w jedną regułę.
 - "2010 i 2012" to lista {op:"in",years:[2010,2012]} (nie zakres). "2012-2013" to zakres. "2010 i młodsi" to {op:"gte",year:2010}, "2010 i starsi" to {op:"lte",year:2010}.
 - Limit wieku w latach podaj z operatorem i datą odniesienia WYŁĄCZNIE gdy organizator ją wskazał (ref.type "date" albo "session_start" gdy napisano „w dniu wydarzenia”), w przeciwnym razie ref.type "unspecified".
-- Samo „U17”, „junior”, „senior” bez zasad wpisz tylko jako category_label. Wyjątki za zgodą trenera wpisz w consent_exception.
+- Samo „U17”, „junior”, „senior” bez zasad wpisz tylko jako category_label.
+- Wyjątek, który wymaga zgody/akceptacji organizatora lub trenera (np. „młodsi za zgodą trenera”), wpisz w consent_exception z cytatem w consent_evidence. consent_scope: "outside_base" TYLKO gdy tekst wprost mówi, że zgoda dotyczy osób spoza podanych roczników/wieku; "all", gdy zgoda jest warunkiem udziału dla każdego; w razie wątpliwości "unknown". Zwykłe dokumenty przy zapisie (zgoda rodzica, badania lekarskie) wpisz w required_documents, nie w consent_exception.
+- Kategoria rozgrywek (audience: male/female/mixed) tylko, gdy tekst wprost ją podaje (np. „dla dziewcząt”, „chłopców”, „koedukacyjne”), wraz z cytatem w audience_evidence. Nigdy nie wnioskuj jej z nazwy klubu, imion ani zdjęć; brak informacji to "unknown", a NIE „dla wszystkich”.
+- Data aktualizacji strony (np. „Zaktualizowano: ...”, „Ostatnia zmiana: ...”) to page_updated_at. To NIE jest potwierdzenie aktualności przez organizatora. Pole organizer_confirmation wypełnij wyłącznie, gdy organizator WPROST oświadcza, że ogłoszenie jest aktualne na dany dzień (np. „Informacja aktualna na 12.11.2026”, „Potwierdzamy: nabór nadal trwa”), z datą i cytatem.
 - Daty zapisuj jako YYYY-MM-DD. Rok wywnioskuj z kontekstu strony tylko, gdy jest jednoznaczny; w przeciwnym razie pomiń sesję.
 - Pole summary: 1–2 zdania własnymi słowami, tylko fakty, bez kopiowania tekstu i bez adresów URL.
 - Jeśli strona nie jest ogłoszeniem o naborze, testach lub treningu otwartym, zwróć is_opportunity=false.`;
@@ -248,7 +297,9 @@ const eligSchema = {
   properties: {
     birth_years: { type: "array", items: { type: "object", properties: { op: { enum: ["in", "range", "gte", "lte"] }, years: { type: "array", items: { type: "integer" } }, from: { type: "integer" }, to: { type: "integer" }, year: { type: "integer" } }, required: ["op"] } },
     age_limits: { type: "array", items: { type: "object", properties: { op: { enum: ["lt", "lte", "gt", "gte", "eq"] }, age: { type: "integer" }, ref: { type: "object", properties: { type: { enum: ["date", "session_start", "unspecified"] }, date: { type: "string" } }, required: ["type"] } }, required: ["op", "age", "ref"] } },
-    category_label: { type: ["string", "null"] }, consent_exception: { type: ["string", "null"] }, ambiguous: { type: ["string", "null"] }, evidence: { type: "string" },
+    category_label: { type: ["string", "null"] }, consent_exception: { type: ["string", "null"] }, consent_scope: { enum: ["outside_base", "all", "unknown"] }, consent_evidence: { type: ["string", "null"] },
+    required_documents: { type: "array", items: { type: "string" } }, audience: { enum: ["male", "female", "mixed", "unknown"] }, audience_evidence: { type: ["string", "null"] },
+    ambiguous: { type: ["string", "null"] }, evidence: { type: "string" },
   },
   required: ["evidence"],
 };
@@ -262,7 +313,7 @@ export const EXTRACTION_TOOL = {
       is_opportunity: { type: "boolean" },
       kind: { enum: ["nabor", "testy", "trening_otwarty", "testy_bramkarskie", "inne"] },
       organizer: quotedSchema({ type: "string" }), city: quotedSchema({ type: "string" }), venue: quotedSchema({ type: "string" }),
-      published_at: quotedSchema({ type: "string" }), organizer_updated_at: quotedSchema({ type: "string" }),
+      published_at: quotedSchema({ type: "string" }), page_updated_at: quotedSchema({ type: "string" }), organizer_confirmation: quotedSchema({ type: "string" }),
       summary: { type: "string" },
       signup_status: quotedSchema({ enum: ["open", "closed", "cancelled", "full", "unknown"] }),
       signup_mode: quotedSchema({ enum: ["individual", "team_only", "unknown"] }),

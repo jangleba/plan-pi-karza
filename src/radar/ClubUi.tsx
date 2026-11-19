@@ -38,10 +38,12 @@ export function ClubCard({ v, sentAt, nowMs, onWrite }: { v: ClubView; sentAt?: 
         {sentAt && <span className="flex shrink-0 items-center gap-1 rounded-full bg-white/80 px-2.5 py-1 text-xs font-semibold text-mint-ink bw-pop">✓ wysłano</span>}
       </div>
       <div className="mt-3.5 rounded-2xl bg-white/75 px-4 py-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">Dane kontaktowe klubu</p>
         <p className="break-all text-[15px] font-medium">{contact.email}</p>
         <p className="mt-0.5 text-xs text-muted">Z oficjalnej strony klubu ({host(contact.evidenceUrl)}), sprawdzono {ago(contact.checkedAt, nowMs)}</p>
       </div>
-      {c.recruitmentUrl && <a href={c.recruitmentUrl} target="_blank" rel="noopener noreferrer" className="bw-tint-ink mt-2.5 inline-flex items-center gap-1.5 text-sm font-medium"><Ball className="h-4 w-4" />Strona klubu o naborze ›</a>}
+      <p className="bw-tint-ink mt-2 text-xs opacity-80">To informacja kontaktowa, nie oferta: nie potwierdzamy, że klub prowadzi obecnie nabór.</p>
+      {c.recruitmentUrl && <a href={c.recruitmentUrl} target="_blank" rel="noopener noreferrer" className="bw-tint-ink mt-2.5 inline-flex items-center gap-1.5 text-sm font-medium"><Ball className="h-4 w-4" />Strona klubu o naborze (sprawdź aktualność u klubu) ›</a>}
       <div className="mt-3.5 flex gap-2">
         <button onClick={onWrite} className="bw-wiggle flex flex-1 items-center justify-center gap-2 rounded-2xl bg-white py-3 text-sm font-semibold text-ink shadow-[0_1px_0_rgba(0,0,0,0.04)]"><Envelope className="h-[18px] w-[18px]" />{sentAt ? "Napisz ponownie" : "Napisz zapytanie"}</button>
         <a href={c.website} target="_blank" rel="noopener noreferrer" className="rounded-2xl bg-white/60 px-4 py-3 text-sm font-medium">Strona</a>
@@ -174,12 +176,14 @@ export function Inquiry({ club, profile, facts, nowMs, onSent, onBack }: {
       </div>
 
       <h4 className="mb-2 mt-5 text-xs uppercase tracking-wide text-muted">Wiadomość</h4>
+      <p className="mb-2 rounded-2xl bg-canvas px-4 py-3 text-sm"><span className="text-muted">Do: </span><b className="break-all">{club.name} &lt;{contact.email}&gt;</b></p>
+      <p className="mb-2 px-1 text-xs text-muted">Poniższy tekst z Twoimi danymi (imię, rocznik{form.withBirthDate ? ", pełna data urodzenia" : ""}{form.phone ? ", telefon" : ""}) trafi do klubu dopiero wtedy, gdy sam(a) wyślesz wiadomość ze swojej poczty. Sprawdź go i popraw przed wysłaniem.</p>
       <input className="mb-2 w-full rounded-2xl bg-canvas px-4 py-3 text-base" readOnly value={gen.subject} aria-label="Temat" />
       <textarea className="min-h-[260px] w-full rounded-2xl bg-canvas px-4 py-3 text-base leading-snug" value={body} onChange={(e) => setCustom(e.target.value)} aria-label="Treść wiadomości" />
       {custom !== null && <button onClick={() => setCustom(null)} className="mt-1 text-xs text-accent">Przywróć automatyczną treść</button>}
 
       <div className="mt-4 flex flex-col gap-2">
-        {href ? <a href={href} className="bw-grad bw-wiggle flex items-center justify-center gap-2 rounded-2xl py-4 text-base font-medium" onClick={() => setNote("Otworzyłem Twoją pocztę. Po wysłaniu oznacz zapytanie jako wysłane.")}><Envelope />Otwórz w poczcie</a>
+        {href ? <a href={href} className="bw-grad bw-wiggle flex items-center justify-center gap-2 rounded-2xl py-4 text-base font-medium" onClick={() => setNote("Otworzyłem Twoją pocztę. Po wysłaniu oznacz zapytanie jako wysłane.")}><Envelope />Otwórz w poczcie (nic nie wysyłamy za Ciebie)</a>
           : <p className="rounded-2xl bg-canvas px-4 py-3 text-sm text-muted">Wiadomość jest zbyt długa na odnośnik – skopiuj ją i wklej w swojej poczcie.</p>}
         <div className="grid grid-cols-2 gap-2">
           <button onClick={async () => done("Wiadomość skopiowana", await copy(`Temat: ${gen.subject}\n\n${body}`))} className="bw-t2 bw-tint bw-tint-ink rounded-2xl py-3.5 text-sm font-semibold">Skopiuj wiadomość</button>

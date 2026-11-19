@@ -8,3 +8,5 @@
 - Yo-Yo IR1 (20 m, 10 s przerwy, start 10 km/h; tabele prędkości różnią się w źródłach): https://www.theyoyotest.com/yyir1.htm
 
 Ograniczenia: żadne ze źródeł nie podało liczby klatek dla My Jump 2; arytmetyka 8 ms / 33 ms na klatkę przy 120 / 30 kl./s jest moja. Normy dla wieku i pozycji nie były szukane (porównanie tylko z samym sobą).
+
+Uwaga o wykorzystaniu źródeł: powyższe badania opisują metody i aplikacje, które je przeprowadziły (My Jump 2, MySprint, wskazane systemy AI). Ich zgodność z pomiarami wzorcowymi (płyta siłowa, mata kontaktowa, fotokomórki) NIE jest przenoszona na algorytm Ballwise: wyniki z nagrania w aplikacji są pokazywane jako oszacowanie, a nie walidowany pomiar, z podaniem wpływu liczby klatek i możliwością ręcznej korekty. Jeśli kiedykolwiek będzie potrzebna deklaracja dokładności, wymaga własnej walidacji względem metody wzorcowej.

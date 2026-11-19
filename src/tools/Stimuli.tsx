@@ -3,11 +3,12 @@ import { Sheet } from "../Sheet";
 import { DEFAULT_OPTS, DIR_LABEL, PACES, makeSequence, type Dir, type Pace, type StimKind, type StimOpts, type Stimulus } from "../engine/stimuli";
 import { Landscape } from "./Landscape";
 import { beep, buzz, keepAwake, prepareAudio } from "./feedback";
+import { scoped } from "../lib/store";
 
 const KEY = "stimOpts";
 interface Saved { opts: StimOpts; pace: Pace; sound: boolean; vibe: boolean }
 const DEFAULT: Saved = { opts: DEFAULT_OPTS, pace: "medium", sound: true, vibe: true };
-const load = (): Saved => { try { return { ...DEFAULT, ...(JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<Saved>) }; } catch { return DEFAULT; } };
+const load = (): Saved => { try { return { ...DEFAULT, ...(JSON.parse(scoped.getItem(KEY) ?? "{}") as Partial<Saved>) }; } catch { return DEFAULT; } };
 const KINDS: Array<[StimKind, string, string]> = [["arrow", "Strzałki", "kierunek ruchu"], ["color", "Kolory", "np. kolor pachołka"], ["number", "Liczby", "np. numer pachołka"], ["combo", "Kolor + strzałka", "gdzie i którym kierunkiem"]];
 const DURATIONS = [30, 60, 120, 300];
 
@@ -132,7 +133,7 @@ export function StimuliTool({ onClose }: { onClose: () => void }) {
   const [cfg, setCfg] = useState<Saved>(load);
   const [running, setRunning] = useState(false);
   const set = (p: Partial<StimOpts>) => setCfg((c) => ({ ...c, opts: { ...c.opts, ...p } }));
-  const save = (c: Saved) => { try { localStorage.setItem(KEY, JSON.stringify(c)); } catch { /* brak pamięci */ } };
+  const save = (c: Saved) => { try { scoped.setItem(KEY, JSON.stringify(c)); } catch { /* brak pamięci */ } };
   const chip = (on: boolean) => `rounded-full border px-3.5 py-2 text-sm ${on ? "bw-sel font-medium" : "border-hairline bg-canvas"}`;
   const seg = <T extends string | number>(items: Array<[T, string]>, v: T, on: (x: T) => void) => (
     <div className="flex gap-1.5 rounded-xl bg-canvas p-1">{items.map(([k, t]) => <button key={String(k)} onClick={() => on(k)} className={`flex-1 rounded-lg py-1.5 text-sm ${v === k ? "bg-card font-medium shadow-sm" : "text-muted"}`}>{t}</button>)}</div>

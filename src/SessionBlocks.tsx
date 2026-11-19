@@ -1,4 +1,4 @@
-import { EXERCISES, estimate1RM } from "./engine";
+import { EXERCISES, choiceNote, estimatedRM } from "./engine";
 import type { Block, WeightLog } from "./engine";
 
 const LETTERS = ["a", "b", "c", "d"];
@@ -39,7 +39,7 @@ export function SessionBlocks({ blocks, mode, log, weights, onWeight, onOpen }: 
                 const key = `${bi}-${ii}`;
                 const prev = log[i.exerciseId];
                 const placeholder = prev ? String(prev.next ?? prev.kg) : "kg";
-                const rm = prev ? estimate1RM(prev.kg, prev.reps) : null;
+                const rm = estimatedRM(prev); // tylko z potwierdzonego wykonania wszystkich powtórzeń
                 const target = i.pctRM && rm ? Math.round(rm * ((i.pctRM[0] + i.pctRM[1]) / 200) * 2) / 2 : null;
                 const many = b.items.length > 1;
                 return (
@@ -53,6 +53,7 @@ export function SessionBlocks({ blocks, mode, log, weights, onWeight, onOpen }: 
                           {i.pctRM ? ` · ${i.pctRM[0]}–${i.pctRM[1]}% maks.${target ? ` (≈ ${target} kg)` : ""}` : ""}
                           {i.note ? ` · ${i.note}` : ""}
                         </span>
+                        {choiceNote(prev) && <span className="block text-xs text-ink/80">{choiceNote(prev)}</span>}
                       </span>
                     </button>
                     {e?.loaded && (

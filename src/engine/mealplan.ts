@@ -158,6 +158,8 @@ export const IDEAS: Record<PoolKind, Idea[]> = {
     { id: "b-oats", name: "Owsianka z bananem", items: [c("oats", { min: 40, max: 120 }), x("banana", 120), p("yogurt", { min: 100, max: 300 }), x("honey", 10)] },
     { id: "b-eggs", name: "Jajka z pieczywem", items: [c("bread-rye", { min: 60, max: 200 }), p("egg", { min: 55, max: 220 }), x("veg-mix", 100)] },
     { id: "b-cottage", name: "Twaróg z pieczywem i owocem", items: [c("bread-white", { min: 60, max: 200 }), p("cottage-semi", { min: 100, max: 250 }), x("apple", 180)] },
+    { id: "b-rice-yogurt", name: "Ryż z jogurtem i bananem", items: [c("rice-dry", { min: 30, max: 100 }), p("yogurt", { min: 100, max: 300 }), x("banana", 120), x("honey", 10)] },
+    { id: "b-tofu", name: "Tofucznica z pieczywem i warzywami", items: [c("bread-rye", { min: 60, max: 200 }), p("tofu", { min: 80, max: 250 }), x("veg-mix", 100)] },
     { id: "b-oats-milk", name: "Płatki owsiane z mlekiem i bananem", items: [c("oats", { min: 40, max: 120 }), x("milk", 250), x("banana", 120), p("skyr", { min: 0, max: 200 })] },
   ],
   main: [
@@ -165,6 +167,7 @@ export const IDEAS: Record<PoolKind, Idea[]> = {
     { id: "m-pasta-turkey", name: "Makaron z indykiem i warzywami", items: [c("pasta-dry", { min: 40, max: 160 }), p("turkey", { min: 80, max: 260 }), x("veg-mix", 150)] },
     { id: "m-potato-fish", name: "Ziemniaki z rybą i surówką", items: [c("potato", { min: 200, max: 450 }), p("cod", { min: 100, max: 300 }), x("veg-mix", 150)] },
     { id: "m-buckwheat-egg", name: "Kasza gryczana z jajkami i warzywami", items: [c("buckwheat-dry", { min: 40, max: 150 }), p("egg", { min: 110, max: 275 }), x("veg-mix", 150)] },
+    { id: "m-rice-lentils", name: "Ryż z soczewicą i warzywami", items: [c("rice-dry", { share: 1, min: 40, max: 160 }), c("lentils", { share: 1, min: 100, max: 300 }), x("veg-mix", 150)] },
     { id: "m-rice-beans", name: "Ryż z fasolą i tuńczykiem", items: [c("rice-dry", { min: 40, max: 160 }), x("beans", 80), p("tuna", { min: 60, max: 200 }), x("veg-mix", 100)] },
   ],
   small: [
@@ -177,6 +180,7 @@ export const IDEAS: Record<PoolKind, Idea[]> = {
   post: [
     { id: "p-yogurt-fruit", name: "Jogurt z owocami i płatkami", items: [p("yogurt", { min: 150, max: 350 }), c("oats", { min: 30, max: 90 }), x("banana", 120), x("honey", 10)] },
     { id: "p-roll-ham", name: "Kanapki z szynką i mleko", items: [c("roll", { min: 50, max: 200 }), p("ham", { min: 30, max: 150 }), x("milk", 250)] },
+    { id: "p-rice-beans", name: "Ryż z fasolą i warzywami", items: [c("rice-dry", { share: 1, min: 40, max: 140 }), c("beans", { share: 1, min: 100, max: 300 }), x("veg-mix", 120)] },
     { id: "p-rice-egg", name: "Ryż z jajkiem i warzywami", items: [c("rice-dry", { min: 40, max: 140 }), p("egg", { min: 55, max: 220 }), x("veg-mix", 120)] },
   ],
   during: [
@@ -206,6 +210,8 @@ export interface ScaleOpts {
   pick?: number;
   /** Rodzaj posiłku (dobiera źródła tłuszczu). */
   pool?: PoolKind;
+  /** Produkty, których NIE wolno dokładać automatycznie (alergeny/dieta wybrane przez użytkownika): bułka z dopełnienia, źródło tłuszczu. */
+  avoid?: (foodId: string) => boolean;
 }
 
 /** Źródła tłuszczu dokładane do posiłków poza okolicą wysiłku – dopasowane do rodzaju posiłku (oliwa do obiadu, orzechy do śniadania). */
@@ -248,7 +254,7 @@ export function scaleIdea(idea: Idea, carbTarget: number, proteinTarget: number,
   // duży posiłek, a źródło węglowodanów osiągnęło limit porcji: dokładamy bułki (po ok. 27 g węglowodanów)
   const deficit = carbTarget - carbFrom();
   let extra: IdeaLine | null = null;
-  if (topUp && deficit >= 25) {
+  if (topUp && deficit >= 25 && !opts.avoid?.("roll")) {
     const roll = food("roll");
     const n = clamp(Math.round(deficit / macrosOf(roll, roll.unit!.g).carb), 1, 4);
     extra = { food: roll, g: n * roll.unit!.g, text: amountText(roll, n * roll.unit!.g) };
@@ -258,7 +264,7 @@ export function scaleIdea(idea: Idea, carbTarget: number, proteinTarget: number,
   let total = lines.reduce((m, l) => { const x = macrosOf(l.food, l.g); return { carb: m.carb + x.carb, protein: m.protein + x.protein, fat: m.fat + x.fat }; }, { carb: 0, protein: 0, fat: 0 });
   // za mało tłuszczu w posiłku, który może go mieć: dokładamy jedno źródło (do 2 porcji)
   const fatTarget = opts.fat ?? 0;
-  const sources = FAT_SOURCES[opts.pool ?? "main"];
+  const sources = FAT_SOURCES[opts.pool ?? "main"].filter((id) => !opts.avoid?.(id));
   if (fatTarget > 0 && fatTarget - total.fat >= 8 && sources.length > 0) {
     const src = food(sources[Math.abs(opts.pick ?? 0) % sources.length]!);
     const deficit = fatTarget - total.fat;
@@ -273,11 +279,11 @@ export function scaleIdea(idea: Idea, carbTarget: number, proteinTarget: number,
 }
 
 /** Pomysły na dany posiłek; kolejność obracana wg dnia (żeby dni się różniły, ale plan był powtarzalny). */
-export function ideasFor(slot: Slot, dayIndex = 0): ScaledIdea[] {
+export function ideasFor(slot: Slot, dayIndex = 0, avoid?: (foodId: string) => boolean): ScaledIdea[] {
   const pool = IDEAS[slot.pool];
   const k = (((dayIndex + slot.variant * 2) % pool.length) + pool.length) % pool.length;
   return [...pool.slice(k), ...pool.slice(0, k)].map((idea, n) =>
-    scaleIdea(idea, slot.carb, slot.protein, { topUp: slot.pool !== "during", fat: isLowFat(slot.id) ? 0 : slot.fat, pick: dayIndex + slot.variant + n, pool: slot.pool }));
+    scaleIdea(idea, slot.carb, slot.protein, { topUp: slot.pool !== "during", fat: isLowFat(slot.id) ? 0 : slot.fat, pick: dayIndex + slot.variant + n, pool: slot.pool, ...(avoid ? { avoid } : {}) }));
 }
 
 /* ------------------------------ lista zakupów ------------------------------ */

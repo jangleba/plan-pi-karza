@@ -1,4 +1,5 @@
 import type { CheckIn, Profile, WeightLog } from "../engine";
+import { assessAge } from "./age";
 
 export interface WeightRow {
   exercise_id: string;
@@ -39,10 +40,39 @@ export function rowToCheckIn(r: { sleep: number; feeling: number; less: boolean 
   return { sleep: r.sleep as CheckIn["sleep"], feeling: r.feeling as CheckIn["feeling"], less: r.less };
 }
 
-/** Profil z bazy jest zapisem JSON; sprawdzamy kształt, zanim mu zaufamy. */
-export function parseProfile(data: unknown): Profile | null {
+/**
+ * JAWNY KONTRAKT pól profilu wysyłanych do backendu. Cokolwiek spoza tej listy (w tym data urodzenia, rocznik czy pole dodane
+ * w przyszłości do Profile) NIE jest synchronizowane, dopóki ktoś świadomie nie doda go tutaj i do dokumentacji (docs/MAPA-DANYCH.md).
+ * Serwer dodatkowo odrzuca zapisy z polami spoza kontraktu (trigger w migracji 0005).
+ */
+export const REMOTE_PROFILE_FIELDS = [
+  "name", "season", "goal", "goal2", "league", "age", "ageAsOf", "strengthYears", "weightKg", "position",
+  "equipment", "clubWeekdays", "matchWeekdays", "offWeekdays", "limitedGymAccess", "startDate",
+] as const satisfies ReadonlyArray<keyof Profile>;
+
+/** Pola, które NIGDY nie mogą trafić na serwer w profilu (twarda lista obronna, niezależna od kontraktu). */
+export const FORBIDDEN_REMOTE_KEYS = ["birthDate", "birthYear", "dob", "dateOfBirth", "birthday"] as const;
+
+/** Profil do wysłania: tylko pola kontraktu i tylko dla osoby, której wiek jednoznacznie spełnia próg (inaczej null = nic nie wysyłamy). */
+export function toRemoteProfile(p: Profile, todayISO: string): Record<string, unknown> | null {
+  if (assessAge({ declaredAge: p.age, declaredOn: p.ageAsOf }, todayISO).status !== "ok") return null;
+  const src = p as unknown as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const k of REMOTE_PROFILE_FIELDS) if (src[k] !== undefined) out[k] = src[k];
+  return out;
+}
+
+/**
+ * Profil z bazy jest zapisem JSON; sprawdzamy kształt i wiek, zanim mu zaufamy. Pola spoza kontraktu (np. dawne birthDate) są ignorowane,
+ * a profil osoby poniżej progu wieku nie jest przyjmowany.
+ */
+export function parseProfile(data: unknown, todayISO: string = new Date().toISOString().slice(0, 10)): Profile | null {
   if (!data || typeof data !== "object") return null;
-  const p = data as Partial<Profile>;
-  if (typeof p.age !== "number" || typeof p.weightKg !== "number" || !Array.isArray(p.matchWeekdays)) return null;
-  return p as Profile;
+  const raw = data as Record<string, unknown>;
+  if (typeof raw.age !== "number" || typeof raw.weightKg !== "number" || !Array.isArray(raw.matchWeekdays)) return null;
+  const out: Record<string, unknown> = {};
+  for (const k of REMOTE_PROFILE_FIELDS) if (raw[k] !== undefined) out[k] = raw[k];
+  const p = out as unknown as Profile;
+  if (assessAge({ declaredAge: p.age, declaredOn: p.ageAsOf }, todayISO).status !== "ok") return null;
+  return p;
 }
