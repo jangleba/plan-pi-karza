@@ -2,26 +2,27 @@
 
 @theme {
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
-  /* pastelowy błękit → granat */
-  --color-canvas: #eef4fb;
+  /* złamana biel, grafit; zaznaczenia w bardzo jasnym błękicie */
+  --color-canvas: #f7f8fa;
   --color-card: #ffffff;
-  --color-ink: #1b2a41;
-  --color-muted: #6b7a90;
-  --color-hairline: #dbe5f1;
-  --color-accent: #2f5d8c;
-  --color-accent-soft: #dcebfa;
-  --color-sky: #7fb2e5;
-  --color-navy: #23395b;
-  --color-club: #4caf7a;
-  --color-club-soft: #dff3e7;
-  --color-green-soft: #dff3e7;
+  --color-ink: #1d1d1f;
+  --color-muted: #6e6e73;
+  --color-hairline: #e6e8ec;
+  --color-accent: #2f6fb3;
+  --color-accent-soft: #e8f1fc;
+  --color-sel-border: #c9def6;
+  --color-sky: #8ec1f0;
+  --color-navy: #1d1d1f;
+  --color-club: #2e9e62;
+  --color-club-soft: #e6f5ec;
+  --color-green-soft: #e6f5ec;
   --color-green-ink: #2e7a51;
-  --color-yellow-soft: #fdf1d6;
+  --color-yellow-soft: #fdf3dc;
   --color-yellow-ink: #8a6a12;
-  --color-red-soft: #f8e0e0;
-  --color-red-ink: #a2403f;
-  --color-blue-soft: #dcebfa;
-  --color-blue-ink: #2f5d8c;
+  --color-red-soft: #fbe7e6;
+  --color-red-ink: #b3423d;
+  --color-blue-soft: #e8f1fc;
+  --color-blue-ink: #2f6fb3;
 }
 
 html, body, #root { min-height: 100%; }
@@ -61,8 +62,11 @@ button:active:not(:disabled) { transform: scale(0.96); }
 @media (prefers-reduced-motion: reduce) { .bw-rise { animation: none; } }
 
 /* gradient błękit → granat: przyciski główne i wyróżnienia */
-.bw-grad { background-image: linear-gradient(135deg, var(--color-sky) 0%, var(--color-accent) 55%, var(--color-navy) 100%); }
-.bw-grad-soft { background-image: linear-gradient(160deg, #dcebfa 0%, #eef4fb 60%); }
+/* przycisk główny: grafit (nazwa klasy zostaje dla zgodności) */
+.bw-grad { background-color: var(--color-ink); }
+/* zaznaczenie: bardzo jasny błękit, widoczny na bieli */
+.bw-sel { background-color: var(--color-accent-soft); color: var(--color-accent); box-shadow: inset 0 0 0 1px var(--color-sel-border); }
+.bw-grad-soft { background-color: var(--color-canvas); }
 
 /* wybór „podskakuje” */
 @keyframes bw-pop { 0% { transform: scale(0.94); } 55% { transform: scale(1.05); } 100% { transform: scale(1); } }

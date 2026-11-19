@@ -20,8 +20,8 @@ type DayState = "free" | "club" | "match" | "off";
 const CYCLE: DayState[] = ["free", "club", "match", "off"];
 const DAY_STYLE: Record<DayState, string> = {
   free: "border border-hairline bg-card text-ink",
-  club: "bg-club text-white",
-  match: "bw-grad text-white",
+  club: "bg-club-soft text-club shadow-[inset_0_0_0_1px_#bfe5cf]",
+  match: "bw-sel",
   off: "bg-hairline text-muted line-through",
 };
 const DAY_LABEL: Record<DayState, string> = { free: "wolny", club: "klub", match: "mecz", off: "brak" };
@@ -32,7 +32,7 @@ const toggle = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !=
 function Pick({ on, onTap, children, className = "" }: { on: boolean; onTap: () => void; children: ReactNode; className?: string }) {
   return (
     <button key={on ? "on" : "off"} type="button" onClick={onTap}
-      className={`${on ? "bw-pop bw-grad text-white shadow-md shadow-accent/20" : "border border-hairline bg-card text-ink"} ${className}`}>
+      className={`${on ? "bw-pop bw-sel font-semibold" : "border border-hairline bg-card text-ink"} ${className}`}>
       {children}
     </button>
   );
@@ -92,14 +92,14 @@ function StepArt({ step }: { step: number }) {
 function Building({ name, onDone }: { name: string; onDone: () => void }) {
   useEffect(() => { const t = setTimeout(onDone, 1900); return () => clearTimeout(t); }, [onDone]);
   return (
-    <main className="bw-grad fixed inset-0 z-50 flex flex-col items-center justify-center px-8 text-white">
+    <main className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-canvas px-8 text-ink">
       <div className="mb-8 flex h-24 items-end gap-2">
         {[44, 70, 56, 88, 62, 96, 40].map((h, i) => (
-          <span key={i} className="bw-fill w-5 rounded-full bg-white/90" style={{ height: h, animationDelay: `${i * 120}ms` }} />
+          <span key={i} className="bw-fill w-5 rounded-full bg-accent-soft shadow-[inset_0_0_0_1px_#c9def6]" style={{ height: h, animationDelay: `${i * 120}ms` }} />
         ))}
       </div>
       <h1 className="bw-rise text-2xl font-semibold tracking-tight">Układam Twój tydzień</h1>
-      <p className="bw-rise mt-2 text-sm text-white/80" style={{ animationDelay: "300ms" }}>{name ? `${name}, ` : ""}za chwilę zaczynamy</p>
+      <p className="bw-rise mt-2 text-sm text-muted" style={{ animationDelay: "300ms" }}>{name ? `${name}, ` : ""}za chwilę zaczynamy</p>
     </main>
   );
 }
@@ -159,10 +159,10 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
     return (
       <main className="bw-grad-soft mx-auto flex h-[100dvh] max-w-md flex-col px-6 pb-10 pt-24">
         <div className="bw-rise"><StepArt step={1} /></div>
-        <h1 className="bw-rise mt-8 text-[44px] font-semibold leading-none tracking-tight text-navy" style={{ animationDelay: "80ms" }}>Ballwise</h1>
+        <h1 className="bw-rise mt-8 text-[44px] font-semibold leading-none tracking-tight text-ink" style={{ animationDelay: "80ms" }}>Ballwise</h1>
         <p className="bw-rise mt-4 text-lg text-muted" style={{ animationDelay: "160ms" }}>Trening, który układa się wokół Twojego meczu.</p>
         <div className="flex-1" />
-        <button onClick={next} className="bw-grad w-full rounded-2xl py-4 text-base font-medium text-white shadow-lg shadow-accent/25">Zaczynamy</button>
+        <button onClick={next} className="bw-grad w-full rounded-2xl py-4 text-base font-medium text-white shadow-sm">Zaczynamy</button>
       </main>
     );
   }
@@ -177,7 +177,7 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
         <div className="flex flex-1 gap-1.5">
           {[1, 2, 3, 4].map((k) => (
             <div key={k} className="h-1 flex-1 overflow-hidden rounded-full bg-hairline">
-              <div className="bw-grad h-full rounded-full transition-all duration-500" style={{ width: k <= step ? "100%" : "0%" }} />
+              <div className="h-full rounded-full bg-accent transition-all duration-500" style={{ width: k <= step ? "100%" : "0%" }} />
             </div>
           ))}
         </div>
@@ -185,7 +185,7 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
 
       <div key={step} className={`${dir === 1 ? "bw-step" : "bw-step-back"} flex min-h-0 flex-1 flex-col overflow-y-auto`}>
         <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-[26px] font-semibold tracking-tight text-navy">{titles[step]}</h1>
+          <h1 className="text-[26px] font-semibold tracking-tight text-ink">{titles[step]}</h1>
           <StepArt step={step} />
         </div>
 
@@ -208,7 +208,7 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
                 {SEASONS.map(([v, t, d]) => (
                   <Pick key={v} on={season === v} onTap={() => setSeason(v)} className="rounded-2xl px-2 py-2.5 text-center">
                     <div className="text-sm font-semibold">{t}</div>
-                    <div className={`mt-0.5 text-[11px] leading-tight ${season === v ? "text-white/80" : "text-muted"}`}>{d}</div>
+                    <div className={`mt-0.5 text-[11px] leading-tight ${season === v ? "text-accent/80" : "text-muted"}`}>{d}</div>
                   </Pick>
                 ))}
               </div>
@@ -252,8 +252,8 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
               })}
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-club" />klub</span>
-              {!seasonOff && <span className="flex items-center gap-1.5"><span className="bw-grad h-2.5 w-2.5 rounded-full" />mecz</span>}
+              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-club-soft shadow-[inset_0_0_0_1px_#bfe5cf]" />klub</span>
+              {!seasonOff && <span className="flex items-center gap-1.5"><span className="bw-sel h-2.5 w-2.5 rounded-full" />mecz</span>}
               <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-hairline" />niedostępny – bez naszych treningów</span>
             </div>
           </div>
@@ -261,7 +261,7 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
       </div>
 
       {error && <p className="bw-pop mt-2 shrink-0 text-center text-sm text-red-ink">{error}</p>}
-      <button onClick={next} className="bw-grad mt-3 w-full shrink-0 rounded-2xl py-3.5 text-base font-medium text-white shadow-lg shadow-accent/25">
+      <button onClick={next} className="bw-grad mt-3 w-full shrink-0 rounded-2xl py-3.5 text-base font-medium text-white shadow-sm">
         {step === last ? "Gotowe" : "Dalej"}
       </button>
 

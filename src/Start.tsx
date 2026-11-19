@@ -19,7 +19,7 @@ function Ring({ value, done, onTap }: { value: number; done: boolean; onTap: () 
       <svg viewBox="0 0 160 160" className="h-full w-full -rotate-90">
         <defs>
           <linearGradient id="bw-ring" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="var(--color-sky)" /><stop offset="100%" stopColor="var(--color-navy)" />
+            <stop offset="0%" stopColor="#8ec1f0" /><stop offset="100%" stopColor="#2f6fb3" />
           </linearGradient>
         </defs>
         <circle cx="80" cy="80" r={r} fill="none" stroke="var(--color-hairline)" strokeWidth="10" />
@@ -41,7 +41,7 @@ function Choice({ label, value, onChange }: { label: string; value: 1 | 2 | 3; o
       <div className="grid grid-cols-3 gap-2">
         {LEVELS.map(([v, t]) => (
           <button key={v} onClick={() => onChange(v)}
-            className={`rounded-2xl py-3.5 text-sm font-medium ${value === v ? "bg-accent text-white" : "bg-canvas text-ink"}`}>{t}</button>
+            className={`rounded-2xl py-3.5 text-sm font-medium ${value === v ? "bw-sel" : "bg-canvas text-ink"}`}>{t}</button>
         ))}
       </div>
     </div>
@@ -97,7 +97,7 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn }: {
           <Choice label="Sen" value={checkIn.sleep} onChange={(v) => onCheckIn({ ...checkIn, sleep: v })} />
           <Choice label="Samopoczucie" value={checkIn.feeling} onChange={(v) => onCheckIn({ ...checkIn, feeling: v })} />
           <button onClick={() => onCheckIn({ ...checkIn, less: !checkIn.less })}
-            className={`mb-6 w-full rounded-2xl py-3.5 text-sm font-medium ${checkIn.less ? "bg-accent text-white" : "bg-canvas text-ink"}`}>
+            className={`mb-6 w-full rounded-2xl py-3.5 text-sm font-medium ${checkIn.less ? "bw-sel" : "bg-canvas text-ink"}`}>
             Dziś mniej
           </button>
           <button onClick={() => { onCheckIn(checkIn); setSheet(null); }} className="w-full bw-grad rounded-2xl py-4 text-base font-medium text-white">Gotowe</button>

@@ -45,3 +45,4 @@
 - Paleta: pastelowy błękit → granat (gradient na przyciskach głównych, pierścieniu i wybranych opcjach), klub na zielono.
 - Onboarding bez przewijania (sprawdzone przy wysokości 520 px), liga z listy od dołu, kalendarz tygodnia: wolny / klub / mecz / brak (dzień niedostępny – silnik nie układa w nim treningów), zawsze „Mecz", nie „Sparing".
 - Animacje: przesuwanie kroków (dalej z prawej, wstecz z lewej), „podskakujące" wybory, animowany szkic na każdym kroku, ekran przejścia „Układam Twój tydzień" i płynne wejście na Start.
+- 2026-11-19 (poprawka): bez gradientów. Tło złamana biel (#f7f8fa), karty białe, tekst grafit, główne przyciski grafitowe, zaznaczenia w bardzo jasnym błękicie (#e8f1fc, tekst #2f6fb3, cienka obwódka), klub jasnozielony.

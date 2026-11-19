@@ -80,7 +80,7 @@ export function SessionSheet({
               <div className="text-xs text-muted">{sug.from} kg · {sug.text}</div>
               {sug.to !== sug.from ? (
                 <div className="mt-2 flex gap-2">
-                  <button onClick={() => decide(sug, true)} className="flex-1 rounded-xl bg-accent py-1.5 text-sm font-medium text-card">Przyjmij {sug.to} kg</button>
+                  <button onClick={() => decide(sug, true)} className="flex-1 rounded-xl bg-ink py-1.5 text-sm font-medium text-white">Przyjmij {sug.to} kg</button>
                   <button onClick={() => decide(sug, false)} className="flex-1 rounded-xl bg-card py-1.5 text-sm text-muted">Zostaję</button>
                 </div>
               ) : (
@@ -149,7 +149,7 @@ export function SessionSheet({
           <>
             <p className="text-sm text-muted">{run.title}</p>
             <MasCard mas={mas} onChange={setMas} />
-            <button onClick={() => setRunning(true)} className="mt-3 w-full rounded-2xl bw-grad py-3 text-sm font-medium text-card">
+            <button onClick={() => setRunning(true)} className="mt-3 w-full rounded-2xl bw-grad py-3 text-sm font-medium text-white">
               {run.isTest ? "Rozpocznij test z GPS" : "Rozpocznij bieg z GPS"}
             </button>
             {running && (

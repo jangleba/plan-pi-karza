@@ -164,7 +164,7 @@ export default function IQ() {
           <h2 className="mb-2 text-base font-semibold">Tablica taktyczna</h2>
           <TacticalBoard snap={result.snap} verdict={result.verdict} />
           <p className="mt-3 text-sm">{result.verdict.summary}</p>
-          <button onClick={() => reset.current()} className="mt-3 w-full rounded-xl bg-accent py-2.5 text-sm font-medium text-white">Jeszcze raz</button>
+          <button onClick={() => reset.current()} className="mt-3 w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-white">Jeszcze raz</button>
         </section>
       )}
     </main>

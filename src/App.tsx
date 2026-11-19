@@ -47,8 +47,8 @@ function DayRow({ day, index, isToday, onOpen }: { day: DayPlan; index: number; 
       title={<span className={(!s && !day.isMatch && !day.isClub) || day.isOff ? "text-muted" : ""}>{title}</span>}
       sub={s && day.isClub ? "+ trening klubowy" : undefined}
       lead={
-        <span className={`flex w-11 shrink-0 flex-col items-center rounded-2xl py-1 ${isToday ? "bw-grad text-white" : ""}`}>
-          <span className={`text-[10px] uppercase tracking-wide ${isToday ? "text-white/80" : "text-muted"}`}>{WEEKDAY[index]}</span>
+        <span className={`flex w-11 shrink-0 flex-col items-center rounded-2xl py-1 ${isToday ? "bw-sel" : ""}`}>
+          <span className={`text-[10px] uppercase tracking-wide ${isToday ? "text-accent/80" : "text-muted"}`}>{WEEKDAY[index]}</span>
           <span className="text-lg font-semibold leading-tight tabular-nums">{Number(day.date.slice(8))}</span>
         </span>
       }

@@ -171,7 +171,7 @@ export function VideoMeasure({ mode, onResult, onClose, src, srcFps, auto }: {
           <div className="mt-3 flex items-center gap-2 text-sm">
             <span className="text-muted">Klatki/s</span>
             {FPS_OPTIONS.map((f) => (
-              <button key={f} onClick={() => changeFps(f)} className={`rounded-lg px-2.5 py-1 ${fps === f ? "bg-accent text-white" : "bg-canvas"}`}>{f}</button>
+              <button key={f} onClick={() => changeFps(f)} className={`rounded-lg px-2.5 py-1 ${fps === f ? "bw-sel" : "bg-canvas"}`}>{f}</button>
             ))}
             <button onClick={detectFps} className="ml-auto text-xs text-muted underline">Wykryj</button>
           </div>
