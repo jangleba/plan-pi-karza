@@ -1,11 +1,12 @@
 import { Sheet } from "../Sheet";
-import { fmtTime, ideasFor, type ScaledIdea, type Slot } from "../engine/mealplan";
+import { ideasWithFavorites, type Favorites } from "../engine/favorites";
+import { fmtTime, type ScaledIdea, type Slot } from "../engine/mealplan";
 
 /** Karta posiłku z planu: cel w gramach i kilka pomysłów z gramaturą; jedno dotknięcie = zjedzone. */
-export function SlotSheet({ slot, dayIndex, eaten, onEat, onOther, onUndo, onClose }: {
-  slot: Slot; dayIndex: number; eaten: boolean; onEat: (idea: ScaledIdea) => void; onOther: () => void; onUndo: () => void; onClose: () => void;
+export function SlotSheet({ slot, dayIndex, favs, eaten, onEat, onOther, onUndo, onClose }: {
+  slot: Slot; dayIndex: number; favs: Favorites; eaten: boolean; onEat: (idea: ScaledIdea) => void; onOther: () => void; onUndo: () => void; onClose: () => void;
 }) {
-  const ideas = ideasFor(slot, dayIndex);
+  const ideas = ideasWithFavorites(slot, dayIndex, favs);
   return (
     <Sheet title={slot.title} onClose={onClose}>
       <p className="text-sm text-muted">
@@ -21,6 +22,7 @@ export function SlotSheet({ slot, dayIndex, eaten, onEat, onOther, onUndo, onClo
       <div className="mt-4 flex flex-col gap-3">
         {ideas.map((idea, i) => (
           <section key={idea.id} className="rounded-2xl bg-canvas p-4">
+            {idea.fav && <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-accent">{idea.fav === "meal" ? "Ulubiony posiłek" : "Z ulubionych produktów"}</div>}
             <div className="flex items-baseline justify-between gap-3">
               <h3 className="text-[15px] font-semibold">{idea.name}</h3>
               <span className="shrink-0 text-xs tabular-nums text-muted">≈ {idea.carb} g węgli{idea.protein > 0 ? ` · ${idea.protein} g białka` : ""}{idea.fat > 0 ? ` · ${idea.fat} g tł.` : ""}</span>

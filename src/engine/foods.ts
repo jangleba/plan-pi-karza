@@ -52,6 +52,7 @@ export const FOODS: Food[] = [
   f("bread-rye", "Chleb żytni / razowy", 48.3, 8.5, 3.3, "carb", 172684, u(35, "kromka", "kromki", "kromek"), ["pieczywo", "chleb"]),
   f("roll", "Bułka pszenna", 52.7, 9.9, 4.3, "carb", 175031, szt(50), ["bulka", "kajzerka"]),
   f("buckwheat-dry", "Kasza gryczana (sucha)", 74.95, 11.73, 2.71, "carb", 170685, undefined, ["kasza"]),
+  f("buckwheat-cooked", "Kasza gryczana (ugotowana)", 19.94, 3.38, 0.62, "carb", 170686, undefined, ["kasza"]),
   f("jam", "Dżem", 68.86, 0.37, 0.07, "carb", 169641, LYZKA(20), ["dzem"]),
   f("honey", "Miód", 82.4, 0.3, 0, "carb", 169640, LYZKA(20), ["miod"]),
   f("raisins", "Rodzynki / suszone owoce", 79.32, 3.3, 0.25, "carb", 168165, GARSC(30), ["daktyle", "morele suszone"]),

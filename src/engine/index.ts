@@ -19,3 +19,4 @@ export * from "./track";
 export * from "./jumpdetect";
 export * from "./feel";
 export * from "./progress2";
+export * from "./favorites";

@@ -187,7 +187,7 @@ export const IDEAS: Record<PoolKind, Idea[]> = {
 };
 
 export interface IdeaLine { food: Food; g: number; text: string }
-export interface ScaledIdea { id: string; name: string; lines: IdeaLine[]; carb: number; protein: number; fat: number }
+export interface ScaledIdea { id: string; name: string; lines: IdeaLine[]; carb: number; protein: number; fat: number; /** Pomysł z ulubionych: gotowy posiłek użytkownika albo złożony z jego ulubionych produktów. */ fav?: "meal" | "products" }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -285,11 +285,11 @@ export function ideasFor(slot: Slot, dayIndex = 0): ScaledIdea[] {
 export interface ShopLine { foodId: string; name: string; group: FoodGroup; grams: number; text: string }
 
 /** Składniki z pierwszych pomysłów każdego posiłku, zsumowane po dniach i po produkcie. */
-export function shoppingList(plans: DayPlanOut[]): ShopLine[] {
+export function shoppingList(plans: DayPlanOut[], pick: (slot: Slot, dayIndex: number) => ScaledIdea | undefined = (slot, di) => ideasFor(slot, di)[0]): ShopLine[] {
   const sum = new Map<string, number>();
   plans.forEach((plan, di) => {
     for (const slot of plan.slots) {
-      const first = ideasFor(slot, di)[0];
+      const first = pick(slot, di);
       if (!first) continue;
       for (const l of first.lines) sum.set(l.food.id, (sum.get(l.food.id) ?? 0) + l.g);
     }

@@ -167,3 +167,10 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 - Kolejna próba z wariantem: warianty rywala (pressing 2 napastników → wysoki blok → niski blok) wracają cyklicznie.
 - Progres → „IQ · wyjście spod pressingu” (`engine/sim/attempts.ts`): % wyjść bez straty (wszystkie i ostatnie 5), ostatnie 14 prób, wyniki wg wariantu, najczęstszy błąd (od 2 powtórzeń), np. „podanie do: Napastnik (3×)”. Próby zapisywane lokalnie (`iqAttempts`, do 300).
 - NIE sprawdzone na telefonie; ocena opcji jest uproszczona (patrz wyżej).
+
+## Fuel – ulubione, źródła, dyktowanie bez AI (2026-11-19)
+- „Ulubione i źródła” w Fuel: dwie zakładki. **Ulubione**: produkty (gwiazdka, wyszukiwanie) i własne posiłki; **Źródła**: produkty o największej zawartości białka / węglowodanów / tłuszczów na 100 g i w typowej porcji (np. 1 jajko), z pozostałymi makro, gwiazdką do ulubionych.
+- Wpływ na plan: pomysły na posiłek – najpierw ulubione posiłki pasujące do rodzaju posiłku (śniadanie, obiad/kolacja, przekąska, po wysiłku), potem pomysły złożone z ulubionych produktów (baza + białko + warzywa/owoc, gramy dobrane do celu posiłku, nazwa z ich nazw), potem standardowe. Lista zakupów używa tych samych pierwszych pomysłów, więc ulubione trafiają na listę.
+- Składanie posiłku z tekstu lub głosu (`engine/favorites.ts`): „owsianka z bananem i jogurtem, dwa jajka, ryż 150 g” → produkty z gramami do poprawy (odmiana: bananem → banan; ryż/makaron/kasza przy mówieniu = wersja ugotowana; domyślne porcje, gdy brak ilości; „0,5 kg”, „pół banana”). Nierozpoznane fragmenty są wymienione osobno. Dyktowanie przez rozpoznawanie mowy przeglądarki (dźwięk przetwarza Apple/Google), gdy niedostępne – pisanie albo mikrofon klawiatury.
+- To rozpoznawanie jest proste (lista produktów z ilościami), nie rozumie swobodnych zdań. Wersja z AI porządkująca wypowiedź czeka na klucz API Claude (jeszcze niezałożony) – ten sam ekran, tylko lepszy parser.
+- Dodano produkt: kasza gryczana (ugotowana), USDA 170686.

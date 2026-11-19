@@ -4,18 +4,20 @@ import { Group, LargeTitle, ListRow, MiniRing } from "./ui";
 import { addDays, localISO } from "./engine";
 import type { Goal, Profile } from "./engine";
 import { matchBag } from "./engine/bag";
-import { buildDayPlan, fmtTime, ideasFor, nextSlot, toMin, untilText, type ScaledIdea, type Slot } from "./engine/mealplan";
+import { ideasWithFavorites } from "./engine/favorites";
+import { buildDayPlan, fmtTime, nextSlot, toMin, untilText, type ScaledIdea, type Slot } from "./engine/mealplan";
 import { Around } from "./fuel/Around";
 import { Bag } from "./fuel/Bag";
 import { AddFood, type NewMeal } from "./fuel/AddFood";
+import { FavoritesSheet } from "./fuel/Favorites";
 import { GOAL_LABEL, GoalSheet } from "./fuel/Goal";
 import { Journal } from "./fuel/Journal";
 import { Shopping } from "./fuel/Shopping";
 import { SlotSheet } from "./fuel/SlotSheet";
 import { activitiesFor, asActivities, dayInfoFor, defaultStart } from "./fuel/day";
-import { loadBag, loadGoal, loadMeals, loadWater, saveGoal, saveMeals, saveStart, saveWater, type Meal } from "./fuel/store";
+import { loadBag, loadFavs, loadGoal, loadMeals, loadWater, saveFavs, saveGoal, saveMeals, saveStart, saveWater, type Meal } from "./fuel/store";
 
-type Sheetk = "add" | "slot" | "journal" | "shop" | "around" | "goal" | "bag";
+type Sheetk = "add" | "slot" | "journal" | "shop" | "around" | "goal" | "bag" | "fav";
 const WATER_STEP = 250;
 const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
 const nowHHMM = () => fmtTime(nowMin());
@@ -43,7 +45,8 @@ export function Fuel({ profile }: { profile: Profile }) {
   const water = loadWater(date);
   const { next, missed } = nextSlot(plan.slots, done, nowMin());
   const missedIds = new Set(missed.map((s) => s.id));
-  const nextIdeas = next ? ideasFor(next, 0) : [];
+  const favs = loadFavs();
+  const nextIdeas = next ? ideasWithFavorites(next, 0, favs) : [];
   // torba meczowa: w dniu meczu i dzień wcześniej (wtedy się pakujemy)
   const matchDate = info.match ? date : info.kind === "pre-match" ? addDays(date, 1) : null;
   const matchPlan = matchDate ? (info.match ? plan : buildDayPlan({ day: "match", weightKg: profile.weightKg, goal, activities: [{ kind: "match", time: defaultStart("match", false) }] })) : null;
@@ -118,7 +121,7 @@ export function Fuel({ profile }: { profile: Profile }) {
       <Group label="Plan dnia">
         {plan.slots.map((s, i) => {
           const isDone = done.has(s.id);
-          const first = ideasFor(s, 0)[0];
+          const first = ideasWithFavorites(s, 0, favs)[0];
           return (
             <ListRow
               key={s.id}
@@ -159,18 +162,20 @@ export function Fuel({ profile }: { profile: Profile }) {
       <Group>
         <ListRow index={1} title="Dziennik" detail={`${meals.length} ${meals.length === 1 ? "pozycja" : "pozycji"}`} onTap={() => setSheet("journal")} />
         <ListRow index={2} title="Lista zakupów" sub="Z planu na kolejne dni" onTap={() => setSheet("shop")} />
-        <ListRow index={3} title="Przed i po wysiłku" sub="Co zjeść o dowolnej porze" onTap={() => setSheet("around")} />
-        <ListRow index={4} title="Cel żywieniowy" detail={GOAL_LABEL[goal]} onTap={() => setSheet("goal")} />
+        <ListRow index={3} title="Ulubione i źródła" sub={favs.foods.length + favs.meals.length > 0 ? `${favs.foods.length} produktów · ${favs.meals.length} posiłków` : "Białko, węgle, tłuszcze – i Twoje ulubione"} onTap={() => setSheet("fav")} />
+        <ListRow index={4} title="Przed i po wysiłku" sub="Co zjeść o dowolnej porze" onTap={() => setSheet("around")} />
+        <ListRow index={5} title="Cel żywieniowy" detail={GOAL_LABEL[goal]} onTap={() => setSheet("goal")} />
       </Group>
       <p className="px-1 text-xs text-muted">Liczby UEFA dotyczą meczu; podział na sesje i posiłki jest orientacyjny. To nie jest porada dietetyczna. Dane produktów: USDA FoodData Central, Open Food Facts.</p>
 
       {sheet === "add" && <AddFood onAdd={(m) => { addMeal(m, forSlot); setSheet(null); }} onClose={() => setSheet(null)} />}
       {sheet === "slot" && slot && (
-        <SlotSheet slot={slot} dayIndex={0} eaten={done.has(slot.id)} onEat={(idea) => eatIdea(slot, idea)} onOther={() => { setForSlot(slot.id); setSheet("add"); }} onUndo={() => undoSlot(slot.id)} onClose={() => setSheet(null)} />
+        <SlotSheet slot={slot} dayIndex={0} favs={favs} eaten={done.has(slot.id)} onEat={(idea) => eatIdea(slot, idea)} onOther={() => { setForSlot(slot.id); setSheet("add"); }} onUndo={() => undoSlot(slot.id)} onClose={() => setSheet(null)} />
       )}
       {sheet === "journal" && <Journal meals={meals} onRemove={removeMeal} onClose={() => setSheet(null)} />}
       {sheet === "shop" && <Shopping profile={profile} goal={goal} today={date} onClose={() => setSheet(null)} />}
       {sheet === "around" && <Sheet title="Przed i po wysiłku" onClose={() => setSheet(null)}><Around profile={profile} /></Sheet>}
+      {sheet === "fav" && <FavoritesSheet favs={favs} onChange={(f) => { saveFavs(f); refresh(); }} onClose={() => setSheet(null)} />}
       {sheet === "bag" && bag && matchDate && <Bag groups={bag} date={matchDate} onChange={refresh} onClose={() => setSheet(null)} />}
       {sheet === "goal" && <GoalSheet goal={goal} onPick={(g: Goal) => { saveGoal(g); setSheet(null); refresh(); }} onClose={() => setSheet(null)} />}
     </main>

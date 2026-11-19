@@ -3,9 +3,10 @@ import { Sheet } from "../Sheet";
 import { addDays } from "../engine";
 import type { Goal, Profile } from "../engine";
 import { buildDayPlan, shoppingList } from "../engine/mealplan";
+import { ideasWithFavorites } from "../engine/favorites";
 import { ShopTips } from "./Around";
 import { activitiesFor, asActivities, dayInfoFor } from "./day";
-import { loadChecked, saveChecked } from "./store";
+import { loadChecked, loadFavs, saveChecked } from "./store";
 
 const GROUP: Record<string, string> = { carb: "Zboża i skrobia", protein: "Białko", dairy: "Nabiał", fat: "Tłuszcze (oliwa, orzechy, awokado)", fruit: "Owoce", veg: "Warzywa", other: "Inne" };
 
@@ -20,7 +21,8 @@ export function Shopping({ profile, goal, today, onClose }: { profile: Profile; 
       const info = dayInfoFor(profile, iso);
       return buildDayPlan({ day: info.kind, weightKg: profile.weightKg, goal, activities: asActivities(activitiesFor(info, iso)) });
     });
-    return shoppingList(plans);
+    const favs = loadFavs();
+    return shoppingList(plans, (slot, di) => ideasWithFavorites(slot, di, favs)[0]);
   }, [days, profile, goal, today]);
 
   const toggle = (id: string) => {
