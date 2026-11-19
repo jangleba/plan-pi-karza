@@ -19,6 +19,15 @@
 | Alergeny i ograniczenia | `src/engine/allergens.ts` | Poprawność przypisań (`FOOD_TAGS`); czy komunikaty nie sugerują bezpieczeństwa; brak danych o produktach spoza bazy |
 | Cel „przyrost masy” | `src/fuel/Goal.tsx` | Czy proponować go osobom niepełnoletnim |
 
+## Język (nauczyciel angielskiego / native speaker)
+| Obszar | Gdzie w kodzie | Co ocenić |
+|---|---|---|
+| 12 lekcji, 72 zwroty z ćwiczeniami | `src/english/content.ts` | Naturalność angielskiego piłkarskiego (brytyjski/amerykański), poprawność polskich znaczeń i wyjaśnień, trafność pytań i dystraktorów, akceptowane ułożenia zdań |
+| Słowa i hasła/powiedzonka (fiszki) | `src/english/cards.ts` | Poprawność tłumaczeń i uwag o rejestrze (potoczne, komentatorskie), brak treści niewłaściwych dla osób 16–17 lat |
+| Wiadomość zgłoszeniowa do klubu | lekcja `application` | Poprawność formalnego stylu i rad dotyczących danych osobowych w wiadomości |
+
+Treści są autorskie; nie kopiowano cudzych kursów, pytań ani nagrań. Przegląd językowy **nie został wykonany**.
+
 ## Prawo (prawnik) – poza zakresem specjalisty sportowego
 Dokumenty w `src/legal/docs.ts` są szkicami. Wymagają zatwierdzenia, uzupełnienia danych operatora i oceny podstaw prawnych (patrz `docs/AUDYT-STATUS.md`, sekcja „Do decyzji i zatwierdzenia”).
 

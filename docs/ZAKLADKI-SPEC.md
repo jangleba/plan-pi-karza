@@ -190,7 +190,4 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 - Pomysły odrzucone przez użytkownika jako zbyt słabe/zwyczajne: Dziennik meczów, ogólna rozgrzewka, Tryb ławki (wszystkie w historii PR #212: commity dodające i cofające). Niewybrane propozycje na później: odtwarzanie akcji z meczu w symulacji IQ, „sobowtór stanu dnia” (sylwetka reagująca na check-in).
 
 ## Start – Piłkarskie szanse (2026-11-19)
-- Pod check-inem: radar aktualnych naborów, testów i treningów otwartych dopasowanych do zawodnika (rocznik/data urodzenia, pozycja, miejscowość + promień 25/50/100/200 km/cała Polska, wybrane rodzaje). Faktycznie użyte kryteria są pokazane nad kartami, maks. dwie pasujące karty, „Zobacz wszystkie” (filtry rodzaju/odległości/kosztu, sortowanie, zapisane), szczegóły w panelu od dołu.
-- Rozdzielone stany: brak danych profilu, brak ofert (z propozycją większego promienia – nigdy szerszego wieku), awaria aktualizacji źródeł, błąd połączenia, brak połączenia z serwerem. Awaria radaru nie blokuje reszty aplikacji.
-- Profil: opcjonalne `birthDate` / `birthYear` (zostają na urządzeniu); miejscowość i wybory radaru w `radarPrefs`; zapisane oferty w `radarSaved`.
-- Pełna dokumentacja (architektura, sekrety, wdrożenie, ograniczenia): `docs/RADAR-SZANSE.md`.
+- Radar „Piłkarskie szanse” został usunięty z aplikacji (patrz `docs/AUDYT-STATUS.md`). Pod gotowością jest karta „Piłkarski angielski”: lekcja, czas, powtórki na dziś, przycisk „Rozpocznij”/„Kontynuuj”.

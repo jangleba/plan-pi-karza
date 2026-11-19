@@ -193,7 +193,7 @@ describe("eksport i usuwanie", () => {
   it("eksport zawiera wszystkie magazyny TYLKO zalogowanego użytkownika i nie zawiera skrótów tokenów", async () => {
     await q("insert into profiles (user_id, data) values ($1, $2::jsonb) on conflict (user_id) do update set data = excluded.data", [U1, profile()]);
     const e = (await as(U1, () => q<{ e: Record<string, unknown> }>("select export_my_data() as e"))).rows[0]!.e;
-    expect(Object.keys(e).sort()).toEqual(["ageDeclarations", "agreements", "checkIns", "consents", "exportedAt", "guardianConfirmations", "masTests", "paidAccess", "profile", "weightLog"]);
+    expect(Object.keys(e).sort()).toEqual(["ageDeclarations", "agreements", "checkIns", "consents", "englishProgress", "exportedAt", "guardianConfirmations", "masTests", "paidAccess", "profile", "weightLog"]);
     expect((e.agreements as unknown[]).length).toBeGreaterThanOrEqual(2);
     expect((e.consents as unknown[]).length).toBe(2);
     expect(JSON.stringify(e)).not.toMatch(/token_hash|revoke_token|user_id|[0-9a-f]{64}/);
@@ -202,7 +202,7 @@ describe("eksport i usuwanie", () => {
   });
 
   it("usunięcie obejmuje wszystkie magazyny użytkownika, nie rusza cudzych, jest idempotentne i zostawia log bez danych osobowych", async () => {
-    const tables = ["paid_access", "guardian_confirmations", "consent_events", "agreement_events", "age_declarations", "check_ins", "weight_log", "mas_tests", "profiles"];
+    const tables = ["english_progress", "paid_access", "guardian_confirmations", "consent_events", "agreement_events", "age_declarations", "check_ins", "weight_log", "mas_tests", "profiles"];
     const count = async (u: string) => (await q<{ n: number }>(tables.map((t) => `select count(*)::int as n from ${t} where user_id = '${u}'`).join(" union all "))).rows.reduce((s, r) => s + r.n, 0);
     const u2Before = await count(U2);
     expect(await count(U1)).toBeGreaterThan(5);

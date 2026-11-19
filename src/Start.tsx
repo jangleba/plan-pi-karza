@@ -1,8 +1,12 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { readinessScore, strainOf } from "./engine";
 import type { CheckIn, Profile } from "./engine";
 import { Sheet } from "./Sheet";
 import { LegalSheet } from "./legal/LegalUi";
+import { EnglishCard } from "./english/EnglishCard";
+
+// Moduł nauki ładuje się dopiero po otwarciu (osobny fragment pakietu): nie spowalnia strony głównej.
+const EnglishModule = lazy(() => import("./english/EnglishModule"));
 
 const LEVELS: Array<[1 | 2 | 3, string]> = [[1, "Słabo"], [2, "Średnio"], [3, "Dobrze"]];
 const STRAIN = { none: "Pełna sesja", light: "Trochę lżej", heavy: "Wyraźnie lżej" } as const;
@@ -63,6 +67,8 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn, onSettings }: {
 }) {
   const [open, setOpen] = useState(false);
   const [safety, setSafety] = useState(false);
+  const [english, setEnglish] = useState(false);
+  const [englishTick, setEnglishTick] = useState(0);
 
   return (
     <main className="mx-auto max-w-md px-5 pb-32 pt-14">
@@ -80,6 +86,13 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn, onSettings }: {
           <button onClick={() => setSafety(true)} className="underline">Zasady bezpieczeństwa</button>
         </p>
       </section>
+
+      <EnglishCard onOpen={() => setEnglish(true)} refreshKey={englishTick} />
+      {english && (
+        <Suspense fallback={<div className="fixed inset-0 z-30 flex items-center justify-center bg-canvas text-sm text-muted" role="status">Ładowanie…</div>}>
+          <EnglishModule onClose={() => { setEnglish(false); setEnglishTick((t) => t + 1); }} />
+        </Suspense>
+      )}
 
 
       {safety && <LegalSheet kind="safety" onClose={() => setSafety(false)} />}

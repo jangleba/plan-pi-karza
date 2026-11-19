@@ -12,7 +12,7 @@ import { loadConsent } from "../legal/consent";
  * Identyfikator użytkownika, ale TYLKO gdy bieżąca przestrzeń danych należy do tego samego konta.
  * Dzięki temu dane jednego konta (lub gościa) nie mogą zostać wysłane na inne konto, np. po zmianie sesji.
  */
-async function uid(): Promise<string | null> {
+export async function uid(): Promise<string | null> {
   if (!supabase) return null;
   const scope = getScope();
   if (scope.kind !== "user") return null;
