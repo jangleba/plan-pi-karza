@@ -186,4 +186,5 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 
 ## Start – tylko to, czego nie ma w zakładkach (2026-11-19, korekta)
 - Decyzja użytkownika: na Starcie nic nie może powtarzać zakładek. Usunięte: karta „Dziś” (sesja – jest w Planie), pasek tygodnia (Plan), skrót do posiłku (Fuel). Zostały: check-in z pierścieniem gotowości (bez zmian), „Mecz w głowie” i okresowe pytanie „Jak czujesz się na boisku?” (nie ma ich w żadnej zakładce).
-- Do wymyślenia: coś zupełnie nowego na Start (propozycje i wybór z użytkownikiem).
+- **Decyzja końcowa:** na Starcie zostaje **sam check-in** (powitanie + pierścień gotowości). Usunięte ze Startu także „Mecz w głowie” (`MatchInMind.tsx` zostaje w repo, bez wejścia z UI) i okresowe „Jak czujesz się na boisku?” (zostają migawki z onboardingu i porównanie w Progresie; nowych migawek już nie ma jak dodać).
+- Pomysły odrzucone przez użytkownika jako zbyt słabe/zwyczajne: Dziennik meczów, ogólna rozgrzewka, Tryb ławki (wszystkie w historii PR #212: commity dodające i cofające). Niewybrane propozycje na później: odtwarzanie akcji z meczu w symulacji IQ, „sobowtór stanu dnia” (sylwetka reagująca na check-in).
