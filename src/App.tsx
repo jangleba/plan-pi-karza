@@ -162,7 +162,7 @@ function Main() {
         </Suspense>
       )}
       {tab === "fuel" && <Fuel profile={profile} />}
-      {tab === "progres" && <Progress />}
+      {tab === "progres" && <Progress profile={profile} />}
       </div>
       <TabBar tab={tab} onChange={(t) => { setTab(t); window.scrollTo(0, 0); }} />
     </div>
