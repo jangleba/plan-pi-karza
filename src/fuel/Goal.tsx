@@ -1,11 +1,10 @@
 import { Sheet } from "../Sheet";
 import type { Goal } from "../engine";
 
-export const GOAL_LABEL: Record<Goal, string> = { maintain: "Utrzymanie", gain: "Masa", lose: "Redukcja" };
+export const GOAL_LABEL: Record<Goal, string> = { maintain: "Utrzymanie", gain: "Masa" };
 const TEXT: Record<Goal, string> = {
   maintain: "Cele w środku zakresu zaleceń.",
   gain: "Węglowodany w górnej połowie zakresu, białko 1,9–2,2 g/kg.",
-  lose: "Węglowodany w dolnej połowie zakresu, białko 2,0–2,2 g/kg.",
 };
 
 export function GoalSheet({ goal, onPick, onClose }: { goal: Goal; onPick: (g: Goal) => void; onClose: () => void }) {

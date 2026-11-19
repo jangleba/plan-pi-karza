@@ -134,3 +134,10 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 - Sklepowe produkty: Open Food Facts przez serwerową trasę `/api/foods` (przeglądarka nie może pytać wprost – brak CORS); parsowanie z odrzucaniem niekompletnych/niemożliwych wpisów (`src/lib/off.ts`, testy). Bez internetu zostaje baza wbudowana.
 - Dane lokalne: dziennik (`meals`, zgodny ze starym formatem), woda i godzina startu per dzień, ostatnie produkty, zaznaczenia zakupów. NIE synchronizowane z bazą.
 - Do zrobienia: zdjęcie talerza (szacowanie wymaga usługi po stronie serwera i klucza API), tłuszcze/kalorie (celowo pominięte), alergie/dieta/budżet, przypomnienia o posiłkach (wymagają natywnej aplikacji).
+
+## Fuel – cele zależne od sesji, tłuszcze, dane USDA (2026-11-19, kolejny krok)
+- Decyzje użytkownika: cele zależne od liczby sesji i godzin; tłuszcze (trochę mniej/więcej zależnie od dnia); „Redukcja” usunięta; dalej: zdjęcie talerza i głos przez AI (serwer + klucz), tryb meczowy z listą do torby, zdjęcie lodówki.
+- Dzień z dwoma treningami (klubowy + indywidualny): dwie godziny do ustawienia, posiłki przed/po każdym (gdy są blisko – posiłek po pierwszym służy też jako przed drugim), wyższy cel węglowodanów, białko bez zmian, tłuszcz 22% energii.
+- Cztery pierścienie: węgle, białko, tłuszcz, woda. Posiłki mają cel tłuszczu (wokół wysiłku mało); brakujący tłuszcz uzupełnia źródło dobrane do posiłku (śniadanie: orzechy/masło orzechowe, obiad: oliwa/awokado). Lista zakupów ma grupę „Tłuszcze”.
+- Baza produktów z USDA (CC0) z tłuszczami i numerami pozycji; Open Food Facts z tłuszczem (gdy jest).
+- Do zrobienia (po decyzji prawnej i kluczu API): zdjęcie talerza z AI, głos z AI do ulubionych posiłków i produktów, tryb meczowy z torbą, zdjęcie lodówki.

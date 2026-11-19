@@ -22,9 +22,10 @@ export function parseOff(json: unknown): Food[] {
     const nutr = (h["nutriments"] ?? {}) as Record<string, unknown>;
     const carb = num(nutr["carbohydrates_100g"]);
     const protein = num(nutr["proteins_100g"]);
+    const fat = num(nutr["fat_100g"]);
     const code = typeof h["code"] === "string" || typeof h["code"] === "number" ? String(h["code"]) : "";
     if (!name || name.length > 80 || !code || carb === null || protein === null) continue;
-    if (carb < 0 || protein < 0 || carb + protein > 100.5) continue;
+    if (carb < 0 || protein < 0 || carb + protein > 100.5 || (fat !== null && (fat < 0 || carb + protein + fat > 101))) continue;
     const brands = h["brands"];
     const brand = (Array.isArray(brands) ? brands[0] : typeof brands === "string" ? brands.split(",")[0] : "")?.toString().trim() || undefined;
     const key = `${name.toLowerCase()}|${(brand ?? "").toLowerCase()}`;
@@ -33,6 +34,7 @@ export function parseOff(json: unknown): Food[] {
     const serving = num(h["serving_quantity"]);
     out.push({
       id: `off:${code}`, name, brand, carb100: Math.round(carb * 10) / 10, protein100: Math.round(protein * 10) / 10,
+      fat100: fat === null ? 0 : Math.round(fat * 10) / 10, fatUnknown: fat === null ? true : undefined,
       group: "other", source: "off",
       unit: serving !== null && serving >= 5 && serving <= 1000 ? { g: serving, one: "porcja", few: "porcje", many: "porcji" } : undefined,
     });

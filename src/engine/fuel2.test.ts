@@ -9,7 +9,9 @@ describe("baza produktów", () => {
     for (const f of FOODS) {
       expect(f.carb100, f.id).toBeGreaterThanOrEqual(0);
       expect(f.protein100, f.id).toBeGreaterThanOrEqual(0);
-      expect(f.carb100 + f.protein100, f.id).toBeLessThanOrEqual(100);
+      expect(f.fat100, f.id).toBeGreaterThanOrEqual(0);
+      expect(f.carb100 + f.protein100 + f.fat100, f.id).toBeLessThanOrEqual(101);
+      expect(Boolean(f.fdc) !== Boolean(f.est), `${f.id}: albo numer USDA, albo szacunek`).toBe(true);
       if (f.unit) expect(f.unit.g, f.id).toBeGreaterThan(0);
     }
   });
@@ -25,8 +27,9 @@ describe("baza produktów", () => {
   });
 
   it("makroskładniki z gramów i ilość tekstem", () => {
-    expect(macrosOf(FOOD_BY_ID["egg"]!, 110)).toEqual({ carb: 0.8, protein: 13.8 });
-    expect(amountText(FOOD_BY_ID["egg"]!, 110)).toBe("2 szt.");
+    expect(macrosOf(FOOD_BY_ID["egg"]!, 110)).toEqual({ carb: 0.8, protein: 13.8, fat: 10.5 });
+    expect(amountText(FOOD_BY_ID["egg"]!, 100)).toBe("2 szt.");
+    expect(amountText(FOOD_BY_ID["egg"]!, 110)).toBe("110 g");
     expect(amountText(FOOD_BY_ID["rice-dry"]!, 90)).toBe("90 g");
     expect(amountText(FOOD_BY_ID["milk"]!, 250)).toBe("1 szklanka");
     expect(amountText(FOOD_BY_ID["milk"]!, 120)).toBe("120 ml");
@@ -57,21 +60,21 @@ describe("plan dnia", () => {
   });
 
   it("dzień lekki: 4 posiłki w kolejności, suma węglowodanów ≈ cel", () => {
-    const p = buildDayPlan({ day: "light", weightKg: kg, goal: "maintain", activity: null });
+    const p = buildDayPlan({ day: "light", weightKg: kg, goal: "maintain", activities: [] });
     expect(p.slots.map((s) => s.id)).toEqual(["breakfast", "lunch", "snack", "dinner"]);
     expect(Math.abs(total(p) - mid("light"))).toBeLessThan(mid("light") * 0.08);
     expect(Math.abs(p.proteinTotal - 135)).toBeLessThan(15);
   });
 
   it("dzień przed meczem: 5 posiłków, cel 6–8 g/kg", () => {
-    const p = buildDayPlan({ day: "pre-match", weightKg: kg, goal: "maintain", activity: null });
+    const p = buildDayPlan({ day: "pre-match", weightKg: kg, goal: "maintain", activities: [] });
     expect(p.slots).toHaveLength(5);
     expect(total(p) / kg).toBeGreaterThanOrEqual(6);
     expect(total(p) / kg).toBeLessThanOrEqual(8);
   });
 
   it("mecz o 15:00: duży posiłek 3,5 h przed (UEFA, ≥ 2 g/kg), 45 g w trakcie, po meczu ≥ 1 g/kg", () => {
-    const p = buildDayPlan({ day: "match", weightKg: kg, goal: "maintain", activity: { kind: "match", time: "15:00" } });
+    const p = buildDayPlan({ day: "match", weightKg: kg, goal: "maintain", activities: [{ kind: "match", time: "15:00" }] });
     const by = Object.fromEntries(p.slots.map((s) => [s.id, s]));
     expect(fmtTime(by["pre-main"]!.at)).toBe("11:30");
     expect(by["pre-main"]!.uefa).toBe(true);
@@ -88,7 +91,7 @@ describe("plan dnia", () => {
   });
 
   it("trening wieczorem: obiad przesunięty przed posiłkiem przedtreningowym, kolacja wchłonięta przez „po treningu”", () => {
-    const p = buildDayPlan({ day: "training", weightKg: kg, goal: "maintain", activity: { kind: "session", time: "18:00" } });
+    const p = buildDayPlan({ day: "training", weightKg: kg, goal: "maintain", activities: [{ kind: "session", time: "18:00" }] });
     const by = Object.fromEntries(p.slots.map((s) => [s.id, s]));
     expect(by["dinner"]).toBeUndefined();
     expect(by["pre-main"]!.at - by["lunch"]!.at).toBeGreaterThanOrEqual(150);
@@ -97,7 +100,7 @@ describe("plan dnia", () => {
   });
 
   it("trening rano: śniadanie = posiłek przedtreningowy, reszta dnia ma normalne posiłki", () => {
-    const p = buildDayPlan({ day: "training", weightKg: kg, goal: "maintain", activity: { kind: "session", time: "10:00" } });
+    const p = buildDayPlan({ day: "training", weightKg: kg, goal: "maintain", activities: [{ kind: "session", time: "10:00" }] });
     expect(p.slots[0]!.id).toBe("pre-main");
     expect(p.slots.some((s) => s.id === "breakfast")).toBe(false);
     expect(p.slots.some((s) => s.id === "dinner")).toBe(true);
@@ -105,7 +108,7 @@ describe("plan dnia", () => {
 
   it("identyfikatory unikalne, warianty rosną w obrębie rodzaju posiłku", () => {
     for (const [day, activity] of [["training", { kind: "session", time: "18:00" }], ["match", { kind: "match", time: "12:00" }], ["light", null]] as const) {
-      const p = buildDayPlan({ day, weightKg: 68, goal: "gain", activity });
+      const p = buildDayPlan({ day, weightKg: 68, goal: "gain", activities: activity ? [activity] : [] });
       expect(new Set(p.slots.map((s) => s.id)).size).toBe(p.slots.length);
       const byPool: Record<string, number[]> = {};
       for (const s of p.slots) (byPool[s.pool] ??= []).push(s.variant);
@@ -114,15 +117,15 @@ describe("plan dnia", () => {
   });
 
   it("cel „masa” podnosi cele białka i węglowodanów względem „utrzymania”", () => {
-    const a = buildDayPlan({ day: "training", weightKg: kg, goal: "maintain", activity: { kind: "session", time: "17:00" } });
-    const b = buildDayPlan({ day: "training", weightKg: kg, goal: "gain", activity: { kind: "session", time: "17:00" } });
+    const a = buildDayPlan({ day: "training", weightKg: kg, goal: "maintain", activities: [{ kind: "session", time: "17:00" }] });
+    const b = buildDayPlan({ day: "training", weightKg: kg, goal: "gain", activities: [{ kind: "session", time: "17:00" }] });
     expect(b.proteinTotal).toBeGreaterThanOrEqual(a.proteinTotal);
     expect(b.carbTotal).toBeGreaterThan(a.carbTotal);
   });
 });
 
 describe("przykładowe posiłki", () => {
-  const slot = { id: "lunch", at: 780, title: "Obiad", pool: "main" as const, carb: 100, protein: 35, uefa: false, variant: 0 };
+  const slot = { id: "lunch", at: 780, title: "Obiad", pool: "main" as const, carb: 100, protein: 35, fat: 20, uefa: false, variant: 0 };
 
   it("każdy pomysł trafia w cel węglowodanów (±20%) i białka (±25%), gdy cel mieści się w porcjach", () => {
     for (const idea of IDEAS.main) {
@@ -137,7 +140,7 @@ describe("przykładowe posiłki", () => {
   it("sztuki są całkowite, gramy dodatnie, suma makro zgadza się z liniami", () => {
     for (const pool of Object.keys(IDEAS) as Array<keyof typeof IDEAS>) {
       for (const idea of IDEAS[pool]) {
-        const s = scaleIdea(idea, 80, 25, pool !== "during");
+        const s = scaleIdea(idea, 80, 25, { topUp: pool !== "during" });
         for (const l of s.lines) {
           expect(l.g, idea.id).toBeGreaterThan(0);
           if (l.food.unit && l.food.unit.g > 0) expect(l.g % l.food.unit.g, `${idea.id}/${l.food.id}`).toBe(0);
@@ -152,7 +155,7 @@ describe("przykładowe posiłki", () => {
     const big = scaleIdea(IDEAS.main[0]!, 225, 50);
     expect(big.lines.at(-1)!.food.id).toBe("roll");
     expect(big.carb).toBeGreaterThan(190);
-    const during = scaleIdea(IDEAS.during[0]!, 45, 0, false);
+    const during = scaleIdea(IDEAS.during[0]!, 45, 0, { topUp: false });
     expect(during.lines).toHaveLength(1);
   });
 
@@ -164,21 +167,21 @@ describe("przykładowe posiłki", () => {
   });
 
   it("lista zakupów sumuje składniki dni, grupuje i zaokrągla w górę", () => {
-    const day = (d: "light" | "training") => buildDayPlan({ day: d, weightKg: 75, goal: "maintain", activity: d === "training" ? { kind: "session", time: "17:00" } : null });
+    const day = (d: "light" | "training") => buildDayPlan({ day: d, weightKg: 75, goal: "maintain", activities: d === "training" ? [{ kind: "session", time: "17:00" }] : [] });
     const one = shoppingList([day("light")]);
     const three = shoppingList([day("light"), day("training"), day("light")]);
     expect(three.length).toBeGreaterThanOrEqual(one.length);
     const g = (l: ReturnType<typeof shoppingList>, id: string) => l.find((x) => x.foodId === id)?.grams ?? 0;
     expect(g(three, "veg-mix")).toBeGreaterThan(g(one, "veg-mix"));
     for (const l of three) { expect(l.grams).toBeGreaterThan(0); expect(l.text).toBeTruthy(); }
-    const order = ["carb", "protein", "dairy", "fruit", "veg", "other"];
+    const order = ["carb", "protein", "dairy", "fat", "fruit", "veg", "other"];
     const idx = three.map((l) => order.indexOf(l.group));
     expect([...idx].sort((a, b) => a - b)).toEqual(idx);
   });
 });
 
 describe("co teraz", () => {
-  const plan = buildDayPlan({ day: "light", weightKg: 75, goal: "maintain", activity: null });
+  const plan = buildDayPlan({ day: "light", weightKg: 75, goal: "maintain", activities: [] });
   it("pierwszy niezjedzony posiłek, ewentualnie pominięte", async () => {
     const { nextSlot } = await import("./mealplan");
     expect(nextSlot(plan.slots, new Set(), 7 * 60).next!.id).toBe("breakfast");
@@ -196,5 +199,69 @@ describe("co teraz", () => {
     expect(untilText(5)).toBe("teraz");
     expect(untilText(-30)).toBe("30 min temu");
     expect(untilText(-90)).toBe("1 h 30 min temu");
+  });
+});
+
+describe("cele zależne od obciążenia dnia i tłuszcze", () => {
+  const kg = 75;
+  it("dwa treningi dają wyższy cel węglowodanów niż jeden, białko bez zmian", async () => {
+    const one = dailyTargets(kg, "training", "maintain", 1), two = dailyTargets(kg, "training", "maintain", 2);
+    expect(two.carbG[0]).toBeGreaterThan(one.carbG[0]);
+    expect(two.carbG[1]).toBe(one.carbG[1]);
+    expect(two.proteinG).toEqual(one.proteinG);
+  });
+
+  it("tłuszcz: 20–35% energii dnia (UEFA); mniej w dni o dużej podaży węglowodanów, więcej w lekkie", () => {
+    const share = (t: ReturnType<typeof dailyTargets>) => {
+      const c = (t.carbG[0] + t.carbG[1]) / 2, p = (t.proteinG[0] + t.proteinG[1]) / 2, f = (t.fatG[0] + t.fatG[1]) / 2;
+      return (9 * f) / (4 * c + 4 * p + 9 * f);
+    };
+    for (const [day, s] of [["light", 1], ["training", 1], ["training", 2], ["match", 1], ["pre-match", 1]] as const) {
+      const x = share(dailyTargets(kg, day, "maintain", s));
+      expect(x, `${day}/${s}`).toBeGreaterThanOrEqual(0.2);
+      expect(x, `${day}/${s}`).toBeLessThanOrEqual(0.35);
+    }
+    expect(share(dailyTargets(kg, "light", "maintain"))).toBeGreaterThan(share(dailyTargets(kg, "training", "maintain", 1)));
+    expect(share(dailyTargets(kg, "training", "maintain", 1))).toBeGreaterThan(share(dailyTargets(kg, "training", "maintain", 2)));
+    expect(dailyTargets(kg, "light", "gain").proteinG[1]).toBeGreaterThanOrEqual(dailyTargets(kg, "light", "maintain").proteinG[1]);
+  });
+
+  it("dwa treningi w jednym dniu: oba mają posiłki wokół siebie, sesje = 2, więcej węglowodanów niż przy jednym", () => {
+    const two = buildDayPlan({ day: "training", weightKg: kg, goal: "maintain", activities: [{ kind: "session", time: "10:00" }, { kind: "session", time: "18:00" }] });
+    const one = buildDayPlan({ day: "training", weightKg: kg, goal: "maintain", activities: [{ kind: "session", time: "18:00" }] });
+    expect(two.sessions).toBe(2);
+    expect(two.carbTotal).toBeGreaterThan(one.carbTotal);
+    expect(two.slots.map((s) => s.id)).toEqual(expect.arrayContaining(["pre-main", "post", "pre-main-2", "post-2"]));
+    expect(new Set(two.slots.map((s) => s.id)).size).toBe(two.slots.length);
+    const times = two.slots.map((s) => s.at);
+    expect([...times].sort((a, b) => a - b)).toEqual(times);
+    for (let i = 1; i < times.length; i++) expect(times[i]! - times[i - 1]!).toBeGreaterThanOrEqual(60);
+  });
+
+  it("dwa treningi blisko siebie: posiłek po pierwszym służy też jako przed drugim", () => {
+    const p = buildDayPlan({ day: "training", weightKg: kg, goal: "maintain", activities: [{ kind: "session", time: "12:00" }, { kind: "session", time: "15:30" }] });
+    expect(p.slots.some((s) => s.id === "pre-main-2")).toBe(false);
+    expect(p.slots.find((s) => s.id === "post")!.title).toMatch(/przed kolejnym/);
+  });
+
+  it("tłuszcz w planie: suma ≈ cel, wokół wysiłku mało, w zwykłych posiłkach więcej", () => {
+    const p = buildDayPlan({ day: "training", weightKg: kg, goal: "maintain", activities: [{ kind: "session", time: "18:00" }] });
+    const t = dailyTargets(kg, "training", "maintain", 1);
+    expect(Math.abs(p.fatTotal - (t.fatG[0] + t.fatG[1]) / 2)).toBeLessThanOrEqual(10);
+    const by = Object.fromEntries(p.slots.map((s) => [s.id, s]));
+    expect(by["pre-snack"]!.fat).toBeLessThan(by["lunch"]!.fat);
+    expect(by["pre-main"]!.fat).toBeLessThan(by["breakfast"]!.fat);
+  });
+
+  it("brakujący tłuszcz uzupełniany źródłem dopasowanym do posiłku; wokół wysiłku – nie", () => {
+    const base = { at: 480, title: "x", carb: 80, protein: 25, uefa: false, variant: 0 };
+    const breakfast = ideasFor({ ...base, id: "breakfast", pool: "breakfast", fat: 30 }, 0)[0]!;
+    const lunch = ideasFor({ ...base, id: "lunch", pool: "main", fat: 35 }, 0)[0]!;
+    const pre = ideasFor({ ...base, id: "pre-main", pool: "main", fat: 10 }, 0)[0]!;
+    const ids = (i: typeof lunch) => i.lines.map((l) => l.food.id);
+    expect(ids(breakfast).some((id) => ["peanut-butter", "almonds", "walnuts"].includes(id))).toBe(true);
+    expect(ids(lunch).some((id) => ["olive-oil", "avocado"].includes(id))).toBe(true);
+    expect(ids(pre).some((id) => FOODS.find((f) => f.id === id)!.group === "fat")).toBe(false);
+    expect(lunch.fat).toBeGreaterThan(20);
   });
 });

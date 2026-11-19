@@ -25,6 +25,20 @@ describe("Open Food Facts – parsowanie", () => {
     expect(r[1]).toMatchObject({ carb100: 0, protein100: 10.5, brand: "Sokołów" });
   });
 
+  it("tłuszcz z fat_100g; brak tłuszczu → oznaczone jako nieznany, niemożliwa suma odrzucona", () => {
+    const r = parseOff({
+      hits: [
+        hit({ code: "7", nutriments: { carbohydrates_100g: 10, proteins_100g: 5, fat_100g: "3,5" } }),
+        hit({ code: "8", product_name: "Bez tłuszczu w bazie" }),
+        hit({ code: "9", product_name: "Za dużo", nutriments: { carbohydrates_100g: 60, proteins_100g: 30, fat_100g: 30 } }),
+      ],
+    });
+    expect(r.map((x) => x.id)).toEqual(["off:7", "off:8"]);
+    expect(r[0]).toMatchObject({ fat100: 3.5 });
+    expect(r[0]!.fatUnknown).toBeUndefined();
+    expect(r[1]).toMatchObject({ fat100: 0, fatUnknown: true });
+  });
+
   it("niepoprawna odpowiedź → pusta lista; nierealna porcja jest ignorowana", () => {
     expect(parseOff(null)).toEqual([]);
     expect(parseOff({})).toEqual([]);

@@ -4,10 +4,10 @@ import { addDays } from "../engine";
 import type { Goal, Profile } from "../engine";
 import { buildDayPlan, shoppingList } from "../engine/mealplan";
 import { ShopTips } from "./Around";
-import { activityFor, dayInfoFor } from "./day";
+import { activitiesFor, asActivities, dayInfoFor } from "./day";
 import { loadChecked, saveChecked } from "./store";
 
-const GROUP: Record<string, string> = { carb: "Zboża i skrobia", protein: "Białko", dairy: "Nabiał", fruit: "Owoce", veg: "Warzywa", other: "Inne" };
+const GROUP: Record<string, string> = { carb: "Zboża i skrobia", protein: "Białko", dairy: "Nabiał", fat: "Tłuszcze (oliwa, orzechy, awokado)", fruit: "Owoce", veg: "Warzywa", other: "Inne" };
 
 /** Lista zakupów z planu na kolejne dni (pierwsze pomysły każdego posiłku, zsumowane). */
 export function Shopping({ profile, goal, today, onClose }: { profile: Profile; goal: Goal; today: string; onClose: () => void }) {
@@ -18,7 +18,7 @@ export function Shopping({ profile, goal, today, onClose }: { profile: Profile; 
     const plans = Array.from({ length: days }, (_, i) => {
       const iso = addDays(today, i);
       const info = dayInfoFor(profile, iso);
-      return buildDayPlan({ day: info.kind, weightKg: profile.weightKg, goal, activity: activityFor(info, iso) });
+      return buildDayPlan({ day: info.kind, weightKg: profile.weightKg, goal, activities: asActivities(activitiesFor(info, iso)) });
     });
     return shoppingList(plans);
   }, [days, profile, goal, today]);

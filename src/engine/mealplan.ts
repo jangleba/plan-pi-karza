@@ -18,6 +18,8 @@ export interface Slot {
   /** Cel węglowodanów i białka w g dla tego posiłku. */
   carb: number;
   protein: number;
+  /** Cel tłuszczu w g (wokół wysiłku mało tłuszczu). */
+  fat: number;
   uefa: boolean;
   /** Który z kolei posiłek tego rodzaju w dniu (0, 1, 2…) – żeby pomysły się nie powtarzały. */
   variant: number;
@@ -27,6 +29,9 @@ export interface DayPlanOut {
   slots: Slot[];
   carbTotal: number;
   proteinTotal: number;
+  fatTotal: number;
+  /** Ile treningów jest dziś (do celów dziennych). */
+  sessions: number;
   hydrationMl: number;
 }
 
@@ -56,15 +61,24 @@ function baseMeals(day: DayKind): Base[] {
   return [B("breakfast", 8, 0, "Śniadanie", "breakfast", light ? 0.28 : 0.3, 1, true), B("lunch", 13, 0, "Obiad", "main", light ? 0.32 : 0.35, 1, true), B("snack", 16, 30, "Przekąska", "small", 0.12, 0.4, false), B("dinner", 19, 30, "Kolacja", "main", light ? 0.28 : 0.35, 1, true)];
 }
 
-export function buildDayPlan(i: { day: DayKind; weightKg: number; goal: Goal; activity: Activity | null }): DayPlanOut {
-  const { day, weightKg: kg, goal, activity } = i;
-  const t = dailyTargets(kg, day, goal);
+const FAT_W: Record<string, number> = { breakfast: 1, lunch: 1.2, dinner: 1.2, snack: 0.8, "snack-am": 0.6, "pre-main": 0.4, "pre-snack": 0.1, during: 0, post: 0.3 };
+const fatWeight = (id: string) => FAT_W[id.replace(/-\d$/, "")] ?? 0.5;
+/** Posiłki wokół wysiłku – mało tłuszczu (wolniejsze trawienie). */
+export const isLowFat = (id: string) => /^(pre-main|pre-snack|during|post)/.test(id);
+
+export function buildDayPlan(i: { day: DayKind; weightKg: number; goal: Goal; activities: Activity[] }): DayPlanOut {
+  const { day, weightKg: kg, goal } = i;
+  const acts = [...i.activities].sort((a, b) => toMin(a.time) - toMin(b.time));
+  const sessions = acts.filter((a) => a.kind === "session").length;
+  const t = dailyTargets(kg, day, goal, sessions);
   const carbT = Math.round((t.carbG[0] + t.carbG[1]) / 2);
   const protT = Math.round((t.proteinG[0] + t.proteinG[1]) / 2);
+  const fatT = Math.round((t.fatG[0] + t.fatG[1]) / 2);
 
   const fixed: Draft[] = [];
-  const fx = (id: string, at: number, title: string, pool: PoolKind, carbFixed: number, protW: number, uefa: boolean) => fixed.push({ id, at, title, pool, carbFixed, share: 0, protW, uefa });
-  if (activity) {
+  acts.forEach((activity, k) => {
+    const sfx = k === 0 ? "" : `-${k + 1}`;
+    const fx = (id: string, at: number, title: string, pool: PoolKind, carbFixed: number, protW: number, uefa: boolean) => fixed.push({ id: id + sfx, at, title, pool, carbFixed, share: 0, protW, uefa });
     const A = toMin(activity.time);
     if (activity.kind === "match") {
       fx("pre-main", Math.max(6 * 60 + 30, A - 210), "Duży posiłek przed meczem", "main", 2 * kg, 0.8, true);
@@ -76,7 +90,18 @@ export function buildDayPlan(i: { day: DayKind; weightKg: number; goal: Goal; ac
       fx("pre-snack", A - 60, "Lekka przekąska", "small", 0.5 * kg, 0.2, false);
       fx("post", A + 105, "Po treningu", "post", 1 * kg, 1, false);
     }
-  }
+  });
+  // dwa wysiłki blisko siebie: posiłek po pierwszym służy też jako przed drugim
+  const mergeSecond = (sfx: string) => {
+    const post = fixed.find((d) => d.id === "post"), pre = fixed.find((d) => d.id === `pre-main${sfx}`);
+    if (post && pre && pre.at - post.at < 150) {
+      post.carbFixed = Math.max(post.carbFixed, pre.carbFixed);
+      post.title = "Po treningu i przed kolejnym";
+      fixed.splice(fixed.indexOf(pre), 1);
+      for (const id of [`pre-snack${sfx}`]) { const x = fixed.find((d) => d.id === id); if (x && x.at - post.at < 75) fixed.splice(fixed.indexOf(x), 1); }
+    }
+  };
+  if (acts.length >= 2) mergeSecond("-2");
 
   // zwykłe posiłki: przesuwane tak, by nie nakładały się na posiłki wokół wysiłku; gdy się nie da – wchłania je posiłek
   // przed/po wysiłku (dostaje jego udział), a przekąski są pomijane
@@ -108,12 +133,14 @@ export function buildDayPlan(i: { day: DayKind; weightKg: number; goal: Goal; ac
   const protOf = (d: Draft) => d.protW + (extraProt.get(d.id) ?? 0);
   const protSum = drafts.reduce((s, d) => s + protOf(d), 0) || 1;
   const seen: Record<string, number> = {};
+  const fatSum = drafts.reduce((s, d) => s + fatWeight(d.id), 0) || 1;
   const slots: Slot[] = drafts.map((d) => ({
     id: d.id, at: d.at, title: d.title, pool: d.pool, uefa: d.uefa, variant: (seen[d.pool] = (seen[d.pool] ?? -1) + 1),
     carb: r5(Math.max(d.share > 0 ? 20 : 0, d.carbFixed + (pool * shareOf(d)) / shareSum)),
     protein: r5((protT * protOf(d)) / protSum),
+    fat: r5((fatT * fatWeight(d.id)) / fatSum),
   }));
-  return { slots, carbTotal: slots.reduce((s, x) => s + x.carb, 0), proteinTotal: slots.reduce((s, x) => s + x.protein, 0), hydrationMl: hydrationMl(kg, day) };
+  return { slots, carbTotal: slots.reduce((s, x) => s + x.carb, 0), proteinTotal: slots.reduce((s, x) => s + x.protein, 0), fatTotal: slots.reduce((s, x) => s + x.fat, 0), sessions, hydrationMl: hydrationMl(kg, day) };
 }
 
 /* ------------------------------ przykładowe posiłki ------------------------------ */
@@ -131,7 +158,7 @@ export const IDEAS: Record<PoolKind, Idea[]> = {
     { id: "b-oats", name: "Owsianka z bananem", items: [c("oats", { min: 40, max: 120 }), x("banana", 120), p("yogurt", { min: 100, max: 300 }), x("honey", 10)] },
     { id: "b-eggs", name: "Jajka z pieczywem", items: [c("bread-rye", { min: 60, max: 200 }), p("egg", { min: 55, max: 220 }), x("veg-mix", 100)] },
     { id: "b-cottage", name: "Twaróg z pieczywem i owocem", items: [c("bread-white", { min: 60, max: 200 }), p("cottage-semi", { min: 100, max: 250 }), x("apple", 180)] },
-    { id: "b-muesli", name: "Musli z mlekiem i bananem", items: [c("muesli", { min: 40, max: 120 }), x("milk", 250), x("banana", 120), p("skyr", { min: 0, max: 200 })] },
+    { id: "b-oats-milk", name: "Płatki owsiane z mlekiem i bananem", items: [c("oats", { min: 40, max: 120 }), x("milk", 250), x("banana", 120), p("skyr", { min: 0, max: 200 })] },
   ],
   main: [
     { id: "m-rice-chicken", name: "Ryż z kurczakiem i warzywami", items: [c("rice-dry", { min: 40, max: 160 }), p("chicken", { min: 80, max: 260 }), x("veg-mix", 150)] },
@@ -160,7 +187,7 @@ export const IDEAS: Record<PoolKind, Idea[]> = {
 };
 
 export interface IdeaLine { food: Food; g: number; text: string }
-export interface ScaledIdea { id: string; name: string; lines: IdeaLine[]; carb: number; protein: number }
+export interface ScaledIdea { id: string; name: string; lines: IdeaLine[]; carb: number; protein: number; fat: number }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -170,7 +197,28 @@ function roundFor(food: Food, g: number): number {
 }
 
 /** Dobiera gramy tak, by posiłek trafił w cel węglowodanów (główne źródło) i białka (źródło białka). */
-export function scaleIdea(idea: Idea, carbTarget: number, proteinTarget: number, topUp = true): ScaledIdea {
+export interface ScaleOpts {
+  /** Dokładaj bułkę, gdy źródło węglowodanów osiągnęło limit porcji (domyślnie tak). */
+  topUp?: boolean;
+  /** Cel tłuszczu w g; gdy posiłek ma go za mało, dokładane jest źródło tłuszczu (oliwa, awokado, orzechy…). */
+  fat?: number;
+  /** Który ze źródeł tłuszczu wybrać (obrót). */
+  pick?: number;
+  /** Rodzaj posiłku (dobiera źródła tłuszczu). */
+  pool?: PoolKind;
+}
+
+/** Źródła tłuszczu dokładane do posiłków poza okolicą wysiłku – dopasowane do rodzaju posiłku (oliwa do obiadu, orzechy do śniadania). */
+export const FAT_SOURCES: Record<PoolKind, string[]> = {
+  breakfast: ["peanut-butter", "almonds", "walnuts"],
+  main: ["olive-oil", "avocado"],
+  small: ["almonds", "walnuts", "peanut-butter"],
+  post: [],
+  during: [],
+};
+
+export function scaleIdea(idea: Idea, carbTarget: number, proteinTarget: number, opts: ScaleOpts = {}): ScaledIdea {
+  const topUp = opts.topUp ?? true;
   const food = (id: string) => FOOD_BY_ID[id]!;
   const grams = new Map<IdeaItem, number>();
   for (const it of idea.items) if (it.role === "fixed") grams.set(it, roundFor(food(it.food), it.g ?? 0));
@@ -207,15 +255,29 @@ export function scaleIdea(idea: Idea, carbTarget: number, proteinTarget: number,
   }
   const lines: IdeaLine[] = idea.items.map((it) => ({ food: food(it.food), g: grams.get(it) ?? 0, text: amountText(food(it.food), grams.get(it) ?? 0) }));
   if (extra) lines.push(extra);
-  const add = extra ? macrosOf(extra.food, extra.g) : { carb: 0, protein: 0 };
-  return { id: idea.id, name: idea.name, lines, carb: Math.round(carbFrom() + add.carb), protein: Math.round(protFrom() + add.protein) };
+  let total = lines.reduce((m, l) => { const x = macrosOf(l.food, l.g); return { carb: m.carb + x.carb, protein: m.protein + x.protein, fat: m.fat + x.fat }; }, { carb: 0, protein: 0, fat: 0 });
+  // za mało tłuszczu w posiłku, który może go mieć: dokładamy jedno źródło (do 2 porcji)
+  const fatTarget = opts.fat ?? 0;
+  const sources = FAT_SOURCES[opts.pool ?? "main"];
+  if (fatTarget > 0 && fatTarget - total.fat >= 8 && sources.length > 0) {
+    const src = food(sources[Math.abs(opts.pick ?? 0) % sources.length]!);
+    const deficit = fatTarget - total.fat;
+    const unit = src.unit && src.unit.g > 0 ? src.unit.g : 10;
+    const n = clamp(Math.round(((deficit / src.fat100) * 100) / unit), 1, 2);
+    const line: IdeaLine = { food: src, g: n * unit, text: amountText(src, n * unit) };
+    lines.push(line);
+    const x = macrosOf(src, line.g);
+    total = { carb: total.carb + x.carb, protein: total.protein + x.protein, fat: total.fat + x.fat };
+  }
+  return { id: idea.id, name: idea.name, lines, carb: Math.round(total.carb), protein: Math.round(total.protein), fat: Math.round(total.fat) };
 }
 
 /** Pomysły na dany posiłek; kolejność obracana wg dnia (żeby dni się różniły, ale plan był powtarzalny). */
 export function ideasFor(slot: Slot, dayIndex = 0): ScaledIdea[] {
   const pool = IDEAS[slot.pool];
   const k = (((dayIndex + slot.variant * 2) % pool.length) + pool.length) % pool.length;
-  return [...pool.slice(k), ...pool.slice(0, k)].map((idea) => scaleIdea(idea, slot.carb, slot.protein, slot.pool !== "during"));
+  return [...pool.slice(k), ...pool.slice(0, k)].map((idea, n) =>
+    scaleIdea(idea, slot.carb, slot.protein, { topUp: slot.pool !== "during", fat: isLowFat(slot.id) ? 0 : slot.fat, pick: dayIndex + slot.variant + n, pool: slot.pool }));
 }
 
 /* ------------------------------ lista zakupów ------------------------------ */
@@ -232,7 +294,7 @@ export function shoppingList(plans: DayPlanOut[]): ShopLine[] {
       for (const l of first.lines) sum.set(l.food.id, (sum.get(l.food.id) ?? 0) + l.g);
     }
   });
-  const order: FoodGroup[] = ["carb", "protein", "dairy", "fruit", "veg", "other"];
+  const order: FoodGroup[] = ["carb", "protein", "dairy", "fat", "fruit", "veg", "other"];
   return [...sum]
     .map(([id, g]): ShopLine => {
       const food = FOOD_BY_ID[id]!;

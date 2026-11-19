@@ -10,7 +10,7 @@ import { GOAL_LABEL, GoalSheet } from "./fuel/Goal";
 import { Journal } from "./fuel/Journal";
 import { Shopping } from "./fuel/Shopping";
 import { SlotSheet } from "./fuel/SlotSheet";
-import { activityFor, dayInfoFor } from "./fuel/day";
+import { activitiesFor, asActivities, dayInfoFor } from "./fuel/day";
 import { loadGoal, loadMeals, loadWater, saveGoal, saveMeals, saveStart, saveWater, type Meal } from "./fuel/store";
 
 type Sheetk = "add" | "slot" | "journal" | "shop" | "around" | "goal";
@@ -31,22 +31,23 @@ export function Fuel({ profile }: { profile: Profile }) {
 
   const goal = loadGoal();
   const info = dayInfoFor(profile, date);
-  const activity = activityFor(info, date);
-  const plan = useMemo(() => buildDayPlan({ day: info.kind, weightKg: profile.weightKg, goal, activity }), [info.kind, profile.weightKg, goal, activity?.kind, activity?.time]);
+  const activities = activitiesFor(info, date);
+  const actKey = activities.map((a) => `${a.kind}@${a.time}`).join(",");
+  const plan = useMemo(() => buildDayPlan({ day: info.kind, weightKg: profile.weightKg, goal, activities: asActivities(activities) }), [info.kind, profile.weightKg, goal, actKey]);
   const allMeals = loadMeals();
   const meals = allMeals.filter((m) => m.date === date);
   const done = new Set(meals.map((m) => m.slot).filter((s): s is string => !!s));
-  const eaten = (k: "carb" | "protein") => Math.round(meals.reduce((a, m) => a + m[k], 0));
+  const eaten = (k: "carb" | "protein" | "fat") => Math.round(meals.reduce((a, m) => a + (m[k] ?? 0), 0));
   const water = loadWater(date);
   const { next, missed } = nextSlot(plan.slots, done, nowMin());
   const missedIds = new Set(missed.map((s) => s.id));
   const nextIdeas = next ? ideasFor(next, 0) : [];
 
   const addMeal = (m: NewMeal, slot?: string) => {
-    saveMeals([...allMeals, { id: uid(), date, time: nowHHMM(), name: m.name, carb: m.carb, protein: m.protein, slot } satisfies Meal]);
+    saveMeals([...allMeals, { id: uid(), date, time: nowHHMM(), name: m.name, carb: m.carb, protein: m.protein, fat: m.fat, slot } satisfies Meal]);
     refresh();
   };
-  const eatIdea = (slot: Slot, idea: ScaledIdea) => { addMeal({ name: idea.name, carb: idea.carb, protein: idea.protein }, slot.id); setSheet(null); };
+  const eatIdea = (slot: Slot, idea: ScaledIdea) => { addMeal({ name: idea.name, carb: idea.carb, protein: idea.protein, fat: idea.fat }, slot.id); setSheet(null); };
   const removeMeal = (id: string) => { saveMeals(allMeals.filter((m) => m.id !== id)); refresh(); };
   const undoSlot = (id: string) => { saveMeals(allMeals.filter((m) => !(m.date === date && m.slot === id))); refresh(); };
   const addWater = (ml: number) => { saveWater(date, water + ml); refresh(); };
@@ -54,24 +55,29 @@ export function Fuel({ profile }: { profile: Profile }) {
   const openSlot = (id: string) => { setSlotId(id); setSheet("slot"); };
   const litres = (ml: number) => (ml / 1000).toFixed(1).replace(".", ",");
 
-  const sub = activity ? `${info.label} · ${activity.time}` : info.label;
+  const sub = activities.length ? `${info.label} · ${activities.map((a) => a.time).join(" i ")}` : info.label;
   return (
     <main className="mx-auto max-w-md px-5 pb-28 pt-14">
       <LargeTitle kind="fuel" title="Fuel" sub={sub} />
 
-      {activity && (
-        <label className="bw-rise mb-5 flex items-center justify-between rounded-2xl border border-hairline bg-card px-4 py-3 text-sm">
-          <span className="text-muted">{activity.kind === "match" ? "Początek meczu" : "Początek treningu"}</span>
-          <input type="time" value={activity.time} onChange={(e) => { if (e.target.value) { saveStart(date, e.target.value); refresh(); } }} className="rounded-lg bg-canvas px-2 py-1 font-medium tabular-nums outline-none" />
-        </label>
+      {activities.length > 0 && (
+        <div className="bw-rise mb-5 overflow-hidden rounded-2xl border border-hairline bg-card">
+          {activities.map((a) => (
+            <label key={a.key} className="flex items-center justify-between border-b border-hairline px-4 py-3 text-sm last:border-0">
+              <span className="text-muted">{a.label}</span>
+              <input type="time" value={a.time} onChange={(e) => { if (e.target.value) { saveStart(date, e.target.value, a.key); refresh(); } }} className="rounded-lg bg-canvas px-2 py-1 font-medium tabular-nums outline-none" />
+            </label>
+          ))}
+        </div>
       )}
 
-      <div className="bw-rise mb-6 flex justify-between px-2">
-        <MiniRing value={eaten("carb") / plan.carbTotal} label="Węglowodany" center={<>{eaten("carb")}<span className="text-xs text-muted">g</span></>} />
-        <MiniRing value={eaten("protein") / plan.proteinTotal} label="Białko" center={<>{eaten("protein")}<span className="text-xs text-muted">g</span></>} />
-        <MiniRing value={water / plan.hydrationMl} label="Woda" center={<>{litres(water)}<span className="text-xs text-muted">l</span></>} />
+      <div className="bw-rise mb-6 flex justify-between px-1">
+        <MiniRing small value={eaten("carb") / plan.carbTotal} label="Węgle" center={<>{eaten("carb")}<span className="text-[10px] text-muted">g</span></>} />
+        <MiniRing small value={eaten("protein") / plan.proteinTotal} label="Białko" center={<>{eaten("protein")}<span className="text-[10px] text-muted">g</span></>} />
+        <MiniRing small value={eaten("fat") / plan.fatTotal} label="Tłuszcz" center={<>{eaten("fat")}<span className="text-[10px] text-muted">g</span></>} />
+        <MiniRing small value={water / plan.hydrationMl} label="Woda" center={<>{litres(water)}<span className="text-[10px] text-muted">l</span></>} />
       </div>
-      <p className="-mt-3 mb-6 text-center text-xs text-muted">Cel dziś: {plan.carbTotal} g węglowodanów · {plan.proteinTotal} g białka · {litres(plan.hydrationMl)} l wody</p>
+      <p className="-mt-3 mb-6 text-center text-xs text-muted">Cel dziś: {plan.carbTotal} g węgli · {plan.proteinTotal} g białka · {plan.fatTotal} g tłuszczu · {litres(plan.hydrationMl)} l wody</p>
 
       {next ? (
         <section className="bw-rise mb-6 rounded-3xl border border-hairline bg-card p-5">
@@ -80,7 +86,7 @@ export function Fuel({ profile }: { profile: Profile }) {
             <span className="text-sm font-medium text-accent">{untilText(next.at - nowMin())} · {fmtTime(next.at)}</span>
           </div>
           <h2 className="mt-1 text-xl font-semibold">{next.title}</h2>
-          <p className="text-sm tabular-nums text-muted">ok. {next.carb} g węgli{next.protein > 0 ? ` · ${next.protein} g białka` : ""}</p>
+          <p className="text-sm tabular-nums text-muted">ok. {next.carb} g węgli{next.protein > 0 ? ` · ${next.protein} g białka` : ""}{next.fat > 0 ? ` · ${next.fat} g tłuszczu` : ""}</p>
           {nextIdeas[0] && (
             <button onClick={() => openSlot(next.id)} className="mt-3 w-full rounded-2xl bg-canvas p-4 text-left">
               <span className="block text-[15px] font-medium">{nextIdeas[0].name}</span>
@@ -137,7 +143,7 @@ export function Fuel({ profile }: { profile: Profile }) {
         <ListRow index={3} title="Przed i po wysiłku" sub="Co zjeść o dowolnej porze" onTap={() => setSheet("around")} />
         <ListRow index={4} title="Cel żywieniowy" detail={GOAL_LABEL[goal]} onTap={() => setSheet("goal")} />
       </Group>
-      <p className="px-1 text-xs text-muted">Liczby UEFA dotyczą meczu; podział na sesje i posiłki jest orientacyjny. To nie jest porada dietetyczna.</p>
+      <p className="px-1 text-xs text-muted">Liczby UEFA dotyczą meczu; podział na sesje i posiłki jest orientacyjny. To nie jest porada dietetyczna. Dane produktów: USDA FoodData Central, Open Food Facts.</p>
 
       {sheet === "add" && <AddFood onAdd={(m) => { addMeal(m, forSlot); setSheet(null); }} onClose={() => setSheet(null)} />}
       {sheet === "slot" && slot && (

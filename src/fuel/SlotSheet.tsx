@@ -9,7 +9,7 @@ export function SlotSheet({ slot, dayIndex, eaten, onEat, onOther, onUndo, onClo
   return (
     <Sheet title={slot.title} onClose={onClose}>
       <p className="text-sm text-muted">
-        <span className="tabular-nums">{fmtTime(slot.at)}</span> · cel ok. <span className="tabular-nums">{slot.carb}</span> g węglowodanów{slot.protein > 0 ? <> i <span className="tabular-nums">{slot.protein}</span> g białka</> : null}
+        <span className="tabular-nums">{fmtTime(slot.at)}</span> · cel ok. <span className="tabular-nums">{slot.carb}</span> g węglowodanów{slot.protein > 0 ? <>, <span className="tabular-nums">{slot.protein}</span> g białka</> : null}{slot.fat > 0 ? <> i <span className="tabular-nums">{slot.fat}</span> g tłuszczu</> : <> – mało tłuszczu</>}
       </p>
       <p className="mt-0.5 text-[11px] text-muted">{slot.uefa ? "Zalecenie UEFA dla piłkarzy" : "Podział orientacyjny"}</p>
       {eaten && (
@@ -23,7 +23,7 @@ export function SlotSheet({ slot, dayIndex, eaten, onEat, onOther, onUndo, onClo
           <section key={idea.id} className="rounded-2xl bg-canvas p-4">
             <div className="flex items-baseline justify-between gap-3">
               <h3 className="text-[15px] font-semibold">{idea.name}</h3>
-              <span className="shrink-0 text-xs tabular-nums text-muted">≈ {idea.carb} g węgli{idea.protein > 0 ? ` · ${idea.protein} g białka` : ""}</span>
+              <span className="shrink-0 text-xs tabular-nums text-muted">≈ {idea.carb} g węgli{idea.protein > 0 ? ` · ${idea.protein} g białka` : ""}{idea.fat > 0 ? ` · ${idea.fat} g tł.` : ""}</span>
             </div>
             <ul className="mt-2 divide-y divide-hairline/70 text-sm">
               {idea.lines.map((l) => (

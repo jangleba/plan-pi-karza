@@ -7,7 +7,7 @@ import { loadRecents, pushRecent } from "./store";
 const field = "w-full rounded-xl bg-canvas px-3 py-2.5 text-[15px] outline-none";
 const POPULAR = ["banana", "rice-cooked", "egg", "pasta-cooked", "bread-rye", "yogurt", "oats", "milk", "apple", "cottage-semi", "roll", "potato"];
 
-export interface NewMeal { name: string; carb: number; protein: number }
+export interface NewMeal { name: string; carb: number; protein: number; fat: number }
 
 /** Dodawanie jedzenia: wyszukiwarka (baza wbudowana + Open Food Facts), potem porcja. */
 export function AddFood({ onAdd, onClose, title = "Dodaj jedzenie" }: { onAdd: (m: NewMeal) => void; onClose: () => void; title?: string }) {
@@ -109,12 +109,13 @@ function Portion({ sel, setSel, onAdd, onClose }: { sel: { food: Food; g: number
         Własna ilość ({food.liquid ? "ml" : "g"})
         <input inputMode="decimal" value={Number.isFinite(g) ? String(Math.round(g)) : ""} onChange={(e) => setSel({ food, g: Math.max(0, Number(e.target.value.replace(",", ".")) || 0) })} className="w-24 rounded-lg bg-canvas px-2 py-1.5 text-right text-ink outline-none" />
       </label>
-      <div className="mt-5 grid grid-cols-2 gap-3 text-center">
-        <div className="rounded-2xl bg-canvas py-3"><div className="text-xl font-semibold tabular-nums">{m.carb}</div><div className="text-xs text-muted">g węglowodanów</div></div>
+      <div className="mt-5 grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-2xl bg-canvas py-3"><div className="text-xl font-semibold tabular-nums">{m.carb}</div><div className="text-xs text-muted">g węgli</div></div>
         <div className="rounded-2xl bg-canvas py-3"><div className="text-xl font-semibold tabular-nums">{m.protein}</div><div className="text-xs text-muted">g białka</div></div>
+        <div className="rounded-2xl bg-canvas py-3"><div className="text-xl font-semibold tabular-nums">{food.fatUnknown ? "?" : m.fat}</div><div className="text-xs text-muted">g tłuszczu</div></div>
       </div>
-      <p className="mt-3 text-[11px] text-muted">{food.source === "off" ? "Dane z Open Food Facts – sprawdź z etykietą." : "Wartości orientacyjne z tabel składu żywności."}</p>
-      <button disabled={g <= 0} onClick={() => onAdd({ name: `${label} · ${amountText(food, g)}`, carb: m.carb, protein: m.protein })} className="mt-5 w-full rounded-2xl bw-grad py-4 text-base font-medium disabled:opacity-40">Dodaj</button>
+      <p className="mt-3 text-[11px] text-muted">{food.source === "off" ? "Dane z Open Food Facts – sprawdź z etykietą." : food.est ? "Szacunek bez pozycji w tabelach USDA – sprawdź z etykietą." : "Dane: USDA FoodData Central (produkty amerykańskie – polskie mogą się różnić)."}</p>
+      <button disabled={g <= 0} onClick={() => onAdd({ name: `${label} · ${amountText(food, g)}`, carb: m.carb, protein: m.protein, fat: food.fatUnknown ? 0 : m.fat })} className="mt-5 w-full rounded-2xl bw-grad py-4 text-base font-medium disabled:opacity-40">Dodaj</button>
     </Sheet>
   );
 }
