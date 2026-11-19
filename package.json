@@ -15,6 +15,7 @@
     "test": "vitest run --dir src"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "1.1.0",
     "@supabase/supabase-js": "2.111.0",
     "@tailwindcss/vite": "4.3.3",
     "@tanstack/react-router": "1.170.41",

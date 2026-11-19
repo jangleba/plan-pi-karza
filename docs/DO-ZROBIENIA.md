@@ -32,3 +32,11 @@
 - Wpływ na silnik: sezon (przygotowawczy: sparingi opcjonalne, sesja z celu obowiązkowa; w sezonie: MD-x, sesja z celu gdy jest wolny dzień; przerwa: bez meczów, 1× siła, 1× lekki bieg, 1× lekki sprint), cel (szybkość +sprint, siła +siła, wydolność +bieg, powrót: 2 pierwsze tygodnie rozładowania).
 - DO USTALENIA: wpływ poziomu rozgrywek (polskie ligi) na silnik – na razie tylko zapis w profilu.
 - Do doprecyzowania z użytkownikiem: szczegóły meczu/sparingów w okresie przygotowawczym.
+
+## Lab – nagrywanie i automat (2026-11-19)
+- Wdrożone: karta testu od dołu z krótką instrukcją (3 punkty) → „Nagraj skok/sprint" → kamera tylna, wymagana orientacja (CMJ pionowo, sprint poziomo – w Safari nie da się jej wymusić, więc aplikacja prosi o obrót), odliczanie 5 s, nagranie (CMJ kończy się samo po 6 s).
+- CMJ automatycznie: model pozy MediaPipe (w telefonie, wideo nie wychodzi z urządzenia) → pozycja stóp w każdej klatce → wykrycie lotu (parabola przecięta z poziomem podłoża) → wysokość i dokładność ±cm na klatkę; „Popraw ręcznie" zawsze dostępne.
+- Czas lotu nie zależy od odległości telefonu (testy na symulacji). NIE sprawdzone na prawdziwych nagraniach ludzi – wymaga testu na telefonie.
+- Przeglądarka na iPhonie: zwykle do 60 kl./s (±ok. 2 cm na klatkę przy CMJ 30 cm). 240 kl./s tylko w wersji iOS.
+- ZABLOKOWANE: wersja natywna iOS (240 kl./s, gotowa wtyczka w historii: native/ballwise-camera w 4f05c9d) – użytkownik nie ma Maca; darmowe konto Apple.
+- DO ZROBIENIA: skok w dal z wideo ze znacznikiem 1 m (kalibracja), automatyczny sprint (start na sygnał, meta z ruchu tułowia).

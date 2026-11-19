@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { estimateFps, flightTimeFromFrames, frameMs, snapFps, splitsFromFrames } from "./engine";
+import { detectFlight, estimateFps, flightTimeFromFrames, frameMs, heightErrorCm, jumpHeightFromFlightTime, snapFps, splitsFromFrames } from "./engine";
+import { footTrack } from "./lib/pose";
 
 type Mode = "cmj" | "sprint";
 const FPS_OPTIONS = [30, 60, 120, 240];
@@ -11,16 +12,46 @@ const STEPS: Record<Mode, string[]> = {
   sprint: ["Start (pierwszy ruch)", "10 m", "20 m", "30 m"],
 };
 
-export function VideoMeasure({ mode, onResult, onClose }: { mode: Mode; onResult: (r: VideoResult) => void; onClose: () => void }) {
+export function VideoMeasure({ mode, onResult, onClose, src, srcFps, auto }: {
+  mode: Mode; onResult: (r: VideoResult) => void; onClose: () => void;
+  /** Nagranie z kamery w aplikacji (pomija wybór pliku). */
+  src?: string; srcFps?: number;
+  /** CMJ: najpierw automatyczne wykrycie odbicia i lądowania. */
+  auto?: boolean;
+}) {
   const ref = useRef<HTMLVideoElement>(null);
-  const [url, setUrl] = useState<string | null>(null);
-  const [fps, setFps] = useState(120);
+  const [url, setUrl] = useState<string | null>(src ?? null);
+  const [fps, setFps] = useState(srcFps && srcFps > 0 ? srcFps : 120);
+  const [analysis, setAnalysis] = useState<{ progress: number } | { flightS: number; takeoff: number; landing: number; confidence: number } | { failed: string } | null>(
+    auto && mode === "cmj" && src ? { progress: 0 } : null,
+  );
   const [frame, setFrame] = useState(0);
   // znaczniki w sekundach filmu: zmiana fps nie psuje już zapisanych pozycji
   const [marks, setMarks] = useState<number[]>([]);
   const [note, setNote] = useState("");
 
-  useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
+  // zwalniamy tylko adresy plików wybranych tutaj; nagranie z kamery należy do rodzica
+  useEffect(() => () => { if (url && url !== src) URL.revokeObjectURL(url); }, [url, src]);
+
+  const started = useRef(false);
+  useEffect(() => {
+    if (!(auto && mode === "cmj" && src) || started.current) return;
+    started.current = true;
+    let alive = true;
+    (async () => {
+      try {
+        const ys = await footTrack(src, fps, (p) => alive && setAnalysis({ progress: p }));
+        const r = detectFlight(ys, fps);
+        if (!alive) return;
+        if (r) setAnalysis(r);
+        else { setAnalysis({ failed: "x" }); setNote("Nie wykryto skoku – zaznacz klatki ręcznie (stopy muszą być w kadrze)."); }
+      } catch {
+        if (alive) { setAnalysis({ failed: "x" }); setNote("Automatyczna analiza niedostępna – zaznacz klatki ręcznie."); }
+      }
+    })();
+    return () => { alive = false; started.current = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const seekFrame = (n: number) => {
     const v = ref.current;
@@ -84,6 +115,42 @@ export function VideoMeasure({ mode, onResult, onClose }: { mode: Mode; onResult
   };
 
   const btn = "flex-1 rounded-xl bg-canvas py-2 text-sm";
+  if (analysis && !("failed" in analysis)) {
+    const pending = "progress" in analysis;
+    return (
+      <div className="bw-sheet fixed inset-0 z-30 flex flex-col bg-card p-6 pb-10">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Analiza skoku</h2>
+          <button onClick={onClose} className="text-sm text-muted">Zamknij</button>
+        </div>
+        {pending ? (
+          <div className="flex flex-1 flex-col items-center justify-center">
+            <div className="mb-3 h-1.5 w-48 overflow-hidden rounded-full bg-hairline">
+              <div className="h-full bg-accent transition-all" style={{ width: `${Math.round(analysis.progress * 100)}%` }} />
+            </div>
+            <p className="text-sm text-muted">Szukam odbicia i lądowania…</p>
+          </div>
+        ) : (
+          <div className="flex flex-1 flex-col items-center justify-center text-center">
+            <span className="text-6xl font-semibold tabular-nums tracking-tight">{jumpHeightFromFlightTime(analysis.flightS).toFixed(1).replace(".", ",")}</span>
+            <span className="mt-1 text-sm text-muted">cm · czas lotu {(analysis.flightS * 1000).toFixed(0)} ms</span>
+            <span className="mt-3 text-xs text-muted">
+              Dokładność ok. ±{heightErrorCm(analysis.flightS, fps).toFixed(1).replace(".", ",")} cm na klatkę ({fps} kl./s)
+              {analysis.confidence < 0.7 ? " · niska pewność – sprawdź ręcznie" : ""}
+            </span>
+          </div>
+        )}
+        {!pending && (
+          <div className="flex flex-col gap-2">
+            <button onClick={() => { onResult({ flightTime: analysis.flightS }); onClose(); }} className="w-full rounded-2xl bg-accent py-4 text-base font-medium text-white">Zatwierdź</button>
+            <button onClick={() => { setAnalysis(null); setMarks([]); setTimeout(() => seekFrame(Math.max(0, analysis.takeoff - 3)), 50); }}
+              className="w-full rounded-2xl border border-hairline bg-canvas py-3.5 text-sm">Popraw ręcznie</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="bw-sheet fixed inset-0 z-30 flex flex-col bg-card p-4 pb-8">
       <div className="mb-3 flex items-center justify-between">

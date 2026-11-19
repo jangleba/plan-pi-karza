@@ -21,10 +21,9 @@ export const LAB_TESTS: LabTest[] = [
     title: "CMJ – skok z wymachem",
     unit: "cm",
     instructions: [
-      "Ręce na biodrach, szybki przysiad i wyskok maksymalnie wysoko.",
-      "Lądowanie na wyprostowanych nogach, w tym samym miejscu.",
-      "3 próby, zapisz najlepszą. Przerwa około 1 min.",
-      "Wideo: telefon z boku, na wysokości bioder, nagranie w zwolnionym tempie (120–240 klatek/s).",
+      "Telefon pionowo, 2–3 m z boku, na wysokości bioder. Cała sylwetka w kadrze.",
+      "Ręce na biodrach, szybki przysiad i wyskok. Ląduj na prostych nogach.",
+      "3 próby, zapisz najlepszą.",
     ],
     caveat: "Metoda czasu lotu jest zgodna z płytą dynamometryczną w badaniach; moc szczytowa z aplikacji jest mniej wiarygodna.",
   },
@@ -33,9 +32,9 @@ export const LAB_TESTS: LabTest[] = [
     title: "Skok w dal z miejsca",
     unit: "cm",
     instructions: [
-      "Stopy za linią, wymach rąk dozwolony, skok obunóż.",
-      "Mierz od linii do pięty bliższej linii startu.",
-      "Lądowanie bez przestępowania i upadku; 2–3 próby, zapisz najlepszą.",
+      "Stopy za linią, wymach rąk, skok obunóż.",
+      "Mierz od linii do pięty bliższej linii.",
+      "2–3 próby, zapisz najlepszą.",
     ],
   },
   {
@@ -43,11 +42,11 @@ export const LAB_TESTS: LabTest[] = [
     title: "Sprint 10 / 20 / 30 m",
     unit: "s",
     instructions: [
-      "Rozgrzewka z kilkoma przyspieszeniami, start z miejsca.",
-      "Znaczniki na 0, 10, 20 i 30 m, jedna próba maksymalna, przerwa 3–5 min, 2–3 próby.",
-      "Wideo: telefon na wprost linii i prostopadle do toru, minimum 120 klatek/s.",
+      "Telefon poziomo, z boku toru, prostopadle do biegu.",
+      "Start z miejsca po odliczaniu.",
+      "2–3 próby, przerwa 3–5 min.",
     ],
-    caveat: "Przy 120 klatkach/s jedna klatka to ok. 8 ms; przy 30 klatkach/s ok. 33 ms – za mało dokładnie.",
+    caveat: "Jedna klatka przy 60 kl./s to ok. 17 ms.",
   },
   {
     key: "yoyo-ir1",
