@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { VARIANTS, createScenario } from "./scenario";
 import { FIELD_H, FIELD_W } from "./types";
 import type { World } from "./types";
+import { headline, keyMoments } from "./summary";
 import { agent, offsideX, owner, pass, possession, rand, setUser, shoot, step, wouldBeIntercepted } from "./world";
 
 const DT = 1 / 60;
@@ -186,5 +187,30 @@ describe("kontratak", () => {
       for (const a of w.agents) if (a.id !== "P") max = Math.max(max, Math.hypot(a.vel.x, a.vel.y) / a.vmax);
     }
     expect(max).toBeLessThan(1.02);
+  });
+});
+
+describe("podsumowanie akcji", () => {
+  it("nagłówki mają odpowiedni ton", () => {
+    expect(headline("goal_for").tone).toBe("good");
+    expect(headline("regain").tone).toBe("good");
+    expect(headline("goal_against").tone).toBe("bad");
+    expect(headline("timeout").tone).toBe("neutral");
+  });
+
+  it("momenty: strata → kontra, w kolejności czasu, nie więcej niż 5", () => {
+    const w = run(createScenario(0));
+    const m = keyMoments(w);
+    expect(m.length).toBeGreaterThan(1);
+    expect(m.length).toBeLessThanOrEqual(5);
+    expect(m[0]).toMatch(/odbiera piłkę/);
+    expect(m.join("\n")).toMatch(/Kontratak rywala/);
+    const times = m.map((l) => parseFloat(l.replace(",", ".")));
+    expect([...times].sort((a, b) => a - b)).toEqual(times);
+  });
+
+  it("podanie użytkownika opisane jako „Podanie do: …”", () => {
+    const w = run(createScenario(0), { passTo: "CB", until: 2 });
+    expect(keyMoments(w)[0]).toBe("0,3 s – Podanie do: Stoper");
   });
 });

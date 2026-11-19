@@ -103,3 +103,17 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 - Etap 1 (ten): `src/iq/control.ts` – joystick do przodu: bieg przed siebie; w bok: skręt (prędkość kątowa, nie kierunek docelowy – dlatego kamera podążająca za kierunkiem nie powoduje biegania w kółko); do tyłu: zatrzymanie; kamera dogania kierunek zawodnika płynnie (po najkrótszym łuku); przed kopnięciem zawodnik staje do celu. Adresat podania wynika z kierunku, w który patrzy zawodnik.
 - Etap 2 (następny): żywi koledzy i rywale – pressing, przechwyt, odbiór, kontratak (silnik symulacji z testami).
 - Etap 3: nauka po akcji (powtórka, „Co robić”, wariant, Progres).
+
+## IQ – żywi koledzy i rywale, akcja do rozstrzygnięcia (2026-11-19, etap 2 z 3)
+- Scenariusz „Wyjście spod pressingu + kontratak": grasz #8 (środkowy pomocnik) z piłką na własnej połowie; dwóch napastników doskakuje, za nimi trzech pomocników i czterech obrońców. Trzy warianty ustawienia rywala (pressing 2 napastników, wysoki blok, niski blok) – kolejne próby zmieniają wariant.
+- Silnik `src/engine/sim` (czysty TS, deterministyczny, 19 testów): 17 zawodników (Ty + 5 kolegów + bramkarz, 10 rywali).
+  - Rywal bez piłki: najbliższy napastnik doskakuje (≈6,3 m/s), drugi stoi w cieniu toru do najbliższego wyjścia, pomocnicy zwężają i schodzą na krycie, obrońcy trzymają linię i nie schodzą głębiej niż 1,5 m za biegnącym napastnikiem.
+  - Przechwyt: lot piłki jest próbkowany; obrońca, który zdąży (czas reakcji 0,22 s, jego prędkość), idzie na punkt przecięcia i przejmuje piłkę w promieniu 0,85 m.
+  - Odbiór: rywal w promieniu 1,15 m od posiadacza przez 0,35 s (z boku/przodu; doganiając od tyłu 3× wolniej) odbiera piłkę; po zmianie posiadacza 1 s osłony (bez natychmiastowego odbioru).
+  - Kontratak: trzech biegaczy w osobnych torach, trzymanych na linii spalonego; posiadacz niesie piłkę ku bramce, omija rywala bokiem, podaje do przodu tylko wolnym i nieprzechwytywalnym torem, strzela z ≤ 19 m. Szansa strzału z `shotChance` (dystans, blokada), wynik z ziarna (gol / obrona / niecelny).
+  - Nasza drużyna: po stracie najbliższy zawodnik opóźnia (3,5 m przed posiadaczem na linii do bramki), reszta zamyka środek; z piłką: wyjścia na wolne pozycje, napastnik na linii spalonego, koledzy mogą podać do Ciebie (trzeci zawodnik).
+  - Ty: sterujesz do końca akcji – podajesz (kontakt z piłką w klipie kopnięcia), strzelasz, a po stracie przez kilka sekund gasisz kontrę (ta sama reguła odbioru). Strata w trakcie zamachu anuluje podanie.
+- Wynik: gol, obrona/niecelny (nasz lub rywala), odzyskanie piłki albo koniec czasu (16 s). Po akcji krótkie podsumowanie momentów (czas – zdarzenie); wnioski i powtórka w etapie 3.
+- Pomoc przy odzyskiwaniu: czerwony pierścień pod rywalem z piłką i strzałka na ekranie pokazująca, gdzie jest piłka względem kamery.
+- Założenia (nie dane meczowe): prędkości, czasy reakcji, progi odbioru i szanse strzałów to parametry prototypu do strojenia po testach z trenerem. NIE sprawdzone na telefonie (17 postaci z modelem Mixamo to ok. 83 tys. trójkątów na klatkę – obniżanie jakości jest automatyczne).
+- `engine/iq.ts`: `laneBlocked` – obrońca za plecami podającego nie blokuje toru; `shotChance` wyeksportowane.
