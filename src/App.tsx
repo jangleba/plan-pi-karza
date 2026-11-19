@@ -65,10 +65,16 @@ function loadProfile(): Profile | null {
   }
 }
 
+/**
+ * Logowanie jest wymagane dopiero po ustawieniu VITE_REQUIRE_LOGIN=true. Sama konfiguracja Supabase (np. dla radaru
+ * „Piłkarskie szanse”, który czyta publiczne dane kluczem publicznym) NIE włącza logowania – aplikacja działa dalej bez konta.
+ */
+const REQUIRE_LOGIN = import.meta.env.VITE_REQUIRE_LOGIN === "true";
+
 export function App() {
-  const [session, setSession] = useState<"loading" | "out" | "in">(supabase ? "loading" : "in");
+  const [session, setSession] = useState<"loading" | "out" | "in">(supabase && REQUIRE_LOGIN ? "loading" : "in");
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase || !REQUIRE_LOGIN) return;
     supabase.auth.getSession().then(({ data }) => setSession(data.session ? "in" : "out"));
     const { data } = supabase.auth.onAuthStateChange((_e, sess) => setSession(sess ? "in" : "out"));
     return () => data.subscription.unsubscribe();
@@ -147,7 +153,8 @@ function Main() {
       <Backdrop />
       <div key={tab} className="bw-tab relative">
       {tab === "start" && (
-        <Start profile={profile} checkIn={checkIn} checkedIn={checkedIn} onCheckIn={setCheckIn} onGo={(t) => { setTab(t); window.scrollTo(0, 0); }} />
+        <Start profile={profile} checkIn={checkIn} checkedIn={checkedIn} onCheckIn={setCheckIn}
+          onProfile={(p) => { store("profile", JSON.stringify(p)); void pushProfile(p); setProfile(p); }} />
       )}
       {tab === "plan" && (
         <Home profile={profile} checkIn={checkIn} initialOpen={openDay} onOpened={() => setOpenDay(null)} onReset={() => {

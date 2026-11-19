@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SplatRouteImport } from './routes/$'
+import { Route as AdminRadarRouteImport } from './routes/admin.radar'
 import { Route as ApiFoodsRouteImport } from './routes/api.foods'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const SplatRoute = SplatRouteImport.update({
   path: '/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRadarRoute = AdminRadarRouteImport.update({
+  id: '/admin/radar',
+  path: '/admin/radar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiFoodsRoute = ApiFoodsRouteImport.update({
   id: '/api/foods',
   path: '/api/foods',
@@ -32,30 +38,34 @@ const ApiFoodsRoute = ApiFoodsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/admin/radar': typeof AdminRadarRoute
   '/api/foods': typeof ApiFoodsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/admin/radar': typeof AdminRadarRoute
   '/api/foods': typeof ApiFoodsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/admin/radar': typeof AdminRadarRoute
   '/api/foods': typeof ApiFoodsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/$' | '/api/foods'
+  fullPaths: '/' | '/$' | '/admin/radar' | '/api/foods'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/$' | '/api/foods'
-  id: '__root__' | '/' | '/$' | '/api/foods'
+  to: '/' | '/$' | '/admin/radar' | '/api/foods'
+  id: '__root__' | '/' | '/$' | '/admin/radar' | '/api/foods'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SplatRoute: typeof SplatRoute
+  AdminRadarRoute: typeof AdminRadarRoute
   ApiFoodsRoute: typeof ApiFoodsRoute
 }
 
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/radar': {
+      id: '/admin/radar'
+      path: '/admin/radar'
+      fullPath: '/admin/radar'
+      preLoaderRoute: typeof AdminRadarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/foods': {
       id: '/api/foods'
       path: '/api/foods'
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SplatRoute: SplatRoute,
+  AdminRadarRoute: AdminRadarRoute,
   ApiFoodsRoute: ApiFoodsRoute,
 }
 export const routeTree = rootRouteImport

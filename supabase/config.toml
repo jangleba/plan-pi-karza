@@ -1,0 +1,9 @@
+# Konfiguracja projektu Supabase (CLI). Identyfikator projektu: `supabase link --project-ref <ref>`.
+project_id = "ballwise"
+
+# Funkcje radaru są wywoływane z pg_cron własnym sekretem (nagłówek x-radar-secret), a nie tokenem użytkownika.
+[functions.radar-discover]
+verify_jwt = false
+
+[functions.radar-refresh]
+verify_jwt = false
