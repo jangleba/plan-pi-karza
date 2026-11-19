@@ -35,6 +35,7 @@ export default function IQ() {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
     el.appendChild(renderer.domElement);
+    if (import.meta.env.DEV) (window as unknown as { __iq?: THREE.WebGLRenderer }).__iq = renderer;
 
     const scene = new THREE.Scene();
     scene.background = skyTexture();
@@ -57,10 +58,14 @@ export default function IQ() {
     scene.add(makeGoal(FIELD.w, 1), makeGoal(0, -1));
 
     // zawodnicy: my (granat), koledzy (błękit), rywale (czerwień), bramkarz rywali (żółty)
-    const me = makePlayer(0x1f4f86, 0xffffff);
-    const mates = S.mates.map(() => makePlayer(0x2f6fb3, 0xffffff));
-    const defs = [...S.backLine, ...S.pressers].map(() => makePlayer(0xc8443f, 0x1d1d1f));
-    const gk = makePlayer(0xe0b23a, 0x1d1d1f);
+    // jedna drużyna – jeden strój (Ty: pierścień pod stopami i numer 8)
+    const home = { jersey: 0x2f6fb3, shorts: 0xffffff, socks: 0x2f6fb3, collar: 0xffffff };
+    const away = { jersey: 0xc8443f, shorts: 0x1d1d1f, socks: 0xc8443f, collar: 0x1d1d1f };
+    const me = makePlayer({ ...home, number: 8 }, 0);
+    const mateNumbers = [9, 11, 6];
+    const mates = S.mates.map((_, i) => makePlayer({ ...home, number: mateNumbers[i] ?? 10 + i }, i + 1));
+    const defs = [...S.backLine, ...S.pressers].map((_, i) => makePlayer({ ...away, number: [2, 4, 5, 3, 6, 8][i] ?? 14 }, i + 2, "defend"));
+    const gk = makePlayer({ jersey: 0xe0b23a, shorts: 0x1d1d1f, socks: 0x1d1d1f, collar: 0x1d1d1f, number: 1, keeper: true, gloves: 0xe9eef3 }, 3, "keeper");
     for (const f of [me, ...mates, ...defs, gk]) scene.add(f.root);
     const ball = makeBall(); scene.add(ball);
 
@@ -83,7 +88,7 @@ export default function IQ() {
     const ku = (e: KeyboardEvent) => keys.delete(e.key.toLowerCase());
     window.addEventListener("keydown", kd); window.addEventListener("keyup", ku);
 
-    const camPos = new THREE.Vector3(player.x - 10, 5.2, player.y);
+    const camPos = new THREE.Vector3(player.x - 8, 4.3, player.y);
     const camLook = new THREE.Vector3(player.x + 10, 0.6, player.y);
     const target = new THREE.Vector3(), look = new THREE.Vector3();
     const resize = () => { const w = el.clientWidth, h = el.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); };
@@ -157,6 +162,7 @@ export default function IQ() {
           const d = Math.hypot(to.x - player.x, to.y - player.y);
           const verdict = compare(snap, chosen);
           setP("flight");
+          me.kick = 0.35;
           flight = { from: { ...player }, to, k: 0, dur: Math.min(1.4, d / (a === "shot" ? 28 : 20)), lift: a === "shot" ? 1.4 : 0.5,
             done: () => { setResult({ snap, verdict }); setP("done"); } };
         }
@@ -193,8 +199,8 @@ export default function IQ() {
       if (aimNow !== lastAim) { lastAim = aimNow; setAimName(aimNow); }
 
       // kamera płynnie za zawodnikiem, światło i cienie podążają za akcją
-      target.set(player.x - 10, 5.2, player.y);
-      look.set(player.x + 12, 0.6, player.y);
+      target.set(player.x - 8, 4.3, player.y);
+      look.set(player.x + 12, 0.9, player.y);
       const a = 1 - Math.exp(-dt * 5);
       camPos.lerp(target, a); camLook.lerp(look, a);
       cam.position.copy(camPos); cam.lookAt(camLook);
