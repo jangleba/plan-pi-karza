@@ -1,5 +1,6 @@
 import { EXERCISES } from "./library";
 import type { Strain } from "./adapt";
+import { scoped } from "../lib/store";
 
 export interface LogEntry {
   /** Ostatnio wpisane kg. */
@@ -53,7 +54,7 @@ export function suggestNext(
 
 export function loadLog(): WeightLog {
   try {
-    return JSON.parse(localStorage.getItem("weightLog") ?? "{}") as WeightLog;
+    return JSON.parse(scoped.getItem("weightLog") ?? "{}") as WeightLog;
   } catch {
     return {};
   }
@@ -61,7 +62,7 @@ export function loadLog(): WeightLog {
 
 export function saveLog(log: WeightLog): void {
   try {
-    localStorage.setItem("weightLog", JSON.stringify(log));
+    scoped.setItem("weightLog", JSON.stringify(log));
   } catch {
     /* brak pamięci */
   }

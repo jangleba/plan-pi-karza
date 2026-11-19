@@ -1,6 +1,7 @@
 import { supabase } from "../lib/supabase";
 import { haversineKm } from "../../supabase/functions/_shared/radar/distance";
 import type { PlayerFacts } from "./lib";
+import { scoped } from "../lib/store";
 
 export interface ClubContact { email: string; kind: "general" | "recruitment"; evidenceUrl: string; evidenceQuote: string; checkedAt: string }
 export interface Club { id: string; name: string; city: string | null; lat: number | null; lon: number | null; website: string; recruitmentUrl: string | null; checkedAt: string | null; contacts: ClubContact[] }
@@ -64,19 +65,19 @@ export const EMPTY_FORM: InquiryForm = { fullName: "", currentClub: "", experien
 
 export function loadForm(defaultName: string): InquiryForm {
   try {
-    const v = JSON.parse(localStorage.getItem("radarInquiry") ?? "null") as Partial<InquiryForm> | null;
+    const v = JSON.parse(scoped.getItem("radarInquiry") ?? "null") as Partial<InquiryForm> | null;
     return { ...EMPTY_FORM, fullName: defaultName, ...(v ?? {}) };
   } catch {
     return { ...EMPTY_FORM, fullName: defaultName };
   }
 }
-export function saveForm(f: InquiryForm): void { try { localStorage.setItem("radarInquiry", JSON.stringify(f)); } catch { /* brak pamięci */ } }
+export function saveForm(f: InquiryForm): void { try { scoped.setItem("radarInquiry", JSON.stringify(f)); } catch { /* brak pamięci */ } }
 
 export function loadSent(): Record<string, string> {
-  try { const v = JSON.parse(localStorage.getItem("radarSent") ?? "{}"); return v && typeof v === "object" ? v : {}; } catch { return {}; }
+  try { const v = JSON.parse(scoped.getItem("radarSent") ?? "{}"); return v && typeof v === "object" ? v : {}; } catch { return {}; }
 }
 export function markSent(clubId: string, iso = new Date().toISOString()): Record<string, string> {
   const next = { ...loadSent(), [clubId]: iso };
-  try { localStorage.setItem("radarSent", JSON.stringify(next)); } catch { /* brak pamięci */ }
+  try { scoped.setItem("radarSent", JSON.stringify(next)); } catch { /* brak pamięci */ }
   return next;
 }

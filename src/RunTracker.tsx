@@ -3,6 +3,7 @@ import {
   addPoint, averagePace, currentPace, distanceAt, emptyTrack, formatPace, intervalTimeline, kmSplits, localISO, phaseAt,
 } from "./engine";
 import type { GeoPoint, RunPhase, RunSession, TrackState } from "./engine";
+import { scoped } from "./lib/store";
 
 const TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
 
@@ -225,7 +226,7 @@ export function RunTracker({ session, onClose, onFinish }: {
 
 function saveRun(track: TrackState, elapsedMs: number) {
   try {
-    const runs = JSON.parse(localStorage.getItem("runs") ?? "[]") as unknown[];
+    const runs = JSON.parse(scoped.getItem("runs") ?? "[]") as unknown[];
     runs.push({
       date: localISO(),
       distanceM: Math.round(track.distanceM),
@@ -234,6 +235,6 @@ function saveRun(track: TrackState, elapsedMs: number) {
       // co 5. punkt wystarcza do narysowania trasy
       route: track.points.filter((_, i) => i % 5 === 0).map((p) => [Number(p.lat.toFixed(5)), Number(p.lon.toFixed(5))]),
     });
-    localStorage.setItem("runs", JSON.stringify(runs));
+    scoped.setItem("runs", JSON.stringify(runs));
   } catch { /* brak pamięci */ }
 }

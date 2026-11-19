@@ -1,5 +1,6 @@
 import type { RadarListing } from "./lib";
 import { fetchListings } from "./api";
+import { scoped } from "../lib/store";
 
 /** Zapisana oferta: migawka z chwili zapisu + ostatni znany status z serwera. Zapis nie zmienia planu treningowego ani kalendarza. */
 export interface SavedOffer { id: string; savedAt: string; listing: RadarListing; live: boolean; status: RadarListing["status"] }
@@ -9,7 +10,7 @@ const MAX = 100;
 
 export function loadSaved(): SavedOffer[] {
   try {
-    const v = JSON.parse(localStorage.getItem(KEY) ?? "[]");
+    const v = JSON.parse(scoped.getItem(KEY) ?? "[]");
     return Array.isArray(v) ? (v as SavedOffer[]).filter((x) => x && typeof x.id === "string" && x.listing) : [];
   } catch {
     return [];
@@ -17,7 +18,7 @@ export function loadSaved(): SavedOffer[] {
 }
 
 function store(list: SavedOffer[]): void {
-  try { localStorage.setItem(KEY, JSON.stringify(list.slice(0, MAX))); } catch { /* brak pamięci */ }
+  try { scoped.setItem(KEY, JSON.stringify(list.slice(0, MAX))); } catch { /* brak pamięci */ }
 }
 
 export const isSaved = (id: string): boolean => loadSaved().some((x) => x.id === id);

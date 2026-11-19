@@ -1,4 +1,5 @@
 import { addDays, weekStartOf } from "./week";
+import { scoped } from "../lib/store";
 
 export type EventType = "session" | "strength" | "mas" | "lab";
 
@@ -60,7 +61,7 @@ export function sessionsPerWeek(events: HistoryEvent[], beforeWeek?: string): Ar
 
 export function loadHistory(): HistoryEvent[] {
   try {
-    const v = JSON.parse(localStorage.getItem("history") ?? "[]");
+    const v = JSON.parse(scoped.getItem("history") ?? "[]");
     return Array.isArray(v) ? (v as HistoryEvent[]) : [];
   } catch {
     return [];
@@ -73,7 +74,7 @@ export function addEvents(events: HistoryEvent[]): HistoryEvent[] {
   const incoming = new Set(events.map(id));
   const all = [...loadHistory().filter((e) => !incoming.has(id(e))), ...events];
   try {
-    localStorage.setItem("history", JSON.stringify(all));
+    scoped.setItem("history", JSON.stringify(all));
   } catch {
     /* brak pamięci */
   }

@@ -1,4 +1,5 @@
 import type { SeasonGoal } from "./types";
+import { scoped } from "../lib/store";
 
 /**
  * „Jak czujesz się teraz na boisku?” – odpowiedzi podpowiadają cele,
@@ -38,7 +39,7 @@ export function feelChange(first: FeelSnapshot, last: FeelSnapshot): { better: F
 
 export function loadFeelings(): FeelSnapshot[] {
   try {
-    const v = JSON.parse(localStorage.getItem("feelings") ?? "[]");
+    const v = JSON.parse(scoped.getItem("feelings") ?? "[]");
     return Array.isArray(v) ? (v as FeelSnapshot[]) : [];
   } catch {
     return [];
@@ -47,6 +48,6 @@ export function loadFeelings(): FeelSnapshot[] {
 
 export function saveFeeling(s: FeelSnapshot): void {
   try {
-    localStorage.setItem("feelings", JSON.stringify([...loadFeelings().filter((x) => x.date !== s.date), s]));
+    scoped.setItem("feelings", JSON.stringify([...loadFeelings().filter((x) => x.date !== s.date), s]));
   } catch { /* brak pamięci */ }
 }

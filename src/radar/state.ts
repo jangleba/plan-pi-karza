@@ -1,14 +1,15 @@
 import type { Profile } from "../engine";
+import type { PrivateProfile } from "../lib/private";
 import type { Evaluation, ListingKind, PlayerFacts, SortKey } from "./lib";
 import { LISTING_KINDS, matchesOnly, sortEvaluations } from "./lib";
 import { POSITION_LABEL } from "../engine/profile";
 import { RADII, type RadarPrefs, type Radius } from "./prefs";
 
 /** Dane zawodnika do dopasowania, z istniejącego profilu (bez duplikowania daty urodzenia) i wyborów radaru. */
-export function playerFacts(profile: Profile, prefs: RadarPrefs): PlayerFacts {
+export function playerFacts(profile: Profile, birth: PrivateProfile, prefs: RadarPrefs): PlayerFacts {
   return {
-    birthDate: profile.birthDate ?? null,
-    birthYear: profile.birthDate ? null : profile.birthYear ?? null,
+    birthDate: birth.birthDate ?? null,
+    birthYear: birth.birthDate ? null : birth.birthYear ?? null,
     position: profile.position ?? null,
     place: prefs.place,
     radiusKm: prefs.radiusKm,

@@ -7,3 +7,7 @@ verify_jwt = false
 
 [functions.radar-refresh]
 verify_jwt = false
+
+# Usuwanie konta: wymaga ważnego tokenu sesji użytkownika (sprawdzanego też w kodzie funkcji).
+[functions.delete-account]
+verify_jwt = true

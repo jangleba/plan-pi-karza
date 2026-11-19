@@ -1,15 +1,16 @@
 import type { Favorites } from "../engine/favorites";
 import type { Food } from "../engine/foods";
 import type { Goal } from "../engine";
+import { scoped } from "../lib/store";
 
 /** Dziennik, woda, godziny i zakupy – zapis lokalny (do czasu konta). Klucze zgodne z poprzednią wersją Fuel („meals”, „fuelGoal”). */
 export interface Meal { id: string; date: string; time: string; name: string; carb: number; protein: number; fat?: number; slot?: string }
 
 function read<T>(key: string, fallback: T): T {
-  try { const v = localStorage.getItem(key); return v ? (JSON.parse(v) as T) : fallback; } catch { return fallback; }
+  try { const v = scoped.getItem(key); return v ? (JSON.parse(v) as T) : fallback; } catch { return fallback; }
 }
 function write(key: string, v: unknown): void {
-  try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* brak pamięci */ }
+  try { scoped.setItem(key, JSON.stringify(v)); } catch { /* brak pamięci */ }
 }
 
 export function loadMeals(): Meal[] {

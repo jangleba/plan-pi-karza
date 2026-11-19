@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { readinessScore, strainOf } from "./engine";
 import type { CheckIn, Profile } from "./engine";
+import type { PrivateProfile } from "./lib/private";
 import { Sheet } from "./Sheet";
 import { Radar } from "./radar/Radar";
 
@@ -58,14 +59,17 @@ function Choice({ label, value, onChange }: { label: string; value: 1 | 2 | 3; o
   );
 }
 
-export function Start({ profile, checkIn, checkedIn, onCheckIn, onProfile }: {
-  profile: Profile; checkIn: CheckIn; checkedIn: boolean; onCheckIn: (c: CheckIn) => void; onProfile: (p: Profile) => void;
+export function Start({ profile, birth, checkIn, checkedIn, onCheckIn, onBirth, onSettings }: {
+  profile: Profile; birth: PrivateProfile; checkIn: CheckIn; checkedIn: boolean; onCheckIn: (c: CheckIn) => void; onBirth: (b: PrivateProfile) => void; onSettings: () => void;
 }) {
   const [open, setOpen] = useState(false);
 
   return (
     <main className="mx-auto max-w-md px-5 pb-32 pt-14">
-      <p className="text-sm text-muted">{new Date().toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" })}</p>
+      <div className="flex items-start justify-between">
+        <p className="text-sm text-muted">{new Date().toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" })}</p>
+        <button onClick={onSettings} aria-label="Ustawienia" className="-mr-2 -mt-2 rounded-full p-2 text-muted"><svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg></button>
+      </div>
       <h1 className="mb-6 text-[32px] font-semibold tracking-tight">{profile.name ? `Cześć, ${profile.name}` : "Dziś"}</h1>
 
       <section className="bw-rise mb-6 rounded-3xl border border-hairline bg-card px-5 py-5">
@@ -73,7 +77,7 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn, onProfile }: {
         <p className="mt-3 text-center text-sm text-muted">{checkedIn ? STRAIN[strainOf(checkIn)] : "Jak się czujesz? Dotknij, by odpowiedzieć"}</p>
       </section>
 
-      <Radar profile={profile} onProfile={onProfile} />
+      <Radar profile={profile} birth={birth} onBirth={onBirth} />
 
       {open && (
         <Sheet title="Jak się czujesz?" onClose={() => setOpen(false)}>

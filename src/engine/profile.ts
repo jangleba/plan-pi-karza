@@ -1,4 +1,5 @@
 import type { Level, Season, SeasonGoal } from "./types";
+import { MIN_AGE, assessAge } from "../lib/age";
 import { addDays, planWeek } from "./week";
 
 export type Position = "bramkarz" | "obronca" | "pomocnik" | "skrzydlowy" | "napastnik";
@@ -22,11 +23,10 @@ export interface Profile {
   /** Drugi cel (dodatkowy). */
   goal2?: SeasonGoal;
   league?: League;
+  /** Wiek w latach (dolne ograniczenie, odświeżane z upływem czasu). Data urodzenia NIE jest częścią profilu – patrz lib/private.ts. */
   age: number;
-  /** Data urodzenia (YYYY-MM-DD) – opcjonalna; używana tylko do dopasowania ofert (radar), zostaje na urządzeniu użytkownika. */
-  birthDate?: string;
-  /** Tylko rok urodzenia, gdy użytkownik nie chce podawać pełnej daty (wtedy oferty zależne od dnia urodzin wymagają uzupełnienia). */
-  birthYear?: number;
+  /** Dzień (ISO), na który wiek został podany/obliczony – pozwala „postarzać” deklarację z upływem czasu. */
+  ageAsOf?: string;
   /** Lata regularnego treningu siłowego. */
   strengthYears: number;
   weightKg: number;
@@ -43,7 +43,7 @@ export interface Profile {
   startDate?: string;
 }
 
-export const MIN_AGE = 16;
+export { MIN_AGE } from "../lib/age";
 
 /**
  * Poziom ze stażu i wieku. PROGI TYMCZASOWE (do ustalenia):
@@ -58,7 +58,7 @@ export function levelOf(age: number, strengthYears: number): Level {
 
 export function validateProfile(p: Partial<Profile>): string[] {
   const e: string[] = [];
-  if (!p.age || p.age < MIN_AGE) e.push(`Aplikacja jest dla zawodników od ${MIN_AGE} lat.`);
+  if (!p.age || assessAge({ declaredAge: p.age, declaredOn: p.ageAsOf }, p.ageAsOf ?? new Date().toISOString().slice(0, 10)).status !== "ok") e.push(`Aplikacja jest dla osób, które ukończyły ${MIN_AGE} lat.`);
   if (p.strengthYears === undefined || p.strengthYears < 0) e.push("Podaj staż siłowy.");
   if (!p.weightKg || p.weightKg < 40 || p.weightKg > 160) e.push("Podaj masę ciała (40–160 kg).");
   if (!p.position) e.push("Wybierz pozycję.");

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { localISO } from "../engine";
 import type { Profile } from "../engine";
+import type { PrivateProfile } from "../lib/private";
 import { LISTING_KINDS, type ListingKind } from "./lib";
 import { CardFields, useCardForm } from "./ClubUi";
 import { RADII, type RadarPrefs, type Radius } from "./prefs";
@@ -13,20 +14,13 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
   <div className="mb-5"><div className="mb-2 text-sm text-muted">{label}</div>{children}</div>
 );
 
-const ageOn = (birthISO: string, todayISO: string): number => {
-  const b = new Date(`${birthISO}T00:00:00Z`), t = new Date(`${todayISO}T00:00:00Z`);
-  let a = t.getUTCFullYear() - b.getUTCFullYear();
-  if (t.getUTCMonth() < b.getUTCMonth() || (t.getUTCMonth() === b.getUTCMonth() && t.getUTCDate() < b.getUTCDate())) a--;
-  return a;
-};
-
 /** Kryteria radaru: data urodzenia (zostaje na urządzeniu), miejscowość (ręcznie, bez GPS), promień, rodzaje. */
-export function RadarSetup({ profile, prefs, onProfile, onPrefs, onDone }: {
-  profile: Profile; prefs: RadarPrefs; onProfile: (p: Profile) => void; onPrefs: (p: RadarPrefs) => void; onDone: () => void;
+export function RadarSetup({ profile, birth, prefs, onBirth, onPrefs, onDone }: {
+  profile: Profile; birth: PrivateProfile; prefs: RadarPrefs; onBirth: (b: PrivateProfile) => void; onPrefs: (p: RadarPrefs) => void; onDone: () => void;
 }) {
   const today = localISO();
   const card = useCardForm(profile.name ?? "");
-  const [yearOnly, setYearOnly] = useState(!profile.birthDate && !!profile.birthYear);
+  const [yearOnly, setYearOnly] = useState(!birth.birthDate && !!birth.birthYear);
   const [query, setQuery] = useState(prefs.place?.name ?? "");
   const [hits, setHits] = useState<PlaceHit[]>([]);
 
@@ -38,12 +32,9 @@ export function RadarSetup({ profile, prefs, onProfile, onPrefs, onDone }: {
     return () => { alive = false; };
   }, [query, prefs.place?.name]);
 
-  const setBirthDate = (d: string) => {
-    if (!d) return;
-    const age = ageOn(d, today);
-    onProfile({ ...profile, birthDate: d, birthYear: undefined, ...(age >= 16 && age < 100 ? { age } : {}) });
-  };
-  const setBirthYear = (y: number) => onProfile({ ...profile, birthDate: undefined, birthYear: y });
+  // wiek i bramka 16+ są liczone w App (changeBirth); data trafia wyłącznie do lokalnego magazynu prywatnego
+  const setBirthDate = (d: string) => { if (d) onBirth({ birthDate: d }); };
+  const setBirthYear = (y: number) => onBirth({ birthYear: y });
   const thisYear = Number(today.slice(0, 4));
   const kinds = LISTING_KINDS.filter(([k]) => k !== "inne");
 
@@ -51,17 +42,17 @@ export function RadarSetup({ profile, prefs, onProfile, onPrefs, onDone }: {
     <>
       <Field label="Data urodzenia">
         {yearOnly ? (
-          <select value={profile.birthYear ?? ""} onChange={(e) => e.target.value && setBirthYear(Number(e.target.value))}
+          <select value={birth.birthYear ?? ""} onChange={(e) => e.target.value && setBirthYear(Number(e.target.value))}
             className="w-full rounded-2xl bg-canvas px-4 py-3 text-base" aria-label="Rok urodzenia">
             <option value="">Wybierz rok</option>
             {Array.from({ length: 40 }, (_, i) => thisYear - 8 - i).map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
         ) : (
-          <input type="date" value={profile.birthDate ?? ""} min="1980-01-01" max={today} onChange={(e) => setBirthDate(e.target.value)}
+          <input type="date" value={birth.birthDate ?? ""} min="1980-01-01" max={today} onChange={(e) => setBirthDate(e.target.value)}
             className="w-full rounded-2xl bg-canvas px-4 py-3 text-base" aria-label="Data urodzenia" />
         )}
         <button onClick={() => setYearOnly(!yearOnly)} className="mt-2 text-xs text-accent">{yearOnly ? "Podam pełną datę" : "Podam tylko rok"}</button>
-        <p className="mt-1 text-xs text-muted">Zostaje na tym urządzeniu – nie trafia do wyszukiwarki ani AI. {yearOnly ? "Oferty zależne od dnia urodzin będą wymagały pełnej daty." : ""}</p>
+        <p className="mt-1 text-xs text-muted">Zapisana tylko na tym urządzeniu: nie jest wysyłana do chmury, wyszukiwarki ani AI. Trafi do klubu wyłącznie w wiadomości, jeśli sam ją tam dodasz. {yearOnly ? "Sam rocznik nie potwierdza wieku ani ofert zależnych od dnia urodzin – podaj pełną datę. " : ""}Aplikacja jest dla osób, które ukończyły 16 lat.</p>
       </Field>
 
       <Field label="Miejscowość">

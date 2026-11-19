@@ -1,4 +1,11 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { AgeGate } from "./AgeGate";
+import { Settings } from "./Settings";
+import { AgreementGate } from "./legal/LegalUi";
+import { hasCurrentAgreement, resumePendingWithdraw } from "./legal/consent";
+import { useAuthState } from "./lib/session";
+import { changeBirth, finalizeNewProfile, loadGuardedProfile, saveProfile, type GuardResult } from "./lib/profileGuard";
+import { getScope, migrateLegacy, sameScope, scopeId, type Scope } from "./lib/store";
 import { localISO, addDays, cycleWeekFor, levelOf, nextWeekUnlocked, planForProfile } from "./engine";
 import type { CheckIn, DayPlan, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
@@ -17,6 +24,7 @@ import { supabase } from "./lib/supabase";
 import { pullAll, pushCheckIn, pushProfile } from "./lib/sync";
 import { loadLog, saveLog } from "./engine";
 import { SessionSheet } from "./SessionSheet";
+import { scoped } from "./lib/store";
 
 const KIND_LABEL: Record<SessionKind, string> = {
   strength: "Siła",
@@ -56,15 +64,6 @@ function DayRow({ day, index, isToday, onOpen }: { day: DayPlan; index: number; 
   );
 }
 
-function loadProfile(): Profile | null {
-  try {
-    const raw = localStorage.getItem("profile");
-    return raw ? (JSON.parse(raw) as Profile) : null;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Logowanie jest wymagane dopiero po ustawieniu VITE_REQUIRE_LOGIN=true. Sama konfiguracja Supabase (np. dla radaru
  * „Piłkarskie szanse”, który czyta publiczne dane kluczem publicznym) NIE włącza logowania – aplikacja działa dalej bez konta.
@@ -72,42 +71,42 @@ function loadProfile(): Profile | null {
 const REQUIRE_LOGIN = import.meta.env.VITE_REQUIRE_LOGIN === "true";
 
 export function App() {
-  const [session, setSession] = useState<"loading" | "out" | "in">(supabase && REQUIRE_LOGIN ? "loading" : "in");
-  useEffect(() => {
-    if (!supabase || !REQUIRE_LOGIN) return;
-    supabase.auth.getSession().then(({ data }) => setSession(data.session ? "in" : "out"));
-    const { data } = supabase.auth.onAuthStateChange((_e, sess) => setSession(sess ? "in" : "out"));
-    return () => data.subscription.unsubscribe();
-  }, []);
-  if (session === "loading") return null;
-  if (session === "out") return <Auth />;
-  return <Gate />;
+  useState(() => { migrateLegacy(); return 0; }); // stare, wspólne klucze → przestrzeń GOŚCIA (nigdy do bieżącego konta)
+  const auth = useAuthState();
+  const [loginOpen, setLoginOpen] = useState(false);
+  if (auth.status === "loading") return null;
+  const guest = auth.scope.kind === "guest";
+  if (guest && (REQUIRE_LOGIN || loginOpen)) return <Auth onBack={REQUIRE_LOGIN ? undefined : () => setLoginOpen(false)} />;
+  return <Gate key={scopeId(auth.scope)} scope={auth.scope} email={auth.email} onLogin={() => setLoginOpen(true)} />;
 }
 
 const today = () => localISO();
 
 function store(key: string, value: string) {
-  try { localStorage.setItem(key, value); } catch { /* brak pamięci */ }
+  scoped.setItem(key, value);
 }
 
 function loadCheckIn(): CheckIn {
   try {
-    const raw = localStorage.getItem(`checkIn:${today()}`);
+    const raw = scoped.getItem(`checkIn:${today()}`);
     if (raw) return JSON.parse(raw) as CheckIn;
   } catch { /* użyj domyślnego */ }
   return { sleep: 3, feeling: 3, less: false };
 }
 
-function Gate() {
-  const [ready, setReady] = useState(!supabase);
+/** Wejście do aplikacji dla jednej przestrzeni danych (gość albo konkretne konto). Dane innych przestrzeni są tu niedostępne. */
+function Gate({ scope, email, onLogin }: { scope: Scope; email: string | null; onLogin: () => void }) {
+  const [ready, setReady] = useState(scope.kind === "guest" || !supabase);
   useEffect(() => {
-    if (!supabase) return;
+    if (scope.kind !== "user" || !supabase) return;
     let alive = true;
     (async () => {
+      void resumePendingWithdraw();
       const r = await pullAll(today());
-      if (r && alive) {
-        if (r.profile) store("profile", JSON.stringify(r.profile));
-        else { const local = loadProfile(); if (local) void pushProfile(local); }
+      if (r && alive && getScope().kind === "user" && sameScope(getScope(), scope)) {
+        // dane z serwera trafiają do przestrzeni TEGO konta; lokalne dane gościa nigdy nie są wysyłane automatycznie
+        if (r.profile) saveProfile(r.profile);
+        else { const local = loadGuardedProfile(); if (local.kind === "ok") void pushProfile(local.profile); }
         if (r.masDistance) store("masDistance", String(r.masDistance));
         if (Object.keys(r.weightLog).length) saveLog({ ...loadLog(), ...r.weightLog });
         if (r.checkIn) store(`checkIn:${today()}`, JSON.stringify(r.checkIn));
@@ -115,17 +114,15 @@ function Gate() {
       if (alive) setReady(true);
     })();
     return () => { alive = false; };
-  }, []);
+  }, [scope]);
   if (!ready) return null;
-  return <Main />;
+  return <Main scope={scope} email={email} onLogin={onLogin} />;
 }
 
-function Main() {
+function Main({ scope, email, onLogin }: { scope: Scope; email: string | null; onLogin: () => void }) {
   const [tab, setTab] = useState<Tab>("start");
   const [checkIn, setCheckInState] = useState<CheckIn>(loadCheckIn);
-  const [checkedIn, setCheckedIn] = useState(() => {
-    try { return localStorage.getItem(`checkIn:${today()}`) !== null; } catch { return false; }
-  });
+  const [checkedIn, setCheckedIn] = useState(() => scoped.getItem(`checkIn:${today()}`) !== null);
   const setCheckIn = (c: CheckIn) => {
     setCheckInState(c);
     setCheckedIn(true);
@@ -133,33 +130,49 @@ function Main() {
     void pushCheckIn(today(), c);
   };
   const [openDay, setOpenDay] = useState<DayPlan | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(loadProfile);
-  if (!profile) {
+  const [guard, setGuard] = useState<GuardResult>(() => loadGuardedProfile());
+  const [settings, setSettings] = useState(false);
+  const [agreed, setAgreed] = useState(() => scope.kind === "guest" || (hasCurrentAgreement("terms") && hasCurrentAgreement("safety")));
+
+  // wiek rośnie z czasem; ponowna ocena po powrocie do aplikacji i co pół godziny (zmiana doby, urodziny)
+  useEffect(() => {
+    const recheck = () => setGuard((g) => { const n = loadGuardedProfile(); return n.kind === "ok" && g.kind === "ok" && n.profile.age === g.profile.age && n.birth.birthDate === g.birth.birthDate ? g : n; });
+    const onVis = () => { if (document.visibilityState === "visible") recheck(); };
+    document.addEventListener("visibilitychange", onVis);
+    const id = setInterval(recheck, 30 * 60_000);
+    return () => { document.removeEventListener("visibilitychange", onVis); clearInterval(id); };
+  }, []);
+
+  if (guard.kind === "blocked") {
+    return <AgeGate reason={guard.reason} onBirthDate={(d) => setGuard(guard.profile ? changeBirth({ birthDate: d }, guard.profile) : guard)} />;
+  }
+  if (guard.kind === "none") {
     return (
       <Onboarding
         onDone={(raw) => {
-          const p = { ...raw, startDate: localISO() };
-          store("profile", JSON.stringify(p));
-          void pushProfile(p);
-          setProfile(p);
-          setTab("start");
-          window.scrollTo(0, 0);
+          const r = finalizeNewProfile({ ...raw, startDate: localISO() });
+          if (r.kind === "ok") { void pushProfile(r.profile); setTab("start"); window.scrollTo(0, 0); }
+          setGuard(r);
         }}
       />
     );
   }
+  if (!agreed) return <AgreementGate profile={guard.profile} onDone={() => setAgreed(true)} />;
+
+  const { profile, birth } = guard;
   return (
     <div className="bw-backdrop relative isolate min-h-screen">
       <Backdrop />
       <div key={tab} className="bw-tab relative">
       {tab === "start" && (
-        <Start profile={profile} checkIn={checkIn} checkedIn={checkedIn} onCheckIn={setCheckIn}
-          onProfile={(p) => { store("profile", JSON.stringify(p)); void pushProfile(p); setProfile(p); }} />
+        <Start profile={profile} birth={birth} checkIn={checkIn} checkedIn={checkedIn} onCheckIn={setCheckIn} onSettings={() => setSettings(true)}
+          onBirth={(b) => setGuard(changeBirth(b, profile))} />
       )}
       {tab === "plan" && (
         <Home profile={profile} checkIn={checkIn} initialOpen={openDay} onOpened={() => setOpenDay(null)} onReset={() => {
-          try { localStorage.removeItem("profile"); } catch { /* brak pamięci */ }
-          setProfile(null);
+          // to NIE usuwa konta ani danych: tylko ponownie przechodzi pytania profilu (usuwanie danych – w Ustawieniach)
+          scoped.removeItem("profile");
+          setGuard({ kind: "none" });
         }} />
       )}
       {tab === "lab" && <Lab />}
@@ -172,6 +185,7 @@ function Main() {
       {tab === "progres" && <Progress profile={profile} />}
       </div>
       <TabBar tab={tab} onChange={(t) => { setTab(t); window.scrollTo(0, 0); }} />
+      {settings && <Settings scope={scope} email={email} profile={profile} onClose={() => setSettings(false)} onLogin={onLogin} />}
     </div>
   );
 }
@@ -193,7 +207,7 @@ function Home({ profile, checkIn, initialOpen, onOpened, onReset }: {
 
   return (
     <main className="mx-auto max-w-md px-5 pb-32 pt-14">
-      <LargeTitle kind="plan" title="Plan" sub={<button onClick={onReset} className="text-muted">Zmień profil</button>} />
+      <LargeTitle kind="plan" title="Plan" sub={<button onClick={onReset} className="text-muted">Zmień dane profilu (nie usuwa konta)</button>} />
       <div className="bw-rise mb-5 grid grid-cols-2 gap-1 rounded-2xl bg-hairline/70 p-1">
         <button onClick={() => setViewNext(false)} className={`rounded-xl py-2 text-sm ${!viewNext ? "bg-card font-medium shadow-sm" : "text-muted"}`}>Ten tydzień</button>
         <button

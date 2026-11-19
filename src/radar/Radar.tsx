@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { Profile } from "../engine";
+import type { PrivateProfile } from "../lib/private";
 import { Sheet } from "../Sheet";
 import { reportStale } from "./api";
 import { ago, costText, distanceText, eligibilityText, kindLabel, nextSessionText, positionText, sessionLabel, signupStatusText } from "./format";
@@ -161,10 +162,10 @@ function FullList({ evals, nowMs, prefs, onPrefs, saved, onSave, onOpen, onRefre
 }
 
 /** „Piłkarskie szanse” pod check-inem: faktycznie użyte kryteria, maks. dwie pasujące karty, „Zobacz wszystkie”. Awaria radaru nie blokuje reszty Startu. */
-export function Radar({ profile, onProfile }: { profile: Profile; onProfile: (p: Profile) => void }) {
+export function Radar({ profile, birth, onBirth }: { profile: Profile; birth: PrivateProfile; onBirth: (b: PrivateProfile) => void }) {
   const [prefs, setPrefsState] = useState<RadarPrefs>(loadPrefs);
   const setPrefs = (p: RadarPrefs) => { setPrefsState(p); savePrefs(p); };
-  const facts = useMemo(() => playerFacts(profile, prefs), [profile, prefs]);
+  const facts = useMemo(() => playerFacts(profile, birth, prefs), [profile, birth, prefs]);
   const { feed, evals, nowMs, reload } = useRadar(facts);
   const clubsFeed = useClubs();
   const [sent, setSent] = useState<Record<string, string>>(loadSent);
@@ -278,7 +279,7 @@ export function Radar({ profile, onProfile }: { profile: Profile; onProfile: (p:
 
       {view && (
         <Sheet title={title} onClose={() => setView(null)}>
-          {view.t === "setup" && <RadarSetup profile={profile} prefs={prefs} onProfile={onProfile} onPrefs={setPrefs} onDone={() => setView(null)} />}
+          {view.t === "setup" && <RadarSetup profile={profile} birth={birth} prefs={prefs} onBirth={onBirth} onPrefs={setPrefs} onDone={() => setView(null)} />}
           {view.t === "list" && (
             <FullList evals={evals} nowMs={nowMs} prefs={prefs} onPrefs={setPrefs} saved={saved} onSave={toggle} onOpen={(id) => setView({ t: "detail", id })} onRefreshSaved={() => void refreshSaved().then(setSaved)}
               clubs={clubViews} sent={sent} onWrite={(id) => setView({ t: "inquiry", id })} startTab={startTab} />

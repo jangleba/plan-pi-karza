@@ -2,10 +2,11 @@ import { useState } from "react";
 import { addEvents, calcMas, formatPace, localISO } from "./engine";
 import type { Mas } from "./engine";
 import { pushMas } from "./lib/sync";
+import { scoped } from "./lib/store";
 
 export function loadMas(): Mas | null {
   try {
-    const v = Number(localStorage.getItem("masDistance"));
+    const v = Number(scoped.getItem("masDistance"));
     return v > 0 ? calcMas(v) : null;
   } catch {
     return null;
@@ -14,7 +15,7 @@ export function loadMas(): Mas | null {
 
 /** Zapis MAS z dystansu (ręcznie lub z GPS po teście 5 min). */
 export function saveMasDistance(d: number): Mas {
-  try { localStorage.setItem("masDistance", String(d)); } catch { /* brak pamięci */ }
+  try { scoped.setItem("masDistance", String(d)); } catch { /* brak pamięci */ }
   const m = calcMas(d);
   addEvents([{ date: localISO(), type: "mas", key: "mas", value: m.kmh }]);
   void pushMas(d);
