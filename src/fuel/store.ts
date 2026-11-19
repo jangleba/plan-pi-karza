@@ -1,3 +1,4 @@
+import type { Favorites } from "../engine/favorites";
 import type { Food } from "../engine/foods";
 import type { Goal } from "../engine";
 
@@ -41,3 +42,10 @@ export const saveChecked = (c: string[]) => write("shopChecked", c);
 /** Zaznaczone rzeczy w torbie meczowej (po dacie meczu). */
 export const loadBag = (date: string): string[] => read<string[]>(`bag:${date}`, []);
 export const saveBag = (date: string, ids: string[]) => write(`bag:${date}`, ids);
+
+/** Ulubione produkty i posiłki. */
+export const loadFavs = (): Favorites => {
+  const v = read<Partial<Favorites>>("fuelFavs", {});
+  return { foods: Array.isArray(v.foods) ? v.foods : [], meals: Array.isArray(v.meals) ? v.meals : [] };
+};
+export const saveFavs = (f: Favorites) => write("fuelFavs", f);
