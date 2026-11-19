@@ -72,3 +72,10 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 - Rozgrywka: ekran startowy z opisem sytuacji, licznik czasu, przerywana linia celowania z pulsującym pierścieniem i nazwą adresata, lot piłki po podaniu/strzale, płynna kamera.
 - Wynik: tablica taktyczna (pasy, linie, linia spalonego, Twój wybór vs lepsza opcja z legendą) w karcie od dołu.
 - NIE sprawdzone na telefonie (wydajność cieni i grafiki) – sprawdzone w przeglądarce bez GPU.
+
+## IQ – sylwetki zawodników v3 (2026-11-19)
+- Anatomia: biodro → udo → kolano → łydka → but (z podeszwą), bark → rękaw z mankietem → ramię → łokieć → przedramię → dłoń; szyja, głowa, uszy, włosy; tułów i spodenki z profilu (lathe).
+- Strój: jedna drużyna = jeden strój (Ty: pierścień + numer 8), kołnierzyk, mankiety i opaski getrów w kolorze dodatków, numer na plecach; bramkarz – osobny strój i rękawice.
+- Różne odcienie skóry i włosów; postawa: obrońca ugięte kolana, bramkarz gotowość; oddech w miejscu.
+- Animacja: cykl biegu (udo, kolano, praca rąk ze zgiętym łokciem, pochylenie tułowia, podskok), kopnięcie przy podaniu i strzale; kamera bliżej zawodnika.
+- Wydajność: geometrie i materiały współdzielone, cienie tylko z większych części; ok. 220 wywołań rysowania i 28 tys. trójkątów na klatkę.

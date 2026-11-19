@@ -98,49 +98,199 @@ export function makeGoal(x: number, back: 1 | -1): THREE.Group {
 
 export interface Figure {
   root: THREE.Group;
-  legs: [THREE.Group, THREE.Group];
-  arms: [THREE.Group, THREE.Group];
+  body: THREE.Group;
+  hips: [THREE.Group, THREE.Group];
+  knees: [THREE.Group, THREE.Group];
+  shoulders: [THREE.Group, THREE.Group];
+  elbows: [THREE.Group, THREE.Group];
+  torso: THREE.Mesh;
   phase: number;
+  /** Pozostały czas animacji kopnięcia (s). */
+  kick: number;
+  stance: "run" | "defend" | "keeper";
 }
 
-/** Sylwetka zawodnika: nogi, spodenki, koszulka, ręce, głowa. Przód = +x. */
-export function makePlayer(jersey: number, shorts = 0xffffff, skin = 0xd9a77c): Figure {
-  const std = (c: number) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.75 });
-  const root = new THREE.Group();
-  const limb = (len: number, r: number, color: number, y: number, z: number) => {
-    const pivot = new THREE.Group();
-    pivot.position.set(0, y, z);
-    const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 4, 10), std(color));
-    m.position.y = -len / 2 - r; m.castShadow = true;
-    pivot.add(m);
-    root.add(pivot);
-    return pivot;
+export interface Kit {
+  jersey: number;
+  shorts: number;
+  socks: number;
+  collar?: number;
+  number?: number;
+  keeper?: boolean;
+  gloves?: number;
+}
+
+const SKINS = [0xe8bf9a, 0xd9a77c, 0xb57e55, 0x7a5233];
+const HAIRS = [0x2b2118, 0x4a3426, 0x151515, 0x8a6a3b];
+
+// geometrie wspólne dla wszystkich zawodników (tworzone raz – mniej pamięci i szybsze rysowanie)
+let G: ReturnType<typeof buildGeo> | null = null;
+function geo() {
+  return (G ??= buildGeo());
+}
+function buildGeo() {
+  // tułów: profil od pasa do ramion, obrócony (lathe)
+  const torsoProfile = [
+    [0.0, 0.0], [0.165, 0.0], [0.175, 0.08], [0.19, 0.22], [0.215, 0.38], [0.22, 0.47], [0.19, 0.53], [0.09, 0.565], [0.0, 0.57],
+  ].map(([r, y]) => new THREE.Vector2(r!, y!));
+  const shortsProfile = [[0.0, 0.0], [0.175, 0.0], [0.19, 0.1], [0.185, 0.22], [0.0, 0.24]].map(([r, y]) => new THREE.Vector2(r!, y!));
+  const boot = new THREE.BoxGeometry(0.25, 0.075, 0.1, 2, 1, 1);
+  boot.translate(0.05, 0, 0);
+  return {
+    torso: new THREE.LatheGeometry(torsoProfile, 18),
+    shorts: new THREE.LatheGeometry(shortsProfile, 16),
+    thigh: new THREE.CapsuleGeometry(0.078, 0.3, 4, 10),
+    shin: new THREE.CapsuleGeometry(0.06, 0.3, 4, 10),
+    boot,
+    sole: new THREE.BoxGeometry(0.255, 0.02, 0.105),
+    sleeve: new THREE.CapsuleGeometry(0.062, 0.1, 3, 10),
+    upperArm: new THREE.CapsuleGeometry(0.047, 0.16, 3, 8),
+    forearm: new THREE.CapsuleGeometry(0.042, 0.2, 3, 8),
+    hand: new THREE.SphereGeometry(0.048, 10, 8),
+    glove: new THREE.SphereGeometry(0.07, 10, 8),
+    neck: new THREE.CylinderGeometry(0.05, 0.055, 0.09, 10),
+    head: new THREE.SphereGeometry(0.115, 18, 14),
+    hair: new THREE.SphereGeometry(0.121, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.55),
+    ear: new THREE.SphereGeometry(0.025, 8, 6),
+    collar: new THREE.TorusGeometry(0.075, 0.016, 6, 16),
+    cuff: new THREE.TorusGeometry(0.058, 0.012, 5, 12),
+    band: new THREE.TorusGeometry(0.064, 0.014, 5, 12),
+    number: new THREE.PlaneGeometry(0.26, 0.26),
   };
-  const legs: [THREE.Group, THREE.Group] = [limb(0.62, 0.1, skin, 0.86, -0.12), limb(0.62, 0.1, skin, 0.86, 0.12)];
-  const shortsM = new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.25, 0.3, 14), std(shorts));
-  shortsM.position.y = 0.88; shortsM.castShadow = true; root.add(shortsM);
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.24, 0.42, 4, 14), std(jersey));
-  torso.position.y = 1.28; torso.scale.set(0.85, 1, 1.1); torso.castShadow = true; root.add(torso);
-  const arms: [THREE.Group, THREE.Group] = [limb(0.46, 0.065, jersey, 1.5, -0.32), limb(0.46, 0.065, jersey, 1.5, 0.32)];
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 12), std(skin));
-  head.position.y = 1.8; head.castShadow = true; root.add(head);
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.145, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), std(0x2b2118));
-  hair.position.y = 1.81; root.add(hair);
-  return { root, legs, arms, phase: Math.random() * 6 };
 }
 
-/** Animacja biegu: wymach nóg i rąk proporcjonalny do prędkości. */
+const MATS = new Map<string, THREE.Material>();
+function mat(color: number, rough = 0.78): THREE.Material {
+  const k = `${color}-${rough}`;
+  let m = MATS.get(k);
+  if (!m) { m = new THREE.MeshStandardMaterial({ color, roughness: rough }); MATS.set(k, m); }
+  return m;
+}
+
+function numberTexture(n: number, color: string): THREE.CanvasTexture {
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const g = c.getContext("2d")!;
+  g.fillStyle = color;
+  g.font = "bold 92px -apple-system, Helvetica, Arial, sans-serif";
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText(String(n), 64, 70);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/** Sylwetka zawodnika z anatomią (uda, łydki, kolana, łokcie) i strojem. Przód = +x. */
+export function makePlayer(kit: Kit, variant = 0, stance: Figure["stance"] = "run"): Figure {
+  const g = geo();
+  const skin = SKINS[variant % SKINS.length]!, hair = HAIRS[(variant * 3 + 1) % HAIRS.length]!;
+  const mesh = (geom: THREE.BufferGeometry, m: THREE.Material, shadow = false) => {
+    const x = new THREE.Mesh(geom, m);
+    x.castShadow = shadow;
+    return x;
+  };
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+  root.add(body);
+
+  // nogi: biodro -> udo -> kolano -> łydka (getr) -> but
+  const legs = [-0.105, 0.105].map((z) => {
+    const hip = new THREE.Group(); hip.position.set(0, 0.93, z);
+    const thigh = mesh(g.thigh, mat(skin), true); thigh.position.y = -0.22; hip.add(thigh);
+    const knee = new THREE.Group(); knee.position.y = -0.44; hip.add(knee);
+    const shin = mesh(g.shin, mat(kit.socks), true); shin.position.y = -0.21; knee.add(shin);
+    // opaska getra pod kolanem
+    const band = mesh(g.band, mat(kit.collar ?? 0xffffff)); band.rotation.x = Math.PI / 2; band.position.y = -0.06; knee.add(band);
+    const boot = mesh(g.boot, mat(0x1d1d1f, 0.45)); boot.position.y = -0.43; knee.add(boot);
+    const sole = mesh(g.sole, mat(0xf2f2f2, 0.6)); sole.position.set(0.05, -0.475, 0); knee.add(sole);
+    body.add(hip);
+    return { hip, knee };
+  });
+
+  const shorts = mesh(g.shorts, mat(kit.shorts), true); shorts.position.y = 0.8; shorts.scale.set(0.82, 1, 1.12); body.add(shorts);
+  const torso = mesh(g.torso, mat(kit.jersey), true); torso.position.y = 0.98; torso.scale.set(0.8, 1, 1.22); body.add(torso);
+  const collar = mesh(g.collar, mat(kit.collar ?? 0xffffff)); collar.rotation.x = Math.PI / 2; collar.position.y = 1.535; collar.scale.set(1, 1.2, 1); body.add(collar);
+  const neck = mesh(g.neck, mat(skin)); neck.position.y = 1.58; body.add(neck);
+  const head = mesh(g.head, mat(skin), true); head.position.y = 1.72; head.scale.set(1, 1.08, 0.95); body.add(head);
+  const hairM = mesh(g.hair, mat(hair, 0.9)); hairM.position.set(-0.008, 1.735, 0); hairM.rotation.z = 0.25; body.add(hairM);
+  for (const z of [-0.112, 0.112]) { const e = mesh(g.ear, mat(skin)); e.position.set(-0.01, 1.71, z); body.add(e); }
+
+  // numer na plecach (kamera jest za zawodnikiem)
+  if (kit.number !== undefined) {
+    const num = new THREE.Mesh(g.number, new THREE.MeshBasicMaterial({ map: numberTexture(kit.number, "#ffffff"), transparent: true }));
+    num.position.set(-0.184, 1.3, 0); num.rotation.y = -Math.PI / 2; body.add(num);
+  }
+
+  // ręce: bark -> rękaw + ramię -> łokieć -> przedramię -> dłoń (bramkarz: rękawice)
+  const arms = [-0.265, 0.265].map((z) => {
+    const sh = new THREE.Group(); sh.position.set(0, 1.47, z); sh.rotation.x = z < 0 ? 0.1 : -0.1;
+    const sleeve = mesh(g.sleeve, mat(kit.jersey)); sleeve.position.y = -0.09; sh.add(sleeve);
+    if (!kit.keeper) { const cuff = mesh(g.cuff, mat(kit.collar ?? 0xffffff)); cuff.rotation.x = Math.PI / 2; cuff.position.y = -0.17; sh.add(cuff); }
+    const upper = mesh(g.upperArm, mat(kit.keeper ? kit.jersey : skin)); upper.position.y = -0.2; sh.add(upper);
+    const el = new THREE.Group(); el.position.y = -0.31; sh.add(el);
+    const fore = mesh(g.forearm, mat(kit.keeper ? kit.jersey : skin)); fore.position.y = -0.14; el.add(fore);
+    const hand = mesh(kit.keeper ? g.glove : g.hand, mat(kit.keeper ? kit.gloves ?? 0xe9eef3 : skin)); hand.position.y = -0.3; el.add(hand);
+    body.add(sh);
+    return { sh, el };
+  });
+
+  return {
+    root, body, torso,
+    hips: [legs[0]!.hip, legs[1]!.hip], knees: [legs[0]!.knee, legs[1]!.knee],
+    shoulders: [arms[0]!.sh, arms[1]!.sh], elbows: [arms[0]!.el, arms[1]!.el],
+    phase: variant * 1.7, kick: 0, stance,
+  };
+}
+
+/**
+ * Animacja: cykl biegu (udo, zgięcie kolana, praca rąk ze zgiętym łokciem, pochylenie tułowia),
+ * w miejscu – postawa (obrońca: ugięte kolana; bramkarz: gotowość z rękami przed sobą), oddech.
+ */
 export function animateFigure(f: Figure, speed: number, dt: number, facing: number) {
-  const k = Math.min(1, speed / 6);
-  f.phase += dt * (4 + speed * 1.6);
-  const s = Math.sin(f.phase) * 0.75 * k;
-  f.legs[0].rotation.z = s; f.legs[1].rotation.z = -s;
-  f.arms[0].rotation.z = -s * 0.8; f.arms[1].rotation.z = s * 0.8;
-  f.root.position.y = Math.abs(Math.sin(f.phase)) * 0.05 * k;
+  const k = Math.min(1, speed / 7);
+  const moving = speed > 0.4;
+  f.phase += dt * (moving ? 5.5 + speed * 1.1 : 1.6);
+  const p = f.phase;
+  const L = Math.sin(p), R = Math.sin(p + Math.PI);
+  const amp = 0.22 + 0.45 * k;
+
+  if (moving) {
+    f.hips[0].rotation.z = L * amp; f.hips[1].rotation.z = R * amp;
+    // kolano zgina się mocniej w fazie zakroku
+    // zgięcie kolana: największe przy przenoszeniu nogi do przodu, umiarkowane w truchcie
+    const knee = 0.25 + 0.95 * k;
+    f.knees[0].rotation.z = -Math.max(0, Math.sin(p - 1.2)) * knee - 0.08;
+    f.knees[1].rotation.z = -Math.max(0, Math.sin(p + Math.PI - 1.2)) * knee - 0.08;
+    f.shoulders[0].rotation.z = R * amp * 0.9; f.shoulders[1].rotation.z = L * amp * 0.9;
+    f.elbows[0].rotation.z = f.elbows[1].rotation.z = 0.9 + 0.5 * k;
+    f.body.rotation.z = -0.08 - 0.14 * k;
+    f.body.position.y = Math.abs(Math.cos(p)) * 0.05 * k - 0.02 * k;
+  } else {
+    const breathe = Math.sin(p) * 0.012;
+    const bend = f.stance === "defend" ? 0.28 : f.stance === "keeper" ? 0.4 : 0.06;
+    f.hips[0].rotation.z = f.hips[1].rotation.z = bend;
+    f.knees[0].rotation.z = f.knees[1].rotation.z = -bend * 1.9;
+    f.body.position.y = -bend * 0.16 + breathe;
+    f.body.rotation.z = -bend * 0.5;
+    f.shoulders[0].rotation.z = f.shoulders[1].rotation.z = f.stance === "keeper" ? 0.9 : 0.12;
+    f.elbows[0].rotation.z = f.elbows[1].rotation.z = f.stance === "keeper" ? 0.7 : 0.35;
+    f.torso.scale.y = 1 + breathe;
+  }
+
+  // kopnięcie (podanie / strzał): prawa noga wymach do przodu
+  if (f.kick > 0) {
+    f.kick = Math.max(0, f.kick - dt);
+    const t = 1 - f.kick / 0.35;
+    const swing = Math.sin(Math.min(1, t) * Math.PI);
+    f.hips[1].rotation.z = -0.5 + swing * 1.6;
+    f.knees[1].rotation.z = -1.1 + swing * 1.05;
+    f.shoulders[0].rotation.z = swing * 0.8;
+  }
+
   // płynny obrót w stronę ruchu
   let d = facing - f.root.rotation.y;
   d = Math.atan2(Math.sin(d), Math.cos(d));
-  f.root.rotation.y += d * Math.min(1, dt * 10);
+  f.root.rotation.y += d * Math.min(1, dt * 9);
 }
 
 /** Piłka z klasycznym wzorem łat. */
