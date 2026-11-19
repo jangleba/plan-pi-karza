@@ -7,8 +7,8 @@ import { Sheet } from "./Sheet";
 import { LargeTitle } from "./ui";
 import { FIELD, headingOf, makeBall, makeGoal, pitchTexture, skyTexture } from "./iq/scene";
 import { ActorFactory, loadActorAssets, type Actor, type ActorAssets } from "./iq/actors";
+import { drive, followCamera, turnTo, type Drive } from "./iq/control";
 
-const SPEED = 6.5;
 const BALL_R = 0.16;
 interface Result { snap: Snapshot; verdict: Verdict }
 type Phase = "loading" | "intro" | "play" | "kick" | "flight" | "done";
@@ -95,7 +95,9 @@ export default function IQ() {
       const meMarker = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.62, 32), new THREE.MeshBasicMaterial({ color: 0x8ec1f0, side: THREE.DoubleSide }));
       meMarker.rotation.x = -Math.PI / 2; scene.add(meMarker);
 
-      let player: Vec = { ...S.player };
+      // sterowanie jak w samochodzie: kierunek zawodnika + kamera, która go płynnie dogania
+      const dr: Drive = { x: S.player.x, y: S.player.y, heading: 0, speed: 0, cam: 0 };
+      let player: Vec = { x: dr.x, y: dr.y };
       let facing: Vec = { x: 1, y: 0 };
       let t = 0;
       const prev = new Map<Actor, Vec>();
@@ -108,7 +110,7 @@ export default function IQ() {
       window.addEventListener("keydown", kd); window.addEventListener("keyup", ku);
 
       const camPos = new THREE.Vector3(player.x - 8, 4.3, player.y);
-      const camLook = new THREE.Vector3(player.x + 10, 0.6, player.y);
+      const camLook = new THREE.Vector3(player.x + 10, 0.9, player.y);
       const target = new THREE.Vector3(), look = new THREE.Vector3();
       const resize = () => { const w = el.clientWidth, h = el.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); };
       resize();
@@ -125,7 +127,8 @@ export default function IQ() {
       };
 
       reset.current = () => {
-        player = { ...S.player }; facing = { x: 1, y: 0 }; t = 0; flight = null; kickSt = null; act.current = null; carried = 0;
+        dr.x = S.player.x; dr.y = S.player.y; dr.heading = 0; dr.speed = 0; dr.cam = 0;
+        player = { x: dr.x, y: dr.y }; facing = { x: 1, y: 0 }; t = 0; flight = null; kickSt = null; act.current = null; carried = 0;
         me.root.rotation.y = 0;
         ball.position.set(player.x + 0.7, BALL_R, player.y);
         setResult(null); setClock(0); setP("intro");
@@ -162,25 +165,23 @@ export default function IQ() {
         if (keys.has("s") || keys.has("arrowdown")) jy += 1;
         if (keys.has("a") || keys.has("arrowleft")) jx -= 1;
         if (keys.has("d") || keys.has("arrowright")) jx += 1;
-        const mv = { x: -jy, y: jx };
-        const mag = Math.min(1, Math.hypot(mv.x, mv.y));
+        jx = Math.max(-1, Math.min(1, jx)); jy = Math.max(-1, Math.min(1, jy));
+        const stick = { r: jx, f: -jy };
 
         // świat żyje podczas zamachu i lotu piłki (koledzy biegną, obrońcy doskakują); stoi tylko w intro i po wyniku
         if (ph === "play" || ph === "kick" || ph === "flight") t += dt;
         let moved = 0;
         if (ph === "play") {
           clockAcc += dt; if (clockAcc > 0.1) { clockAcc = 0; setClock(t); }
-          if (mag > 0.05) {
-            const n = { x: mv.x / Math.hypot(mv.x, mv.y), y: mv.y / Math.hypot(mv.x, mv.y) };
-            // kierunek piłki wygładzony – nie „teleportuje się” przy zmianie kierunku joysticka
-            const k = 1 - Math.exp(-dt * 9);
-            const fx = facing.x + (n.x - facing.x) * k, fy = facing.y + (n.y - facing.y) * k, fl = Math.hypot(fx, fy) || 1;
-            facing = { x: fx / fl, y: fy / fl };
-            const nx = Math.max(1, Math.min(104, player.x + n.x * SPEED * mag * dt)), ny = Math.max(1, Math.min(67, player.y + n.y * SPEED * mag * dt));
-            moved = Math.hypot(nx - player.x, ny - player.y);
-            player = { x: nx, y: ny };
-          }
+          moved = drive(dr, stick, dt, { minX: 1, maxX: 104, minY: 1, maxY: 67 });
+        } else if (ph === "kick" && kickSt) {
+          turnTo(dr, Math.atan2(kickSt.to.y - dr.y, kickSt.to.x - dr.x), dt); // staje do celu przed zamachem
+        } else {
+          followCamera(dr, dt);
         }
+        player = { x: dr.x, y: dr.y };
+        facing = { x: Math.cos(dr.heading), y: Math.sin(dr.heading) };
+
         const snap = snapshotAt(S, t, player);
 
         // adresat podania: kolega najbliżej kierunku zawodnika
@@ -202,13 +203,16 @@ export default function IQ() {
             const k = me.kick();
             const spotW = k.spot.clone().applyAxisAngle(Y, yaw).add(new THREE.Vector3(player.x, 0, player.y));
             kickSt = { elapsed: 0, contactIn: k.contactIn, spotW, startW: ball.position.clone(), to, a, yaw, verdict: compare(snap, chosen), snap };
-            facing = { x: Math.cos(yaw), y: -Math.sin(yaw) };
             setP("kick");
           }
         }
 
         if (kickSt) { me.root.position.set(player.x, 0, player.y); me.update(0, dt, kickSt.yaw); } // zamach: stoi i obraca się do celu
-        else place(me, player, dt, undefined);
+        else {
+          me.root.position.set(player.x, 0, player.y);
+          me.update(dr.speed, dt, -dr.heading); // aktor: obrót wokół Y = −kierunek w układzie boiska
+          prev.set(me, { ...player });
+        }
         snap.mates.forEach((m, i) => place(mates[i]!, m.pos, dt, player));
         snap.defenders.forEach((d, i) => place(defs[i]!, d, dt, player));
         place(gk, snap.keeper, dt, player);
@@ -262,10 +266,11 @@ export default function IQ() {
         const aimNow = showAim ? aimMate!.name : null;
         if (aimNow !== lastAim) { lastAim = aimNow; setAimName(aimNow); }
 
-        target.set(player.x - 8, 4.3, player.y);
-        look.set(player.x + 12, 0.9, player.y);
-        const ca = 1 - Math.exp(-dt * 5);
-        camPos.lerp(target, ca); camLook.lerp(look, ca);
+        // kamera za plecami zawodnika, obraca się razem z nim (kierunek dogania płynnie w sterowaniu)
+        const cx = Math.cos(dr.cam), cy = Math.sin(dr.cam);
+        target.set(player.x - 8 * cx, 4.3, player.y - 8 * cy);
+        look.set(player.x + 12 * cx, 0.9, player.y + 12 * cy);
+        camPos.lerp(target, 1 - Math.exp(-dt * 18)); camLook.lerp(look, 1 - Math.exp(-dt * 18));
         cam.position.copy(camPos); cam.lookAt(camLook);
         sun.position.set(player.x - 15, 40, player.y + 20); sun.target.position.set(player.x + 8, 0, player.y);
         renderer.render(scene, cam);
@@ -283,6 +288,8 @@ export default function IQ() {
           manual: (b: boolean) => { manual = b; },
           advance: (n: number, dt: number) => { for (let i = 0; i < n; i++) tick(performance.now(), dt); },
           press: (a: "pass" | "shot") => { act.current = a; },
+          stick: (r: number, f: number) => { joy.current = { x: r, y: -f }; },
+          state: () => ({ heading: dr.heading, cam: dr.cam, speed: dr.speed, x: dr.x, y: dr.y }),
         };
       }
 
@@ -327,7 +334,7 @@ export default function IQ() {
             <div className="bw-sheet w-full rounded-3xl bg-white/95 p-5 backdrop-blur">
               <div className="text-xs uppercase tracking-wide text-muted">Sytuacja</div>
               <p className="mt-1 text-[15px] leading-snug text-ink">{S.brief}</p>
-              <p className="mt-2 text-xs text-muted">Lewy kciuk – ruch. Prawy – podanie albo strzał. Liczy się moment.</p>
+              <p className="mt-2 text-xs text-muted">Joystick: do przodu – bieg, w bok – skręt (kamera obraca się za Tobą). Patrz w stronę kolegi i podaj.</p>
               {fallback && <p className="mt-2 text-xs text-muted">Uproszczone postacie (nie udało się wczytać modeli).</p>}
               <button onClick={() => setP("play")} className="bw-grad mt-4 w-full rounded-2xl py-3.5 text-base font-medium text-white">Graj</button>
             </div>
