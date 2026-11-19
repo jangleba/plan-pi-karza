@@ -3,13 +3,13 @@ import type { Profile } from "../engine";
 import type { PrivateProfile } from "../lib/private";
 import { Sheet } from "../Sheet";
 import { reportStale } from "./api";
-import { ago, costText, distanceText, eligibilityText, kindLabel, nextSessionText, positionText, sessionLabel, signupStatusText } from "./format";
+import { ago, costText, distanceText, eligibilityNotes, eligibilityText, freshnessLines, kindLabel, nextSessionText, positionText, REASON_TEXT, sessionLabel, signupStatusText } from "./format";
 import { LISTING_KINDS, matchesOnly, sortEvaluations, type Evaluation, type RadarListing } from "./lib";
 import { loadPrefs, savePrefs, type RadarPrefs } from "./prefs";
 import { RadarSetup } from "./RadarSetup";
 import { loadSaved, refreshSaved, savedStatusText, toggleSaved, type SavedOffer } from "./saved";
 import {
-  criteriaParts, hasBirth, missingProfile, nextRadius, playerFacts, profileGaps, radiusLabel, sourcesDegraded, visibleList, type ListFilters,
+  criteriaParts, hasBirth, missingProfile, needsOrganizerCheck, nextRadius, playerFacts, profileGaps, radiusLabel, sourcesDegraded, visibleList, type ListFilters,
 } from "./state";
 import { useClubs, useRadar } from "./useRadar";
 import { clubsForPlayer, loadSent, type Club, type ClubView } from "./clubs";
@@ -33,6 +33,7 @@ function Card({ e, saved, nowMs, onDetail, onSave }: { e: Evaluation; saved: boo
         {pos && <span className={pill}>{pos}</span>}
         <span className={pill}>{costText(l)}</span>
       </div>
+      {eligibilityNotes(l.eligibility).length > 0 && <p className="mt-2 text-xs text-ink/80">{eligibilityNotes(l.eligibility).join(" · ")}</p>}
       <p className="mt-3 text-xs text-muted">Sprawdzono {ago(l.sourceCheckedAt, nowMs)}</p>
       <div className="mt-3 flex gap-2">
         <button onClick={onDetail} className="bw-grad flex-1 rounded-2xl py-3 text-sm font-medium">Szczegóły</button>
@@ -55,14 +56,16 @@ function Detail({ e, saved, nowMs, onSave, onBack }: { e: Evaluation | null; sav
       <h3 className="mt-1 text-xl font-semibold leading-snug">{l.city ?? "Miejscowość nieznana"}{l.venue ? `, ${l.venue}` : ""}</h3>
       <p className="mt-2 text-[15px] leading-snug text-ink/80">{l.summary}</p>
       {saved && !saved.live && <p className="mt-3 rounded-2xl bg-canvas px-4 py-3 text-sm">Status: <b>{savedStatusText(saved, nowMs)}</b></p>}
+      {e && e.result === "NEEDS_INFORMATION" && e.reasons.map((r) => REASON_TEXT[r]).filter(Boolean).map((t) => <p key={t} className="mt-3 rounded-2xl bg-lemon px-4 py-3 text-sm text-lemon-ink">{t}</p>)}
 
       <h4 className="mb-2 mt-5 text-xs uppercase tracking-wide text-muted">Terminy</h4>
       <ul className="flex flex-col gap-2">
-        {l.indefinite && <li className="rounded-2xl border border-hairline px-4 py-3 text-sm">Nabór ciągły · {eligibilityText(l.eligibility)}</li>}
+        {l.indefinite && <li className="rounded-2xl border border-hairline px-4 py-3 text-sm">Nabór ciągły · {eligibilityText(l.eligibility)}{eligibilityNotes(l.eligibility).map((n) => <div key={n} className="mt-0.5 text-xs text-ink/80">{n}</div>)}</li>}
         {l.sessions.filter((s) => s.status === "active").map((s) => (
           <li key={s.id} className={`rounded-2xl border px-4 py-3 text-sm ${matchIds.has(s.id) ? "border-sel-border bg-accent-soft" : "border-hairline"}`}>
             <div className="font-medium">{sessionLabel(s)}</div>
             <div className="text-muted">{eligibilityText(s.eligibility ?? l.eligibility)}{matchIds.has(s.id) ? " · pasuje do Ciebie" : e ? " · nie dotyczy Twojego rocznika" : ""}</div>
+            {eligibilityNotes(s.eligibility ?? l.eligibility).map((n) => <div key={n} className="mt-0.5 text-xs text-ink/80">{n}</div>)}
           </li>
         ))}
       </ul>
@@ -82,7 +85,8 @@ function Detail({ e, saved, nowMs, onSave, onBack }: { e: Evaluation | null; sav
       <h4 className="mb-2 mt-5 text-xs uppercase tracking-wide text-muted">Źródło</h4>
       <p className="text-sm leading-relaxed text-ink/80">
         {new URL(l.url).hostname.replace(/^www\./, "")}<br />
-        sprawdzono: {ago(l.sourceCheckedAt, nowMs)}{l.organizerConfirmedAt ? <><br />potwierdzone przez organizatora: {ago(l.organizerConfirmedAt, nowMs)}</> : null}
+        sprawdzono źródło: {ago(l.sourceCheckedAt, nowMs)}
+        {freshnessLines(l, nowMs).map((t) => <span key={t}><br />{t}</span>)}
       </p>
       <p className="mt-2 text-xs text-muted">Zapisy odbywają się u organizatora. Aplikacja tylko zbiera informacje – sprawdź je w ogłoszeniu.</p>
 
@@ -108,6 +112,7 @@ function FullList({ evals, nowMs, prefs, onPrefs, saved, onSave, onOpen, onRefre
   const [tab, setTab] = useState<"match" | "clubs" | "saved">(startTab);
   const [filters, setFilters] = useState<ListFilters>({ kinds: prefs.kinds, freeOnly: false, sort: "distance" });
   const list = useMemo(() => visibleList(evals, filters), [evals, filters]);
+  const check = useMemo(() => needsOrganizerCheck(evals).filter((e) => !filters.kinds.length || filters.kinds.includes(e.listing.kind)), [evals, filters.kinds]);
   const chip = (on: boolean) => `rounded-full px-3.5 py-2 text-sm ${on ? "bw-sel font-medium" : "bg-canvas text-ink"}`;
   const savedIds = new Set(saved.map((x) => x.id));
   return (
@@ -144,6 +149,21 @@ function FullList({ evals, nowMs, prefs, onPrefs, saved, onSave, onOpen, onRefre
           <div className="flex flex-col gap-3">
             {list.map((e) => <Card key={e.listing.id} e={e} saved={savedIds.has(e.listing.id)} nowMs={nowMs} onDetail={() => onOpen(e.listing.id)} onSave={() => onSave(e.listing)} />)}
           </div>
+          {check.length > 0 && (
+            <div className="mt-6">
+              <h4 className="mb-1 px-1 text-sm font-semibold">Do sprawdzenia u organizatora</h4>
+              <p className="mb-3 px-1 text-xs text-muted">Wiek się zgadza, ale to, czy możesz wziąć udział, zależy od zgody organizatora albo od kategorii, której ogłoszenie nie podaje. Nie pokazujemy tego jako pewne dopasowanie.</p>
+              <div className="flex flex-col gap-3">
+                {check.map((e) => (
+                  <button key={e.listing.id} onClick={() => onOpen(e.listing.id)} className="rounded-3xl border border-hairline bg-card p-5 text-left">
+                    <div className="text-xs text-muted">{kindLabel(e.listing.kind)} · {e.listing.organizer}</div>
+                    <div className="mt-0.5 text-base font-semibold">{e.listing.city ?? "—"} · {nextSessionText(e).when}</div>
+                    <div className="mt-1 text-xs text-ink/80">{e.reasons.map((r) => REASON_TEXT[r]).filter(Boolean).join(" ")}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <div className="flex flex-col gap-3">
@@ -254,10 +274,10 @@ export function Radar({ profile, birth, onBirth }: { profile: Profile; birth: Pr
       {clubsFeed.feed.state !== "loading" && feed.state !== "unconfigured" && (
         <div>
           <div className="mb-1 flex items-center justify-between px-1">
-            <h3 className="text-sm font-semibold">Kluby, do których możesz napisać</h3>
+            <h3 className="text-sm font-semibold">Kluby: dane kontaktowe</h3>
             {canShowClubs && clubViews.length > 0 && <span className="bw-pop rounded-full bg-mint px-2.5 py-0.5 text-xs font-semibold text-mint-ink">{clubViews.length}</span>}
           </div>
-          <p className="mb-3 px-1 text-xs text-muted">Radar na bieżąco szuka klubów i sprawdza ich oficjalne adresy. Zapytanie wysyłasz Ty, ze swojej poczty.</p>
+          <p className="mb-3 px-1 text-xs text-muted">To adresy kontaktowe klubów z ich oficjalnych stron, a nie ogłoszenia naborów: nie wiemy, czy klub prowadzi teraz nabór. Możesz zapytać – zapytanie wysyłasz Ty, ze swojej poczty.</p>
           {clubsFeed.feed.state === "error" && <div className="rounded-3xl bg-pink p-5 text-sm"><p className="text-pink-ink">Nie udało się pobrać listy klubów (błąd połączenia).</p><button onClick={() => void clubsFeed.reload()} className="mt-3 rounded-2xl bg-white px-4 py-2.5 font-medium">Spróbuj ponownie</button></div>}
           {clubsReady && !canShowClubs && (
             <div className="rounded-3xl bg-lav p-5"><p className="text-sm text-lav-ink">Wybierz miejscowość (ręcznie, bez GPS) albo ustaw „cała Polska”, by zobaczyć kluby w okolicy.</p><button onClick={() => setView({ t: "setup" })} className="mt-3 rounded-2xl bg-white px-5 py-3 text-sm font-semibold">Wybierz miejscowość</button></div>

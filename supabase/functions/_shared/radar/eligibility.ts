@@ -89,6 +89,9 @@ export function checkEligibility(elig: Eligibility | null | undefined, facts: Pl
   }
   if (fail.length) return { outcome: "fail", reasons: [...new Set([...fail, ...(elig.consentException ? (["consent_exception"] as const) : [])])] };
   if (elig.ambiguous) unknown.push("ambiguous");
+  // Wyjątek wymagający zgody organizatora: spełnienie kryteriów podstawowych NIE wystarcza do MATCH, chyba że źródło
+  // wprost zawęża wyjątek do osób spoza kryteriów ("outside_base"). Brak informacji o zakresie = nie rozstrzygamy na korzyść zawodnika.
+  if (elig.consentException && elig.consentScope !== "outside_base") unknown.push("consent_exception");
   if (unknown.length) return { outcome: "unknown", reasons: [...new Set(unknown)] };
   return { outcome: "pass", reasons: [] };
 }
@@ -105,6 +108,14 @@ export function qualifySession(listing: RadarListing, session: RadarSession | nu
   const elig = session?.eligibility ?? listing.eligibility ?? null;
   const e = checkEligibility(elig, facts, session?.date);
   if (e.outcome === "fail") fail.push(...e.reasons); else if (e.outcome === "unknown") unknown.push(...e.reasons);
+
+  // kategoria rozgrywek (chłopcy/dziewczęta/mieszane): tylko wtedy, gdy źródło ją ogranicza albo zawodnik jawnie wybrał kategorię.
+  // Brak informacji w źródle NIE znaczy „dla wszystkich”; kategoria nigdy nie jest wyprowadzana z imienia, zdjęcia ani innych danych.
+  const audience = session?.eligibility?.audience ?? listing.eligibility?.audience;
+  if (audience === "male" || audience === "female") {
+    if (!facts.category) unknown.push("audience_missing");
+    else if (facts.category !== audience) fail.push("audience_out");
+  } else if (facts.category && audience !== "mixed") unknown.push("audience_missing");
 
   // pozycja
   if (listing.positions.scope === "unknown") unknown.push("listing_position_unknown");

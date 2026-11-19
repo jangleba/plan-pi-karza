@@ -33,6 +33,7 @@ const payload = (over: Record<string, unknown> = {}, listing: Record<string, unk
   evidence: [{ field: "organizer", quote: "APO Orły" }], ...over,
 });
 const upsert = async (p: unknown) => (await db.query<{ r: { id: string; status: string; created: boolean; changed: boolean } }>("select radar_upsert_listing($1::jsonb) as r", [JSON.stringify(p)])).rows[0]!.r;
+const q1 = async (sql: string, params: unknown[] = []) => (await db.query<Record<string, any>>(sql, params)).rows[0]!; // eslint-disable-line @typescript-eslint/no-explicit-any
 const row = async (id: string) => (await db.query<Record<string, unknown>>("select * from radar_listings where id = $1", [id])).rows[0]!;
 
 describe("zapis ogłoszenia i sesje", () => {
@@ -71,14 +72,38 @@ describe("zapis ogłoszenia i sesje", () => {
 
   it("organizer_confirmed_at zmienia się tylko, gdy treść niesie NOWSZE potwierdzenie; stara strona go nie odnawia", async () => {
     const base = { urlHash: "h-conf", url: "https://orly.example/conf" };
-    const a = await upsert(payload({ ...base, organizerConfirmedAt: "2026-11-10T08:00:00Z" }));
+    const ev = { method: "page_statement", evidence: "Informacja aktualna na dzień 10.11.2026" };
+    const a = await upsert(payload({ ...base, organizerConfirmedAt: "2026-11-10T08:00:00Z", organizerConfirmation: ev }));
     await upsert(payload({ ...base, organizerConfirmedAt: null })); // ponowne pobranie tej samej strony
     expect(iso((await row(a.id)).organizer_confirmed_at as unknown as number)).toBeDefined();
     expect(new Date((await row(a.id)).organizer_confirmed_at as string).toISOString()).toBe("2026-11-10T08:00:00.000Z");
-    await upsert(payload({ ...base, organizerConfirmedAt: "2026-11-05T08:00:00Z" })); // starsza data nie cofa
+    await upsert(payload({ ...base, organizerConfirmedAt: "2026-11-05T08:00:00Z", organizerConfirmation: ev })); // starsza data nie cofa
     expect(new Date((await row(a.id)).organizer_confirmed_at as string).toISOString()).toBe("2026-11-10T08:00:00.000Z");
-    await upsert(payload({ ...base, organizerConfirmedAt: "2026-11-18T08:00:00Z" }));
+    await upsert(payload({ ...base, organizerConfirmedAt: "2026-11-18T08:00:00Z", organizerConfirmation: { ...ev, evidence: "Potwierdzamy: nabór nadal trwa (18.11.2026)" } }));
     expect(new Date((await row(a.id)).organizer_confirmed_at as string).toISOString()).toBe("2026-11-18T08:00:00.000Z");
+    expect((await q1("select organizer_confirmation->>'evidence' as e from radar_listings where id = $1", [a.id])).e).toMatch(/Potwierdzamy/);
+  });
+
+  it("potwierdzenie organizatora wymaga dowodu: sama data (bez method/evidence) jest ignorowana, a data aktualizacji strony zapisuje się osobno", async () => {
+    const base = { urlHash: "h-page", url: "https://orly.example/page" };
+    const a = await upsert(payload({ ...base, organizerConfirmedAt: "2026-11-10T08:00:00Z", pageUpdatedAt: "2026-11-12T08:00:00Z" }));
+    const r = await row(a.id);
+    expect(r.organizer_confirmed_at).toBeNull();
+    expect(new Date(r.page_updated_at as string).toISOString()).toBe("2026-11-12T08:00:00.000Z");
+    await expect(db.query("update radar_listings set organizer_confirmed_at = now() where id = $1", [a.id])).rejects.toThrow(/radar_confirmed_needs_evidence/); // ograniczenie w bazie
+    await upsert(payload({ ...base, organizerConfirmedAt: "2026-11-10T08:00:00Z", organizerConfirmation: { method: "admin_contact", evidence: "x" } })); // metoda tylko dla administratora
+    expect((await row(a.id)).organizer_confirmed_at).toBeNull();
+  });
+
+  it("akcja administratora „confirm” wymaga notatki-dowodu i zapisuje metodę admin_contact", async () => {
+    const a = await upsert(payload({ urlHash: "h-adm", url: "https://orly.example/adm" }));
+    await expect(asRole(db, "authenticated", ADMIN, () => db.query("select radar_admin_set_listing($1, 'confirm', null)", [a.id]))).rejects.toThrow(/wymaga notatki/);
+    await expect(asRole(db, "authenticated", ADMIN, () => db.query("select radar_admin_set_listing($1, 'confirm', 'ok')", [a.id]))).rejects.toThrow(/wymaga notatki/);
+    await asRole(db, "authenticated", ADMIN, () => db.query("select radar_admin_set_listing($1, 'confirm', 'odpowiedź e-mail organizatora z 12.11.2026')", [a.id]));
+    const r = await row(a.id);
+    expect(r.organizer_confirmed_at).not.toBeNull();
+    expect((await q1("select organizer_confirmation as c from radar_listings where id = $1", [a.id])).c).toMatchObject({ method: "admin_contact", evidence: expect.stringContaining("12.11.2026") });
+    expect(JSON.stringify((await db.query("select radar_listing_json(l) as j from radar_listings l where id = $1", [a.id])).rows[0])).toContain("organizerConfirmation");
   });
 
   it("niejednoznaczne ogłoszenie trafia do kontroli (pending_review), a wycofane przez administratora zostaje wycofane", async () => {
@@ -157,8 +182,8 @@ describe("parytet reguł aktualności SQL ↔ TypeScript", () => {
     let compared = 0;
     for (const signup of signups) for (const chk of checks) for (const shape of shapes) for (const cl of closes) {
       const rec = await db.query<{ id: string }>(
-        `insert into radar_listings (url, url_hash, kind, organizer, summary, signup_status, indefinite, signup_closes_at, status, source_checked_at, organizer_confirmed_at)
-         values ('https://x.example/' || gen_random_uuid(), gen_random_uuid()::text, 'testy', 'O', 'S', $1, $2, $3, 'published', $4, $5) returning id`,
+        `insert into radar_listings (url, url_hash, kind, organizer, summary, signup_status, indefinite, signup_closes_at, status, source_checked_at, organizer_confirmed_at, organizer_confirmation)
+         values ('https://x.example/' || gen_random_uuid(), gen_random_uuid()::text, 'testy', 'O', 'S', $1, $2, $3, 'published', $4, $5, case when $5::timestamptz is null then null else '{"method":"page_statement","evidence":"aktualne na dzień"}'::jsonb end) returning id`,
         [signup, shape.indefinite, cl === null ? null : iso(NOW_MS + cl), chk === null ? null : iso(NOW_MS - chk), shape.confirmed === null ? null : iso(NOW_MS - shape.confirmed)]);
       const id = rec.rows[0]!.id;
       for (const [i, s] of shape.sessions.entries()) {

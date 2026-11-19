@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { callExtractor, looksLikeOpportunity, normalizeExtraction, quoteSupported } from "../../supabase/functions/_shared/radar/extract.ts";
+import { callExtractor, looksLikeOpportunity, normalizeExtraction, quoteSupported, redactContacts } from "../../supabase/functions/_shared/radar/extract.ts";
 import { evaluateListing } from "../../supabase/functions/_shared/radar/recommend.ts";
 import type { RadarListing } from "../../supabase/functions/_shared/radar/types.ts";
 import { hoursAgo, player } from "./fixtures.ts";
@@ -169,5 +169,71 @@ describe("filtr wstępny i wywołanie modelu", () => {
     expect(rate).toEqual({ ok: false, error: "rate_limited", status: 429 });
     const boom = await callExtractor({ fetch: (async () => { throw new Error("sieć"); }) as unknown as typeof fetch, apiKey: "k", model: "m" }, { url: "u", title: "", text: "" });
     expect(boom.ok).toBe(false);
+  });
+});
+
+describe("wyjątek zgody, kategoria rozgrywek, dokumenty", () => {
+  const SRC = `${TEXT}\nMłodsi zawodnicy mogą wziąć udział wyłącznie za zgodą trenera. Zgoda rodzica jest wymagana przy zapisie. Testy dla dziewcząt.`;
+  const withElig = (extra: Record<string, unknown>) => {
+    const g = good();
+    g.sessions[0]!.eligibility = { ...g.sessions[0]!.eligibility, ...extra } as never;
+    return normalizeExtraction(g, SRC, NOW_MS).draft!.sessions[0]!.eligibility!;
+  };
+  it("wyjątek bez zweryfikowanego cytatu o zakresie ma zakres „nieznany”, nie „outside_base”", () => {
+    expect(withElig({ consent_exception: "młodsi za zgodą trenera", consent_scope: "outside_base" }).consentScope).toBe("unknown");
+    expect(withElig({ consent_exception: "młodsi za zgodą trenera", consent_scope: "outside_base", consent_evidence: "tego nie ma w tekście" }).consentScope).toBe("unknown");
+    expect(withElig({ consent_exception: "młodsi za zgodą trenera", consent_scope: "outside_base", consent_evidence: "Młodsi zawodnicy mogą wziąć udział wyłącznie za zgodą trenera" }).consentScope).toBe("outside_base");
+    expect(withElig({ consent_exception: "x za zgodą", consent_scope: "all" }).consentScope).toBe("all");
+    expect(withElig({}).consentScope).toBeUndefined();
+  });
+  it("zwykły dokument przy zapisie trafia do requiredDocuments (informacja), nie do wyjątku", () => {
+    const e = withElig({ required_documents: ["zgoda rodzica", "", 5] });
+    expect(e.requiredDocuments).toEqual(["zgoda rodzica"]);
+    expect(e.consentException).toBeUndefined();
+  });
+  it("kategoria rozgrywek tylko z cytatem zawierającym określenie kategorii; nigdy z samego twierdzenia modelu", () => {
+    expect(withElig({ audience: "female", audience_evidence: "Testy dla dziewcząt" }).audience).toBe("female");
+    expect(withElig({ audience: "female" }).audience).toBeUndefined(); // brak cytatu
+    expect(withElig({ audience: "female", audience_evidence: "Testy są bezpłatne" }).audience).toBeUndefined(); // cytat bez określenia kategorii
+    expect(withElig({ audience: "male", audience_evidence: "Testy dla dziewcząt" }).audience).toBeUndefined(); // cytat przeczy twierdzeniu
+    expect(withElig({ audience: "mixed", audience_evidence: "Testy są bezpłatne" }).audience).toBeUndefined(); // „mixed” też wymaga dowodu
+    expect(withElig({ audience: "unknown" }).audience).toBeUndefined();
+  });
+});
+
+describe("data aktualizacji strony ≠ potwierdzenie organizatora", () => {
+  const SRC = `${TEXT}\nZaktualizowano: 18 listopada 2026. Informacja aktualna na dzień 18.11.2026 – potwierdzamy, że nabór nadal trwa.`;
+  const run = (extra: Record<string, unknown>) => normalizeExtraction({ ...good(), ...extra }, SRC, NOW_MS);
+  it("„Zaktualizowano” trafia tylko do pageUpdatedAt; potwierdzenia organizatora nie ma", () => {
+    const d = run({ page_updated_at: q("2026-11-18", "Zaktualizowano: 18 listopada 2026") }).draft!;
+    expect(d.pageUpdatedAt).toBe("2026-11-18");
+    expect(d.organizerConfirmation).toBeNull();
+  });
+  it("stare pole organizer_updated_at jest nadal tylko datą strony (nie potwierdzeniem)", () => {
+    const d = run({ organizer_updated_at: q("2026-11-18", "Zaktualizowano: 18 listopada 2026") }).draft!;
+    expect(d.pageUpdatedAt).toBe("2026-11-18");
+    expect(d.organizerConfirmation).toBeNull();
+  });
+  it("potwierdzenie wymaga jawnego oświadczenia z cytatem; sama data aktualizacji w polu potwierdzenia jest odrzucana", () => {
+    const ok = run({ organizer_confirmation: q("2026-11-18", "Informacja aktualna na dzień 18.11.2026 – potwierdzamy, że nabór nadal trwa") });
+    expect(ok.draft!.organizerConfirmation).toEqual({ date: "2026-11-18", evidence: "Informacja aktualna na dzień 18.11.2026 – potwierdzamy, że nabór nadal trwa" });
+    const wrong = run({ organizer_confirmation: q("2026-11-18", "Zaktualizowano: 18 listopada 2026") });
+    expect(wrong.draft!.organizerConfirmation).toBeNull();
+    expect(wrong.issues.some((i) => i.field === "organizer_confirmation")).toBe(true);
+    expect(run({ organizer_confirmation: q("2026-11-18", "tego nie ma w źródle, aktualne na dzień") }).draft!.organizerConfirmation).toBeNull();
+    expect(run({ organizer_confirmation: q("2026-12-31", "Informacja aktualna na dzień 18.11.2026") }).draft!.organizerConfirmation).toBeNull(); // data z przyszłości
+  });
+});
+
+describe("minimalizacja danych wysyłanych do zewnętrznego modelu", () => {
+  it("usuwa adresy e-mail i numery telefonów, zostawia treść ogłoszenia", () => {
+    const t = redactContacts("Kontakt: trener.jan@klub.pl lub +48 600 123 456, tel. 600-123-456, 600123456, 12 345 67 89. Testy 24 listopada, roczniki 2012–2013, godz. 17:00, ul. Sportowa 1.");
+    expect(t).not.toMatch(/@|600|123 456|345 67/);
+    expect(t).toContain("[e-mail usunięty]");
+    expect(t).toContain("Testy 24 listopada, roczniki 2012–2013, godz. 17:00, ul. Sportowa 1.");
+  });
+  it("model nie może „zacytować” usuniętych danych: cytat z adresem e-mail nie przechodzi weryfikacji", () => {
+    const redacted = redactContacts(`${TEXT}\nKontakt: trener.jan@klub.pl`);
+    expect(quoteSupported("Kontakt: trener.jan@klub.pl", redacted)).toBe(false);
   });
 });

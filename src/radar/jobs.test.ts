@@ -11,7 +11,7 @@ let src: string;
 const D1 = () => day(5), D2 = () => day(6);
 
 /** Treść ogłoszenia z dwiema sesjami i odpowiadające jej poprawne wyjście modelu (cytaty wzięte z tej treści). */
-function announcement(title: string, o: { closed?: boolean; firstDate?: string; update?: string } = {}) {
+function announcement(title: string, o: { closed?: boolean; firstDate?: string; update?: string; confirm?: string } = {}) {
   const d1 = o.firstDate ?? D1(), d2 = D2();
   const lines = {
     org: "Akademia Piłkarska Orły Kraków zaprasza na otwarte testy piłkarskie",
@@ -22,15 +22,17 @@ function announcement(title: string, o: { closed?: boolean; firstDate?: string; 
     signup: o.closed ? "Zapisy zostały zamknięte" : "Zgłoszenia indywidualne przyjmujemy do końca tygodnia",
     pos: "Zapraszamy zawodników z pola i bramkarzy",
     upd: o.update ? `Aktualizacja ogłoszenia: ${plDate(o.update)}` : "",
+    conf: o.confirm ? `Informacja aktualna na dzień ${plDate(o.confirm)}, potwierdzamy, że nabór nadal trwa` : "",
   };
-  const html = article(title, `${lines.org}! ${lines.s1}. ${lines.s2}. ${lines.place}. ${lines.cost}. ${lines.signup}. ${lines.pos}. Rocznik, wiek i testy – szczegóły. ${lines.upd}`);
+  const html = article(title, `${lines.org}! ${lines.s1}. ${lines.s2}. ${lines.place}. ${lines.cost}. ${lines.signup}. ${lines.pos}. Rocznik, wiek i testy – szczegóły. ${lines.upd} ${lines.conf}`);
   const extraction = {
     is_opportunity: true, kind: "testy", organizer: q("Akademia Piłkarska Orły Kraków", lines.org), city: q("Kraków", "Hala Orłów, Kraków"), venue: q("Hala Orłów", "Miejsce: Hala Orłów"),
     summary: "Otwarte testy w Krakowie dla kilku roczników, w dwóch terminach.",
     signup_status: q(o.closed ? "closed" : "open", o.closed ? lines.signup : "Zgłoszenia indywidualne przyjmujemy do końca tygodnia"),
     signup_mode: q("individual", "Zgłoszenia indywidualne przyjmujemy"),
     cost: { state: "free", evidence: lines.cost }, positions: { scope: "all", evidence: lines.pos },
-    ...(o.update ? { organizer_updated_at: q(o.update, `Aktualizacja ogłoszenia: ${plDate(o.update)}`) } : {}),
+    ...(o.update ? { page_updated_at: q(o.update, `Aktualizacja ogłoszenia: ${plDate(o.update)}`) } : {}),
+    ...(o.confirm ? { organizer_confirmation: q(o.confirm, `Informacja aktualna na dzień ${plDate(o.confirm)}, potwierdzamy, że nabór nadal trwa`) } : {}),
     sessions: [
       { date: d1, start_time: "17:00", evidence: lines.s1, eligibility: { birth_years: [{ op: "range", from: 2012, to: 2013 }], evidence: "roczniki 2012–2013" } },
       { date: d2, start_time: "17:00", evidence: lines.s2, eligibility: { birth_years: [{ op: "in", years: [2014] }], evidence: "rocznik 2014" } },
@@ -308,7 +310,7 @@ describe("refresh: odświeżanie aktywnych ofert", () => {
   });
 
   it("nabór bezterminowy z potwierdzeniem organizatora jest aktualny 7 dni; ponowne pobranie tej samej strony go nie przedłuża", async () => {
-    const a = announcement("Nabór cały rok", { update: day(-1) });
+    const a = announcement("Nabór cały rok", { update: day(-1), confirm: day(-1) });
     a.extraction.sessions = [];
     (a.extraction as Record<string, unknown>).indefinite = q("true", "Nabór prowadzimy przez cały rok");
     (a.extraction as Record<string, unknown>).eligibility_default = { birth_years: [{ op: "range", from: 2012, to: 2014 }], evidence: "roczniki 2012–2013" };
@@ -323,6 +325,10 @@ describe("refresh: odświeżanie aktywnych ofert", () => {
     const row = (await db.query<{ status: string; indefinite: boolean; c: string }>("select status, indefinite, organizer_confirmed_at as c from radar_listings")).rows[0]!;
     expect([row.status, row.indefinite]).toEqual(["published", true]);
     expect(row.c).not.toBeNull();
+    const meta = (await db.query<{ m: { method: string; evidence: string }; p: string | null }>("select organizer_confirmation as m, page_updated_at as p from radar_listings")).rows[0]!;
+    expect(meta.m.method).toBe("page_statement");
+    expect(meta.m.evidence).toMatch(/potwierdzamy/);
+    expect(meta.p).not.toBeNull(); // data aktualizacji strony zapisana osobno
     expect((await db.query<{ f: { listings: unknown[] } }>("select radar_feed() as f")).rows[0]!.f.listings).toHaveLength(1);
     // minęło 8 dni od potwierdzenia, strona ta sama (stara) – ponowne pobranie nie odnawia potwierdzenia
     await db.exec("update radar_listings set organizer_confirmed_at = now() - interval '8 days', source_checked_at = now() - interval '7 hours'");
@@ -330,6 +336,37 @@ describe("refresh: odświeżanie aktywnych ofert", () => {
     expect((await db.query<{ f: { listings: unknown[] } }>("select radar_feed() as f")).rows[0]!.f.listings).toHaveLength(0);
     await db.query("select radar_run_expire()");
     expect((await db.query<{ status: string }>("select status from radar_listings")).rows[0]!.status).toBe("expired");
+  });
+
+  it("sama data aktualizacji strony NIE jest potwierdzeniem organizatora: nabór bezterminowy nie jest wtedy aktualny", async () => {
+    const a = announcement("Nabór cały rok", { update: day(-1) }); // „Aktualizacja ogłoszenia: …”, bez oświadczenia o aktualności
+    a.extraction.sessions = [];
+    (a.extraction as Record<string, unknown>).indefinite = q("true", "Nabór prowadzimy przez cały rok");
+    (a.extraction as Record<string, unknown>).eligibility_default = { birth_years: [{ op: "range", from: 2012, to: 2013 }], evidence: "roczniki 2012–2013" };
+    const html = a.html.replace("Rocznik, wiek i testy", "Nabór prowadzimy przez cały rok. Rocznik, wiek i testy");
+    web.set("https://orly-fc.pl/feed.xml", { body: feed("https://orly-fc.pl/aktualnosci/ciagly"), type: "application/rss+xml" });
+    web.set("https://orly-fc.pl/aktualnosci/ciagly", html);
+    web.anthropic = () => a.extraction;
+    await runDiscover(deps(web, db));
+    const row = (await db.query<{ c: string | null; m: unknown; p: string | null }>("select organizer_confirmed_at as c, organizer_confirmation as m, page_updated_at as p from radar_listings")).rows[0]!;
+    expect(row.c).toBeNull();
+    expect(row.m).toBeNull();
+    expect(row.p).not.toBeNull();
+    expect((await db.query<{ f: { listings: unknown[] } }>("select radar_feed() as f")).rows[0]!.f.listings).toHaveLength(0);
+  });
+
+  it("do modelu nie trafiają adresy e-mail ani numery telefonów z treści strony", async () => {
+    const a = announcement("Testy z kontaktem");
+    const html = a.html.replace("Rocznik, wiek i testy", "Kontakt: trener.jan@orly-fc.pl, tel. +48 600 123 456. Rocznik, wiek i testy");
+    web.set("https://orly-fc.pl/feed.xml", { body: feed("https://orly-fc.pl/aktualnosci/testy-z-trenerem"), type: "application/rss+xml" });
+    web.set("https://orly-fc.pl/aktualnosci/testy-z-trenerem", html);
+    web.anthropic = () => a.extraction;
+    await runDiscover(deps(web, db));
+    expect(web.anthropicSent.length).toBeGreaterThan(0);
+    for (const sent of web.anthropicSent) {
+      expect(sent).not.toMatch(/trener\.jan@|600 123 456/);
+      expect(sent).toContain("[e-mail usunięty]");
+    }
   });
 });
 

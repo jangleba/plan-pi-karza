@@ -77,6 +77,15 @@ export function RadarSetup({ profile, birth, prefs, onBirth, onPrefs, onDone }: 
         </div>
       </Field>
 
+      <Field label="Kategoria rozgrywek (opcjonalnie)">
+        <div className="flex flex-wrap gap-2">
+          {([[null, "Bez filtra"], ["male", "Chłopcy / mężczyźni"], ["female", "Dziewczęta / kobiety"]] as const).map(([c, t]) => (
+            <button key={String(c)} aria-pressed={prefs.category === c} onClick={() => onPrefs({ ...prefs, category: c })} className={chip(prefs.category === c)}>{t}</button>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-muted">Wybierasz Ty – nic nie wnioskujemy z imienia ani zdjęcia. Pomaga pominąć oferty tylko dla drugiej kategorii. Jeśli ogłoszenie nie podaje kategorii, nie zakładamy, że jest dla wszystkich – pokażemy je w „Do sprawdzenia u organizatora”. Wybór zostaje na tym urządzeniu.</p>
+      </Field>
+
       <Field label="Rodzaj ofert">
         <div className="flex flex-wrap gap-2">
           {kinds.map(([k, t]) => {

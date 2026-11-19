@@ -181,8 +181,9 @@ function Sources() {
 function Review() {
   const q = useLoad(async () => must(await supabase!.from("radar_listings").select("id,url,kind,organizer,summary,status,review_reasons,requirements_text,city,source_checked_at,radar_sessions(*),radar_evidence(field,quote)").in("status", ["pending_review", "published"]).order("status").order("updated_at", { ascending: false }).limit(60) as never) as Listing[], []);
   const act = async (id: string, action: "publish" | "withdraw" | "confirm") => {
-    const reason = action === "withdraw" ? window.prompt("Powód wycofania") ?? "" : null;
-    if (action === "withdraw" && !reason) return;
+    const reason = action === "withdraw" ? window.prompt("Powód wycofania") ?? ""
+      : action === "confirm" ? window.prompt("Dowód potwierdzenia przez organizatora (kto, kiedy, w jaki sposób – np. „odpowiedź e-mail z 12.11”)") ?? "" : null;
+    if ((action === "withdraw" || action === "confirm") && !reason) return;
     must(await supabase!.rpc("radar_admin_set_listing", { p_id: id, p_action: action, p_reason: reason }) as never);
     q.reload();
   };
@@ -202,7 +203,7 @@ function Review() {
           {l.radar_evidence.length > 0 && <details className="mt-2 text-xs text-muted"><summary>Dowody ({l.radar_evidence.length})</summary><ul className="mt-1">{l.radar_evidence.map((e, i) => <li key={i}><b>{e.field}:</b> „{e.quote}”</li>)}</ul></details>}
           <div className="mt-3 flex flex-wrap gap-2">
             {l.status === "pending_review" && <button className={`${btn} bw-grad font-medium`} onClick={() => void act(l.id, "publish")}>Publikuj</button>}
-            <button className={`${btn} border border-hairline`} onClick={() => void act(l.id, "confirm")}>Potwierdzono u organizatora</button>
+            <button className={`${btn} border border-hairline`} onClick={() => void act(l.id, "confirm")}>Organizator potwierdził (wpisz dowód)</button>
             <button className={`${btn} border border-hairline`} onClick={() => void act(l.id, "withdraw")}>Wycofaj</button>
           </div>
         </article>

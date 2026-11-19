@@ -1,4 +1,4 @@
-import type { BirthYearRule, Eligibility, Evaluation, ListingKind, PositionRule, RadarListing, RadarSession, SignupStatus } from "./lib";
+import type { Audience, BirthYearRule, Eligibility, Evaluation, ListingKind, PositionRule, RadarListing, RadarSession, ReasonCode, SignupStatus } from "./lib";
 import { LISTING_KINDS } from "./lib";
 import { POSITION_LABEL } from "../engine/profile";
 
@@ -71,3 +71,34 @@ export function nextSessionText(e: Evaluation): { when: string; elig: string; mo
 }
 
 export const distanceText = (km: number | null) => (km === null ? null : km <= 2 ? "w Twojej miejscowości" : `ok. ${km} km`);
+
+export const audienceText = (a: Audience | undefined): string | null =>
+  a === "male" ? "kategoria: chłopcy/mężczyźni" : a === "female" ? "kategoria: dziewczęta/kobiety" : a === "mixed" ? "kategoria: otwarta dla obu" : null;
+
+/** Dodatkowe informacje z ogłoszenia, których nie wolno pominąć przy ocenie szans (wyjątek za zgodą, dokumenty, kategoria). */
+export function eligibilityNotes(e: Eligibility | null | undefined): string[] {
+  if (!e) return [];
+  const notes: string[] = [];
+  const aud = audienceText(e.audience);
+  if (aud) notes.push(aud);
+  if (e.consentException) notes.push(`wyjątek za zgodą organizatora: „${e.consentException}”${e.consentScope === "outside_base" ? " (dotyczy osób spoza podanych kryteriów)" : " – sprawdź u organizatora, czy dotyczy także Ciebie"}`);
+  if (e.requiredDocuments?.length) notes.push(`przy zapisie: ${e.requiredDocuments.join(", ")}`);
+  return notes;
+}
+
+/** Dlaczego oferta nie jest pokazana jako „pasuje”, a wymaga Twojego ruchu (nie braku danych profilu). */
+export const REASON_TEXT: Partial<Record<ReasonCode, string>> = {
+  consent_exception: "Wiek się zgadza, ale organizator opisuje zgodę/akceptację jako warunek udziału. Sprawdź u organizatora, czy dotyczy także Ciebie.",
+  audience_missing: "Ogłoszenie nie podaje kategorii (chłopcy/dziewczęta) albo nie wybrano jej w kryteriach. Sprawdź u organizatora.",
+};
+
+/** Daty aktualności: aktualizacja STRONY to co innego niż potwierdzenie ogłoszenia przez organizatora. */
+export function freshnessLines(l: Pick<RadarListing, "pageUpdatedAt" | "organizerConfirmedAt" | "organizerConfirmation">, nowMs: number): string[] {
+  const out: string[] = [];
+  if (l.pageUpdatedAt) out.push(`strona zaktualizowana: ${ago(l.pageUpdatedAt, nowMs)} (data ze strony, to nie potwierdzenie organizatora)`);
+  if (l.organizerConfirmedAt) {
+    const how = l.organizerConfirmation?.method === "admin_contact" ? "kontakt z organizatorem zapisany przez nas" : "oświadczenie organizatora na stronie";
+    out.push(`potwierdzone przez organizatora: ${ago(l.organizerConfirmedAt, nowMs)} (${how})`);
+  }
+  return out;
+}

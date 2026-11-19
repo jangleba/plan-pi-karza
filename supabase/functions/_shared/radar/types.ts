@@ -12,6 +12,12 @@ export const LISTING_KINDS: Array<[ListingKind, string]> = [
   ["nabor", "Nabór"], ["testy", "Testy"], ["trening_otwarty", "Trening otwarty"], ["testy_bramkarskie", "Testy bramkarskie"], ["inne", "Inne"],
 ];
 
+export type ConsentScope = "outside_base" | "all" | "unknown";
+/** Kategoria rozgrywek według źródła: tylko chłopcy / tylko dziewczęta / wprost otwarte dla obu / źródło nie rozstrzyga. */
+export type Audience = "male" | "female" | "mixed" | "unknown";
+/** Kategoria wybrana PRZEZ ZAWODNIKA (nigdy wywnioskowana z imienia, zdjęcia ani innych danych). */
+export type PlayerCategory = "male" | "female";
+
 /** Reguła rocznika (rok urodzenia). Lista reguł w `Eligibility.birthYears` łączy się przez LUB. */
 export type BirthYearRule =
   | { op: "in"; years: number[] } // „2010 i 2012” = 2010 LUB 2012 (nie 2011)
@@ -31,8 +37,19 @@ export interface Eligibility {
   ageLimits?: AgeLimit[];
   /** Sama etykieta („U17”, „junior”) nie wystarcza bez potwierdzonych zasad. */
   categoryLabel?: string;
-  /** Wyjątek wymagający zgody (np. „młodsi za zgodą trenera”) – nigdy nie jest spełniony automatycznie. */
+  /** Wyjątek wymagający zgody organizatora (np. „młodsi za zgodą trenera”) – nigdy nie jest spełniony automatycznie. */
   consentException?: string;
+  /**
+   * Zakres wyjątku:
+   *  – "outside_base": zgoda dotyczy tylko osób SPOZA podstawowych kryteriów (kto spełnia kryteria, nie potrzebuje wyjątku),
+   *  – "all": zgoda/akceptacja organizatora jest warunkiem udziału także dla spełniających kryteria,
+   *  – "unknown" (albo brak pola przy `consentException`): nie wiemy, więc spełnienie kryteriów NIE wystarcza do MATCH.
+   */
+  consentScope?: ConsentScope;
+  /** Zwykłe dokumenty przy zapisie (np. zgoda rodzica, badania). Informacja dla zawodnika; nie wpływa na kwalifikację. */
+  requiredDocuments?: string[];
+  /** Kategoria rozgrywek wskazana w źródle. Brak pola = źródło nie podaje (to NIE znaczy „dla wszystkich”). */
+  audience?: Audience;
   /** Niejednoznaczność wykryta przy odczycie – blokuje rekomendację. */
   ambiguous?: string;
 }
@@ -89,7 +106,18 @@ export interface RadarListing {
   publishedAt?: string | null;
   status: ListingStatus;
   sourceCheckedAt?: string | null;
+  /** Data aktualizacji STRONY podana na stronie (nie jest potwierdzeniem aktualności ogłoszenia przez organizatora). */
+  pageUpdatedAt?: string | null;
+  /** Moment JAWNEGO potwierdzenia aktualności przez organizatora (oświadczenie na stronie albo kontakt zapisany przez administratora). */
   organizerConfirmedAt?: string | null;
+  /** Sposób i dowód potwierdzenia; bez tego `organizerConfirmedAt` nie powinno istnieć. */
+  organizerConfirmation?: OrganizerConfirmation | null;
+}
+
+export interface OrganizerConfirmation {
+  method: "page_statement" | "admin_contact";
+  /** Cytat ze strony albo notatka administratora (np. „odpowiedź e-mail organizatora z 12.11”). */
+  evidence: string;
 }
 
 /** Dane zawodnika do dopasowania; nigdy nie opuszczają urządzenia. */
@@ -98,6 +126,8 @@ export interface PlayerFacts {
   birthDate?: string | null;
   birthYear?: number | null;
   position?: Position | null;
+  /** Kategoria rozgrywek wybrana jawnie przez zawodnika; null = bez filtra kategorii. Zostaje na urządzeniu. */
+  category?: PlayerCategory | null;
   place?: { name: string; lat: number; lon: number } | null;
   /** null = cała Polska. */
   radiusKm: number | null;
@@ -110,6 +140,7 @@ export type Qualification = "MATCH" | "NO_MATCH" | "NEEDS_INFORMATION";
 export type ReasonCode =
   | "birth_year_missing" | "birth_year_out" | "age_out" | "age_ref_unspecified" | "needs_birthday"
   | "category_only" | "age_unknown" | "ambiguous" | "consent_exception"
+  | "audience_out" | "audience_missing"
   | "position_out" | "position_missing" | "listing_position_unknown"
   | "team_only" | "signup_mode_unknown"
   | "distance_out" | "distance_unknown" | "place_missing" | "kind_not_selected";

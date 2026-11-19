@@ -1,6 +1,6 @@
 import { braveSearch, type BraveDeps } from "./brave.ts";
 import { canonicalUrl, domainOf, hashText, sessionGroupKey } from "./dedup.ts";
-import { callExtractor, looksLikeOpportunity, normalizeExtraction, type ExtractorDeps, type ListingDraft } from "./extract.ts";
+import { callExtractor, looksLikeOpportunity, normalizeExtraction, redactContacts, type ExtractorDeps, type ListingDraft } from "./extract.ts";
 import { fetchSafe, type FetchDeps, type FetchResult } from "./fetcher.ts";
 import { classifyPage, extractLinks, extractTitle, findNextPage, htmlToText, parseFeed, parseSitemap } from "./html.ts";
 import { queriesForRun } from "./queries.ts";
@@ -86,12 +86,17 @@ const pathOf = (url: string): string => { const u = new URL(url); return u.pathn
 export function buildUpsertPayload(source: SourceRow, url: string, draft: ListingDraft, reviewReasons: string[], contentHash: string, nowMs: number) {
   const reasons = [...reviewReasons];
   if (!source.allowed_scope.publish_facts) reasons.push("źródło nie ma zgody na publikację faktów");
-  const confirmed = draft.organizerUpdatedAt && isISODate(draft.organizerUpdatedAt) && warsawStartOfDay(draft.organizerUpdatedAt) <= nowMs
-    ? new Date(warsawStartOfDay(draft.organizerUpdatedAt)).toISOString() : null;
+  // „Potwierdzone przez organizatora” tylko z jego jawnego oświadczenia (z cytatem). Data aktualizacji strony trafia osobno (pageUpdatedAt).
+  const conf = draft.organizerConfirmation;
+  const confirmed = conf && isISODate(conf.date) && warsawStartOfDay(conf.date) <= nowMs ? new Date(warsawStartOfDay(conf.date)).toISOString() : null;
+  const pageUpdated = draft.pageUpdatedAt && isISODate(draft.pageUpdatedAt) && warsawStartOfDay(draft.pageUpdatedAt) <= nowMs
+    ? new Date(warsawStartOfDay(draft.pageUpdatedAt)).toISOString() : null;
   const canon = canonicalUrl(url);
   return {
     url: canon, urlHash: hashText(canon), sourceId: source.id, contentHash, publish: reasons.length === 0, reviewReasons: [...new Set(reasons)],
     organizerConfirmedAt: confirmed,
+    organizerConfirmation: confirmed && conf ? { method: "page_statement", evidence: conf.evidence.slice(0, 600) } : null,
+    pageUpdatedAt: pageUpdated,
     listing: {
       kind: draft.kind, organizer: draft.organizer || source.name || source.domain, title: null, summary: draft.summary, city: draft.city, venue: draft.venue,
       lat: draft.lat, lon: draft.lon, positions: draft.positions, signupMode: draft.signupMode, signupStatus: draft.signupStatus, costState: draft.costState,
@@ -139,9 +144,11 @@ async function readPage(deps: Deps, source: SourceRow, url: string, robots: Robo
   const granted = (await deps.rpc("radar_budget_take", { p_kind: "ai", p_n: 1, p_limit: s.ai_daily_extraction_budget })) as number;
   if (!granted) { if (listing) await record("changed_unparsed", false, res.status, contentHash); return { kind: "budget" }; }
 
-  const ex = await callExtractor(deps.extractor, { url: res.finalUrl, title: extractTitle(res.body), text });
+  // Do zewnętrznego modelu idzie tylko tekst bez adresów e-mail i telefonów (dane kontaktowe osób); cytaty weryfikujemy względem tego samego tekstu.
+  const aiText = redactContacts(text);
+  const ex = await callExtractor(deps.extractor, { url: res.finalUrl, title: redactContacts(extractTitle(res.body)), text: aiText });
   if (!ex.ok) { await record(`extract_${ex.error}`, false, res.status, contentHash); return { kind: "invalid", outcome: `extract_${ex.error}`, retry: true }; }
-  const norm = normalizeExtraction(ex.raw, text, deps.nowMs());
+  const norm = normalizeExtraction(ex.raw, aiText, deps.nowMs());
   if (!norm.draft) {
     await record("ok", true, res.status, contentHash);
     if (listing) await deps.rpc("radar_set_listing_status", { p_id: listing.id, p_status: "expired", p_reason: "strona nie jest już ogłoszeniem" });

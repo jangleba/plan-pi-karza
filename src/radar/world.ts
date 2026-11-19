@@ -30,6 +30,8 @@ export class Web {
   braveStatus = 200;
   anthropic: (url: string) => unknown = () => ({ is_opportunity: false });
   anthropicStatus = 200;
+  /** Ostatnia treść wiadomości faktycznie wysłana do zewnętrznego modelu (do sprawdzania minimalizacji danych). */
+  anthropicSent: string[] = [];
   set(url: string, page: Page | string) { this.pages.set(url, typeof page === "string" ? { body: page } : page); }
   fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
@@ -37,6 +39,7 @@ export class Web {
     if (url.startsWith("https://api.anthropic.com")) {
       if (this.anthropicStatus !== 200) return new Response("", { status: this.anthropicStatus });
       const body = JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> };
+      this.anthropicSent.push(body.messages[0]!.content);
       const pageUrl = /Adres: (\S+)/.exec(body.messages[0]!.content)![1]!;
       return new Response(JSON.stringify({ content: [{ type: "tool_use", input: this.anthropic(pageUrl) }] }), { status: 200 });
     }
