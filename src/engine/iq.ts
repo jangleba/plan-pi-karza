@@ -68,6 +68,14 @@ export function snapshotAt(s: Scenario, t: number, player: Vec): Snapshot {
   };
 }
 
+/** Czy obrońca `d` zasłania tor od `a` do `b` – obrońca stojący za plecami podającego nie blokuje. */
+export function laneBlocked(d: Vec, a: Vec, b: Vec, radius = 1.8): boolean {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  if (len2 > 0 && ((d.x - a.x) * dx + (d.y - a.y) * dy) / len2 < 0) return false;
+  return distToSegment(d, a, b) < radius;
+}
+
 export function distToSegment(p: Vec, a: Vec, b: Vec): number {
   const dx = b.x - a.x, dy = b.y - a.y;
   const len2 = dx * dx + dy * dy;
@@ -94,10 +102,10 @@ export interface Option {
 
 const LANE_RADIUS = 1.8;
 
-function shotChance(snap: Snapshot): { p: number; blocked: boolean } {
+export function shotChance(snap: Snapshot): { p: number; blocked: boolean } {
   const goal = { x: GOAL.x, y: GOAL.y };
   const d = dist(snap.ball, goal);
-  const blocked = [...snap.defenders].some((x) => distToSegment(x, snap.ball, goal) < LANE_RADIUS);
+  const blocked = snap.defenders.some((x) => laneBlocked(x, snap.ball, goal, LANE_RADIUS));
   // prosty model: szansa maleje z dystansem; blokada zmniejsza 5-krotnie
   const p = Math.max(0.01, 0.5 * Math.exp(-d / 12)) * (blocked ? 0.2 : 1);
   return { p, blocked };
@@ -107,7 +115,7 @@ export function evaluate(snap: Snapshot): Option[] {
   const line = offsideLine(snap);
   const opts: Option[] = snap.mates.map((m) => {
     const offside = m.pos.x > line;
-    const blocked = snap.defenders.some((d) => distToSegment(d, snap.ball, m.pos) < LANE_RADIUS);
+    const blocked = snap.defenders.some((d) => laneBlocked(d, snap.ball, m.pos, LANE_RADIUS));
     const open = Math.min(8, Math.min(...snap.defenders.map((d) => dist(d, m.pos))));
     const progress = (m.pos.x - snap.ball.x) * 0.6;
     const behindLine = !offside && m.pos.x > line - 6 ? 8 : 0;

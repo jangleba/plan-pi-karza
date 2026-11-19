@@ -1,31 +1,37 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { GOAL, SCENARIO_RUN_IN_BEHIND as S, compare, snapshotAt } from "./engine";
-import type { Snapshot, Vec, Verdict } from "./engine";
-import { TacticalBoard } from "./TacticalBoard";
+import { GOAL } from "./engine";
+import type { Vec } from "./engine";
+import { VARIANTS, createScenario, headline, keyMoments, pass, setUser, shoot, step } from "./engine/sim";
+import type { OutcomeKind, Variant, World } from "./engine/sim";
 import { Sheet } from "./Sheet";
 import { LargeTitle } from "./ui";
 import { FIELD, headingOf, makeBall, makeGoal, pitchTexture, skyTexture } from "./iq/scene";
 import { ActorFactory, loadActorAssets, type Actor, type ActorAssets } from "./iq/actors";
+import { drive, followCamera, turnTo, type Drive } from "./iq/control";
 
-const SPEED = 6.5;
 const BALL_R = 0.16;
-interface Result { snap: Snapshot; verdict: Verdict }
-type Phase = "loading" | "intro" | "play" | "kick" | "flight" | "done";
+interface Result { kind: OutcomeKind; moments: string[]; variant: Variant }
+type Phase = "loading" | "intro" | "play" | "kick" | "done";
+type Possession = "me" | "mate" | "foe" | "loose";
 
 const Y = new THREE.Vector3(0, 1, 0);
 
 export default function IQ() {
   const mount = useRef<HTMLDivElement>(null);
   const joy = useRef({ x: 0, y: 0 });
+  const arrow = useRef<HTMLDivElement>(null);
   const act = useRef<"pass" | "shot" | null>(null);
   const phaseRef = useRef<Phase>("loading");
-  const reset = useRef<() => void>(() => {});
+  const reset = useRef<(next: boolean) => void>(() => {});
+  const attempt = useRef(0);
   const [phase, setPhase] = useState<Phase>("loading");
   const [result, setResult] = useState<Result | null>(null);
   const [clock, setClock] = useState(0);
   const [aimName, setAimName] = useState<string | null>(null);
   const [fallback, setFallback] = useState(false);
+  const [variant, setVariant] = useState<Variant>(0);
+  const [poss, setPoss] = useState<Possession>("me");
 
   const setP = (p: Phase) => { phaseRef.current = p; setPhase(p); };
 
@@ -74,16 +80,22 @@ export default function IQ() {
       pitch.rotation.x = -Math.PI / 2; pitch.position.set(FIELD.w / 2, 0, FIELD.h / 2); pitch.receiveShadow = true; scene.add(pitch);
       scene.add(makeGoal(FIELD.w, 1), makeGoal(0, -1));
 
-      // jedna drużyna – jeden strój (Ty: pierścień pod stopami i numer 8)
+      // symulacja: 17 żywych zawodników (nasza drużyna z Tobą + rywale z bramkarzami)
+      let world: World = createScenario(attempt.current % 3 as Variant, 1 + attempt.current);
+      const P0 = world.agents.find((a) => a.id === "P")!;
+
       const factory = new ActorFactory(assets);
       const home = { jersey: 0x2f6fb3, shorts: 0xffffff, socks: 0x2f6fb3, collar: 0xffffff };
       const away = { jersey: 0xc8443f, shorts: 0x1d1d1f, socks: 0xc8443f, collar: 0x1d1d1f };
-      const me = factory.make({ ...home, number: 8 }, 0);
-      const mateNumbers = [9, 11, 6];
-      const mates = S.mates.map((_, i) => factory.make({ ...home, number: mateNumbers[i] ?? 10 + i }, i + 1));
-      const defs = [...S.backLine, ...S.pressers].map((_, i) => factory.make({ ...away, number: [2, 4, 5, 3, 6, 8][i] ?? 14 }, i + 2, "defend"));
-      const gk = factory.make({ jersey: 0xe0b23a, shorts: 0x1d1d1f, socks: 0x1d1d1f, collar: 0x1d1d1f, number: 1, keeper: true, gloves: 0xe9eef3 }, 3, "keeper");
-      for (const a of [me, ...mates, ...defs, gk]) scene.add(a.root);
+      const keeperKit = (jersey: number) => ({ jersey, shorts: 0x1d1d1f, socks: 0x1d1d1f, collar: 0x1d1d1f, keeper: true, gloves: 0xe9eef3 });
+      const actors = new Map<string, Actor>();
+      world.agents.forEach((a, i) => {
+        const gkp = a.role === "GK";
+        const kit = gkp ? { ...keeperKit(a.team === "us" ? 0xe0b23a : 0x4a9a63), number: a.number } : { ...(a.team === "us" ? home : away), number: a.number };
+        const actor = factory.make(kit, i, gkp ? "keeper" : a.team === "them" ? "defend" : "run");
+        actors.set(a.id, actor); scene.add(actor.root);
+      });
+      const me = actors.get("P")!;
       const ball = makeBall(); scene.add(ball);
 
       // celowanie: pierścień pod adresatem i przerywana linia
@@ -92,29 +104,32 @@ export default function IQ() {
       const aimLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
         new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.6, gapSize: 0.4, transparent: true, opacity: 0.85 }));
       scene.add(aimLine);
+      const foeRing = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.78, 32), new THREE.MeshBasicMaterial({ color: 0xe0554f, transparent: true, opacity: 0.95, side: THREE.DoubleSide }));
+      foeRing.rotation.x = -Math.PI / 2; foeRing.visible = false; scene.add(foeRing);
       const meMarker = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.62, 32), new THREE.MeshBasicMaterial({ color: 0x8ec1f0, side: THREE.DoubleSide }));
       meMarker.rotation.x = -Math.PI / 2; scene.add(meMarker);
 
-      let player: Vec = { ...S.player };
+      // sterowanie jak w samochodzie: kierunek zawodnika + kamera, która go płynnie dogania
+      const dr: Drive = { x: P0.pos.x, y: P0.pos.y, heading: 0, speed: 0, cam: 0 };
+      let player: Vec = { x: dr.x, y: dr.y };
       let facing: Vec = { x: 1, y: 0 };
-      let t = 0;
       const prev = new Map<Actor, Vec>();
-      // kopnięcie: zamach → kontakt (piłka opuszcza stopę) → lot
-      let kickSt: { elapsed: number; contactIn: number; spotW: THREE.Vector3; startW: THREE.Vector3; to: Vec; a: "pass" | "shot"; yaw: number; verdict: Verdict; snap: Snapshot } | null = null;
-      let flight: { from: THREE.Vector3; to: Vec; k: number; dur: number; lift: number; done: () => void } | null = null;
+      // kopnięcie: zamach → kontakt (piłka opuszcza stopę, świat dostaje podanie/strzał)
+      let kickSt: { elapsed: number; contactIn: number; spotW: THREE.Vector3; startW: THREE.Vector3; to: Vec; a: "pass" | "shot"; yaw: number; targetId: string | null } | null = null;
+      let outcomeT = 0;
       const keys = new Set<string>();
       const kd = (e: KeyboardEvent) => keys.add(e.key.toLowerCase());
       const ku = (e: KeyboardEvent) => keys.delete(e.key.toLowerCase());
       window.addEventListener("keydown", kd); window.addEventListener("keyup", ku);
 
       const camPos = new THREE.Vector3(player.x - 8, 4.3, player.y);
-      const camLook = new THREE.Vector3(player.x + 10, 0.6, player.y);
+      const camLook = new THREE.Vector3(player.x + 10, 0.9, player.y);
       const target = new THREE.Vector3(), look = new THREE.Vector3();
       const resize = () => { const w = el.clientWidth, h = el.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); };
       resize();
       const ro = new ResizeObserver(resize); ro.observe(el);
 
-      // prowadzenie piłki: dotknięcie co ok. 1,8 m drogi, piłka płynnie dąży do pozycji, obraca się o dystans / promień
+      // piłka: prowadzona (dotknięcie co ok. 1,8 m), niesiona przez innych, w locie albo luźna; obraca się o dystans / promień
       let carried = 0;
       const ballTarget = new THREE.Vector3(), q = new THREE.Quaternion(), axis = new THREE.Vector3();
       const spinBall = (dx: number, dz: number, dist: number) => {
@@ -123,12 +138,25 @@ export default function IQ() {
         q.setFromAxisAngle(axis, dist / BALL_R);
         ball.quaternion.premultiply(q);
       };
+      const putActors = () => {
+        for (const a of world.agents) {
+          const ac = actors.get(a.id)!;
+          ac.root.position.set(a.pos.x, 0, a.pos.y);
+          ac.root.rotation.y = -a.heading;
+          prev.set(ac, { ...a.pos });
+        }
+      };
 
-      reset.current = () => {
-        player = { ...S.player }; facing = { x: 1, y: 0 }; t = 0; flight = null; kickSt = null; act.current = null; carried = 0;
-        me.root.rotation.y = 0;
+      reset.current = (next: boolean) => {
+        if (next) attempt.current++;
+        const v = (attempt.current % 3) as Variant;
+        world = createScenario(v, 1 + attempt.current);
+        const p = world.agents.find((a) => a.id === "P")!;
+        dr.x = p.pos.x; dr.y = p.pos.y; dr.heading = 0; dr.speed = 0; dr.cam = 0;
+        player = { x: dr.x, y: dr.y }; facing = { x: 1, y: 0 }; kickSt = null; act.current = null; carried = 0; outcomeT = 0;
+        putActors();
         ball.position.set(player.x + 0.7, BALL_R, player.y);
-        setResult(null); setClock(0); setP("intro");
+        setResult(null); setClock(0); setVariant(v); setPoss("me"); setP("intro");
       };
 
       const place = (a: Actor, p: Vec, dt: number, faceTo?: Vec) => {
@@ -141,8 +169,9 @@ export default function IQ() {
       };
 
       let last = performance.now(), raf = 0, clockAcc = 0;
-      let lastAim: string | null = null;
+      let lastAim: string | null = null, lastPoss: Possession = "me";
       let perfFrames = 0, perfTime = 0, perfStep = 0;
+      putActors();
       ball.position.set(player.x + 0.7, BALL_R, player.y);
 
       const tick = (now: number, raw: number) => {
@@ -156,64 +185,72 @@ export default function IQ() {
           perfFrames = 0; perfTime = 0;
         }
         const ph = phaseRef.current;
+        const live = (ph === "play" || ph === "kick") && !world.outcome;
 
         let jx = joy.current.x, jy = joy.current.y;
         if (keys.has("w") || keys.has("arrowup")) jy -= 1;
         if (keys.has("s") || keys.has("arrowdown")) jy += 1;
         if (keys.has("a") || keys.has("arrowleft")) jx -= 1;
         if (keys.has("d") || keys.has("arrowright")) jx += 1;
-        const mv = { x: -jy, y: jx };
-        const mag = Math.min(1, Math.hypot(mv.x, mv.y));
+        jx = Math.max(-1, Math.min(1, jx)); jy = Math.max(-1, Math.min(1, jy));
+        const stick = { r: jx, f: -jy };
 
-        // świat żyje podczas zamachu i lotu piłki (koledzy biegną, obrońcy doskakują); stoi tylko w intro i po wyniku
-        if (ph === "play" || ph === "kick" || ph === "flight") t += dt;
         let moved = 0;
-        if (ph === "play") {
-          clockAcc += dt; if (clockAcc > 0.1) { clockAcc = 0; setClock(t); }
-          if (mag > 0.05) {
-            const n = { x: mv.x / Math.hypot(mv.x, mv.y), y: mv.y / Math.hypot(mv.x, mv.y) };
-            // kierunek piłki wygładzony – nie „teleportuje się” przy zmianie kierunku joysticka
-            const k = 1 - Math.exp(-dt * 9);
-            const fx = facing.x + (n.x - facing.x) * k, fy = facing.y + (n.y - facing.y) * k, fl = Math.hypot(fx, fy) || 1;
-            facing = { x: fx / fl, y: fy / fl };
-            const nx = Math.max(1, Math.min(104, player.x + n.x * SPEED * mag * dt)), ny = Math.max(1, Math.min(67, player.y + n.y * SPEED * mag * dt));
-            moved = Math.hypot(nx - player.x, ny - player.y);
-            player = { x: nx, y: ny };
-          }
+        if (live && ph === "play") moved = drive(dr, stick, dt, { minX: 1, maxX: 104, minY: 1, maxY: 67 });
+        else if (live && ph === "kick" && kickSt) turnTo(dr, Math.atan2(kickSt.to.y - dr.y, kickSt.to.x - dr.x), dt); // staje do celu przed zamachem
+        else followCamera(dr, dt);
+        player = { x: dr.x, y: dr.y };
+        facing = { x: Math.cos(dr.heading), y: Math.sin(dr.heading) };
+
+        // świat żyje także podczas zamachu i lotu piłki; stoi w intro i po rozstrzygnięciu
+        if (live) {
+          const n = Math.ceil(dt / (1 / 30));
+          for (let i = 0; i < n; i++) { setUser(world, player, dr.heading, dr.speed); step(world, dt / n); }
+          clockAcc += dt; if (clockAcc > 0.1) { clockAcc = 0; setClock(world.t); }
         }
-        const snap = snapshotAt(S, t, player);
+        const agentOf = (id: string) => world.agents.find((a) => a.id === id)!;
+        const mine = world.ball.owner === "P";
 
         // adresat podania: kolega najbliżej kierunku zawodnika
         let aim: string | null = null, bestCos = 0.2;
-        for (const m of snap.mates) {
+        for (const m of world.agents) {
+          if (m.team !== "us" || m.id === "P" || m.role === "GK") continue;
           const dx = m.pos.x - player.x, dy = m.pos.y - player.y, d = Math.hypot(dx, dy) || 1;
           const cos = (dx * facing.x + dy * facing.y) / d;
           if (cos > bestCos) { bestCos = cos; aim = m.id; }
         }
-        const aimMate = snap.mates.find((m) => m.id === aim);
+        const aimMate = aim ? agentOf(aim) : null;
 
-        // naciśnięcie „Podaj”/„Strzał”: decyzja jest oceniana w tej chwili; zawodnik staje do celu i wykonuje zamach
-        if (ph === "play" && act.current) {
+        // „Podaj”/„Strzał”: zawodnik staje do celu i wykonuje zamach; piłka rusza dopiero w chwili kontaktu ze stopą
+        if (ph === "play" && live && act.current) {
           const a = act.current; act.current = null;
-          const chosen = a === "shot" ? { kind: "shot" as const } : aimMate ? { kind: "pass" as const, targetId: aimMate.id } : null;
-          if (chosen) {
+          if (mine && (a === "shot" || aimMate)) {
             const to = a === "shot" ? { x: GOAL.x + 0.5, y: GOAL.y + (player.y > GOAL.y ? -2.4 : 2.4) } : aimMate!.pos;
             const yaw = headingOf(to.x - player.x, to.y - player.y);
             const k = me.kick();
             const spotW = k.spot.clone().applyAxisAngle(Y, yaw).add(new THREE.Vector3(player.x, 0, player.y));
-            kickSt = { elapsed: 0, contactIn: k.contactIn, spotW, startW: ball.position.clone(), to, a, yaw, verdict: compare(snap, chosen), snap };
-            facing = { x: Math.cos(yaw), y: -Math.sin(yaw) };
+            kickSt = { elapsed: 0, contactIn: k.contactIn, spotW, startW: ball.position.clone(), to, a, yaw, targetId: a === "pass" ? aimMate!.id : null };
             setP("kick");
           }
         }
+        // stracona piłka w zamachu: akcja anulowana
+        if (kickSt && !mine) { kickSt = null; setP("play"); }
 
         if (kickSt) { me.root.position.set(player.x, 0, player.y); me.update(0, dt, kickSt.yaw); } // zamach: stoi i obraca się do celu
-        else place(me, player, dt, undefined);
-        snap.mates.forEach((m, i) => place(mates[i]!, m.pos, dt, player));
-        snap.defenders.forEach((d, i) => place(defs[i]!, d, dt, player));
-        place(gk, snap.keeper, dt, player);
+        else {
+          me.root.position.set(player.x, 0, player.y);
+          me.update(dr.speed, dt, -dr.heading); // aktor: obrót wokół Y = −kierunek w układzie boiska
+          prev.set(me, { ...player });
+        }
+        for (const a of world.agents) {
+          if (a.id === "P") continue;
+          place(actors.get(a.id)!, a.pos, dt, world.ball.pos);
+        }
         meMarker.position.set(player.x, 0.02, player.y);
 
+        // piłka
+        const px = ball.position.x, pz = ball.position.z;
+        const fl = world.ball.flight;
         if (ph === "kick" && kickSt) {
           kickSt.elapsed += dt;
           // piłka podtoczona na miejsce kontaktu (pierwsze 0,18 s), potem leży do chwili uderzenia
@@ -221,36 +258,34 @@ export default function IQ() {
           ball.position.lerpVectors(kickSt.startW, kickSt.spotW, e);
           ball.position.y = BALL_R;
           if (kickSt.elapsed >= kickSt.contactIn) {
-            // kontakt: piłka startuje z miejsca stopy
-            const d = Math.hypot(kickSt.to.x - ball.position.x, kickSt.to.y - ball.position.z);
-            const { verdict, snap: s } = kickSt, a = kickSt.a;
-            flight = {
-              from: ball.position.clone(), to: kickSt.to, k: 0, dur: Math.min(1.4, d / (a === "shot" ? 28 : 20)), lift: a === "shot" ? 1.4 : 0.5,
-              done: () => { setResult({ snap: s, verdict }); setP("done"); },
-            };
+            const spot = { x: kickSt.spotW.x, y: kickSt.spotW.z };
+            if (kickSt.a === "shot") shoot(world, "P", spot); else pass(world, "P", kickSt.targetId!, spot);
             kickSt = null;
-            setP("flight");
+            setP("play");
           }
-        } else if (ph === "flight" && flight) {
-          flight.k = Math.min(1, flight.k + dt / flight.dur);
-          const k = flight.k;
-          const px = ball.position.x, pz = ball.position.z;
-          ball.position.set(flight.from.x + (flight.to.x - flight.from.x) * k, BALL_R + Math.sin(Math.PI * k) * flight.lift, flight.from.z + (flight.to.y - flight.from.z) * k);
+          spinBall(ball.position.x - px, ball.position.z - pz, Math.hypot(ball.position.x - px, ball.position.z - pz));
+        } else if (fl) {
+          const k = Math.min(1, fl.t / fl.dur);
+          ball.position.set(world.ball.pos.x, BALL_R + Math.sin(Math.PI * k) * (fl.kind === "shot" ? 1.4 : 0.5), world.ball.pos.y);
           spinBall(ball.position.x - px, ball.position.z - pz, Math.hypot(ball.position.x - px, ball.position.z - pz) * 1.2);
-          if (k >= 1) { const done = flight.done; flight = null; done(); }
-        } else if (ph !== "done") {
+        } else if (mine && ph !== "done") {
           // prowadzenie: dotknięcie co ok. 1,8 m, piłka za dotknięciem „odbiega” i wraca przy stopie
           carried += moved;
           const touch = (carried % 1.8) / 1.8;
           const ahead = 0.62 + 0.42 * Math.sin(Math.PI * touch);
           ballTarget.set(player.x + facing.x * ahead - facing.y * 0.1, BALL_R, player.y + facing.y * ahead + facing.x * 0.1);
-          const px = ball.position.x, pz = ball.position.z;
           ball.position.lerp(ballTarget, 1 - Math.exp(-dt * 14));
+          ball.position.y = BALL_R;
+          spinBall(ball.position.x - px, ball.position.z - pz, Math.hypot(ball.position.x - px, ball.position.z - pz));
+        } else {
+          // piłka u kolegi/rywala albo luźna: podąża za pozycją ze świata
+          ballTarget.set(world.ball.pos.x, BALL_R, world.ball.pos.y);
+          ball.position.lerp(ballTarget, 1 - Math.exp(-dt * 16));
           ball.position.y = BALL_R;
           spinBall(ball.position.x - px, ball.position.z - pz, Math.hypot(ball.position.x - px, ball.position.z - pz));
         }
 
-        const showAim = !!aimMate && ph === "play";
+        const showAim = !!aimMate && ph === "play" && mine;
         ring.visible = showAim; aimLine.visible = showAim;
         if (aimMate) {
           const pulse = 1 + Math.sin(now / 180) * 0.08;
@@ -262,10 +297,32 @@ export default function IQ() {
         const aimNow = showAim ? aimMate!.name : null;
         if (aimNow !== lastAim) { lastAim = aimNow; setAimName(aimNow); }
 
-        target.set(player.x - 8, 4.3, player.y);
-        look.set(player.x + 12, 0.9, player.y);
-        const ca = 1 - Math.exp(-dt * 5);
-        camPos.lerp(target, ca); camLook.lerp(look, ca);
+        const o = world.ball.owner ? agentOf(world.ball.owner) : null;
+        const pNow: Possession = mine ? "me" : o ? (o.team === "us" ? "mate" : "foe") : fl ? (agentOf(fl.by).team === "us" ? "mate" : "foe") : "loose";
+        // wskazówki odzyskiwania: czerwony pierścień pod rywalem z piłką i strzałka, gdzie jest piłka względem kamery
+        const chase = !world.outcome && (pNow === "foe" || pNow === "loose");
+        const bp = o ? o.pos : world.ball.pos;
+        foeRing.visible = !!o && o.team === "them" && !world.outcome;
+        if (foeRing.visible) { foeRing.position.set(bp.x, 0.03, bp.y); foeRing.scale.setScalar(1 + Math.sin(now / 160) * 0.1); }
+        if (arrow.current) {
+          const phi = Math.atan2(Math.sin(Math.atan2(bp.y - player.y, bp.x - player.x) - dr.cam), Math.cos(Math.atan2(bp.y - player.y, bp.x - player.x) - dr.cam));
+          const far = Math.hypot(bp.x - player.x, bp.y - player.y) > 5 || Math.abs(phi) > 0.6;
+          arrow.current.style.opacity = chase && far ? "1" : "0";
+          arrow.current.style.transform = `rotate(${phi}rad)`;
+        }
+        if (pNow !== lastPoss) { lastPoss = pNow; setPoss(pNow); }
+
+        // koniec akcji: chwila na zobaczenie gola/obrony/odbioru, potem podsumowanie
+        if (world.outcome && ph !== "done" && ph !== "intro") {
+          outcomeT += dt;
+          if (outcomeT > 1.1) { setResult({ kind: world.outcome.kind, moments: keyMoments(world), variant: (attempt.current % 3) as Variant }); setP("done"); }
+        }
+
+        // kamera za plecami zawodnika, obraca się razem z nim (kierunek dogania płynnie w sterowaniu)
+        const cx = Math.cos(dr.cam), cy = Math.sin(dr.cam);
+        target.set(player.x - 8 * cx, 4.3, player.y - 8 * cy);
+        look.set(player.x + 12 * cx, 0.9, player.y + 12 * cy);
+        camPos.lerp(target, 1 - Math.exp(-dt * 18)); camLook.lerp(look, 1 - Math.exp(-dt * 18));
         cam.position.copy(camPos); cam.lookAt(camLook);
         sun.position.set(player.x - 15, 40, player.y + 20); sun.target.position.set(player.x + 8, 0, player.y);
         renderer.render(scene, cam);
@@ -283,6 +340,9 @@ export default function IQ() {
           manual: (b: boolean) => { manual = b; },
           advance: (n: number, dt: number) => { for (let i = 0; i < n; i++) tick(performance.now(), dt); },
           press: (a: "pass" | "shot") => { act.current = a; },
+          stick: (r: number, f: number) => { joy.current = { x: r, y: -f }; },
+          state: () => ({ heading: dr.heading, cam: dr.cam, speed: dr.speed, x: dr.x, y: dr.y, t: world.t, owner: world.ball.owner, outcome: world.outcome?.kind ?? null }),
+          world: () => world,
         };
       }
 
@@ -296,9 +356,12 @@ export default function IQ() {
     return () => { alive = false; cleanup(); };
   }, []);
 
+  const hint = poss === "foe" ? "Rywal z piłką – dobiegnij i odbierz" : poss === "loose" ? "Piłka luźna" : poss === "mate" ? "Piłka u kolegi" : null;
+  const kindTone = result ? headline(result.kind) : null;
+
   return (
     <main className="mx-auto max-w-md px-5 pb-28 pt-14">
-      <LargeTitle kind="iq" title="IQ" sub={S.title} />
+      <LargeTitle kind="iq" title="IQ" sub="Wyjście spod pressingu + kontratak" />
       <div className="relative overflow-hidden rounded-3xl border border-hairline bg-hairline shadow-sm">
         <div ref={mount} className="h-[58vh] min-h-[340px] w-full" />
 
@@ -308,26 +371,36 @@ export default function IQ() {
           </div>
         )}
 
-        {phase === "play" && (
+        {(phase === "play" || phase === "kick") && (
           <>
-            <div className="absolute left-3 top-3 flex items-center gap-2">
+            <div className="absolute left-3 top-3 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-2">
               <span className="rounded-full bg-white/85 px-3 py-1 text-xs font-medium tabular-nums text-ink backdrop-blur">{clock.toFixed(1)} s</span>
               {aimName && <span className="bw-pop rounded-full bg-white/85 px-3 py-1 text-xs text-accent backdrop-blur">Podanie do: {aimName}</span>}
+              {hint && <span key={poss} className="bw-pop rounded-full bg-white/85 px-3 py-1 text-xs text-ink backdrop-blur">{hint}</span>}
+            </div>
+            <div ref={arrow} className="pointer-events-none absolute left-1/2 top-14 -ml-5 h-10 w-10 opacity-0 transition-opacity duration-200">
+              <div className="flex h-full w-full items-center justify-center rounded-full bg-white/85 text-lg leading-none text-[#e0554f] shadow backdrop-blur">▲</div>
             </div>
             <Joystick onChange={(x, y) => { joy.current = { x, y }; }} />
-            <div className="absolute bottom-5 right-4 flex flex-col items-center gap-3">
-              <ActionButton label="Podaj" onTap={() => { act.current = "pass"; }} />
-              <ActionButton label="Strzał" onTap={() => { act.current = "shot"; }} />
-            </div>
+            {poss === "me" && (
+              <div className="absolute bottom-5 right-4 flex flex-col items-center gap-3">
+                <ActionButton label="Podaj" onTap={() => { act.current = "pass"; }} />
+                <ActionButton label="Strzał" onTap={() => { act.current = "shot"; }} />
+              </div>
+            )}
           </>
         )}
 
         {phase === "intro" && (
           <div className="bw-backdrop absolute inset-0 flex items-end bg-gradient-to-t from-black/45 via-black/10 to-transparent p-4">
             <div className="bw-sheet w-full rounded-3xl bg-white/95 p-5 backdrop-blur">
-              <div className="text-xs uppercase tracking-wide text-muted">Sytuacja</div>
-              <p className="mt-1 text-[15px] leading-snug text-ink">{S.brief}</p>
-              <p className="mt-2 text-xs text-muted">Lewy kciuk – ruch. Prawy – podanie albo strzał. Liczy się moment.</p>
+              <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted">
+                <span>Sytuacja</span>
+                <span className="rounded-full bg-hairline/70 px-2 py-0.5 normal-case tracking-normal">Próba {attempt.current + 1} · {VARIANTS[variant]!.title}</span>
+              </div>
+              <p className="mt-1 text-[15px] leading-snug text-ink">Jesteś numerem 8 z piłką. Naciska Cię dwóch napastników. {VARIANTS[variant]!.defence}</p>
+              <p className="mt-2 text-[15px] leading-snug text-ink">Wyjdź z pressingu. Strata = kontra 3 na 2 – wtedy to Ty ją gasisz.</p>
+              <p className="mt-2 text-xs text-muted">Joystick: do przodu – bieg, w bok – skręt (kamera obraca się za Tobą). Patrz w stronę kolegi i podaj.</p>
               {fallback && <p className="mt-2 text-xs text-muted">Uproszczone postacie (nie udało się wczytać modeli).</p>}
               <button onClick={() => setP("play")} className="bw-grad mt-4 w-full rounded-2xl py-3.5 text-base font-medium text-white">Graj</button>
             </div>
@@ -335,15 +408,12 @@ export default function IQ() {
         )}
       </div>
 
-      {result && (
-        <Sheet title={result.verdict.verdict === "best" ? "Najlepszy wybór" : result.verdict.verdict === "good" ? "Dobrze, ale da się lepiej" : "Lepiej było inaczej"} onClose={() => reset.current()}>
-          <TacticalBoard snap={result.snap} verdict={result.verdict} />
-          <p className="mt-4 text-[15px] leading-snug">{result.verdict.summary}</p>
-          <div className="mt-3 flex gap-4 text-xs text-muted">
-            <span className="flex items-center gap-1.5"><span className="h-0.5 w-5 bg-ink" />Twój wybór</span>
-            {result.verdict.verdict !== "best" && <span className="flex items-center gap-1.5"><span className="h-0 w-5 border-t-2 border-dashed border-club" />Lepsza opcja</span>}
-          </div>
-          <button onClick={() => reset.current()} className="bw-grad mt-5 w-full rounded-2xl py-4 text-base font-medium text-white">Jeszcze raz</button>
+      {result && kindTone && (
+        <Sheet title={kindTone.title} onClose={() => reset.current(true)}>
+          <ol className="space-y-2 text-[15px] leading-snug">
+            {result.moments.map((m, i) => <li key={i} className="tabular-nums">{m}</li>)}
+          </ol>
+          <button onClick={() => reset.current(true)} className="bw-grad mt-6 w-full rounded-2xl py-4 text-base font-medium text-white">Kolejna próba</button>
         </Sheet>
       )}
     </main>
