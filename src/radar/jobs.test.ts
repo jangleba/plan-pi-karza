@@ -48,7 +48,7 @@ async function listings() {
 beforeEach(async () => {
   db = await freshDb();
   web = new Web();
-  await db.exec(`insert into auth.users (id) values ('${ADMIN}')`);
+  await db.exec(`insert into auth.users (id) values ('${ADMIN}'); update radar_settings set value = '0' where key = 'club_queries_per_run'`); // research klubów testowany osobno (clubdb.test.ts)
   src = (await db.query<{ id: string }>(
     `insert into radar_sources (domain, name, status, license_basis, allowed_scope, entry_urls, crawl_delay_seconds)
      values ('orly-fc.pl', 'Orły', 'approved', 'Umowa z organizatorem z 2026-11-01 – fakty z ogłoszeń', '{"fetch": true, "publish_facts": true, "images": false}', '{https://orly-fc.pl/feed.xml}', 0) returning id`)).rows[0]!.id;

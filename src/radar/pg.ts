@@ -37,6 +37,7 @@ export async function freshDb(extra: string[] = []): Promise<PGlite> {
   if (extra.length) await db.exec(CRON_STUBS);
   await db.exec(file("0001_init.sql"));
   await db.exec(file("0002_radar.sql"));
+  await db.exec(file("0004_radar_clubs.sql"));
   for (const f of extra) await db.exec(file(f).replace(/create extension if not exists \w+;/g, ""));
   // domyślnie funkcje/tabele w public mają uprawnienia właściciela; nadajemy jak w Supabase (RLS i tak pilnuje dostępu)
   await db.exec("grant select, insert, update, delete on all tables in schema public to anon, authenticated, service_role");

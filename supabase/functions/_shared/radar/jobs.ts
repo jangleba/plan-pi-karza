@@ -1,3 +1,4 @@
+import { clubProcessStep, clubRefreshStep, clubSearchStep } from "./clubpipeline.ts";
 import { monitorSource, processQueue, refreshStep, searchStep, type Deps, type SourceRow, type Stats } from "./pipeline.ts";
 
 export interface JobResult { run: string | null; status: "ok" | "partial" | "failed" | "skipped"; stats: Stats; error?: string }
@@ -33,6 +34,8 @@ export function runDiscover(deps: Deps): Promise<JobResult> {
     }
     await searchStep(deps, stats);
     await processQueue(deps, stats, s.max_new_urls_per_run);
+    await clubSearchStep(deps, stats); // research klubów: kandydaci z wyszukiwarki
+    await clubProcessStep(deps, stats); // strona klubu → adresy organizacyjne z dowodem (do akceptacji)
     const failing = (await deps.rpc("radar_health")) as { failingSources?: number };
     if ((failing.failingSources ?? 0) > 0) await deps.alert?.(`Radar: źródła z kolejnymi błędami: ${failing.failingSources}`);
   });
@@ -44,5 +47,6 @@ export function runRefresh(deps: Deps): Promise<JobResult> {
     await refreshStep(deps, stats);
     const s = (await deps.rpc("radar_settings_get")) as { max_new_urls_per_run: number };
     await processQueue(deps, stats, Math.max(5, Math.floor(s.max_new_urls_per_run / 2)));
+    await clubRefreshStep(deps, stats); // ponowne potwierdzanie adresów zaakceptowanych klubów
   });
 }

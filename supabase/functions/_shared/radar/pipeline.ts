@@ -35,6 +35,8 @@ export interface Deps {
   alert?: (message: string) => Promise<void>;
   /** Czas końca partii (ms epoch) – zadanie oddaje resztę następnemu uruchomieniu. */
   deadlineMs: number;
+  /** Czy domena przyjmuje pocztę (rekord MX) – w Edge przez DNS-over-HTTPS. Brak = adresy nie są uznawane za zweryfikowane. */
+  resolveMx?: (domain: string) => Promise<boolean>;
 }
 
 export interface Stats { [k: string]: number }

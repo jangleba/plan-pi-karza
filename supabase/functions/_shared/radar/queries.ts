@@ -41,15 +41,28 @@ export function allQueries(now: Date): PlannedQuery[] {
   return out;
 }
 
-/**
- * Zapytania na jedno uruchomienie: kolejne okno o szerokości `budget` z pełnej listy, przesuwane o numer uruchomienia
- * (jedno uruchomienie co 12 h → `runIndex` = dzień roku × 2 + połowa doby). Po pełnym obiegu zaczyna od początku.
- */
-export function queriesForRun(now: Date, budget: number): PlannedQuery[] {
-  const all = allQueries(now);
+/** Okno `budget` kolejnych pozycji z pełnej listy, przesuwane z każdym uruchomieniem (co 12 h); po obiegu zaczyna od początku. */
+export function rotateWindow<T>(all: T[], now: Date, budget: number): T[] {
   if (budget <= 0 || !all.length) return [];
   const dayOfYear = Math.floor((Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) - Date.UTC(now.getUTCFullYear(), 0, 0)) / 86_400_000);
   const runIndex = dayOfYear * 2 + (now.getUTCHours() >= 12 ? 1 : 0);
   const start = (runIndex * budget) % all.length;
   return Array.from({ length: Math.min(budget, all.length) }, (_, i) => all[(start + i) % all.length]!);
+}
+
+/**
+ * Zapytania na jedno uruchomienie: kolejne okno o szerokości `budget` z pełnej listy, przesuwane o numer uruchomienia
+ * (jedno uruchomienie co 12 h). Po pełnym obiegu zaczyna od początku.
+ */
+export function queriesForRun(now: Date, budget: number): PlannedQuery[] {
+  return rotateWindow(allQueries(now), now, budget);
+}
+
+export interface ClubQuery { q: string; city: string }
+const CLUB_TERMS = ["klub piłkarski {c} kontakt", "akademia piłkarska {c} nabór kontakt", "szkółka piłkarska {c} zapisy kontakt"];
+
+/** Zapytania o kluby w miejscowościach (research kontaktów): ogólne hasła + nazwa miejscowości, bez żadnych danych zawodnika. */
+export function clubQueriesFor(cities: string[], now: Date, budget: number): ClubQuery[] {
+  const all = cities.flatMap((city) => CLUB_TERMS.map((t) => ({ q: t.replace("{c}", city), city })));
+  return rotateWindow(all, now, budget);
 }

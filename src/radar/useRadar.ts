@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchFeed, type FeedResult } from "./api";
+import { fetchClubs, type ClubsResult } from "./clubs";
 import { evaluateListing, type Evaluation, type PlayerFacts } from "./lib";
 
 export type RadarFeed = { state: "loading" } | FeedResult;
@@ -24,4 +25,14 @@ export function useRadar(facts: PlayerFacts) {
   }, [feed, facts]);
   const nowMs = feed.state === "ok" ? Date.now() + feed.offsetMs : Date.now();
   return { feed, evals, nowMs, reload: load };
+}
+
+export type ClubsFeed = { state: "loading" } | ClubsResult;
+
+/** Gotowa lista klubów z zweryfikowanym adresem (osobne źródło niż oferty; awaria jednego nie psuje drugiego). */
+export function useClubs() {
+  const [feed, setFeed] = useState<ClubsFeed>({ state: "loading" });
+  const load = useCallback(async () => { setFeed({ state: "loading" }); setFeed(await fetchClubs()); }, []);
+  useEffect(() => { void load(); }, [load]);
+  return { feed, reload: load };
 }

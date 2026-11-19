@@ -1,5 +1,7 @@
 # Radar „Piłkarskie szanse” – uruchomienie krok po kroku (bez terminala)
 
+> **Jak to działa teraz:** radar to **research klubów**. Stale szuka klubów i akademii, czyta z ich oficjalnych stron **prawdziwe adresy e-mail** (z cytatem i linkiem do strony) i pokazuje je zawodnikowi razem z gotową wiadomością do skopiowania. Zawodnik **sam** wysyła zapytanie o testy/trening ze swojej poczty. Aplikacja nie przepisuje cudzych ogłoszeń. Ogłoszenia z dopuszczonych źródeł (krok 8) to opcjonalny dodatek.
+
 Wszystko robisz w przeglądarce. Czas: ok. 45–60 min. Opis techniczny: `docs/RADAR-SZANSE.md`.
 Zasada bezpieczeństwa: **sekretów (hasło do bazy, tokeny, klucze API) nie wklejaj do czatu ani do kodu** – tylko w miejsca wskazane niżej.
 
@@ -17,7 +19,9 @@ Workflow wdrożenia pojawia się w zakładce Actions dopiero po scaleniu do `mai
 4. Dashboard → **Database → Extensions** → włącz **pg_cron** i **pg_net**.
 > Uwaga: darmowe projekty Supabase mogą być wstrzymywane po okresie braku aktywności (sprawdź aktualne zasady). Wstrzymany projekt = radar nie działa.
 
-## Krok 2. Klucze API (opcjonalne na start, ale bez Anthropic radar niczego nie opublikuje)
+## Krok 2. Klucze API
+- **Research klubów nie wymaga Anthropic** (adresy wyciąga deterministyczny kod). Do odkrywania nowych klubów potrzebny jest **Brave** – bez niego możesz dodawać kluby ręcznie w panelu (zakładka „Kluby” → „Dodaj klub do zbadania”).
+- **Anthropic** jest potrzebny tylko do odczytu ogłoszeń z dopuszczonych źródeł (krok 8).
 - **Anthropic** (odczyt ogłoszeń): console.anthropic.com → *Settings → API keys → Create key*. Doładuj konto (billing) i ustaw limit wydatków. Dzienny limit odczytów w radarze to `ai_daily_extraction_budget` (domyślnie 200) w tabeli `radar_settings`.
 - **Brave Search** (wyszukiwanie nowych źródeł, można pominąć – monitorowanie dopuszczonych źródeł działa bez niego): api-dashboard.search.brave.com → wybierz plan (nawet darmowy wymaga subskrypcji, może wymagać karty; sprawdź aktualne warunki) → *API Keys* → utwórz klucz.
 
@@ -61,7 +65,10 @@ Powinny być trzy wiersze: `radar-expire`, `radar-refresh`, `radar-discover`.
 Napisz mi w czacie **tylko dwie wartości publiczne**: Project URL i Publishable key (nie „service_role”!). Wpiszę je do `src/lib/public-config.ts`, zrobię PR, a po scaleniu Lovable je zbuduje. (Albo ustaw `VITE_SUPABASE_URL` i `VITE_SUPABASE_PUBLISHABLE_KEY`, jeśli Twoje środowisko je wczytuje.)
 Aplikacja **nadal nie wymaga logowania** (wymusza je dopiero `VITE_REQUIRE_LOGIN=true`).
 
-## Krok 8. Dopuść pierwsze źródło (to jest decyzja prawna, którą musisz podjąć Ty)
+## Krok 8 (opcjonalny). Akceptacja klubów i dopuszczenie źródeł ogłoszeń
+**Kluby:** panel `/admin/radar` → zakładka **Kluby** → „Do akceptacji”. Każdy klub ma adres, cytat ze strony i wynik sprawdzenia poczty (MX). Akceptuj tylko adresy organizacyjne (biuro@, nabor@…). „Odrzuć” blokuje domenę na stałe. Automatyczną akceptację włączysz w SQL Editor: `update public.radar_settings set value = 'true' where key = 'club_auto_publish';` (nadal wymaga potwierdzonej miejscowości i działającej poczty).
+
+**Źródła ogłoszeń (dodatek):**
 1. Wejdź na `https://TWOJA-APLIKACJA/admin/radar`, zaloguj się kontem z kroku 5 → zakładka **Źródła**.
 2. Radar nic nie opublikuje, dopóki nie zatwierdzisz źródła. Wymagana jest **podstawa dopuszczenia** (umowa, zgoda organizatora lub licencja). Publiczna strona, oficjalna domena, RSS ani robots.txt same nie są licencją.
 3. Najprostsza droga: napisz do klubu/akademii/związku z prośbą o zgodę. Wzór:
@@ -78,7 +85,7 @@ select job, status, started_at, stats, error from public.radar_job_runs order by
 select count(*) from public.radar_listings;
 select public.radar_feed();   -- to widzi aplikacja
 ```
-- Oferty niejednoznaczne zobaczysz w panelu: zakładka **Do kontroli** (cytaty obok interpretacji).
+- Kluby czekające na Twoją akceptację: panel → **Kluby**. Oferty niejednoznaczne: panel → **Oferty** (cytaty obok interpretacji).
 - W aplikacji: ekran Start → „Piłkarskie szanse” → **Kryteria** → data urodzenia, miejscowość, promień.
 
 ## Gdy coś nie działa

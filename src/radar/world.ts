@@ -2,7 +2,7 @@ import type { PGlite } from "@electric-sql/pglite";
 import type { Deps, Rpc } from "../../supabase/functions/_shared/radar/pipeline.ts";
 import { addDaysISO, warsawDateOf } from "../../supabase/functions/_shared/radar/time.ts";
 
-const SET_RETURNING = new Set(["radar_claim_urls", "radar_due_sources", "radar_due_listings", "radar_get_source", "radar_get_source_by_id"]);
+const SET_RETURNING = new Set(["radar_claim_urls", "radar_due_sources", "radar_due_listings", "radar_get_source", "radar_get_source_by_id", "radar_club_claim_candidates", "radar_due_clubs"]);
 
 /** rpc nad PGlite, zwracające JSON jak PostgREST (znaczniki czasu jako ISO). */
 export const pgRpc = (db: PGlite): Rpc => async (fn, args = {}) => {

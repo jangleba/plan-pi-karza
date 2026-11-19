@@ -2,7 +2,12 @@
 
 Stan na 2026-11-19. **Nic z tego nie jest jeszcze wdrożone na serwerze** – w środowisku, w którym powstał kod, nie było projektu Supabase, kluczy ani Deno/CLI. Wszystko poniżej „co trzeba zrobić” jest dokładnie opisane w sekcji 4.
 
-## 1. Jak to działa
+## 0. Kierunek: research klubów (główna funkcja)
+Radar **nie przepisuje cudzych ogłoszeń**. Stale szuka klubów i akademii (wyszukiwanie ogólne: miejscowość + „klub/akademia … kontakt”, rotacja, budżet dzienny `club_daily_query_budget`), pobiera ich stronę główną i do 3 podstron kontaktowych (robots.txt, odstępy, SSRF), wyciąga **wyłącznie adresy organizacyjne** (biuro@, nabor@, ksorly@; adresy typu imie.nazwisko@ są pomijane; strony z ≥ 6 adresami = katalog, pomijane) razem z cytatem i adresem strony, sprawdza rekord MX domeny i zapisuje link do podstrony o naborze (bez treści). Nic nie jest zgadywane ani konstruowane. Nowy klub czeka na akceptację administratora (domyślnie); wycofany klub blokuje domenę. Adres niepotwierdzony na stronie klubu od 45 dni (`club_max_age_days`) znika; klub jest ponownie sprawdzany co 14 dni.
+Zawodnik widzi kluby z promienia, a w aplikacji układa wiadomość (imię, rocznik – pełna data tylko po jawnym wyborze – pozycja, miejscowość, opcjonalnie klub, doświadczenie, nagranie, telefon), edytuje ją, kopiuje albo otwiera w swojej poczcie (`mailto:`). **Aplikacja niczego nie wysyła w jego imieniu i nie widzi treści.** Dziennik „wysłano” jest tylko na urządzeniu. Pliki: `clubs.ts`, `clubpipeline.ts`, `inquiry.ts` (shared), migracja `0004_radar_clubs.sql`, UI `src/radar/ClubUi.tsx`, panel: zakładka „Kluby”.
+Ogłoszenia z dopuszczonych źródeł (poniżej) są opcjonalnym dodatkiem.
+
+## 1. Jak to działa (ogłoszenia z dopuszczonych źródeł)
 
 ```
  źródła (RSS / sitemap / lista z paginacją)   Brave Search API (zapytania ogólne, rotacja, budżet)
@@ -85,6 +90,7 @@ Test na żywo (domyślnie wyłączony, tylko technika, tymczasowa baza, bez publ
 ## 7. Czego NIE ma / ograniczenia (uczciwie)
 - **Powiadomienia** (dzienny zbiorczy komunikat, zmiany zapisanych ofert): NIE zaimplementowane. Aplikacja nie ma systemu push; wymaga PWA (manifest, service worker – na iPhonie tylko po dodaniu do ekranu głównego), kluczy VAPID i funkcji wysyłającej z ponownym sprawdzeniem profilu i aktualności.
 - **Zapisane oferty** są lokalne (z migawką i odświeżaniem statusu z serwera). Tabela `radar_saved` z RLS istnieje i jest przetestowana, ale aplikacja jeszcze jej nie synchronizuje.
+- Kluby: adresy wyciąga prosta heurystyka (nie model); adres osobisty może czasem uchodzić za organizacyjny (np. inicjał+nazwisko), dlatego domyślnie jest akceptacja administratora. Poczta (MX) potwierdza domenę, nie istnienie skrzynki. Nazwy klubu i miejscowości też są heurystyką. Przetwarzanie adresów e-mail na stronach klubów podlega RODO (adresy organizacyjne są mniej wrażliwe niż osobiste) – dla wątpliwości skonsultuj prawnika; w aplikacji jest zgłoszenie „adres nieprawidłowy / klub prosi o usunięcie”.
 - Duplikaty: oferta, której WSZYSTKIE sesje już istnieją w starszej opublikowanej, dostaje status `duplicate`. Częściowe nakładanie się i sprzeczności między publikacjami nie są automatycznie wykrywane (trafiają do kontroli tylko przy niejednoznacznym odczycie).
 - Funkcje Edge (`edge.ts`, `radar-*/index.ts`) NIE były uruchamiane w Deno (brak Deno/CLI w środowisku); ich logika (`jobs.ts`, `pipeline.ts`) jest przetestowana w Node, a część zależna od Deno (`Deno.serve`, `createClient`, `Deno.resolveDns` z zapasem DoH) – nie. Kontrola DNS ma okno rebindingu między sprawdzeniem a połączeniem (opisane w `fetcher.ts`).
 - pg_cron/pg_net/Vault testowane na atrapach (sprawdzony jest nasz SQL i generowane polecenia, nie sam pg_cron).

@@ -17,6 +17,13 @@ async function resolveHost(host: string): Promise<string[]> {
   return parseDohAnswers(await res.json());
 }
 
+/** Czy domena przyjmuje pocztę: rekord MX (typ 15) przez DNS-over-HTTPS. */
+async function resolveMx(domain: string): Promise<boolean> {
+  const res = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=MX`, { headers: { accept: "application/dns-json" } });
+  const json = await res.json();
+  return (json?.Answer ?? []).some((a: { type?: number }) => a.type === 15);
+}
+
 export function handler(job: "discover" | "refresh") {
   return async (req: Request): Promise<Response> => {
     const cfg = readConfig((k) => Deno.env.get(k));
@@ -44,6 +51,7 @@ export function handler(job: "discover" | "refresh") {
       nowMs: () => Date.now(),
       sleep: (ms: number) => new Promise<void>((r) => setTimeout(r, ms)),
       alert,
+      resolveMx,
       deadlineMs: Date.now() + cfg.runtimeMs,
     };
     const result = job === "discover" ? await runDiscover(deps) : await runRefresh(deps);

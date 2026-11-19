@@ -10,9 +10,11 @@ import { loadSaved, refreshSaved, savedStatusText, toggleSaved, type SavedOffer 
 import {
   criteriaParts, hasBirth, missingProfile, nextRadius, playerFacts, profileGaps, radiusLabel, sourcesDegraded, visibleList, type ListFilters,
 } from "./state";
-import { useRadar } from "./useRadar";
+import { useClubs, useRadar } from "./useRadar";
+import { clubsForPlayer, loadSent, type Club, type ClubView } from "./clubs";
+import { ClubCard, Inquiry } from "./ClubUi";
 
-type View = { t: "list" } | { t: "detail"; id: string } | { t: "setup" };
+type View = { t: "list" } | { t: "detail"; id: string } | { t: "setup" } | { t: "inquiry"; id: string };
 
 const pill = "rounded-full bg-canvas px-2.5 py-1 text-xs text-ink";
 
@@ -96,22 +98,31 @@ function SegBtn({ on, children, onClick }: { on: boolean; children: React.ReactN
   return <button role="tab" aria-selected={on} onClick={onClick} className={`rounded-xl py-2 text-sm ${on ? "bg-card font-medium shadow-sm" : "text-muted"}`}>{children}</button>;
 }
 
-function FullList({ evals, nowMs, prefs, onPrefs, saved, onSave, onOpen, onRefreshSaved }: {
+function FullList({ evals, nowMs, prefs, onPrefs, saved, onSave, onOpen, onRefreshSaved, clubs, sent, onWrite, startTab }: {
   evals: Evaluation[]; nowMs: number; prefs: RadarPrefs; onPrefs: (p: RadarPrefs) => void; saved: SavedOffer[]; onSave: (l: RadarListing) => void;
-  onOpen: (id: string) => void; onRefreshSaved: () => void;
+  onOpen: (id: string) => void; onRefreshSaved: () => void; clubs: ClubView[]; sent: Record<string, string>; onWrite: (id: string) => void; startTab: "match" | "clubs";
 }) {
-  const [tab, setTab] = useState<"match" | "saved">("match");
+  const [tab, setTab] = useState<"match" | "clubs" | "saved">(startTab);
   const [filters, setFilters] = useState<ListFilters>({ kinds: prefs.kinds, freeOnly: false, sort: "distance" });
   const list = useMemo(() => visibleList(evals, filters), [evals, filters]);
   const chip = (on: boolean) => `rounded-full px-3.5 py-2 text-sm ${on ? "bw-sel font-medium" : "bg-canvas text-ink"}`;
   const savedIds = new Set(saved.map((x) => x.id));
   return (
     <>
-      <div className="mb-4 grid grid-cols-2 gap-1 rounded-2xl bg-hairline/70 p-1" role="tablist">
-        <SegBtn on={tab === "match"} onClick={() => setTab("match")}>Dla Ciebie</SegBtn>
+      <div className="mb-4 grid grid-cols-3 gap-1 rounded-2xl bg-hairline/70 p-1" role="tablist">
+        <SegBtn on={tab === "match"} onClick={() => setTab("match")}>Oferty</SegBtn>
+        <SegBtn on={tab === "clubs"} onClick={() => setTab("clubs")}>Kluby</SegBtn>
         <SegBtn on={tab === "saved"} onClick={() => { setTab("saved"); onRefreshSaved(); }}>Zapisane{saved.length ? ` (${saved.length})` : ""}</SegBtn>
       </div>
-      {tab === "match" ? (
+      {tab === "clubs" ? (
+        <>
+          <div className="mb-3 flex flex-wrap gap-2">
+            {([25, 50, 100, 200, null] as const).map((r) => <button key={String(r)} aria-pressed={prefs.radiusKm === r} onClick={() => onPrefs({ ...prefs, radiusKm: r })} className={chip(prefs.radiusKm === r)}>{radiusLabel(r)}</button>)}
+          </div>
+          {clubs.length === 0 && <p className="py-6 text-center text-sm text-muted">Brak klubów z zweryfikowanym adresem w tym promieniu. Radar szuka dalej – spróbuj większego promienia.</p>}
+          <div className="flex flex-col gap-3">{clubs.map((v) => <ClubCard key={v.club.id} v={v} sentAt={sent[v.club.id]} nowMs={nowMs} onWrite={() => onWrite(v.club.id)} />)}</div>
+        </>
+      ) : tab === "match" ? (
         <>
           <div className="mb-2 flex flex-wrap gap-2">
             {LISTING_KINDS.filter(([k]) => k !== "inne").map(([k, t]) => {
@@ -153,7 +164,13 @@ export function Radar({ profile, onProfile }: { profile: Profile; onProfile: (p:
   const setPrefs = (p: RadarPrefs) => { setPrefsState(p); savePrefs(p); };
   const facts = useMemo(() => playerFacts(profile, prefs), [profile, prefs]);
   const { feed, evals, nowMs, reload } = useRadar(facts);
+  const clubsFeed = useClubs();
+  const [sent, setSent] = useState<Record<string, string>>(loadSent);
   const [view, setView] = useState<View | null>(null);
+  const [startTab, setStartTab] = useState<"match" | "clubs">("match");
+  const clubList: Club[] = clubsFeed.feed.state === "ok" ? clubsFeed.feed.clubs : [];
+  const clubViews = useMemo(() => clubsForPlayer(clubList, facts), [clubList, facts]);
+  const clubById = (id: string) => clubList.find((c) => c.id === id) ?? null;
   const [saved, setSaved] = useState<SavedOffer[]>(loadSaved);
 
   const matches = useMemo(() => sortEvaluations(matchesOnly(evals)), [evals]);
@@ -161,10 +178,12 @@ export function Radar({ profile, onProfile }: { profile: Profile; onProfile: (p:
   const next = nextRadius(prefs.radiusKm);
   const degraded = feed.state === "ok" && sourcesDegraded(feed.health, nowMs);
   const gaps = profileGaps(evals);
+  const hasOffers = feed.state === "ok" && feed.listings.length > 0; // oferty są dodatkiem (wymagają dopuszczonych źródeł); bez nich pokazujemy same kluby
   const toggle = (l: RadarListing) => setSaved(toggleSaved(l));
   const evalOf = (id: string) => evals.find((e) => e.listing.id === id) ?? null;
 
-  const title = view?.t === "setup" ? "Kryteria" : view?.t === "detail" ? "Szczegóły" : "Piłkarskie szanse";
+  const title = view?.t === "setup" ? "Kryteria" : view?.t === "detail" ? "Szczegóły" : view?.t === "inquiry" ? "Zapytanie do klubu" : "Piłkarskie szanse";
+  const openClubs = () => { setStartTab("clubs"); setView({ t: "list" }); };
   return (
     <section className="mb-6" aria-label="Piłkarskie szanse">
       <div className="mb-1 flex items-baseline justify-between px-1">
@@ -183,20 +202,20 @@ export function Radar({ profile, onProfile }: { profile: Profile; onProfile: (p:
       )}
       {degraded && <p className="mb-3 rounded-2xl bg-canvas px-4 py-3 text-xs text-muted">Aktualizacja ofert z części źródeł chwilowo nie działa – pokazujemy tylko oferty sprawdzone w ciągu ostatnich 48 godzin.</p>}
 
-      {feed.state === "ok" && !hasBirth(facts) && (
+      {hasOffers && !hasBirth(facts) && (
         <div className="rounded-3xl border border-hairline bg-card p-5">
           <p className="text-sm text-muted">Uzupełnij datę urodzenia – oferty dobieramy do rocznika i nie pokazujemy ofert dla niewłaściwego wieku.</p>
           <button onClick={() => setView({ t: "setup" })} className="bw-grad mt-3 rounded-2xl px-5 py-3 text-sm font-medium">Uzupełnij dane</button>
         </div>
       )}
-      {feed.state === "ok" && hasBirth(facts) && missing.includes("place") && (
+      {hasOffers && hasBirth(facts) && missing.includes("place") && (
         <div className="rounded-3xl border border-hairline bg-card p-5">
           <p className="text-sm text-muted">Wybierz miejscowość (ręcznie, bez GPS) albo ustaw „cała Polska”.</p>
           <button onClick={() => setView({ t: "setup" })} className="bw-grad mt-3 rounded-2xl px-5 py-3 text-sm font-medium">Wybierz miejscowość</button>
         </div>
       )}
 
-      {feed.state === "ok" && missing.length === 0 && (
+      {hasOffers && missing.length === 0 && (
         <>
           {matches.length > 0 ? (
             <div className="flex flex-col gap-3">
@@ -206,12 +225,10 @@ export function Radar({ profile, onProfile }: { profile: Profile; onProfile: (p:
           ) : (
             <div className="rounded-3xl border border-hairline bg-card p-5">
               <p className="text-sm text-muted">
-                {feed.listings.length === 0
-                  ? "Radar zbiera oferty – na razie nie ma aktywnych ogłoszeń."
-                  : gaps ? "Część ofert wymaga uzupełnienia danych profilu."
+                {gaps ? "Część ofert wymaga uzupełnienia danych profilu."
                   : `Brak pasujących ofert${prefs.radiusKm !== null ? ` w promieniu ${prefs.radiusKm} km` : ""}.`}
               </p>
-              {feed.listings.length > 0 && !gaps && next !== undefined && (
+              {!gaps && next !== undefined && (
                 <button onClick={() => setPrefs({ ...prefs, radiusKm: next })} className="bw-grad mt-3 rounded-2xl px-5 py-3 text-sm font-medium">Zwiększ promień: {radiusLabel(next)}</button>
               )}
               {gaps && <button onClick={() => setView({ t: "setup" })} className="bw-grad mt-3 rounded-2xl px-5 py-3 text-sm font-medium">Uzupełnij dane</button>}
@@ -221,12 +238,36 @@ export function Radar({ profile, onProfile }: { profile: Profile; onProfile: (p:
         </>
       )}
 
+      {clubsFeed.feed.state !== "loading" && !(feed.state === "unconfigured") && (
+        <div className="mt-5">
+          <h3 className="mb-1 px-1 text-xs uppercase tracking-wide text-muted">Kluby, do których możesz napisać</h3>
+          <p className="mb-3 px-1 text-xs text-muted">Radar na bieżąco szuka klubów i sprawdza ich oficjalne adresy. Zapytanie wysyłasz Ty, ze swojej poczty.</p>
+          {clubsFeed.feed.state === "error" && <div className="rounded-3xl border border-hairline bg-card p-5 text-sm"><p className="text-muted">Nie udało się pobrać listy klubów (błąd połączenia).</p><button onClick={() => void clubsFeed.reload()} className="mt-3 rounded-2xl bg-canvas px-4 py-2.5 font-medium">Spróbuj ponownie</button></div>}
+          {clubsFeed.feed.state === "ok" && prefs.radiusKm !== null && !prefs.place && (
+            <div className="rounded-3xl border border-hairline bg-card p-5"><p className="text-sm text-muted">Wybierz miejscowość (ręcznie, bez GPS) albo ustaw „cała Polska”, by zobaczyć kluby w okolicy.</p><button onClick={() => setView({ t: "setup" })} className="bw-grad mt-3 rounded-2xl px-5 py-3 text-sm font-medium">Wybierz miejscowość</button></div>
+          )}
+          {clubsFeed.feed.state === "ok" && (prefs.radiusKm === null || prefs.place) && (clubViews.length > 0 ? (
+            <div className="flex flex-col gap-3">
+              {clubViews.slice(0, 2).map((v) => <ClubCard key={v.club.id} v={v} sentAt={sent[v.club.id]} nowMs={nowMs} onWrite={() => setView({ t: "inquiry", id: v.club.id })} />)}
+              <button onClick={openClubs} className="rounded-2xl border border-hairline bg-card py-3.5 text-sm font-medium">Zobacz kluby{clubViews.length > 2 ? ` (${clubViews.length})` : ""}</button>
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-hairline bg-card p-5">
+              <p className="text-sm text-muted">{clubList.length === 0 ? "Radar zbiera kluby – na razie nie ma jeszcze zweryfikowanych adresów." : `Brak klubów z zweryfikowanym adresem${prefs.radiusKm !== null ? ` w promieniu ${prefs.radiusKm} km` : ""}.`}</p>
+              {clubList.length > 0 && next !== undefined && <button onClick={() => setPrefs({ ...prefs, radiusKm: next })} className="bw-grad mt-3 rounded-2xl px-5 py-3 text-sm font-medium">Zwiększ promień: {radiusLabel(next)}</button>}
+            </div>
+          ))}
+        </div>
+      )}
+
       {view && (
         <Sheet title={title} onClose={() => setView(null)}>
           {view.t === "setup" && <RadarSetup profile={profile} prefs={prefs} onProfile={onProfile} onPrefs={setPrefs} onDone={() => setView(null)} />}
           {view.t === "list" && (
-            <FullList evals={evals} nowMs={nowMs} prefs={prefs} onPrefs={setPrefs} saved={saved} onSave={toggle} onOpen={(id) => setView({ t: "detail", id })} onRefreshSaved={() => void refreshSaved().then(setSaved)} />
+            <FullList evals={evals} nowMs={nowMs} prefs={prefs} onPrefs={setPrefs} saved={saved} onSave={toggle} onOpen={(id) => setView({ t: "detail", id })} onRefreshSaved={() => void refreshSaved().then(setSaved)}
+              clubs={clubViews} sent={sent} onWrite={(id) => setView({ t: "inquiry", id })} startTab={startTab} />
           )}
+          {view.t === "inquiry" && (() => { const c = clubById(view.id); return c ? <Inquiry club={c} profile={profile} facts={facts} nowMs={nowMs} onSent={() => setSent(loadSent())} onBack={() => setView(null)} /> : null; })()}
           {view.t === "detail" && (
             <Detail e={evalOf(view.id)} saved={saved.find((s) => s.id === view.id) ?? null} nowMs={nowMs}
               onSave={() => { const l = evalOf(view.id)?.listing ?? saved.find((s) => s.id === view.id)?.listing; if (l) toggle(l); }} onBack={() => setView({ t: "list" })} />

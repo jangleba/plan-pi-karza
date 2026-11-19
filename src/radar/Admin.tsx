@@ -10,8 +10,8 @@ import type { Eligibility, ListingKind } from "./lib";
  * przycisków osobom bez roli. Klucze i uprawnienia administracyjne nigdy nie trafiają do przeglądarki.
  */
 
-type Tab = "sources" | "review" | "reports" | "jobs";
-const TABS: Array<[Tab, string]> = [["sources", "Źródła"], ["review", "Do kontroli"], ["reports", "Zgłoszenia"], ["jobs", "Zadania"]];
+type Tab = "clubs" | "sources" | "review" | "reports" | "jobs";
+const TABS: Array<[Tab, string]> = [["clubs", "Kluby"], ["sources", "Źródła"], ["review", "Oferty"], ["reports", "Zgłoszenia"], ["jobs", "Zadania"]];
 
 interface Source {
   id: string; domain: string; name: string | null; kind: string; status: string; license_basis: string | null; allowed_scope: { fetch: boolean; publish_facts: boolean; images: boolean };
@@ -87,6 +87,75 @@ function SourceForm({ s, onDone, onClose }: { s: Source; onDone: () => void; onC
         <button className={`${btn} border border-hairline`} onClick={() => void save("rejected")}>Odrzuć</button>
       </div>
     </Sheet>
+  );
+}
+
+interface ClubRow {
+  id: string; domain: string; name: string; city: string | null; website: string; recruitment_url: string | null; status: string; review_note: string | null; last_ok_at: string | null;
+  radar_club_contacts: Array<{ email: string; kind: string; evidence_quote: string; evidence_url: string; mx_ok: boolean; status: string; checked_at: string }>;
+}
+interface ClubReport { id: string; reason: string; created_at: string; radar_clubs: { id: string; name: string; domain: string } | null }
+
+/** Kluby: kandydaci do akceptacji (adres, cytat i strona, z której pochodzi, wynik sprawdzenia poczty), opublikowane i zgłoszenia. */
+function Clubs() {
+  const q = useLoad(async () => must(await supabase!.from("radar_clubs").select("id,domain,name,city,website,recruitment_url,status,review_note,last_ok_at,radar_club_contacts(email,kind,evidence_quote,evidence_url,mx_ok,status,checked_at)").order("status").order("first_seen_at", { ascending: false }).limit(150) as never) as ClubRow[], []);
+  const reports = useLoad(async () => must(await supabase!.from("radar_club_reports").select("id,reason,created_at,radar_clubs(id,name,domain)").is("handled_at", null).order("created_at", { ascending: false }).limit(50) as never) as ClubReport[], []);
+  const act = async (id: string, action: "publish" | "withdraw") => {
+    const reason = action === "withdraw" ? window.prompt("Powód (np. prośba klubu, błędny adres)") ?? "" : null;
+    if (action === "withdraw" && !reason) return;
+    must(await supabase!.rpc("radar_admin_set_club", { p_id: id, p_action: action, p_reason: reason }) as never);
+    q.reload();
+  };
+  const [addUrl, setAddUrl] = useState("");
+  const [addMsg, setAddMsg] = useState("");
+  const addClub = async () => {
+    try {
+      const u = new URL(/^https?:\/\//i.test(addUrl.trim()) ? addUrl.trim() : `https://${addUrl.trim()}`);
+      must(await supabase!.from("radar_club_candidates").upsert({ domain: u.hostname.toLowerCase().replace(/^www\./, ""), sample_url: u.toString(), state: "pending", tries: 0 }, { onConflict: "domain" }).select() as never);
+      setAddMsg("Dodano – radar zbada stronę przy najbliższym uruchomieniu (discover co 12 h).");
+      setAddUrl("");
+    } catch (e) { setAddMsg(e instanceof Error ? e.message : "Nieprawidłowy adres"); }
+  };
+  const closeReport = async (id: string) => { must(await supabase!.from("radar_club_reports").update({ handled_at: new Date().toISOString() }).eq("id", id).select() as never); reports.reload(); };
+  if (q.err) return <p className="text-sm text-red-700">{q.err}</p>;
+  const group = (st: string[], label: string) => {
+    const list = (q.data ?? []).filter((c) => st.includes(c.status));
+    return (
+      <section className="mb-5"><h3 className="mb-2 text-xs uppercase tracking-wide text-muted">{label} ({list.length})</h3>
+        {list.map((c) => (
+          <article key={c.id} className="mb-2 rounded-2xl border border-hairline bg-card p-4 text-sm">
+            <a href={c.website} target="_blank" rel="noopener noreferrer" className="font-medium underline">{c.name}</a> <span className="text-xs text-muted">{c.domain} · {c.city ?? "miejscowość niepotwierdzona"} · {c.status}</span>
+            <ul className="mt-2">{c.radar_club_contacts.map((k) => (
+              <li key={k.email} className="mb-1 rounded-xl bg-canvas p-2 text-xs"><b>{k.email}</b> · {k.kind} · poczta (MX): {k.mx_ok ? "tak" : "NIE"} · {k.status}<br />„{k.evidence_quote}” – <a className="underline" href={k.evidence_url} target="_blank" rel="noopener noreferrer">strona</a></li>
+            ))}</ul>
+            {c.recruitment_url && <div className="mt-1 text-xs text-muted">Podstrona o naborze: {c.recruitment_url}</div>}
+            <div className="mt-2 flex gap-2">
+              {c.status !== "published" && c.status !== "withdrawn" && <button className={`${btn} bw-grad font-medium`} onClick={() => void act(c.id, "publish")}>Akceptuj</button>}
+              {c.status !== "withdrawn" && <button className={`${btn} border border-hairline`} onClick={() => void act(c.id, "withdraw")}>Odrzuć / wycofaj (blokuje domenę)</button>}
+            </div>
+          </article>
+        ))}
+      </section>
+    );
+  };
+  return (
+    <>
+      <p className="mb-4 rounded-2xl bg-canvas p-3 text-xs text-muted">Akceptuj tylko kluby, których adres jest organizacyjny (biuro@, nabor@…) i faktycznie widoczny w cytowanym fragmencie strony. Wycofany klub trafia na listę zablokowanych domen i nie wraca z wyszukiwarki. Automatyczną akceptację włączysz poleceniem: <code>update radar_settings set value = 'true' where key = 'club_auto_publish'</code>.</p>
+      <div className="mb-5 rounded-2xl border border-hairline bg-card p-4">
+        <h3 className="mb-2 text-xs uppercase tracking-wide text-muted">Dodaj klub do zbadania (bez wyszukiwarki)</h3>
+        <div className="flex gap-2"><input className="min-w-0 flex-1 rounded-xl bg-canvas px-3 py-2.5 text-sm" value={addUrl} onChange={(e) => setAddUrl(e.target.value)} placeholder="adres strony klubu, np. orly.pl" aria-label="Adres strony klubu" /><button className={`${btn} bw-grad font-medium`} onClick={() => void addClub()}>Dodaj</button></div>
+        {addMsg && <p className="mt-2 text-xs text-muted">{addMsg}</p>}
+      </div>
+      {(reports.data ?? []).length > 0 && (
+        <section className="mb-5"><h3 className="mb-2 text-xs uppercase tracking-wide text-muted">Zgłoszenia dotyczące klubów</h3>
+          {(reports.data ?? []).map((r) => <div key={r.id} className="mb-2 rounded-2xl border border-hairline bg-card p-3 text-sm"><b>{r.radar_clubs?.name}</b> ({r.radar_clubs?.domain}): {r.reason}<div className="mt-2 flex gap-2"><button className={`${btn} border border-hairline`} onClick={() => void closeReport(r.id)}>Zamknij</button>{r.radar_clubs && <button className={`${btn} border border-hairline`} onClick={() => void act(r.radar_clubs!.id, "withdraw").then(() => closeReport(r.id))}>Wycofaj klub</button>}</div></div>)}
+        </section>
+      )}
+      {group(["pending_review"], "Do akceptacji")}
+      {group(["published"], "Opublikowane")}
+      {group(["stale"], "Nieaktualne (brak świeżo potwierdzonego adresu)")}
+      {group(["withdrawn"], "Wycofane")}
+    </>
   );
 }
 
@@ -183,7 +252,7 @@ function Jobs() {
 
 export function RadarAdmin() {
   const [auth, setAuth] = useState<"loading" | "unconfigured" | "out" | "denied" | "admin">("loading");
-  const [tab, setTab] = useState<Tab>("sources");
+  const [tab, setTab] = useState<Tab>("clubs");
   const check = useCallback(async () => {
     if (!supabase) return setAuth("unconfigured");
     const { data } = await supabase.auth.getUser();
@@ -205,9 +274,10 @@ export function RadarAdmin() {
     <main className="mx-auto max-w-3xl px-5 pb-16 pt-14">
       <h1 className="mb-1 text-[28px] font-semibold tracking-tight">Radar – administracja</h1>
       <p className="mb-5 text-sm text-muted">Uprawnienia sprawdza serwer; ten ekran niczego nie obchodzi.</p>
-      <div className="mb-5 grid grid-cols-4 gap-1 rounded-2xl bg-hairline/70 p-1" role="tablist">
+      <div className="mb-5 grid grid-cols-5 gap-1 rounded-2xl bg-hairline/70 p-1" role="tablist">
         {TABS.map(([k, t]) => <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`rounded-xl py-2 text-sm ${tab === k ? "bg-card font-medium shadow-sm" : "text-muted"}`}>{t}</button>)}
       </div>
+      {tab === "clubs" && <Clubs />}
       {tab === "sources" && <Sources />}
       {tab === "review" && <Review />}
       {tab === "reports" && <Reports />}
