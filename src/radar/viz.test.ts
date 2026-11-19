@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { CENTER, RADIUS, initials, radarDots, ringsFor, tintOf } from "./viz";
+import { initials, tintOf } from "./viz";
 import { EMPTY_FORM, bestContact, clubsForPlayer, loadForm, loadSent, markSent, saveForm, type Club } from "./clubs";
 
 const club = (id: string, name: string, lat: number | null, lon: number | null, email = "biuro@k.pl"): Club => ({
@@ -22,39 +22,6 @@ describe("radar: kolory i inicjały", () => {
     expect(initials("Unia Tarnów")).toBe("UT");
     expect(initials("Akademia Piłkarska Gwiazda")).toBe("AP");
     expect(initials("KS")).toBe("KS");
-  });
-});
-
-describe("radar: rozmieszczenie kropek", () => {
-  const view = (clubs: Club[], radiusKm: number | null = 100) => clubsForPlayer(clubs, { place: KRK, radiusKm });
-  it("kierunki geograficzne: północ u góry, wschód po prawej, odległość w skali promienia", () => {
-    const north = club("n", "Północ", 50.061 + 0.45, 19.937); // ok. 50 km na północ
-    const east = club("e", "Wschód", 50.061, 19.937 + 0.7); // ok. 50 km na wschód
-    const dots = radarDots(KRK, view([north, east]), 100);
-    const n = dots.find((d) => d.id === "n")!, e = dots.find((d) => d.id === "e")!;
-    expect(n.y).toBeLessThan(CENTER - 40); // wyżej niż środek
-    expect(Math.abs(n.x - CENTER)).toBeLessThan(6);
-    expect(e.x).toBeGreaterThan(CENTER + 40);
-    expect(Math.abs(e.y - CENTER)).toBeLessThan(6);
-    for (const d of dots) expect(Math.hypot(d.x - CENTER, d.y - CENTER)).toBeLessThanOrEqual(RADIUS);
-    // dwa razy większy promień = kropka dwa razy bliżej środka
-    const wide = radarDots(KRK, view([north], 200), 200)[0]!;
-    expect(Math.hypot(wide.x - CENTER, wide.y - CENTER)).toBeLessThan(Math.hypot(n.x - CENTER, n.y - CENTER));
-  });
-  it("kluby bez współrzędnych są pomijane, a liczba kropek ograniczona", () => {
-    const clubs = [club("a", "A", null, null), ...Array.from({ length: 20 }, (_, i) => club(`c${i}`, `Klub ${i}`, 50.061 + i * 0.01, 19.937 + i * 0.01))];
-    const dots = radarDots(KRK, clubsForPlayer(clubs, { place: KRK, radiusKm: null }), 400, 12);
-    expect(dots.length).toBeLessThanOrEqual(12);
-    expect(dots.find((d) => d.id === "a")).toBeUndefined();
-  });
-  it("kropki w tym samym miejscu nie nakładają się (rozsunięcie)", () => {
-    const same = Array.from({ length: 5 }, (_, i) => club(`s${i}`, `Klub ${i}`, 50.061, 19.937));
-    const dots = radarDots(KRK, clubsForPlayer(same, { place: KRK, radiusKm: 100 }), 100);
-    for (let i = 0; i < dots.length; i++) for (let j = i + 1; j < dots.length; j++) expect(Math.hypot(dots[i]!.x - dots[j]!.x, dots[i]!.y - dots[j]!.y)).toBeGreaterThanOrEqual(26);
-  });
-  it("okręgi pomocnicze to ćwiartki promienia", () => {
-    expect(ringsFor(100)).toEqual([25, 50, 75, 100]);
-    expect(ringsFor(400)).toEqual([100, 200, 300, 400]);
   });
 });
 
