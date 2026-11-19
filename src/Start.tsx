@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { readinessScore, strainOf } from "./engine";
 import type { CheckIn, Profile } from "./engine";
-import type { PrivateProfile } from "./lib/private";
 import { Sheet } from "./Sheet";
-import { Radar } from "./radar/Radar";
 import { LegalSheet } from "./legal/LegalUi";
+import { EnglishCard } from "./english/EnglishCard";
+
+// Moduł nauki ładuje się dopiero po otwarciu (osobny fragment pakietu): nie spowalnia strony głównej.
+const EnglishModule = lazy(() => import("./english/EnglishModule"));
 
 const LEVELS: Array<[1 | 2 | 3, string]> = [[1, "Słabo"], [2, "Średnio"], [3, "Dobrze"]];
 const STRAIN = { none: "Pełna sesja", light: "Trochę lżej", heavy: "Wyraźnie lżej" } as const;
@@ -60,11 +62,13 @@ function Choice({ label, value, onChange }: { label: string; value: 1 | 2 | 3; o
   );
 }
 
-export function Start({ profile, birth, checkIn, checkedIn, onCheckIn, onBirth, onSettings }: {
-  profile: Profile; birth: PrivateProfile; checkIn: CheckIn; checkedIn: boolean; onCheckIn: (c: CheckIn) => void; onBirth: (b: PrivateProfile) => void; onSettings: () => void;
+export function Start({ profile, checkIn, checkedIn, onCheckIn, onSettings }: {
+  profile: Profile; checkIn: CheckIn; checkedIn: boolean; onCheckIn: (c: CheckIn) => void; onSettings: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [safety, setSafety] = useState(false);
+  const [english, setEnglish] = useState(false);
+  const [englishTick, setEnglishTick] = useState(0);
 
   return (
     <main className="mx-auto max-w-md px-5 pb-32 pt-14">
@@ -83,7 +87,13 @@ export function Start({ profile, birth, checkIn, checkedIn, onCheckIn, onBirth, 
         </p>
       </section>
 
-      <Radar profile={profile} birth={birth} onBirth={onBirth} />
+      <EnglishCard onOpen={() => setEnglish(true)} refreshKey={englishTick} />
+      {english && (
+        <Suspense fallback={<div className="fixed inset-0 z-30 flex items-center justify-center bg-canvas text-sm text-muted" role="status">Ładowanie…</div>}>
+          <EnglishModule onClose={() => { setEnglish(false); setEnglishTick((t) => t + 1); }} />
+        </Suspense>
+      )}
+
 
       {safety && <LegalSheet kind="safety" onClose={() => setSafety(false)} />}
       {open && (

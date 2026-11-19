@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { clearAllLocal, clearScope, copyScope, exportScope, getScope, hasData, listKeys, migrateLegacy, scoped, setScope, type Scope } from "./store";
+import { clearAllLocal, clearScope, copyScope, exportScope, getScope, hasData, listKeys, migrateLegacy, purgeRemovedFeatures, scoped, setScope, type Scope } from "./store";
 
 const mem = new Map<string, string>();
 const ls = {
@@ -92,5 +92,31 @@ describe("jawny import danych gościa do konta", () => {
     setScope(A); scoped.setItem("profile", '{"name":"Ala"}'); scoped.setItem("txt", "tekst");
     setScope(B); scoped.setItem("profile", '{"name":"Bartek"}');
     expect(exportScope(A)).toEqual({ profile: { name: "Ala" }, txt: "tekst" });
+  });
+});
+
+describe("usunięte moduły: dane lokalne radaru są kasowane", () => {
+  it("kasuje klucze radaru ze wszystkich przestrzeni i ze starych kluczy; resztę zostawia; wykonuje się raz", () => {
+    setScope(A); scoped.setItem("radarInquiry", '{"fullName":"Jan","phone":"600"}'); scoped.setItem("radarSaved", "[1]"); scoped.setItem("profile", '{"name":"Ala"}');
+    setScope(G); scoped.setItem("radarPrefs", "{}"); scoped.setItem("radarSent", "{}"); scoped.setItem("meals", "[]");
+    mem.set("radarPrefs", "{}"); mem.set("radarInquiry", "{}"); // stare, nieprzestrzenne klucze
+    mem.set("sb-token", "x");
+    const r = purgeRemovedFeatures();
+    expect(r.alreadyDone).toBe(false);
+    expect(r.removed.length).toBe(6);
+    expect([...mem.keys()].some((k) => /radar[A-Z]/.test(k))).toBe(false);
+    expect(listKeys(A)).toEqual(["profile"]);
+    expect(listKeys(G)).toEqual(["meals"]);
+    expect(mem.get("sb-token")).toBe("x");
+    scoped.setItem("radarSaved", "znów"); // po wykonaniu czyszczenie nie rusza nowych danych (znacznik)
+    expect(purgeRemovedFeatures().alreadyDone).toBe(true);
+  });
+  it("migracja starych kluczy nie przenosi już danych radaru do gościa", () => {
+    mem.set("radarPrefs", "{}"); mem.set("profile", "{}");
+    const r = migrateLegacy();
+    expect(r.moved).toEqual(["profile"]);
+    expect(mem.has("radarPrefs")).toBe(true); // zostaje do usunięcia przez purge, nigdy nie trafia do konta ani gościa
+    purgeRemovedFeatures();
+    expect(mem.has("radarPrefs")).toBe(false);
   });
 });

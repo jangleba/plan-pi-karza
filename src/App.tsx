@@ -5,7 +5,7 @@ import { AgreementGate } from "./legal/LegalUi";
 import { hasCurrentAgreement, resumePendingWithdraw } from "./legal/consent";
 import { useAuthState } from "./lib/session";
 import { changeBirth, finalizeNewProfile, loadGuardedProfile, saveProfile, type GuardResult } from "./lib/profileGuard";
-import { getScope, migrateLegacy, sameScope, scopeId, type Scope } from "./lib/store";
+import { getScope, migrateLegacy, purgeRemovedFeatures, sameScope, scopeId, type Scope } from "./lib/store";
 import { localISO, addDays, cycleWeekFor, levelOf, nextWeekUnlocked, planForProfile } from "./engine";
 import type { CheckIn, DayPlan, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
@@ -65,13 +65,13 @@ function DayRow({ day, index, isToday, onOpen }: { day: DayPlan; index: number; 
 }
 
 /**
- * Logowanie jest wymagane dopiero po ustawieniu VITE_REQUIRE_LOGIN=true. Sama konfiguracja Supabase (np. dla radaru
- * „Piłkarskie szanse”, który czyta publiczne dane kluczem publicznym) NIE włącza logowania – aplikacja działa dalej bez konta.
+ * Logowanie jest wymagane dopiero po ustawieniu VITE_REQUIRE_LOGIN=true. Sama konfiguracja Supabase
+ * NIE włącza logowania – aplikacja działa dalej bez konta (postęp zapisuje się wtedy lokalnie).
  */
 const REQUIRE_LOGIN = import.meta.env.VITE_REQUIRE_LOGIN === "true";
 
 export function App() {
-  useState(() => { migrateLegacy(); return 0; }); // stare, wspólne klucze → przestrzeń GOŚCIA (nigdy do bieżącego konta)
+  useState(() => { migrateLegacy(); purgeRemovedFeatures(); return 0; }); // stare, wspólne klucze → przestrzeń GOŚCIA (nigdy do bieżącego konta)
   const auth = useAuthState();
   const [loginOpen, setLoginOpen] = useState(false);
   if (auth.status === "loading") return null;
@@ -159,14 +159,13 @@ function Main({ scope, email, onLogin }: { scope: Scope; email: string | null; o
   }
   if (!agreed) return <AgreementGate profile={guard.profile} onDone={() => setAgreed(true)} />;
 
-  const { profile, birth } = guard;
+  const { profile } = guard;
   return (
     <div className="bw-backdrop relative isolate min-h-screen">
       <Backdrop />
       <div key={tab} className="bw-tab relative">
       {tab === "start" && (
-        <Start profile={profile} birth={birth} checkIn={checkIn} checkedIn={checkedIn} onCheckIn={setCheckIn} onSettings={() => setSettings(true)}
-          onBirth={(b) => setGuard(changeBirth(b, profile))} />
+        <Start profile={profile} checkIn={checkIn} checkedIn={checkedIn} onCheckIn={setCheckIn} onSettings={() => setSettings(true)} />
       )}
       {tab === "plan" && (
         <Home profile={profile} checkIn={checkIn} initialOpen={openDay} onOpened={() => setOpenDay(null)} onReset={() => {
