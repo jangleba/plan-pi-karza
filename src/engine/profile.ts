@@ -2,6 +2,9 @@ import type { Level, Season, SeasonGoal } from "./types";
 import { addDays, planWeek } from "./week";
 
 export type Position = "bramkarz" | "obronca" | "pomocnik" | "skrzydlowy" | "napastnik";
+export const POSITION_LABEL: Record<Position, string> = {
+  bramkarz: "Bramkarz", obronca: "Obrońca", pomocnik: "Pomocnik", skrzydlowy: "Skrzydłowy", napastnik: "Napastnik",
+};
 export type Equipment = "gym" | "bodyweight" | "field";
 
 /** Polskie poziomy rozgrywek (wpływ na silnik – do ustalenia, na razie tylko zapis). */
