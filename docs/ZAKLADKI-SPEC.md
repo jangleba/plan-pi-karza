@@ -87,3 +87,13 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 - Testy: przy 1,5–7 m/s stopa w podporze < 0,1 m/s względem ziemi i ±1 cm od murawy; start/zatrzymanie nie szybsze niż równy bieg; po zatrzymaniu stopy pod biodrami; IK trafia w cel.
 - Parametry (kadencja, długość podporu, wysokość wymachu) to założenia wizualne, nie zweryfikowany model biomechaniczny.
 - Następny krok (punkty 6–8): świat w trakcie lotu piłki, kopnięcie z kontaktem, prowadzenie piłki.
+
+## IQ – postacie Mixamo, kopnięcie i piłka (2026-11-19, plan A punkty 6–8 + wymiana postaci)
+- Powód: proceduralne „klocki" wyglądały jak z drewna. Przywrócone z historii repo (commit 4f05c9d) gładko oskórowane Mixamo „Beta" (`public/iq/player.glb`, 65 kości, ok. 4,9 tys. trójkątów) i klipy: bieg (w pliku), stanie, chód, podanie (`public/iq/*.json`, wartości zaokrąglone do 4 miejsc). NIE sprawdzone: warunki licencji Mixamo dla tej aplikacji – do weryfikacji przed publikacją.
+- `src/iq/actorMath.ts`: wagi klipów wg prędkości (stanie → chód → bieg, płynnie), tempo klipu = prędkość / prędkość natywna (bieg 5,63 m/s, chód 1,75 m/s – zmierzone na stopie w podporze), podział ciała na części stroju wg kości i wysokości.
+- `src/iq/actors.ts`: wczytanie modelu i klipów (klip chodu przerobiony na „w miejscu"), strój z wag części ciała z ostrymi granicami w shaderze (skóra, koszulka, spodenki, getry, buty, rękawice), włosy, numer na plecach, `SkinnedActor`, zapas proceduralny (gdy model się nie wczyta).
+- Kopnięcie: zawodnik staje do celu, piłka podtacza się na miejsce kontaktu (przed prawą stopą), zamach z klipu podania, piłka opuszcza stopę w chwili kontaktu (0,43 s klipu ÷ 1,2 tempo), potem lot. Świat żyje podczas zamachu i lotu; ocena decyzji nadal z chwili naciśnięcia.
+- Prowadzenie piłki: dotknięcie co ok. 1,8 m drogi, piłka płynnie dąży do pozycji, obraca się o dystans / promień; kierunek wygładzony (bez teleportów).
+- Testy (`actors.test.ts`): zmierzone prędkości klipów zgodne ze stałymi (±3%); stopa w podporze stoi względem murawy po dopasowaniu tempa (±5%); kontakt w klipie podania w 0,43 s, palce na wysokości piłki; wysokość modelu ~1,8 m; wagi sumują się do 1.
+- Wydajność (przeglądarka bez GPU): 59 wywołań rysowania i 57 tys. trójkątów na klatkę; zapas proceduralny: 217 wywołań. NIE sprawdzone na telefonie.
+- Model „Beta" to manekin bez twarzy; przy kamerze gry nie jest to widoczne.
