@@ -18,3 +18,4 @@ export * from "./imagery";
 export * from "./track";
 export * from "./jumpdetect";
 export * from "./feel";
+export * from "./progress2";

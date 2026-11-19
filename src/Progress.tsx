@@ -1,47 +1,63 @@
-import { useMemo } from "react";
-import { EXERCISES, FEEL_NOW, feelChange, loadFeelings, loadHistory, localISO, series, sessionsPerWeek, trend, weekStartOf } from "./engine";
-import type { Better, EventType, HistoryEvent } from "./engine";
-import { LineChart, TREND_HEX } from "./LineChart";
+import { useMemo, useState } from "react";
+import { FEEL_NOW, adherence, byKind, feelChange, insights, inRange, loadFeelings, loadHistory, localISO, nutritionSummary, recentAdherence, records, series, streak, trend, weeklyByKind } from "./engine";
+import type { HistoryEvent, Metric, Profile, Range } from "./engine";
+import { KIND_PL, fmtValue } from "./engine/progress2";
 import { Empty } from "./Sketch";
-import { Group, LargeTitle, ListRow } from "./ui";
+import { LargeTitle } from "./ui";
+import { TREND_HEX } from "./progress/trend";
+import { Heatmap } from "./progress/Heatmap";
+import { KindSheet, RangeTabs } from "./progress/KindSheet";
+import { Sparkline } from "./progress/TrendChart";
+import { nutritionDays, plannedDays } from "./progress/data";
+import { GROUP_KIND, GROUP_TITLE, allMetrics, groupOf, sesji, shortDate, type Group } from "./progress/metrics";
 
-interface Metric { title: string; type: EventType; key: string; unit: string; better: Better; fmt?: (v: number) => number }
+const FEEL_LABEL = Object.fromEntries(FEEL_NOW) as Record<string, string>;
+const label = (t: string) => <h2 className="mb-2 mt-7 px-1 text-xs uppercase tracking-wide text-muted">{t}</h2>;
+const card = "bw-rise rounded-3xl border border-hairline bg-card";
+const pct = (v: number) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(1).replace(".", ",")}%`;
 
-const LABS: Metric[] = [
-  { title: "CMJ", type: "lab", key: "cmj", unit: " cm", better: "higher" },
-  { title: "Skok w dal", type: "lab", key: "broad-jump", unit: " cm", better: "higher" },
-  { title: "Sprint 10 m", type: "lab", key: "sprint-10", unit: " s", better: "lower" },
-  { title: "Sprint 20 m", type: "lab", key: "sprint-20", unit: " s", better: "lower" },
-  { title: "Sprint 30 m", type: "lab", key: "sprint-30", unit: " s", better: "lower" },
-  { title: "Yo-Yo IR1", type: "lab", key: "yoyo-ir1", unit: " m", better: "higher" },
-];
+type CardKey = Group | "technique";
 
-function Card({
-  title, points, better, unit,
-}: { title: string; points: Array<{ date: string; value: number }>; better: Better; unit: string }) {
-  const t = trend(points.map((p) => p.value), better);
+/** Kafelek rodzaju treningu: główna metryka z trendem i wykresem, liczba sesji z 4 tygodni. */
+function KindCard({ k, events, metrics, today, range, onOpen }: { k: CardKey; events: HistoryEvent[]; metrics: Metric[]; today: string; range: Range; onOpen?: () => void }) {
+  const kind = k === "technique" ? "technique" : GROUP_KIND[k];
+  const title = k === "technique" ? "Technika" : GROUP_TITLE[k];
+  const done28 = events.filter((e) => e.type === "session" && e.key === kind && e.date >= shiftDays(today, -28)).length;
+  const mine = k === "technique" ? [] : metrics.filter((m) => groupOf(m) === k).map((m) => ({ m, s: series(events, m.type, m.key) })).filter((x) => x.s.length > 0);
+  // główna metryka: ta, która ma najwięcej pomiarów (przy remisie – najświeższa)
+  const main = [...mine].sort((a, b) => b.s.length - a.s.length)[0];
+  const weekly = weeklyByKind(events, kind, today);
+  const t = main ? trend(main.s.map((p) => p.value), main.m.better) : null;
+  const spark = main ? inRange(main.s, range, today) : inRange(weekly, range, today);
+  const tone = t?.tone ?? "neutral";
+  const clickable = k !== "technique";
+  const Tag = clickable ? "button" : "div";
   return (
-    <section className="bw-rise mb-3 rounded-3xl border border-hairline bg-card px-5 pb-3 pt-4">
-      <div className="mb-1 flex items-baseline justify-between">
-        <h3 className="text-[15px] font-semibold">{title}</h3>
-        {t && (
-          <span className="rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums" style={{ color: TREND_HEX[t.tone], background: `${TREND_HEX[t.tone]}14` }}>
-            {t.pct >= 0 ? "+" : ""}{t.pct.toFixed(1)}%
-          </span>
-        )}
+    <Tag onClick={clickable ? onOpen : undefined} className={`${card} flex flex-col p-4 text-left ${clickable ? "active:scale-[0.98]" : ""}`}>
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-[13px] font-medium text-muted">{title}</span>
+        {t && <span className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ color: TREND_HEX[t.tone], background: `${TREND_HEX[t.tone]}14` }}>{pct(t.pct)}</span>}
       </div>
-      {points.length >= 2 ? (
-        <LineChart points={points.map((p) => ({ label: p.date, value: p.value }))} tone={t?.tone ?? "neutral"} unit={unit} />
+      {main ? (
+        <>
+          <div className="mt-1 text-[22px] font-semibold leading-tight tabular-nums">{fmtValue(main.m, main.s[main.s.length - 1]!.value)}<span className="text-xs font-normal text-muted">{main.m.unit}</span></div>
+          <div className="line-clamp-2 min-h-[28px] text-[11px] leading-[14px] text-muted">{main.m.title}</div>
+        </>
       ) : (
-        <p className="py-4 text-sm text-muted">
-          {points.length === 1 ? "Jeden pomiar – po drugim pojawi się trend." : "Brak danych."}
-        </p>
+        <>
+          <div className="mt-1 text-[22px] font-semibold leading-tight tabular-nums">{done28}</div>
+          <div className="text-[11px] text-muted">{done28 === 1 ? "sesja" : "sesji"} w 4 tyg.</div>
+        </>
       )}
-    </section>
+      <div className="mt-2"><Sparkline points={spark} tone={tone} /></div>
+      {main && <div className="mt-1.5 text-[11px] tabular-nums text-muted">{sesji(done28)} w 4 tyg.</div>}
+    </Tag>
   );
 }
 
-const FEEL_LABEL = Object.fromEntries(FEEL_NOW) as Record<string, string>;
+function shiftDays(iso: string, n: number): string {
+  const d = new Date(Date.parse(iso)); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10);
+}
 
 /** Jak zawodnik czuje się na boisku: pierwsza vs ostatnia odpowiedź. */
 function FeelSection() {
@@ -51,8 +67,8 @@ function FeelSection() {
   const ch = all.length > 1 ? feelChange(first, last) : null;
   return (
     <>
-      <h2 className="mb-2 px-1 text-xs uppercase tracking-wide text-muted">Na boisku</h2>
-      <section className="bw-rise mb-6 rounded-3xl border border-hairline bg-card px-5 py-4 text-[15px]">
+      {label("Na boisku")}
+      <section className={`${card} px-5 py-4 text-[15px]`}>
         {ch ? (
           <>
             {ch.better.map((f) => <p key={f} className="text-green-ink">Lepiej: już nie „{FEEL_LABEL[f]}”</p>)}
@@ -60,56 +76,133 @@ function FeelSection() {
             {!ch.better.length && !ch.worse.length && <p className="text-muted">Bez zmian od {first.date.split("-").reverse().join(".")}.</p>}
           </>
         ) : (
-          <p className="text-muted">
-            {last.now.length ? last.now.map((f) => FEEL_LABEL[f]).join(", ") : "Bez problemów"} · pytanie wróci za 5 tygodni.
-          </p>
+          <p className="text-muted">{last.now.length ? last.now.map((f) => FEEL_LABEL[f]).join(", ") : "Bez problemów"} · pytanie wróci za 5 tygodni.</p>
         )}
       </section>
     </>
   );
 }
 
-export function Progress({ refreshKey }: { refreshKey?: number }) {
+export function Progress({ profile, refreshKey }: { profile: Profile; refreshKey?: number }) {
+  const today = localISO();
   const events: HistoryEvent[] = useMemo(loadHistory, [refreshKey]);
-  const strengthKeys = [...new Set(events.filter((e) => e.type === "strength").map((e) => e.key))];
-  const weeks = sessionsPerWeek(events, weekStartOf(localISO()));
-  const empty = events.length === 0;
+  const metrics = useMemo(() => allMetrics(events), [events]);
+  const [range, setRange] = useState<Range>("12w");
+  const [open, setOpen] = useState<Group | null>(null);
 
-  const label = (t: string) => <h2 className="mb-2 mt-6 px-1 text-xs uppercase tracking-wide text-muted">{t}</h2>;
-  const labSeries = LABS.map((m) => ({ m, pts: series(events, m.type, m.key) }));
-  const measured = labSeries.filter((x) => x.pts.length > 0);
-  const missing = labSeries.filter((x) => x.pts.length === 0);
-  const mas = series(events, "mas", "mas");
+  const planned = useMemo(() => plannedDays(profile, today, 12), [profile, today]);
+  const adh = useMemo(() => adherence(planned, events, today, profile.startDate), [planned, events, today, profile.startDate]);
+  const recent = recentAdherence(adh.weeks, today);
+  const serie = streak(adh.weeks, today);
+  const kinds = useMemo(() => byKind(adh.cells, today, 28), [adh.cells, today]);
+  const recs = useMemo(() => records(events, metrics, today), [events, metrics, today]);
+  const nutDays = useMemo(() => nutritionDays(profile, today, 14), [profile, today]);
+  const nut = nutritionSummary(nutDays);
+  const notes = insights({ events, metrics, today, adherence: recent, kinds, nutrition: nut });
+  const empty = events.length === 0;
   const legend: Array<[string, string]> = [[TREND_HEX.green, "postęp"], [TREND_HEX.orange, "lekki spadek"], [TREND_HEX.red, "regres"]];
 
   return (
     <main className="mx-auto max-w-md px-5 pb-28 pt-14">
       <LargeTitle kind="progres" title="Progres" sub="Twoje trendy" />
-      <div className="bw-rise mb-6 flex gap-4 px-1 text-xs text-muted">
+      {empty && <div className="mb-5"><Empty kind="progres">Wykresy pojawią się po pierwszych sesjach i testach.</Empty></div>}
+
+      <RangeTabs range={range} onChange={setRange} />
+      <div className="mt-3 flex gap-4 px-1 text-xs text-muted">
         {legend.map(([c, t]) => <span key={t} className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: c }} />{t}</span>)}
       </div>
-      {empty && (
-        <div className="mb-6">
-          <Empty kind="progres">Wykresy pojawią się po pierwszych sesjach i testach.</Empty>
-        </div>
-      )}
-      <FeelSection />
+
+      {label("Treningi")}
+      <div className="grid grid-cols-2 gap-3">
+        {(["strength", "speed", "run", "technique"] as CardKey[]).map((k) => (
+          <KindCard key={k} k={k} events={events} metrics={metrics} today={today} range={range} onOpen={k !== "technique" ? () => setOpen(k as Group) : undefined} />
+        ))}
+      </div>
+
       {label("Regularność")}
-      <Card title="Sesje w tygodniu" points={weeks} better="higher" unit="" />
-      {strengthKeys.length > 0 && label("Siła · szacowane 1RM")}
-      {strengthKeys.map((k) => (
-        <Card key={k} title={EXERCISES[k]?.name ?? k} points={series(events, "strength", k)} better="higher" unit=" kg" />
-      ))}
-      {mas.length > 0 && <>{label("Bieganie")}<Card title="MAS" points={mas} better="higher" unit=" km/h" /></>}
-      {measured.length > 0 && label("Lab")}
-      {measured.map(({ m, pts }) => <Card key={m.key} title={m.title} points={pts} better={m.better} unit={m.unit} />)}
-      {missing.length > 0 && (
-        <Group label="Jeszcze bez pomiarów">
-          {missing.map(({ m }, i) => <ListRow key={m.key} index={i} title={m.title} detail="Lab" />)}
-          {strengthKeys.length === 0 && <ListRow index={missing.length} title="Siła" detail="kg w sesji" />}
-          {mas.length === 0 && <ListRow index={missing.length + 1} title="MAS" detail="test 5 min" />}
-        </Group>
+      <section className={`${card} px-5 py-4`}>
+        {recent ? (
+          <div className="mb-4 flex items-end justify-between">
+            <div>
+              <div className="text-[34px] font-semibold leading-none tabular-nums">{recent.pct}<span className="text-base font-normal text-muted">%</span></div>
+              <div className="mt-1 text-xs text-muted">realizacji planu · {recent.done} z {recent.planned} sesji w 4 tyg.</div>
+            </div>
+            <div className="text-right">
+              <div className="text-[22px] font-semibold leading-none tabular-nums">{serie}</div>
+              <div className="mt-1 text-xs text-muted">tyg. z rzędu ≥ 80%</div>
+            </div>
+          </div>
+        ) : (
+          <p className="mb-4 text-sm text-muted">Realizacja planu pojawi się po pierwszym pełnym tygodniu.</p>
+        )}
+        <Heatmap cells={adh.cells} today={today} />
+        {kinds.length > 0 && (
+          <div className="mt-4 space-y-2.5 border-t border-hairline pt-3">
+            {kinds.map((k) => (
+              <div key={k.kind}>
+                <div className="mb-1 flex justify-between text-xs"><span>{KIND_PL[k.kind] ?? k.kind}</span><span className="tabular-nums text-muted">{k.done} z {k.planned}</span></div>
+                <div className="h-1.5 rounded-full bg-hairline"><div className="h-1.5 rounded-full bg-btn shadow-[inset_0_0_0_1px_var(--color-btn-line)]" style={{ width: `${k.planned ? (k.done / k.planned) * 100 : 0}%` }} /></div>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="mt-3 text-[11px] text-muted">Plan liczony wg obecnych ustawień profilu; seria = tydzień z realizacją ≥ 80% (próg umowny).</p>
+      </section>
+
+      {recs.length > 0 && (
+        <>
+          {label("Rekordy")}
+          <section className={`${card} px-5 py-1`}>
+            <ul className="divide-y divide-hairline/70">
+              {recs.slice(0, 8).map((r) => (
+                <li key={r.metric.key} className="flex items-center justify-between gap-3 py-3 text-[15px]">
+                  <span className="min-w-0">{r.metric.title}{r.isNew && <span className="ml-2 rounded-full bw-sel px-2 py-0.5 text-[10px] font-medium">nowy</span>}{r.first && <span className="ml-2 text-[11px] text-muted">pierwszy pomiar</span>}</span>
+                  <span className="shrink-0 tabular-nums"><span className="font-semibold">{fmtValue(r.metric, r.value)}{r.metric.unit}</span><span className="ml-2 text-xs text-muted">{shortDate(r.date)}</span></span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </>
       )}
+
+      {notes.length > 0 && (
+        <>
+          {label("Wnioski")}
+          <section className={`${card} px-5 py-4`}>
+            <ul className="space-y-2.5 text-[15px] leading-snug">
+              {notes.map((n) => <li key={n} className="border-l-2 border-btn-line pl-3">{n}</li>)}
+            </ul>
+            <p className="mt-3 text-[11px] text-muted">Opis liczb z Twoich danych – bez zgadywania przyczyn.</p>
+          </section>
+        </>
+      )}
+
+      {label("Odżywianie")}
+      <section className={`${card} px-5 py-4`}>
+        {nut.logged >= 3 ? (
+          <>
+            <div className="mb-3 flex flex-wrap gap-1.5" aria-label="Ostatnie 14 dni">
+              {nutDays.map((d) => {
+                const ok = d.logged && d.carb >= 0.85 * d.target.carb;
+                return <span key={d.date} title={`${shortDate(d.date)}${d.logged ? "" : " · brak wpisów"}`} className={`h-4 w-4 rounded-full ${ok ? "bg-btn shadow-[inset_0_0_0_1px_var(--color-btn-line)]" : d.logged ? "border border-muted/60 bg-card" : "bg-hairline/50"}`} />;
+              })}
+            </div>
+            <ul className="space-y-1.5 text-[15px]">
+              <li className="flex justify-between"><span>Węglowodany ≥ 85% celu</span><span className="tabular-nums text-muted">{nut.carbOk} z {nut.logged} dni</span></li>
+              <li className="flex justify-between"><span>Białko ≥ 85% celu</span><span className="tabular-nums text-muted">{nut.proteinOk} z {nut.logged} dni</span></li>
+              <li className="flex justify-between"><span>Woda ≥ 85% celu</span><span className="tabular-nums text-muted">{nut.waterOk} z {nut.logged} dni</span></li>
+              {nut.avgCarbPct !== null && <li className="flex justify-between"><span>Średnio węglowodanów</span><span className="tabular-nums text-muted">{nut.avgCarbPct}% celu</span></li>}
+            </ul>
+            <p className="mt-3 text-[11px] text-muted">Ostatnie {nut.total} dni; liczone tylko dni z wpisami ({nut.logged}). Cele z planu dnia w Fuel – orientacyjne.</p>
+          </>
+        ) : (
+          <p className="text-sm text-muted">Za mało wpisów na wnioski ({nut.logged} z {nut.total} dni). Dodawaj posiłki w Fuel – po 3 dniach pojawi się podsumowanie.</p>
+        )}
+      </section>
+
+      <FeelSection />
+
+      {open && <KindSheet group={open} events={events} metrics={metrics} today={today} range={range} onClose={() => setOpen(null)} />}
     </main>
   );
 }
