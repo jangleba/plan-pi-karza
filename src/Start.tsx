@@ -3,7 +3,6 @@ import { FEEL_NOW, feelDue, loadFeelings, localISO, readinessScore, saveFeeling,
 import type { CheckIn, FeelNow, Profile } from "./engine";
 import { Sheet } from "./Sheet";
 import { MatchInMind } from "./MatchInMind";
-import { Bench } from "./Bench";
 import { Group, ListRow } from "./ui";
 
 const LEVELS: Array<[1 | 2 | 3, string]> = [[1, "Słabo"], [2, "Średnio"], [3, "Dobrze"]];
@@ -63,7 +62,7 @@ function Choice({ label, value, onChange }: { label: string; value: 1 | 2 | 3; o
 export function Start({ profile, checkIn, checkedIn, onCheckIn }: {
   profile: Profile; checkIn: CheckIn; checkedIn: boolean; onCheckIn: (c: CheckIn) => void;
 }) {
-  const [sheet, setSheet] = useState<"checkin" | "mind" | "bench" | "feel" | null>(null);
+  const [sheet, setSheet] = useState<"checkin" | "mind" | "feel" | null>(null);
   const [feel, setFeel] = useState<FeelNow[]>([]);
   const [feelTick, setFeelTick] = useState(0);
   void feelTick;
@@ -82,8 +81,7 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn }: {
 
       <Group>
         <ListRow index={1} title="Mecz w głowie" detail="3 min" onTap={() => setSheet("mind")} />
-        <ListRow index={2} title="Tryb ławki" sub="Obserwuj, rozgrzej się, wejdź" onTap={() => setSheet("bench")} />
-        {feelDue(feelings.at(-1), today) && <ListRow index={3} title="Jak czujesz się na boisku?" detail="co 5 tyg." onTap={() => { setFeel([]); setSheet("feel"); }} />}
+        {feelDue(feelings.at(-1), today) && <ListRow index={2} title="Jak czujesz się na boisku?" detail="co 5 tyg." onTap={() => { setFeel([]); setSheet("feel"); }} />}
       </Group>
 
       {sheet === "checkin" && (
@@ -97,7 +95,6 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn }: {
           <button onClick={() => { onCheckIn(checkIn); setSheet(null); }} className="w-full bw-grad rounded-2xl py-4 text-base font-medium">Gotowe</button>
         </Sheet>
       )}
-      {sheet === "bench" && <Bench position={profile.position} onClose={() => setSheet(null)} />}
       {sheet === "mind" && <MatchInMind position={profile.position} onClose={() => setSheet(null)} />}
       {sheet === "feel" && (
         <Sheet title="Jak czujesz się na boisku?" onClose={() => setSheet(null)}>
