@@ -69,17 +69,17 @@ export function ListRow({ title, sub, detail, accent, onTap, index = 0, lead }: 
 }
 
 /** Pierścień postępu (0–1) z animacją wypełnienia. */
-export function MiniRing({ value, label, center }: { value: number; label: string; center: ReactNode }) {
+export function MiniRing({ value, label, center, small }: { value: number; label: string; center: ReactNode; small?: boolean }) {
   const r = 34, c = 2 * Math.PI * r;
   return (
     <div className="flex flex-col items-center">
-      <div className="relative h-24 w-24">
+      <div className={`relative ${small ? "h-[76px] w-[76px]" : "h-24 w-24"}`}>
         <svg viewBox="0 0 80 80" className="h-full w-full -rotate-90">
           <circle cx="40" cy="40" r={r} fill="none" stroke="var(--color-hairline)" strokeWidth="7" />
           <circle cx="40" cy="40" r={r} fill="none" stroke="var(--color-accent)" strokeWidth="7" strokeLinecap="round"
             strokeDasharray={c} strokeDashoffset={c * (1 - Math.max(0, Math.min(1, value)))} style={{ transition: "stroke-dashoffset 0.9s ease" }} />
         </svg>
-        <span className="absolute inset-0 flex items-center justify-center text-base font-semibold tabular-nums">{center}</span>
+        <span className={`absolute inset-0 flex items-center justify-center font-semibold tabular-nums ${small ? "text-[15px]" : "text-base"}`}>{center}</span>
       </div>
       <span className="mt-1.5 text-xs text-muted">{label}</span>
     </div>

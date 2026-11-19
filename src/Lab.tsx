@@ -95,7 +95,7 @@ function TestRow({ test, index, onSaved }: { test: LabTest; index: number; onSav
           {test.caveat && <p className="mb-4 text-xs text-muted">{test.caveat}</p>}
           {(test.key === "cmj" || test.key === "sprint") && (
             <>
-              <button onClick={() => setCamera(true)} className="mb-2 w-full rounded-2xl bw-grad py-4 text-base font-medium text-white">
+              <button onClick={() => setCamera(true)} className="mb-2 w-full rounded-2xl bw-grad py-4 text-base font-medium">
                 {test.key === "cmj" ? "Nagraj skok" : "Nagraj sprint"}
               </button>
               <button onClick={() => setVideo(true)} className="mb-4 w-full py-2 text-sm text-muted">Wgraj film z galerii</button>
@@ -116,7 +116,7 @@ function TestRow({ test, index, onSaved }: { test: LabTest; index: number; onSav
             const has = inputs.some(([k]) => (vals[k] ?? "").trim() !== "");
             return (
               <button onClick={save} disabled={!has}
-                className={`w-full rounded-2xl py-4 text-base font-medium transition ${has ? "bw-grad text-white" : "bg-hairline text-muted"}`}>
+                className={`w-full rounded-2xl py-4 text-base font-medium transition ${has ? "bw-grad" : "bg-hairline text-muted"}`}>
                 Zapisz wynik
               </button>
             );

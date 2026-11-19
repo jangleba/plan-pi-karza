@@ -117,7 +117,7 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn }: {
             className={`mb-6 w-full rounded-2xl py-3.5 text-sm font-medium ${checkIn.less ? "bw-sel" : "bg-canvas text-ink"}`}>
             Dziś mniej
           </button>
-          <button onClick={() => { onCheckIn(checkIn); setSheet(null); }} className="w-full bw-grad rounded-2xl py-4 text-base font-medium text-white">Gotowe</button>
+          <button onClick={() => { onCheckIn(checkIn); setSheet(null); }} className="w-full bw-grad rounded-2xl py-4 text-base font-medium">Gotowe</button>
         </Sheet>
       )}
       {sheet === "session" && day && (
@@ -134,13 +134,13 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn }: {
               return (
                 <button key={`${v}-${on}`} onClick={() => setFeel(on ? feel.filter((x) => x !== v) : [...feel, v])}
                   className={`flex items-center justify-between rounded-2xl px-4 py-3.5 text-left ${on ? "bw-pop bw-sel font-semibold" : "border border-hairline bg-card"}`}>
-                  {t}<span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${on ? "bg-accent text-white" : "border border-hairline"}`}>{on ? "✓" : ""}</span>
+                  {t}<span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${on ? "bw-grad" : "border border-hairline"}`}>{on ? "✓" : ""}</span>
                 </button>
               );
             })}
           </div>
           <button onClick={() => { saveFeeling({ date: today, now: feel }); setFeelTick((x) => x + 1); setSheet(null); }}
-            className="bw-grad w-full rounded-2xl py-4 text-base font-medium text-white">{feel.length ? "Zapisz" : "Wszystko gra – zapisz"}</button>
+            className="bw-grad w-full rounded-2xl py-4 text-base font-medium">{feel.length ? "Zapisz" : "Wszystko gra – zapisz"}</button>
         </Sheet>
       )}
     </main>

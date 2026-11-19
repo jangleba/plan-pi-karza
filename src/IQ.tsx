@@ -402,7 +402,7 @@ export default function IQ() {
               <p className="mt-2 text-[15px] leading-snug text-ink">Wyjdź z pressingu. Strata = kontra 3 na 2 – wtedy to Ty ją gasisz.</p>
               <p className="mt-2 text-xs text-muted">Joystick: do przodu – bieg, w bok – skręt (kamera obraca się za Tobą). Patrz w stronę kolegi i podaj.</p>
               {fallback && <p className="mt-2 text-xs text-muted">Uproszczone postacie (nie udało się wczytać modeli).</p>}
-              <button onClick={() => setP("play")} className="bw-grad mt-4 w-full rounded-2xl py-3.5 text-base font-medium text-white">Graj</button>
+              <button onClick={() => setP("play")} className="bw-grad mt-4 w-full rounded-2xl py-3.5 text-base font-medium">Graj</button>
             </div>
           </div>
         )}
@@ -413,7 +413,7 @@ export default function IQ() {
           <ol className="space-y-2 text-[15px] leading-snug">
             {result.moments.map((m, i) => <li key={i} className="tabular-nums">{m}</li>)}
           </ol>
-          <button onClick={() => reset.current(true)} className="bw-grad mt-6 w-full rounded-2xl py-4 text-base font-medium text-white">Kolejna próba</button>
+          <button onClick={() => reset.current(true)} className="bw-grad mt-6 w-full rounded-2xl py-4 text-base font-medium">Kolejna próba</button>
         </Sheet>
       )}
     </main>

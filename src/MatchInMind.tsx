@@ -74,7 +74,7 @@ export function MatchInMind({ position, onClose }: { position: Position; onClose
       <p className="mb-4 text-center text-sm tabular-nums text-muted">{done ? "Gotowe" : `${left} s`}</p>
       <div className="flex gap-2">
         <button onClick={() => go(i - 1)} className="rounded-xl border border-hairline px-4 py-3 text-sm">Wstecz</button>
-        <button onClick={() => (done ? onClose() : setPaused(!paused))} className="flex-1 rounded-xl bw-grad py-3 text-sm font-medium text-white">
+        <button onClick={() => (done ? onClose() : setPaused(!paused))} className="flex-1 rounded-xl bw-grad py-3 text-sm font-medium">
           {done ? "Zakończ" : paused ? "Wznów" : "Pauza"}
         </button>
         <button onClick={() => go(i + 1)} className="rounded-xl border border-hairline px-4 py-3 text-sm">Dalej</button>

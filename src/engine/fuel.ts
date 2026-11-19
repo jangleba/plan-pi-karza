@@ -3,7 +3,7 @@
  * Liczby z oświadczenia grupy ekspertów UEFA (Collins i in., BJSM 2020) są oznaczone `uefa: true`;
  * pozostałe wskazówki są ogólne/praktyczne i NIE pochodzą z konkretnych badań (docs/ZRODLA-FUEL.md).
  */
-export type Goal = "maintain" | "gain" | "lose";
+export type Goal = "maintain" | "gain";
 export type ActivityKind = "match" | "session";
 export type DayKind = "match" | "pre-match" | "training" | "light";
 
@@ -86,26 +86,42 @@ function afterTips(hoursAgo: number, kind: ActivityKind, weightKg: number): Tip[
 export interface DailyTargets {
   carbG: [number, number];
   proteinG: [number, number];
+  fatG: [number, number];
+  /** Udział tłuszczu w energii dnia (UEFA: 20–35% dla piłkarzy elity; położenie w zakresie orientacyjne). */
+  fatShare: number;
   note: string;
 }
 
-/** Cele dzienne; cel zawodnika przesuwa tylko położenie w zakresie (orientacyjnie). */
-export function dailyTargets(weightKg: number, day: DayKind, goal: Goal): DailyTargets {
+/** Udział tłuszczu w energii: mniej w dni o dużej podaży węglowodanów (mecz, dwa treningi), więcej w dni lekkie. */
+export function fatEnergyShare(day: DayKind, sessions = 1): number {
+  if (day === "match" || day === "pre-match") return 0.22;
+  if (day === "training") return sessions >= 2 ? 0.22 : 0.25;
+  return 0.3;
+}
+
+/**
+ * Cele dzienne; cel zawodnika i liczba sesji przesuwają tylko położenie w zakresach (orientacyjnie).
+ * `sessions` – ile treningów dziś (klubowy + indywidualny = 2).
+ */
+export function dailyTargets(weightKg: number, day: DayKind, goal: Goal, sessions = 1): DailyTargets {
   const [cLo, cHi, note] =
     day === "match" || day === "pre-match"
       ? [6, 8, "Dzień meczu i dzień przed: 6–8 g/kg węglowodanów (UEFA)."]
       : day === "training"
-        ? [5, 8, "Zakres UEFA to 3–8 g/kg zależnie od obciążenia; w dni treningowe celuj w górną połowę (podział orientacyjny)."]
+        ? sessions >= 2
+          ? [6.5, 8, "Dwa treningi: górna część zakresu UEFA 3–8 g/kg (podział orientacyjny)."]
+          : [5, 8, "Zakres UEFA to 3–8 g/kg zależnie od obciążenia; w dni treningowe celuj w górną połowę (podział orientacyjny)."]
         : [3, 5, "Zakres UEFA to 3–8 g/kg zależnie od obciążenia; w dni lekkie bliżej dolnej granicy (podział orientacyjny)."];
   let carb: [number, number] = [cLo, cHi];
   if (goal === "gain") carb = [(cLo + cHi) / 2, cHi];
-  if (goal === "lose") carb = [cLo, (cLo + cHi) / 2];
-  const protein: [number, number] = goal === "gain" ? [1.9, 2.2] : goal === "lose" ? [2.0, 2.2] : [1.6, 2.0];
-  return {
-    carbG: [Math.round(weightKg * carb[0]), Math.round(weightKg * carb[1])],
-    proteinG: [Math.round(weightKg * protein[0]), Math.round(weightKg * protein[1])],
-    note,
-  };
+  const protein: [number, number] = goal === "gain" ? [1.9, 2.2] : [1.6, 2.0];
+  const carbG: [number, number] = [Math.round(weightKg * carb[0]), Math.round(weightKg * carb[1])];
+  const proteinG: [number, number] = [Math.round(weightKg * protein[0]), Math.round(weightKg * protein[1])];
+  // tłuszcz: udział w energii dnia wyznaczony z węglowodanów i białka (4 kcal/g) i tłuszczu (9 kcal/g)
+  const share = fatEnergyShare(day, sessions);
+  const cp = 4 * ((carbG[0] + carbG[1]) / 2 + (proteinG[0] + proteinG[1]) / 2);
+  const fat = ((share / (1 - share)) * cp) / 9;
+  return { carbG, proteinG, fatG: [Math.round(fat * 0.9), Math.round(fat * 1.1)], fatShare: share, note };
 }
 
 /** Godziny do aktywności o podanej porze (HH:MM) względem teraz; ujemne = już po. */
