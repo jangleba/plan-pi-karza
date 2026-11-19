@@ -6,6 +6,9 @@ import { MasCard, loadMas, saveMasDistance } from "./MasCard";
 import { RunTracker } from "./RunTracker";
 import { SessionBlocks } from "./SessionBlocks";
 import { ExerciseSheet } from "./exercises/ExerciseSheet";
+import { DrawTool } from "./tools/Draw";
+import { StimuliTool } from "./tools/Stimuli";
+import { Group, ListRow } from "./ui";
 import { CueTrainer } from "./CueTrainer";
 import { EXERCISES, RECOVERY, bodyweightTemplate, drillsFor, adaptSession, addEvents, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
 import type { CheckIn, DayPlan, HistoryEvent, Level, Mas, Position, Suggestion } from "./engine";
@@ -25,6 +28,7 @@ export function SessionSheet({
   const [summary, setSummary] = useState<Suggestion[] | null>(null);
   const s = day.session;
   const [info, setInfo] = useState<{ id: string; note?: string } | null>(null);
+  const [tool, setTool] = useState<"stim" | "draw" | null>(null);
   const both = !!s && day.isClub;
   const [view, setView] = useState<"own" | "club">(s ? "own" : "club");
   const module = s?.kind === "strength" || s?.kind === "sprint" ? s.kind : null;
@@ -154,6 +158,10 @@ export function SessionSheet({
           </>
         ) : s?.kind === "technique" ? (
           <>
+            <Group label="Narzędzia">
+              <ListRow index={0} title="Bodźce" sub="Strzałki, kolory, liczby – reakcja i decyzja, poziomo" onTap={() => setTool("stim")} />
+              <ListRow index={1} title="Losowanie" sub="Kolor, numer, strona lub kierunek jednym dotknięciem" onTap={() => setTool("draw")} />
+            </Group>
             <p className="text-sm text-muted">Szkice do przeglądu trenera</p>
             <div className="mt-4 flex flex-col gap-5">
               {drillsFor(position).map((d) => (
@@ -192,6 +200,8 @@ export function SessionSheet({
         )}
     </Sheet>
     {info && <ExerciseSheet id={info.id} note={info.note} onClose={() => setInfo(null)} />}
+    {tool === "stim" && <StimuliTool onClose={() => setTool(null)} />}
+    {tool === "draw" && <DrawTool onClose={() => setTool(null)} />}
     </>
   );
 }

@@ -107,7 +107,7 @@ export function Progress({ profile, refreshKey }: { profile: Profile; refreshKey
   const legend: Array<[string, string]> = [[TREND_HEX.green, "postęp"], [TREND_HEX.orange, "lekki spadek"], [TREND_HEX.red, "regres"]];
 
   return (
-    <main className="mx-auto max-w-md px-5 pb-28 pt-14">
+    <main className="mx-auto max-w-md px-5 pb-32 pt-14">
       <LargeTitle kind="progres" title="Progres" sub="Twoje trendy" />
       {empty && <div className="mb-5"><Empty kind="progres">Wykresy pojawią się po pierwszych sesjach i testach.</Empty></div>}
 

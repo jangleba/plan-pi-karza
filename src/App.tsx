@@ -147,7 +147,7 @@ function Main() {
       <Backdrop />
       <div key={tab} className="bw-tab relative">
       {tab === "start" && (
-        <Start profile={profile} checkIn={checkIn} checkedIn={checkedIn} onCheckIn={setCheckIn} />
+        <Start profile={profile} checkIn={checkIn} checkedIn={checkedIn} onCheckIn={setCheckIn} onGo={(t) => { setTab(t); window.scrollTo(0, 0); }} />
       )}
       {tab === "plan" && (
         <Home profile={profile} checkIn={checkIn} initialOpen={openDay} onOpened={() => setOpenDay(null)} onReset={() => {
@@ -185,7 +185,7 @@ function Home({ profile, checkIn, initialOpen, onOpened, onReset }: {
   );
 
   return (
-    <main className="mx-auto max-w-md px-5 pb-28 pt-14">
+    <main className="mx-auto max-w-md px-5 pb-32 pt-14">
       <LargeTitle kind="plan" title="Plan" sub={<button onClick={onReset} className="text-muted">Zmień profil</button>} />
       <div className="bw-rise mb-5 grid grid-cols-2 gap-1 rounded-2xl bg-hairline/70 p-1">
         <button onClick={() => setViewNext(false)} className={`rounded-xl py-2 text-sm ${!viewNext ? "bg-card font-medium shadow-sm" : "text-muted"}`}>Ten tydzień</button>

@@ -69,7 +69,7 @@ export function Fuel({ profile }: { profile: Profile }) {
 
   const sub = activities.length ? `${info.label} · ${activities.map((a) => a.time).join(" i ")}` : info.label;
   return (
-    <main className="mx-auto max-w-md px-5 pb-28 pt-14">
+    <main className="mx-auto max-w-md px-5 pb-32 pt-14">
       <LargeTitle kind="fuel" title="Fuel" sub={sub} />
 
       {activities.length > 0 && (

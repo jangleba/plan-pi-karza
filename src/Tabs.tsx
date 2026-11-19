@@ -18,23 +18,25 @@ const TABS: Array<[Tab, string]> = [
   ["start", "Start"], ["plan", "Plan"], ["lab", "Lab"], ["iq", "IQ"], ["fuel", "Fuel"], ["progres", "Progres"],
 ];
 
+/** Pływająca „wyspa” z ikonami: aktywna zakładka rozszerza się w pastelową pigułkę z podpisem, reszta to same ikony. */
 export function TabBar({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-hairline/80 bg-card/80 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl backdrop-saturate-150">
-      <div className="mx-auto flex max-w-md">
+    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-20 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]" aria-label="Zakładki">
+      <div className="pointer-events-auto mx-auto flex max-w-md items-center gap-1 rounded-[30px] border border-hairline/80 bg-card/80 p-1.5 shadow-[0_10px_32px_rgba(29,29,31,0.12)] backdrop-blur-xl backdrop-saturate-150">
         {TABS.map(([t, label]) => {
           const on = tab === t;
           return (
             <button
               key={t}
               onClick={() => { if (!on) { navigator.vibrate?.(6); onChange(t); } }}
+              aria-label={label}
               aria-current={on ? "page" : undefined}
-              className={`flex flex-1 flex-col items-center gap-0.5 pb-1.5 pt-2 text-[10px] font-medium transition-colors ${on ? "text-accent" : "text-muted"}`}
+              className={`flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-full transition-[flex-grow,background-color,color] duration-300 ${on ? "flex-[2.3] bg-btn text-btn-ink shadow-[inset_0_0_0_1px_var(--color-btn-line)]" : "flex-1 text-muted active:bg-hairline/60"}`}
             >
-              <svg key={on ? "on" : "off"} viewBox="0 0 24 24" className={`h-6 w-6 ${on ? "bw-pop" : ""}`} strokeWidth={on ? 1.9 : 1.5} aria-hidden="true">
+              <svg key={on ? "on" : "off"} viewBox="0 0 24 24" className={`h-[26px] w-[26px] shrink-0 ${on ? "bw-pop" : ""}`} strokeWidth={on ? 1.8 : 1.55} aria-hidden="true">
                 {ICONS[t]}
               </svg>
-              {label}
+              {on && <span className="bw-fade truncate text-[12.5px] font-semibold">{label}</span>}
             </button>
           );
         })}
@@ -46,7 +48,7 @@ export function TabBar({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void
 /** Szkielet ekranu na czas ładowania (zamiast pustego miejsca). */
 export function Skeleton({ title }: { title: string }) {
   return (
-    <main className="mx-auto max-w-md px-5 pb-28 pt-14">
+    <main className="mx-auto max-w-md px-5 pb-32 pt-14">
       <h1 className="mb-6 text-[32px] font-semibold leading-tight tracking-tight">{title}</h1>
       <div className="bw-shimmer h-[58vh] min-h-[340px] rounded-3xl" />
     </main>
