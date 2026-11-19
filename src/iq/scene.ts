@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { HIP_H, SHIN, THIGH, stepGait, type GaitState } from "./gait";
 
 /** Elementy sceny IQ: boisko, bramka z siatką, sylwetki zawodników, piłka. Jednostki: metry. */
 export const FIELD = { w: 105, h: 68 };
@@ -98,9 +99,14 @@ export function makeGoal(x: number, back: 1 | -1): THREE.Group {
 
 export interface Figure {
   root: THREE.Group;
+  /** Miednica: przesuwa się w pionie zgodnie z ułożeniem nóg. */
   body: THREE.Group;
+  /** Tułów, ręce i głowa – pochylają się od bioder w górę (nogi zostają pod ciałem). */
+  upper: THREE.Group;
   hips: [THREE.Group, THREE.Group];
   knees: [THREE.Group, THREE.Group];
+  ankles: [THREE.Group, THREE.Group];
+  gait: GaitState;
   shoulders: [THREE.Group, THREE.Group];
   elbows: [THREE.Group, THREE.Group];
   torso: THREE.Mesh;
@@ -195,17 +201,22 @@ export function makePlayer(kit: Kit, variant = 0, stance: Figure["stance"] = "ru
 
   // nogi: biodro -> udo -> kolano -> łydka (getr) -> but
   const legs = [-0.105, 0.105].map((z) => {
-    const hip = new THREE.Group(); hip.position.set(0, 0.93, z);
-    const thigh = mesh(g.thigh, mat(skin), true); thigh.position.y = -0.22; hip.add(thigh);
-    const knee = new THREE.Group(); knee.position.y = -0.44; hip.add(knee);
-    const shin = mesh(g.shin, mat(kit.socks), true); shin.position.y = -0.21; knee.add(shin);
+    const hip = new THREE.Group(); hip.position.set(0, HIP_H, z);
+    const thigh = mesh(g.thigh, mat(skin), true); thigh.position.y = -THIGH / 2; hip.add(thigh);
+    const knee = new THREE.Group(); knee.position.y = -THIGH; hip.add(knee);
+    const shin = mesh(g.shin, mat(kit.socks), true); shin.position.y = -SHIN / 2; knee.add(shin);
     // opaska getra pod kolanem
     const band = mesh(g.band, mat(kit.collar ?? 0xffffff)); band.rotation.x = Math.PI / 2; band.position.y = -0.06; knee.add(band);
-    const boot = mesh(g.boot, mat(0x1d1d1f, 0.45)); boot.position.y = -0.43; knee.add(boot);
-    const sole = mesh(g.sole, mat(0xf2f2f2, 0.6)); sole.position.set(0.05, -0.475, 0); knee.add(sole);
+    // staw skokowy: but leży płasko na murawie, gdy stopa stoi
+    const ankle = new THREE.Group(); ankle.position.y = -SHIN; knee.add(ankle);
+    const boot = mesh(g.boot, mat(0x1d1d1f, 0.45)); ankle.add(boot);
+    const sole = mesh(g.sole, mat(0xf2f2f2, 0.6)); sole.position.set(0.05, -0.0475, 0); ankle.add(sole);
     body.add(hip);
-    return { hip, knee };
+    return { hip, knee, ankle };
   });
+  // wszystko powyżej bioder w grupie „upper” obracanej wokół stawu biodrowego
+  const upper = new THREE.Group(); upper.position.y = HIP_H; body.add(upper);
+  const up = (o: THREE.Object3D) => { o.position.y -= HIP_H; body.remove(o); upper.add(o); };
 
   const shorts = mesh(g.shorts, mat(kit.shorts), true); shorts.position.y = 0.8; shorts.scale.set(0.82, 1, 1.12); body.add(shorts);
   const torso = mesh(g.torso, mat(kit.jersey), true); torso.position.y = 0.98; torso.scale.set(0.8, 1, 1.22); body.add(torso);
@@ -234,50 +245,44 @@ export function makePlayer(kit: Kit, variant = 0, stance: Figure["stance"] = "ru
     return { sh, el };
   });
 
+  for (const o of [...body.children]) if (o !== upper && !legs.some((l) => l.hip === o) && o !== shorts) up(o);
+
   return {
-    root, body, torso,
-    hips: [legs[0]!.hip, legs[1]!.hip], knees: [legs[0]!.knee, legs[1]!.knee],
+    root, body, upper, torso,
+    hips: [legs[0]!.hip, legs[1]!.hip], knees: [legs[0]!.knee, legs[1]!.knee], ankles: [legs[0]!.ankle, legs[1]!.ankle],
+    gait: { v: 0, run: 0, phase: variant * 0.37 },
     shoulders: [arms[0]!.sh, arms[1]!.sh], elbows: [arms[0]!.el, arms[1]!.el],
     phase: variant * 1.7, kick: 0, stance,
   };
 }
 
+const CROUCH: Record<Figure["stance"], number> = { run: 0.015, defend: 0.12, keeper: 0.17 };
+
 /**
- * Animacja: cykl biegu (udo, zgięcie kolana, praca rąk ze zgiętym łokciem, pochylenie tułowia),
- * w miejscu – postawa (obrońca: ugięte kolana; bramkarz: gotowość z rękami przed sobą), oddech.
+ * Animacja oparta na gait.ts: faza kroku z przebytej drogi, stopa podporowa przypięta do murawy (IK),
+ * miednica z ułożenia nóg, pochylenie tylko tułowia, płynne przejście bieg ↔ postawa.
  */
 export function animateFigure(f: Figure, speed: number, dt: number, facing: number) {
-  const k = Math.min(1, speed / 7);
-  const moving = speed > 0.4;
-  f.phase += dt * (moving ? 5.5 + speed * 1.1 : 1.6);
-  const p = f.phase;
-  const L = Math.sin(p), R = Math.sin(p + Math.PI);
-  const amp = 0.22 + 0.45 * k;
-
-  if (moving) {
-    f.hips[0].rotation.z = L * amp; f.hips[1].rotation.z = R * amp;
-    // kolano zgina się mocniej w fazie zakroku
-    // zgięcie kolana: największe przy przenoszeniu nogi do przodu, umiarkowane w truchcie
-    const knee = 0.25 + 0.95 * k;
-    f.knees[0].rotation.z = -Math.max(0, Math.sin(p - 1.2)) * knee - 0.08;
-    f.knees[1].rotation.z = -Math.max(0, Math.sin(p + Math.PI - 1.2)) * knee - 0.08;
-    f.shoulders[0].rotation.z = R * amp * 0.9; f.shoulders[1].rotation.z = L * amp * 0.9;
-    f.elbows[0].rotation.z = f.elbows[1].rotation.z = 0.9 + 0.5 * k;
-    f.body.rotation.z = -0.08 - 0.14 * k;
-    f.body.position.y = Math.abs(Math.cos(p)) * 0.05 * k - 0.02 * k;
-  } else {
-    const breathe = Math.sin(p) * 0.012;
-    const bend = f.stance === "defend" ? 0.28 : f.stance === "keeper" ? 0.4 : 0.06;
-    f.hips[0].rotation.z = f.hips[1].rotation.z = bend;
-    f.knees[0].rotation.z = f.knees[1].rotation.z = -bend * 1.9;
-    f.body.position.y = -bend * 0.16 + breathe;
-    f.body.rotation.z = -bend * 0.5;
-    f.shoulders[0].rotation.z = f.shoulders[1].rotation.z = f.stance === "keeper" ? 0.9 : 0.12;
-    f.elbows[0].rotation.z = f.elbows[1].rotation.z = f.stance === "keeper" ? 0.7 : 0.35;
-    f.torso.scale.y = 1 + breathe;
+  const pose = stepGait(f.gait, Math.min(12, speed), dt, CROUCH[f.stance]);
+  const run = f.gait.run;
+  for (const j of [0, 1] as const) {
+    f.hips[j].rotation.z = pose.legs[j].thigh;
+    f.knees[j].rotation.z = pose.legs[j].knee;
+    f.ankles[j].rotation.z = pose.legs[j].ankle;
   }
+  f.body.position.y = pose.pelvisY - HIP_H;
+  const idleLean = f.stance === "defend" ? 0.12 : f.stance === "keeper" ? 0.22 : 0.02;
+  f.upper.rotation.z = -(pose.lean + idleLean * (1 - run));
+  // ręce: w biegu praca przeciwna do nóg; w postawie bramkarz trzyma ręce przed sobą
+  const restArm = f.stance === "keeper" ? 0.9 : 0.1;
+  f.shoulders[0].rotation.z = pose.arms[0] + restArm * (1 - run);
+  f.shoulders[1].rotation.z = pose.arms[1] + restArm * (1 - run);
+  f.elbows[0].rotation.z = f.elbows[1].rotation.z = pose.elbow + (f.stance === "keeper" ? 0.35 : 0) * (1 - run);
+  // oddech w miejscu
+  f.phase += dt * 1.6;
+  f.torso.scale.y = 1 + Math.sin(f.phase) * 0.012 * (1 - run);
 
-  // kopnięcie (podanie / strzał): prawa noga wymach do przodu
+  // kopnięcie (podanie / strzał): prawa noga wymach do przodu – do przebudowy w kolejnym kroku
   if (f.kick > 0) {
     f.kick = Math.max(0, f.kick - dt);
     const t = 1 - f.kick / 0.35;
