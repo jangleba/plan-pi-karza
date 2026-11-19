@@ -1,4 +1,4 @@
-import { haversineKm } from "./geo.ts";
+import { haversineKm } from "./distance.ts";
 import type {
   AgeLimit, BirthYearRule, Eligibility, PlayerFacts, QualResult, RadarListing, RadarSession, ReasonCode,
 } from "./types.ts";

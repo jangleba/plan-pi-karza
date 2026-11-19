@@ -188,3 +188,9 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 - Decyzja użytkownika: na Starcie nic nie może powtarzać zakładek. Usunięte: karta „Dziś” (sesja – jest w Planie), pasek tygodnia (Plan), skrót do posiłku (Fuel). Zostały: check-in z pierścieniem gotowości (bez zmian), „Mecz w głowie” i okresowe pytanie „Jak czujesz się na boisku?” (nie ma ich w żadnej zakładce).
 - **Decyzja końcowa:** na Starcie zostaje **sam check-in** (powitanie + pierścień gotowości). Usunięte ze Startu także „Mecz w głowie” (`MatchInMind.tsx` zostaje w repo, bez wejścia z UI) i okresowe „Jak czujesz się na boisku?” (zostają migawki z onboardingu i porównanie w Progresie; nowych migawek już nie ma jak dodać).
 - Pomysły odrzucone przez użytkownika jako zbyt słabe/zwyczajne: Dziennik meczów, ogólna rozgrzewka, Tryb ławki (wszystkie w historii PR #212: commity dodające i cofające). Niewybrane propozycje na później: odtwarzanie akcji z meczu w symulacji IQ, „sobowtór stanu dnia” (sylwetka reagująca na check-in).
+
+## Start – Piłkarskie szanse (2026-11-19)
+- Pod check-inem: radar aktualnych naborów, testów i treningów otwartych dopasowanych do zawodnika (rocznik/data urodzenia, pozycja, miejscowość + promień 25/50/100/200 km/cała Polska, wybrane rodzaje). Faktycznie użyte kryteria są pokazane nad kartami, maks. dwie pasujące karty, „Zobacz wszystkie” (filtry rodzaju/odległości/kosztu, sortowanie, zapisane), szczegóły w panelu od dołu.
+- Rozdzielone stany: brak danych profilu, brak ofert (z propozycją większego promienia – nigdy szerszego wieku), awaria aktualizacji źródeł, błąd połączenia, brak połączenia z serwerem. Awaria radaru nie blokuje reszty aplikacji.
+- Profil: opcjonalne `birthDate` / `birthYear` (zostają na urządzeniu); miejscowość i wybory radaru w `radarPrefs`; zapisane oferty w `radarSaved`.
+- Pełna dokumentacja (architektura, sekrety, wdrożenie, ograniczenia): `docs/RADAR-SZANSE.md`.

@@ -2,6 +2,9 @@ import type { Level, Season, SeasonGoal } from "./types";
 import { addDays, planWeek } from "./week";
 
 export type Position = "bramkarz" | "obronca" | "pomocnik" | "skrzydlowy" | "napastnik";
+export const POSITION_LABEL: Record<Position, string> = {
+  bramkarz: "Bramkarz", obronca: "Obrońca", pomocnik: "Pomocnik", skrzydlowy: "Skrzydłowy", napastnik: "Napastnik",
+};
 export type Equipment = "gym" | "bodyweight" | "field";
 
 /** Polskie poziomy rozgrywek (wpływ na silnik – do ustalenia, na razie tylko zapis). */
@@ -20,6 +23,10 @@ export interface Profile {
   goal2?: SeasonGoal;
   league?: League;
   age: number;
+  /** Data urodzenia (YYYY-MM-DD) – opcjonalna; używana tylko do dopasowania ofert (radar), zostaje na urządzeniu użytkownika. */
+  birthDate?: string;
+  /** Tylko rok urodzenia, gdy użytkownik nie chce podawać pełnej daty (wtedy oferty zależne od dnia urodzin wymagają uzupełnienia). */
+  birthYear?: number;
   /** Lata regularnego treningu siłowego. */
   strengthYears: number;
   weightKg: number;

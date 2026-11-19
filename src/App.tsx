@@ -147,7 +147,8 @@ function Main() {
       <Backdrop />
       <div key={tab} className="bw-tab relative">
       {tab === "start" && (
-        <Start profile={profile} checkIn={checkIn} checkedIn={checkedIn} onCheckIn={setCheckIn} />
+        <Start profile={profile} checkIn={checkIn} checkedIn={checkedIn} onCheckIn={setCheckIn}
+          onProfile={(p) => { store("profile", JSON.stringify(p)); void pushProfile(p); setProfile(p); }} />
       )}
       {tab === "plan" && (
         <Home profile={profile} checkIn={checkIn} initialOpen={openDay} onOpened={() => setOpenDay(null)} onReset={() => {

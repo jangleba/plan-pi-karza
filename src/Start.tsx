@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { readinessScore, strainOf } from "./engine";
 import type { CheckIn, Profile } from "./engine";
 import { Sheet } from "./Sheet";
+import { Radar } from "./radar/Radar";
 
 const LEVELS: Array<[1 | 2 | 3, string]> = [[1, "Słabo"], [2, "Średnio"], [3, "Dobrze"]];
 const STRAIN = { none: "Pełna sesja", light: "Trochę lżej", heavy: "Wyraźnie lżej" } as const;
@@ -57,8 +58,8 @@ function Choice({ label, value, onChange }: { label: string; value: 1 | 2 | 3; o
   );
 }
 
-export function Start({ profile, checkIn, checkedIn, onCheckIn }: {
-  profile: Profile; checkIn: CheckIn; checkedIn: boolean; onCheckIn: (c: CheckIn) => void;
+export function Start({ profile, checkIn, checkedIn, onCheckIn, onProfile }: {
+  profile: Profile; checkIn: CheckIn; checkedIn: boolean; onCheckIn: (c: CheckIn) => void; onProfile: (p: Profile) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -71,6 +72,8 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn }: {
         <Ring value={readinessScore(checkIn)} done={checkedIn} onTap={() => setOpen(true)} />
         <p className="mt-3 text-center text-sm text-muted">{checkedIn ? STRAIN[strainOf(checkIn)] : "Jak się czujesz? Dotknij, by odpowiedzieć"}</p>
       </section>
+
+      <Radar profile={profile} onProfile={onProfile} />
 
       {open && (
         <Sheet title="Jak się czujesz?" onClose={() => setOpen(false)}>
