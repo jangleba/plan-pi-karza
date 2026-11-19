@@ -16,6 +16,20 @@ export function headline(kind: OutcomeKind): { title: string; tone: Tone } {
   }
 }
 
+/** Co się stało na końcu akcji (jedno zdanie, bez oceny). */
+export function outcomeText(kind: OutcomeKind): string {
+  switch (kind) {
+    case "goal_for": return "Zdobyliśmy gola.";
+    case "saved_for": return "Nasz strzał obroniony.";
+    case "miss_for": return "Nasz strzał niecelny.";
+    case "regain": return "Piłka wróciła do nas.";
+    case "goal_against": return "Rywal strzelił gola z kontry.";
+    case "saved_against": return "Strzał rywala obroniony.";
+    case "miss_against": return "Rywal strzelił niecelnie.";
+    case "timeout": return "Akcja nie została rozstrzygnięta w 16 s.";
+  }
+}
+
 const sec = (t: number) => `${t.toFixed(1).replace(".", ",")} s`;
 
 /** Najważniejsze momenty akcji w kolejności (maks. 5 linii), po polsku, rzeczowo. */

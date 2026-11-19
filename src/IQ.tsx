@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { GOAL } from "./engine";
+import { GOAL, localISO } from "./engine";
 import type { Vec } from "./engine";
-import { VARIANTS, createScenario, headline, keyMoments, pass, setUser, shoot, step } from "./engine/sim";
-import type { OutcomeKind, Variant, World } from "./engine/sim";
-import { Sheet } from "./Sheet";
+import { VARIANTS, classify, coachSteps, createScenario, firstAction, firstLoss, pass, rateOptions, record, setUser, shoot, snapshotAtOrBefore, startRecording, step } from "./engine/sim";
+import type { Recording, Variant, World } from "./engine/sim";
+import { addAttempt } from "./iq/attempts-store";
+import { ResultSheet, type ResultBundle } from "./iq/ResultSheet";
 import { LargeTitle } from "./ui";
 import { FIELD, headingOf, makeBall, makeGoal, pitchTexture, skyTexture } from "./iq/scene";
 import { ActorFactory, loadActorAssets, type Actor, type ActorAssets } from "./iq/actors";
 import { drive, followCamera, turnTo, type Drive } from "./iq/control";
 
 const BALL_R = 0.16;
-interface Result { kind: OutcomeKind; moments: string[]; variant: Variant }
+type Result = ResultBundle;
 type Phase = "loading" | "intro" | "play" | "kick" | "done";
 type Possession = "me" | "mate" | "foe" | "loose";
 
@@ -82,6 +83,7 @@ export default function IQ() {
 
       // symulacja: 17 żywych zawodników (nasza drużyna z Tobą + rywale z bramkarzami)
       let world: World = createScenario(attempt.current % 3 as Variant, 1 + attempt.current);
+      let rec: Recording = startRecording(world);
       const P0 = world.agents.find((a) => a.id === "P")!;
 
       const factory = new ActorFactory(assets);
@@ -151,6 +153,7 @@ export default function IQ() {
         if (next) attempt.current++;
         const v = (attempt.current % 3) as Variant;
         world = createScenario(v, 1 + attempt.current);
+        rec = startRecording(world);
         const p = world.agents.find((a) => a.id === "P")!;
         dr.x = p.pos.x; dr.y = p.pos.y; dr.heading = 0; dr.speed = 0; dr.cam = 0;
         player = { x: dr.x, y: dr.y }; facing = { x: 1, y: 0 }; kickSt = null; act.current = null; carried = 0; outcomeT = 0;
@@ -205,7 +208,7 @@ export default function IQ() {
         // świat żyje także podczas zamachu i lotu piłki; stoi w intro i po rozstrzygnięciu
         if (live) {
           const n = Math.ceil(dt / (1 / 30));
-          for (let i = 0; i < n; i++) { setUser(world, player, dr.heading, dr.speed); step(world, dt / n); }
+          for (let i = 0; i < n; i++) { setUser(world, player, dr.heading, dr.speed); step(world, dt / n); record(rec, world); }
           clockAcc += dt; if (clockAcc > 0.1) { clockAcc = 0; setClock(world.t); }
         }
         const agentOf = (id: string) => world.agents.find((a) => a.id === id)!;
@@ -315,7 +318,22 @@ export default function IQ() {
         // koniec akcji: chwila na zobaczenie gola/obrony/odbioru, potem podsumowanie
         if (world.outcome && ph !== "done" && ph !== "intro") {
           outcomeT += dt;
-          if (outcomeT > 1.1) { setResult({ kind: world.outcome.kind, moments: keyMoments(world), variant: (attempt.current % 3) as Variant }); setP("done"); }
+          if (outcomeT > 1.1) {
+            // powtórka + „co by zadziałało” z chwili decyzji (migawka świata) + trzy kroki
+            const variantNow = (attempt.current % 3) as Variant;
+            const first = firstAction(world), loss = firstLoss(world), cls = classify(world);
+            const decisionT = first ? (first.kind === "lost" ? first.t - 1 : first.t - 0.5) : 0.5;
+            const snap = snapshotAtOrBefore(rec, Math.max(0, decisionT));
+            const rated = snap ? rateOptions(snap) : [];
+            const nameOf = (id?: string) => (id === "P" ? "Ty" : world.agents.find((a) => a.id === id)?.name ?? "");
+            addAttempt({ date: localISO(), variant: variantNow, cls, first, lossAt: loss ? loss.t : null });
+            setResult({
+              kind: world.outcome.kind, cls, rec, events: [...world.events], rated, rateT: snap?.t ?? 0, nameOf,
+              steps: coachSteps({ variant: variantNow, rated, first, cls, nameOf: (id) => nameOf(id), loss }),
+              nextTitle: VARIANTS[((attempt.current + 1) % 3)]!.title, sameTitle: VARIANTS[variantNow]!.title,
+            });
+            setP("done");
+          }
         }
 
         // kamera za plecami zawodnika, obraca się razem z nim (kierunek dogania płynnie w sterowaniu)
@@ -357,7 +375,6 @@ export default function IQ() {
   }, []);
 
   const hint = poss === "foe" ? "Rywal z piłką – dobiegnij i odbierz" : poss === "loose" ? "Piłka luźna" : poss === "mate" ? "Piłka u kolegi" : null;
-  const kindTone = result ? headline(result.kind) : null;
 
   return (
     <main className="mx-auto max-w-md px-5 pb-28 pt-14">
@@ -408,14 +425,7 @@ export default function IQ() {
         )}
       </div>
 
-      {result && kindTone && (
-        <Sheet title={kindTone.title} onClose={() => reset.current(true)}>
-          <ol className="space-y-2 text-[15px] leading-snug">
-            {result.moments.map((m, i) => <li key={i} className="tabular-nums">{m}</li>)}
-          </ol>
-          <button onClick={() => reset.current(true)} className="bw-grad mt-6 w-full rounded-2xl py-4 text-base font-medium">Kolejna próba</button>
-        </Sheet>
-      )}
+      {result && <ResultSheet r={result} onNext={() => reset.current(true)} onSame={() => reset.current(false)} />}
     </main>
   );
 }
