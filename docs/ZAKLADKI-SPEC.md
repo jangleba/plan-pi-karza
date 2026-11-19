@@ -186,4 +186,12 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 
 ## Start – tylko to, czego nie ma w zakładkach (2026-11-19, korekta)
 - Decyzja użytkownika: na Starcie nic nie może powtarzać zakładek. Usunięte: karta „Dziś” (sesja – jest w Planie), pasek tygodnia (Plan), skrót do posiłku (Fuel). Zostały: check-in z pierścieniem gotowości (bez zmian), „Mecz w głowie” i okresowe pytanie „Jak czujesz się na boisku?” (nie ma ich w żadnej zakładce).
-- Do wymyślenia: coś zupełnie nowego na Start (propozycje i wybór z użytkownikiem).
+- Nowa zawartość Startu: **Tryb ławki** (poniżej). Pomysły odrzucone przez użytkownika jako zbyt zwyczajne: Dziennik meczów (cofnięty, kod w historii PR #212, commit 26ff90f4) i ogólna rozgrzewka (nie weszła do repo).
+
+## Start – Tryb ławki (2026-11-19)
+- Pomysł: dla zawodnika, który czeka na wejście (rezerwowi to duża część składu, a żadna aplikacja ich nie obsługuje). Pełnoekranowy tryb z trzema zakładkami (`Bench.tsx`, silnik `engine/bench.ts`). Ekran nie gaśnie (Wake Lock, jeśli przeglądarka pozwala).
+- **Obserwuj:** 3 pytania dla pozycji (np. skrzydłowy: jaki jest obrońca, czy ma asekurację, jak gra bramkarz przy dośrodkowaniach), odpowiedź jednym dotknięciem (ponowne dotknięcie cofa). Odpowiedzi zapisywane na dziś (`bench:<data>`), więc nie giną po zamknięciu aplikacji.
+- **Rozgrzej:** „Za 15 / 10 / 5 min / Wchodzę” → lekka aktywacja przy linii bocznej (5:20 / 3:15 / 1:30 / 0:30): trucht, skipy, wykroki, przysiady, skoki, przyspieszenia do 75%; z animacjami ćwiczeń z biblioteki, licznikiem, pauzą, wstecz/dalej, sygnałem i wibracją przy zmianie kroku. Bez ćwiczeń w leżeniu i bez sprintu na maksa (pas 10–20 m, za zgodą trenera).
+- **Wchodzę:** hasło (z pierwszej odpowiedzi) i do trzech zdań na pierwsze minuty ułożonych z odpowiedzi; brakujące zdania uzupełniają ogólne (prosto i pewnie, komunikacja, zapytaj kolegów). Podpis: polecenia trenera mają pierwszeństwo.
+- Treść (45 pytań/wskazówek, aktywacja) jest MOJA, oparta na ogólnych zasadach gry – DO PRZEGLĄDU TRENERA. Test pilnuje krótkiej treści (pytanie ≤ 40, odpowiedź ≤ 22, hasło ≤ 16, wskazówka ≤ 110 znaków).
+- NIE sprawdzone na telefonie (czytelność na słońcu/w rękawiczkach, Wake Lock, wibracja w Safari na iPhonie nie działa) ani na prawdziwej ławce; w przeglądarce komputerowej sprawdzone cały przepływ i licznik (w tym pauza).
