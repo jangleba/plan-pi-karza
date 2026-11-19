@@ -44,11 +44,11 @@ export function bodyweightTemplate(level: Level, phase: MesoPhase): SessionTempl
   const pull = rung("pull", level, phase);
   const jump = rung("jump", level, phase);
   const blocks: Block[] = [
-    { items: [{ exerciseId: "knee-iso-push", sets: 3, reps: "5 × 1 s / nogę" }, item(jump, 3, 6, 4)] },
-    { items: [item(squat, 4, 8, 5)] },
-    { items: [item(push, 3, 10, 6), item(pull, 3, 10, 6)] },
-    { items: [item(hinge, 3, 8, 5), item("sl-calf-raise", 3, 12, 12)] },
-    { items: [item("side-plank", 3, 30, 40), item("copenhagen", 3, 6, 8)] },
+    { title: "Aktywacja", items: [{ exerciseId: "knee-iso-push", sets: 3, reps: "5 × 1 s / nogę" }, item(jump, 3, 6, 4)] },
+    { title: "Siła nóg", items: [item(squat, 4, 8, 5)] },
+    { title: "Góra", items: [item(push, 3, 10, 6), item(pull, 3, 10, 6)] },
+    { title: "Tył uda i łydki", items: [item(hinge, 3, 8, 5), item("sl-calf-raise", 3, 12, 12)] },
+    { title: "Core", items: [item("side-plank", 3, 30, 40), item("copenhagen", 3, 6, 8)] },
   ];
   return {
     id: `strength-bodyweight-${phase}`,

@@ -43,11 +43,12 @@ function reason(c: CheckIn): string {
 export function adaptSession(t: SessionTemplate, c: CheckIn, deload = false): AdaptedSession {
   const strain = strainOf(c);
   const notes: string[] = [];
-  let blocks: Block[] = t.blocks.map((b) => ({ items: b.items.map((i) => ({ ...i })) }));
+  let blocks: Block[] = t.blocks.map((b) => ({ ...b, items: b.items.map((i) => ({ ...i })) }));
 
   const cut = deload || strain !== "none";
   if (cut) {
     blocks = blocks.map((b) => ({
+      ...b,
       items: b.items.map((i) => ({ ...i, sets: i.sets >= 3 ? i.sets - 1 : i.sets })),
     }));
     notes.push(
@@ -56,6 +57,7 @@ export function adaptSession(t: SessionTemplate, c: CheckIn, deload = false): Ad
   }
   if (strain === "heavy") {
     blocks = blocks.map((b) => ({
+      ...b,
       items: b.items.map((i) => {
         const e = EXERCISES[i.exerciseId];
         if (e && e.cns === 3) {
