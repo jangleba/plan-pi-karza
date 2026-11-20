@@ -30,6 +30,34 @@ export function locomotion(v: number): Locomotion {
   };
 }
 
+/**
+ * Cykl kroku klipów (zmierzone na modelu, src/iq/actors.test.ts): czas trwania cyklu (s) oraz faza (0–1), w której lewa stopa jest
+ * najdalej z przodu względem bioder. Obie fazy są niemal równe, więc klipy chodu i biegu można prowadzić jedną wspólną fazą kroku.
+ */
+export const CYCLE = {
+  walk: { dur: 1.0333, front: 0.225 },
+  run: { dur: 0.6333, front: 0.21 },
+} as const;
+/** Długość podwójnego kroku (m) klipu: prędkość natywna × czas cyklu. */
+export const STRIDE = { walk: NATIVE.walk * CYCLE.walk.dur, run: NATIVE.run * CYCLE.run.dur } as const;
+
+/**
+ * Wspólna faza kroku: zamiast dwóch niezależnych zegarów (chód i bieg rozjeżdżały się w fazie podczas mieszania, stopa ślizgała się)
+ * jeden zegar φ (cykle) napędza oba klipy. Tempo = prędkość / uśredniona długość kroku, więc przy każdym miksie stopa w podporze
+ * stoi względem murawy (suma wag × długość kroku × tempo = prędkość).
+ */
+export function cycleRate(v: number, L: Pick<Locomotion, "walk" | "run">): number {
+  const w = L.walk + L.run;
+  const r = w > 1e-6 ? L.run / w : 0;
+  return v / (STRIDE.walk * (1 - r) + STRIDE.run * r);
+}
+/** Czas w klipie (s) dla fazy φ (cykle, dowolna liczba). */
+export function clipTime(kind: "walk" | "run", phase: number): number {
+  const c = CYCLE[kind];
+  const f = (((phase + c.front) % 1) + 1) % 1;
+  return f * c.dur;
+}
+
 export type Part = "skin" | "jersey" | "shorts" | "socks" | "boots" | "gloves";
 
 /**

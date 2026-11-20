@@ -1,48 +1,94 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { HIP_H, SHIN, THIGH, stepGait, type GaitState } from "./gait";
 
 /** Elementy sceny IQ: boisko, bramka z siatką, sylwetki zawodników, piłka. Jednostki: metry. */
 export const FIELD = { w: 105, h: 68 };
 const PX = 20; // pikseli tekstury na metr
 
-/** Murawa z pasami koszenia i pełnymi liniami boiska. */
-export function pitchTexture(): THREE.CanvasTexture {
+/** Kafelek trawy (bezszwowy): ciemne i jasne źdźbła w losowych kierunkach plus miękkie plamy. Jeden kafelek = 4 m murawy. */
+export function grassTile(): THREE.CanvasTexture {
+  const S = 512;
   const c = document.createElement("canvas");
-  c.width = FIELD.w * PX; c.height = FIELD.h * PX;
+  c.width = c.height = S;
   const g = c.getContext("2d")!;
+  g.fillStyle = "#72bb7d"; g.fillRect(0, 0, S, S);
+  let seed = 1234;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  // rysowanie z zawinięciem, żeby krawędzie kafelka się łączyły
+  const wrap = (fn: (ox: number, oy: number) => void) => { for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) fn(ox, oy); };
+  for (let i = 0; i < 26; i++) {
+    const x = rnd() * S, y = rnd() * S, r = 40 + rnd() * 90, light = rnd() < 0.5;
+    wrap((ox, oy) => {
+      const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, r);
+      gr.addColorStop(0, light ? "rgba(150,210,140,0.12)" : "rgba(30,90,50,0.10)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = gr; g.fillRect(x + ox - r, y + oy - r, r * 2, r * 2);
+    });
+  }
+  const pal = ["#4f9d5d", "#58a766", "#6cb878", "#7cc686", "#4a9459", "#88cf92"];
+  g.lineCap = "round";
+  for (let i = 0; i < 7000; i++) {
+    const x = rnd() * S, y = rnd() * S, len = 5 + rnd() * 9, a = -Math.PI / 2 + (rnd() - 0.5) * 1.5;
+    g.strokeStyle = pal[Math.floor(rnd() * pal.length)]!; g.globalAlpha = 0.32 + rnd() * 0.33; g.lineWidth = 0.8 + rnd() * 0.8;
+    const dx = Math.cos(a) * len, dy = Math.sin(a) * len;
+    wrap((ox, oy) => { if (x + ox > -20 && x + ox < S + 20 && y + oy > -20 && y + oy < S + 20) { g.beginPath(); g.moveTo(x + ox, y + oy); g.lineTo(x + ox + dx, y + oy + dy); g.stroke(); } });
+  }
+  g.globalAlpha = 1;
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+export const GRASS_M = 4; // ile metrów murawy pokrywa jeden kafelek
+
+/** Murawa: pasy koszenia z kafelkowej tekstury (ostra z bliska, bez rozciągania jednej wielkiej bitmapy) i pobocze. */
+export function makePitch(maxAniso: number): THREE.Group {
+  const root = new THREE.Group();
+  const base = grassTile();
+  base.anisotropy = maxAniso;
+  const stripeW = FIELD.w / 20;
+  const mat = (tint: number, w: number, h: number) => {
+    const t = base.clone(); t.needsUpdate = true; t.repeat.set(w / GRASS_M, h / GRASS_M); t.anisotropy = maxAniso;
+    return new THREE.MeshStandardMaterial({ map: t, color: tint, roughness: 1 });
+  };
+  const apron = new THREE.Mesh(new THREE.PlaneGeometry(FIELD.w + 260, FIELD.h + 260), mat(0xa9c9a4, FIELD.w + 260, FIELD.h + 260));
+  apron.rotation.x = -Math.PI / 2; apron.position.set(FIELD.w / 2, -0.02, FIELD.h / 2); apron.receiveShadow = true; root.add(apron);
+  const light = mat(0xffffff, stripeW, FIELD.h), dark = mat(0xcfe3cb, stripeW, FIELD.h);
+  const geo = new THREE.PlaneGeometry(stripeW, FIELD.h);
   for (let i = 0; i < 20; i++) {
-    g.fillStyle = i % 2 ? "#5fa86b" : "#69b276";
-    g.fillRect(i * 5.25 * PX, 0, 5.25 * PX + 1, c.height);
+    const m = new THREE.Mesh(geo, i % 2 ? dark : light);
+    m.rotation.x = -Math.PI / 2; m.position.set(stripeW * (i + 0.5), 0, FIELD.h / 2); m.receiveShadow = true; root.add(m);
   }
-  // delikatne ziarno murawy
-  for (let i = 0; i < 9000; i++) {
-    g.fillStyle = `rgba(${Math.random() < 0.5 ? "255,255,255" : "0,40,0"},0.035)`;
-    g.fillRect(Math.random() * c.width, Math.random() * c.height, 2, 2);
-  }
-  const m = (v: number) => v * PX;
-  g.strokeStyle = "rgba(255,255,255,0.95)"; g.lineWidth = 0.12 * PX; g.lineCap = "round";
-  const rect = (x: number, y: number, w: number, h: number) => g.strokeRect(m(x), m(y), m(w), m(h));
-  rect(0.06, 0.06, FIELD.w - 0.12, FIELD.h - 0.12);
-  g.beginPath(); g.moveTo(m(52.5), 0); g.lineTo(m(52.5), c.height); g.stroke();
-  g.beginPath(); g.arc(m(52.5), m(34), m(9.15), 0, Math.PI * 2); g.stroke();
+  root.add(makeLines());
+  return root;
+}
+
+/** Linie boiska jako geometria (zawsze ostre, niezależnie od rozdzielczości): jedna scalona siatka. */
+function makeLines(): THREE.Mesh {
+  const LW = 0.12, parts: THREE.BufferGeometry[] = [];
+  const flat = (g: THREE.BufferGeometry) => { g.rotateX(Math.PI / 2); parts.push(g); }; // (x,y,0) -> (x,0,y)
+  const rect = (x: number, z: number, w: number, h: number) => {
+    const sh = new THREE.Shape(); sh.moveTo(x - LW / 2, z - LW / 2); sh.lineTo(x + w + LW / 2, z - LW / 2); sh.lineTo(x + w + LW / 2, z + h + LW / 2); sh.lineTo(x - LW / 2, z + h + LW / 2); sh.closePath();
+    const hole = new THREE.Path(); hole.moveTo(x + LW / 2, z + LW / 2); hole.lineTo(x + LW / 2, z + h - LW / 2); hole.lineTo(x + w - LW / 2, z + h - LW / 2); hole.lineTo(x + w - LW / 2, z + LW / 2); hole.closePath();
+    sh.holes.push(hole); flat(new THREE.ShapeGeometry(sh));
+  };
+  const arc = (cx: number, cz: number, r: number, a0: number, len: number) => { const g = new THREE.RingGeometry(r - LW / 2, r + LW / 2, 96, 1, a0, len); g.translate(cx, cz, 0); flat(g); };
+  const dot = (cx: number, cz: number) => { const g = new THREE.CircleGeometry(0.22, 20); g.translate(cx, cz, 0); flat(g); };
+  const cz = FIELD.h / 2;
+  rect(LW / 2, LW / 2, FIELD.w - LW, FIELD.h - LW);
+  const mid = new THREE.PlaneGeometry(LW, FIELD.h); mid.translate(FIELD.w / 2, cz, 0); flat(mid);
+  arc(FIELD.w / 2, cz, 9.15, 0, Math.PI * 2); dot(FIELD.w / 2, cz);
   for (const side of [0, 1]) {
     const x0 = side ? FIELD.w - 16.5 : 0, gx = side ? FIELD.w - 5.5 : 0, spot = side ? FIELD.w - 11 : 11;
-    rect(x0, 34 - 20.16, 16.5, 40.32);
-    rect(gx, 34 - 9.16, 5.5, 18.32);
-    g.fillStyle = "white";
-    g.beginPath(); g.arc(m(spot), m(34), m(0.2), 0, Math.PI * 2); g.fill();
-    // łuk pola karnego (część koła poza polem)
+    rect(x0, cz - 20.16, 16.5, 40.32); rect(gx, cz - 9.16, 5.5, 18.32); dot(spot, cz);
     const a = Math.acos(5.5 / 9.15);
-    g.beginPath();
-    if (side) g.arc(m(spot), m(34), m(9.15), Math.PI - a, Math.PI + a);
-    else g.arc(m(spot), m(34), m(9.15), -a, a);
-    g.stroke();
+    if (side) arc(spot, cz, 9.15, Math.PI - a, 2 * a); else arc(spot, cz, 9.15, -a, 2 * a);
   }
-  g.beginPath(); g.arc(m(52.5), m(34), m(0.2), 0, Math.PI * 2); g.fill();
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 8;
-  return t;
+  const geo = mergeGeometries(parts.map((g) => { const n = g.toNonIndexed(); n.deleteAttribute("uv"); n.deleteAttribute("normal"); return n; }))!;
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xf2f6ee, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 }));
+  m.position.y = 0.012; m.renderOrder = 1;
+  return m;
 }
 
 /** Niebo: jasny błękit przechodzący w biel przy horyzoncie. */
@@ -121,8 +167,8 @@ function stand(len: number, depth: number, rise: number, crowd: THREE.Texture, w
   g.add(new THREE.Mesh(rake, new THREE.MeshStandardMaterial({ map: tex, roughness: 1, side: THREE.DoubleSide })));
   const back = new THREE.Mesh(new THREE.PlaneGeometry(len, rise + 5), wall);
   back.position.set(0, (rise + 5) / 2, -depth); g.add(back);
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(len + 2, 0.5, depth + 4), new THREE.MeshStandardMaterial({ color: 0xe9eef4, roughness: 0.9 }));
-  roof.position.set(0, rise + 4.6, -depth / 2 + 1.5); roof.rotation.x = -0.06; g.add(roof);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(len + 2, 0.4, depth + 2), new THREE.MeshStandardMaterial({ color: 0xf0f3f7, roughness: 0.9 }));
+  roof.position.set(0, rise + 3.6, -depth / 2 + 1); roof.rotation.x = -0.06; g.add(roof);
   const post = new THREE.MeshStandardMaterial({ color: 0xc9d1db, roughness: 0.8 });
   for (let i = 0; i <= 6; i++) {
     const p = new THREE.Mesh(new THREE.BoxGeometry(0.5, rise + 4.5, 0.5), post);
@@ -135,7 +181,7 @@ function stand(len: number, depth: number, rise: number, crowd: THREE.Texture, w
 export function makeStadium(): THREE.Group {
   const root = new THREE.Group();
   const crowd = crowdTexture();
-  const wall = new THREE.MeshStandardMaterial({ color: 0x3b4558, roughness: 1, side: THREE.DoubleSide });
+  const wall = new THREE.MeshStandardMaterial({ color: 0x4a566b, roughness: 1, side: THREE.DoubleSide });
   const D = 8.5; // odległość trybun od linii boiska
   const L = FIELD.w, H = FIELD.h;
   const place = (len: number, x: number, z: number, ry: number, depth = 15, rise = 9) => {
@@ -404,23 +450,51 @@ export function animateFigure(f: Figure, speed: number, dt: number, facing: numb
 }
 
 /** Piłka z klasycznym wzorem łat. */
+/** Promień piłki w scenie (m). Nieco większy niż 0,11 m regulaminowych, żeby była widoczna z kamery na telefonie. */
+export const BALL_VISUAL_R = 0.19;
+
 export function makeBall(): THREE.Mesh {
   const c = document.createElement("canvas");
-  c.width = 256; c.height = 128;
+  c.width = 512; c.height = 256;
   const g = c.getContext("2d")!;
-  g.fillStyle = "#ffffff"; g.fillRect(0, 0, 256, 128);
-  g.fillStyle = "#1d1d1f";
-  for (let i = 0; i < 12; i++) {
-    const x = (i % 6) * 44 + (i < 6 ? 10 : 32), y = i < 6 ? 34 : 92;
-    g.beginPath();
-    for (let k = 0; k < 5; k++) { const a = (k / 5) * Math.PI * 2 - Math.PI / 2; g.lineTo(x + Math.cos(a) * 11, y + Math.sin(a) * 11); }
-    g.fill();
-  }
+  g.fillStyle = "#ffffff"; g.fillRect(0, 0, 512, 256);
+  g.fillStyle = "#14161a";
+  // 12 pięciokątów (w układzie równoprostokątnym): dwa pierścienie po 5 i dwa bieguny
+  const pent = (x: number, y: number, r: number) => { g.beginPath(); for (let k = 0; k < 5; k++) { const a = (k / 5) * Math.PI * 2 - Math.PI / 2; g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); } g.closePath(); g.fill(); };
+  for (let i = 0; i < 5; i++) { pent(i * 102.4 + 30, 92, 24); pent(i * 102.4 + 81, 168, 24); }
+  pent(256, 22, 20); pent(256, 234, 20);
   const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.16, 24, 16), new THREE.MeshStandardMaterial({ map: t, roughness: 0.4 }));
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(BALL_VISUAL_R, 32, 20), new THREE.MeshStandardMaterial({ map: t, roughness: 0.42, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.22 }));
   ball.castShadow = true;
+  // cienki ciemny kontur: biała piłka nie ginie na jasnej murawie i liniach
+  const outline = new THREE.Mesh(new THREE.SphereGeometry(BALL_VISUAL_R * 1.07, 24, 14), new THREE.MeshBasicMaterial({ color: 0x0f1216, side: THREE.BackSide, transparent: true, opacity: 0.55, depthWrite: false }));
+  ball.add(outline);
   return ball;
+}
+
+/** Tekstura przerywanej linii (kreska 0,6 / przerwa 0,4 na jednostkę powtórzenia). */
+export function dashTexture(): THREE.CanvasTexture {
+  const c = document.createElement("canvas");
+  c.width = 64; c.height = 16;
+  const g = c.getContext("2d")!;
+  g.fillStyle = "#fff"; g.fillRect(0, 0, 38, 16);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/** Miękki cień kontaktowy pod piłką (cień od słońca tak małego obiektu jest prawie niewidoczny). */
+export function makeBallShadow(): THREE.Mesh {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d")!;
+  const gr = g.createRadialGradient(32, 32, 2, 32, 32, 32);
+  gr.addColorStop(0, "rgba(0,0,0,0.7)"); gr.addColorStop(0.55, "rgba(0,0,0,0.35)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -8 }));
+  m.rotation.x = -Math.PI / 2; m.renderOrder = 2;
+  return m;
 }
 
 /** Kąt obrotu (wokół osi Y) dla zwrotu w kierunku (dx, dz) przy przodzie +x. */
