@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Answers, buildProfile, dayIndexes, goalsFor, initialAnswers, nextDayState, previewWeek, sessionCount, understood, validateStep, type DayState } from "./answers";
+import { Answers, buildProfile, dayIndexes, goalsFor, initialAnswers, nextDayState, previewWeek, restoreDraft, sessionCount, understood, validateStep, type DayState } from "./answers";
 import { levelOf, planForProfile, validateProfile, weekStartOf } from "../engine";
 import { finalizeNewProfile } from "../lib/profileGuard";
 
@@ -156,5 +156,25 @@ describe("onboarding: opis „co zrozumieliśmy”", () => {
     ]);
     expect(understood(answers({ season: "offseason" }))[0]).toBe("Przerwa między sezonami: bez meczów, lżej");
     expect(understood(answers({}, { 1: "match", 4: "match" }))[0]).toBe("Mecz we wtorek i w piątek");
+  });
+});
+
+describe("zapamiętany onboarding (po przeładowaniu karty)", () => {
+  it("przywraca krok i odpowiedzi, a odpowiedzi z pamięci przechodzą walidację", () => {
+    const a = answers({ equipment: ["gym"] }, { 1: "club" });
+    const d = restoreDraft(JSON.parse(JSON.stringify({ step: 4, a })));
+    expect(d?.step).toBe(4);
+    expect(d?.a).toMatchObject({ name: "Kuba", position: "pomocnik", goals: ["speed"], season: "inseason", league: "IV liga", equipment: ["gym"] });
+    expect(d?.a.days[1]).toBe("club");
+  });
+  it("uszkodzone lub obce dane nie przywracają niczego i nie wywracają aplikacji", () => {
+    for (const bad of [null, undefined, 5, "x", [], {}, { step: 0, a: {} }, { step: 99, a: {} }, { step: 2.5, a: {} }, { step: 2 }, { step: 2, a: null }]) expect(restoreDraft(bad), JSON.stringify(bad)).toBeNull();
+  });
+  it("pojedyncze złe pola wracają do wartości początkowych, reszta zostaje", () => {
+    const d = restoreDraft({ step: 3, a: { name: "Ola", age: 7, weight: "x", position: "trener", goals: ["speed", "speed", "xx", "strength", "endurance"], league: "Liga Mistrzów", days: ["free"], equipment: ["gym", "ufo"] } })!;
+    expect(d.a).toMatchObject({ name: "Ola", age: 18, weight: 75, goals: ["speed", "strength"], equipment: ["gym"] });
+    expect(d.a.position).toBeUndefined();
+    expect(d.a.league).toBeUndefined();
+    expect(d.a.days).toEqual(initialAnswers().days);
   });
 });

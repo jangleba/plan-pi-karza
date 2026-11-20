@@ -3,7 +3,8 @@ import { FEEL_NOW, LEAGUES, MIN_AGE, saveFeeling } from "./engine";
 import type { FeelNow, Position, Profile } from "./engine";
 import { Wheel } from "./Wheel";
 import { Sheet } from "./Sheet";
-import { LAST_STEP, buildProfile, initialAnswers, WEEKDAY_SHORT, nextDayState, understood, validateStep, type Answers, type DayState } from "./onboarding/answers";
+import { scoped } from "./lib/store";
+import { DRAFT_KEY, LAST_STEP, buildProfile, initialAnswers, restoreDraft, WEEKDAY_SHORT, nextDayState, understood, validateStep, type Answers, type DayState } from "./onboarding/answers";
 import { BUTTON, DAY_LABEL, EQUIPMENT, GOALS, INTRO, LABEL, POSITIONS, PREVIEW, SEASONS, STEP_HINT, STEP_TITLE, dayHelp, yearsText } from "./onboarding/copy";
 
 const range = (a: number, b: number, step = 1) => Array.from({ length: Math.floor((b - a) / step) + 1 }, (_, i) => a + i * step);
@@ -131,7 +132,9 @@ function PitchPicker({ value, onPick }: { value?: Position; onPick: (p: Position
 /** Ekran przejścia: tydzień „się układa”, a pod spodem to, co zrozumieliśmy z odpowiedzi. */
 function Building({ name, lines, onDone }: { name: string; lines: string[]; onDone: () => void }) {
   const ms = Math.min(3600, 2700 + lines.length * 260);
-  useEffect(() => { const t = setTimeout(onDone, ms); return () => clearTimeout(t); }, [onDone, ms]);
+  const done = useRef(onDone);
+  done.current = onDone; // stabilny timer: nowa funkcja z rodzica nie restartuje animacji
+  useEffect(() => { const t = setTimeout(() => done.current(), ms); return () => clearTimeout(t); }, [ms]);
   return (
     <main className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-canvas px-8 text-ink">
       <div className="relative mb-8 w-[188px] pt-8" aria-hidden="true">
@@ -162,10 +165,13 @@ function Building({ name, lines, onDone }: { name: string; lines: string[]; onDo
 const input = "w-full rounded-2xl border border-hairline bg-card px-4 py-3 text-base outline-none transition focus:border-accent";
 
 export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
-  const [step, setStep] = useState(0);
+  // rozpoczęty onboarding wraca po przeładowaniu karty (np. gdy system zamknie ją w tle), zamiast zaczynać od zera
+  const [draft] = useState(() => { try { return restoreDraft(JSON.parse(scoped.getItem(DRAFT_KEY) ?? "null")); } catch { return null; } });
+  const [step, setStep] = useState(draft?.step ?? 0);
   const [dir, setDir] = useState<1 | -1>(1);
   const [leaving, setLeaving] = useState(false);
-  const [a, setA] = useState<Answers>(initialAnswers);
+  const [a, setA] = useState<Answers>(draft?.a ?? initialAnswers);
+  useEffect(() => { if (step > 0) scoped.setItem(DRAFT_KEY, JSON.stringify({ step, a })); }, [step, a]);
   const [leagueSheet, setLeagueSheet] = useState(false);
   const [error, setError] = useState("");
   const [errorKey, setErrorKey] = useState(0);
@@ -196,7 +202,7 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
   const toggleGoal = (g: Answers["goals"][number]) =>
     set({ goals: a.goals.includes(g) ? a.goals.filter((x) => x !== g) : a.goals.length >= 2 ? [a.goals[0]!, g] : [...a.goals, g] });
 
-  if (building) return <Building name={building.name ?? ""} lines={understood(a)} onDone={() => onDone(building)} />;
+  if (building) return <Building name={building.name ?? ""} lines={understood(a)} onDone={() => { scoped.removeItem(DRAFT_KEY); onDone(building); }} />;
 
   if (step === 0) {
     return (

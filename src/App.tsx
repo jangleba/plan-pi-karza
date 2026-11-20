@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { AgeGate } from "./AgeGate";
+import { Splash } from "./AppBoundary";
 import { Settings } from "./Settings";
 import { AgreementGate } from "./legal/LegalUi";
 import { hasCurrentAgreement, resumePendingWithdraw } from "./legal/consent";
@@ -76,7 +77,7 @@ export function App() {
   useState(() => { migrateLegacy(); purgeRemovedFeatures(); return 0; }); // stare, wspólne klucze → przestrzeń GOŚCIA (nigdy do bieżącego konta)
   const auth = useAuthState();
   const [loginOpen, setLoginOpen] = useState(false);
-  if (auth.status === "loading") return null;
+  if (auth.status === "loading") return <Splash />;
   const guest = auth.scope.kind === "guest";
   if (guest && (REQUIRE_LOGIN || loginOpen)) return <Auth onBack={REQUIRE_LOGIN ? undefined : () => setLoginOpen(false)} />;
   return <Gate key={scopeId(auth.scope)} scope={auth.scope} email={auth.email} onLogin={() => setLoginOpen(true)} />;
@@ -117,7 +118,7 @@ function Gate({ scope, email, onLogin }: { scope: Scope; email: string | null; o
     })();
     return () => { alive = false; };
   }, [scope]);
-  if (!ready) return null;
+  if (!ready) return <Splash />;
   return <Main scope={scope} email={email} onLogin={onLogin} />;
 }
 
