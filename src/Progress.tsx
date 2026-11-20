@@ -9,6 +9,7 @@ import { loadAttempts } from "./iq/attempts-store";
 import { TREND_HEX } from "./progress/trend";
 import { Heatmap } from "./progress/Heatmap";
 import { KindSheet, RangeTabs } from "./progress/KindSheet";
+import { RunsCard } from "./progress/RunsCard";
 import { Sparkline } from "./progress/TrendChart";
 import { nutritionDays, plannedDays } from "./progress/data";
 import { GROUP_KIND, GROUP_TITLE, allMetrics, groupOf, sesji, shortDate, type Group } from "./progress/metrics";
@@ -122,6 +123,8 @@ export function Progress({ profile, refreshKey }: { profile: Profile; refreshKey
           <KindCard key={k} k={k} events={events} metrics={metrics} today={today} range={range} onOpen={k !== "technique" ? () => setOpen(k as Group) : undefined} />
         ))}
       </div>
+
+      <RunsCard refreshKey={refreshKey} />
 
       {label("Regularność")}
       <section className={`${card} px-5 py-4`}>
