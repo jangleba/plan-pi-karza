@@ -100,35 +100,44 @@ const matCache = new Map<string, THREE.Material>();
  * Materiał stroju: każdy wierzchołek niesie wagi 6 części (skóra, koszulka, spodenki, getry, buty, rękawice);
  * w shaderze wagi są wyostrzane (potęga), więc granice między częściami są wyraźne mimo długich trójkątów siatki.
  */
-function kitMaterial(kit: ActorKit, skin: number, legs: { hem: number; sock: number }): THREE.Material {
+/** Granice stref stroju w pozie bazowej (cm): dolna krawędź spodenek, górna krawędź getrów (wysokość), koniec rękawa (|x|). */
+export interface Zones { hem: number; sock: number; sleeve: number }
+
+function kitMaterial(kit: ActorKit, skin: number, z: Zones): THREE.Material {
   const boots = kit.look?.boots ?? 0x17181a;
-  const key = `${kit.jersey}|${kit.shorts}|${kit.socks}|${kit.gloves ?? 0}|${skin}|${boots}`;
+  const key = `${kit.jersey}|${kit.shorts}|${kit.socks}|${kit.gloves ?? 0}|${skin}|${boots}|${kit.keeper ? 1 : 0}`;
   let m = matCache.get(key);
   if (m) return m;
-  const colors = [skin, kit.jersey, kit.shorts, kit.socks, boots, kit.gloves ?? 0xe9eef3].map((c) => new THREE.Color(c));
+  const colors = [skin, kit.jersey, kit.shorts, kit.socks, boots, kit.gloves ?? 0x2a2018].map((c) => new THREE.Color(c));
   const mat = new THREE.MeshStandardMaterial({ roughness: 0.72, metalness: 0 });
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uKit = { value: colors };
-    sh.uniforms.uLeg = { value: new THREE.Vector2(legs.hem, legs.sock) };
+    sh.uniforms.uZone = { value: new THREE.Vector3(z.hem, z.sock, z.sleeve) };
     sh.vertexShader = sh.vertexShader
-      .replace("#include <common>", "#include <common>\nattribute vec3 aPartA;\nattribute vec3 aPartB;\nattribute vec2 aBind;\nvarying vec3 vPartA;\nvarying vec3 vPartB;\nvarying vec2 vBind;")
-      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvPartA = aPartA; vPartB = aPartB; vBind = aBind;");
+      .replace("#include <common>", "#include <common>\nattribute vec3 aPartA;\nattribute vec3 aPartB;\nattribute vec3 aBind;\nattribute float aAo;\nvarying vec3 vPartA;\nvarying vec3 vPartB;\nvarying vec2 vBind;\nflat varying float vMode;\nvarying float vAo;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvPartA = aPartA; vPartB = aPartB; vBind = vec2(aBind.x, aBind.z); vMode = aBind.y; vAo = aAo;");
     sh.fragmentShader = sh.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform vec3 uKit[6];\nuniform vec2 uLeg;\nvarying vec3 vPartA;\nvarying vec3 vPartB;\nvarying vec2 vBind;")
+      .replace("#include <common>", "#include <common>\nuniform vec3 uKit[6];\nuniform vec3 uZone;\nvarying vec3 vPartA;\nvarying vec3 vPartB;\nvarying vec2 vBind;\nflat varying float vMode;\nvarying float vAo;")
       .replace("#include <color_fragment>", `#include <color_fragment>
         vec3 pa = pow(max(vPartA, 0.0), vec3(7.0));
         vec3 pb = pow(max(vPartB, 0.0), vec3(7.0));
         float ps = pa.x + pa.y + pa.z + pb.x + pb.y + pb.z + 1e-6;
         vec3 kitCol = (uKit[0] * pa.x + uKit[1] * pa.y + uKit[2] * pa.z + uKit[3] * pb.x + uKit[4] * pb.y + uKit[5] * pb.z) / ps;
-        // nogi: granice spodenki / skóry / getrów po wysokości w pozie bazowej (równa linia zamiast postrzępionej po trójkątach siatki)
-        if (vBind.y > 0.5) {
-          float onShorts = smoothstep(uLeg.x - 0.6, uLeg.x + 0.6, vBind.x);
-          float aboveSock = smoothstep(uLeg.y - 0.6, uLeg.y + 0.6, vBind.x);
+        // granice stroju liczone w każdym pikselu z położenia w pozie bazowej (równe linie zamiast postrzępionych po trójkątach siatki)
+        if (vMode > 3.5) {                                    // kołnierz / szyja po wysokości
+          kitCol = mix(uKit[1], uKit[0], smoothstep(149.6, 150.6, vBind.x));
+        } else if (vMode > 2.5) {                                    // ramię: rękaw / skóra po osi X
+          kitCol = mix(uKit[0], uKit[1], 1.0 - smoothstep(uZone.z - 0.5, uZone.z + 0.5, vBind.y));
+        } else if (vMode > 1.5) {                             // noga: spodenki / skóra / getry po wysokości
+          float onShorts = smoothstep(uZone.x - 0.6, uZone.x + 0.6, vBind.x);
+          float aboveSock = smoothstep(uZone.y - 0.6, uZone.y + 0.6, vBind.x);
           kitCol = mix(uKit[3], mix(uKit[0], uKit[2], onShorts), aboveSock);
+        } else if (vMode > 0.5) {                             // talia: spodenki / koszulka po wysokości
+          kitCol = mix(uKit[2], uKit[1], smoothstep(101.6, 102.8, vBind.x));
         }
-        diffuseColor.rgb *= kitCol;`);
+        diffuseColor.rgb *= kitCol * (0.5 + 0.5 * vAo); // zaciemnienie przy zagłębieniach (pachy, krocze, pod brodą)`);
   };
-  mat.customProgramCacheKey = () => "bw-kit-2";
+  mat.customProgramCacheKey = () => "bw-kit-5";
   matCache.set(key, mat);
   return mat;
 }
@@ -138,10 +147,10 @@ function buildTemplate(assets: ActorAssets, kit: ActorKit, variant: number): THR
   const tpl = SkeletonUtils.clone(assets.scene) as THREE.Group;
   tpl.updateMatrixWorld(true);
   const bone = (n: string) => tpl.getObjectByName(n) as THREE.Bone;
-  const worldY = (n: string) => bone(n).getWorldPosition(new THREE.Vector3()).y;
-  const refs = { hip: worldY("mixamorigLeftUpLeg"), knee: worldY("mixamorigLeftLeg") };
   const skin = kit.look?.skin ?? SKINS[variant % SKINS.length]!, hair = kit.look?.hair ?? HAIRS[(variant * 3 + 1) % HAIRS.length]!;
-  const mat = kitMaterial(kit, skin, { hem: refs.hip - 0.5 * (refs.hip - refs.knee), sock: refs.knee - 6 });
+  const jy = (n: string) => bone(`mixamorig${n}`).getWorldPosition(new THREE.Vector3());
+  const hipP = jy("LeftUpLeg"), kneeP = jy("LeftLeg"), ankP = jy("LeftFoot"), shP = jy("LeftArm"), elP = jy("LeftForeArm"), wrP = jy("LeftHand");
+  const mat = kitMaterial(kit, skin, { hem: hipP.y + (kneeP.y - hipP.y) * 0.5, sock: kneeP.y + (ankP.y - kneeP.y) * 0.17, sleeve: kit.keeper ? wrP.x : shP.x + (elP.x - shP.x) * 0.6 });
   // własne ciało zamiast manekina Beta: jedna siatka (wspólna dla wszystkich klonów danego wariantu) na szkielecie Mixamo
   const meshes: THREE.SkinnedMesh[] = [];
   tpl.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) meshes.push(o as THREE.SkinnedMesh); });

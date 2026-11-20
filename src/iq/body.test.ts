@@ -24,7 +24,7 @@ describe("własne ciało zawodnika", () => {
       const g = buildBody(s.joint, s.boneIndex, keeper);
       const pos = g.attributes.position!, si = g.attributes.skinIndex!, sw = g.attributes.skinWeight!, A = g.attributes.aPartA!, B = g.attributes.aPartB!;
       expect(pos.count).toBeGreaterThan(1500);
-      expect(g.index!.count / 3, "trójkąty").toBeLessThan(9000);
+      expect(g.index!.count / 3, "trójkąty").toBeLessThan(12000);
       for (let i = 0; i < pos.count; i++) {
         expect(Number.isFinite(pos.getX(i) + pos.getY(i) + pos.getZ(i)), `poz ${i}`).toBe(true);
         let w = 0; for (let k = 0; k < 4; k++) { w += sw.getComponent(i, k); expect(si.getComponent(i, k)).toBeLessThan(s.nBones); }
@@ -62,8 +62,8 @@ describe("własne ciało zawodnika", () => {
     };
     const field = count(false), gk = count(true);
     for (let p = 0; p < 5; p++) expect(field[p], `strefa ${p}`).toBeGreaterThan(30);
-    expect(field[5]).toBe(0);
-    expect(gk[5]).toBeGreaterThan(30);
+    expect(field[5], "zawodnik z pola: tylko oczy w strefie rękawic").toBeLessThan(40);
+    expect(gk[5], "bramkarz: rękawice").toBeGreaterThan(150);
     expect(gk[1]!).toBeGreaterThan(field[1]!); // dłuższe rękawy
   });
 
