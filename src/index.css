@@ -133,3 +133,28 @@ body { text-rendering: optimizeLegibility; font-feature-settings: "cv11", "ss01"
 button { user-select: none; -webkit-user-select: none; }
 input { caret-color: var(--color-accent); }
 @media (prefers-reduced-motion: reduce) { .bw-tab, .bw-shimmer { animation: none; } }
+
+/* ---------- onboarding: wejścia po kolei, rysowany znacznik, wyjście kroku, potrząśnięcie przy błędzie ---------- */
+.bw-stagger > * { animation: bw-rise 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.bw-stagger > *:nth-child(1) { animation-delay: 40ms; }
+.bw-stagger > *:nth-child(2) { animation-delay: 100ms; }
+.bw-stagger > *:nth-child(3) { animation-delay: 160ms; }
+.bw-stagger > *:nth-child(4) { animation-delay: 220ms; }
+.bw-stagger > *:nth-child(5) { animation-delay: 280ms; }
+.bw-stagger > *:nth-child(n + 6) { animation-delay: 340ms; }
+@keyframes bw-step-out { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(-18px); } }
+@keyframes bw-step-out-back { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(18px); } }
+.bw-step-out { animation: bw-step-out 0.16s ease-in forwards; }
+.bw-step-out-back { animation: bw-step-out-back 0.16s ease-in forwards; }
+@keyframes bw-check { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+.bw-check { stroke-dasharray: 24; animation: bw-check 0.32s ease-out 0.05s both; }
+@keyframes bw-shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-6px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+.bw-shake { animation: bw-shake 0.38s ease-in-out; }
+@keyframes bw-ring { 0% { transform: scale(0.8); opacity: 0.5; } 100% { transform: scale(1.9); opacity: 0; } }
+.bw-ring { animation: bw-ring 1.8s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes bw-grow { from { transform: scaleY(0.2); opacity: 0.2; } to { transform: scaleY(1); opacity: 1; } }
+.bw-grow { animation: bw-grow 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; transform-origin: bottom; }
+@media (prefers-reduced-motion: reduce) {
+  .bw-stagger > *, .bw-step-out, .bw-step-out-back, .bw-check, .bw-shake, .bw-ring, .bw-grow { animation: none; }
+  .bw-check { stroke-dashoffset: 0; }
+}
