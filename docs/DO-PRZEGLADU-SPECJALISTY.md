@@ -7,6 +7,7 @@
 |---|---|---|
 | Szablony sesji siłowych i sprintu | `src/engine/library.ts`, `docs/SESJE-SILOWE-TRENERA.md`, `docs/SESJE-SPRINT-TRENERA.md` | Dobór ćwiczeń, objętość i intensywność dla 16–17 lat; ćwiczenia o wysokim obciążeniu (np. hang power clean, back squat); zamienniki (`substitutes`) |
 | Progresja ciężarów | `src/engine/progress.ts` (`stepFor`, `suggestNext`) | Krok zmiany (góra 1,25 kg, reszta 2,5%) to **konwencja aplikacji**, nie wynik badań; czy jest odpowiednia dla nastolatków; warunki, w których nie proponować zwiększenia |
+| Siła dzień po meczu i przekładanie treningów po zgłoszeniu „nie mogę” | `src/engine/week.ts` (`MD1_STRENGTH_MIN_YEARS`, `strengthOk`, pętla przekładania), `src/engine/day-skip.ts` | Próg **2 lat stażu siłowego** dla siły dzień po meczu (ostatnia opcja) to **konwencja aplikacji**, nie wynik badań; kolejność wyboru dnia przy przekładaniu (np. dla siły MD-3 → wolny → MD+2 → MD+1); czy 16–17-latkowie z krótkim stażem mogą tracić sesję w tygodniu zamiast ćwiczyć dzień po meczu |
 | Rozładowanie i mezocykl | `src/engine/adapt.ts`, `src/engine/week.ts` | Częstotliwość rozładowań, reakcja na „Dziś mniej” |
 | Testy maksymalne (CMJ, Yo-Yo IR1, test MAS) | `src/engine/lab.ts`, `src/engine/mas.ts` | Czy testy maksymalne są właściwe dla 16–17 lat bez nadzoru; jakie ostrzeżenia dodać |
 | Wynik gotowości | `src/engine/adapt.ts` (`readinessScore`) | Wynik jest orientacyjny i zależy tylko od snu i samopoczucia – czy opis jest wystarczający |

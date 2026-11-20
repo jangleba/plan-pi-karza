@@ -1,12 +1,14 @@
-import type { Level, Season, SeasonGoal } from "./types";
+import type { DaySkip, Level, Season, SeasonGoal } from "./types";
 import { MIN_AGE, assessAge } from "../lib/age";
 import { addDays, planWeek } from "./week";
+import { loadSkipped } from "../lib/skipped";
 
 export type Position = "bramkarz" | "obronca" | "pomocnik" | "skrzydlowy" | "napastnik";
 export const POSITION_LABEL: Record<Position, string> = {
   bramkarz: "Bramkarz", obronca: "Obrońca", pomocnik: "Pomocnik", skrzydlowy: "Skrzydłowy", napastnik: "Napastnik",
 };
-export type Equipment = "gym" | "bodyweight" | "field";
+/** Gdzie zawodnik może ćwiczyć: siłownia, własny ciężar, boisko, bieżnia (starsze profile mają tylko trzy pierwsze). */
+export type Equipment = "gym" | "bodyweight" | "field" | "track";
 
 /** Polskie poziomy rozgrywek (wpływ na silnik – do ustalenia, na razie tylko zapis). */
 export const LEAGUES = [
@@ -94,8 +96,15 @@ export function nextWeekUnlocked(weekStart: string, matchWeekdays: number[], tod
   return todayISO >= last;
 }
 
-/** Plan tygodnia dla profilu (wspólny dla Startu, Planu i Fuel). */
-export function planForProfile(profile: Profile, weekStart: string) {
+/** Korekty planu zgłoszone przez zawodnika: dni, w których nie może trenować (sesje indywidualne są wtedy przekładane). */
+export interface PlanAdjust { skippedDays: DaySkip[] }
+const currentAdjust = (): PlanAdjust => ({ skippedDays: loadSkipped() });
+
+/**
+ * Plan tygodnia dla profilu (wspólny dla Startu, Planu i Fuel). Silnik widzi: dni zajęte z onboardingu, staż siłowy (dzień po meczu dla siły
+ * dopiero od 2 lat) oraz dni, w których zawodnik zgłosił w check-inie „nie mogę zrobić dzisiejszych treningów” (sesje indywidualne są przekładane).
+ */
+export function planForProfile(profile: Profile, weekStart: string, adj: PlanAdjust = currentAdjust()) {
   return planWeek({
     weekStart,
     matches: matchesAround(weekStart, profile.matchWeekdays),
@@ -103,6 +112,8 @@ export function planForProfile(profile: Profile, weekStart: string) {
     offDays: datesForWeek(weekStart, profile.offWeekdays ?? []),
     level: levelOf(profile.age, profile.strengthYears),
     limitedGymAccess: profile.limitedGymAccess,
+    strengthYears: profile.strengthYears,
+    skippedDays: adj.skippedDays,
     season: profile.season,
     goal: profile.goal,
     goal2: profile.goal2,

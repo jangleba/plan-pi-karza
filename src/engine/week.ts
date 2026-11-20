@@ -4,6 +4,7 @@ import type {
   Phase,
   SessionKind,
   SessionVariant,
+  SkipMove,
   WeekInput,
   WeekPlan,
 } from "./types";
@@ -38,6 +39,12 @@ export function phaseOf(date: string, matches: string[]): Phase {
 }
 
 const HARD: SessionKind[] = ["strength", "run", "sprint"];
+
+/** Od ilu lat stażu siłowego planujemy siłę dzień po meczu (jako ostatnią opcję). Próg umowny – do przeglądu trenera. */
+export const MD1_STRENGTH_MIN_YEARS = 2;
+
+const WEEKDAY_GEN = ["poniedziałku", "wtorku", "środy", "czwartku", "piątku", "soboty", "niedzieli"];
+export const weekdayGen = (iso: string): string => WEEKDAY_GEN[(new Date(Date.parse(iso)).getUTCDay() + 6) % 7]!;
 
 function allowedKinds(phase: Phase): SessionKind[] {
   switch (phase) {
@@ -110,20 +117,30 @@ export function planWeek(input: WeekInput): WeekPlan {
   const neighbourHas = (i: number, kind: SessionKind) =>
     [days[i - 1], days[i + 1]].some((d) => d?.session?.kind === kind);
 
-  const place = (kind: SessionKind, phases: Phase[]): boolean => {
+  const mdPlus1Strength = input.strengthYears === undefined || input.strengthYears >= MD1_STRENGTH_MIN_YEARS;
+  /** Czy w danym dniu można zaplanować siłę: dzień po meczu tylko przy odpowiednim stażu siłowym. */
+  const strengthOk = (d: DayPlan): boolean => d.phase !== "MD+1" || mdPlus1Strength;
+
+  interface PlaceOpt { minDate?: string; skip?: ReadonlySet<string>; movedFrom?: string; replaceTechnique?: boolean }
+  const place = (kind: SessionKind, phases: Phase[], opt: PlaceOpt = {}): boolean => {
     for (const wantPhase of phases) {
       // dni bez klubu najpierw: klub + 1 indywidualna to limit dnia
       for (const clubPass of [false, true]) {
         for (let i = 0; i < days.length; i++) {
           const d = days[i]!;
-          if (d.session || d.isMatch || d.isOff || d.phase !== wantPhase) continue;
+          const freeSlot = !d.session || (opt.replaceTechnique === true && d.session.kind === "technique");
+          if (!freeSlot || d.isMatch || d.isOff || d.phase !== wantPhase) continue;
           if (d.isClub !== clubPass) continue;
+          if (opt.minDate && d.date < opt.minDate) continue;
+          if (opt.skip?.has(d.date)) continue;
           if (!allowedKinds(d.phase).includes(kind)) continue;
+          if (kind === "strength" && !strengthOk(d)) continue;
           if (HARD.includes(kind) && neighbourHas(i, kind)) continue;
           const session: IndividualSession = {
             kind,
             variant: variantFor(kind, d.phase, input),
-            reason: REASONS[`${kind}:${d.phase}`] ?? "",
+            reason: opt.movedFrom ? `Przełożona z ${weekdayGen(opt.movedFrom)}: wtedy nie możesz trenować.` : REASONS[`${kind}:${d.phase}`] ?? "",
+            ...(opt.movedFrom ? { movedFrom: opt.movedFrom } : {}),
           };
           d.session = session;
           return true;
@@ -149,10 +166,33 @@ export function planWeek(input: WeekInput): WeekPlan {
   const extra2 = input.goal2 !== input.goal ? goalExtra(input.goal2) : null;
   if (extra2) place(extra2, PREFERRED[extra2]);
 
-  // Regeneracja w dniu po meczu, jeśli dzień pusty.
-  place("recovery", ["MD+1"]);
+  // Dni, w których zawodnik zgłosił „nie mogę zrobić dzisiejszych treningów” (check-in, plan): sesję indywidualną przekładamy na pierwszy
+  // dozwolony dzień, nie wcześniejszy niż dzień zgłoszenia. Kolejność jak przy planowaniu (np. dla siły: MD-3, wolne, MD+2), a siła dzień po meczu
+  // na końcu i tylko przy stażu siłowym od MD1_STRENGTH_MIN_YEARS lat. Trening klubowy zostaje (prowadzi go trener). Aktywacja i regeneracja są
+  // związane z dniem meczu, więc nie są przekładane (regeneracji w zgłoszonym dniu po prostu nie dodajemy). Wynik zależy tylko od zgłoszeń (nie od „dzisiaj”): przełożona sesja nie zmienia miejsca z dnia na dzień.
+  const since = new Map((input.skippedDays ?? []).map((b) => [b.date, b.since] as const));
+  const skipped = new Set(since.keys());
+  const moves: SkipMove[] = [];
+  for (const d of days) {
+    const from = since.get(d.date);
+    const kind = d.session?.kind;
+    if (from === undefined || !kind) continue;
+    d.session = null;
+    if (kind === "activation" || kind === "recovery") continue; // (na tym etapie takich sesji jeszcze nie ma; regenerację dodajemy niżej, z pominięciem zgłoszonych dni)
+    const opt = { minDate: from, skip: skipped, movedFrom: d.date };
+    if (place(kind, PREFERRED[kind], opt) || place(kind, PREFERRED[kind], { ...opt, replaceTechnique: kind === "strength" })) {
+      moves.push({ from: d.date, kind, to: days.find((x) => x.session?.movedFrom === d.date)!.date });
+      if (!days.some((x) => x.session?.kind === "technique")) place("technique", PREFERRED.technique, { minDate: from });
+      continue;
+    }
+    const md1Blocked = kind === "strength" && !mdPlus1Strength && days.some((x) => x.phase === "MD+1" && x.date >= from && !x.isMatch && !x.isOff && !skipped.has(x.date));
+    moves.push({ from: d.date, kind, to: null, ...(md1Blocked ? { needsYears: MD1_STRENGTH_MIN_YEARS } : {}) });
+  }
 
-  return { days, warnings };
+  // Regeneracja w dniu po meczu, jeśli dzień pusty (z wyjątkiem dni, w których zawodnik zgłosił, że nie może trenować).
+  place("recovery", ["MD+1"], { skip: skipped });
+
+  return { days, warnings, moves };
 }
 
 /** Poniedziałek tygodnia, do którego należy data ISO. */

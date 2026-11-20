@@ -11,6 +11,7 @@ Przestrzenie: `bw:guest:*` oraz `bw:u:<id konta>:*`. Zmiana konta nie kopiuje an
 | Profil (imię, pozycja, masa ciała, cel, dni treningowe…) | `profile` | Do chmury trafia tylko podzbiór z listy dozwolonych pól (sekcja 2) |
 | Historia, ciężary (`weightLog`), MAS, odczucia, biegi | `history`, `weightLog`, `masDistance`, `feelings`, `runs` | Do chmury tylko za zgodą na synchronizację zdrowia |
 | Check-iny | `checkIn:*` | j.w. |
+| Zgłoszenia „nie mogę zrobić dzisiejszych treningów” (dzień, którego dotyczą, i dzień zgłoszenia) | `skippedDays` | Tylko na urządzeniu; porządkowane po ok. 10 tygodniach; nie jest synchronizowane |
 | Fuel: posiłki, cele, ulubione, **alergeny i dieta** | `meals`, `fuelGoal`, `fuelFavs`, `fuelDiet`… | Nie są synchronizowane |
 | **Piłkarski angielski**: poziom trudności, ukończone lekcje, etap powtórek zwrotów i fiszek, miejsce przerwania lekcji | `english` | Po zalogowaniu synchronizowane z kontem (dane edukacyjne, nie zdrowotne) |
 | Wybrany głos syntezy mowy | `englishVoice` | Tylko na urządzeniu |

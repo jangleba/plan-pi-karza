@@ -2,15 +2,15 @@ import type { SeasonGoal } from "./types";
 import { scoped } from "../lib/store";
 
 /**
- * „Jak czujesz się teraz na boisku?” – odpowiedzi podpowiadają cele,
+ * „Co najbardziej Ci przeszkadza w grze?” – odpowiedzi podpowiadają cele,
  * a pytanie wraca co 5 tygodni, żeby było widać zmianę.
  */
 export type FeelNow = "slow" | "duels" | "stamina";
 
 export const FEEL_NOW: Array<[FeelNow, string]> = [
-  ["slow", "Za wolny, spóźniam się"],
+  ["slow", "Brakuje mi szybkości"],
   ["duels", "Przegrywam pojedynki"],
-  ["stamina", "Brakuje mi pary w końcówce"],
+  ["stamina", "Brakuje mi sił w końcówce"],
 ];
 
 const GOAL_FOR: Record<FeelNow, SeasonGoal> = { slow: "speed", duels: "strength", stamina: "endurance" };

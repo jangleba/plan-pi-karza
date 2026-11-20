@@ -6,10 +6,12 @@ import { hasCurrentAgreement, resumePendingWithdraw } from "./legal/consent";
 import { useAuthState } from "./lib/session";
 import { changeBirth, finalizeNewProfile, loadGuardedProfile, saveProfile, type GuardResult } from "./lib/profileGuard";
 import { getScope, migrateLegacy, purgeRemovedFeatures, sameScope, scopeId, type Scope } from "./lib/store";
-import { localISO, addDays, cycleWeekFor, levelOf, nextWeekUnlocked, planForProfile } from "./engine";
+import { localISO, addDays, cycleWeekFor, levelOf, nextWeekUnlocked, planForProfile, weekdayGen } from "./engine";
 import type { CheckIn, DayPlan, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
 import { Start } from "./Start";
+import { SkippedDays } from "./DaySkipToggle";
+import { setSkipped, useSkippedVersion } from "./lib/skipped";
 import { Backdrop } from "./Sketch";
 import { Group, LargeTitle, ListRow } from "./ui";
 import { Auth } from "./Auth";
@@ -53,7 +55,7 @@ function DayRow({ day, index, isToday, onOpen }: { day: DayPlan; index: number; 
       onTap={s || day.isClub ? onOpen : undefined}
       accent={day.isMatch}
       title={<span className={(!s && !day.isMatch && !day.isClub) || day.isOff ? "text-muted" : ""}>{title}</span>}
-      sub={s && day.isClub ? "+ trening klubowy" : undefined}
+      sub={s?.movedFrom ? `przełożona z ${weekdayGen(s.movedFrom)}${day.isClub ? " · + trening klubowy" : ""}` : s && day.isClub ? "+ trening klubowy" : undefined}
       lead={
         <span className={`flex w-11 shrink-0 flex-col items-center rounded-2xl py-1 ${isToday ? "bw-sel" : ""}`}>
           <span className={`text-[10px] uppercase tracking-wide ${isToday ? "text-accent/80" : "text-muted"}`}>{WEEKDAY[index]}</span>
@@ -198,10 +200,11 @@ function Home({ profile, checkIn, initialOpen, onOpened, onReset }: {
   const unlocked = nextWeekUnlocked(thisWeek, profile.matchWeekdays, today());
   const [viewNext, setViewNext] = useState(false);
   const weekStart = viewNext && unlocked ? addDays(thisWeek, 7) : thisWeek;
+  const skippedVersion = useSkippedVersion(); // zgłoszenie „nie mogę” przelicza plan od razu
   const plan = useMemo(
     () =>
       planForProfile(profile, weekStart),
-    [weekStart, profile],
+    [weekStart, profile, skippedVersion],
   );
 
   return (
@@ -223,8 +226,10 @@ function Home({ profile, checkIn, initialOpen, onOpened, onReset }: {
         ))}
       </Group>
       {open && (
-        <SessionSheet day={open} checkIn={checkIn} weekInCycle={cycleWeekFor(profile, weekStart)} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")} onClose={() => setOpen(null)} />
+        <SessionSheet day={open} checkIn={checkIn} weekInCycle={cycleWeekFor(profile, weekStart)} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")}
+          onSkipDay={open.date >= today() ? () => { setSkipped(open.date, true, today()); setOpen(null); } : undefined} onClose={() => setOpen(null)} />
       )}
+      <SkippedDays profile={profile} weekStart={weekStart} />
       {plan.warnings.length > 0 && (
         <p className="mt-4 rounded-2xl border border-hairline bg-canvas p-3 text-sm text-muted">
           {plan.warnings.join(" ")}
