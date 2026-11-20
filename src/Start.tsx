@@ -4,7 +4,7 @@ import type { CheckIn, Profile } from "./engine";
 import { Sheet } from "./Sheet";
 import { LegalSheet } from "./legal/LegalUi";
 import { EnglishCard } from "./english/EnglishCard";
-import { StrengthToggle } from "./StrengthToggle";
+import { DaySkipToggle } from "./DaySkipToggle";
 
 // Moduł nauki ładuje się dopiero po otwarciu (osobny fragment pakietu): nie spowalnia strony głównej.
 const EnglishModule = lazy(() => import("./english/EnglishModule"));
@@ -106,7 +106,7 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn, onSettings }: {
               className={`w-full rounded-2xl py-3.5 text-sm font-medium ${checkIn.less ? "bw-sel" : "bg-canvas text-ink"}`}>
               Dziś mniej
             </button>
-            <StrengthToggle profile={profile} />
+            <DaySkipToggle profile={profile} />
           </div>
           <button onClick={() => { onCheckIn(checkIn); setOpen(false); }} className="w-full bw-grad rounded-2xl py-4 text-base font-medium">Gotowe</button>
         </Sheet>

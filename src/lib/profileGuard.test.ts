@@ -115,13 +115,6 @@ describe("kontrakt synchronizacji: data urodzenia nigdy na serwer", () => {
     expect("nowePole" in remote || "email" in remote).toBe(false);
     expect(JSON.stringify(remote)).not.toMatch(/2005-03-03|birth|dob/i);
   });
-  it("dni z siłownią są w kontrakcie: trafiają na serwer i wracają z niego (pole opcjonalne dla starszych profili)", () => {
-    const withGym = prof({ limitedGymAccess: true, gymWeekdays: [1, 3] });
-    expect(toRemoteProfile(withGym, "2026-11-19")).toMatchObject({ limitedGymAccess: true, gymWeekdays: [1, 3] });
-    expect(parseProfile(toRemoteProfile(withGym, "2026-11-19"), "2026-11-19")).toMatchObject({ gymWeekdays: [1, 3] });
-    expect("gymWeekdays" in toRemoteProfile(prof(), "2026-11-19")!).toBe(false);
-    expect((REMOTE_PROFILE_FIELDS as readonly string[]).includes("gymWeekdays")).toBe(true);
-  });
   it("osoba poniżej progu nie jest synchronizowana; profil z serwera poniżej progu nie jest przyjmowany", () => {
     expect(toRemoteProfile(prof({ age: 15, ageAsOf: "2026-11-19" }), "2026-11-19")).toBeNull();
     expect(parseProfile({ ...prof({ age: 15 }) }, "2026-11-19")).toBeNull();

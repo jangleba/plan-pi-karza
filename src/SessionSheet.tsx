@@ -21,8 +21,8 @@ const KIND_TITLE: Record<string, string> = {
 };
 
 export function SessionSheet({
-  day, checkIn, weekInCycle, level, position, hasGym, onSkipStrength, onClose,
-}: { day: DayPlan; checkIn: CheckIn; weekInCycle: number; level: Level; position?: Position; hasGym: boolean; onSkipStrength?: () => void; onClose: () => void }) {
+  day, checkIn, weekInCycle, level, position, hasGym, onSkipDay, onClose,
+}: { day: DayPlan; checkIn: CheckIn; weekInCycle: number; level: Level; position?: Position; hasGym: boolean; onSkipDay?: () => void; onClose: () => void }) {
   const [mas, setMas] = useState<Mas | null>(loadMas);
   const [running, setRunning] = useState(false);
   const [log, setLog] = useState(loadLog);
@@ -245,9 +245,9 @@ export function SessionSheet({
             Koniec sesji
           </button>
         )}
-        {s?.kind === "strength" && onSkipStrength && (
-          <button onClick={onSkipStrength} className="mt-2 w-full rounded-2xl bg-canvas py-3.5 text-sm font-medium text-ink">
-            Nie zrobię siły tego dnia
+        {s && onSkipDay && s.kind !== "recovery" && s.kind !== "activation" && (
+          <button onClick={onSkipDay} className="mt-2 w-full rounded-2xl bg-canvas py-3.5 text-sm font-medium text-ink">
+            Nie mogę tego dnia
           </button>
         )}
     </Sheet>

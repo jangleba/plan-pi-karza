@@ -29,12 +29,12 @@ Silnik = czysty, deterministyczny TypeScript (bez AI). Ten sam wynik dla tych sa
 - Max 2 treningi dziennie: klubowy + 1 indywidualny. Trzech nie ma.
 - Dzień klubowy nie blokuje treningu indywidualnego.
 
-## Gdzie i kiedy zawodnik może ćwiczyć siłę
-- Onboarding pyta, gdzie można ćwiczyć: siłownia, boisko, bieżnia, własny ciężar (do wyboru kilka).
-- „Na siłownię tylko kilka razy w tygodniu” (pytanie pojawia się tylko, gdy zaznaczono siłownię) wymaga wskazania dni (`gymWeekdays`). Silnik planuje siłę **wyłącznie** w te dni; gdy żaden dozwolony dzień nie pasuje do reguł MD-x, siła nie jest wciskana na siłę – pojawia się ostrzeżenie.
-- Starszy profil z „mało dni na siłownię” bez wskazanych dni działa jak dotąd (każdy dzień).
-- Check-in „Dziś nie zrobię siły” (oraz „Nie zrobię siły tego dnia” przy sesji w planie): siła z tego dnia jest przekładana na pierwszy dozwolony dzień **nie wcześniejszy niż dzień zgłoszenia**, w kolejności MD-3 → dzień wolny → MD+2 → dzień po meczu (tylko przy stażu od 2 lat i dniu z siłownią). Przełożona sesja ma w opisie, skąd pochodzi. Zgłoszenie można cofnąć w planie („Cofnij”).
-- Wynik zależy wyłącznie od zgłoszeń i profilu (nie od „dzisiaj”), więc przełożona siła nie zmienia miejsca w kolejnych dniach. Zgłoszenia są zapisywane tylko na urządzeniu (klucz `strengthBlocked`).
+## Miejsca treningu i „nie mogę zrobić dzisiejszych treningów”
+- Onboarding pyta, gdzie można ćwiczyć: siłownia, boisko, bieżnia, własny ciężar (do wyboru kilka). Pytanie „na siłownię mogę chodzić tylko kilka razy w tygodniu” pojawia się wyłącznie po zaznaczeniu siłowni; **nie ma osobnego wyboru dni na siłownię** – dni, w które zawodnik nie może, wynikają ze „zajęty” w kroku „Twój tydzień” i z check-inu.
+- Check-in ma przycisk **„Nie mogę zrobić dzisiejszych treningów”** (gdy w dniu są dwa treningi: klubowy + indywidualny) albo **„Nie mogę zrobić dzisiejszego treningu”** (gdy jest jeden). Ten sam przycisk („Nie mogę tego dnia”) jest przy sesji w planie.
+- Silnik przekłada **trening indywidualny** (siłę, bieg, sprint, technikę) na pierwszy dozwolony dzień **nie wcześniejszy niż dzień zgłoszenia**, w kolejności jak przy zwykłym planowaniu (np. dla siły: MD-3 → dzień wolny → MD+2), z zachowaniem reguł MD-x i zakazu dwóch takich samych ciężkich sesji dzień po dniu. **Trening klubowy nie jest przekładany** (prowadzi go trener). Regeneracji po meczu nie przekładamy – w zgłoszonym dniu jej nie ma.
+- **Siła dzień po meczu (MD+1) to ostatnia opcja** i tylko przy stażu siłowym **od 2 lat** (próg umowny, do przeglądu trenera). Gdy nie ma gdzie przełożyć (np. staż poniżej 2 lat), zawodnik dostaje jawną informację, a sesja nie jest wciskana na siłę.
+- Wynik zależy wyłącznie od zgłoszeń i profilu (nie od „dzisiaj”), więc przełożona sesja nie zmienia miejsca w kolejnych dniach; zgłoszenie można cofnąć w planie („Cofnij”). Zgłoszenia są zapisywane tylko na urządzeniu (klucz `skippedDays`).
 
 ## Check-in
 - Czynniki: słaby sen, złe samopoczucie, mało czasu, „dziś mniej".

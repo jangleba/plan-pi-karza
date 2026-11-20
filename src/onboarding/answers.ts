@@ -4,7 +4,6 @@
  * wynika z jego odpowiedzi, a nie z osobnych reguł. Czysty kod, bez Reacta (testowany osobno).
  */
 import { FEEL_NOW, planForProfile, suggestGoals, weekStartOf } from "../engine";
-import { LABEL } from "./copy";
 import type { Equipment, FeelNow, League, Position, Profile, Season, SeasonGoal, SessionKind } from "../engine";
 
 /** Stan dnia w kalendarzu tygodnia. */
@@ -23,16 +22,14 @@ export interface Answers {
   years: number;
   equipment: Equipment[];
   limited: boolean;
-  /** Dni tygodnia (0 = pn), w które zawodnik może iść na siłownię, gdy ma ją tylko kilka razy w tygodniu. */
-  gymDays: number[];
   days: DayState[];
 }
 
 export const initialAnswers = (): Answers => ({
-  name: "", age: 18, weight: 75, feelNow: [], goals: [], years: 1, equipment: [], limited: false, gymDays: [], days: Array<DayState>(7).fill("free"),
+  name: "", age: 18, weight: 75, feelNow: [], goals: [], years: 1, equipment: [], limited: false, days: Array<DayState>(7).fill("free"),
 });
 
-/** „Tylko kilka razy w tygodniu” ma sens wyłącznie, gdy zawodnik w ogóle ma siłownię. */
+/** „Tylko kilka razy w tygodniu” ma sens wyłącznie, gdy zawodnik w ogóle ma siłownię (wtedy dzień po meczu może być dniem na siłę). */
 export const gymLimited = (a: Pick<Answers, "limited" | "equipment">): boolean => a.limited && a.equipment.includes("gym");
 
 export const dayIndexes = (a: Pick<Answers, "days">, st: DayState): number[] => a.days.map((d, i) => (d === st ? i : -1)).filter((i) => i >= 0);
@@ -46,7 +43,6 @@ export function nextDayState(cur: DayState, season: Season | undefined): DayStat
 
 /** Kroki: 1 O Tobie, 2 Na boisku, 3 Cel, 4 Sezon, 5 Trening, 6 Tydzień (krok 0 to ekran powitalny). */
 export const LAST_STEP = 6;
-const LABEL_GYM_NONE = LABEL.gymDaysNone;
 
 /** Komunikat błędu dla kroku albo null, gdy można iść dalej. */
 export function validateStep(step: number, a: Answers): string | null {
@@ -56,7 +52,7 @@ export function validateStep(step: number, a: Answers): string | null {
     case 2: return !a.position ? "Wybierz pozycję." : null;
     case 3: return !a.goals.length ? "Wybierz przynajmniej jeden cel." : null;
     case 4: return !a.season ? "Wybierz, w którym momencie sezonu jesteś." : !a.league ? "Wybierz poziom rozgrywek." : null;
-    case 5: return !a.equipment.length ? "Wybierz, gdzie możesz ćwiczyć." : gymLimited(a) && !a.gymDays.length ? LABEL_GYM_NONE : null;
+    case 5: return !a.equipment.length ? "Wybierz, gdzie możesz ćwiczyć." : null;
     case 6:
       return a.season === "inseason" && !matches.length ? "Zaznacz dzień meczu."
         : matches.length > 2 ? "Maksymalnie dwa mecze w tygodniu."
@@ -68,15 +64,13 @@ export function validateStep(step: number, a: Answers): string | null {
 /** Cele podpowiedziane z odpowiedzi „co Ci przeszkadza”, gdy zawodnik jeszcze żadnego nie wybrał. */
 export const goalsFor = (a: Answers): SeasonGoal[] => (a.goals.length ? a.goals : suggestGoals(a.feelNow));
 
-const gymWeekdays = (a: Answers): { gymWeekdays?: number[] } => (gymLimited(a) ? { gymWeekdays: [...new Set(a.gymDays)].sort((x, y) => x - y) } : {});
-
 /** Profil z odpowiedzi; null, jeśli brakuje wymaganych odpowiedzi (każdy krok ma własną walidację). */
 export function buildProfile(a: Answers): Profile | null {
   if (!a.position || !a.season || !a.league || !a.equipment.length || !a.name.trim()) return null;
   const goals = goalsFor(a);
   return {
     name: a.name.trim(), age: a.age, weightKg: a.weight, position: a.position, season: a.season, goal: goals[0], goal2: goals[1], league: a.league,
-    strengthYears: a.years, equipment: a.equipment, limitedGymAccess: gymLimited(a), ...gymWeekdays(a),
+    strengthYears: a.years, equipment: a.equipment, limitedGymAccess: gymLimited(a),
     clubWeekdays: dayIndexes(a, "club"), matchWeekdays: a.season === "offseason" ? [] : dayIndexes(a, "match"), offWeekdays: dayIndexes(a, "off"),
   };
 }
@@ -86,7 +80,7 @@ function draftProfile(a: Answers): Profile {
   const goals = goalsFor(a);
   return {
     name: a.name.trim() || undefined, age: a.age, weightKg: a.weight, position: a.position ?? "pomocnik", season: a.season ?? "inseason", goal: goals[0], goal2: goals[1], league: a.league,
-    strengthYears: a.years, equipment: a.equipment.length ? a.equipment : ["gym"], limitedGymAccess: gymLimited(a), ...gymWeekdays(a),
+    strengthYears: a.years, equipment: a.equipment.length ? a.equipment : ["gym"], limitedGymAccess: gymLimited(a),
     clubWeekdays: dayIndexes(a, "club"), matchWeekdays: a.season === "offseason" ? [] : dayIndexes(a, "match"), offWeekdays: dayIndexes(a, "off"),
   };
 }
@@ -109,7 +103,7 @@ export interface PreviewDay {
 /** Podgląd tygodnia wyliczony ZE WSKAZANYCH ODPOWIEDZI tym samym planerem co aplikacja. */
 export function previewWeek(a: Answers, todayISO: string): { days: PreviewDay[]; warnings: string[] } {
   // bez zgłoszeń „bez siły” z magazynu: podgląd wynika wyłącznie z odpowiedzi w tym formularzu
-  const plan = planForProfile(draftProfile(a), weekStartOf(todayISO), { noStrengthDays: [] });
+  const plan = planForProfile(draftProfile(a), weekStartOf(todayISO), { skippedDays: [] });
   const days = plan.days.map((d, i): PreviewDay => {
     const weekday = WEEKDAY_SHORT[i]!;
     const s = d.session?.kind ?? null;
@@ -143,7 +137,6 @@ export function understood(a: Answers): string[] {
   const off = dayIndexes(a, "off");
   if (off.length) out.push(`Dni, w które nie możesz: ${off.length}`);
   if (a.equipment.length) out.push(`Ćwiczysz: ${a.equipment.map((e) => EQUIPMENT_AT[e]).join(", ")}`);
-  if (gymLimited(a) && a.gymDays.length) out.push(`Siłownia: ${[...a.gymDays].sort((x, y) => x - y).map((i) => WEEKDAY_SHORT[i]).join(", ")}`);
   return out;
 }
 

@@ -11,7 +11,7 @@ Przestrzenie: `bw:guest:*` oraz `bw:u:<id konta>:*`. Zmiana konta nie kopiuje an
 | Profil (imię, pozycja, masa ciała, cel, dni treningowe…) | `profile` | Do chmury trafia tylko podzbiór z listy dozwolonych pól (sekcja 2) |
 | Historia, ciężary (`weightLog`), MAS, odczucia, biegi | `history`, `weightLog`, `masDistance`, `feelings`, `runs` | Do chmury tylko za zgodą na synchronizację zdrowia |
 | Check-iny | `checkIn:*` | j.w. |
-| Zgłoszenia „dziś nie zrobię siły” (dzień, którego dotyczą, i dzień zgłoszenia) | `strengthBlocked` | Tylko na urządzeniu; porządkowane po ok. 10 tygodniach; nie jest synchronizowane |
+| Zgłoszenia „nie mogę zrobić dzisiejszych treningów” (dzień, którego dotyczą, i dzień zgłoszenia) | `skippedDays` | Tylko na urządzeniu; porządkowane po ok. 10 tygodniach; nie jest synchronizowane |
 | Fuel: posiłki, cele, ulubione, **alergeny i dieta** | `meals`, `fuelGoal`, `fuelFavs`, `fuelDiet`… | Nie są synchronizowane |
 | **Piłkarski angielski**: poziom trudności, ukończone lekcje, etap powtórek zwrotów i fiszek, miejsce przerwania lekcji | `english` | Po zalogowaniu synchronizowane z kontem (dane edukacyjne, nie zdrowotne) |
 | Wybrany głos syntezy mowy | `englishVoice` | Tylko na urządzeniu |
@@ -20,7 +20,7 @@ Przestrzenie: `bw:guest:*` oraz `bw:u:<id konta>:*`. Zmiana konta nie kopiuje an
 ## 2. Synchronizacja z chmurą (Supabase) – tylko po zalogowaniu
 | Tabela | Zawartość | Warunek |
 |---|---|---|
-| `profiles` | Wyłącznie pola z `REMOTE_PROFILE_FIELDS` (`src/lib/sync-map.ts`, w tym dni tygodnia z dostępem do siłowni `gymWeekdays`, migracja 0009); wyzwalacz w bazie odrzuca datę urodzenia, rocznik, pola spoza kontraktu i wiek < 16 | konto |
+| `profiles` | Wyłącznie pola z `REMOTE_PROFILE_FIELDS` (`src/lib/sync-map.ts`); wyzwalacz w bazie odrzuca datę urodzenia, rocznik, pola spoza kontraktu i wiek < 16 | konto |
 | `check_ins`, `weight_log`, `mas_tests` | Dane o samopoczuciu i treningu | **zgoda na synchronizację danych zdrowotnych** (RLS); wycofanie usuwa te dane z chmury |
 | `age_declarations` | Grupa wieku (16–17 / 18+) z czasem; bez daty urodzenia | konto; deklaracja ≠ weryfikacja tożsamości |
 | `agreement_events`, `consent_events` | Dowody: kto, wersja dokumentu, czas, metoda; tylko do dopisywania | konto |

@@ -30,11 +30,11 @@ describe("onboarding: język", () => {
     for (const bad of ["ułożymy", "Układam", "układa", "ułożę"]) expect(t, bad).not.toContain(bad);
     expect(INTRO.tagline.length).toBeLessThanOrEqual(32);
   });
-  it("pytanie o miejsca treningu rozdziela boisko i bieżnię, a „kilka razy w tygodniu” prowadzi do wyboru dni", () => {
+  it("pytanie o miejsca treningu rozdziela boisko i bieżnię; „kilka razy w tygodniu” nie ma osobnego wyboru dni", () => {
     expect(EQUIPMENT.map((e) => e[1])).toEqual(["Siłownia", "Boisko", "Bieżnia", "Własny ciężar"]);
     expect(LABEL.limited).toMatch(/tylko kilka razy w tygodniu/);
-    expect(LABEL.gymDays).toMatch(/dni/);
-    expect(LABEL.gymDaysAfterMatch).toMatch(/2 lat/);
+    expect(LABEL.limitedHint).toMatch(/2 lat/);
+    expect(Object.keys(LABEL).filter((k) => /gymDays/i.test(k))).toEqual([]);
   });
   it("informacja o wieku 16+ jest widoczna przy pytaniu o wiek", () => {
     expect(LABEL.ageNote).toMatch(/16 lat/);

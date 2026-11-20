@@ -62,11 +62,7 @@ export const LABEL = {
   years: "Od jak dawna ćwiczysz siłowo?",
   equipment: "Gdzie możesz ćwiczyć? (możesz zaznaczyć kilka)",
   limited: "Na siłownię mogę chodzić tylko kilka razy w tygodniu",
-  limitedHint: "Zaznacz dni, w które możesz tam pójść.",
-  gymDays: "W które dni możesz iść na siłownię?",
-  gymDaysHint: "Siłę planujemy tylko w te dni.",
-  gymDaysAfterMatch: "Dzień po meczu przeznaczamy na siłę dopiero przy stażu siłowym od 2 lat.",
-  gymDaysNone: "Zaznacz co najmniej jeden dzień na siłownię.",
+  limitedHint: "Dzień po meczu może być wtedy dniem na siłę (od 2 lat stażu siłowego).",
 };
 
 export const BUTTON = { next: "Dalej", done: "Gotowe", back: "Wstecz" };

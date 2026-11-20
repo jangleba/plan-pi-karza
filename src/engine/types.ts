@@ -59,19 +59,30 @@ export interface WeekInput {
    * Brak wartości = zachowanie dawne (dzień po meczu dozwolony).
    */
   strengthYears?: number;
-  /** Dni (ISO), w które zawodnik może iść na siłownię („tylko kilka razy w tygodniu”). Brak = każdy dzień. */
-  gymDays?: string[];
   /**
-   * Dni, w których zawodnik zgłosił, że nie zrobi siły (check-in, plan): siła z takiego dnia jest przekładana na pierwszy dozwolony dzień
-   * nie wcześniejszy niż `since` (dzień zgłoszenia). Dzięki temu przełożona siła zostaje na swoim miejscu także w kolejnych dniach.
+   * Dni, w których zawodnik zgłosił „nie mogę zrobić dzisiejszych treningów” (check-in, plan). Trening indywidualny z takiego dnia jest
+   * przekładany na pierwszy dozwolony dzień nie wcześniejszy niż `since` (dzień zgłoszenia), dzięki czemu przełożona sesja zostaje na swoim
+   * miejscu także w kolejnych dniach. Treningu klubowego nie przekładamy (prowadzi go trener).
    */
-  noStrengthDays?: StrengthBlock[];
+  skippedDays?: DaySkip[];
 }
 
-/** Zgłoszenie „w tym dniu nie zrobię siły”: `date` – dzień, którego dotyczy, `since` – dzień zgłoszenia (ISO). */
-export interface StrengthBlock { date: string; since: string }
+/** Zgłoszenie „w tym dniu nie mogę trenować”: `date` – dzień, którego dotyczy, `since` – dzień zgłoszenia (ISO). */
+export interface DaySkip { date: string; since: string }
+
+/** Skutek zgłoszenia dla jednej sesji indywidualnej: dokąd trafiła (`to`) albo dlaczego nie (`dropped`, `needsYears`). */
+export interface SkipMove {
+  from: string;
+  kind: SessionKind;
+  /** Dzień, na który przełożono sesję; null, gdy się nie zmieściła albo nie jest przekładana. */
+  to: string | null;
+  /** Siła nie zmieściła się, a odblokowałby ją dopiero dzień po meczu przy stażu siłowym od tylu lat. */
+  needsYears?: number;
+}
 
 export interface WeekPlan {
   days: DayPlan[];
   warnings: string[];
+  /** Skutki zgłoszeń „nie mogę” (puste, gdy nic nie zgłoszono). */
+  moves: SkipMove[];
 }

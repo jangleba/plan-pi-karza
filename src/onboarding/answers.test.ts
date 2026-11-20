@@ -117,46 +117,34 @@ describe("onboarding: PLAN NADAL WYNIKA Z ODPOWIEDZI", () => {
   });
 });
 
-describe("onboarding: gdzie możesz ćwiczyć i dni na siłownię trafiają do silnika", () => {
+describe("onboarding: gdzie możesz ćwiczyć trafia do profilu (bez osobnych dni na siłownię)", () => {
   const strengthIdx = (a: Answers) => plan(a).days.map((d, i) => (d.session === "strength" ? i : -1)).filter((i) => i >= 0);
-  // sobotni mecz; bez ograniczeń siła jest w środę (MD-3)
-  it("tylko wybrane dni z siłownią: siła ląduje wyłącznie w nich, a profil zapisuje te dni", () => {
-    const a = answers({ equipment: ["gym", "field"], limited: true, gymDays: [1, 3], years: 3 }, { 5: "match" });
-    expect(strengthIdx(a)).toEqual([1]);
-    expect(buildProfile(a)).toMatchObject({ limitedGymAccess: true, gymWeekdays: [1, 3], equipment: ["gym", "field"] });
-    expect(strengthIdx(answers({ equipment: ["gym"], years: 3 }, { 5: "match" }))).toEqual([2]);
+  it("miejsca treningu (siłownia, boisko, bieżnia, własny ciężar) zapisują się w profilu, a profil nie ma pola z dniami siłowni", () => {
+    const p = buildProfile(answers({ equipment: ["gym", "field", "track", "bodyweight"], years: 3 }, { 5: "match" }))!;
+    expect(p.equipment).toEqual(["gym", "field", "track", "bodyweight"]);
+    expect(p).not.toHaveProperty("gymWeekdays");
+    expect(validateStep(5, answers({ equipment: [] }))).toBe("Wybierz, gdzie możesz ćwiczyć.");
+    expect(validateStep(5, answers({ equipment: ["track"] }))).toBeNull();
   });
-  it("podgląd jest nadal dokładnie planem z profilu, także z dniami na siłownię", () => {
-    const a = answers({ limited: true, gymDays: [0, 2, 4], years: 3 }, { 5: "match", 1: "club" });
-    expect(plan(a).days.map((d) => d.session)).toEqual(planForProfile(buildProfile(a)!, weekStartOf(TODAY), { noStrengthDays: [] }).days.map((d) => d.session?.kind ?? null));
+  it("„kilka razy w tygodniu” bez siłowni w sprzęcie jest ignorowane (nie zapisujemy ograniczenia, którego nie ma); z siłownią nie wymaga niczego więcej", () => {
+    expect(buildProfile(answers({ equipment: ["field", "track"], limited: true }, { 5: "match" }))).toMatchObject({ limitedGymAccess: false });
+    expect(buildProfile(answers({ equipment: ["gym", "field"], limited: true }, { 5: "match" }))).toMatchObject({ limitedGymAccess: true });
+    expect(validateStep(5, answers({ equipment: ["gym"], limited: true }))).toBeNull();
   });
-  it("„kilka razy w tygodniu” bez siłowni w sprzęcie jest ignorowane (nie zapisujemy ograniczenia, którego nie ma)", () => {
-    const a = answers({ equipment: ["field", "track"], limited: true, gymDays: [1] }, { 5: "match" });
-    expect(buildProfile(a)).toMatchObject({ limitedGymAccess: false, equipment: ["field", "track"] });
-    expect(buildProfile(a)).not.toHaveProperty("gymWeekdays");
-    expect(validateStep(5, a)).toBeNull();
-  });
-  it("przy ograniczonym dostępie trzeba wskazać dni; bez ograniczenia dni nie są wymagane", () => {
-    expect(validateStep(5, answers({ limited: true, gymDays: [] }))).toBe("Zaznacz co najmniej jeden dzień na siłownię.");
-    expect(validateStep(5, answers({ limited: true, gymDays: [2] }))).toBeNull();
-    expect(validateStep(5, answers({ limited: false, gymDays: [] }))).toBeNull();
-  });
-  it("dzień po meczu dla siły: jedyny wolny dzień po meczu działa dopiero od 2 lat stażu", () => {
-    const only = (years: number) => answers({ years, equipment: ["gym"], limited: true, gymDays: [3] }, { 2: "match", 0: "off", 1: "off", 4: "off", 5: "off", 6: "off" }); // wolny tylko czwartek = dzień po meczu
+  it("dzień po meczu dla siły: jedyny wolny dzień po meczu działa dopiero od 2 lat stażu (podgląd = silnik)", () => {
+    const only = (years: number) => answers({ years, equipment: ["gym"], limited: true }, { 2: "match", 0: "off", 1: "off", 4: "off", 5: "off", 6: "off" }); // wolny tylko czwartek = dzień po meczu
     expect(strengthIdx(only(1))).toEqual([]);
     expect(strengthIdx(only(2))).toEqual([3]);
   });
-  it("podgląd ignoruje zgłoszenia „bez siły” zapisane na urządzeniu (zależy tylko od odpowiedzi)", () => {
+  it("podgląd ignoruje zgłoszenia „nie mogę” zapisane na urządzeniu (zależy tylko od odpowiedzi)", () => {
     const a = answers({ years: 3 }, { 5: "match" });
     const before = JSON.stringify(plan(a).days);
-    const store = new Map<string, string>([["bw:guest:strengthBlocked", JSON.stringify(["2026-11-18"])]]);
+    const store = new Map<string, string>([["bw:guest:skippedDays", JSON.stringify([{ date: "2026-11-18", since: "2026-11-18" }])]]);
     (globalThis as unknown as { localStorage: Storage }).localStorage = { getItem: (k: string) => store.get(k) ?? null, setItem: () => undefined, removeItem: () => undefined, clear: () => undefined, key: () => null, length: 1 } as Storage;
     try { expect(JSON.stringify(plan(a).days)).toBe(before); } finally { delete (globalThis as unknown as { localStorage?: Storage }).localStorage; }
   });
-  it("opis „co zrozumieliśmy” wymienia dni na siłownię i miejsca treningu", () => {
-    const u = understood(answers({ equipment: ["gym", "track", "bodyweight"], limited: true, gymDays: [4, 1] }, { 5: "match" }));
-    expect(u).toContain("Ćwiczysz: na siłowni, na bieżni, z własnym ciężarem");
-    expect(u).toContain("Siłownia: Wt, Pt");
+  it("opis „co zrozumieliśmy” wymienia miejsca treningu", () => {
+    expect(understood(answers({ equipment: ["gym", "track", "bodyweight"], limited: true }, { 5: "match" }))).toContain("Ćwiczysz: na siłowni, na bieżni, z własnym ciężarem");
   });
 });
 

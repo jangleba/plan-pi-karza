@@ -43,11 +43,11 @@ export function rowToCheckIn(r: { sleep: number; feeling: number; less: boolean 
 /**
  * JAWNY KONTRAKT pól profilu wysyłanych do backendu. Cokolwiek spoza tej listy (w tym data urodzenia, rocznik czy pole dodane
  * w przyszłości do Profile) NIE jest synchronizowane, dopóki ktoś świadomie nie doda go tutaj i do dokumentacji (docs/MAPA-DANYCH.md).
- * Serwer dodatkowo odrzuca zapisy z polami spoza kontraktu (trigger w migracjach 0005 i 0009).
+ * Serwer dodatkowo odrzuca zapisy z polami spoza kontraktu (trigger w migracji 0005).
  */
 export const REMOTE_PROFILE_FIELDS = [
   "name", "season", "goal", "goal2", "league", "age", "ageAsOf", "strengthYears", "weightKg", "position",
-  "equipment", "clubWeekdays", "matchWeekdays", "offWeekdays", "limitedGymAccess", "gymWeekdays", "startDate",
+  "equipment", "clubWeekdays", "matchWeekdays", "offWeekdays", "limitedGymAccess", "startDate",
 ] as const satisfies ReadonlyArray<keyof Profile>;
 
 /** Pola, które NIGDY nie mogą trafić na serwer w profilu (twarda lista obronna, niezależna od kontraktu). */

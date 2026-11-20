@@ -10,8 +10,8 @@ import { localISO, addDays, cycleWeekFor, levelOf, nextWeekUnlocked, planForProf
 import type { CheckIn, DayPlan, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
 import { Start } from "./Start";
-import { MovedStrength } from "./StrengthToggle";
-import { setBlocked, useBlockedVersion } from "./lib/blocked";
+import { SkippedDays } from "./DaySkipToggle";
+import { setSkipped, useSkippedVersion } from "./lib/skipped";
 import { Backdrop } from "./Sketch";
 import { Group, LargeTitle, ListRow } from "./ui";
 import { Auth } from "./Auth";
@@ -200,11 +200,11 @@ function Home({ profile, checkIn, initialOpen, onOpened, onReset }: {
   const unlocked = nextWeekUnlocked(thisWeek, profile.matchWeekdays, today());
   const [viewNext, setViewNext] = useState(false);
   const weekStart = viewNext && unlocked ? addDays(thisWeek, 7) : thisWeek;
-  const blockedVersion = useBlockedVersion(); // zgłoszenie „bez siły” przelicza plan od razu
+  const skippedVersion = useSkippedVersion(); // zgłoszenie „nie mogę” przelicza plan od razu
   const plan = useMemo(
     () =>
       planForProfile(profile, weekStart),
-    [weekStart, profile, blockedVersion],
+    [weekStart, profile, skippedVersion],
   );
 
   return (
@@ -227,13 +227,12 @@ function Home({ profile, checkIn, initialOpen, onOpened, onReset }: {
       </Group>
       {open && (
         <SessionSheet day={open} checkIn={checkIn} weekInCycle={cycleWeekFor(profile, weekStart)} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")}
-          onSkipStrength={open.date >= today() ? () => { setBlocked(open.date, true, today()); setOpen(null); } : undefined} onClose={() => setOpen(null)} />
+          onSkipDay={open.date >= today() ? () => { setSkipped(open.date, true, today()); setOpen(null); } : undefined} onClose={() => setOpen(null)} />
       )}
-      <MovedStrength profile={profile} weekStart={weekStart} />
-      {/* ostrzeżenia o przełożonej sile pokazuje lista „Przełożona siła” powyżej (z przyciskiem „Cofnij”) */}
-      {plan.warnings.filter((w) => !w.startsWith("Siła z ")).length > 0 && (
+      <SkippedDays profile={profile} weekStart={weekStart} />
+      {plan.warnings.length > 0 && (
         <p className="mt-4 rounded-2xl border border-hairline bg-canvas p-3 text-sm text-muted">
-          {plan.warnings.filter((w) => !w.startsWith("Siła z ")).join(" ")}
+          {plan.warnings.join(" ")}
         </p>
       )}
     </main>

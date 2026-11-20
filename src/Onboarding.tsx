@@ -3,7 +3,7 @@ import { FEEL_NOW, LEAGUES, MIN_AGE, localISO, saveFeeling } from "./engine";
 import type { FeelNow, Position, Profile } from "./engine";
 import { Wheel } from "./Wheel";
 import { Sheet } from "./Sheet";
-import { LAST_STEP, WEEKDAY_SHORT, buildProfile, gymLimited, initialAnswers, nextDayState, previewWeek, sessionCount, understood, validateStep, type Answers, type DayState, type PreviewDay } from "./onboarding/answers";
+import { LAST_STEP, buildProfile, initialAnswers, nextDayState, previewWeek, sessionCount, understood, validateStep, type Answers, type DayState, type PreviewDay } from "./onboarding/answers";
 import { BUTTON, DAY_LABEL, EQUIPMENT, GOALS, INTRO, LABEL, POSITIONS, PREVIEW, SEASONS, STEP_HINT, STEP_TITLE, dayHelp, yearsText } from "./onboarding/copy";
 
 const range = (a: number, b: number, step = 1) => Array.from({ length: Math.floor((b - a) / step) + 1 }, (_, i) => a + i * step);
@@ -189,7 +189,6 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
   const [errorKey, setErrorKey] = useState(0);
   const [building, setBuilding] = useState<Profile | null>(null);
   const busy = useRef(false);
-  const panel = useRef<HTMLDivElement>(null);
   const set = (patch: Partial<Answers>) => { setError(""); setA((cur) => ({ ...cur, ...patch })); };
   const preview = useMemo(() => previewWeek(a, localISO()), [a]);
 
@@ -205,12 +204,7 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
   const next = () => {
     if (busy.current) return;
     const e = validateStep(step, a);
-    if (e) {
-      setError(e); setErrorKey((k) => k + 1); tap();
-      // błąd dotyczy pola na dole ekranu (np. dni na siłownię): pokaż je zawodnikowi
-      if (step === 5) requestAnimationFrame(() => panel.current?.scrollTo({ top: panel.current.scrollHeight, behavior: "smooth" }));
-      return;
-    }
+    if (e) { setError(e); setErrorKey((k) => k + 1); tap(); return; }
     if (step < LAST_STEP) { go(step + 1); return; }
     const profile = buildProfile(a);
     if (!profile) { setError("Uzupełnij brakujące odpowiedzi."); setErrorKey((k) => k + 1); return; }
@@ -269,7 +263,7 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
         <span className="w-9 text-right text-xs tabular-nums text-muted">{step}/{LAST_STEP}</span>
       </div>
 
-      <div ref={panel} key={`step-${step}`} className={`${leaving ? (dir === 1 ? "bw-step-out" : "bw-step-out-back") : dir === 1 ? "bw-step" : "bw-step-back"} flex min-h-0 flex-1 flex-col overflow-y-auto pb-2`}>
+      <div key={`step-${step}`} className={`${leaving ? (dir === 1 ? "bw-step-out" : "bw-step-out-back") : dir === 1 ? "bw-step" : "bw-step-back"} flex min-h-0 flex-1 flex-col overflow-y-auto pb-2`}>
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-[28px] font-semibold leading-tight tracking-tight text-ink">{STEP_TITLE[step]}</h1>
@@ -352,16 +346,6 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
                 <div className="bw-rise mt-3"><Tile on={a.limited} onTap={() => set({ limited: !a.limited })} title={LABEL.limited} sub={a.limited ? undefined : LABEL.limitedHint} /></div>
               )}
             </Section>
-            {gymLimited(a) && (
-              <Section title={LABEL.gymDays} hint={LABEL.gymDaysHint}>
-                <div className="grid grid-cols-7 gap-1.5" role="group" aria-label={LABEL.gymDays}>
-                  {WEEKDAY_SHORT.map((w, i) => (
-                    <Pick key={w} on={a.gymDays.includes(i)} onTap={() => set({ gymDays: toggle(a.gymDays, i) })} className="rounded-xl py-3 text-[13px] font-medium">{w}</Pick>
-                  ))}
-                </div>
-                {a.years < 2 && <p className="mt-3 text-xs text-muted">{LABEL.gymDaysAfterMatch}</p>}
-              </Section>
-            )}
           </div>
         )}
 
