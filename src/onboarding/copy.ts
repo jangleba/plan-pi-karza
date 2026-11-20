@@ -43,7 +43,7 @@ export const SEASONS: Array<[Season, string, string]> = [
   ["offseason", "Przerwa między sezonami", "Utrzymujemy formę, bez meczów i lżej."],
 ];
 
-export const EQUIPMENT: Array<[Equipment, string]> = [["gym", "Siłownia"], ["field", "Boisko"], ["track", "Bieżnia"], ["bodyweight", "Własny ciężar"]];
+export const EQUIPMENT: Array<[Equipment, string]> = [["gym", "Siłownia"], ["field", "Boisko"], ["track", "Bieżnia"]];
 
 export const DAY_LABEL: Record<DayState, string> = { free: "wolny", club: "klub", match: "mecz", off: "zajęty" };
 export const dayHelp = (offseason: boolean): string => (offseason ? "Dotknij dnia, żeby zmienić: wolny, klub, zajęty." : "Dotknij dnia, żeby zmienić: wolny, klub, mecz, zajęty.");
@@ -60,9 +60,7 @@ export const LABEL = {
   league: "W jakiej lidze grasz?",
   leagueEmpty: "Wybierz poziom rozgrywek",
   years: "Od jak dawna ćwiczysz siłowo?",
-  equipment: "Gdzie możesz ćwiczyć? (możesz zaznaczyć kilka)",
-  limited: "Na siłownię mogę chodzić tylko kilka razy w tygodniu",
-  limitedHint: "Dzień po meczu może być wtedy dniem na siłę (od 2 lat stażu siłowego).",
+  equipment: "Do czego masz dostęp? (opcjonalnie, własny ciężar zawsze wliczamy)",
 };
 
 export const BUTTON = { next: "Dalej", done: "Gotowe", back: "Wstecz" };

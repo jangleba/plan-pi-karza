@@ -155,14 +155,21 @@ function WeekPreview({ days, warnings }: { days: PreviewDay[]; warnings: string[
 
 /** Ekran przejścia: tydzień „się układa”, a pod spodem to, co zrozumieliśmy z odpowiedzi. */
 function Building({ name, lines, onDone }: { name: string; lines: string[]; onDone: () => void }) {
-  const ms = Math.min(3400, 1900 + lines.length * 260);
+  const ms = Math.min(3600, 2700 + lines.length * 260);
   useEffect(() => { const t = setTimeout(onDone, ms); return () => clearTimeout(t); }, [onDone, ms]);
   return (
     <main className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-canvas px-8 text-ink">
-      <div className="mb-8 flex h-24 items-end gap-2" aria-hidden="true">
-        {[44, 70, 56, 88, 62, 96, 40].map((h, i) => (
-          <span key={i} className="bw-grow w-5 rounded-full bg-accent-soft shadow-[inset_0_0_0_1px_#c9def6]" style={{ height: h, animationDelay: `${i * 110}ms` }} />
-        ))}
+      <div className="relative mb-8 w-[188px] pt-8" aria-hidden="true">
+        {/* Tymczasowe logo (B w piłce) przeskakuje po słupkach tygodnia. Podmienić na docelowe. */}
+        <svg viewBox="0 0 24 24" className="bw-hop absolute left-0 top-0 h-6 w-6">
+          <circle cx="12" cy="12" r="11" fill="var(--color-accent)" stroke="var(--color-card)" strokeWidth="2" />
+          <text x="12" y="12" textAnchor="middle" dominantBaseline="central" fontSize="14" fontWeight="700" fill="#fff" style={{ fontFamily: "inherit" }}>B</text>
+        </svg>
+        <div className="flex h-24 items-end gap-2">
+          {[44, 70, 56, 88, 62, 96, 40].map((h, i) => (
+            <span key={i} className="bw-grow w-5 rounded-full bg-accent-soft shadow-[inset_0_0_0_1px_#c9def6]" style={{ height: h, animationDelay: `${i * 110}ms` }} />
+          ))}
+        </div>
       </div>
       <h1 className="bw-rise text-2xl font-semibold tracking-tight">{PREVIEW.building}</h1>
       <p className="bw-rise mt-2 text-sm text-muted" style={{ animationDelay: "250ms" }}>{name ? `${name}, ` : ""}{PREVIEW.soon}</p>
@@ -227,8 +234,14 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
               <path className="bw-draw" pathLength={100} d="M110 10 v100" style={{ animationDelay: "250ms" }} />
               <circle className="bw-draw" pathLength={100} cx="110" cy="60" r="18" style={{ animationDelay: "450ms" }} />
             </g>
-            <ellipse className="bw-shadow" cx="110" cy="102" rx="12" ry="2.5" fill="currentColor" stroke="none" opacity="0.25" />
-            <g className="bw-bounce"><circle cx="110" cy="58" r="15" fill="var(--color-card)" /><path d="M110 50 l7 5 -3 8 h-8 l-3 -8 z" /></g>
+            <ellipse className="bw-shadow" cx="110" cy="77" rx="11" ry="2.4" fill="currentColor" stroke="none" opacity="0.25" />
+            {/* Tymczasowe logo: litera „B” w piłce. Podmienić na docelowe, gdy będzie plik. */}
+            <g className="bw-bounce">
+              <g className="bw-logo-spin">
+                <circle cx="110" cy="62" r="14" fill="var(--color-accent)" stroke="var(--color-card)" strokeWidth="2.5" />
+                <text x="110" y="62" textAnchor="middle" dominantBaseline="central" fontSize="17" fontWeight="700" fill="#fff" stroke="none" style={{ fontFamily: "inherit" }}>B</text>
+              </g>
+            </g>
           </svg>
           <h1 className="bw-rise mt-6 text-[44px] font-semibold leading-none tracking-tight text-ink" style={{ animationDelay: "120ms" }}>Ballwise</h1>
           <p className="bw-rise mt-4 text-lg text-muted" style={{ animationDelay: "200ms" }}>{INTRO.tagline}</p>
@@ -342,9 +355,6 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
                   <Pick key={v} on={a.equipment.includes(v)} onTap={() => set({ equipment: toggle(a.equipment, v) })} className="rounded-2xl px-2 py-3 text-[14px] font-medium">{t}</Pick>
                 ))}
               </div>
-              {a.equipment.includes("gym") && (
-                <div className="bw-rise mt-3"><Tile on={a.limited} onTap={() => set({ limited: !a.limited })} title={LABEL.limited} sub={a.limited ? undefined : LABEL.limitedHint} /></div>
-              )}
             </Section>
           </div>
         )}

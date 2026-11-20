@@ -30,6 +30,9 @@ export const initialAnswers = (): Answers => ({
 });
 
 /** „Tylko kilka razy w tygodniu” ma sens wyłącznie, gdy zawodnik w ogóle ma siłownię (wtedy dzień po meczu może być dniem na siłę). */
+/** Własny ciężar jest zawsze dostępny, więc dodajemy go do profilu bez pytania. */
+export const withBodyweight = (e: Equipment[]): Equipment[] => (e.includes("bodyweight") ? e : [...e, "bodyweight"]);
+
 export const gymLimited = (a: Pick<Answers, "limited" | "equipment">): boolean => a.limited && a.equipment.includes("gym");
 
 export const dayIndexes = (a: Pick<Answers, "days">, st: DayState): number[] => a.days.map((d, i) => (d === st ? i : -1)).filter((i) => i >= 0);
@@ -52,7 +55,7 @@ export function validateStep(step: number, a: Answers): string | null {
     case 2: return !a.position ? "Wybierz pozycję." : null;
     case 3: return !a.goals.length ? "Wybierz przynajmniej jeden cel." : null;
     case 4: return !a.season ? "Wybierz, w którym momencie sezonu jesteś." : !a.league ? "Wybierz poziom rozgrywek." : null;
-    case 5: return !a.equipment.length ? "Wybierz, gdzie możesz ćwiczyć." : null;
+    case 5: return null; // staż i sprzęt są opcjonalne: domyślnie własny ciężar
     case 6:
       return a.season === "inseason" && !matches.length ? "Zaznacz dzień meczu."
         : matches.length > 2 ? "Maksymalnie dwa mecze w tygodniu."
@@ -66,11 +69,11 @@ export const goalsFor = (a: Answers): SeasonGoal[] => (a.goals.length ? a.goals 
 
 /** Profil z odpowiedzi; null, jeśli brakuje wymaganych odpowiedzi (każdy krok ma własną walidację). */
 export function buildProfile(a: Answers): Profile | null {
-  if (!a.position || !a.season || !a.league || !a.equipment.length || !a.name.trim()) return null;
+  if (!a.position || !a.season || !a.league || !a.name.trim()) return null;
   const goals = goalsFor(a);
   return {
     name: a.name.trim(), age: a.age, weightKg: a.weight, position: a.position, season: a.season, goal: goals[0], goal2: goals[1], league: a.league,
-    strengthYears: a.years, equipment: a.equipment, limitedGymAccess: gymLimited(a),
+    strengthYears: a.years, equipment: withBodyweight(a.equipment), limitedGymAccess: gymLimited(a),
     clubWeekdays: dayIndexes(a, "club"), matchWeekdays: a.season === "offseason" ? [] : dayIndexes(a, "match"), offWeekdays: dayIndexes(a, "off"),
   };
 }
@@ -80,7 +83,7 @@ function draftProfile(a: Answers): Profile {
   const goals = goalsFor(a);
   return {
     name: a.name.trim() || undefined, age: a.age, weightKg: a.weight, position: a.position ?? "pomocnik", season: a.season ?? "inseason", goal: goals[0], goal2: goals[1], league: a.league,
-    strengthYears: a.years, equipment: a.equipment.length ? a.equipment : ["gym"], limitedGymAccess: gymLimited(a),
+    strengthYears: a.years, equipment: withBodyweight(a.equipment), limitedGymAccess: gymLimited(a),
     clubWeekdays: dayIndexes(a, "club"), matchWeekdays: a.season === "offseason" ? [] : dayIndexes(a, "match"), offWeekdays: dayIndexes(a, "off"),
   };
 }

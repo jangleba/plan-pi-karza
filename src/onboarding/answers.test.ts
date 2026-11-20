@@ -15,7 +15,7 @@ const kinds = (a: Answers) => plan(a).days.map((d) => d.session);
 describe("onboarding: odpowiedzi → profil", () => {
   it("kompletne odpowiedzi dają profil, który przechodzi tę samą walidację i bramkę wieku co reszta aplikacji", () => {
     const p = buildProfile(answers({ age: 17, weight: 68, years: 2 }, { 0: "club", 2: "club", 5: "match", 6: "off" }))!;
-    expect(p).toMatchObject({ name: "Kuba", age: 17, weightKg: 68, position: "pomocnik", season: "inseason", goal: "speed", league: "IV liga", strengthYears: 2, equipment: ["gym"], limitedGymAccess: false, clubWeekdays: [0, 2], matchWeekdays: [5], offWeekdays: [6] });
+    expect(p).toMatchObject({ name: "Kuba", age: 17, weightKg: 68, position: "pomocnik", season: "inseason", goal: "speed", league: "IV liga", strengthYears: 2, equipment: ["gym", "bodyweight"], limitedGymAccess: false, clubWeekdays: [0, 2], matchWeekdays: [5], offWeekdays: [6] });
     expect(validateProfile({ ...p, ageAsOf: TODAY })).toEqual([]);
     const done = finalizeNewProfile(p, TODAY);
     expect(done.kind).toBe("ok");
@@ -24,7 +24,7 @@ describe("onboarding: odpowiedzi → profil", () => {
     expect(buildProfile({ ...answers(), name: "  " })).toBeNull();
     expect(buildProfile({ ...answers(), position: undefined })).toBeNull();
     expect(buildProfile({ ...answers(), league: undefined })).toBeNull();
-    expect(buildProfile({ ...answers(), equipment: [] })).toBeNull();
+    expect(buildProfile({ ...answers(), equipment: [] })).toMatchObject({ equipment: ["bodyweight"] });
   });
   it("w przerwie między sezonami mecze nie trafiają do profilu, nawet jeśli zostały zaznaczone wcześniej", () => {
     expect(buildProfile(answers({ season: "offseason" }, { 5: "match" }))!.matchWeekdays).toEqual([]);
@@ -43,7 +43,7 @@ describe("onboarding: walidacja kroków (polskie komunikaty)", () => {
     expect(validateStep(3, answers({ goals: [] }))).toBe("Wybierz przynajmniej jeden cel.");
     expect(validateStep(4, answers({ season: undefined }))).toBe("Wybierz, w którym momencie sezonu jesteś.");
     expect(validateStep(4, answers({ league: undefined }))).toBe("Wybierz poziom rozgrywek.");
-    expect(validateStep(5, answers({ equipment: [] }))).toBe("Wybierz, gdzie możesz ćwiczyć.");
+    expect(validateStep(5, answers({ equipment: [] }))).toBeNull();
     expect(validateStep(6, answers())).toBe("Zaznacz dzień meczu."); // w sezonie wymagany dzień meczu
     expect(validateStep(6, answers({}, { 4: "match" }))).toBeNull();
     expect(validateStep(6, answers({}, { 1: "match", 3: "match", 5: "match" }))).toBe("Maksymalnie dwa mecze w tygodniu.");
@@ -123,7 +123,7 @@ describe("onboarding: gdzie możesz ćwiczyć trafia do profilu (bez osobnych dn
     const p = buildProfile(answers({ equipment: ["gym", "field", "track", "bodyweight"], years: 3 }, { 5: "match" }))!;
     expect(p.equipment).toEqual(["gym", "field", "track", "bodyweight"]);
     expect(p).not.toHaveProperty("gymWeekdays");
-    expect(validateStep(5, answers({ equipment: [] }))).toBe("Wybierz, gdzie możesz ćwiczyć.");
+    expect(validateStep(5, answers({ equipment: [] }))).toBeNull();
     expect(validateStep(5, answers({ equipment: ["track"] }))).toBeNull();
   });
   it("„kilka razy w tygodniu” bez siłowni w sprzęcie jest ignorowane (nie zapisujemy ograniczenia, którego nie ma); z siłownią nie wymaga niczego więcej", () => {
