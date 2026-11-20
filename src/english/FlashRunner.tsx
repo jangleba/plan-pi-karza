@@ -80,7 +80,7 @@ export function FlashRunner({ initial, docRef, setDoc, voiceName, onExit }: {
       <LocalSaveWarning />
       <div className="mb-5" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={session.idx} aria-label={`Karta ${session.idx + 1} z ${total}`}>
         <div className="mb-1 flex justify-between text-xs text-muted"><span>Karta {session.idx + 1} z {total}</span><span>{DECK_LABEL[card.deck]}</span></div>
-        <div className="h-2 overflow-hidden rounded-full bg-hairline"><div className="h-full rounded-full bg-accent transition-all" style={{ width: `${Math.round((session.idx / total) * 100)}%` }} /></div>
+        <div className="h-2 overflow-hidden rounded-full bg-hairline"><div className="h-full rounded-full transition-all" style={{ background: "#6fb592", width: `${Math.round((session.idx / total) * 100)}%` }} /></div>
       </div>
 
       <div className="rounded-3xl border border-hairline bg-card px-5 py-8 text-center">

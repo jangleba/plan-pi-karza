@@ -4,6 +4,7 @@ import { cachedVoices, pickVoice, speak, speechAvailable, stopSpeaking, type Spe
 import { PHRASE_BY_ID, lessonById } from "./content";
 import { buildPieces, checkBuild, checkOptions, modelAnswer } from "./match";
 import { dueCount, summarize, type EnglishDoc, type Session } from "./progress";
+import { PASTEL } from "../lib/pastel";
 import { advance, answer, currentStep, finish, isFinished, progressOf, score } from "./session";
 import { commit, commitAndConfirm, getStatus, subscribe, type SaveOutcome } from "./storage";
 import { LESSONS_META } from "./meta";
@@ -43,7 +44,7 @@ function Learn({ p, showPl, voiceName, onNext }: { p: Phrase; showPl: boolean; v
   const [revealed, setRevealed] = useState(showPl);
   return (
     <>
-      <span className="rounded-full bg-canvas px-3 py-1 text-xs text-muted">Poznaj zwrot · {ROLE_LABEL[p.role]}</span>
+      <span className="rounded-full px-3 py-1 text-xs font-medium" style={{ background: PASTEL.blue.s, color: PASTEL.blue.i, boxShadow: `inset 0 0 0 1px ${PASTEL.blue.c}` }}>Poznaj zwrot · {ROLE_LABEL[p.role]}</span>
       <h2 className="mt-4 text-[34px] font-semibold leading-tight tracking-tight" lang="en">{p.en}</h2>
       {revealed
         ? <p className="mt-2 text-xl text-ink/90">{p.pl}</p>
@@ -76,7 +77,7 @@ function Check({ p, salt, fb, onPick }: { p: Phrase; salt: string; fb: Feedback 
   const options = useMemo(() => checkOptions(p, salt), [p, salt]);
   return (
     <>
-      <span className="rounded-full bg-canvas px-3 py-1 text-xs text-muted">Co to znaczy w tej sytuacji?</span>
+      <span className="rounded-full px-3 py-1 text-xs font-medium" style={{ background: PASTEL.mint.s, color: PASTEL.mint.i, boxShadow: `inset 0 0 0 1px ${PASTEL.mint.c}` }}>Co to znaczy w tej sytuacji?</span>
       <h2 className="mt-4 text-xl font-semibold leading-snug">{p.check.q}</h2>
       <div className="mt-5 flex flex-col gap-3" role="group" aria-label="Odpowiedzi">
         {options.map((o) => {
@@ -96,7 +97,7 @@ function Build({ p, salt, fb, onCheck }: { p: Phrase; salt: string; fb: Feedback
   const locked = !!fb;
   return (
     <>
-      <span className="rounded-full bg-canvas px-3 py-1 text-xs text-muted">Ułóż odpowiedź</span>
+      <span className="rounded-full px-3 py-1 text-xs font-medium" style={{ background: PASTEL.peach.s, color: PASTEL.peach.i, boxShadow: `inset 0 0 0 1px ${PASTEL.peach.c}` }}>Ułóż odpowiedź</span>
       <h2 className="mt-4 text-xl font-semibold leading-snug">{p.build.prompt}</h2>
       <div className="mt-5 flex min-h-[68px] flex-wrap items-center gap-2 rounded-2xl border border-dashed border-hairline bg-canvas p-3" aria-label="Twoja odpowiedź" lang="en">
         {placed.length === 0 && <span className="text-sm text-muted">Dotykaj słów poniżej w odpowiedniej kolejności</span>}
@@ -245,7 +246,7 @@ export function Runner({ initial, docRef, setDoc, voiceName, onExit, onStart }: 
       <LocalSaveWarning />
       <div className="mb-5" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} aria-label={`Postęp: krok ${done + 1} z ${total}`}>
         <div className="mb-1 flex justify-between text-xs text-muted"><span>Krok {done + 1} z {total}</span>{session.kind === "review" && <span>Powtórka</span>}</div>
-        <div className="h-2 overflow-hidden rounded-full bg-hairline"><div className="h-full rounded-full bg-accent transition-all" style={{ width: `${Math.round((done / total) * 100)}%` }} /></div>
+        <div className="h-2 overflow-hidden rounded-full bg-hairline"><div className="h-full rounded-full transition-all" style={{ background: "#6fb592", width: `${Math.round((done / total) * 100)}%` }} /></div>
       </div>
       {step.k === "learn" && <Learn key={session.idx} p={phrase} showPl={level !== 3} voiceName={voiceName} onNext={next} />}
       {step.k === "check" && (

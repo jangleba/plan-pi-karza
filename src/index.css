@@ -81,6 +81,8 @@ button:active:not(:disabled) { transform: scale(0.96); }
 .bw-grad:active:not(:disabled) { background-color: var(--color-btn-press); }
 /* zaznaczenie: bardzo jasny błękit, widoczny na bieli */
 .bw-sel { background-color: var(--color-accent-soft); color: var(--color-accent); box-shadow: inset 0 0 0 1px var(--color-sel-border); }
+/* wybrany kafel w kolorze kroku (zmienne --tone, --tone-soft, --tone-ink ustawia ekran kroku) */
+.bw-sel-tone { background-color: var(--tone-soft); color: var(--tone-ink); box-shadow: inset 0 0 0 1.5px var(--tone); }
 .bw-grad-soft { background-color: var(--color-canvas); }
 
 /* wybór „podskakuje” */

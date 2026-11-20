@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { localISO } from "../engine";
+import { PASTEL } from "../lib/pastel";
 import { summarize } from "./progress";
 import { loadDoc, syncCloud } from "./storage";
 
@@ -24,8 +25,8 @@ export function EnglishCard({ onOpen, refreshKey }: { onOpen: () => void; refres
   const title = next ? `Lekcja ${next.order}: ${next.title}` : "Wszystkie lekcje ukończone";
   const label = next ? primary : dueToday > 0 ? "Powtórz" : "Otwórz";
   return (
-    <section className="bw-rise mb-6 rounded-3xl border border-hairline bg-card p-5" aria-label="Piłkarski angielski">
-      <h2 className="text-[17px] font-semibold tracking-tight">Piłkarski angielski</h2>
+    <section className="bw-rise mb-6 rounded-3xl border p-5" style={{ background: `linear-gradient(135deg, ${PASTEL.blue.s} 0%, ${PASTEL.lavender.s} 100%)`, borderColor: PASTEL.blue.c }} aria-label="Piłkarski angielski">
+      <h2 className="text-[17px] font-semibold tracking-tight" style={{ color: PASTEL.blue.i }}>Piłkarski angielski</h2>
       <p className="mt-2 text-[15px] leading-snug">{title}</p>
       <p className="mt-1 text-xs text-muted">
         {next ? `ok. ${next.minutes} min · ` : ""}Powtórki na dziś: {dueToday}

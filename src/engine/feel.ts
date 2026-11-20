@@ -5,19 +5,21 @@ import { scoped } from "../lib/store";
  * „Co najbardziej Ci przeszkadza w grze?” – odpowiedzi podpowiadają cele,
  * a pytanie wraca co 5 tygodni, żeby było widać zmianę.
  */
-export type FeelNow = "slow" | "duels" | "stamina";
+export type FeelNow = "slow" | "duels" | "stamina" | "other";
 
 export const FEEL_NOW: Array<[FeelNow, string]> = [
   ["slow", "Brakuje mi szybkości"],
   ["duels", "Przegrywam pojedynki"],
   ["stamina", "Brakuje mi sił w końcówce"],
+  ["other", "Inne"],
 ];
 
-const GOAL_FOR: Record<FeelNow, SeasonGoal> = { slow: "speed", duels: "strength", stamina: "endurance" };
+/** „Inne” nie podpowiada celu: plan układamy z trzech obszarów (szybkość, siła, wytrzymałość). */
+const GOAL_FOR: Partial<Record<FeelNow, SeasonGoal>> = { slow: "speed", duels: "strength", stamina: "endurance" };
 
 /** Cele podpowiedziane z odpowiedzi (w kolejności zaznaczenia, maks. dwa). */
 export function suggestGoals(now: FeelNow[]): SeasonGoal[] {
-  return [...new Set(now.map((f) => GOAL_FOR[f]))].slice(0, 2);
+  return [...new Set(now.map((f) => GOAL_FOR[f]).filter((g): g is SeasonGoal => !!g))].slice(0, 2);
 }
 
 export interface FeelSnapshot { date: string; now: FeelNow[] }
