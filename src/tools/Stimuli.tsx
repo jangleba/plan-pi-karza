@@ -6,11 +6,33 @@ import { beep, buzz, keepAwake, prepareAudio } from "./feedback";
 import { scoped } from "../lib/store";
 
 const KEY = "stimOpts";
-interface Saved { opts: StimOpts; pace: Pace; sound: boolean; vibe: boolean }
+const DURATIONS = [30, 60, 120, 300] as const;
+export interface Saved { opts: StimOpts; pace: Pace; sound: boolean; vibe: boolean }
 const DEFAULT: Saved = { opts: DEFAULT_OPTS, pace: "medium", sound: true, vibe: true };
-const load = (): Saved => { try { return { ...DEFAULT, ...(JSON.parse(scoped.getItem(KEY) ?? "{}") as Partial<Saved>) }; } catch { return DEFAULT; } };
+/** Zapisane ustawienia z pamięci są niezaufane (starsza wersja, uszkodzony zapis): brakujące lub błędne pola wracają do domyślnych. */
+export function loadSaved(rawText: string | null): Saved {
+  try {
+    const r = JSON.parse(rawText ?? "{}") as Partial<Saved> & { opts?: Partial<StimOpts> };
+    const o: Partial<StimOpts> = r.opts ?? {};
+    const kinds = Array.isArray(o.kinds) ? o.kinds.filter((k): k is StimKind => ["arrow", "color", "number", "combo"].includes(k as string)) : [];
+    const pick = <T extends number>(v: unknown, ok: readonly T[], d: T): T => (ok.includes(v as T) ? (v as T) : d);
+    return {
+      opts: {
+        ...DEFAULT_OPTS,
+        kinds: kinds.length ? kinds : DEFAULT_OPTS.kinds,
+        dirs: pick(o.dirs, [2, 4] as const, DEFAULT_OPTS.dirs),
+        colors: pick(o.colors, [2, 3, 4] as const, DEFAULT_OPTS.colors),
+        maxNumber: pick(o.maxNumber, [3, 4, 5, 6] as const, DEFAULT_OPTS.maxNumber),
+        durationS: pick(o.durationS, DURATIONS, DEFAULT_OPTS.durationS),
+      },
+      pace: r.pace && r.pace in PACES ? r.pace : DEFAULT.pace,
+      sound: typeof r.sound === "boolean" ? r.sound : DEFAULT.sound,
+      vibe: typeof r.vibe === "boolean" ? r.vibe : DEFAULT.vibe,
+    };
+  } catch { return DEFAULT; }
+}
+const load = (): Saved => loadSaved(scoped.getItem(KEY));
 const KINDS: Array<[StimKind, string, string]> = [["arrow", "Strzałki", "kierunek ruchu"], ["color", "Kolory", "np. kolor pachołka"], ["number", "Liczby", "np. numer pachołka"], ["combo", "Kolor + strzałka", "gdzie i którym kierunkiem"]];
-const DURATIONS = [30, 60, 120, 300];
 
 const rot: Record<Dir, number> = { right: 0, down: 90, left: 180, up: 270 };
 /** Duża strzałka (kierunek obrotem). */
@@ -49,6 +71,12 @@ function Runner({ cfg, onClose }: { cfg: Saved; onClose: () => void }) {
   const lastIdx = useRef(-1);
 
   useEffect(() => { let rel = () => {}; keepAwake().then((r) => { rel = r; }); return () => rel(); }, []);
+  // zgaszony ekran albo inna aplikacja: wstrzymaj, żeby nie stracić czasu ćwiczenia
+  useEffect(() => {
+    const f = () => { if (document.visibilityState === "hidden") setPaused(true); };
+    document.addEventListener("visibilitychange", f);
+    return () => document.removeEventListener("visibilitychange", f);
+  }, []);
 
   useEffect(() => {
     if (phase !== "count") return;
@@ -99,7 +127,7 @@ function Runner({ cfg, onClose }: { cfg: Saved; onClose: () => void }) {
   const left = Math.max(0, Math.ceil(total - t));
   return (
     <Landscape>
-      <div className="relative h-full w-full select-none">
+      <div className="relative h-full w-full select-none" onClick={() => { if (phase === "run") setPaused((p) => !p); }}>
         {phase === "count" && <div className="flex h-full w-full items-center justify-center"><span className="font-semibold tabular-nums" style={{ fontSize: "60vmin" }}>{count || ""}</span></div>}
         {phase === "run" && <Face s={shown} />}
         {phase === "done" && (
@@ -114,7 +142,7 @@ function Runner({ cfg, onClose }: { cfg: Saved; onClose: () => void }) {
         )}
         {phase !== "done" && (
           <>
-            <div className="absolute right-3 top-3 flex gap-2" style={{ color: "#fff" }}>
+            <div className="absolute right-3 top-3 flex gap-2" style={{ color: "#fff" }} onClick={(e) => e.stopPropagation()}>
               {phase === "run" && <button onClick={() => setPaused(!paused)} aria-label={paused ? "Wznów" : "Pauza"} className="flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-lg backdrop-blur">{paused ? "▶" : "❚❚"}</button>}
               <button onClick={onClose} aria-label="Zakończ" className="flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-lg backdrop-blur">✕</button>
             </div>
@@ -154,7 +182,7 @@ export function StimuliTool({ onClose }: { onClose: () => void }) {
         {(o.kinds.includes("color") || o.kinds.includes("combo")) && <div><div className="mb-1 text-sm text-muted">Kolory</div>{seg<2 | 3 | 4>([[2, "2"], [3, "3"], [4, "4"]], o.colors, (v) => set({ colors: v }))}</div>}
         {o.kinds.includes("number") && <div><div className="mb-1 text-sm text-muted">Liczby od 1 do…</div>{seg<number>([[3, "3"], [4, "4"], [5, "5"], [6, "6"]], o.maxNumber, (v) => set({ maxNumber: v }))}</div>}
         <div><div className="mb-1 text-sm text-muted">Tempo</div>{seg<Pace>((Object.keys(PACES) as Pace[]).map((p) => [p, `${PACES[p].label} (${PACES[p].minGap}–${PACES[p].maxGap} s)`]), cfg.pace, (v) => setCfg({ ...cfg, pace: v }))}</div>
-        <div><div className="mb-1 text-sm text-muted">Czas</div>{seg<number>(DURATIONS.map((d) => [d, d < 60 ? `${d} s` : `${d / 60} min`]), o.durationS, (v) => set({ durationS: v }))}</div>
+        <div><div className="mb-1 text-sm text-muted">Czas</div>{seg<number>(DURATIONS.map((d): [number, string] => [d, d < 60 ? `${d} s` : `${d / 60} min`]), o.durationS, (v) => set({ durationS: v }))}</div>
       </div>
       <div className="mt-4 flex gap-2">
         <button onClick={() => setCfg({ ...cfg, sound: !cfg.sound })} className={`flex-1 ${chip(cfg.sound)}`}>Dźwięk {cfg.sound ? "wł." : "wył."}</button>

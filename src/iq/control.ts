@@ -9,7 +9,7 @@
  */
 export const SPEED_MAX = 6.5;
 export const TURN_MAX = 3.4; // rad/s przy pełnym wychyleniu w bok
-export const CAM_FOLLOW = 5.5; // 1/s – szybkość doganiania kierunku przez kamerę
+export const CAM_FOLLOW = 13; // 1/s – szybkość doganiania kierunku przez kamerę (przy pełnym skręcie opóźnienie ≈ 15°)
 const DEAD = 0.1;
 
 export interface Drive {

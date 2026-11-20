@@ -1,4 +1,5 @@
-import { ARROW_LEGEND, TONE_HEX } from "./engine";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ARROW_LEGEND, TONE_HEX, buildTimeline, stateAt } from "./engine";
 import type { Arrow, Drill, Point } from "./engine";
 
 const PAD = 2;
@@ -29,7 +30,7 @@ function dash(style: Arrow["style"]): string | undefined {
   return undefined;
 }
 
-export function Pitch({ drill }: { drill: Drill }) {
+export function Pitch({ drill, children }: { drill: Drill; children?: ReactNode }) {
   const { width: w, height: h } = drill.field;
   return (
     <figure className="m-0">
@@ -81,6 +82,7 @@ export function Pitch({ drill }: { drill: Drill }) {
             </text>
           ) : null,
         )}
+        {children}
       </svg>
       <figcaption className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
         {(Object.keys(ARROW_LEGEND) as Array<keyof typeof ARROW_LEGEND>).map((k) => (
@@ -88,5 +90,54 @@ export function Pitch({ drill }: { drill: Drill }) {
         ))}
       </figcaption>
     </figure>
+  );
+}
+
+/** Szkic z odtwarzaczem: zawodnik (kropka) i piłka przechodzą kroki ćwiczenia po strzałkach; start/pauza, prędkość, przewijanie. */
+export function AnimatedPitch({ drill }: { drill: Drill }) {
+  const tl = useMemo(() => buildTimeline(drill), [drill]);
+  const [playing, setPlaying] = useState(false); // domyślnie wstrzymane: kilka szkiców na ekranie nie obciąża telefonu
+  const [slow, setSlow] = useState(false);
+  const [t, setT] = useState(0);
+  const slowRef = useRef(slow);
+  slowRef.current = slow;
+
+  useEffect(() => {
+    if (!playing || !tl.total) return;
+    let raf = 0, last = performance.now();
+    const loop = (now: number) => {
+      raf = requestAnimationFrame(loop);
+      const dt = Math.min(0.1, (now - last) / 1000); // po zgaszeniu ekranu nie „przeskakuje” do przodu
+      last = now;
+      setT((x) => (x + dt * (slowRef.current ? 0.5 : 1)) % tl.total);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [playing, tl.total]);
+
+  const st = stateAt(drill, tl, t);
+  const arrow = st.seg >= 0 ? drill.arrows[tl.segs[st.seg]!.arrow]! : null;
+  const caption = arrow ? `Krok ${arrow.step ?? st.seg + 1}: ${arrow.note ?? ARROW_LEGEND[arrow.style]}` : "Naciśnij ▶, żeby zobaczyć przebieg";
+  const shown = playing || t > 0;
+
+  return (
+    <div>
+      <Pitch drill={drill}>
+        {shown && (
+          <>
+            {st.ball && <circle cx={st.ball.x} cy={st.ball.y} r="0.75" fill="#fff" stroke="#1d1d1f" strokeWidth="0.25" />}
+            <circle cx={st.player.x} cy={st.player.y} r="1.15" fill="var(--color-accent)" stroke="#fff" strokeWidth="0.35" />
+          </>
+        )}
+      </Pitch>
+      {tl.total > 0 && (
+        <div className="mt-2 flex items-center gap-2">
+          <button onClick={() => setPlaying((p) => !p)} aria-label={playing ? "Pauza" : "Odtwórz"} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent active:scale-90">{playing ? "❚❚" : "▶"}</button>
+          <input type="range" min={0} max={tl.total} step={0.05} value={t} onChange={(e) => { setPlaying(false); setT(Number(e.target.value)); }} aria-label="Przewiń ćwiczenie" className="min-w-0 flex-1 accent-[var(--color-accent)]" />
+          <button onClick={() => setSlow((x) => !x)} aria-pressed={slow} className={`shrink-0 rounded-full px-3 py-1.5 text-xs ${slow ? "bw-sel font-medium" : "bg-canvas text-muted"}`}>{slow ? "0,5×" : "1×"}</button>
+        </div>
+      )}
+      <p className="mt-1.5 min-h-[1.25rem] text-xs text-ink/80" role="status" aria-live="off">{caption}</p>
+    </div>
   );
 }

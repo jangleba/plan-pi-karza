@@ -33,6 +33,8 @@ describe("sterowanie jak w samochodzie", () => {
     const lag = s.heading - s.cam;
     expect(lag).toBeGreaterThan(0.1);
     expect(lag).toBeCloseTo(TURN_MAX / CAM_FOLLOW, 0);
+    // kamera nadąża za joystickiem: przy pełnym skręcie zostaje w tyle o mniej niż ~17° (wcześniej ~35°)
+    expect(lag).toBeLessThan(0.3);
   });
 
   it("łuk: do przodu + w prawo skręca w prawo i przesuwa się po łuku", () => {

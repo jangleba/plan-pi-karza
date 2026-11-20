@@ -92,6 +92,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
 .bw-step-back { animation: bw-step-back 0.28s ease-out; }
 
 /* animowane szkice onboardingu */
+@keyframes bw-flash { from { opacity: 0.55; } to { opacity: 0; } }
 @keyframes bw-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 @keyframes bw-spin { 0%, 12% { transform: rotate(0deg); } 88%, 100% { transform: rotate(360deg); } }
 @keyframes bw-shadow { 0%, 100% { transform: scaleX(1); opacity: 0.35; } 50% { transform: scaleX(0.7); opacity: 0.18; } }
@@ -100,6 +101,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
 @keyframes bw-fill { 0% { opacity: 0.15; transform: scaleY(0.4); } 60%, 100% { opacity: 1; transform: scaleY(1); } }
 @keyframes bw-hop { 0.0% { transform: translate(-2px, 60px); } 8.3% { transform: translate(12px, 18px); } 16.7% { transform: translate(26px, 34px); } 25.0% { transform: translate(40px, 18px); } 33.3% { transform: translate(54px, 48px); } 41.7% { transform: translate(68px, 0px); } 50.0% { transform: translate(82px, 16px); } 58.3% { transform: translate(96px, 0px); } 66.7% { transform: translate(110px, 42px); } 75.0% { transform: translate(124px, -8px); } 83.3% { transform: translate(138px, 8px); } 91.7% { transform: translate(152px, -8px); } 100.0% { transform: translate(166px, 64px); } }
 .bw-hop { animation: bw-hop 2s ease-in-out 500ms both; transform: translate(166px, 64px); }
+.bw-flash { animation: bw-flash 0.7s ease-out both; }
 .bw-bounce { animation: bw-bounce 1.2s ease-in-out infinite; transform-box: fill-box; }
 .bw-logo-spin { animation: bw-spin 1.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
 .bw-shadow { animation: bw-shadow 1.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
@@ -107,7 +109,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
 .bw-lift { animation: bw-lift 1.6s ease-in-out infinite; transform-box: fill-box; }
 .bw-fill { animation: bw-fill 1.2s ease-out both; transform-box: fill-box; transform-origin: bottom; }
 @media (prefers-reduced-motion: reduce) {
-  .bw-pop, .bw-step-back, .bw-bounce, .bw-logo-spin, .bw-hop, .bw-shadow, .bw-draw, .bw-lift, .bw-fill { animation: none; }
+  .bw-pop, .bw-step-back, .bw-bounce, .bw-flash, .bw-logo-spin, .bw-hop, .bw-shadow, .bw-draw, .bw-lift, .bw-fill { animation: none; }
 }
 
 /* koło wyboru: bez paska przewijania, wygaszone brzegi */

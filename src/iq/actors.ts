@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
-import { PASS, locomotion, partOf, type Part } from "./actorMath";
+import { PASS, clipTime, cycleRate, locomotion } from "./actorMath";
+import { buildBody } from "./body";
 import { animateFigure, makePlayer, type Figure, type Kit } from "./scene";
 
 /** Wspólny interfejs: gładko oskórowana postać Mixamo albo (gdy nie wczyta się) sylwetka proceduralna. */
@@ -63,13 +64,12 @@ function numberTexture(n: number): THREE.CanvasTexture {
 
 const geoCache = new Map<string, THREE.BufferGeometry>();
 const matCache = new Map<string, THREE.Material>();
-const PART_ORDER: Part[] = ["skin", "jersey", "shorts", "socks", "boots", "gloves"];
 
 /**
  * Materiał stroju: każdy wierzchołek niesie wagi 6 części (skóra, koszulka, spodenki, getry, buty, rękawice);
  * w shaderze wagi są wyostrzane (potęga), więc granice między częściami są wyraźne mimo długich trójkątów siatki.
  */
-function kitMaterial(kit: ActorKit, skin: number): THREE.Material {
+function kitMaterial(kit: ActorKit, skin: number, legs: { hem: number; sock: number }): THREE.Material {
   const key = `${kit.jersey}|${kit.shorts}|${kit.socks}|${kit.gloves ?? 0}|${skin}`;
   let m = matCache.get(key);
   if (m) return m;
@@ -77,18 +77,26 @@ function kitMaterial(kit: ActorKit, skin: number): THREE.Material {
   const mat = new THREE.MeshStandardMaterial({ roughness: 0.72, metalness: 0 });
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uKit = { value: colors };
+    sh.uniforms.uLeg = { value: new THREE.Vector2(legs.hem, legs.sock) };
     sh.vertexShader = sh.vertexShader
-      .replace("#include <common>", "#include <common>\nattribute vec3 aPartA;\nattribute vec3 aPartB;\nvarying vec3 vPartA;\nvarying vec3 vPartB;")
-      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvPartA = aPartA; vPartB = aPartB;");
+      .replace("#include <common>", "#include <common>\nattribute vec3 aPartA;\nattribute vec3 aPartB;\nattribute vec2 aBind;\nvarying vec3 vPartA;\nvarying vec3 vPartB;\nvarying vec2 vBind;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvPartA = aPartA; vPartB = aPartB; vBind = aBind;");
     sh.fragmentShader = sh.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform vec3 uKit[6];\nvarying vec3 vPartA;\nvarying vec3 vPartB;")
+      .replace("#include <common>", "#include <common>\nuniform vec3 uKit[6];\nuniform vec2 uLeg;\nvarying vec3 vPartA;\nvarying vec3 vPartB;\nvarying vec2 vBind;")
       .replace("#include <color_fragment>", `#include <color_fragment>
         vec3 pa = pow(max(vPartA, 0.0), vec3(7.0));
         vec3 pb = pow(max(vPartB, 0.0), vec3(7.0));
         float ps = pa.x + pa.y + pa.z + pb.x + pb.y + pb.z + 1e-6;
-        diffuseColor.rgb *= (uKit[0] * pa.x + uKit[1] * pa.y + uKit[2] * pa.z + uKit[3] * pb.x + uKit[4] * pb.y + uKit[5] * pb.z) / ps;`);
+        vec3 kitCol = (uKit[0] * pa.x + uKit[1] * pa.y + uKit[2] * pa.z + uKit[3] * pb.x + uKit[4] * pb.y + uKit[5] * pb.z) / ps;
+        // nogi: granice spodenki / skóry / getrów po wysokości w pozie bazowej (równa linia zamiast postrzępionej po trójkątach siatki)
+        if (vBind.y > 0.5) {
+          float onShorts = smoothstep(uLeg.x - 0.6, uLeg.x + 0.6, vBind.x);
+          float aboveSock = smoothstep(uLeg.y - 0.6, uLeg.y + 0.6, vBind.x);
+          kitCol = mix(uKit[3], mix(uKit[0], uKit[2], onShorts), aboveSock);
+        }
+        diffuseColor.rgb *= kitCol;`);
   };
-  mat.customProgramCacheKey = () => "bw-kit";
+  mat.customProgramCacheKey = () => "bw-kit-2";
   matCache.set(key, mat);
   return mat;
 }
@@ -101,42 +109,33 @@ function buildTemplate(assets: ActorAssets, kit: ActorKit, variant: number): THR
   const worldY = (n: string) => bone(n).getWorldPosition(new THREE.Vector3()).y;
   const refs = { hip: worldY("mixamorigLeftUpLeg"), knee: worldY("mixamorigLeftLeg") };
   const skin = SKINS[variant % SKINS.length]!, hair = HAIRS[(variant * 3 + 1) % HAIRS.length]!;
-  const mat = kitMaterial(kit, skin);
-  const v = new THREE.Vector3();
-  tpl.traverse((o) => {
-    const m = o as THREE.SkinnedMesh;
-    if (!m.isSkinnedMesh) return;
-    const key = `${m.name}|${kit.keeper ? 1 : 0}`;
-    let geo = geoCache.get(key);
-    if (!geo) {
-      geo = m.geometry.clone();
-      const pos = geo.attributes.position!, si = geo.attributes.skinIndex!, sw = geo.attributes.skinWeight!;
-      const A = new Float32Array(pos.count * 3), B = new Float32Array(pos.count * 3);
-      for (let i = 0; i < pos.count; i++) {
-        let best = 0, bw = -1;
-        for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k); if (w > bw) { bw = w; best = si.getComponent(i, k); } }
-        v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
-        const idx = PART_ORDER.indexOf(partOf(m.skeleton.bones[best]!.name, v.y, refs, kit.keeper));
-        (idx < 3 ? A : B)[i * 3 + (idx % 3)] = 1;
-      }
-      geo.setAttribute("aPartA", new THREE.BufferAttribute(A, 3));
-      geo.setAttribute("aPartB", new THREE.BufferAttribute(B, 3));
-      geoCache.set(key, geo);
-    }
-    m.geometry = geo; m.material = mat; m.castShadow = true; m.receiveShadow = false; m.frustumCulled = false;
-  });
+  const mat = kitMaterial(kit, skin, { hem: refs.hip - 0.5 * (refs.hip - refs.knee), sock: refs.knee - 6 });
+  // własne ciało zamiast manekina Beta: jedna siatka (wspólna dla wszystkich klonów danego wariantu) na szkielecie Mixamo
+  const meshes: THREE.SkinnedMesh[] = [];
+  tpl.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) meshes.push(o as THREE.SkinnedMesh); });
+  const main = meshes[0]!;
+  const names = main.skeleton.bones.map((b) => b.name);
+  const key = kit.keeper ? "keeper" : "field";
+  let geo = geoCache.get(key);
+  if (!geo) {
+    geo = buildBody((n) => bone(`mixamorig${n}`).getWorldPosition(new THREE.Vector3()), (n) => { const i = names.indexOf(n); if (i < 0) throw new Error(`brak kości ${n}`); return i; }, !!kit.keeper);
+    geoCache.set(key, geo);
+  }
+  main.geometry = geo; main.material = mat; main.castShadow = true; main.receiveShadow = false; main.frustumCulled = false;
+  for (const m of meshes.slice(1)) m.parent?.remove(m); // dawne „stawy” manekina
 
-  // włosy: czapka na głowie (Beta nie ma włosów)
+  // włosy: kopuła dopasowana do głowy (cm, głowa: środek ok. 171 cm, promienie 7,9 × 11,2 × 9,3)
   const head = bone("mixamorigHead"), headW = head.getWorldPosition(new THREE.Vector3());
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(11.4, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.52), new THREE.MeshStandardMaterial({ color: hair, roughness: 0.9 }));
-  cap.position.copy(head.worldToLocal(new THREE.Vector3(headW.x, headW.y + 10.2, headW.z - 0.9)));
-  cap.rotation.x = -0.32; cap.castShadow = true; head.add(cap);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(1, 22, 12, 0, Math.PI * 2, 0, Math.PI * 0.47), new THREE.MeshStandardMaterial({ color: hair, roughness: 0.9 }));
+  cap.scale.set(9.0, 12.3, 10.5);
+  cap.position.copy(head.worldToLocal(new THREE.Vector3(headW.x, 171.9, 1.0)));
+  cap.rotation.x = -0.22; cap.castShadow = true; head.add(cap);
 
   // numer na plecach (kamera patrzy zza zawodnika; plecy = −Z modelu)
   if (kit.number !== undefined) {
     const sp = bone("mixamorigSpine2"), spW = sp.getWorldPosition(new THREE.Vector3());
-    const plane = new THREE.Mesh(new THREE.PlaneGeometry(22, 22), new THREE.MeshBasicMaterial({ map: numberTexture(kit.number), transparent: true, side: THREE.DoubleSide }));
-    plane.position.copy(sp.worldToLocal(new THREE.Vector3(spW.x, spW.y + 1, spW.z - 13.5)));
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(17, 17), new THREE.MeshBasicMaterial({ map: numberTexture(kit.number), transparent: true, side: THREE.DoubleSide }));
+    plane.position.copy(sp.worldToLocal(new THREE.Vector3(spW.x, spW.y + 1, spW.z - 13.4)));
     const q = sp.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI));
     plane.quaternion.copy(q);
     sp.add(plane);
@@ -144,13 +143,15 @@ function buildTemplate(assets: ActorAssets, kit: ActorKit, variant: number): THR
   return tpl;
 }
 
-/** Postać Mixamo: bieg/chód/stanie mieszane wg prędkości, tempo klipu = prędkość / natywna (bez ślizgania stóp). */
+/** Postać Mixamo: bieg/chód/stanie mieszane wg prędkości; chód i bieg na wspólnej fazie kroku (bez ślizgania stóp). */
 export class SkinnedActor implements Actor {
   root = new THREE.Group();
   private model: THREE.Object3D;
   private mixer: THREE.AnimationMixer;
   private a: { idle: THREE.AnimationAction; walk: THREE.AnimationAction; run: THREE.AnimationAction; pass: THREE.AnimationAction };
   private v = 0;
+  /** Wspólna faza kroku (cykle) napędzająca klipy chodu i biegu. */
+  private phase = 0;
   private kickT = -1;
   private kickBlend = 0;
   private scale: number;
@@ -165,6 +166,9 @@ export class SkinnedActor implements Actor {
     this.mixer = new THREE.AnimationMixer(this.model);
     const mk = (c: THREE.AnimationClip) => { const x = this.mixer.clipAction(c); x.play(); x.setEffectiveWeight(0); x.time = ((variant * 0.37) % 1) * c.duration; return x; };
     this.a = { idle: mk(assets.clips.idle), walk: mk(assets.clips.walk), run: mk(assets.clips.run), pass: this.mixer.clipAction(assets.clips.pass) };
+    // chód i bieg nie mają własnego zegara: czas klipów wynika ze wspólnej fazy kroku (patrz update)
+    this.a.walk.paused = true; this.a.run.paused = true;
+    this.phase = (variant * 0.37) % 1;
     this.a.pass.setLoop(THREE.LoopOnce, 1); this.a.pass.clampWhenFinished = true;
   }
 
@@ -174,8 +178,12 @@ export class SkinnedActor implements Actor {
     const L = locomotion(this.v);
     const k = 1 - this.kickBlend;
     this.a.idle.setEffectiveWeight(L.idle * k);
-    this.a.walk.setEffectiveWeight(L.walk * k); this.a.walk.setEffectiveTimeScale(L.walkScale);
-    this.a.run.setEffectiveWeight(L.run * k); this.a.run.setEffectiveTimeScale(L.runScale);
+    this.a.walk.setEffectiveWeight(L.walk * k);
+    this.a.run.setEffectiveWeight(L.run * k);
+    // jedna faza kroku dla obu klipów: tempo = prędkość / uśredniona długość kroku (stopa w podporze nie ślizga się także w miksie)
+    this.phase = (this.phase + cycleRate(this.v, L) * dt) % 1;
+    this.a.walk.time = clipTime("walk", this.phase);
+    this.a.run.time = clipTime("run", this.phase);
 
     if (this.kickT >= 0) {
       this.kickT += dt;

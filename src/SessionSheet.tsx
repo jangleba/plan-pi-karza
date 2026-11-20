@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pitch } from "./Pitch";
+import { AnimatedPitch } from "./Pitch";
 import { Sheet } from "./Sheet";
 import { pushWeightLog } from "./lib/sync";
 import { MasCard, loadMas, saveMasDistance } from "./MasCard";
@@ -10,8 +10,8 @@ import { DrawTool } from "./tools/Draw";
 import { StimuliTool } from "./tools/Stimuli";
 import { Group, ListRow } from "./ui";
 import { CueTrainer } from "./CueTrainer";
-import { EXERCISES, RECOVERY, applyChoice, bodyweightTemplate, drillsFor, adaptSession, addEvents, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
-import type { CheckIn, Choice, Completion, DayPlan, HistoryEvent, Level, Mas, Position, Suggestion } from "./engine";
+import { EXERCISES, RECOVERY, applyChoice, bodyweightTemplate, drillsFor, DRILL_GROUPS, adaptSession, addEvents, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
+import type { CheckIn, DrillGroup, Choice, Completion, DayPlan, HistoryEvent, Level, Mas, Position, Suggestion } from "./engine";
 
 interface ConfirmRow { exerciseId: string; kg: number; planned: string; plannedReps: number }
 
@@ -34,6 +34,9 @@ export function SessionSheet({
   const s = day.session;
   const [info, setInfo] = useState<{ id: string; note?: string } | null>(null);
   const [tool, setTool] = useState<"stim" | "draw" | null>(null);
+  const [group, setGroup] = useState<DrillGroup | null>(null);
+  const myDrills = drillsFor(position);
+  const myGroup = group && myDrills.some((d) => d.group === group) ? group : (DRILL_GROUPS.find(([g]) => myDrills.some((d) => d.group === g))?.[0] ?? "dribble");
   const both = !!s && day.isClub;
   const [view, setView] = useState<"own" | "club">(s ? "own" : "club");
   const module = s?.kind === "strength" || s?.kind === "sprint" ? s.kind : null;
@@ -211,10 +214,15 @@ export function SessionSheet({
             </Group>
             <p className="text-sm text-muted">Szkice do przeglądu trenera</p>
             <div className="mt-4 flex flex-col gap-5">
-              {drillsFor(position).map((d) => (
+              <div className="-mb-2 flex flex-wrap gap-2">
+                {DRILL_GROUPS.filter(([g]) => myDrills.some((d) => d.group === g)).map(([g, t]) => (
+                  <button key={g} onClick={() => setGroup(g)} className={`rounded-full border px-3.5 py-2 text-sm ${(myGroup === g) ? "bw-sel font-medium" : "border-hairline bg-canvas"}`}>{t}</button>
+                ))}
+              </div>
+              {myDrills.filter((d) => d.group === myGroup).map((d) => (
                 <div key={d.id}>
                   <div className="mb-2 text-sm font-medium">{d.title}</div>
-                  <Pitch drill={d} />
+                  <AnimatedPitch drill={d} />
                   <p className="mt-2 text-xs text-muted">{d.dose}</p>
                   <ul className="mt-1 list-disc pl-4 text-sm">
                     {d.points.map((p) => <li key={p}>{p}</li>)}

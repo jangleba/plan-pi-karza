@@ -7,11 +7,15 @@ import type { Recording, Variant, World } from "./engine/sim";
 import { addAttempt } from "./iq/attempts-store";
 import { ResultSheet, type ResultBundle } from "./iq/ResultSheet";
 import { LargeTitle } from "./ui";
-import { FIELD, headingOf, makeBall, makeGoal, pitchTexture, skyTexture } from "./iq/scene";
+import { BALL_VISUAL_R, FIELD, FOG_COLOR, headingOf, makeBall, dashTexture, makeBallShadow, makeGoal, makePitch, makeStadium, skyTexture } from "./iq/scene";
 import { ActorFactory, loadActorAssets, type Actor, type ActorAssets } from "./iq/actors";
 import { drive, followCamera, turnTo, type Drive } from "./iq/control";
 
-const BALL_R = 0.16;
+const BALL_R = BALL_VISUAL_R;
+const CAM = { back: 6.8, up: 3.4, ahead: 11, lookY: 1.0 };
+const FOV_BASE = 56, FOV_RUN = 61; // pole widzenia rośnie z prędkością (wrażenie tempa)
+/** Stopnie rozdzielczości renderowania (pixel ratio): start od najwyższego, spadek przy braku płynności, powrót gdy jest zapas. */
+const DPR_TIERS = [2, 1.5, 1.25, 1];
 type Result = ResultBundle;
 type Phase = "loading" | "intro" | "play" | "kick" | "done";
 type Possession = "me" | "mate" | "foe" | "loose";
@@ -52,34 +56,35 @@ export default function IQ() {
 
     function start(assets: ActorAssets | null) {
       const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-      // jakość startowa; obniżana automatycznie, jeśli telefon nie wyrabia 60 kl./s
-      let dpr = Math.min(window.devicePixelRatio, 1.75);
+      // rozdzielczość: start od najwyższego stopnia dostępnego na tym ekranie (maks. 2×), potem adaptacja do wydajności telefonu
+      let tier = Math.max(0, DPR_TIERS.findIndex((t) => t <= window.devicePixelRatio + 1e-6));
+      let dpr = DPR_TIERS[tier]!;
       renderer.setPixelRatio(dpr);
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.05;
+      // neutralne mapowanie tonów: zachowuje barwy strojów, białą piłkę i linie (ACES przygaszał biel i wyszarzał kolory)
+      renderer.toneMapping = THREE.NeutralToneMapping;
+      renderer.toneMappingExposure = 1.15;
       el.appendChild(renderer.domElement);
       if (import.meta.env.DEV) (window as unknown as { __iq?: THREE.WebGLRenderer }).__iq = renderer;
 
       const scene = new THREE.Scene();
       scene.background = skyTexture();
-      scene.fog = new THREE.Fog(0xeef5fc, 70, 170);
-      const cam = new THREE.PerspectiveCamera(55, 1, 0.1, 400);
+      scene.fog = new THREE.Fog(FOG_COLOR, 110, 280);
+      const cam = new THREE.PerspectiveCamera(FOV_BASE, 1, 0.1, 400);
 
-      scene.add(new THREE.HemisphereLight(0xffffff, 0x5f8f62, 1.1));
-      const sun = new THREE.DirectionalLight(0xffffff, 1.8);
+      // światło: mniej „płaskiego” rozproszenia, wyraźniejsze słońce (kontrast brył i cieni), ciepły odcień słońca
+      scene.add(new THREE.HemisphereLight(0xdcebff, 0x5a8f5f, 1.0));
+      const sun = new THREE.DirectionalLight(0xfff1dc, 2.4);
       sun.castShadow = true;
-      sun.shadow.mapSize.set(1024, 1024);
+      sun.shadow.mapSize.set(2048, 2048); // ±22 m → ok. 2 cm na teksel (było 4 cm)
       Object.assign(sun.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22, near: 1, far: 120 });
-      sun.shadow.bias = -0.0005;
+      sun.shadow.bias = -0.0003; sun.shadow.normalBias = 0.03;
       scene.add(sun, sun.target);
 
-      const apron = new THREE.Mesh(new THREE.PlaneGeometry(FIELD.w + 40, FIELD.h + 40), new THREE.MeshStandardMaterial({ color: 0x4f9a5c, roughness: 1 }));
-      apron.rotation.x = -Math.PI / 2; apron.position.set(FIELD.w / 2, -0.01, FIELD.h / 2); apron.receiveShadow = true; scene.add(apron);
-      const pitch = new THREE.Mesh(new THREE.PlaneGeometry(FIELD.w, FIELD.h), new THREE.MeshStandardMaterial({ map: pitchTexture(), roughness: 0.95 }));
-      pitch.rotation.x = -Math.PI / 2; pitch.position.set(FIELD.w / 2, 0, FIELD.h / 2); pitch.receiveShadow = true; scene.add(pitch);
+      scene.add(makePitch(renderer.capabilities.getMaxAnisotropy()));
       scene.add(makeGoal(FIELD.w, 1), makeGoal(0, -1));
+      scene.add(makeStadium());
 
       // symulacja: 17 żywych zawodników (nasza drużyna z Tobą + rywale z bramkarzami)
       let world: World = createScenario(attempt.current % 3 as Variant, 1 + attempt.current);
@@ -99,12 +104,16 @@ export default function IQ() {
       });
       const me = actors.get("P")!;
       const ball = makeBall(); scene.add(ball);
+      const ballShadow = makeBallShadow(); scene.add(ballShadow);
 
       // celowanie: pierścień pod adresatem i przerywana linia
       const ring = new THREE.Mesh(new THREE.RingGeometry(0.75, 0.95, 40), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
       ring.rotation.x = -Math.PI / 2; scene.add(ring);
-      const aimLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
-        new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.6, gapSize: 0.4, transparent: true, opacity: 0.85 }));
+      // linia celowania jako wstęga z przerywaną teksturą (linie WebGL mają 1 piksel, więc na telefonie prawie ich nie widać)
+      const aimTex = dashTexture();
+      const aimLine = new THREE.Group();
+      const aimRibbon = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.15), new THREE.MeshBasicMaterial({ map: aimTex, transparent: true, opacity: 0.95, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -10, polygonOffsetUnits: -10 }));
+      aimRibbon.rotation.x = -Math.PI / 2; aimLine.add(aimRibbon);
       scene.add(aimLine);
       const foeRing = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.78, 32), new THREE.MeshBasicMaterial({ color: 0xe0554f, transparent: true, opacity: 0.95, side: THREE.DoubleSide }));
       foeRing.rotation.x = -Math.PI / 2; foeRing.visible = false; scene.add(foeRing);
@@ -124,8 +133,8 @@ export default function IQ() {
       const ku = (e: KeyboardEvent) => keys.delete(e.key.toLowerCase());
       window.addEventListener("keydown", kd); window.addEventListener("keyup", ku);
 
-      const camPos = new THREE.Vector3(player.x - 8, 4.3, player.y);
-      const camLook = new THREE.Vector3(player.x + 10, 0.9, player.y);
+      const camPos = new THREE.Vector3(player.x - CAM.back, CAM.up, player.y);
+      const camLook = new THREE.Vector3(player.x + CAM.ahead, CAM.lookY, player.y);
       const target = new THREE.Vector3(), look = new THREE.Vector3();
       const resize = () => { const w = el.clientWidth, h = el.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); };
       resize();
@@ -173,19 +182,27 @@ export default function IQ() {
 
       let last = performance.now(), raf = 0, clockAcc = 0;
       let lastAim: string | null = null, lastPoss: Possession = "me";
-      let perfFrames = 0, perfTime = 0, perfStep = 0;
+      let perfFrames = 0, perfTime = 0, warm = 0, good = 0, ups = 0;
       putActors();
       ball.position.set(player.x + 0.7, BALL_R, player.y);
 
       const tick = (now: number, raw: number) => {
         const dt = Math.min(0.05, raw);
         if (document.hidden) return;
-        perfFrames++; perfTime += raw;
-        if (perfFrames >= 90) {
-          const avg = perfTime / perfFrames;
-          if (avg > 0.022 && perfStep === 0 && dpr > 1) { dpr = 1; renderer.setPixelRatio(dpr); resize(); perfStep = 1; }
-          else if (avg > 0.026 && perfStep <= 1 && sun.castShadow) { sun.castShadow = false; perfStep = 2; }
-          perfFrames = 0; perfTime = 0;
+        // adaptacja jakości: pierwsze klatki (kompilacja shaderów) pomijamy; przy braku płynności obniżamy rozdzielczość o jeden stopień
+        // (zamiast skoku od razu do 1×, który rozmywał obraz), a przy dużym zapasie wracamy stopień wyżej (maks. 2 razy, bez „pompowania”)
+        if (warm < 45) warm++;
+        else if (!(import.meta.env.DEV && (window as unknown as { __noPerf?: boolean }).__noPerf)) {
+          perfFrames++; perfTime += raw;
+          if (perfFrames >= 60) {
+            const avg = perfTime / perfFrames;
+            const setTier = (t: number) => { tier = t; dpr = DPR_TIERS[t]!; renderer.setPixelRatio(dpr); resize(); };
+            if (avg > 0.021 && tier < DPR_TIERS.length - 1) { setTier(tier + 1); good = 0; }
+            else if (avg > 0.026 && tier === DPR_TIERS.length - 1 && sun.castShadow) { sun.castShadow = false; }
+            else if (avg < 0.0125 && tier > 0 && ups < 2) { if (++good >= 5) { setTier(tier - 1); ups++; good = 0; } }
+            else if (avg >= 0.0125) good = 0;
+            perfFrames = 0; perfTime = 0;
+          }
         }
         const ph = phaseRef.current;
         const live = (ph === "play" || ph === "kick") && !world.outcome;
@@ -293,9 +310,12 @@ export default function IQ() {
         if (aimMate) {
           const pulse = 1 + Math.sin(now / 180) * 0.08;
           ring.position.set(aimMate.pos.x, 0.03, aimMate.pos.y); ring.scale.setScalar(pulse);
-          const pos = aimLine.geometry.attributes.position as THREE.BufferAttribute;
-          pos.setXYZ(0, player.x, 0.05, player.y); pos.setXYZ(1, aimMate.pos.x, 0.05, aimMate.pos.y); pos.needsUpdate = true;
-          aimLine.computeLineDistances();
+          // wstęga zaczyna się 1,1 m przed zawodnikiem i kończy 1,1 m przed pierścieniem adresata (bez białego klina pod stopami)
+          const dx = aimMate.pos.x - player.x, dz = aimMate.pos.y - player.y, full = Math.hypot(dx, dz) || 1;
+          const len = Math.max(0, full - 2.2), mid = 1.1 + len / 2;
+          aimLine.visible = showAim && len > 0.5;
+          aimLine.position.set(player.x + (dx / full) * mid, 0.035, player.y + (dz / full) * mid); aimLine.rotation.y = -Math.atan2(dz, dx);
+          aimRibbon.scale.x = len; aimTex.repeat.x = len / 1.0;
         }
         const aimNow = showAim ? aimMate!.name : null;
         if (aimNow !== lastAim) { lastAim = aimNow; setAimName(aimNow); }
@@ -338,10 +358,20 @@ export default function IQ() {
 
         // kamera za plecami zawodnika, obraca się razem z nim (kierunek dogania płynnie w sterowaniu)
         const cx = Math.cos(dr.cam), cy = Math.sin(dr.cam);
-        target.set(player.x - 8 * cx, 4.3, player.y - 8 * cy);
-        look.set(player.x + 12 * cx, 0.9, player.y + 12 * cy);
-        camPos.lerp(target, 1 - Math.exp(-dt * 18)); camLook.lerp(look, 1 - Math.exp(-dt * 18));
+        // bliżej i niżej niż wcześniej (8 m / 4,3 m): zawodnik i piłka większe na małym ekranie, nadal widać kolegów przed sobą
+        const ov = import.meta.env.DEV ? (window as unknown as { __camOv?: { back: number; up: number; ahead: number; lookY: number } }).__camOv : undefined;
+        const back = ov?.back ?? CAM.back, up = ov?.up ?? CAM.up, ahead = ov?.ahead ?? CAM.ahead, lookY = ov?.lookY ?? CAM.lookY;
+        target.set(player.x - back * cx, up, player.y - back * cy);
+        look.set(player.x + ahead * cx, lookY, player.y + ahead * cy);
+        if (ov) { camPos.copy(target); camLook.copy(look); }
+        else { camPos.lerp(target, 1 - Math.exp(-dt * 28)); camLook.lerp(look, 1 - Math.exp(-dt * 28)); }
         cam.position.copy(camPos); cam.lookAt(camLook);
+        const fovT = ov ? 55 : FOV_BASE + (FOV_RUN - FOV_BASE) * Math.min(1, dr.speed / 6.5);
+        if (Math.abs(cam.fov - fovT) > 0.02) { cam.fov += (fovT - cam.fov) * (ov ? 1 : 1 - Math.exp(-dt * 4)); cam.updateProjectionMatrix(); }
+        ballShadow.position.set(ball.position.x, 0.014, ball.position.z);
+        const bh = Math.max(0, ball.position.y - BALL_R);
+        ballShadow.scale.setScalar(BALL_R * 4.2 * (1 + bh * 1.6));
+        (ballShadow.material as THREE.MeshBasicMaterial).opacity = 0.85 / (1 + bh * 2.5);
         sun.position.set(player.x - 15, 40, player.y + 20); sun.target.position.set(player.x + 8, 0, player.y);
         renderer.render(scene, cam);
       };

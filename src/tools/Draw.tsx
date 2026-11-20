@@ -1,11 +1,23 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DIR_LABEL, drawOne, rng, type Dir, type Drawn, type DrawKind } from "../engine/stimuli";
 import { Landscape } from "./Landscape";
-import { beep, buzz, prepareAudio } from "./feedback";
+import { beep, buzz, keepAwake, prepareAudio } from "./feedback";
+import { scoped } from "../lib/store";
 
 const KINDS: Array<[DrawKind, string]> = [["color", "Kolor"], ["number", "Numer"], ["side", "Strona"], ["dir", "Kierunek"]];
 const N_OPTS: Record<DrawKind, number[]> = { color: [2, 3, 4], number: [3, 4, 5, 6], side: [2], dir: [2, 4] };
 const rot: Record<Dir, number> = { right: 0, down: 90, left: 180, up: 270 };
+
+const KEY = "drawOpts";
+/** Ostatni wybór (rodzaj i liczba) z walidacją: zły zapis wraca do domyślnego. */
+export function loadDraw(rawText: string | null): { kind: DrawKind; n: number } {
+  try {
+    const r = JSON.parse(rawText ?? "null") as { kind?: unknown; n?: unknown } | null;
+    const kind = KINDS.find(([k]) => k === r?.kind)?.[0] ?? "color";
+    const n = N_OPTS[kind].includes(r?.n as number) ? (r!.n as number) : N_OPTS[kind][N_OPTS[kind].length - 1]!;
+    return { kind, n };
+  } catch { return { kind: "color", n: 4 }; }
+}
 
 function Big({ d }: { d: Drawn | null }) {
   if (!d) return <div className="flex h-full w-full items-center justify-center text-center text-white/70" style={{ fontSize: "6vmin" }}>Dotknij ekranu, żeby wylosować</div>;
@@ -26,13 +38,16 @@ function Big({ d }: { d: Drawn | null }) {
 
 /** Losowanie na pełnym ekranie poziomo: kolor / numer / strona / kierunek; dotknięcie losuje kolejny, bez powtórzenia poprzedniego. */
 export function DrawTool({ onClose }: { onClose: () => void }) {
-  const [kind, setKind] = useState<DrawKind>("color");
-  const [n, setN] = useState(4);
+  const [saved] = useState(() => loadDraw(scoped.getItem(KEY)));
+  const [kind, setKind] = useState<DrawKind>(saved.kind);
+  const [n, setN] = useState(saved.n);
   const [cur, setCur] = useState<Drawn | null>(null);
   const [hist, setHist] = useState<Drawn[]>([]);
   const r = useRef(rng(Date.now() & 0xffffff));
   const nn = N_OPTS[kind].includes(n) ? n : N_OPTS[kind][N_OPTS[kind].length - 1]!;
   const draw = () => { prepareAudio(); const d = drawOne(kind, nn, cur, r.current); setCur(d); setHist((h) => [d, ...h].slice(0, 8)); beep(740, 70); buzz(30); };
+  useEffect(() => { scoped.setItem(KEY, JSON.stringify({ kind, n: nn })); }, [kind, nn]);
+  useEffect(() => { let rel = () => {}; keepAwake().then((r) => { rel = r; }); return () => rel(); }, []);
   const bg = useMemo(() => "#1d1d1f", []);
   const pill = (on: boolean) => `rounded-full px-3.5 py-1.5 text-sm backdrop-blur ${on ? "bg-white text-[#1d1d1f] font-medium" : "bg-black/35 text-white"}`;
   return (
