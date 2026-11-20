@@ -19,7 +19,7 @@ Silnik = czysty, deterministyczny TypeScript (bez AI). Ten sam wynik dla tych sa
 | MD-2 | Bieganie wytrzymałościowe / interwały |
 | MD-1 | Aktywacja, lekki sprint lub technika z piłką. Bez mocnej siły i mocnego biegania |
 | MD | Dzień meczu. Zawodnik wpisuje minuty i samopoczucie |
-| MD+1 | Regeneracja (osobna krótka sesja). Wyjątek: siła pełna dla zaawansowanych i dla mających mało dni na siłownię; mniej zaawansowani – tylko góra |
+| MD+1 | Regeneracja (osobna krótka sesja). Wyjątek: siła pełna dla zaawansowanych i dla mających mało dni na siłownię; mniej zaawansowani – tylko góra. Siła dzień po meczu to **ostatnia opcja** i planujemy ją tylko przy stażu siłowym **od 2 lat** (próg umowny, do przeglądu trenera) |
 | MD+2 | Zasady ogólne |
 | MD-4 i dalej | Dowolne sesje, tylko zasady ogólne |
 | Dwa mecze w tygodniu | Krótszy cykl, tylko lekkie sesje |
@@ -28,6 +28,13 @@ Silnik = czysty, deterministyczny TypeScript (bez AI). Ten sam wynik dla tych sa
 - Nie dwie takie same sesje dzień po dniu (siła, bieganie, sprint).
 - Max 2 treningi dziennie: klubowy + 1 indywidualny. Trzech nie ma.
 - Dzień klubowy nie blokuje treningu indywidualnego.
+
+## Gdzie i kiedy zawodnik może ćwiczyć siłę
+- Onboarding pyta, gdzie można ćwiczyć: siłownia, boisko, bieżnia, własny ciężar (do wyboru kilka).
+- „Na siłownię tylko kilka razy w tygodniu” (pytanie pojawia się tylko, gdy zaznaczono siłownię) wymaga wskazania dni (`gymWeekdays`). Silnik planuje siłę **wyłącznie** w te dni; gdy żaden dozwolony dzień nie pasuje do reguł MD-x, siła nie jest wciskana na siłę – pojawia się ostrzeżenie.
+- Starszy profil z „mało dni na siłownię” bez wskazanych dni działa jak dotąd (każdy dzień).
+- Check-in „Dziś nie zrobię siły” (oraz „Nie zrobię siły tego dnia” przy sesji w planie): siła z tego dnia jest przekładana na pierwszy dozwolony dzień **nie wcześniejszy niż dzień zgłoszenia**, w kolejności MD-3 → dzień wolny → MD+2 → dzień po meczu (tylko przy stażu od 2 lat i dniu z siłownią). Przełożona sesja ma w opisie, skąd pochodzi. Zgłoszenie można cofnąć w planie („Cofnij”).
+- Wynik zależy wyłącznie od zgłoszeń i profilu (nie od „dzisiaj”), więc przełożona siła nie zmienia miejsca w kolejnych dniach. Zgłoszenia są zapisywane tylko na urządzeniu (klucz `strengthBlocked`).
 
 ## Check-in
 - Czynniki: słaby sen, złe samopoczucie, mało czasu, „dziś mniej".

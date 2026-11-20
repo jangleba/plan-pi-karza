@@ -117,11 +117,54 @@ describe("onboarding: PLAN NADAL WYNIKA Z ODPOWIEDZI", () => {
   });
 });
 
+describe("onboarding: gdzie możesz ćwiczyć i dni na siłownię trafiają do silnika", () => {
+  const strengthIdx = (a: Answers) => plan(a).days.map((d, i) => (d.session === "strength" ? i : -1)).filter((i) => i >= 0);
+  // sobotni mecz; bez ograniczeń siła jest w środę (MD-3)
+  it("tylko wybrane dni z siłownią: siła ląduje wyłącznie w nich, a profil zapisuje te dni", () => {
+    const a = answers({ equipment: ["gym", "field"], limited: true, gymDays: [1, 3], years: 3 }, { 5: "match" });
+    expect(strengthIdx(a)).toEqual([1]);
+    expect(buildProfile(a)).toMatchObject({ limitedGymAccess: true, gymWeekdays: [1, 3], equipment: ["gym", "field"] });
+    expect(strengthIdx(answers({ equipment: ["gym"], years: 3 }, { 5: "match" }))).toEqual([2]);
+  });
+  it("podgląd jest nadal dokładnie planem z profilu, także z dniami na siłownię", () => {
+    const a = answers({ limited: true, gymDays: [0, 2, 4], years: 3 }, { 5: "match", 1: "club" });
+    expect(plan(a).days.map((d) => d.session)).toEqual(planForProfile(buildProfile(a)!, weekStartOf(TODAY), { noStrengthDays: [] }).days.map((d) => d.session?.kind ?? null));
+  });
+  it("„kilka razy w tygodniu” bez siłowni w sprzęcie jest ignorowane (nie zapisujemy ograniczenia, którego nie ma)", () => {
+    const a = answers({ equipment: ["field", "track"], limited: true, gymDays: [1] }, { 5: "match" });
+    expect(buildProfile(a)).toMatchObject({ limitedGymAccess: false, equipment: ["field", "track"] });
+    expect(buildProfile(a)).not.toHaveProperty("gymWeekdays");
+    expect(validateStep(5, a)).toBeNull();
+  });
+  it("przy ograniczonym dostępie trzeba wskazać dni; bez ograniczenia dni nie są wymagane", () => {
+    expect(validateStep(5, answers({ limited: true, gymDays: [] }))).toBe("Zaznacz co najmniej jeden dzień na siłownię.");
+    expect(validateStep(5, answers({ limited: true, gymDays: [2] }))).toBeNull();
+    expect(validateStep(5, answers({ limited: false, gymDays: [] }))).toBeNull();
+  });
+  it("dzień po meczu dla siły: jedyny wolny dzień po meczu działa dopiero od 2 lat stażu", () => {
+    const only = (years: number) => answers({ years, equipment: ["gym"], limited: true, gymDays: [3] }, { 2: "match", 0: "off", 1: "off", 4: "off", 5: "off", 6: "off" }); // wolny tylko czwartek = dzień po meczu
+    expect(strengthIdx(only(1))).toEqual([]);
+    expect(strengthIdx(only(2))).toEqual([3]);
+  });
+  it("podgląd ignoruje zgłoszenia „bez siły” zapisane na urządzeniu (zależy tylko od odpowiedzi)", () => {
+    const a = answers({ years: 3 }, { 5: "match" });
+    const before = JSON.stringify(plan(a).days);
+    const store = new Map<string, string>([["bw:guest:strengthBlocked", JSON.stringify(["2026-11-18"])]]);
+    (globalThis as unknown as { localStorage: Storage }).localStorage = { getItem: (k: string) => store.get(k) ?? null, setItem: () => undefined, removeItem: () => undefined, clear: () => undefined, key: () => null, length: 1 } as Storage;
+    try { expect(JSON.stringify(plan(a).days)).toBe(before); } finally { delete (globalThis as unknown as { localStorage?: Storage }).localStorage; }
+  });
+  it("opis „co zrozumieliśmy” wymienia dni na siłownię i miejsca treningu", () => {
+    const u = understood(answers({ equipment: ["gym", "track", "bodyweight"], limited: true, gymDays: [4, 1] }, { 5: "match" }));
+    expect(u).toContain("Ćwiczysz: na siłowni, na bieżni, z własnym ciężarem");
+    expect(u).toContain("Siłownia: Wt, Pt");
+  });
+});
+
 describe("onboarding: opis „co zrozumieliśmy”", () => {
   it("każde zdanie wynika z konkretnej odpowiedzi, po polsku", () => {
     const u = understood(answers({ goals: ["speed", "strength"], equipment: ["gym", "field"] }, { 0: "club", 2: "club", 5: "match", 6: "off" }));
     expect(u).toEqual([
-      "Mecz w sobotę", "Trening w klubie: poniedziałek, środa", "Cel: szybkość i siła", "Dni, w które nie możesz: 1", "Ćwiczysz: na siłowni, na boisku lub bieżni",
+      "Mecz w sobotę", "Trening w klubie: poniedziałek, środa", "Cel: szybkość i siła", "Dni, w które nie możesz: 1", "Ćwiczysz: na siłowni, na boisku",
     ]);
     expect(understood(answers({ season: "offseason" }))[0]).toBe("Przerwa między sezonami: bez meczów, lżej");
     expect(understood(answers({}, { 1: "match", 4: "match" }))[0]).toBe("Mecz we wtorek i w piątek");

@@ -25,6 +25,13 @@ describe("kontrakt profilu na serwerze: wiek i brak daty urodzenia", () => {
     await expect(put(profile({ age: 17.5 }))).rejects.toThrow();
     await put(profile());
     expect((await q("select 1 from profiles where user_id = $1", [U1])).rows).toHaveLength(1);
+    // dni z siłownią (migracja 0009): poprawna lista przechodzi, błędny kształt jest odrzucany
+    await put(profile({ limitedGymAccess: true, gymWeekdays: [1, 3, 6] }));
+    await put(profile({ limitedGymAccess: true, gymWeekdays: [] }));
+    for (const bad of [[7], [-1], [1, 1], ["a"], [1.5], "1,3", 3, [0, 1, 2, 3, 4, 5, 6, 0], null]) {
+      await expect(put(profile({ gymWeekdays: bad })), JSON.stringify(bad)).rejects.toThrow(/gymWeekdays/);
+    }
+    expect(((await q<{ d: { gymWeekdays: number[] } }>("select data as d from profiles where user_id = $1", [U1])).rows[0]!.d).gymWeekdays).toEqual([]);
     await expect(as(U1, () => q("update profiles set data = data || '{\"birthDate\":\"2009-01-01\"}'::jsonb where user_id = $1", [U1]))).rejects.toThrow(/data urodzenia/);
   });
 

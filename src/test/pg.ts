@@ -50,7 +50,7 @@ export async function freshDb(opts: { upTo?: string; withSchedules?: boolean } =
 }
 
 /** Migracje po usunięciu radaru (dopisywane w miarę rozwoju). */
-const MIGRATIONS_AFTER: string[] = ["0008_english_progress.sql"];
+const MIGRATIONS_AFTER: string[] = ["0008_english_progress.sql", "0009_profile_gym_days.sql"];
 
 export async function asRole<T>(db: PGlite, role: "anon" | "authenticated" | "service_role", uid: string | null, fn: () => Promise<T>): Promise<T> {
   await db.exec(`set role ${role}; select set_config('request.jwt.claim.sub', '${uid ?? ""}', false)`);

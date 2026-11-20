@@ -6,10 +6,10 @@ import type { Equipment, Position, Season, SeasonGoal } from "../engine";
 import type { DayState } from "./answers";
 
 export const INTRO = {
-  tagline: "Trening, który układa się wokół Twojego meczu.",
+  tagline: "Trenuj mądrzej. Graj lepiej.",
   promises: [
-    "Plan wokół Twojego meczu i treningów w klubie",
-    "Obciążenia dopasowane do wieku i stażu",
+    "Trening dopasowany do Twojego wieku i stażu",
+    "W każdym dniu wiesz, co robić",
     "Sześć krótkich pytań, około minuty",
   ],
   start: "Zaczynamy",
@@ -43,7 +43,7 @@ export const SEASONS: Array<[Season, string, string]> = [
   ["offseason", "Przerwa między sezonami", "Utrzymujemy formę, bez meczów i lżej."],
 ];
 
-export const EQUIPMENT: Array<[Equipment, string]> = [["gym", "Siłownia"], ["bodyweight", "Własny ciężar"], ["field", "Boisko lub bieżnia"]];
+export const EQUIPMENT: Array<[Equipment, string]> = [["gym", "Siłownia"], ["field", "Boisko"], ["track", "Bieżnia"], ["bodyweight", "Własny ciężar"]];
 
 export const DAY_LABEL: Record<DayState, string> = { free: "wolny", club: "klub", match: "mecz", off: "zajęty" };
 export const dayHelp = (offseason: boolean): string => (offseason ? "Dotknij dnia, żeby zmienić: wolny, klub, zajęty." : "Dotknij dnia, żeby zmienić: wolny, klub, mecz, zajęty.");
@@ -62,15 +62,19 @@ export const LABEL = {
   years: "Od jak dawna ćwiczysz siłowo?",
   equipment: "Gdzie możesz ćwiczyć? (możesz zaznaczyć kilka)",
   limited: "Na siłownię mogę chodzić tylko kilka razy w tygodniu",
-  limitedHint: "Wtedy mocny trening siłowy zostaje też dzień po meczu.",
+  limitedHint: "Zaznacz dni, w które możesz tam pójść.",
+  gymDays: "W które dni możesz iść na siłownię?",
+  gymDaysHint: "Siłę planujemy tylko w te dni.",
+  gymDaysAfterMatch: "Dzień po meczu przeznaczamy na siłę dopiero przy stażu siłowym od 2 lat.",
+  gymDaysNone: "Zaznacz co najmniej jeden dzień na siłownię.",
 };
 
 export const BUTTON = { next: "Dalej", done: "Gotowe", back: "Wstecz" };
 
 export const PREVIEW = {
-  title: "Tak ułożymy Twój tydzień",
-  note: "To podgląd wyliczony z Twoich odpowiedzi. Gdy zmienisz dane profilu, plan ułoży się na nowo.",
-  building: "Układam Twój tydzień",
+  title: "Podgląd tygodnia",
+  note: "Podgląd zmienia się razem z Twoimi odpowiedziami.",
+  building: "Twój plan jest prawie gotowy",
   soon: "za chwilę zaczynamy",
 };
 

@@ -4,6 +4,7 @@ import type { CheckIn, Profile } from "./engine";
 import { Sheet } from "./Sheet";
 import { LegalSheet } from "./legal/LegalUi";
 import { EnglishCard } from "./english/EnglishCard";
+import { StrengthToggle } from "./StrengthToggle";
 
 // Moduł nauki ładuje się dopiero po otwarciu (osobny fragment pakietu): nie spowalnia strony głównej.
 const EnglishModule = lazy(() => import("./english/EnglishModule"));
@@ -100,10 +101,13 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn, onSettings }: {
         <Sheet title="Jak się czujesz?" onClose={() => setOpen(false)}>
           <Choice label="Sen" value={checkIn.sleep} onChange={(v) => onCheckIn({ ...checkIn, sleep: v })} />
           <Choice label="Samopoczucie" value={checkIn.feeling} onChange={(v) => onCheckIn({ ...checkIn, feeling: v })} />
-          <button onClick={() => onCheckIn({ ...checkIn, less: !checkIn.less })}
-            className={`mb-6 w-full rounded-2xl py-3.5 text-sm font-medium ${checkIn.less ? "bw-sel" : "bg-canvas text-ink"}`}>
-            Dziś mniej
-          </button>
+          <div className="mb-6 flex flex-col gap-3">
+            <button onClick={() => onCheckIn({ ...checkIn, less: !checkIn.less })}
+              className={`w-full rounded-2xl py-3.5 text-sm font-medium ${checkIn.less ? "bw-sel" : "bg-canvas text-ink"}`}>
+              Dziś mniej
+            </button>
+            <StrengthToggle profile={profile} />
+          </div>
           <button onClick={() => { onCheckIn(checkIn); setOpen(false); }} className="w-full bw-grad rounded-2xl py-4 text-base font-medium">Gotowe</button>
         </Sheet>
       )}

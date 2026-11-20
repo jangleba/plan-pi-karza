@@ -7,6 +7,7 @@ export * from "./run";
 export * from "./drill";
 export * from "./technique";
 export * from "./profile";
+export * from "./strength-move";
 export * from "./progress";
 export * from "./history";
 export * from "./lab";

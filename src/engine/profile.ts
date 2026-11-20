@@ -1,12 +1,14 @@
-import type { Level, Season, SeasonGoal } from "./types";
+import type { Level, Season, SeasonGoal, StrengthBlock } from "./types";
 import { MIN_AGE, assessAge } from "../lib/age";
 import { addDays, planWeek } from "./week";
+import { loadBlocked } from "../lib/blocked";
 
 export type Position = "bramkarz" | "obronca" | "pomocnik" | "skrzydlowy" | "napastnik";
 export const POSITION_LABEL: Record<Position, string> = {
   bramkarz: "Bramkarz", obronca: "Obrońca", pomocnik: "Pomocnik", skrzydlowy: "Skrzydłowy", napastnik: "Napastnik",
 };
-export type Equipment = "gym" | "bodyweight" | "field";
+/** Gdzie zawodnik może ćwiczyć: siłownia, własny ciężar, boisko, bieżnia (starsze profile mają tylko trzy pierwsze). */
+export type Equipment = "gym" | "bodyweight" | "field" | "track";
 
 /** Polskie poziomy rozgrywek (wpływ na silnik – do ustalenia, na razie tylko zapis). */
 export const LEAGUES = [
@@ -39,6 +41,11 @@ export interface Profile {
   offWeekdays?: number[];
   /** Mało dni na siłownię – siła pełna także dzień po meczu. */
   limitedGymAccess: boolean;
+  /**
+   * Dni tygodnia (0 = poniedziałek), w które zawodnik może iść na siłownię, gdy ma ją „tylko kilka razy w tygodniu”.
+   * Silnik planuje siłę wyłącznie w te dni. Brak (starsze profile) = każdy dzień.
+   */
+  gymWeekdays?: number[];
   /** Data rozpoczęcia planu (ISO) – od niej liczony cykl 5-tygodniowy. */
   startDate?: string;
 }
@@ -94,8 +101,16 @@ export function nextWeekUnlocked(weekStart: string, matchWeekdays: number[], tod
   return todayISO >= last;
 }
 
-/** Plan tygodnia dla profilu (wspólny dla Startu, Planu i Fuel). */
-export function planForProfile(profile: Profile, weekStart: string) {
+/** Korekty planu zgłoszone przez zawodnika: dni, w których nie zrobi siły (siła jest wtedy przekładana). */
+export interface PlanAdjust { noStrengthDays: StrengthBlock[] }
+const currentAdjust = (): PlanAdjust => ({ noStrengthDays: loadBlocked() });
+
+/**
+ * Plan tygodnia dla profilu (wspólny dla Startu, Planu i Fuel). Silnik widzi: dni z dostępem do siłowni (gdy zawodnik ma ją tylko kilka razy
+ * w tygodniu), staż siłowy (dzień po meczu dla siły dopiero od 2 lat) oraz dni, w których zawodnik zgłosił, że siły nie zrobi (siła jest przekładana).
+ */
+export function planForProfile(profile: Profile, weekStart: string, adj: PlanAdjust = currentAdjust()) {
+  const gymDays = profile.limitedGymAccess && profile.equipment.includes("gym") && profile.gymWeekdays?.length ? datesForWeek(weekStart, profile.gymWeekdays) : undefined;
   return planWeek({
     weekStart,
     matches: matchesAround(weekStart, profile.matchWeekdays),
@@ -103,6 +118,9 @@ export function planForProfile(profile: Profile, weekStart: string) {
     offDays: datesForWeek(weekStart, profile.offWeekdays ?? []),
     level: levelOf(profile.age, profile.strengthYears),
     limitedGymAccess: profile.limitedGymAccess,
+    strengthYears: profile.strengthYears,
+    ...(gymDays ? { gymDays } : {}),
+    noStrengthDays: adj.noStrengthDays,
     season: profile.season,
     goal: profile.goal,
     goal2: profile.goal2,
