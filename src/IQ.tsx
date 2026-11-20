@@ -7,7 +7,7 @@ import type { Recording, Variant, World } from "./engine/sim";
 import { addAttempt } from "./iq/attempts-store";
 import { ResultSheet, type ResultBundle } from "./iq/ResultSheet";
 import { LargeTitle } from "./ui";
-import { FIELD, headingOf, makeBall, makeGoal, pitchTexture, skyTexture } from "./iq/scene";
+import { FIELD, FOG_COLOR, headingOf, makeBall, makeGoal, makeStadium, pitchTexture, skyTexture } from "./iq/scene";
 import { ActorFactory, loadActorAssets, type Actor, type ActorAssets } from "./iq/actors";
 import { drive, followCamera, turnTo, type Drive } from "./iq/control";
 
@@ -64,7 +64,7 @@ export default function IQ() {
 
       const scene = new THREE.Scene();
       scene.background = skyTexture();
-      scene.fog = new THREE.Fog(0xeef5fc, 70, 170);
+      scene.fog = new THREE.Fog(FOG_COLOR, 110, 280);
       const cam = new THREE.PerspectiveCamera(55, 1, 0.1, 400);
 
       scene.add(new THREE.HemisphereLight(0xffffff, 0x5f8f62, 1.1));
@@ -75,11 +75,12 @@ export default function IQ() {
       sun.shadow.bias = -0.0005;
       scene.add(sun, sun.target);
 
-      const apron = new THREE.Mesh(new THREE.PlaneGeometry(FIELD.w + 40, FIELD.h + 40), new THREE.MeshStandardMaterial({ color: 0x4f9a5c, roughness: 1 }));
+      const apron = new THREE.Mesh(new THREE.PlaneGeometry(FIELD.w + 260, FIELD.h + 260), new THREE.MeshStandardMaterial({ color: 0x4f9a5c, roughness: 1 }));
       apron.rotation.x = -Math.PI / 2; apron.position.set(FIELD.w / 2, -0.01, FIELD.h / 2); apron.receiveShadow = true; scene.add(apron);
       const pitch = new THREE.Mesh(new THREE.PlaneGeometry(FIELD.w, FIELD.h), new THREE.MeshStandardMaterial({ map: pitchTexture(), roughness: 0.95 }));
       pitch.rotation.x = -Math.PI / 2; pitch.position.set(FIELD.w / 2, 0, FIELD.h / 2); pitch.receiveShadow = true; scene.add(pitch);
       scene.add(makeGoal(FIELD.w, 1), makeGoal(0, -1));
+      scene.add(makeStadium());
 
       // symulacja: 17 żywych zawodników (nasza drużyna z Tobą + rywale z bramkarzami)
       let world: World = createScenario(attempt.current % 3 as Variant, 1 + attempt.current);
@@ -340,7 +341,7 @@ export default function IQ() {
         const cx = Math.cos(dr.cam), cy = Math.sin(dr.cam);
         target.set(player.x - 8 * cx, 4.3, player.y - 8 * cy);
         look.set(player.x + 12 * cx, 0.9, player.y + 12 * cy);
-        camPos.lerp(target, 1 - Math.exp(-dt * 18)); camLook.lerp(look, 1 - Math.exp(-dt * 18));
+        camPos.lerp(target, 1 - Math.exp(-dt * 28)); camLook.lerp(look, 1 - Math.exp(-dt * 28));
         cam.position.copy(camPos); cam.lookAt(camLook);
         sun.position.set(player.x - 15, 40, player.y + 20); sun.target.position.set(player.x + 8, 0, player.y);
         renderer.render(scene, cam);

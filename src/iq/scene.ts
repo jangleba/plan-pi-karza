@@ -51,11 +51,116 @@ export function skyTexture(): THREE.CanvasTexture {
   c.width = 2; c.height = 256;
   const g = c.getContext("2d")!;
   const gr = g.createLinearGradient(0, 0, 0, 256);
-  gr.addColorStop(0, "#cfe3f7"); gr.addColorStop(0.7, "#eef5fc"); gr.addColorStop(1, "#f7f9fb");
+  gr.addColorStop(0, "#4f8fd8"); gr.addColorStop(0.45, "#8fbbea"); gr.addColorStop(0.8, "#cfe3f5"); gr.addColorStop(1, "#e3eef8");
   g.fillStyle = gr; g.fillRect(0, 0, 2, 256);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
+}
+
+/** Kolor mgły dopasowany do horyzontu nieba (żeby dal nie bielała). */
+export const FOG_COLOR = 0xcfe0f1;
+
+/** Tłum: ciemne rzędy siedzeń z kolorowymi sylwetkami (kibice w barwach obu drużyn i neutralnych). */
+function crowdTexture(): THREE.CanvasTexture {
+  const c = document.createElement("canvas");
+  c.width = 256; c.height = 256;
+  const g = c.getContext("2d")!;
+  g.fillStyle = "#2a3140"; g.fillRect(0, 0, 256, 256);
+  const kit = ["#2f6fb3", "#2f6fb3", "#c8443f", "#c8443f", "#f1f3f5", "#e0b23a", "#8a95a5", "#1d1d1f", "#4a9a63"];
+  const skin = ["#f0c9a8", "#d9a77c", "#b9835a", "#8a5b3c"];
+  let seed = 7;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  for (let row = 0; row < 32; row++) {
+    for (let x = 0; x < 256; x += 8) {
+      if (rnd() < 0.12) continue; // wolne miejsca
+      const cx = x + 4 + (rnd() - 0.5) * 2, cy = row * 8 + 5;
+      g.fillStyle = kit[Math.floor(rnd() * kit.length)]!;
+      g.fillRect(cx - 3, cy, 6, 4);
+      g.fillStyle = skin[Math.floor(rnd() * skin.length)]!;
+      g.beginPath(); g.arc(cx, cy - 1.5, 2.1, 0, Math.PI * 2); g.fill();
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
+/** Bandy reklamowe: pasy kolorów z napisem. */
+function adTexture(): THREE.CanvasTexture {
+  const c = document.createElement("canvas");
+  c.width = 1024; c.height = 64;
+  const g = c.getContext("2d")!;
+  const cells = [["#2f6fb3", "BALLWISE"], ["#f1f3f5", "TRENUJ MĄDRZEJ"], ["#c8443f", "BALLWISE"], ["#1d1d1f", "GRAJ LEPIEJ"]] as const;
+  const w = c.width / cells.length;
+  cells.forEach(([bg, txt], i) => {
+    g.fillStyle = bg; g.fillRect(i * w, 0, w, 64);
+    g.fillStyle = bg === "#f1f3f5" ? "#1d1d1f" : "#fff";
+    g.font = "700 30px system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(txt, i * w + w / 2, 33);
+  });
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = THREE.RepeatWrapping; t.repeat.set(2, 1);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
+/** Jedna trybuna: pochyły sektor z tłumem, tylna ściana i dach. Front zwrócony w stronę +z (lokalnie), oś długa = x. */
+function stand(len: number, depth: number, rise: number, crowd: THREE.Texture, wall: THREE.Material): THREE.Group {
+  const g = new THREE.Group();
+  const hyp = Math.hypot(depth, rise - 0.6);
+  const rake = new THREE.BufferGeometry();
+  rake.setAttribute("position", new THREE.Float32BufferAttribute([-len / 2, 0.6, 0, len / 2, 0.6, 0, len / 2, rise, -depth, -len / 2, rise, -depth], 3));
+  rake.setAttribute("uv", new THREE.Float32BufferAttribute([0, 0, len / 9, 0, len / 9, hyp / 9, 0, hyp / 9], 2));
+  rake.setIndex([0, 1, 2, 0, 2, 3]);
+  rake.computeVertexNormals();
+  const tex = crowd.clone(); tex.needsUpdate = true; tex.repeat.set(1, 1);
+  g.add(new THREE.Mesh(rake, new THREE.MeshStandardMaterial({ map: tex, roughness: 1, side: THREE.DoubleSide })));
+  const back = new THREE.Mesh(new THREE.PlaneGeometry(len, rise + 5), wall);
+  back.position.set(0, (rise + 5) / 2, -depth); g.add(back);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(len + 2, 0.5, depth + 4), new THREE.MeshStandardMaterial({ color: 0xe9eef4, roughness: 0.9 }));
+  roof.position.set(0, rise + 4.6, -depth / 2 + 1.5); roof.rotation.x = -0.06; g.add(roof);
+  const post = new THREE.MeshStandardMaterial({ color: 0xc9d1db, roughness: 0.8 });
+  for (let i = 0; i <= 6; i++) {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(0.5, rise + 4.5, 0.5), post);
+    p.position.set(-len / 2 + (len * i) / 6, (rise + 4.5) / 2, -depth + 0.3); g.add(p);
+  }
+  return g;
+}
+
+/** Stadion wokół boiska: bandy reklamowe i cztery trybuny z tłumem. Tanie w rysowaniu (kilkanaście brył, 2 tekstury). */
+export function makeStadium(): THREE.Group {
+  const root = new THREE.Group();
+  const crowd = crowdTexture();
+  const wall = new THREE.MeshStandardMaterial({ color: 0x3b4558, roughness: 1, side: THREE.DoubleSide });
+  const D = 8.5; // odległość trybun od linii boiska
+  const L = FIELD.w, H = FIELD.h;
+  const place = (len: number, x: number, z: number, ry: number, depth = 15, rise = 9) => {
+    const s = stand(len, depth, rise, crowd, wall);
+    s.position.set(x, 0, z); s.rotation.y = ry; root.add(s);
+  };
+  place(L + 40, L / 2, -D, 0);
+  place(L + 40, L / 2, H + D, Math.PI);
+  place(H + 24, -D, H / 2, Math.PI / 2, 13, 8);
+  place(H + 24, L + D, H / 2, -Math.PI / 2, 13, 8);
+  // bandy reklamowe 3 m od linii
+  const ad = adTexture();
+  const boardMat = new THREE.MeshStandardMaterial({ map: ad, roughness: 0.6 });
+  const board = (w: number, x: number, z: number, ry: number) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.9, 0.12), boardMat.clone());
+    (m.material as THREE.MeshStandardMaterial).map = ad.clone();
+    (m.material as THREE.MeshStandardMaterial).map!.repeat.set(w / 30, 1);
+    (m.material as THREE.MeshStandardMaterial).map!.needsUpdate = true;
+    m.position.set(x, 0.45, z); m.rotation.y = ry; root.add(m);
+  };
+  board(L + 6, L / 2, -3, 0);
+  board(L + 6, L / 2, H + 3, Math.PI);
+  board(H + 6, -3, H / 2, Math.PI / 2);
+  board(H + 6, L + 3, H / 2, -Math.PI / 2);
+  return root;
 }
 
 function netTexture(): THREE.CanvasTexture {
