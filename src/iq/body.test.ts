@@ -81,4 +81,19 @@ describe("własne ciało zawodnika", () => {
     expect(tot).toBeGreaterThan(50);
     expect(ok / tot).toBeGreaterThan(0.97);
   });
+
+  it("grubość: mocna budowa szersza od smukłej w tułowiu i udach, głowa i wysokość bez zmian", async () => {
+    const s = await setup();
+    const width = (thick: number, ymin: number, ymax: number) => {
+      const g = buildBody(s.joint, s.boneIndex, false, thick);
+      let m = 0;
+      const p = g.attributes.position!;
+      for (let i = 0; i < p.count; i++) { const y = p.getY(i); if (y >= ymin && y <= ymax) m = Math.max(m, Math.abs(p.getZ(i))); }
+      return m;
+    };
+    expect(width(1.1, 108, 140)).toBeGreaterThan(width(0.93, 108, 140) + 1.5); // głębokość tułowia
+    expect(width(1.1, 166, 178)).toBeCloseTo(width(0.93, 166, 178), 3); // głowa bez zmian
+    const hgt = (t: number) => { const g = buildBody(s.joint, s.boneIndex, false, t); g.computeBoundingBox(); return g.boundingBox!.max.y; };
+    expect(hgt(1.1)).toBeCloseTo(hgt(0.93), 3);
+  });
 });

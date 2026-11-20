@@ -29,6 +29,8 @@ function prof(table: number[][], t: number, col = 1): number {
 interface Ring { c: THREE.Vector3; a: number; b: number; part: PartId; w: W }
 
 class Builder {
+  /** Mnożnik grubości kończyn i tułowia (budowa: smukła / atletyczna / mocna). */
+  k = 1;
   pos: number[] = []; si: number[] = []; sw: number[] = []; pa: number[] = []; pb: number[] = []; bind: number[] = []; idx: number[] = [];
   constructor(private boneIndex: (n: string) => number) {}
 
@@ -52,7 +54,7 @@ class Builder {
       const row: number[] = [];
       for (let k = 0; k < M; k++) {
         const th = (k / M) * Math.PI * 2;
-        row.push(this.vertex(r.c.clone().addScaledVector(U, Math.cos(th) * r.a).addScaledVector(V, Math.sin(th) * r.b), r.part, r.w));
+        row.push(this.vertex(r.c.clone().addScaledVector(U, Math.cos(th) * r.a * this.k).addScaledVector(V, Math.sin(th) * r.b * this.k), r.part, r.w));
       }
       return row;
     });
@@ -117,8 +119,9 @@ const mix2 = (a: string, b: string, t: number): W => [[a, 1 - t], [b, t]];
  * @param joint pozycja kości w układzie szablonu (cm) po nazwie bez przedrostka `mixamorig` (np. „LeftUpLeg”)
  * @param boneIndex indeks kości w szkielecie po pełnej nazwie
  * @param keeper bramkarz: długie rękawy (koszulka na przedramionach) i rękawice
+ * @param thick grubość kończyn i tułowia (budowa); głowa, dłonie i buty zostają bez zmian
  */
-export function buildBody(joint: (name: string) => THREE.Vector3, boneIndex: (fullName: string) => number, keeper: boolean): THREE.BufferGeometry {
+export function buildBody(joint: (name: string) => THREE.Vector3, boneIndex: (fullName: string) => number, keeper: boolean, thick = 1): THREE.BufferGeometry {
   const B = new Builder((n) => boneIndex(`mixamorig${n}`));
   const J = joint;
 
@@ -134,6 +137,7 @@ export function buildBody(joint: (name: string) => THREE.Vector3, boneIndex: (fu
     const thigh: Ring[] = [];
     for (const t of [0, 0.12, 0.3, 0.45, hem]) thigh.push({ c: at(H, K, t), a: thighR(t) + (t === hem ? 2.0 : 1.4), b: (thighR(t) + (t === hem ? 2.0 : 1.4)) * 1.04, part: PART.shorts, w: thighW(t) });
     for (const t of [hem, 0.72, 0.86, 1]) thigh.push({ c: at(H, K, t), a: thighR(t), b: thighR(t) * 1.04, part: PART.skin, w: thighW(t) });
+    B.k = thick;
     B.loft(thigh, X, Z, 14, true);
 
     // goleń: skóra przy kolanie, od ok. 16% długości getry (z lekkim rąbkiem u góry), łydka lekko wypukła
@@ -144,6 +148,7 @@ export function buildBody(joint: (name: string) => THREE.Vector3, boneIndex: (fu
     for (const t of [0, 0.1, sockT]) shin.push({ c: at(K, A, t), a: shinR(t), b: shinR(t) * 1.05, part: PART.skin, w: shinW(t) });
     for (const t of [sockT, 0.24, 0.4, 0.6, 0.8, 1]) shin.push({ c: at(K, A, t), a: shinR(t) + (t === sockT ? 0.9 : 0.55), b: (shinR(t) + (t === sockT ? 0.9 : 0.55)) * 1.05, part: PART.socks, w: shinW(t) });
     B.loft(shin, X, Z, 14);
+    B.k = 1;
 
     // but: wzdłuż osi Z od pięty do czubka; wysokość cholewki ok. 10 cm (kostka na 8,7 cm)
     const boot = [[-5.8, 3.9, 3.6], [-3.3, 4.5, 4.9], [2.7, 4.8, 5.3], [10.7, 4.9, 3.9], [16.7, 4.5, 3.0], [22.2, 3.7, 2.3], [24.2, 1.6, 1.2]];
@@ -168,8 +173,10 @@ export function buildBody(joint: (name: string) => THREE.Vector3, boneIndex: (fu
     tr(134, 15.4, 12.2, PART.jersey), tr(142, 15.6, 11.2, PART.jersey), tr(146, 12.4, 9.0, PART.jersey), tr(148.2, 9.2, 7.8, PART.jersey),
     tr(150, 6.6, 6.4, PART.jersey), tr(151.5, 6.1, 5.9, PART.jersey),
   ];
+  B.k = thick;
   B.loft(torso, X, Z, 22, true);
 
+  B.k = 1;
   // ——— szyja i głowa ———
   const neckC = (y: number) => V3(0, y, prof([[151.5, -3.2], [163, -1.9]], y));
   const neckW = (y: number): W => (y < 154 ? [["Neck", 1]] : mix2("Neck", "Head", Math.min(1, (y - 154) / 8)));
@@ -197,6 +204,7 @@ export function buildBody(joint: (name: string) => THREE.Vector3, boneIndex: (fu
     const at = (p: THREE.Vector3, q: THREE.Vector3, t: number) => p.clone().lerp(q, t);
     const longSleeve = keeper;
 
+    B.k = thick;
     B.ellipsoid(sh.clone().add(V3(sg * 0.4, -0.2, 0)), 5.5, 5.0, 5.5, PART.jersey, [[`${S}Arm`, 1]], 8, 14); // bark
 
     const armR = (t: number) => prof([[0, 5.2], [0.3, 4.9], [0.65, 4.4], [1, 3.9]], t);
@@ -210,6 +218,7 @@ export function buildBody(joint: (name: string) => THREE.Vector3, boneIndex: (fu
     const foreW = (t: number): W => (t < 0.2 ? mix2(`${S}Arm`, `${S}ForeArm`, 0.5 + 2.5 * t) : t < 0.85 ? [[`${S}ForeArm`, 1]] : mix2(`${S}ForeArm`, `${S}Hand`, ((t - 0.85) / 0.15) * 0.5));
     B.loft([0, 0.3, 0.7, 1].map((t) => ({ c: at(el, wr, t), a: foreR(t) + (longSleeve ? 0.5 : 0), b: (foreR(t) + (longSleeve ? 0.5 : 0)) * 0.96, part: longSleeve ? PART.jersey : PART.skin, w: foreW(t) })), Y, Z, 12);
 
+    B.k = 1;
     // dłoń: płaska „łopatka” (w T-pose dłonie są poziomo, dłoń szeroka w osi Z)
     const hand = [[0, 3.1, 2.4], [0.12, 4.4, 2.1], [0.35, 4.9, 2.1], [0.55, 4.3, 1.8], [0.8, 3.4, 1.5], [0.96, 2.4, 1.1], [1, 0.9, 0.7]];
     const gl = keeper ? 0.45 : 0, hp = keeper ? PART.gloves : PART.skin;

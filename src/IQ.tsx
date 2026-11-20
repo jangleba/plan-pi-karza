@@ -8,7 +8,10 @@ import { addAttempt } from "./iq/attempts-store";
 import { ResultSheet, type ResultBundle } from "./iq/ResultSheet";
 import { LargeTitle } from "./ui";
 import { BALL_VISUAL_R, FIELD, FOG_COLOR, headingOf, makeBall, dashTexture, makeBallShadow, makeGoal, makePitch, makeStadium, skyTexture } from "./iq/scene";
-import { ActorFactory, loadActorAssets, type Actor, type ActorAssets } from "./iq/actors";
+import { ActorFactory, getActorAssets, type Actor, type ActorAssets } from "./iq/actors";
+import { LookEditor } from "./iq/LookEditor";
+import { TEAM_COLORS, loadLook, opponentKit, type PlayerLook } from "./iq/look";
+import { kitFromLook } from "./iq/lookKit";
 import { drive, followCamera, turnTo, type Drive } from "./iq/control";
 
 const BALL_R = BALL_VISUAL_R;
@@ -36,6 +39,8 @@ export default function IQ() {
   const [aimName, setAimName] = useState<string | null>(null);
   const [fallback, setFallback] = useState(false);
   const [variant, setVariant] = useState<Variant>(0);
+  const [myLook, setMyLook] = useState<PlayerLook>(loadLook);
+  const [editor, setEditor] = useState(false);
   const [poss, setPoss] = useState<Possession>("me");
 
   const setP = (p: Phase) => { phaseRef.current = p; setPhase(p); };
@@ -48,7 +53,7 @@ export default function IQ() {
     (async () => {
       // postacie Mixamo (gładko oskórowane); gdy się nie wczytają – sylwetki proceduralne
       let assets: ActorAssets | null = null;
-      try { assets = await loadActorAssets(); } catch { setFallback(true); }
+      try { assets = await getActorAssets(); } catch { setFallback(true); }
       if (!alive) return;
       cleanup = start(assets);
       setP("intro");
@@ -95,13 +100,16 @@ export default function IQ() {
       const P0 = world.agents.find((a) => a.id === "P")!;
 
       const factory = new ActorFactory(assets);
-      const home = { jersey: 0x2f6fb3, shorts: 0xffffff, socks: 0x2f6fb3, collar: 0xffffff };
-      const away = { jersey: 0xc8443f, shorts: 0x1d1d1f, socks: 0xc8443f, collar: 0x1d1d1f };
+      // stroje: nasz kolor z wyglądu zawodnika, rywale w kolorze kontrastowym; bramkarze w kolorach różnych od pól
+      const home = TEAM_COLORS[myLook.teamColor]!, away = opponentKit(myLook.teamColor);
+      const gkUs = [0xe0b23a, 0x8a95a5].find((c) => c !== home.jersey)!, gkThem = [0x4a9a63, 0xd9a23a, 0x6a5acd].find((c) => c !== home.jersey && c !== gkUs && c !== away.jersey)!;
       const keeperKit = (jersey: number) => ({ jersey, shorts: 0x1d1d1f, socks: 0x1d1d1f, collar: 0x1d1d1f, keeper: true, gloves: 0xe9eef3 });
       const actors = new Map<string, Actor>();
       world.agents.forEach((a, i) => {
         const gkp = a.role === "GK";
-        const kit = gkp ? { ...keeperKit(a.team === "us" ? 0xe0b23a : 0x4a9a63), number: a.number } : { ...(a.team === "us" ? home : away), number: a.number };
+        const kit = a.id === "P" ? kitFromLook(myLook)
+          : gkp ? { ...keeperKit(a.team === "us" ? gkUs : gkThem), number: a.number }
+          : { jersey: (a.team === "us" ? home : away).jersey, shorts: (a.team === "us" ? home : away).shorts, socks: (a.team === "us" ? home : away).socks, collar: (a.team === "us" ? home : away).collar, number: a.number };
         const actor = factory.make(kit, i, gkp ? "keeper" : a.team === "them" ? "defend" : "run");
         actors.set(a.id, actor); scene.add(actor.root);
       });
@@ -406,7 +414,7 @@ export default function IQ() {
     }
 
     return () => { alive = false; cleanup(); };
-  }, []);
+  }, [myLook]); // zmiana wyglądu odbudowuje scenę (nowa, losowa sytuacja)
 
   const hint = poss === "foe" ? "Rywal z piłką – dobiegnij i odbierz" : poss === "loose" ? "Piłka luźna" : poss === "mate" ? "Piłka u kolegi" : null;
 
@@ -449,16 +457,18 @@ export default function IQ() {
                 <span>Sytuacja</span>
                 <span className="rounded-full bg-hairline/70 px-2 py-0.5 normal-case tracking-normal">Próba {attempt.current + 1} · {VARIANTS[variant]!.title}</span>
               </div>
-              <p className="mt-1 text-[15px] leading-snug text-ink">Jesteś numerem 8 z piłką. Naciska Cię dwóch napastników. {VARIANTS[variant]!.defence}</p>
+              <p className="mt-1 text-[15px] leading-snug text-ink">Jesteś numerem {myLook.number} z piłką. Naciska Cię dwóch napastników. {VARIANTS[variant]!.defence}</p>
               <p className="mt-2 text-[15px] leading-snug text-ink">Wyjdź z pressingu. Strata = kontra 3 na 2 – wtedy to Ty ją gasisz.</p>
               <p className="mt-2 text-xs text-muted">Joystick: do przodu – bieg, w bok – skręt (kamera obraca się za Tobą). Patrz w stronę kolegi i podaj.</p>
               {fallback && <p className="mt-2 text-xs text-muted">Uproszczone postacie (nie udało się wczytać modeli).</p>}
               <button onClick={() => setP("play")} className="bw-grad mt-4 w-full rounded-2xl py-3.5 text-base font-medium">Graj</button>
+              <button onClick={() => setEditor(true)} className="mt-2 w-full rounded-2xl py-2.5 text-sm text-accent">Mój zawodnik: wygląd i numer</button>
             </div>
           </div>
         )}
       </div>
 
+      {editor && <LookEditor initial={myLook} onSave={(l) => { setMyLook(l); setEditor(false); }} onClose={() => setEditor(false)} />}
       {result && <ResultSheet r={result} onNext={() => reset.current(true)} onSame={() => reset.current(false)} />}
     </main>
   );
