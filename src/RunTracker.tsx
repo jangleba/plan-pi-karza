@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  addPoint, averagePace, currentPace, distanceAt, emptyTrack, formatPace, intervalTimeline, kmSplits, localISO, paceSeries, phaseAt, phaseResults,
+  addPoint, averagePace, currentPace, distanceAt, emptyTrack, compactRoute, formatPace, intervalTimeline, kmSplits, localISO, paceSeries, phaseAt, phaseResults,
 } from "./engine";
-import type { GeoPoint, RunPhase, RunSession, TrackState } from "./engine";
-import { scoped } from "./lib/store";
+import type { RunPhase, RunSession, TrackState } from "./engine";
+import type { RoutePoint } from "./engine/routeMap";
+import { HAS_MAP, RunMap } from "./RunMap";
+import { loadRuns, saveRuns } from "./lib/runs";
 import { beep, buzz, prepareAudio } from "./tools/feedback";
 
-const TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
 
 type Status = "ready" | "running" | "paused" | "done";
 
@@ -21,58 +22,6 @@ function timelineFor(session: RunSession): RunPhase[] {
   return session.blocks.flatMap((b) =>
     b.reps > 1 ? intervalTimeline(b) : [{ kind: "work" as const, seconds: b.workS, label: b.label }],
   );
-}
-
-/** Szkic trasy (gdy brak tokenu Mapbox): rzut lat/lon na płaszczyznę. */
-function RouteSketch({ points }: { points: GeoPoint[] }) {
-  if (points.length < 2) {
-    return <div className="flex h-full items-center justify-center text-sm text-muted">Trasa pojawi się po starcie</div>;
-  }
-  const lat0 = points[0]!.lat, k = Math.cos((lat0 * Math.PI) / 180);
-  const xy = points.map((p) => ({ x: p.lon * k, y: -p.lat }));
-  const xs = xy.map((p) => p.x), ys = xy.map((p) => p.y);
-  const minX = Math.min(...xs), minY = Math.min(...ys);
-  const span = Math.max(Math.max(...xs) - minX, Math.max(...ys) - minY) || 1e-6;
-  const n = xy.map((p) => ({ x: 8 + ((p.x - minX) / span) * 84, y: 8 + ((p.y - minY) / span) * 84 }));
-  const d = n.map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
-  const last = n[n.length - 1]!;
-  return (
-    <svg viewBox="0 0 100 100" className="h-full w-full">
-      <path d={d} fill="none" stroke="#1b2a41" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={last.x} cy={last.y} r="2" fill="#1b2a41" />
-    </svg>
-  );
-}
-
-/** Mapa Mapbox (kafelki przez Leaflet), ładowana leniwie. */
-function MapView({ points }: { points: GeoPoint[] }) {
-  const el = useRef<HTMLDivElement>(null);
-  const map = useRef<{ setLatLngs: (p: [number, number][]) => void; follow: (p: [number, number]) => void } | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    let destroy = () => {};
-    void (async () => {
-      const L = (await import("leaflet")).default;
-      await import("leaflet/dist/leaflet.css");
-      if (cancelled || !el.current) return;
-      const m = L.map(el.current, { zoomControl: false, attributionControl: true }).setView([52.23, 21.01], 16);
-      L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/256/{z}/{x}/{y}@2x?access_token=${TOKEN}`, {
-        attribution: "© Mapbox © OpenStreetMap",
-        maxZoom: 19,
-      }).addTo(m);
-      const line = L.polyline([], { color: "#1b2a41", weight: 4 }).addTo(m);
-      map.current = { setLatLngs: (p) => line.setLatLngs(p), follow: (p) => m.setView(p, m.getZoom(), { animate: true }) };
-      destroy = () => m.remove();
-    })();
-    return () => { cancelled = true; destroy(); };
-  }, []);
-  useEffect(() => {
-    if (!map.current || !points.length) return;
-    const ll = points.map((p) => [p.lat, p.lon] as [number, number]);
-    map.current.setLatLngs(ll);
-    map.current.follow(ll[ll.length - 1]!);
-  }, [points]);
-  return <div ref={el} className="h-full w-full" />;
 }
 
 /** Podsumowanie po biegu: wykres tempa w czasie i porównanie powtórzeń (tylko z tego, co zmierzył GPS). */
@@ -218,6 +167,7 @@ export function RunTracker({ session, onClose, onFinish }: {
 
   const phase = ph ? timeline[ph.index]! : null;
   const block = session.blocks[0];
+  const mapPoints = useMemo<RoutePoint[]>(() => track.points.map((p) => ({ lat: p.lat, lon: p.lon, t: p.t / 1000 })), [track.points]);
   const splits = kmSplits(track);
   const at5 = elapsed >= 300_000 ? distanceAt(track, 300_000) : null;
 
@@ -225,9 +175,10 @@ export function RunTracker({ session, onClose, onFinish }: {
     <div className="bw-sheet fixed inset-0 z-40 flex flex-col bg-canvas">
       {flash && <div key={flash.n} className={`bw-flash pointer-events-none fixed inset-0 z-[600] ${flash.kind === "rest" ? "bg-club" : "bg-accent"}`} aria-hidden="true" />}
       <div className="relative h-[24vh] w-full overflow-hidden border-b border-hairline bg-hairline/50">
-        {TOKEN ? <MapView points={track.points} /> : <RouteSketch points={track.points} />}
+        <RunMap points={mapPoints} live={status === "running" || status === "paused"} />
         <button onClick={() => { stopGps(); onClose(); }} className="absolute right-3 top-3 z-[500] rounded-full bg-card/90 px-3 py-1 text-sm text-muted">Zamknij</button>
-        {!TOKEN && <span className="absolute bottom-2 left-3 text-[11px] text-muted">Mapa po dodaniu tokenu Mapbox</span>}
+        {!HAS_MAP && <span className="absolute left-3 top-3 text-[11px] text-muted">Pełna mapa po dodaniu tokenu Mapbox</span>}
+        {mapPoints.length > 1 && <span className="absolute bottom-2 left-3 z-[500] flex items-center gap-1.5 rounded-full bg-card/85 px-2 py-0.5 text-[10px] text-muted backdrop-blur"><span className="h-1.5 w-8 rounded-full" style={{ background: "linear-gradient(90deg,#2e9e62,#f0b429,#e0554f)" }} />szybko → wolno</span>}
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 pt-4">
@@ -311,15 +262,14 @@ export function RunTracker({ session, onClose, onFinish }: {
 
 function saveRun(track: TrackState, elapsedMs: number) {
   try {
-    const runs = JSON.parse(scoped.getItem("runs") ?? "[]") as unknown[];
+    const runs = loadRuns();
     runs.push({
       date: localISO(),
       distanceM: Math.round(track.distanceM),
       elapsedMs: Math.round(elapsedMs),
       splits: kmSplits(track).map((s) => Math.round(s)),
-      // co 5. punkt wystarcza do narysowania trasy
-      route: track.points.filter((_, i) => i % 5 === 0).map((p) => [Number(p.lat.toFixed(5)), Number(p.lon.toFixed(5))]),
+      route: track.points.length ? compactRoute(track.points).map(([lat, lon, t]) => ({ lat, lon, t })) : [], // do 500 punktów z czasem (kolory tempa na mapie)
     });
-    scoped.setItem("runs", JSON.stringify(runs));
+    saveRuns(runs);
   } catch { /* brak pamięci */ }
 }
