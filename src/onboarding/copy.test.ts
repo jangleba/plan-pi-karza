@@ -13,7 +13,7 @@ describe("onboarding: język", () => {
   it("celów i okresów nadal jest tyle samo i mają te same wartości co w silniku planu (plan się nie zmienił)", () => {
     expect(GOALS.map((g) => g[0])).toEqual(["speed", "strength", "endurance", "return"]);
     expect(SEASONS.map((s) => s[0])).toEqual(["preseason", "inseason", "offseason"]);
-    expect(EQUIPMENT.map((e) => e[0])).toEqual(["gym", "field", "track", "bodyweight"]);
+    expect(EQUIPMENT.map((e) => e[0])).toEqual(["gym", "field", "track"]);
     expect(FEEL_NOW.map((f) => f[0])).toEqual(["slow", "duels", "stamina"]);
     expect(POSITIONS.map((p) => p[0])).toEqual(["bramkarz", "obronca", "pomocnik", "skrzydlowy", "napastnik"]);
   });
@@ -30,10 +30,9 @@ describe("onboarding: język", () => {
     for (const bad of ["ułożymy", "Układam", "układa", "ułożę"]) expect(t, bad).not.toContain(bad);
     expect(INTRO.tagline.length).toBeLessThanOrEqual(32);
   });
-  it("pytanie o miejsca treningu rozdziela boisko i bieżnię; „kilka razy w tygodniu” nie ma osobnego wyboru dni", () => {
-    expect(EQUIPMENT.map((e) => e[1])).toEqual(["Siłownia", "Boisko", "Bieżnia", "Własny ciężar"]);
-    expect(LABEL.limited).toMatch(/tylko kilka razy w tygodniu/);
-    expect(LABEL.limitedHint).toMatch(/2 lat/);
+  it("pytanie o sprzęt rozdziela boisko i bieżnię, jest opcjonalne i nie pyta o „kilka razy w tygodniu”", () => {
+    expect(EQUIPMENT.map((e) => e[1])).toEqual(["Siłownia", "Boisko", "Bieżnia"]);
+    expect(Object.keys(LABEL)).not.toContain("limited");
     expect(Object.keys(LABEL).filter((k) => /gymDays/i.test(k))).toEqual([]);
   });
   it("informacja o wieku 16+ jest widoczna przy pytaniu o wiek", () => {
