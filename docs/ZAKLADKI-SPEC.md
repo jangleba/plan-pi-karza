@@ -191,3 +191,8 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 
 ## Start – Piłkarskie szanse (2026-11-19)
 - Radar „Piłkarskie szanse” został usunięty z aplikacji (patrz `docs/AUDYT-STATUS.md`). Pod gotowością jest karta „Piłkarski angielski”: lekcja, czas, powtórki na dziś, przycisk „Rozpocznij”/„Kontynuuj”.
+
+## Narzędzia treningowe: Tracker, Bodźce, Losowanie, ćwiczenia z piłką (2026-11-20)
+- **Tracker biegu** (`RunTracker.tsx`, `engine/track.ts`): sygnał dźwiękowy i pełnoekranowy błysk koloru (praca / przerwa) przy zmianie fazy oraz odliczanie 3-2-1 (wibracja nie działa w Safari na iPhonie); duży licznik fazy z paskiem i numerem powtórzenia; po biegu wykres tempa i porównanie powtórzeń (`paceSeries`, `phaseResults`); przerwa w GPS dłuższa niż 30 s nie dolicza prostej linii (`MAX_GAP_S`); ostrzeżenia o braku i słabym sygnale; po powrocie do aplikacji GPS i blokada ekranu włączają się ponownie. NIE sprawdzone na telefonie z prawdziwym GPS.
+- **Bodźce / Losowanie** (`tools/`): ustawienia z pamięci są walidowane (`loadSaved`, `loadDraw`), Losowanie pamięta ostatni wybór i nie pozwala zgasnąć ekranowi; w Bodźcach pauza dotknięciem ekranu i automatyczna pauza po zgaszeniu ekranu. Kombinacja „kolor + strzałka” już była.
+- **Ćwiczenia z piłką** (`engine/technique.ts`, `engine/drillAnim.ts`, `Pitch.tsx`): 13 ćwiczeń w trzech grupach (prowadzenie i zwody, pierwszy kontakt i podania, wykończenie i strzały; wykończenie tylko dla pomocnika, skrzydłowego i napastnika). Odtwarzacz na szkicu: zawodnik i piłka przechodzą kroki po strzałkach (bieg: zawodnik, prowadzenie: zawodnik z piłką, podanie i strzał: leci piłka), start/pauza, prędkość 1× i 0,5×, przewijanie, podpis kroku. Treść 9 nowych ćwiczeń to szkice własne **do przeglądu trenera**.

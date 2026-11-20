@@ -5,6 +5,7 @@ export * from "./library";
 export * from "./adapt";
 export * from "./run";
 export * from "./drill";
+export * from "./drillAnim";
 export * from "./technique";
 export * from "./profile";
 export * from "./day-skip";

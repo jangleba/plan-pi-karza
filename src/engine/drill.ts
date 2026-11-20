@@ -12,11 +12,18 @@ export interface Arrow {
   points: Point[];
   /** Kolejność w serii (1, 2, 3…). */
   step?: number;
+  /** Krótki opis kroku pokazywany podczas animacji (bez niego: nazwa strzałki). */
+  note?: string;
 }
+
+/** Grupy ćwiczeń z piłką w sesji techniki. */
+export type DrillGroup = "dribble" | "touch" | "finish";
+export const DRILL_GROUPS: Array<[DrillGroup, string]> = [["dribble", "Prowadzenie i zwody"], ["touch", "Pierwszy kontakt i podania"], ["finish", "Wykończenie i strzały"]];
 
 export interface Drill {
   id: string;
   title: string;
+  group: DrillGroup;
   /** Zakres rysowanego fragmentu boiska w metrach. */
   field: { width: number; height: number; kind: "full" | "half" | "patch" };
   cones: Cone[];
