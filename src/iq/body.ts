@@ -86,22 +86,22 @@ function buildPrims(J: (n: string) => THREE.Vector3, keeper: boolean, th: number
     for (let i = 1; i < 4; i++) if (y <= a[i]![1]) return mix(a[i - 1]![0], a[i]![0], (y - a[i - 1]![1]) / (a[i]![1] - a[i - 1]![1]));
     return [["Spine2", 1]];
   };
-  ell(0, PART.shorts, 1.1, V(0, 99, 0.5), [13.4 * th, 10.8, 10.8 * th], torsoW);               // miednica
-  ell(0, PART.jersey, 0.9, V(0, 104.6, 0.8), [14.2 * th, 3.2, 11.6 * th], torsoW);              // dół koszulki nad spodenkami
-  ell(0, PART.jersey, 0.9, V(0, 113, 1.4), [11.8 * th, 9.8, 9.8 * th], torsoW);                 // talia
-  ell(0, PART.jersey, 0.9, V(0, 129.5, 0.2), [14.8 * th, 12.4, 11.6 * th], torsoW);             // klatka piersiowa (szeroka: sylwetka V)
-  ell(0, PART.jersey, 0.9, V(0, 141.0, -2.6), [14.2 * th, 6.6, 8.8], torsoW);                   // kapturowy i górna część pleców
+  ell(0, PART.shorts, 1.0, V(0, 99.5, 0.0), [13.2 * th, 10.6, 11.2 * th], torsoW);               // miednica
+  ell(0, PART.jersey, 0.6, V(0, 104.4, 0.6), [12.8 * th, 3.0, 11.0 * th], torsoW);              // dół koszulki nad spodenkami
+  ell(0, PART.jersey, 0.8, V(0, 113, 1.4), [12.6 * th, 9.8, 11.2 * th], torsoW);                 // talia
+  ell(0, PART.jersey, 0.8, V(0, 129.5, 0.8), [15.6 * th, 12.6, 13.6 * th], torsoW);             // klatka piersiowa (szeroka: sylwetka V)
+  ell(0, PART.jersey, 0.8, V(0, 142.6, -2.4), [16.6 * th, 6.2, 9.8], torsoW);                   // kapturowy i górna część pleców
   for (const s of [1, -1]) ell(0, PART.jersey, 0.5, V(s * 6.8, 134.0, 3.6), [7.0, 4.2, 3.4], torsoW); // mostek: tylko lekkie zarysowanie mięśni piersiowych
   cone(0, PART.jersey, 0.5, V(0, 148.0, -3.2), V(0, 150.6, -3.0), 7.1, 6.7, () => [["Neck", 1]]); // kołnierz
-  cone(0, PART.skin, 0, V(0, 150.0, -3.1), V(0, 161.5, -1.7), 6.5, 5.6, (_t, y) => (y < 154 ? [["Neck", 1]] : mix("Neck", "Head", Math.min(1, (y - 154) / 8)))); // szyja
+  cone(0, PART.skin, 0, V(0, 150.0, -3.1), V(0, 160.0, -1.7), 6.4, 5.6, (_t, y) => (y < 154 ? [["Neck", 1]] : mix("Neck", "Head", Math.min(1, (y - 154) / 8)))); // szyja
 
   // ——— głowa ———
   const H: W = [["Head", 1]];
   const hw = () => H;
-  ell(5, PART.skin, 0, V(0, 172.4, 0.8), [8.8, 10.8, 9.7], hw);   // czaszka
-  ell(5, PART.skin, 0, V(0, 167.2, 3.4), [7.3, 8.4, 7.2], hw);    // policzki i żuchwa
-  ell(5, PART.skin, 0, V(0, 162.8, 4.8), [4.2, 3.4, 4.4], hw);    // broda
-  ell(5, PART.skin, 0, V(0, 168.4, 10.4), [1.6, 2.6, 2.0], hw);   // nos
+  ell(5, PART.skin, 0, V(0, 172.2, 0.8), [9.0, 11.0, 10.0], hw);   // czaszka
+  ell(5, PART.skin, 0, V(0, 166.0, 3.4), [7.6, 8.4, 7.4], hw);    // policzki i żuchwa
+  ell(5, PART.skin, 0, V(0, 161.0, 4.8), [4.4, 3.4, 4.6], hw);    // broda
+  ell(5, PART.skin, 0, V(0, 167.8, 10.8), [1.7, 2.6, 2.0], hw);   // nos
   ell(5, PART.skin, 0, V(0, 174.5, 8.4), [6.0, 1.4, 2.2], hw);    // łuki brwiowe
   for (const s of [1, -1]) ell(5, PART.skin, 0, V(s * 8.1, 171.4, 0.2), [1.1, 2.8, 1.9], hw); // uszy
 
@@ -114,13 +114,13 @@ function buildPrims(J: (n: string) => THREE.Vector3, keeper: boolean, th: number
     const ARM: [THREE.Vector3, THREE.Vector3] = [sh, el], FORE: [THREE.Vector3, THREE.Vector3] = [el, wr];
     const hand: W = [[`${S}Hand`, 1]];
 
-    ell(g, PART.jersey, 0.8, sh.clone().add(V(sg * 1.6, -0.3, 0.2)), [6.2 * th, 6.0 * th, 6.2 * th], () => [[`${S}Arm`, 1]]); // naramiennik
+    ell(g, PART.jersey, 0.8, sh.clone().add(V(sg * 2.6, -0.3, 0.2)), [7.0 * th, 6.5 * th, 6.8 * th], () => [[`${S}Arm`, 1]]); // naramiennik
     const mid = lerp(sh, el, 0.6);
-    cone(g, PART.jersey, 0.8, sh, mid, 5.5 * th, 4.8 * th, upW);            // rękaw
-    cone(g, PART.skin, 0, mid, el, 4.7 * th, 4.1 * th, upW);
-    ell(g, PART.jersey, 0.8, lerp(sh, el, 0.4).add(V(0, 0.4, 1.0)), [8.4, 5.2 * th, 5.3 * th], upW, ARM); // dwugłowy i trójgłowy
-    cone(g, keeper ? PART.jersey : PART.skin, keeper ? 0.8 : 0, el, wr, 4.5 * th, 3.0 * th, foW);
-    ell(g, keeper ? PART.jersey : PART.skin, keeper ? 0.8 : 0, lerp(el, wr, 0.28), [7.4, 4.5 * th, 4.4 * th], foW, FORE); // mięsień przedramienia
+    cone(g, PART.jersey, 0.7, sh, mid, 6.0 * th, 5.2 * th, upW);            // rękaw
+    cone(g, PART.skin, 0, mid, el, 5.0 * th, 4.4 * th, upW);
+    ell(g, PART.jersey, 0.8, lerp(sh, el, 0.4).add(V(0, 0.4, 1.0)), [8.4, 5.8 * th, 5.9 * th], upW, ARM); // dwugłowy i trójgłowy
+    cone(g, keeper ? PART.jersey : PART.skin, keeper ? 0.8 : 0, el, wr, 4.9 * th, 3.2 * th, foW);
+    ell(g, keeper ? PART.jersey : PART.skin, keeper ? 0.8 : 0, lerp(el, wr, 0.28), [7.4, 5.0 * th, 4.9 * th], foW, FORE); // mięsień przedramienia
     const hp = keeper ? PART.gloves : PART.skin, hi = keeper ? 0.6 : 0;
     ell(g, hp, hi, lerp(wr, tip, 0.42), [8.2, 2.1, 4.3], () => hand);       // dłoń
     ell(g, hp, hi, lerp(wr, tip, 0.8), [4.6, 1.6, 3.2], () => hand);        // palce
@@ -135,7 +135,7 @@ function buildPrims(J: (n: string) => THREE.Vector3, keeper: boolean, th: number
     const thW = (t: number): W => (t < 0.12 ? [[`${S}UpLeg`, 0.55], ["Hips", 0.45]] : t < 0.78 ? [[`${S}UpLeg`, 1]] : mix(`${S}UpLeg`, `${S}Leg`, ((t - 0.78) / 0.22) * 0.5));
     const shW = (t: number): W => (t < 0.2 ? [[`${S}UpLeg`, 0.45 * (1 - t / 0.2)], [`${S}Leg`, 1 - 0.45 * (1 - t / 0.2)]] : t < 0.85 ? [[`${S}Leg`, 1]] : mix(`${S}Leg`, `${S}Foot`, ((t - 0.85) / 0.15) * 0.5));
     
-    ell(g, PART.shorts, 1.4, Hp.clone().add(V(sg * -0.4, 0.5, -5.8)), [8.6, 8.6, 7.6], () => [[`${S}UpLeg`, 0.45], ["Hips", 0.55]]); // pośladek
+    ell(g, PART.shorts, 0.9, Hp.clone().add(V(sg * -1.2, 0.0, -4.6)), [7.2, 7.4, 5.6], () => [[`${S}UpLeg`, 0.4], ["Hips", 0.6]]); // pośladek (delikatny)
     const hem = lerp(Hp, K, 0.5);
     cone(g, PART.shorts, 1.1, Hp, hem, 7.4 * th, 6.6 * th, thW);                                  // nogawka spodenek
     cone(g, PART.skin, 0, hem, K, 6.6 * th, 5.5 * th, thW);                                       // udo pod spodenkami

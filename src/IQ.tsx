@@ -371,9 +371,9 @@ export default function IQ() {
         // kamera za plecami zawodnika, obraca się razem z nim (kierunek dogania płynnie w sterowaniu)
         const cx = Math.cos(dr.cam), cy = Math.sin(dr.cam);
         // bliżej i niżej niż wcześniej (8 m / 4,3 m): zawodnik i piłka większe na małym ekranie, nadal widać kolegów przed sobą
-        const ov = import.meta.env.DEV ? (window as unknown as { __camOv?: { back: number; up: number; ahead: number; lookY: number } }).__camOv : undefined;
-        const back = ov?.back ?? CAM.back, up = ov?.up ?? CAM.up, ahead = ov?.ahead ?? CAM.ahead, lookY = ov?.lookY ?? CAM.lookY;
-        target.set(player.x - back * cx, up, player.y - back * cy);
+        const ov = import.meta.env.DEV ? (window as unknown as { __camOv?: { back: number; up: number; ahead: number; lookY: number; side?: number } }).__camOv : undefined;
+        const back = ov?.back ?? CAM.back, up = ov?.up ?? CAM.up, ahead = ov?.ahead ?? CAM.ahead, lookY = ov?.lookY ?? CAM.lookY, side = ov?.side ?? 0;
+        target.set(player.x - back * cx - side * cy, up, player.y - back * cy + side * cx);
         look.set(player.x + ahead * cx, lookY, player.y + ahead * cy);
         if (ov) { camPos.copy(target); camLook.copy(look); }
         else { camPos.lerp(target, 1 - Math.exp(-dt * 28)); camLook.lerp(look, 1 - Math.exp(-dt * 28)); }
