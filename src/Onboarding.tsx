@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { FEEL_NOW, LEAGUES, MIN_AGE, localISO, saveFeeling } from "./engine";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { FEEL_NOW, LEAGUES, MIN_AGE, saveFeeling } from "./engine";
 import type { FeelNow, Position, Profile } from "./engine";
 import { Wheel } from "./Wheel";
 import { Sheet } from "./Sheet";
-import { LAST_STEP, buildProfile, initialAnswers, nextDayState, previewWeek, sessionCount, understood, validateStep, type Answers, type DayState, type PreviewDay } from "./onboarding/answers";
+import { LAST_STEP, buildProfile, initialAnswers, WEEKDAY_SHORT, nextDayState, understood, validateStep, type Answers, type DayState } from "./onboarding/answers";
 import { BUTTON, DAY_LABEL, EQUIPMENT, GOALS, INTRO, LABEL, POSITIONS, PREVIEW, SEASONS, STEP_HINT, STEP_TITLE, dayHelp, yearsText } from "./onboarding/copy";
 
 const range = (a: number, b: number, step = 1) => Array.from({ length: Math.floor((b - a) / step) + 1 }, (_, i) => a + i * step);
@@ -128,31 +128,6 @@ function PitchPicker({ value, onPick }: { value?: Position; onPick: (p: Position
   );
 }
 
-/** Podgląd tygodnia: komórki zmieniają się na żywo wraz z odpowiedziami (ten sam planer co w aplikacji). */
-const TONE: Record<PreviewDay["tone"], string> = {
-  match: "bw-sel", club: "bg-club-soft text-club shadow-[inset_0_0_0_1px_#bfe5cf]", train: "bg-card text-ink shadow-[inset_0_0_0_1px_var(--color-hairline)]", rest: "bg-canvas text-muted", off: "bg-hairline text-muted line-through",
-};
-function WeekPreview({ days, warnings }: { days: PreviewDay[]; warnings: string[] }) {
-  const n = sessionCount(days);
-  return (
-    <section className="rounded-3xl border border-hairline bg-card p-4" aria-label={PREVIEW.title}>
-      <h2 className="text-[13px] font-semibold">{PREVIEW.title}</h2>
-      <p className="mt-0.5 text-xs text-muted" role="status">{n} {n === 1 ? "trening indywidualny" : n >= 2 && n <= 4 ? "treningi indywidualne" : "treningów indywidualnych"} w tygodniu</p>
-      <div className="mt-3 grid grid-cols-7 gap-1.5">
-        {days.map((d, i) => (
-          <div key={`${i}-${d.title}-${d.extra ?? ""}`} className={`bw-pop flex h-[72px] flex-col items-center justify-center rounded-xl px-0.5 text-center ${TONE[d.tone]}`}>
-            <span className="text-[11px] font-semibold">{d.weekday}</span>
-            <span className="mt-0.5 text-[9px] leading-tight">{d.title}</span>
-            {d.extra && <span className="mt-0.5 rounded-full bg-white/70 px-1 text-[8px] leading-tight text-ink">{d.extra}</span>}
-          </div>
-        ))}
-      </div>
-      {warnings.length > 0 && <p className="mt-2 text-xs text-yellow-ink">{warnings[0]}</p>}
-      <p className="mt-2 text-xs text-muted">{PREVIEW.note}</p>
-    </section>
-  );
-}
-
 /** Ekran przejścia: tydzień „się układa”, a pod spodem to, co zrozumieliśmy z odpowiedzi. */
 function Building({ name, lines, onDone }: { name: string; lines: string[]; onDone: () => void }) {
   const ms = Math.min(3600, 2700 + lines.length * 260);
@@ -197,7 +172,6 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
   const [building, setBuilding] = useState<Profile | null>(null);
   const busy = useRef(false);
   const set = (patch: Partial<Answers>) => { setError(""); setA((cur) => ({ ...cur, ...patch })); };
-  const preview = useMemo(() => previewWeek(a, localISO()), [a]);
 
   /** Przejście do kroku: krótkie wyjście bieżącego, potem wejście następnego (z kierunkiem). */
   const go = (n: number) => {
@@ -366,9 +340,9 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
                 {a.days.map((d, i) => {
                   const st: DayState = seasonOff && d === "match" ? "free" : d;
                   return (
-                    <button key={`${i}-${st}`} aria-label={`${preview.days[i]!.weekday}: ${DAY_LABEL[st]}`} onClick={() => { tap(); set({ days: a.days.map((x, k) => (k === i ? nextDayState(st, a.season) : x)) }); }}
+                    <button key={`${i}-${st}`} aria-label={`${WEEKDAY_SHORT[i]!}: ${DAY_LABEL[st]}`} onClick={() => { tap(); set({ days: a.days.map((x, k) => (k === i ? nextDayState(st, a.season) : x)) }); }}
                       className={`bw-pop flex h-16 flex-col items-center justify-center rounded-2xl ${DAY_STYLE[st]}`}>
-                      <span className="text-sm font-semibold no-underline">{preview.days[i]!.weekday}</span>
+                      <span className="text-sm font-semibold no-underline">{WEEKDAY_SHORT[i]!}</span>
                       <span className={`mt-1 text-[9px] ${st === "free" ? "text-muted" : ""}`}>{DAY_LABEL[st]}</span>
                     </button>
                   );
@@ -380,7 +354,6 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
                 <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-hairline" />zajęty: bez naszych treningów</span>
               </div>
             </Section>
-            <WeekPreview days={preview.days} warnings={preview.warnings} />
           </div>
         )}
       </div>
