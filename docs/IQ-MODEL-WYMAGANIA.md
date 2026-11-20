@@ -2,7 +2,11 @@
 
 Stan na 2026-11-20. Dokument opisuje, co jest dziś, czego brakuje i co musi spełniać nowy model. **Żadnego nowego pliku nie pobrano ani nie dodano do repo**: licencji kandydatów nie da się potwierdzić z poziomu tej sesji, a zasada brzmi „tylko materiały z potwierdzoną licencją komercyjną”.
 
-## 1. Ocena obecnego modelu (`public/iq/player.glb`, ok. 330 kB)
+## 0. Aktualizacja: własne ciało zamiast manekina
+
+Siatki manekina Beta z `player.glb` nie są już rysowane. `src/iq/body.ts` generuje w kodzie **własne ciało** (tors z barkami, uda, łydki, buty, dłonie, szyja, głowa z uszami, oczami i nosem) i przypina je do **tego samego szkieletu Mixamo**, więc animacje działają bez zmian. Kształty są naturalniejsze (brak „bąbli” w biodrach i łokciach, równe granice spodenek i getrów), ale to nadal stylizowana, niskopoligonowa postać bez faktury materiału, twarzy z mimiką i detali stroju. Siatka jest naszym własnym kodem (bez licencji zewnętrznej); **szkielet i klipy animacji nadal pochodzą z Mixamo** (status licencji bez zmian, patrz niżej). Sekcje 1–4 opisują, jak dojść do postaci docelowej.
+
+## 1. Ocena dawnego modelu (`public/iq/player.glb`, ok. 330 kB)
 
 Co działa:
 - Szkielet w układzie Mixamo (`mixamorig*`), ok. 1,8 m, dwie siatki oskórowane jednym szkieletem, 4 klipy (bieg w pliku, chód, stanie i podanie w JSON).

@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
-import { PASS, clipTime, cycleRate, locomotion, partOf, type Part } from "./actorMath";
+import { PASS, clipTime, cycleRate, locomotion } from "./actorMath";
+import { buildBody } from "./body";
 import { animateFigure, makePlayer, type Figure, type Kit } from "./scene";
 
 /** Wspólny interfejs: gładko oskórowana postać Mixamo albo (gdy nie wczyta się) sylwetka proceduralna. */
@@ -63,7 +64,6 @@ function numberTexture(n: number): THREE.CanvasTexture {
 
 const geoCache = new Map<string, THREE.BufferGeometry>();
 const matCache = new Map<string, THREE.Material>();
-const PART_ORDER: Part[] = ["skin", "jersey", "shorts", "socks", "boots", "gloves"];
 
 /**
  * Materiał stroju: każdy wierzchołek niesie wagi 6 części (skóra, koszulka, spodenki, getry, buty, rękawice);
@@ -110,44 +110,32 @@ function buildTemplate(assets: ActorAssets, kit: ActorKit, variant: number): THR
   const refs = { hip: worldY("mixamorigLeftUpLeg"), knee: worldY("mixamorigLeftLeg") };
   const skin = SKINS[variant % SKINS.length]!, hair = HAIRS[(variant * 3 + 1) % HAIRS.length]!;
   const mat = kitMaterial(kit, skin, { hem: refs.hip - 0.5 * (refs.hip - refs.knee), sock: refs.knee - 6 });
-  const v = new THREE.Vector3();
-  tpl.traverse((o) => {
-    const m = o as THREE.SkinnedMesh;
-    if (!m.isSkinnedMesh) return;
-    const key = `${m.name}|${kit.keeper ? 1 : 0}`;
-    let geo = geoCache.get(key);
-    if (!geo) {
-      geo = m.geometry.clone();
-      const pos = geo.attributes.position!, si = geo.attributes.skinIndex!, sw = geo.attributes.skinWeight!;
-      const A = new Float32Array(pos.count * 3), B = new Float32Array(pos.count * 3), BIND = new Float32Array(pos.count * 2);
-      for (let i = 0; i < pos.count; i++) {
-        let best = 0, bw = -1;
-        for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k); if (w > bw) { bw = w; best = si.getComponent(i, k); } }
-        v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
-        const boneName = m.skeleton.bones[best]!.name;
-        BIND[i * 2] = v.y; BIND[i * 2 + 1] = /(UpLeg|Leg)$/.test(boneName.replace(/_1$/, "")) ? 1 : 0; // wysokość w pozie bazowej, znacznik nogi
-        const idx = PART_ORDER.indexOf(partOf(boneName, v.y, refs, kit.keeper));
-        (idx < 3 ? A : B)[i * 3 + (idx % 3)] = 1;
-      }
-      geo.setAttribute("aPartA", new THREE.BufferAttribute(A, 3));
-      geo.setAttribute("aPartB", new THREE.BufferAttribute(B, 3));
-      geo.setAttribute("aBind", new THREE.BufferAttribute(BIND, 2));
-      geoCache.set(key, geo);
-    }
-    m.geometry = geo; m.material = mat; m.castShadow = true; m.receiveShadow = false; m.frustumCulled = false;
-  });
+  // własne ciało zamiast manekina Beta: jedna siatka (wspólna dla wszystkich klonów danego wariantu) na szkielecie Mixamo
+  const meshes: THREE.SkinnedMesh[] = [];
+  tpl.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) meshes.push(o as THREE.SkinnedMesh); });
+  const main = meshes[0]!;
+  const names = main.skeleton.bones.map((b) => b.name);
+  const key = kit.keeper ? "keeper" : "field";
+  let geo = geoCache.get(key);
+  if (!geo) {
+    geo = buildBody((n) => bone(`mixamorig${n}`).getWorldPosition(new THREE.Vector3()), (n) => { const i = names.indexOf(n); if (i < 0) throw new Error(`brak kości ${n}`); return i; }, !!kit.keeper);
+    geoCache.set(key, geo);
+  }
+  main.geometry = geo; main.material = mat; main.castShadow = true; main.receiveShadow = false; main.frustumCulled = false;
+  for (const m of meshes.slice(1)) m.parent?.remove(m); // dawne „stawy” manekina
 
-  // włosy: czapka na głowie (Beta nie ma włosów)
+  // włosy: kopuła dopasowana do głowy (cm, głowa: środek ok. 171 cm, promienie 7,9 × 11,2 × 9,3)
   const head = bone("mixamorigHead"), headW = head.getWorldPosition(new THREE.Vector3());
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(11.4, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.52), new THREE.MeshStandardMaterial({ color: hair, roughness: 0.9 }));
-  cap.position.copy(head.worldToLocal(new THREE.Vector3(headW.x, headW.y + 10.2, headW.z - 0.9)));
-  cap.rotation.x = -0.32; cap.castShadow = true; head.add(cap);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(1, 22, 12, 0, Math.PI * 2, 0, Math.PI * 0.47), new THREE.MeshStandardMaterial({ color: hair, roughness: 0.9 }));
+  cap.scale.set(9.0, 12.3, 10.5);
+  cap.position.copy(head.worldToLocal(new THREE.Vector3(headW.x, 171.9, 1.0)));
+  cap.rotation.x = -0.22; cap.castShadow = true; head.add(cap);
 
   // numer na plecach (kamera patrzy zza zawodnika; plecy = −Z modelu)
   if (kit.number !== undefined) {
     const sp = bone("mixamorigSpine2"), spW = sp.getWorldPosition(new THREE.Vector3());
-    const plane = new THREE.Mesh(new THREE.PlaneGeometry(22, 22), new THREE.MeshBasicMaterial({ map: numberTexture(kit.number), transparent: true, side: THREE.DoubleSide }));
-    plane.position.copy(sp.worldToLocal(new THREE.Vector3(spW.x, spW.y + 1, spW.z - 13.5)));
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(17, 17), new THREE.MeshBasicMaterial({ map: numberTexture(kit.number), transparent: true, side: THREE.DoubleSide }));
+    plane.position.copy(sp.worldToLocal(new THREE.Vector3(spW.x, spW.y + 1, spW.z - 13.4)));
     const q = sp.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI));
     plane.quaternion.copy(q);
     sp.add(plane);

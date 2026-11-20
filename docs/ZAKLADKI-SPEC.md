@@ -206,3 +206,4 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 - **Strój**: granice spodenek, skóry i getrów liczone w shaderze po wysokości w pozie bazowej (równa linia zamiast postrzępionej po trójkątach).
 - Wymagania dla lepszego modelu GLB i zasady licencji: `docs/IQ-MODEL-WYMAGANIA.md`.
 - NIE sprawdzone na prawdziwym telefonie: płynność (kl./s), temperatura, zużycie baterii. Zdjęcia kontrolne zrobiono w Chromium z programowym WebGL.
+- **Postać zawodnika** (`src/iq/body.ts`): własne ciało generowane w kodzie na szkielecie Mixamo (zamiast siatek manekina Beta z `player.glb`, które miały „bąble” w biodrach i łokciach). Testy: `src/iq/body.test.ts` (poprawność wag i indeksów kości, wymiary 182 cm, symetria, strefy stroju, zwrot normalnych). Zdjęcie przed/po: `docs/iq-porownanie/postac_B.png`. Szkielet i klipy nadal z Mixamo (licencja do ustalenia).
