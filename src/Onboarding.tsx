@@ -209,6 +209,7 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
     return (
       <main className="bw-grad-soft relative mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden px-6 pb-10 pt-[2.85rem]">
         <div className="pointer-events-none absolute -right-24 top-6 h-60 w-60 rounded-full opacity-60 blur-3xl" style={{ background: "#e3edf9" }} aria-hidden="true" />
+        <div className="pointer-events-none absolute -left-28 bottom-28 h-56 w-56 rounded-full opacity-50 blur-3xl" style={{ background: "#f9e9db" }} aria-hidden="true" />
         <div className={`relative ${leaving ? "bw-step-out" : ""}`}>
           <svg viewBox="0 0 220 120" className="h-28 w-full text-accent" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
             <g opacity="0.45">
@@ -228,14 +229,17 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
           <h1 className="bw-rise mt-6 text-[44px] font-semibold leading-none tracking-tight text-ink" style={{ animationDelay: "120ms" }}>Ballwise</h1>
           <p className="bw-rise mt-4 text-lg text-ink/70" style={{ animationDelay: "200ms" }}>{INTRO.tagline.split(". ")[0]}. <span className="font-medium" style={{ color: "var(--color-accent)" }}>{INTRO.tagline.split(". ")[1]}</span></p>
           <ul className="bw-stagger mt-8 flex flex-col gap-3">
-            {INTRO.promises.map((t) => (
-              <li key={t} className="flex items-center gap-3 text-[15px] text-ink/85">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full" style={{ background: STEP_TONES[1]!.s, color: STEP_TONES[1]!.i }}><Check /></span>{t}
-              </li>
-            ))}
+            {INTRO.promises.map((t, i) => {
+              const tn = STEP_TONES[i + 1]!;
+              return (
+                <li key={t} className="flex items-center gap-3 text-[15px] text-ink/85">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full" style={{ background: tn.s, color: tn.solid, boxShadow: `inset 0 0 0 1px ${tn.c}` }}><Check /></span>{t}
+                </li>
+              );
+            })}
           </ul>
           <p className="bw-rise mt-6 flex items-center gap-2 text-xs text-muted" style={{ animationDelay: "420ms" }}>
-            <span className="rounded-full bg-hairline/70 px-2 py-0.5 font-semibold text-ink/70">16+</span>{INTRO.ageNote}
+            <span className="rounded-full px-2 py-0.5 font-semibold" style={{ background: STEP_TONES[3]!.s, color: STEP_TONES[3]!.i }}>16+</span>{INTRO.ageNote}
           </p>
         </div>
         <div className="flex-1" />

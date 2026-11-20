@@ -12,6 +12,11 @@ import { Runner, scrollPanelTop } from "./Runner";
 import { restore, startLesson, startReview } from "./session";
 import { commitAndConfirm, getStatus, loadDoc, subscribe, syncCloud, type SyncStatus } from "./storage";
 import { LEVEL_LABEL, type Level } from "./types";
+import { PASTEL } from "../lib/pastel";
+
+const LEVEL_PASTEL = { 1: PASTEL.mint, 2: PASTEL.blue, 3: PASTEL.lavender } as const;
+const DECK_PASTEL = { phrases: PASTEL.blue, words: PASTEL.mint, slogans: PASTEL.peach } as const;
+const DECK_GLYPH = { phrases: "“ ”", words: "Aa", slogans: "!" } as const;
 
 const today = () => localISO();
 const VOICE_KEY = "englishVoice";
@@ -32,8 +37,9 @@ function LevelPicker({ current, onPick, onCancel }: { current: Level | null; onP
       <div className="mt-5 flex flex-col gap-3">
         {([1, 2, 3] as Level[]).map((l) => (
           <button key={l} onClick={() => onPick(l)} aria-pressed={current === l}
-            className={`rounded-2xl px-5 py-4 text-left ${current === l ? "bw-sel" : "bg-card shadow-[inset_0_0_0_1px_var(--color-hairline)]"}`}>
-            <span className="block text-[17px] font-semibold">{LEVEL_LABEL[l]}</span>
+            className="rounded-2xl px-5 py-4 text-left transition-colors"
+            style={{ background: current === l ? LEVEL_PASTEL[l].s : "var(--color-card)", boxShadow: `inset 0 0 0 ${current === l ? 1.5 : 1}px ${current === l ? LEVEL_PASTEL[l].c : "var(--color-hairline)"}` }}>
+            <span className="flex items-center gap-2 text-[17px] font-semibold"><span className="mt-[7px] h-2.5 w-2.5 shrink-0 self-start rounded-full" style={{ background: LEVEL_PASTEL[l].solid }} aria-hidden="true" />{LEVEL_LABEL[l]}</span>
             <span className="mt-1 block text-sm leading-snug text-muted">{LEVEL_TEXT[l]}</span>
           </button>
         ))}
@@ -147,22 +153,22 @@ export default function EnglishModule({ onClose }: { onClose: () => void }) {
 
         {view === "home" && (
           <div className="bw-rise flex flex-col gap-4">
-            <section className="rounded-3xl border border-hairline bg-card p-5">
-              <p className="text-xs uppercase tracking-wide text-muted">{sum.resuming ? "Przerwana nauka" : "Następna lekcja"}</p>
+            <section className="rounded-3xl border p-5" style={{ background: `linear-gradient(135deg, ${PASTEL.blue.s} 0%, ${PASTEL.lavender.s} 100%)`, borderColor: PASTEL.blue.c }}>
+              <p className="text-xs font-medium uppercase tracking-wide" style={{ color: PASTEL.blue.i }}>{sum.resuming ? "Przerwana nauka" : "Następna lekcja"}</p>
               <h2 className="mt-1 text-xl font-semibold leading-snug">{sum.next ? `Lekcja ${sum.next.order}: ${sum.next.title}` : "Wszystkie lekcje ukończone"}</h2>
               <p className="mt-1 text-sm text-muted">{sum.next ? `ok. ${sum.next.minutes} min · ${sum.next.count} zwrotów` : "Zwroty wracają w powtórkach."}</p>
               {(sum.next || due > 0) && <button onClick={begin} className="bw-grad mt-4 w-full rounded-2xl py-4 text-base font-medium">{sum.next ? sum.primary : "Powtórz"}</button>}
             </section>
 
             <section className="rounded-3xl border border-hairline bg-card p-5">
-              <div className="flex items-baseline justify-between">
+              <div className="flex items-center justify-between">
                 <h3 className="text-[17px] font-semibold">Powtórki na dziś</h3>
-                <span className="text-2xl font-semibold tabular-nums">{sum.dueToday}</span>
+                <span className="min-w-[2.25rem] rounded-full px-3 py-1 text-center text-lg font-semibold tabular-nums" style={{ background: PASTEL.peach.s, color: PASTEL.peach.i, boxShadow: `inset 0 0 0 1px ${PASTEL.peach.c}` }}>{sum.dueToday}</span>
               </div>
               {sum.dueToday > 0 ? (
                 <div className="mt-3 flex flex-col gap-2">
-                  {due > 0 && <button onClick={review} className="rounded-2xl bg-canvas py-3.5 text-base font-medium">Zwroty z lekcji (ćwiczenia): {due}</button>}
-                  {dueCards > 0 && <button onClick={reviewCards} className="rounded-2xl bg-canvas py-3.5 text-base font-medium">Fiszki (słowa i hasła): {dueCards}</button>}
+                  {due > 0 && <button onClick={review} className="rounded-2xl py-3.5 text-base font-medium" style={{ background: PASTEL.blue.s, color: PASTEL.blue.i }}>Zwroty z lekcji (ćwiczenia): {due}</button>}
+                  {dueCards > 0 && <button onClick={reviewCards} className="rounded-2xl py-3.5 text-base font-medium" style={{ background: PASTEL.mint.s, color: PASTEL.mint.i }}>Fiszki (słowa i hasła): {dueCards}</button>}
                 </div>
               ) : <p className="mt-1 text-sm text-muted">{pending ? `Brak powtórek na dziś. Najbliższa: ${pending.slice(8)}.${pending.slice(5, 7)}.` : "Powtórki pojawią się po pierwszej lekcji lub fiszkach."}</p>}
             </section>
@@ -173,6 +179,7 @@ export default function EnglishModule({ onClose }: { onClose: () => void }) {
                 const st = deckStats(d);
                 return (
                   <button key={d} onClick={() => studyDeck(d)} className="flex w-full items-center gap-3 border-t border-hairline px-5 py-3.5 text-left">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[13px] font-semibold" style={{ background: DECK_PASTEL[d].s, color: DECK_PASTEL[d].i, boxShadow: `inset 0 0 0 1px ${DECK_PASTEL[d].c}` }} aria-hidden="true">{DECK_GLYPH[d]}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-[15px] font-medium leading-snug">{DECK_LABEL[d]}</span>
                       <span className="block text-xs text-muted">{DECK_HINT[d]} Poznane {st.seen} z {st.total}, utrwalone {st.mastered}{st.due ? `, do powtórki ${st.due}` : ""}.</span>
@@ -187,7 +194,7 @@ export default function EnglishModule({ onClose }: { onClose: () => void }) {
               <h3 className="text-[17px] font-semibold">Twój postęp</h3>
               <p className="mt-2 text-sm">Ukończone lekcje: <b>{sum.lessonsDone} z {sum.lessonsTotal}</b></p>
               <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-hairline" role="progressbar" aria-valuemin={0} aria-valuemax={sum.lessonsTotal} aria-valuenow={sum.lessonsDone} aria-label="Ukończone lekcje">
-                <div className="h-full rounded-full bg-accent" style={{ width: `${(sum.lessonsDone / sum.lessonsTotal) * 100}%` }} />
+                <div className="h-full rounded-full" style={{ width: `${(sum.lessonsDone / sum.lessonsTotal) * 100}%`, background: PASTEL.mint.solid }} />
               </div>
               <p className="mt-3 text-sm">Zwroty: poznane <b>{sum.phrasesSeen}</b> z {sum.phrasesTotal}, w utrwalaniu <b>{sum.phrasesLearning}</b>, utrwalone <b>{sum.phrasesMastered}</b></p>
               <p className="mt-1 text-sm">Fiszki (słowa i hasła): poznane <b>{sum.cardsSeen}</b>, utrwalone <b>{sum.cardsMastered}</b></p>
@@ -201,7 +208,7 @@ export default function EnglishModule({ onClose }: { onClose: () => void }) {
                 const resuming = doc.resume?.session?.lessonId === l.id;
                 return (
                   <button key={l.id} onClick={() => startLessonById(l.id)} className="flex w-full items-center gap-3 border-t border-hairline px-5 py-3.5 text-left">
-                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm ${lp ? "bg-green-soft text-green-ink" : "bg-canvas text-muted"}`} aria-hidden="true">{lp ? "✓" : l.order}</span>
+                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm ${lp ? "bg-green-soft text-green-ink" : ""}`} style={lp ? undefined : { background: PASTEL.blue.s, color: PASTEL.blue.i }} aria-hidden="true">{lp ? "✓" : l.order}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-[15px] font-medium leading-snug">{l.title}</span>
                       <span className="block text-xs text-muted">{lp ? `Ukończona · poprawne za pierwszym razem: ${Math.round(lp.firstTry * 100)}%` : resuming ? "Przerwana" : `ok. ${l.minutes} min`}</span>
