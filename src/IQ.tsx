@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GOAL, localISO } from "./engine";
 import type { Vec } from "./engine";
-import { VARIANTS, classify, coachSteps, createScenario, firstAction, firstLoss, pass, rateOptions, record, setUser, shoot, snapshotAtOrBefore, startRecording, step } from "./engine/sim";
+import { VARIANTS, classify, coachSteps, firstAction, freshSeed, randomScenario, firstLoss, pass, rateOptions, record, setUser, shoot, snapshotAtOrBefore, startRecording, step } from "./engine/sim";
 import type { Recording, Variant, World } from "./engine/sim";
 import { addAttempt } from "./iq/attempts-store";
 import { ResultSheet, type ResultBundle } from "./iq/ResultSheet";
@@ -87,7 +87,10 @@ export default function IQ() {
       scene.add(makeStadium());
 
       // symulacja: 17 żywych zawodników (nasza drużyna z Tobą + rywale z bramkarzami)
-      let world: World = createScenario(attempt.current % 3 as Variant, 1 + attempt.current);
+      // każda sytuacja jest nowa i losowa (ziarno z losowania); „Jeszcze raz” odtwarza tę samą po ziarnie
+      let scen = randomScenario(freshSeed());
+      let world: World = scen.world;
+      setVariant(scen.variant);
       let rec: Recording = startRecording(world);
       const P0 = world.agents.find((a) => a.id === "P")!;
 
@@ -160,8 +163,9 @@ export default function IQ() {
 
       reset.current = (next: boolean) => {
         if (next) attempt.current++;
-        const v = (attempt.current % 3) as Variant;
-        world = createScenario(v, 1 + attempt.current);
+        scen = next ? randomScenario(freshSeed(), scen.variant) : randomScenario(scen.seed);
+        const v = scen.variant;
+        world = scen.world;
         rec = startRecording(world);
         const p = world.agents.find((a) => a.id === "P")!;
         dr.x = p.pos.x; dr.y = p.pos.y; dr.heading = 0; dr.speed = 0; dr.cam = 0;
@@ -340,7 +344,7 @@ export default function IQ() {
           outcomeT += dt;
           if (outcomeT > 1.1) {
             // powtórka + „co by zadziałało” z chwili decyzji (migawka świata) + trzy kroki
-            const variantNow = (attempt.current % 3) as Variant;
+            const variantNow = scen.variant;
             const first = firstAction(world), loss = firstLoss(world), cls = classify(world);
             const decisionT = first ? (first.kind === "lost" ? first.t - 1 : first.t - 0.5) : 0.5;
             const snap = snapshotAtOrBefore(rec, Math.max(0, decisionT));
@@ -350,7 +354,7 @@ export default function IQ() {
             setResult({
               kind: world.outcome.kind, cls, rec, events: [...world.events], rated, rateT: snap?.t ?? 0, nameOf,
               steps: coachSteps({ variant: variantNow, rated, first, cls, nameOf: (id) => nameOf(id), loss }),
-              nextTitle: VARIANTS[((attempt.current + 1) % 3)]!.title, sameTitle: VARIANTS[variantNow]!.title,
+              nextTitle: "nowa, losowa sytuacja", sameTitle: VARIANTS[variantNow]!.title,
             });
             setP("done");
           }
