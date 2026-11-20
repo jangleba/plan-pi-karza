@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addPoint, averagePace, currentPace, distanceAt, emptyTrack, haversine, intervalTimeline, kmSplits, phaseAt } from "./track";
+import { addPoint, averagePace, currentPace, distanceAt, emptyTrack, haversine, intervalTimeline, kmSplits, paceSeries, phaseAt, phaseResults } from "./track";
 
 // punkt co ~1 s, bieg na północ ok. 4 m/s; 1° szer. ≈ 111 195 m
 const LAT0 = 52.0, LON = 21.0;
@@ -49,5 +49,41 @@ describe("bieg z GPS", () => {
     expect(phaseAt(tl, 0)).toEqual({ index: 0, left: 15 });
     expect(phaseAt(tl, 20)).toEqual({ index: 1, left: 10 });
     expect(phaseAt(tl, 10_000)).toBeNull();
+  });
+});
+
+describe("kolejne powtórzenia, wyniki odcinków i wykres tempa", () => {
+  const tl = intervalTimeline({ reps: 3, sets: 1, workS: 20, restS: 10, setRestS: 0 });
+  it("odcinki pracy znają swój numer powtórzenia i serii", () => {
+    expect(tl.filter((p) => p.kind === "work").map((p) => [p.rep, p.reps, p.set])).toEqual([[1, 3, 1], [2, 3, 1], [3, 3, 1]]);
+    expect(tl.filter((p) => p.kind === "rest").every((p) => p.rep === undefined)).toBe(true);
+  });
+  it("wyniki liczą dystans i tempo tylko w zakończonych odcinkach pracy", () => {
+    const s = run(5, 100); // 5 m/s przez cały czas
+    const r = phaseResults(tl, s, 100_000);
+    expect(r).toHaveLength(3);
+    expect(r[0]!.distanceM).toBeGreaterThan(95);
+    expect(r[0]!.distanceM).toBeLessThan(105);
+    expect(r[0]!.paceSPerKm).toBeCloseTo(200, -1); // 5 m/s = 3:20/km
+    // bieg przerwany w trakcie drugiego odcinka: policzony tylko pierwszy
+    expect(phaseResults(tl, s, 40_000)).toHaveLength(1);
+  });
+  it("wykres tempa: punkty co krok, bez punktów w miejscu", () => {
+    const series = paceSeries(run(4, 120), 120_000);
+    expect(series.length).toBeGreaterThanOrEqual(7);
+    expect(series.every((p) => Math.abs(p.pace - 250) < 15)).toBe(true);
+    expect(paceSeries(emptyTrack(), 120_000)).toEqual([]);
+  });
+});
+
+describe("przerwa w sygnale GPS", () => {
+  it("po przerwie dłuższej niż 30 s nie dolicza prostej linii między punktami", () => {
+    let s = run(4, 20);
+    const before = s.distanceM;
+    s = addPoint(s, at(20 * 4 + 400, 80)); // 60 s ciszy, potem punkt 400 m dalej
+    expect(s.distanceM).toBeCloseTo(before, 5);
+    expect(s.points[s.points.length - 1]!.t).toBe(80_000); // punkt zostaje jako nowy punkt odniesienia
+    s = addPoint(s, at(20 * 4 + 400 + 4, 81)); // dalej liczymy normalnie
+    expect(s.distanceM).toBeGreaterThan(before);
   });
 });

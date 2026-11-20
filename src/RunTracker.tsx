@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  addPoint, averagePace, currentPace, distanceAt, emptyTrack, formatPace, intervalTimeline, kmSplits, localISO, phaseAt,
+  addPoint, averagePace, currentPace, distanceAt, emptyTrack, formatPace, intervalTimeline, kmSplits, localISO, paceSeries, phaseAt, phaseResults,
 } from "./engine";
 import type { GeoPoint, RunPhase, RunSession, TrackState } from "./engine";
 import { scoped } from "./lib/store";
+import { beep, buzz, prepareAudio } from "./tools/feedback";
 
 const TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
 
@@ -74,6 +75,42 @@ function MapView({ points }: { points: GeoPoint[] }) {
   return <div ref={el} className="h-full w-full" />;
 }
 
+/** Podsumowanie po biegu: wykres tempa w czasie i porównanie powtórzeń (tylko z tego, co zmierzył GPS). */
+function RunSummary({ track, elapsedMs, timeline }: { track: TrackState; elapsedMs: number; timeline: RunPhase[] }) {
+  const series = useMemo(() => paceSeries(track, elapsedMs), [track, elapsedMs]);
+  const reps = useMemo(() => (timeline.length > 1 ? phaseResults(timeline, track, elapsedMs).filter((r) => r.paceSPerKm !== null) : []), [timeline, track, elapsedMs]);
+  if (series.length < 2 && reps.length < 2) return null;
+  const paces = series.map((p) => p.pace);
+  const lo = Math.min(...paces), hi = Math.max(...paces), span = Math.max(hi - lo, 20);
+  const W = 300, H = 90, maxT = series.length ? series[series.length - 1]!.tS : 1;
+  const pts = series.map((p) => `${(p.tS / maxT) * W},${6 + ((p.pace - lo) / span) * (H - 12)}`); // szybciej = wyżej
+  const best = reps.length ? Math.min(...reps.map((r) => r.paceSPerKm!)) : 0;
+  return (
+    <div className="mt-4 rounded-2xl border border-hairline bg-card p-3 text-sm">
+      <div className="text-xs text-muted">Podsumowanie</div>
+      {series.length >= 2 && (
+        <>
+          <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 w-full" role="img" aria-label="Tempo w czasie">
+            <polyline points={pts.join(" ")} fill="none" stroke="var(--color-accent)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+          </svg>
+          <div className="mt-1 flex justify-between text-[11px] text-muted tabular-nums"><span>start</span><span>najszybciej {pace(lo)} · najwolniej {pace(hi)}</span><span>{fmtTime(elapsedMs)}</span></div>
+        </>
+      )}
+      {reps.length >= 2 && (
+        <div className="mt-3">
+          <div className="mb-1 text-xs text-muted">Powtórzenia</div>
+          {reps.map((r, i) => (
+            <div key={i} className="flex justify-between py-0.5 tabular-nums">
+              <span>{r.label}</span>
+              <span>{Math.round(r.distanceM)} m · {formatPace(r.paceSPerKm!)}{r.paceSPerKm === best ? " ★" : ""}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export interface RunResult { distanceM: number; elapsedMs: number; distanceAt5min: number | null }
 
 export function RunTracker({ session, onClose, onFinish }: {
@@ -91,6 +128,11 @@ export function RunTracker({ session, onClose, onFinish }: {
   const watch = useRef<number | null>(null);
   const wake = useRef<{ release: () => Promise<void> } | null>(null);
   const lastPhase = useRef(-1);
+  const lastFix = useRef(0); // chwila (performance.now) ostatniego odczytu GPS, także odrzuconego przez filtr
+  const lastAcc = useRef<number | null>(null);
+  const lastBeepS = useRef(-1);
+  const [weak, setWeak] = useState<"" | "silent" | "inaccurate">("");
+  const [flash, setFlash] = useState<{ kind: RunPhase["kind"]; n: number } | null>(null);
 
   const now = () => base.current + (performance.now() - resumedAt.current);
 
@@ -99,6 +141,8 @@ export function RunTracker({ session, onClose, onFinish }: {
     watch.current = navigator.geolocation.watchPosition(
       (pos) => {
         const t = now();
+        lastFix.current = performance.now();
+        lastAcc.current = pos.coords.accuracy;
         setError("");
         setTrack((s) => addPoint(s, { lat: pos.coords.latitude, lon: pos.coords.longitude, acc: pos.coords.accuracy, t }));
       },
@@ -116,7 +160,7 @@ export function RunTracker({ session, onClose, onFinish }: {
     } catch { /* brak blokady ekranu – ekran może zgasnąć */ }
   };
 
-  const start = () => { resumedAt.current = performance.now(); setStatus("running"); startGps(); void keepAwake(); };
+  const start = () => { prepareAudio(); resumedAt.current = performance.now(); lastFix.current = performance.now(); setStatus("running"); startGps(); void keepAwake(); };
   const pause = () => { base.current = now(); setStatus("paused"); stopGps(); };
   const finish = () => {
     if (status === "running") base.current = now();
@@ -125,8 +169,23 @@ export function RunTracker({ session, onClose, onFinish }: {
 
   useEffect(() => {
     if (status !== "running") return;
-    const id = setInterval(() => setElapsed(now()), 250);
+    const id = setInterval(() => {
+      setElapsed(now());
+      const silentMs = performance.now() - lastFix.current;
+      setWeak(silentMs > 10_000 ? "silent" : lastAcc.current !== null && lastAcc.current > 25 ? "inaccurate" : "");
+    }, 250);
     return () => clearInterval(id);
+  }, [status]);
+
+  // po powrocie do aplikacji (zgaszony ekran, inna aplikacja) system potrafi zatrzymać GPS i zwolnić blokadę ekranu: włączamy je ponownie
+  useEffect(() => {
+    if (status !== "running") return;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      stopGps(); startGps(); void keepAwake();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, [status]);
 
   useEffect(() => () => { stopGps(); void wake.current?.release(); }, []);
@@ -135,10 +194,27 @@ export function RunTracker({ session, onClose, onFinish }: {
   useEffect(() => {
     const idx = ph ? ph.index : timeline.length;
     if (status === "running" && idx !== lastPhase.current) {
-      if (lastPhase.current !== -1 || idx === 0) navigator.vibrate?.(idx >= timeline.length ? [300, 100, 300, 100, 300] : [250]);
+      if (lastPhase.current !== -1 || idx === 0) {
+        const end = idx >= timeline.length;
+        const kind = end ? "work" : timeline[idx]!.kind;
+        // dźwięk i błysk na ekranie działają też na iPhonie, gdzie przeglądarka nie obsługuje wibracji
+        if (end) { beep(1046, 160); setTimeout(() => beep(1046, 160), 220); setTimeout(() => beep(1318, 320), 440); buzz(300); }
+        else if (kind === "rest") { beep(523, 220); buzz(250); }
+        else { beep(1046, 120); setTimeout(() => beep(1046, 120), 170); buzz(250); }
+        if (timeline.length > 1) setFlash({ kind, n: idx + 1 });
+      }
       lastPhase.current = idx;
+      lastBeepS.current = -1;
     }
   }, [ph?.index, status, timeline.length]);
+
+  // 3-2-1 przed końcem fazy
+  const leftS = ph ? Math.ceil(ph.left) : null;
+  useEffect(() => {
+    if (status !== "running" || leftS === null || timeline.length < 2 || leftS > 3 || leftS === lastBeepS.current) return;
+    lastBeepS.current = leftS;
+    beep(660, 70);
+  }, [leftS, status, timeline.length]);
 
   const phase = ph ? timeline[ph.index]! : null;
   const block = session.blocks[0];
@@ -147,7 +223,8 @@ export function RunTracker({ session, onClose, onFinish }: {
 
   return (
     <div className="bw-sheet fixed inset-0 z-40 flex flex-col bg-canvas">
-      <div className="relative h-[42vh] w-full overflow-hidden border-b border-hairline bg-hairline/50">
+      {flash && <div key={flash.n} className={`bw-flash pointer-events-none fixed inset-0 z-[600] ${flash.kind === "rest" ? "bg-club" : "bg-accent"}`} aria-hidden="true" />}
+      <div className="relative h-[24vh] w-full overflow-hidden border-b border-hairline bg-hairline/50">
         {TOKEN ? <MapView points={track.points} /> : <RouteSketch points={track.points} />}
         <button onClick={() => { stopGps(); onClose(); }} className="absolute right-3 top-3 z-[500] rounded-full bg-card/90 px-3 py-1 text-sm text-muted">Zamknij</button>
         {!TOKEN && <span className="absolute bottom-2 left-3 text-[11px] text-muted">Mapa po dodaniu tokenu Mapbox</span>}
@@ -156,16 +233,23 @@ export function RunTracker({ session, onClose, onFinish }: {
       <div className="flex-1 overflow-y-auto px-5 pt-4">
         <div className="text-xs uppercase tracking-wide text-muted">{session.title}</div>
         {phase && status !== "done" ? (
-          <div className="mt-2 rounded-2xl border border-hairline bg-card p-3">
-            <div className="flex items-baseline justify-between">
-              <span className="text-sm font-medium">{phase.kind === "work" ? phase.label : phase.label}</span>
-              <span className="text-2xl font-semibold tabular-nums">{Math.ceil(ph!.left)} s</span>
+          <div className={`mt-2 rounded-3xl p-4 transition-colors duration-300 ${phase.kind === "rest" ? "bg-club-soft text-club" : "bg-accent text-white"}`} aria-live="polite">
+            <div className="flex items-start justify-between gap-3">
+              <span className="text-base font-semibold">{phase.kind === "rest" ? "Przerwa" : phase.label}</span>
+              {phase.kind === "work" && phase.reps && phase.reps > 1 && <span className="shrink-0 text-sm opacity-90">Powtórzenie {phase.rep} z {phase.reps}</span>}
             </div>
-            {phase.kind === "work" && block && !session.isTest && <div className="text-xs text-muted">Tempo docelowe {block.paceText}</div>}
+            <div className="mt-1 text-center font-semibold leading-none tabular-nums" style={{ fontSize: "min(28vw, 7rem)" }}>{Math.ceil(ph!.left)}<span className="ml-1 text-2xl opacity-80">s</span></div>
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-black/15">
+              <div className="h-full rounded-full bg-white/80 transition-all duration-300" style={{ width: `${Math.max(0, Math.min(100, (1 - ph!.left / phase.seconds) * 100))}%` }} />
+            </div>
+            {phase.kind === "work" && block && !session.isTest && <div className="mt-2 text-center text-sm opacity-90">Tempo docelowe {block.paceText}</div>}
           </div>
         ) : status === "running" ? (
           <div className="mt-2 rounded-2xl border border-hairline bg-card p-3 text-sm">Plan zrobiony – możesz zakończyć.</div>
         ) : null}
+
+        {weak === "silent" && status === "running" && <p className="mt-3 rounded-xl bg-yellow-soft p-3 text-sm text-yellow-ink" role="status">Brak sygnału GPS od kilku sekund. Dystans z tej przerwy nie jest liczony. Wyjdź na otwartą przestrzeń i nie zgaszaj ekranu.</p>}
+        {weak === "inaccurate" && status === "running" && <p className="mt-3 rounded-xl bg-yellow-soft p-3 text-sm text-yellow-ink" role="status">Słaby sygnał GPS: pomiar może być niedokładny.</p>}
 
         <div className="mt-4 grid grid-cols-2 gap-3">
           {[
@@ -190,6 +274,7 @@ export function RunTracker({ session, onClose, onFinish }: {
           </div>
         )}
 
+        {status === "done" && <RunSummary track={track} elapsedMs={elapsed} timeline={timeline} />}
         {status === "done" && session.isTest && (
           <div className="mt-4 rounded-2xl border border-hairline bg-card p-3 text-sm">
             {at5 ? `Dystans po 5 minutach: ${Math.round(at5)} m.` : "Test trwał krócej niż 5 minut – wynik nie jest ważny."}
