@@ -31,6 +31,13 @@ function inPlace(c: ClipJson): ClipJson {
   return c;
 }
 
+let assetsPromise: Promise<ActorAssets> | null = null;
+/** Model i klipy wczytywane raz na sesję (IQ i podgląd w kreatorze korzystają z tego samego). */
+export function getActorAssets(): Promise<ActorAssets> {
+  assetsPromise ??= loadActorAssets().catch((e) => { assetsPromise = null; throw e; });
+  return assetsPromise;
+}
+
 export async function loadActorAssets(): Promise<ActorAssets> {
   const [gltf, idle, walk, pass] = await Promise.all([
     new GLTFLoader().loadAsync(base("player.glb")),
@@ -47,7 +54,9 @@ export async function loadActorAssets(): Promise<ActorAssets> {
 const SKINS = [0xe8bf9a, 0xd9a77c, 0xb57e55, 0x7a5233];
 const HAIRS = [0x2b2118, 0x4a3426, 0x151515, 0x8a6a3b];
 
-export interface ActorKit { jersey: number; shorts: number; socks: number; keeper?: boolean; gloves?: number; number?: number; collar?: number }
+/** Wygląd osobisty (własny zawodnik): kolory skóry, włosów i butów, fryzura, grubość ciała i wzrost. Bez niego: wariant z numeru zawodnika. */
+export interface LookFx { skin: number; hair: number; hairStyle: number; thick: number; height: number; boots: number }
+export interface ActorKit { jersey: number; shorts: number; socks: number; keeper?: boolean; gloves?: number; number?: number; collar?: number; look?: LookFx }
 
 function numberTexture(n: number): THREE.CanvasTexture {
   const c = document.createElement("canvas");
@@ -63,40 +72,72 @@ function numberTexture(n: number): THREE.CanvasTexture {
 }
 
 const geoCache = new Map<string, THREE.BufferGeometry>();
+
+/** Fryzura jako siatki przypięte do kości głowy; styl: 0 krótkie, 1 bardzo krótkie, 2 dłuższe, 3 kucyk, 4 afro, 5 łysy. */
+function addHair(head: THREE.Bone, headW: THREE.Vector3, style: number, color: number) {
+  if (style === 5) return;
+  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.9 });
+  const local = (x: number, y: number, z: number) => head.worldToLocal(new THREE.Vector3(headW.x + x, y, z));
+  const dome = (sx: number, sy: number, sz: number, theta: number, y: number, z: number, tilt: number) => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(1, 22, 12, 0, Math.PI * 2, 0, Math.PI * theta), mat);
+    m.scale.set(sx, sy, sz); m.position.copy(local(0, y, z)); m.rotation.x = tilt; m.castShadow = true; head.add(m);
+  };
+  const blob = (x: number, y: number, z: number, rx: number, ry: number, rz: number, tilt = 0) => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), mat);
+    m.scale.set(rx, ry, rz); m.position.copy(local(x, y, z)); m.rotation.x = tilt; m.castShadow = true; head.add(m);
+  };
+  if (style === 1) dome(8.8, 12.0, 10.1, 0.4, 171.8, 1.0, -0.2);
+  else if (style === 4) dome(11.8, 12.8, 12.0, 0.6, 172.6, -0.6, -0.28);
+  else {
+    dome(9.0, 12.3, 10.5, 0.47, 171.9, 1.0, -0.22);
+    if (style === 2) blob(0, 166.5, -6.6, 8.6, 10.5, 4.4); // dłuższe włosy opadające na kark
+    if (style === 3) { blob(0, 172.2, -9.6, 3.6, 3.6, 3.4); blob(0, 165.0, -12.0, 2.5, 8.5, 2.5, 0.25); } // kucyk
+  }
+}
 const matCache = new Map<string, THREE.Material>();
 
 /**
  * Materiał stroju: każdy wierzchołek niesie wagi 6 części (skóra, koszulka, spodenki, getry, buty, rękawice);
  * w shaderze wagi są wyostrzane (potęga), więc granice między częściami są wyraźne mimo długich trójkątów siatki.
  */
-function kitMaterial(kit: ActorKit, skin: number, legs: { hem: number; sock: number }): THREE.Material {
-  const key = `${kit.jersey}|${kit.shorts}|${kit.socks}|${kit.gloves ?? 0}|${skin}`;
+/** Granice stref stroju w pozie bazowej (cm): dolna krawędź spodenek, górna krawędź getrów (wysokość), koniec rękawa (|x|). */
+export interface Zones { hem: number; sock: number; sleeve: number }
+
+function kitMaterial(kit: ActorKit, skin: number, z: Zones): THREE.Material {
+  const boots = kit.look?.boots ?? 0x17181a;
+  const key = `${kit.jersey}|${kit.shorts}|${kit.socks}|${kit.gloves ?? 0}|${skin}|${boots}|${kit.keeper ? 1 : 0}`;
   let m = matCache.get(key);
   if (m) return m;
-  const colors = [skin, kit.jersey, kit.shorts, kit.socks, 0x17181a, kit.gloves ?? 0xe9eef3].map((c) => new THREE.Color(c));
+  const colors = [skin, kit.jersey, kit.shorts, kit.socks, boots, kit.gloves ?? 0x2a2018].map((c) => new THREE.Color(c));
   const mat = new THREE.MeshStandardMaterial({ roughness: 0.72, metalness: 0 });
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uKit = { value: colors };
-    sh.uniforms.uLeg = { value: new THREE.Vector2(legs.hem, legs.sock) };
+    sh.uniforms.uZone = { value: new THREE.Vector3(z.hem, z.sock, z.sleeve) };
     sh.vertexShader = sh.vertexShader
-      .replace("#include <common>", "#include <common>\nattribute vec3 aPartA;\nattribute vec3 aPartB;\nattribute vec2 aBind;\nvarying vec3 vPartA;\nvarying vec3 vPartB;\nvarying vec2 vBind;")
-      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvPartA = aPartA; vPartB = aPartB; vBind = aBind;");
+      .replace("#include <common>", "#include <common>\nattribute vec3 aPartA;\nattribute vec3 aPartB;\nattribute vec3 aBind;\nattribute float aAo;\nvarying vec3 vPartA;\nvarying vec3 vPartB;\nvarying vec2 vBind;\nflat varying float vMode;\nvarying float vAo;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvPartA = aPartA; vPartB = aPartB; vBind = vec2(aBind.x, aBind.z); vMode = aBind.y; vAo = aAo;");
     sh.fragmentShader = sh.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform vec3 uKit[6];\nuniform vec2 uLeg;\nvarying vec3 vPartA;\nvarying vec3 vPartB;\nvarying vec2 vBind;")
+      .replace("#include <common>", "#include <common>\nuniform vec3 uKit[6];\nuniform vec3 uZone;\nvarying vec3 vPartA;\nvarying vec3 vPartB;\nvarying vec2 vBind;\nflat varying float vMode;\nvarying float vAo;")
       .replace("#include <color_fragment>", `#include <color_fragment>
         vec3 pa = pow(max(vPartA, 0.0), vec3(7.0));
         vec3 pb = pow(max(vPartB, 0.0), vec3(7.0));
         float ps = pa.x + pa.y + pa.z + pb.x + pb.y + pb.z + 1e-6;
         vec3 kitCol = (uKit[0] * pa.x + uKit[1] * pa.y + uKit[2] * pa.z + uKit[3] * pb.x + uKit[4] * pb.y + uKit[5] * pb.z) / ps;
-        // nogi: granice spodenki / skóry / getrów po wysokości w pozie bazowej (równa linia zamiast postrzępionej po trójkątach siatki)
-        if (vBind.y > 0.5) {
-          float onShorts = smoothstep(uLeg.x - 0.6, uLeg.x + 0.6, vBind.x);
-          float aboveSock = smoothstep(uLeg.y - 0.6, uLeg.y + 0.6, vBind.x);
+        // granice stroju liczone w każdym pikselu z położenia w pozie bazowej (równe linie zamiast postrzępionych po trójkątach siatki)
+        if (vMode > 3.5) {                                    // kołnierz / szyja po wysokości
+          kitCol = mix(uKit[1], uKit[0], smoothstep(149.6, 150.6, vBind.x));
+        } else if (vMode > 2.5) {                                    // ramię: rękaw / skóra po osi X
+          kitCol = mix(uKit[0], uKit[1], 1.0 - smoothstep(uZone.z - 0.5, uZone.z + 0.5, vBind.y));
+        } else if (vMode > 1.5) {                             // noga: spodenki / skóra / getry po wysokości
+          float onShorts = smoothstep(uZone.x - 0.6, uZone.x + 0.6, vBind.x);
+          float aboveSock = smoothstep(uZone.y - 0.6, uZone.y + 0.6, vBind.x);
           kitCol = mix(uKit[3], mix(uKit[0], uKit[2], onShorts), aboveSock);
+        } else if (vMode > 0.5) {                             // talia: spodenki / koszulka po wysokości
+          kitCol = mix(uKit[2], uKit[1], smoothstep(101.6, 102.8, vBind.x));
         }
-        diffuseColor.rgb *= kitCol;`);
+        diffuseColor.rgb *= kitCol * (0.5 + 0.5 * vAo); // zaciemnienie przy zagłębieniach (pachy, krocze, pod brodą)`);
   };
-  mat.customProgramCacheKey = () => "bw-kit-2";
+  mat.customProgramCacheKey = () => "bw-kit-5";
   matCache.set(key, mat);
   return mat;
 }
@@ -106,30 +147,27 @@ function buildTemplate(assets: ActorAssets, kit: ActorKit, variant: number): THR
   const tpl = SkeletonUtils.clone(assets.scene) as THREE.Group;
   tpl.updateMatrixWorld(true);
   const bone = (n: string) => tpl.getObjectByName(n) as THREE.Bone;
-  const worldY = (n: string) => bone(n).getWorldPosition(new THREE.Vector3()).y;
-  const refs = { hip: worldY("mixamorigLeftUpLeg"), knee: worldY("mixamorigLeftLeg") };
-  const skin = SKINS[variant % SKINS.length]!, hair = HAIRS[(variant * 3 + 1) % HAIRS.length]!;
-  const mat = kitMaterial(kit, skin, { hem: refs.hip - 0.5 * (refs.hip - refs.knee), sock: refs.knee - 6 });
+  const skin = kit.look?.skin ?? SKINS[variant % SKINS.length]!, hair = kit.look?.hair ?? HAIRS[(variant * 3 + 1) % HAIRS.length]!;
+  const jy = (n: string) => bone(`mixamorig${n}`).getWorldPosition(new THREE.Vector3());
+  const hipP = jy("LeftUpLeg"), kneeP = jy("LeftLeg"), ankP = jy("LeftFoot"), shP = jy("LeftArm"), elP = jy("LeftForeArm"), wrP = jy("LeftHand");
+  const mat = kitMaterial(kit, skin, { hem: hipP.y + (kneeP.y - hipP.y) * 0.5, sock: kneeP.y + (ankP.y - kneeP.y) * 0.17, sleeve: kit.keeper ? wrP.x : shP.x + (elP.x - shP.x) * 0.6 });
   // własne ciało zamiast manekina Beta: jedna siatka (wspólna dla wszystkich klonów danego wariantu) na szkielecie Mixamo
   const meshes: THREE.SkinnedMesh[] = [];
   tpl.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) meshes.push(o as THREE.SkinnedMesh); });
   const main = meshes[0]!;
   const names = main.skeleton.bones.map((b) => b.name);
-  const key = kit.keeper ? "keeper" : "field";
+  const key = `${kit.keeper ? "keeper" : "field"}|${kit.look?.thick ?? 1}`;
   let geo = geoCache.get(key);
   if (!geo) {
-    geo = buildBody((n) => bone(`mixamorig${n}`).getWorldPosition(new THREE.Vector3()), (n) => { const i = names.indexOf(n); if (i < 0) throw new Error(`brak kości ${n}`); return i; }, !!kit.keeper);
+    geo = buildBody((n) => bone(`mixamorig${n}`).getWorldPosition(new THREE.Vector3()), (n) => { const i = names.indexOf(n); if (i < 0) throw new Error(`brak kości ${n}`); return i; }, !!kit.keeper, kit.look?.thick ?? 1);
     geoCache.set(key, geo);
   }
   main.geometry = geo; main.material = mat; main.castShadow = true; main.receiveShadow = false; main.frustumCulled = false;
   for (const m of meshes.slice(1)) m.parent?.remove(m); // dawne „stawy” manekina
 
-  // włosy: kopuła dopasowana do głowy (cm, głowa: środek ok. 171 cm, promienie 7,9 × 11,2 × 9,3)
+  // włosy: fryzury dopasowane do głowy (cm, głowa: środek ok. 171,6 cm, promienie 8,5 × 11,7 × 9,8)
   const head = bone("mixamorigHead"), headW = head.getWorldPosition(new THREE.Vector3());
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(1, 22, 12, 0, Math.PI * 2, 0, Math.PI * 0.47), new THREE.MeshStandardMaterial({ color: hair, roughness: 0.9 }));
-  cap.scale.set(9.0, 12.3, 10.5);
-  cap.position.copy(head.worldToLocal(new THREE.Vector3(headW.x, 171.9, 1.0)));
-  cap.rotation.x = -0.22; cap.castShadow = true; head.add(cap);
+  addHair(head, headW, kit.look?.hairStyle ?? 0, hair);
 
   // numer na plecach (kamera patrzy zza zawodnika; plecy = −Z modelu)
   if (kit.number !== undefined) {
@@ -157,8 +195,8 @@ export class SkinnedActor implements Actor {
   private scale: number;
   kicking = false;
 
-  constructor(tpl: THREE.Group, assets: ActorAssets, variant: number) {
-    this.scale = 0.01 * (0.97 + 0.03 * (variant % 3));
+  constructor(tpl: THREE.Group, assets: ActorAssets, variant: number, heightMul = 1) {
+    this.scale = 0.01 * (0.97 + 0.03 * (variant % 3)) * heightMul;
     this.model = SkeletonUtils.clone(tpl);
     this.model.scale.setScalar(this.scale);
     this.model.rotation.y = Math.PI / 2; // przód modelu (+Z) → +x świata
@@ -239,7 +277,7 @@ export class ActorFactory {
     const key = JSON.stringify([kit, variant % 4]);
     let tpl = this.tpls.get(key);
     if (!tpl) { tpl = buildTemplate(this.assets, kit, variant); this.tpls.set(key, tpl); }
-    return new SkinnedActor(tpl, this.assets, variant);
+    return new SkinnedActor(tpl, this.assets, variant, kit.look?.height ?? 1);
   }
 }
 
