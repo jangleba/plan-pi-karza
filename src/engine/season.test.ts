@@ -101,6 +101,8 @@ describe("drugi cel i samopoczucie na boisku", () => {
   it("odpowiedzi podpowiadają cele w kolejności, maks. dwa", () => {
     expect(suggestGoals(["duels", "slow", "stamina"])).toEqual(["strength", "speed"]);
     expect(suggestGoals([])).toEqual([]);
+    expect(suggestGoals(["other"])).toEqual([]); // „Inne” nie podpowiada celu
+    expect(suggestGoals(["other", "slow"])).toEqual(["speed"]);
   });
   it("pytanie wraca po 5 tygodniach i pokazuje zmianę", () => {
     expect(feelDue(undefined, "2026-11-19")).toBe(true);

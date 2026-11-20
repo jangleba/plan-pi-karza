@@ -14,12 +14,12 @@ describe("onboarding: język", () => {
     expect(GOALS.map((g) => g[0])).toEqual(["speed", "strength", "endurance", "return"]);
     expect(SEASONS.map((s) => s[0])).toEqual(["preseason", "inseason", "offseason"]);
     expect(EQUIPMENT.map((e) => e[0])).toEqual(["gym", "field", "track"]);
-    expect(FEEL_NOW.map((f) => f[0])).toEqual(["slow", "duels", "stamina"]);
+    expect(FEEL_NOW.map((f) => f[0])).toEqual(["slow", "duels", "stamina", "other"]);
     expect(POSITIONS.map((p) => p[0])).toEqual(["bramkarz", "obronca", "pomocnik", "skrzydlowy", "napastnik"]);
   });
-  it("opisy celów mówią prawdę o wpływie na plan: dodatkowa sesja tylko, gdy jest miejsce; powrót łagodzi pierwsze tygodnie", () => {
+  it("opisy celów mówią prawdę o wpływie na plan: dodatkowa sesja tylko, gdy w tygodniu zostaje wolny dzień; powrót łagodzi pierwsze tygodnie", () => {
     const d = Object.fromEntries(GOALS.map((g) => [g[0], g[2]]));
-    for (const k of ["speed", "strength", "endurance"]) expect(d[k]).toMatch(/gdy jest miejsce/);
+    for (const k of ["speed", "strength", "endurance"]) { expect(d[k]).toMatch(/wolny dzień/); expect(d[k]).toMatch(/\+ /); }
     expect(d.return).toMatch(/lżejsze/);
   });
   it("odmiana lat: mniej niż rok, 1 rok, 2–4 lata, 5+ lat", () => {

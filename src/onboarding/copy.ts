@@ -9,21 +9,22 @@ export const INTRO = {
   tagline: "Trenuj mądrzej. Graj lepiej.",
   promises: [
     "Trening dopasowany do Twojego wieku i stażu",
-    "W każdym dniu wiesz, co robić",
+    "Każdego dnia wiesz, co masz robić",
     "Sześć krótkich pytań, około minuty",
   ],
+  ageNote: "Aplikacja jest dla osób, które ukończyły 16 lat.",
   start: "Zaczynamy",
 };
 
 export const STEP_TITLE = ["", "O Tobie", "Na boisku", "Twój cel", "Sezon", "Trening", "Twój tydzień"] as const;
 export const STEP_HINT = [
   "",
-  "Tyle wystarczy, żeby dobrać obciążenia.",
-  "Pozycja i to, co chcesz poprawić.",
-  "Pierwszy wybór to cel główny, drugi jest dodatkowy.",
-  "W jakim momencie jesteś i gdzie grasz.",
-  "Od czego zależą ćwiczenia w Twoim planie.",
-  "Zaznacz, kiedy trenujesz w klubie, grasz i nie możesz.",
+  "Tyle wystarczy, aby dobrać spersonalizowane obciążenia.",
+  "Określ swoją pozycję i zaznacz, co chcesz poprawić w swojej grze.",
+  "W treningach ważne jest określenie, do czego się dąży. Określ maksymalnie dwa swoje cele. Twój pierwszy wybór będzie wiodący, natomiast drugi będzie pełnił rolę uzupełnienia pierwszego.",
+  "Wskaż, w jakim momencie sezonu się znajdujesz, i określ swoją ligę.",
+  "Określ, jak długo ćwiczysz i do jakich miejsc masz dostęp.",
+  "Określ swoją dostępność: w jakie dni jesteś zajęty, kiedy trenujesz w klubie i kiedy grasz mecz. Pozwoli nam to dopasować treningi do Twoich potrzeb.",
 ] as const;
 
 export const POSITIONS: Array<[Position, string]> = [
@@ -31,9 +32,9 @@ export const POSITIONS: Array<[Position, string]> = [
 ];
 
 export const GOALS: Array<[SeasonGoal, string, string]> = [
-  ["speed", "Szybkość", "Szybsze starty i zrywy. Dodajemy sprint, gdy jest miejsce w tygodniu."],
-  ["strength", "Siła", "Wygrywanie pojedynków. Dodajemy trening siłowy, gdy jest miejsce."],
-  ["endurance", "Wytrzymałość", "Siły na całe spotkanie. Dodajemy bieganie, gdy jest miejsce."],
+  ["speed", "Szybkość", "Szybsze starty i zrywy. + trening sprintu, gdy w tygodniu zostaje wolny dzień."],
+  ["strength", "Siła", "Wygrywanie pojedynków. + trening siłowy, gdy w tygodniu zostaje wolny dzień."],
+  ["endurance", "Wytrzymałość", "Siły na całe spotkanie. + bieganie, gdy w tygodniu zostaje wolny dzień."],
   ["return", "Powrót po przerwie", "Spokojne wejście w rytm: pierwsze dwa tygodnie są lżejsze."],
 ];
 
@@ -46,7 +47,7 @@ export const SEASONS: Array<[Season, string, string]> = [
 export const EQUIPMENT: Array<[Equipment, string]> = [["gym", "Siłownia"], ["field", "Boisko"], ["track", "Bieżnia"]];
 
 export const DAY_LABEL: Record<DayState, string> = { free: "wolny", club: "klub", match: "mecz", off: "zajęty" };
-export const dayHelp = (offseason: boolean): string => (offseason ? "Dotknij dnia, żeby zmienić: wolny, klub, zajęty." : "Dotknij dnia, żeby zmienić: wolny, klub, mecz, zajęty.");
+export const dayHelp = (offseason: boolean): string => (offseason ? "Zmień kolor kafelka, klikając w niego ponownie: wolny, klub, zajęty." : "Zmień kolor kafelka, klikając w niego ponownie: wolny, klub, mecz, zajęty.");
 
 export const LABEL = {
   name: "Jak masz na imię?",
@@ -55,12 +56,13 @@ export const LABEL = {
   weight: "Masa ciała",
   ageNote: "Aplikacja jest dla osób, które ukończyły 16 lat.",
   position: "Na jakiej pozycji grasz?",
-  feel: "Co najbardziej Ci przeszkadza w grze? (możesz zaznaczyć kilka)",
+  feel: "Co Tobie najbardziej przeszkadza w grze? (możesz zaznaczyć kilka)",
+  feelOtherNote: "Plan układamy z trzech obszarów: szybkości, siły i wytrzymałości. Cel wybierzesz w następnym kroku.",
   season: "W którym momencie sezonu jesteś?",
-  league: "W jakiej lidze grasz?",
+  league: "W jakiej grasz lidze?",
   leagueEmpty: "Wybierz poziom rozgrywek",
-  years: "Od jak dawna ćwiczysz siłowo?",
-  equipment: "Do czego masz dostęp? (opcjonalnie, własny ciężar zawsze wliczamy)",
+  years: "Od jak dawna ćwiczysz?",
+  equipment: "Do jakich miejsc masz dostęp? (opcjonalnie, zawsze wliczamy własny ciężar)",
 };
 
 export const BUTTON = { next: "Dalej", done: "Gotowe", back: "Wstecz" };

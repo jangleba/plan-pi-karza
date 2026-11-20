@@ -178,3 +178,10 @@ describe("zapamiętany onboarding (po przeładowaniu karty)", () => {
     expect(d.a.days).toEqual(initialAnswers().days);
   });
 });
+
+describe("odpowiedź „Inne” w pytaniu o to, co przeszkadza", () => {
+  it("jest poprawną odpowiedzią, nie zmienia podpowiedzi celu i przechodzi zapis szkicu", () => {
+    expect(buildProfile(answers({ goals: [], feelNow: ["other", "stamina"] }))!.goal).toBe("endurance");
+    expect(restoreDraft({ step: 2, a: { feelNow: ["other", "xx"] } })?.a.feelNow).toEqual(["other"]);
+  });
+});
