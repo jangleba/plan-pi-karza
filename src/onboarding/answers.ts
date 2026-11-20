@@ -3,8 +3,43 @@
  * Podgląd i właściwy plan używają tej samej funkcji (`planForProfile`), więc to, co zawodnik widzi przy układaniu tygodnia,
  * wynika z jego odpowiedzi, a nie z osobnych reguł. Czysty kod, bez Reacta (testowany osobno).
  */
-import { FEEL_NOW, planForProfile, suggestGoals, weekStartOf } from "../engine";
+import { FEEL_NOW, LEAGUES, planForProfile, suggestGoals, weekStartOf } from "../engine";
 import type { Equipment, FeelNow, League, Position, Profile, Season, SeasonGoal, SessionKind } from "../engine";
+
+/** Klucz (w przestrzeni danych) z rozpoczętym, niedokończonym onboardingiem; usuwany po ukończeniu. */
+export const DRAFT_KEY = "onboardingDraft";
+export interface Draft { step: number; a: Answers }
+
+/**
+ * Przywraca rozpoczęty onboarding po przeładowaniu karty (np. gdy system zamknie ją w tle). Dane z pamięci są niezaufane:
+ * każde pole jest sprawdzane, a niepoprawne wraca do wartości początkowej. Zwraca null, gdy nie ma czego przywrócić.
+ */
+export function restoreDraft(raw: unknown): Draft | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as { step?: unknown; a?: unknown };
+  if (typeof r.step !== "number" || !Number.isInteger(r.step) || r.step < 1 || r.step > LAST_STEP || !r.a || typeof r.a !== "object") return null;
+  const x = r.a as Record<string, unknown>;
+  const base = initialAnswers();
+  const num = (v: unknown, min: number, max: number, d: number) => (typeof v === "number" && Number.isInteger(v) && v >= min && v <= max ? v : d);
+  const pick = <T extends string>(v: unknown, ok: readonly T[]): T | undefined => (typeof v === "string" && (ok as readonly string[]).includes(v) ? (v as T) : undefined);
+  const list = <T extends string>(v: unknown, ok: readonly T[]): T[] => (Array.isArray(v) ? [...new Set(v.filter((e): e is T => typeof e === "string" && (ok as readonly string[]).includes(e)))] : []);
+  const days = Array.isArray(x.days) && x.days.length === 7 && x.days.every((d) => DAY_CYCLE.includes(d as DayState)) ? (x.days as DayState[]) : base.days;
+  const a: Answers = {
+    name: typeof x.name === "string" ? x.name.slice(0, 40) : base.name,
+    age: num(x.age, 16, 45, base.age),
+    weight: num(x.weight, 45, 130, base.weight),
+    position: pick(x.position, ["bramkarz", "obronca", "pomocnik", "skrzydlowy", "napastnik"] as const),
+    feelNow: list(x.feelNow, FEEL_NOW.map(([v]) => v)),
+    goals: list(x.goals, ["speed", "strength", "endurance", "return"] as const).slice(0, 2),
+    season: pick(x.season, ["preseason", "inseason", "offseason"] as const),
+    league: pick(x.league, LEAGUES),
+    years: num(x.years, 0, 15, base.years),
+    equipment: list(x.equipment, ["gym", "field", "track", "bodyweight"] as const),
+    limited: x.limited === true,
+    days,
+  };
+  return { step: r.step, a };
+}
 
 /** Stan dnia w kalendarzu tygodnia. */
 export type DayState = "free" | "club" | "match" | "off";
