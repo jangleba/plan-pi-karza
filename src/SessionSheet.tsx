@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AnimatedPitch } from "./Pitch";
 import { HalfPitchView } from "./HalfPitch";
+import { InviteComposer } from "./InviteSheets";
 import { Sheet } from "./Sheet";
 import { pushWeightLog } from "./lib/sync";
 import { MasCard, loadMas, saveMasDistance } from "./MasCard";
@@ -22,8 +23,8 @@ const KIND_TITLE: Record<string, string> = {
 };
 
 export function SessionSheet({
-  day, checkIn, weekInCycle, level, position, hasGym, onSkipDay, onClose,
-}: { day: DayPlan; checkIn: CheckIn; weekInCycle: number; level: Level; position?: Position; hasGym: boolean; onSkipDay?: () => void; onClose: () => void }) {
+  day, checkIn, weekInCycle, level, position, hasGym, inviterName, age, onSkipDay, onClose,
+}: { day: DayPlan; checkIn: CheckIn; weekInCycle: number; level: Level; position?: Position; hasGym: boolean; inviterName?: string; age?: number; onSkipDay?: () => void; onClose: () => void }) {
   const [mas, setMas] = useState<Mas | null>(loadMas);
   const [running, setRunning] = useState(false);
   const [log, setLog] = useState(loadLog);
@@ -36,6 +37,7 @@ export function SessionSheet({
   const [info, setInfo] = useState<{ id: string; note?: string } | null>(null);
   const [tool, setTool] = useState<"stim" | "draw" | null>(null);
   const [halfDrill, setHalfDrill] = useState<Drill | null>(null);
+  const [inviteDrill, setInviteDrill] = useState<Drill | null>(null);
   const [group, setGroup] = useState<DrillGroup | null>(null);
   const myDrills = drillsFor(position);
   const myGroup = group && myDrills.some((d) => d.group === group) ? group : (DRILL_GROUPS.find(([g]) => myDrills.some((d) => d.group === g))?.[0] ?? "dribble");
@@ -225,7 +227,10 @@ export function SessionSheet({
                 <div key={d.id}>
                   <div className="mb-2 text-sm font-medium">{d.title}</div>
                   <AnimatedPitch drill={d} />
-                  <button onClick={() => setHalfDrill(d)} className="mt-2 w-full rounded-xl bg-canvas py-2.5 text-sm font-medium text-accent active:scale-[0.98]">Pokaż na połowie boiska (z przybliżaniem)</button>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <button onClick={() => setHalfDrill(d)} className="rounded-xl bg-canvas py-2.5 text-sm font-medium text-accent active:scale-[0.98]">Na połowie boiska</button>
+                    <button onClick={() => setInviteDrill(d)} className="rounded-xl bg-canvas py-2.5 text-sm font-medium text-accent active:scale-[0.98]">Zaproś partnera</button>
+                  </div>
                   <p className="mt-2 text-xs text-muted">{d.dose}</p>
                   <ul className="mt-1 list-disc pl-4 text-sm">
                     {d.points.map((p) => <li key={p}>{p}</li>)}
@@ -272,8 +277,10 @@ export function SessionSheet({
         <p className="text-sm text-ink/85">{halfDrill.goal}</p>
         <p className="mt-3 text-xs text-muted">{halfDrill.dose}</p>
         <ul className="mt-1 list-disc pl-4 text-sm">{halfDrill.points.map((p) => <li key={p}>{p}</li>)}</ul>
+        <button onClick={() => { const d = halfDrill; setHalfDrill(null); setInviteDrill(d); }} className="bw-grad mt-5 w-full rounded-2xl py-3.5 text-base font-medium">Zaproś partnera do tego ćwiczenia</button>
       </Sheet>
     )}
+    {inviteDrill && <InviteComposer drill={inviteDrill} name={inviterName} age={age} onClose={() => setInviteDrill(null)} />}
     </>
   );
 }

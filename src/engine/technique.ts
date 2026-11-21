@@ -232,6 +232,10 @@ export const POSITION_DRILLS: Drill[] = [
   },
 ];
 
+/** Wszystkie ćwiczenia z biblioteki. */
+export const ALL_DRILLS: Drill[] = [...POSITION_DRILLS, ...TECHNIQUE_DRILLS];
+export const drillById = (id: string): Drill | undefined => ALL_DRILLS.find((d) => d.id === id);
+
 /** Ćwiczenia dla pozycji najpierw, potem wspólne. */
 export function drillsFor(position: Position | undefined): Drill[] {
   const all = [...POSITION_DRILLS, ...TECHNIQUE_DRILLS];

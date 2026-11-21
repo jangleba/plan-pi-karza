@@ -11,6 +11,7 @@ Przestrzenie: `bw:guest:*` oraz `bw:u:<id konta>:*`. Zmiana konta nie kopiuje an
 | Profil (imię, pozycja, masa ciała, cel, dni treningowe…) | `profile` | Do chmury trafia tylko podzbiór z listy dozwolonych pól (sekcja 2) |
 | Rozpoczęty, niedokończony onboarding (krok i dotychczasowe odpowiedzi) | `onboardingDraft` | Tylko na urządzeniu, żeby przeładowanie karty nie cofało do początku; usuwany po ukończeniu onboardingu; nie jest synchronizowany |
 | Wygląd własnego zawodnika w IQ (odcień skóry, fryzura, budowa, wzrost, numer, kolor stroju, buty) | `look` | Tylko na urządzeniu; nie jest synchronizowany; kosmetyczne, bez danych zdrowotnych |
+| Zaproszenie partnera na trening (ćwiczenie, termin, rodzaj i nazwa miejsca, opcjonalnie imię i notatka) | **nie jest zapisywane** | Cała treść jest w linku, który użytkownik wysyła sam wybranym kanałem (np. komunikator, SMS). Nic nie trafia do nas ani na serwer; odbiorca otwiera link w aplikacji. Imię jest dodawane tylko za zgodą (pole domyślnie wyłączone). |
 | Historia, ciężary (`weightLog`), MAS, odczucia, biegi (w tym **trasa GPS**: do 500 punktów [szerokość, długość, czas w s] na bieg) | `history`, `weightLog`, `masDistance`, `feelings`, `runs` | Do chmury tylko za zgodą na synchronizację zdrowia |
 | Check-iny | `checkIn:*` | j.w. |
 | Zgłoszenia „nie mogę zrobić dzisiejszych treningów” (dzień, którego dotyczą, i dzień zgłoszenia) | `skippedDays` | Tylko na urządzeniu; porządkowane po ok. 10 tygodniach; nie jest synchronizowane |
