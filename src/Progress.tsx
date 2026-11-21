@@ -237,7 +237,7 @@ export function Progress({ profile, refreshKey }: { profile: Profile; refreshKey
               ))}
             </ul>
             {iq.mistake && <p className="mt-3 border-l-2 border-btn-line pl-3 text-[15px] leading-snug">Najczęstszy błąd: {iq.mistake.text} ({iq.mistake.count}×).</p>}
-            <p className="mt-3 text-[11px] text-muted">Bez punktów: liczy się, czy wyszedłeś z pressingu bez straty piłki.</p>
+            <p className="mt-3 text-[11px] text-muted">Bez punktów: liczy się, czy akcja skończyła się bez straty piłki.</p>
           </section>
         </>
       )}

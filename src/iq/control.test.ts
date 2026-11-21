@@ -1,86 +1,81 @@
 import { describe, expect, it } from "vitest";
-import { CAM_FOLLOW, SPEED_MAX, TURN_MAX, angDiff, drive, turnTo, type Drive } from "./control";
+import { ACCEL, SPEED_MAX, angDiff, drive, newDrive, turnTo, type Drive } from "./control";
 
 const B = { minX: -1e3, maxX: 1e3, minY: -1e3, maxY: 1e3 };
-const fresh = (): Drive => ({ x: 0, y: 0, heading: 0, speed: 0, cam: 0 });
-const run = (s: Drive, stick: { r: number; f: number }, sec: number) => { for (let i = 0; i < sec * 60; i++) drive(s, stick, 1 / 60, B); return s; };
+const run = (s: Drive, stick: { r: number; f: number }, sec: number, dt = 1 / 60) => { for (let i = 0; i < Math.round(sec / dt); i++) drive(s, stick, dt, B); return s; };
 
-describe("sterowanie jak w samochodzie", () => {
-  it("do przodu: biegnie wzdłuż kierunku do prędkości maksymalnej, bez zmiany kierunku", () => {
-    const s = run(fresh(), { r: 0, f: 1 }, 2);
-    expect(s.speed).toBeGreaterThan(SPEED_MAX * 0.98);
-    expect(s.heading).toBe(0);
-    expect(s.y).toBeCloseTo(0, 6);
-    expect(s.x).toBeGreaterThan(8);
+describe("sterowanie: kierunek joysticka = kierunek biegu na ekranie", () => {
+  it("do przodu: w 0,25 s prawie pełna prędkość wzdłuż osi ataku, bez zmiany kierunku", () => {
+    const s = run(newDrive(0, 0), { r: 0, f: 1 }, 0.25);
+    expect(s.speed).toBeGreaterThan(SPEED_MAX * 0.9);
+    expect(s.y).toBeCloseTo(0, 9);
+    expect(s.x).toBeGreaterThan(0.5);
+    expect(Math.abs(s.heading)).toBeLessThan(1e-9);
   });
 
-  it("w bok w miejscu: obraca się w prawo ze stałą prędkością kątową i nie przesuwa", () => {
-    const s = run(fresh(), { r: 1, f: 0 }, 1);
-    expect(s.heading).toBeCloseTo(TURN_MAX, 1);
-    expect(Math.hypot(s.x, s.y)).toBeLessThan(1e-6);
-    // lewo = przeciwnie
-    expect(run(fresh(), { r: -1, f: 0 }, 1).heading).toBeCloseTo(-TURN_MAX, 1);
+  it("w prawo: biegnie w prawo od razu (bez wstępnego skręcania), patrzy w prawo, kamera stoi", () => {
+    const s = run(newDrive(0, 0), { r: 1, f: 0 }, 0.3);
+    expect(s.y).toBeGreaterThan(0.5);
+    expect(Math.abs(s.x)).toBeLessThan(1e-9);
+    expect(Math.abs(angDiff(Math.PI / 2, s.heading))).toBeLessThan(0.05); // patrzy w prawo (+y)
+    expect(s.cam).toBe(0);
+    // w lewo: przeciwnie
+    expect(run(newDrive(0, 0), { r: -1, f: 0 }, 0.3).y).toBeLessThan(-0.5);
   });
 
-  it("brak biegania w kółko: trzymanie joysticka w bok daje stałą prędkość kątową, kamera ją dogania i nie ucieka", () => {
-    const s = fresh();
-    const rates: number[] = [];
-    let prev = 0;
-    for (let i = 0; i < 180; i++) { drive(s, { r: 1, f: 0 }, 1 / 60, B); rates.push((s.heading - prev) * 60); prev = s.heading; }
-    // prędkość kątowa stała (nie rośnie z obrotem kamery)
-    expect(Math.max(...rates) - Math.min(...rates)).toBeLessThan(1e-6);
-    // kamera za kierunkiem z opóźnieniem ≈ prędkość kątowa / CAM_FOLLOW
-    const lag = s.heading - s.cam;
-    expect(lag).toBeGreaterThan(0.1);
-    expect(lag).toBeCloseTo(TURN_MAX / CAM_FOLLOW, 0);
-    // kamera nadąża za joystickiem: przy pełnym skręcie zostaje w tyle o mniej niż ~17° (wcześniej ~35°)
-    expect(lag).toBeLessThan(0.3);
+  it("po skosie biegnie dokładnie pod kątem wychylenia i nie szybciej niż po osi (kierunek zgodny z joystickiem)", () => {
+    const s = run(newDrive(0, 0), { r: 1, f: 1 }, 1);
+    expect(s.speed).toBeLessThanOrEqual(SPEED_MAX + 1e-9);
+    expect(Math.atan2(s.vy, s.vx)).toBeCloseTo(Math.PI / 4, 3);
+    expect(Math.atan2(s.y, s.x)).toBeCloseTo(Math.PI / 4, 1);
   });
 
-  it("łuk: do przodu + w prawo skręca w prawo i przesuwa się po łuku", () => {
-    const s = run(fresh(), { r: 0.6, f: 1 }, 2);
-    expect(s.heading).toBeGreaterThan(1);
-    expect(s.y).toBeGreaterThan(2);
-    expect(s.speed).toBeGreaterThan(5);
+  it("prędkość zależy od wychylenia: połowa wychylenia ≈ połowa prędkości (po martwej strefie)", () => {
+    const half = run(newDrive(0, 0), { r: 0, f: 0.54 }, 1).speed;
+    expect(half).toBeGreaterThan(SPEED_MAX * 0.4);
+    expect(half).toBeLessThan(SPEED_MAX * 0.6);
+    expect(run(newDrive(0, 0), { r: 0, f: 0.05 }, 1).speed).toBe(0); // martwa strefa
   });
 
-  it("po skręcie „do przodu” biegnie w nowym kierunku (kamera i kierunek zgodne)", () => {
-    const s = run(fresh(), { r: 1, f: 0 }, 0.46); // ok. 90°
-    run(s, { r: 0, f: 0 }, 0.6); // kamera dogania
-    expect(Math.abs(angDiff(s.heading, s.cam))).toBeLessThan(0.05);
-    const x0 = s.x, y0 = s.y;
-    run(s, { r: 0, f: 1 }, 1);
-    const dx = s.x - x0, dy = s.y - y0;
-    expect(Math.atan2(dy, dx)).toBeCloseTo(s.heading, 2);
+  it("zmiana kierunku jest natychmiastowa i płynna: z biegu do przodu w bok w 0,3 s", () => {
+    const s = run(newDrive(0, 0), { r: 0, f: 1 }, 1);
+    run(s, { r: 1, f: 0 }, 0.3);
+    expect(Math.atan2(s.vy, s.vx)).toBeGreaterThan(Math.PI / 4); // już wyraźnie w prawo
+    expect(s.speed).toBeGreaterThan(SPEED_MAX * 0.7);
+    run(s, { r: 1, f: 0 }, 0.4);
+    expect(Math.atan2(s.vy, s.vx)).toBeGreaterThan(Math.PI / 2 - 0.05);
   });
 
-  it("joystick do tyłu zatrzymuje (bez cofania)", () => {
-    const s = run(fresh(), { r: 0, f: 1 }, 2);
-    run(s, { r: 0, f: -1 }, 1.5);
+  it("puszczenie joysticka: zatrzymanie w ok. 0,15 s, kierunek zostaje (celowanie podania)", () => {
+    const s = run(newDrive(0, 0), { r: 1, f: 0 }, 1);
+    const h = s.heading;
+    run(s, { r: 0, f: 0 }, 0.15);
     expect(s.speed).toBeLessThan(0.1);
+    expect(s.heading).toBeCloseTo(h, 6);
   });
 
-  it("martwa strefa: drobne wychylenie nie obraca", () => {
-    expect(run(fresh(), { r: 0.08, f: 0 }, 2).heading).toBe(0);
+  it("wynik nie zależy od liczby klatek na sekundę (30, 60, 120 kl./s)", () => {
+    const at = (dt: number) => run(newDrive(0, 0), { r: 0.6, f: 0.9 }, 1.2, dt);
+    const a = at(1 / 30), b = at(1 / 60), c = at(1 / 120);
+    expect(Math.hypot(a.x - c.x, a.y - c.y)).toBeLessThan(0.15);
+    expect(Math.hypot(b.x - c.x, b.y - c.y)).toBeLessThan(0.08);
   });
 
-  it("kamera dogania kierunek najkrótszym łukiem przez ±π (bez obrotu o prawie 360°)", () => {
-    const s: Drive = { ...fresh(), heading: -3.1, cam: 3.1 };
-    for (let i = 0; i < 20; i++) drive(s, { r: 0, f: 0 }, 1 / 60, B);
-    expect(Math.abs(s.cam)).toBeGreaterThan(3.0); // nadal blisko ±π, a nie przez 0
-    expect(angDiff(s.heading, s.cam)).toBeLessThan(0.1 + Math.abs(angDiff(-3.1, 3.1)));
+  it("rozpęd 0 → pełna prędkość trwa ok. 0,17 s (stała ACCEL)", () => {
+    expect(SPEED_MAX / ACCEL).toBeLessThan(0.2);
   });
 
-  it("turnTo: obrót do celu przed kopnięciem i wyhamowanie", () => {
-    const s = run(fresh(), { r: 0, f: 1 }, 1);
-    for (let i = 0; i < 30; i++) turnTo(s, 1.2, 1 / 60);
-    expect(Math.abs(angDiff(1.2, s.heading))).toBeLessThan(0.05);
-    expect(s.speed).toBeLessThan(0.3);
+  it("granice boiska zatrzymują zawodnika bez drgań", () => {
+    const s = newDrive(0, 0);
+    for (let i = 0; i < 120; i++) drive(s, { r: 0, f: 1 }, 1 / 60, { minX: -5, maxX: 3, minY: -5, maxY: 5 });
+    expect(s.x).toBeCloseTo(3, 9);
+    expect(s.vx).toBe(0);
   });
 
-  it("granice boiska", () => {
-    const s = fresh();
-    for (let i = 0; i < 600; i++) drive(s, { r: 0, f: 1 }, 1 / 60, { minX: 0, maxX: 5, minY: -1, maxY: 1 });
-    expect(s.x).toBe(5);
+  it("przed zamachem zawodnik staje i obraca się do celu", () => {
+    const s = run(newDrive(0, 0), { r: 0, f: 1 }, 1);
+    for (let i = 0; i < 60; i++) turnTo(s, Math.PI / 2, 1 / 60);
+    expect(Math.abs(angDiff(Math.PI / 2, s.heading))).toBeLessThan(0.01);
+    expect(s.speed).toBeLessThan(0.05);
   });
 });

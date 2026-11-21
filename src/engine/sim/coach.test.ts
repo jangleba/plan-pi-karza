@@ -131,9 +131,9 @@ describe("klasyfikacja i kroki", () => {
     const rated = rateOptions(createScenario(0));
     const nm = (id: string) => id;
     const lost = coachSteps({ variant: 0, rated, first: { kind: "lost", t: 1.5, by: "S1" }, cls: "conceded", nameOf: nm, loss: { t: 1.5, by: "S1" } });
-    expect(lost[1]!.text).toMatch(/Piłkę straciłeś po 1,5 s/);
+    expect(lost[1]!.text).toMatch(/Piłka stracona po 1,5 s/);
     const none = coachSteps({ variant: 0, rated, first: null, cls: "conceded", nameOf: nm, loss: null });
-    expect(none[1]!.text).toMatch(/Nie zagrałeś/);
+    expect(none[1]!.text).toMatch(/Brak zagrania/);
   });
 });
 
@@ -152,7 +152,7 @@ describe("rysunek lepszego rozwiązania", () => {
       expect(c.y).toBeLessThanOrEqual(64);
     }
   });
-  it("zagrałeś gorzej niż najlepsze wolne podanie: strzałka do lepszego kolegi; zagrałeś najlepiej: miejsce ruchu po podaniu", () => {
+  it("wybrane podanie gorsze niż najlepsze wolne: strzałka do lepszego kolegi; wybrane najlepsze: miejsce ruchu po podaniu", () => {
     let better = 0, best = 0;
     for (let s = 1; s <= 40; s++) {
       const { world } = randomScenario(s * 7);

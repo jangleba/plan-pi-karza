@@ -121,13 +121,13 @@ export function coachSteps(input: { variant: Variant; situation?: Situation; rat
     const r = rated.find((x) => x.id === first.target);
     const name = r?.name ?? nameOf(first.target);
     if (r?.kept) t2 = best && best.id === r.id ? `${name}: najlepsza opcja w tym ustawieniu (piłka +${r.gain} m).` : `${name}: piłka została u nas. Najdalej do przodu: ${best?.name ?? name} (+${best?.gain ?? 0} m).`;
-    else t2 = `${name}: ${r?.beforePass ? "za późno – piłkę straciłeś przed podaniem" : `przecięte po ${sec(r?.lostAt ?? 0)}${r?.lostBy ? ` (${nameOf(r.lostBy)})` : ""}`}. ${best ? `Lepiej: ${best.name}.` : "Każde podanie było ryzykowne – zagraj najbezpieczniej lub wyjdź z piłką z dala od presji."}`;
+    else t2 = `${name}: ${r?.beforePass ? "za późno – piłka została stracona przed podaniem" : `przecięte po ${sec(r?.lostAt ?? 0)}${r?.lostBy ? ` (${nameOf(r.lostBy)})` : ""}`}. ${best ? `Lepiej: ${best.name}.` : "Każde podanie było ryzykowne – zagraj najbezpieczniej lub wyjdź z piłką z dala od presji."}`;
   } else if (first?.kind === "lost") {
-    t2 = `Piłkę straciłeś po ${sec(first.t)} – ${nameOf(first.by)} doskoczył. Zagraj szybciej${best ? `, np. do: ${best.name}` : ""}${situation === "press" ? "; pressing zamyka się w ok. 1,5 s" : ""}.`;
+    t2 = `Piłka stracona po ${sec(first.t)}: ${nameOf(first.by)} zdążył doskoczyć. Zagraj szybciej${best ? `, np. do: ${best.name}` : ""}${situation === "press" ? "; pressing zamyka się w ok. 1,5 s" : ""}.`;
   } else if (first?.kind === "shot") {
     t2 = "Strzał z własnej połowy nie ma szansy. Najpierw wyjdź z pressingu.";
   } else {
-    t2 = situation === "press" ? "Nie zagrałeś. Pressing zamyka się w ok. 1,5 s – decyduj wcześniej." : "Nie zagrałeś na czas. Decyduj szybciej, zanim rywale zamkną drogę.";
+    t2 = situation === "press" ? "Brak zagrania. Pressing zamyka się w ok. 1,5 s – decyduj wcześniej." : "Brak zagrania na czas. Decyduj szybciej, zanim rywale zamkną drogę.";
   }
   const s2: CoachStep = { title: "Twój wybór", text: t2 };
 
@@ -178,7 +178,7 @@ export function freeSpace(snap: World, from: { x: number; y: number }): { x: num
 }
 
 /**
- * Co narysować na powtórce w chwili decyzji: lepsze podanie (gdy zagrałeś gorzej), miejsce ruchu po dobrym podaniu
+ * Co narysować na powtórce w chwili decyzji: lepsze podanie (gdy wybrane zagranie było gorsze), miejsce ruchu po dobrym podaniu
  * albo wolne miejsce do wyjścia z piłką, gdy żadne podanie nie było bezpieczne.
  */
 export function betterPlan(snap: World, rated: OptionResult[], first: FirstAction | null, nameOf: (id: string) => string): BetterPlan | null {
