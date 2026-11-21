@@ -16,6 +16,7 @@ Przestrzenie: `bw:guest:*` oraz `bw:u:<id konta>:*`. Zmiana konta nie kopiuje an
 | Historia, ciężary (`weightLog`), MAS, odczucia, biegi (w tym **trasa GPS**: do 500 punktów [szerokość, długość, czas w s] na bieg) | `history`, `weightLog`, `masDistance`, `feelings`, `runs` | Do chmury tylko za zgodą na synchronizację zdrowia |
 | Check-iny (samopoczucie, regeneracja po wczoraj, „dziś mniej”) | `checkIn:*` | j.w. W chmurze (tabela `check_ins`, kolumny `recovery`, `feeling`, `less`) |
 | Cel zawodnika (liga jako własna ambicja, do dwóch celów treningowych, data) i ukrycie karty „Ustal swój cel” | `ambition`, `ambitionDismissed` | Tylko na urządzeniu, bez synchronizacji, chmury i AI. Samopoczucia ani żadnych odpowiedzi o stanie psychicznym nie zbieramy ani nie zapisujemy |
+| Terminy meczów i sparingów na poszczególne tygodnie (dni 0–6 lub „brak”) | `matchWeeks` | Tylko na urządzeniu, bez synchronizacji; stare wpisy (ponad pół roku) są usuwane |
 | Zgłoszenia „nie mogę zrobić dzisiejszych treningów” (dzień, którego dotyczą, i dzień zgłoszenia) | `skippedDays` | Tylko na urządzeniu; porządkowane po ok. 10 tygodniach; nie jest synchronizowane |
 | Fuel: posiłki, cele, ulubione, **alergeny i dieta** | `meals`, `fuelGoal`, `fuelFavs`, `fuelDiet`… | Nie są synchronizowane |
 | **Piłkarski angielski**: poziom trudności, ukończone lekcje, etap powtórek zwrotów i fiszek, miejsce przerwania lekcji | `english` | Po zalogowaniu synchronizowane z kontem (dane edukacyjne, nie zdrowotne) |

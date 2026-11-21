@@ -26,4 +26,5 @@ export * from "./jumpdetect";
 export * from "./feel";
 export * from "./progress2";
 export * from "./ambition";
+export * from "./matchweek";
 export * from "./favorites";
