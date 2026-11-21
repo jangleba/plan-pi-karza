@@ -202,7 +202,7 @@ function TestSheet({ test, s, events, onClose, onSaved }: { test: LabTest; s: Te
         />
       )}
       {recording && (test.key === "broad-jump"
-        ? <JumpMeasure src={recording.url} onResult={applyVideo} onClose={() => { URL.revokeObjectURL(recording.url); setRecording(null); }} />
+        ? <JumpMeasure src={recording.url} srcFps={recording.fps} onResult={applyVideo} onClose={() => { URL.revokeObjectURL(recording.url); setRecording(null); }} />
         : <VideoMeasure mode={test.key} src={recording.url} srcFps={recording.fps} auto={test.key === "cmj"}
             onResult={applyVideo} onClose={() => { URL.revokeObjectURL(recording.url); setRecording(null); }} />)}
     </>
