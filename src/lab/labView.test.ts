@@ -62,9 +62,9 @@ describe("cykl Lab i formatowanie", () => {
   it("cykl: ile testów aktualnych, które zaległe, co najbliżej", () => {
     const s = LAB_TESTS.map((t) => summarizeTest(t.key === "cmj" ? [ev("cmj", "2026-11-11", 30)] : [], t, TODAY));
     const c = labCycle(s);
-    expect(c.total).toBe(4);
+    expect(c.total).toBe(3);
     expect(c.current).toBe(1);
-    expect(c.due).toEqual(["broad-jump", "sprint", "yoyo-ir1"]);
+    expect(c.due).toEqual(["broad-jump", "sprint"]);
     expect(c.next).toEqual({ key: "cmj", inDays: 25 });
     expect(labCycle(s.filter((x) => x.key === "cmj")).due).toEqual([]);
   });
@@ -73,6 +73,6 @@ describe("cykl Lab i formatowanie", () => {
     expect(fmtValue("sprint-10", 2.064)).toBe("2,06");
     expect(fmtValue("cmj", 33)).toBe("33");
     expect(fmtValue("cmj", 33.25)).toBe("33,3");
-    expect(fmtValue("yoyo-ir1", 1240)).toBe("1240");
+    expect(fmtValue("broad-jump", 238)).toBe("238");
   });
 });

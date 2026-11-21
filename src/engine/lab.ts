@@ -7,7 +7,7 @@ export function jumpHeightFromFlightTime(seconds: number): number {
 }
 
 export interface LabTest {
-  key: "cmj" | "broad-jump" | "sprint" | "yoyo-ir1";
+  key: "cmj" | "broad-jump" | "sprint";
   title: string;
   unit: string;
   instructions: string[];
@@ -48,9 +48,16 @@ export const LAB_TESTS: LabTest[] = [
     title: "Skok w dal z miejsca",
     unit: "cm",
     instructions: [
-      "Stopy za linią, wymach rąk, skok obunóż.",
-      "Mierz od linii do pięty bliższej linii.",
+      "Telefon poziomo, nieruchomo (oparty lub na statywie), 4–5 m od toru, prostopadle do kierunku skoku, na wysokości bioder. Cała sylwetka i miejsce lądowania w kadrze.",
+      "Stań na linii i nie ruszaj się 2 s, potem skocz obunóż z wymachem rąk. Po lądowaniu zostań w miejscu 2 s.",
+      "W nagraniu zaznaczysz czubek głowy, podłoże, linię palców przed skokiem i tył pięty po lądowaniu. Skala liczy się z Twojego wzrostu, więc odległość od telefonu nie ma znaczenia.",
       "2–3 próby, zapisz najlepszą.",
+    ],
+    caveat: "Wynik zależy od zaznaczenia punktów na klatce; w razie wątpliwości zmierz taśmą i wpisz ręcznie.",
+    limits: [
+      "To oszacowanie z nagrania (skala z Twojego wzrostu), a nie walidowany pomiar taśmą.",
+      "Dokładność zależy od rozdzielczości (zawodnik jak największy w kadrze), nieruchomego telefonu, ustawienia prostopadle do skoku i dokładnego zaznaczenia punktów na klatkach; skok w stronę kamery lub od niej zawyża albo zaniża wynik, a brzegi kadru są zniekształcone przez obiektyw.",
+      "Wzrost podaj bez obuwia i zmierz podczas stania prosto; błąd wzrostu przenosi się wprost na wynik.",
     ],
   },
   {
@@ -69,17 +76,6 @@ export const LAB_TESTS: LabTest[] = [
       "Wyniki porównuj tylko ze sobą, przy tym samym sprzęcie i ustawieniu kamery.",
     ],
   },
-  {
-    key: "yoyo-ir1",
-    title: "Yo-Yo IR1 – wydolność",
-    unit: "m",
-    instructions: [
-      "Odcinki 20 m tam i z powrotem (40 m), po każdym 10 s aktywnej przerwy.",
-      "Rytm z oficjalnej ścieżki dźwiękowej, start 10 km/h; test kończysz po dwóch spóźnieniach.",
-      "Zapisz łączny dystans w metrach.",
-    ],
-    caveat: "Użyj oficjalnej ścieżki dźwiękowej Yo-Yo IR1.",
-  },
 ];
 
 export interface LabResult { key: string; value: number }
@@ -92,7 +88,6 @@ export function validateLab(key: string, v: number): string | null {
     "sprint-10": [1.3, 3.0, "Sprint 10 m: 1,3–3,0 s"],
     "sprint-20": [2.4, 4.5, "Sprint 20 m: 2,4–4,5 s"],
     "sprint-30": [3.4, 6.0, "Sprint 30 m: 3,4–6,0 s"],
-    "yoyo-ir1": [40, 3000, "Yo-Yo IR1: 40–3000 m"],
   };
   const r = ranges[key];
   if (!r) return "Nieznany test";

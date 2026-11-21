@@ -6,7 +6,6 @@ export const LAB_INFO: Record<LabTest["key"], { what: string; main: string; bett
   cmj: { what: "Moc nóg i wyskok", main: "cmj", better: "up", unit: "cm" },
   "broad-jump": { what: "Siła wybicia w poziomie", main: "broad-jump", better: "up", unit: "cm" },
   sprint: { what: "Przyspieszenie na 10–30 m", main: "sprint-10", better: "down", unit: "s" },
-  "yoyo-ir1": { what: "Wytrzymałość biegowa z przerwami", main: "yoyo-ir1", better: "up", unit: "m" },
 };
 
 const DAY = 86_400_000;

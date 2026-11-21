@@ -26,13 +26,12 @@ describe("Lab", () => {
 describe("Lab: oszacowanie z nagrania ≠ walidowany pomiar", () => {
   it("testy z nagrania mają jawne ograniczenia, a oznaczenie pochodzenia nie nazywa oszacowania pomiarem", async () => {
     const { LAB_TESTS, METHOD_LABEL, VALIDATION_NOTE } = await import("./lab");
-    for (const key of ["cmj", "sprint"] as const) {
+    for (const key of ["cmj", "broad-jump", "sprint"] as const) {
       const t = LAB_TESTS.find((x) => x.key === key)!;
       expect(t.limits?.length, key).toBeGreaterThanOrEqual(3);
       expect(t.limits!.join(" ")).toMatch(/oszacowanie/i);
       expect(t.limits!.join(" ")).toMatch(/klatk/i);
     }
-    expect(LAB_TESTS.find((x) => x.key === "broad-jump")!.limits).toBeUndefined(); // pomiar taśmą/linijką – wpisywany ręcznie
     expect(METHOD_LABEL.video_estimate).toMatch(/nie jest to walidowany pomiar/);
     expect(METHOD_LABEL.manual_entry).toBe("wpisane ręcznie");
     expect(VALIDATION_NOTE).toMatch(/My Jump 2/);

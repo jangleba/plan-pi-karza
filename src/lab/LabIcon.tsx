@@ -30,12 +30,6 @@ export function LabIcon({ test }: { test: LabTest["key"] }) {
           <path d="M26 12 l8 9 -8 9 z" />
         </g>
       )}
-      {test === "yoyo-ir1" && (
-        <g {...P}>
-          <path d="M9 30 l3 -12 3 12 z" /><path d="M25 30 l3 -12 3 12 z" />
-          <g className="bw-shuttle"><path d="M12 12 h16 m-4 -3.5 l4 3.5 -4 3.5" /></g>
-        </g>
-      )}
     </svg>
   );
 }

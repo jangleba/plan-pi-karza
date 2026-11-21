@@ -6,10 +6,12 @@ import { useEffect, useRef, useState } from "react";
  */
 export interface Recording { url: string; fps: number }
 
-export function CameraCapture({ orientation, autoStopS, onDone, onClose }: {
+export function CameraCapture({ orientation, autoStopS, guide, onDone, onClose }: {
   orientation: "portrait" | "landscape";
   /** Automatyczne zakończenie po N s od startu nagrania (np. CMJ). */
   autoStopS?: number;
+  /** Wskazówka ustawienia kadru widoczna przed startem. */
+  guide?: string;
   onDone: (r: Recording) => void;
   onClose: () => void;
 }) {
@@ -30,13 +32,28 @@ export function CameraCapture({ orientation, autoStopS, onDone, onClose }: {
     return () => window.removeEventListener("resize", check);
   }, []);
 
+  // po kliknięciu „Nagraj” kamera od razu przechodzi w poziom: pełny ekran i blokada orientacji
+  // (działa w Chrome na Androidzie; iPhone w Safari tego nie umożliwia, wtedy prosimy o obrót)
+  useEffect(() => {
+    if (orientation !== "landscape") return;
+    const o = screen.orientation as ScreenOrientation & { lock?: (t: string) => Promise<void>; unlock?: () => void };
+    void (async () => {
+      try { await document.documentElement.requestFullscreen?.(); } catch { /* brak zgody lub wsparcia */ }
+      try { await o.lock?.("landscape"); } catch { /* brak wsparcia */ }
+    })();
+    return () => {
+      try { o.unlock?.(); } catch { /* brak wsparcia */ }
+      try { if (document.fullscreenElement) void document.exitFullscreen?.(); } catch { /* brak wsparcia */ }
+    };
+  }, [orientation]);
+
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         const s = await navigator.mediaDevices.getUserMedia({
           audio: false,
-          video: { facingMode: "environment", frameRate: { ideal: 60, max: 240 }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          video: { facingMode: "environment", frameRate: { ideal: 60, max: 240 }, width: { ideal: orientation === "landscape" ? 1920 : 1280 }, height: { ideal: orientation === "landscape" ? 1080 : 720 } },
         });
         if (!alive) { s.getTracks().forEach((t) => t.stop()); return; }
         stream.current = s;
@@ -87,11 +104,12 @@ export function CameraCapture({ orientation, autoStopS, onDone, onClose }: {
       </div>
       <div className="relative z-10 flex flex-1 items-center justify-center">
         {error ? <p className="mx-6 rounded-2xl bg-black/60 p-4 text-center text-sm">{error}</p>
-          : !okOrientation ? <p className="mx-6 rounded-2xl bg-black/60 p-4 text-center text-base">Obróć telefon {orientation === "landscape" ? "poziomo" : "pionowo"}</p>
+          : !okOrientation ? <p className="mx-6 rounded-2xl bg-black/60 p-4 text-center text-base">Obróć telefon {orientation === "landscape" ? "poziomo" : "pionowo"}. Przycisk startu pojawi się po obrocie.</p>
           : count !== null ? <span className="text-8xl font-semibold tabular-nums drop-shadow">{count}</span>
           : recording ? <span className="flex items-center gap-2 rounded-full bg-black/50 px-4 py-2 text-sm"><span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />Nagrywanie</span>
           : null}
       </div>
+      {guide && okOrientation && !error && !recording && count === null && <p className="relative z-10 mx-6 mb-2 rounded-2xl bg-black/55 p-3 text-center text-xs">{guide}</p>}
       <div className="relative z-10 p-6 pb-10">
         {!recording && count === null && (
           <button disabled={!okOrientation || !!error} onClick={start} className="w-full rounded-2xl bw-grad py-4 text-base font-medium disabled:opacity-40">
