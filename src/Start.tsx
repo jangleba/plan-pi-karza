@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useState } from "react";
-import { readinessScore, strainOf } from "./engine";
+import { readinessScore, restSuggested, strainOf } from "./engine";
 import type { CheckIn, Profile } from "./engine";
 import { Sheet } from "./Sheet";
 import { LegalSheet } from "./legal/LegalUi";
@@ -81,9 +81,9 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn, onSettings }: {
 
       <section className="bw-rise mb-6 rounded-3xl border border-hairline bg-card px-5 py-5">
         <Ring value={readinessScore(checkIn)} done={checkedIn} onTap={() => setOpen(true)} />
-        <p className="mt-3 text-center text-sm text-muted">{checkedIn ? STRAIN[strainOf(checkIn)] : "Jak się czujesz? Dotknij, by odpowiedzieć"}</p>
+        <p className="mt-3 text-center text-sm text-muted">{!checkedIn ? "Jak się dziś czujesz? Dotknij." : restSuggested(checkIn) ? "Dziś lżej. Proponujemy regenerację." : STRAIN[strainOf(checkIn)]}</p>
         <p className="mt-2 text-center text-[11px] leading-snug text-muted">
-          Wynik jest orientacyjny, liczony z Twojej odpowiedzi (sen, samopoczucie), bez gwarancji. Przy bólu lub złym samopoczuciu odpuść.{" "}
+          Wynik jest orientacyjny, z Twoich odpowiedzi. Przy bólu odpuść.{" "}
           <button onClick={() => setSafety(true)} className="underline">Zasady bezpieczeństwa</button>
         </p>
       </section>
@@ -99,8 +99,8 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn, onSettings }: {
       {safety && <LegalSheet kind="safety" onClose={() => setSafety(false)} />}
       {open && (
         <Sheet title="Jak się czujesz?" onClose={() => setOpen(false)}>
-          <Choice label="Sen" value={checkIn.sleep} onChange={(v) => onCheckIn({ ...checkIn, sleep: v })} />
           <Choice label="Samopoczucie" value={checkIn.feeling} onChange={(v) => onCheckIn({ ...checkIn, feeling: v })} />
+          <Choice label="Regeneracja po wczoraj" value={checkIn.recovery} onChange={(v) => onCheckIn({ ...checkIn, recovery: v })} />
           <div className="mb-6 flex flex-col gap-3">
             <button onClick={() => onCheckIn({ ...checkIn, less: !checkIn.less })}
               className={`w-full rounded-2xl py-3.5 text-sm font-medium ${checkIn.less ? "bw-sel" : "bg-canvas text-ink"}`}>

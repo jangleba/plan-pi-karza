@@ -75,7 +75,7 @@ describe("dowody oświadczeń: osobne akceptacje i zgody, dziennik tylko do dopi
 });
 
 describe("zgoda na synchronizację danych zdrowotnych: egzekwowana przez RLS, wycofanie ma skutek", () => {
-  const ci = (u: string) => as(u, () => q("insert into check_ins (user_id, day, sleep, feeling) values ($1, '2026-11-19', 2, 3)", [u]));
+  const ci = (u: string) => as(u, () => q("insert into check_ins (user_id, day, recovery, feeling) values ($1, '2026-11-19', 2, 3)", [u]));
   it("bez zgody zapis do chmury jest niemożliwy; po zgodzie działa; wycofanie usuwa dane i znów blokuje zapis", async () => {
     await expect(ci(U1)).rejects.toThrow(/row-level security/);
     await expect(as(U1, () => q("insert into weight_log (user_id, exercise_id, kg, reps, logged_on) values ($1, 'sq', 80, 5, '2026-11-19')", [U1]))).rejects.toThrow(/row-level security/);
@@ -97,7 +97,7 @@ describe("zgoda na synchronizację danych zdrowotnych: egzekwowana przez RLS, wy
     await as(U2, () => q("select record_consent('health_sync', 'grant', 'v')"));
     await ci(U2);
     expect((await as(U1, () => q("select 1 from check_ins"))).rows).toHaveLength(0);
-    await expect(as(U2, () => q("insert into check_ins (user_id, day, sleep, feeling) values ($1, '2026-11-20', 1, 1)", [U1]))).rejects.toThrow(/row-level security/);
+    await expect(as(U2, () => q("insert into check_ins (user_id, day, recovery, feeling) values ($1, '2026-11-20', 1, 1)", [U1]))).rejects.toThrow(/row-level security/);
   });
 });
 

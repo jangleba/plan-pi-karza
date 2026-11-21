@@ -38,7 +38,7 @@ describe("żądania do chmury: żadnej daty urodzenia ani pól spoza kontraktu",
     grantHealth();
     const dirty = profile({ birthDate: "2007-03-14", birthYear: 2007, dob: "2007-03-14", pesel: "07031412345", email: "x@y.pl" });
     await pushProfile(dirty);
-    await pushCheckIn("2026-11-19", { sleep: 2, feeling: 3, less: false });
+    await pushCheckIn("2026-11-19", { recovery: 2, feeling: 3, less: false });
     await pushWeightLog({ squat: { kg: 80, reps: 5, date: "2026-11-19", completion: "all", choice: "stay" } });
     await pushMas(1200);
     expect(rec.calls.length).toBeGreaterThanOrEqual(4);
@@ -51,7 +51,7 @@ describe("żądania do chmury: żadnej daty urodzenia ani pól spoza kontraktu",
 
   it("dane zdrowotne (check-in, ciężary, MAS) nie idą do chmury bez zgody na synchronizację", async () => {
     await pushProfile(profile());
-    await pushCheckIn("2026-11-19", { sleep: 2, feeling: 3, less: false });
+    await pushCheckIn("2026-11-19", { recovery: 2, feeling: 3, less: false });
     await pushWeightLog({ squat: { kg: 80, reps: 5, date: "2026-11-19" } });
     await pushMas(1200);
     expect(rec.calls.map((c) => c.table)).toEqual(["profiles"]);

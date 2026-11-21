@@ -12,6 +12,7 @@ export function Heatmap({ cells, today, weeks = 12 }: { cells: Map<string, Cell>
     const c = cells.get(date);
     const future = date > today;
     const base = "h-[18px] w-[18px] rounded-[5px]";
+    if (c?.state === "done" && c.viaRest) return <span key={date} title={`${date} · regeneracja zamiast sesji`} className={`${base} relative bg-btn shadow-[inset_0_0_0_1px_var(--color-btn-line)]`}><i className="absolute inset-[6px] rounded-full bg-card" /></span>;
     if (c?.state === "done") return <span key={date} title={`${date} · wykonane`} className={`${base} bg-btn shadow-[inset_0_0_0_1px_var(--color-btn-line)]`} />;
     if (c?.state === "missed") return <span key={date} title={`${date} · pominięte`} className={`${base} border border-dashed border-muted/60 bg-card`} />;
     if (c?.state === "planned") return <span key={date} title={`${date} · zaplanowane`} className={`${base} bg-canvas shadow-[inset_0_0_0_1px_var(--color-hairline)]`} />;
@@ -37,6 +38,7 @@ export function Heatmap({ cells, today, weeks = 12 }: { cells: Map<string, Cell>
       </div>
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted">
         <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-[4px] bg-btn shadow-[inset_0_0_0_1px_var(--color-btn-line)]" />wykonane</span>
+        <span className="flex items-center gap-1.5"><span className="relative h-3 w-3 rounded-[4px] bg-btn shadow-[inset_0_0_0_1px_var(--color-btn-line)]"><i className="absolute inset-[4px] rounded-full bg-card" /></span>regeneracja zamiast sesji</span>
         <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-[4px] border border-dashed border-muted/60" />pominięte</span>
         <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-[4px] bg-canvas shadow-[inset_0_0_0_1px_var(--color-hairline)]" />przed nami</span>
       </div>

@@ -12,7 +12,7 @@ import { DrawTool } from "./tools/Draw";
 import { StimuliTool } from "./tools/Stimuli";
 import { Group, ListRow } from "./ui";
 import { CueTrainer } from "./CueTrainer";
-import { EXERCISES, RECOVERY, applyChoice, bodyweightTemplate, drillsFor, DRILL_GROUPS, adaptSession, addEvents, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
+import { EXERCISES, RECOVERY, RECOVERY_LIGHT, applyChoice, bodyweightTemplate, drillsFor, DRILL_GROUPS, adaptSession, addEvents, restSuggested, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
 import type { CheckIn, Drill, DrillGroup, Choice, Completion, DayPlan, HistoryEvent, Level, Mas, Position, Suggestion } from "./engine";
 
 interface ConfirmRow { exerciseId: string; kg: number; planned: string; plannedReps: number }
@@ -23,8 +23,8 @@ const KIND_TITLE: Record<string, string> = {
 };
 
 export function SessionSheet({
-  day, checkIn, weekInCycle, level, position, hasGym, inviterName, age, onSkipDay, onClose,
-}: { day: DayPlan; checkIn: CheckIn; weekInCycle: number; level: Level; position?: Position; hasGym: boolean; inviterName?: string; age?: number; onSkipDay?: () => void; onClose: () => void }) {
+  day, checkIn, checkedIn, weekInCycle, level, position, hasGym, inviterName, age, onSkipDay, onClose,
+}: { day: DayPlan; checkIn: CheckIn; checkedIn: boolean; weekInCycle: number; level: Level; position?: Position; hasGym: boolean; inviterName?: string; age?: number; onSkipDay?: () => void; onClose: () => void }) {
   const [mas, setMas] = useState<Mas | null>(loadMas);
   const [running, setRunning] = useState(false);
   const [log, setLog] = useState(loadLog);
@@ -33,7 +33,15 @@ export function SessionSheet({
   // krok pośredni: zawodnik sam potwierdza, jak poszło (samo „koniec sesji” i wpisane kg nie są potwierdzeniem wykonania)
   const [confirm, setConfirm] = useState<ConfirmRow[] | null>(null);
   const [report, setReport] = useState<Record<string, Completion>>({});
-  const s = day.session;
+  // bardzo słaby dzień: proponujemy regenerację zamiast sesji indywidualnej (mecze i klub zostają bez zmian); decyduje zawodnik
+  const [restChoice, setRestChoice] = useState<"ask" | "rest" | "train">("ask");
+  const planned = day.session;
+  const suggestRest = !!planned && planned.kind !== "recovery" && restSuggested(checkIn);
+  const swapped = suggestRest && restChoice === "rest";
+  const s = swapped ? { ...planned!, kind: "recovery" as const } : planned;
+  const rec = swapped ? RECOVERY_LIGHT : RECOVERY;
+  /** Zapis sesji: regeneracja z check-inu liczy się do zaplanowanego rodzaju (regularność), z oznaczeniem. */
+  const sessionEvent = (): HistoryEvent[] => (s ? [swapped ? { date: day.date, type: "session", key: planned!.kind, value: 1, viaRest: true } : { date: day.date, type: "session", key: s.kind, value: 1 }] : []);
   const [info, setInfo] = useState<{ id: string; note?: string } | null>(null);
   const [tool, setTool] = useState<"stim" | "draw" | null>(null);
   const [halfDrill, setHalfDrill] = useState<Drill | null>(null);
@@ -68,7 +76,7 @@ export function SessionSheet({
   };
 
   const finish = () => {
-    if (!adapted || !found) { addEvents(s ? [{ date: day.date, type: "session", key: s.kind, value: 1 }] : []); onClose(); return; }
+    if (!adapted || !found) { addEvents(sessionEvent()); onClose(); return; }
     const rows = reported();
     if (rows.length === 0) { save(rows); return; }
     setConfirm(rows);
@@ -76,7 +84,7 @@ export function SessionSheet({
 
   /** Zapis sesji. Wartość 1RM i propozycje zwiększenia powstają wyłącznie z POTWIERDZONEGO wykonania (`report`). */
   const save = (rows: ConfirmRow[]) => {
-    const events: HistoryEvent[] = s ? [{ date: day.date, type: "session", key: s.kind, value: 1 }] : [];
+    const events: HistoryEvent[] = sessionEvent();
     if (!adapted || !found) { addEvents(events); onClose(); return; }
     const strain = strainOf(checkIn);
     const next = { ...log };
@@ -160,6 +168,22 @@ export function SessionSheet({
     <>
     <Sheet title={club ? "Trening klubowy" : KIND_TITLE[s.kind]} onClose={onClose}>
         {both && <DayTabs own={KIND_TITLE[s!.kind]!} view={view} onView={setView} />}
+        {!club && suggestRest && restChoice === "ask" && (
+          <div className="bw-rise mt-3 rounded-2xl border border-hairline bg-canvas p-4" role="region" aria-label="Propozycja regeneracji">
+            <p className="text-[15px] font-semibold leading-snug">Dziś proponujemy regenerację</p>
+            <p className="mt-1 text-sm text-muted">Słaba regeneracja i gorsze samopoczucie. Ty decydujesz.</p>
+            <div className="mt-3 flex gap-2">
+              <button onClick={() => setRestChoice("rest")} className="flex-1 rounded-xl bw-grad py-3 text-sm font-medium">Regeneracja</button>
+              <button onClick={() => setRestChoice("train")} className="flex-1 rounded-xl bg-card py-3 text-sm">Lżejsza sesja</button>
+            </div>
+          </div>
+        )}
+        {!club && suggestRest && restChoice === "rest" && (
+          <p className="mt-3 text-sm text-muted">Zamieniono na regenerację. <button onClick={() => setRestChoice("train")} className="underline">Wróć do sesji</button></p>
+        )}
+        {!club && !checkedIn && (s?.kind === "strength" || s?.kind === "sprint" || s?.kind === "run") && (
+          <p className="mt-3 rounded-xl border border-hairline bg-canvas px-3 py-2 text-sm text-muted">Zrób check-in na Starcie, a dopasujemy trening.</p>
+        )}
         {club ? (
           <div className="min-h-[34vh]">
             <p className="mt-3 text-[15px] leading-snug">Ten trening prowadzi trener klubu.</p>
@@ -242,11 +266,15 @@ export function SessionSheet({
           </>
         ) : s?.kind === "recovery" ? (
           <>
-            <p className="text-sm text-muted">{RECOVERY.title} · ok. {RECOVERY.minutes} min</p>
+            <p className="text-sm text-muted">{rec.title} · ok. {rec.minutes} min</p>
             <h3 className="mb-1 mt-4 text-sm font-semibold">Najważniejsze</h3>
-            <ul className="list-disc pl-4 text-sm">{RECOVERY.foundation.map((x) => <li key={x}>{x}</li>)}</ul>
-            <h3 className="mb-1 mt-4 text-sm font-semibold">Opcjonalnie</h3>
-            <ul className="list-disc pl-4 text-sm text-muted">{RECOVERY.optional.map((x) => <li key={x}>{x}</li>)}</ul>
+            <ul className="list-disc pl-4 text-sm">{rec.foundation.map((x) => <li key={x}>{x}</li>)}</ul>
+            {rec.optional.length > 0 && (
+              <>
+                <h3 className="mb-1 mt-4 text-sm font-semibold">Opcjonalnie</h3>
+                <ul className="list-disc pl-4 text-sm text-muted">{rec.optional.map((x) => <li key={x}>{x}</li>)}</ul>
+              </>
+            )}
           </>
         ) : (
           <p className="mt-3 text-sm text-muted">

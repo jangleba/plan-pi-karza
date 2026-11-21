@@ -22,12 +22,12 @@ describe("sesje biegowe", () => {
     expect(s.blocks[0]!.reps).toBe(1);
   });
   it("check-in mocny: spokojny bieg zamiast interwałów", () => {
-    const s = runSession(mas, "intensity", "advanced", { sleep: 1, feeling: 1, less: false });
+    const s = runSession(mas, "intensity", "advanced", { recovery: 1, feeling: 1, less: false });
     expect(s.title).toBe("Bieg ciągły spokojny");
     expect(s.notes.length).toBeGreaterThan(0);
   });
   it("check-in lekki: mniej powtórzeń", () => {
-    const s = runSession(mas, "intensity", "advanced", { sleep: 3, feeling: 3, less: true });
+    const s = runSession(mas, "intensity", "advanced", { recovery: 3, feeling: 3, less: true });
     expect(s.blocks[0]!.reps).toBe(9);
   });
   it("test MAS", () => {

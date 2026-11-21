@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { AgeGate } from "./AgeGate";
 import { Splash } from "./AppBoundary";
 import { Settings } from "./Settings";
@@ -7,7 +7,7 @@ import { hasCurrentAgreement, resumePendingWithdraw } from "./legal/consent";
 import { useAuthState } from "./lib/session";
 import { changeBirth, finalizeNewProfile, loadGuardedProfile, saveProfile, type GuardResult } from "./lib/profileGuard";
 import { getScope, migrateLegacy, purgeRemovedFeatures, sameScope, scopeId, type Scope } from "./lib/store";
-import { localISO, addDays, cycleWeekFor, levelOf, nextWeekUnlocked, planForProfile, weekdayGen } from "./engine";
+import { DEFAULT_CHECK_IN, localISO, addDays, cycleWeekFor, levelOf, nextWeekUnlocked, normalizeCheckIn, planForProfile, weekdayGen } from "./engine";
 import type { CheckIn, DayPlan, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
 import { Start } from "./Start";
@@ -98,9 +98,9 @@ function store(key: string, value: string) {
 function loadCheckIn(): CheckIn {
   try {
     const raw = scoped.getItem(`checkIn:${today()}`);
-    if (raw) return JSON.parse(raw) as CheckIn;
+    if (raw) return normalizeCheckIn(JSON.parse(raw));
   } catch { /* użyj domyślnego */ }
-  return { sleep: 3, feeling: 3, less: false };
+  return { ...DEFAULT_CHECK_IN };
 }
 
 /** Wejście do aplikacji dla jednej przestrzeni danych (gość albo konkretne konto). Dane innych przestrzeni są tu niedostępne. */
@@ -132,6 +132,21 @@ function Main({ scope, email, onLogin, invite, onInviteClose }: { scope: Scope; 
   const [tab, setTab] = useState<Tab>("start");
   const [checkIn, setCheckInState] = useState<CheckIn>(loadCheckIn);
   const [checkedIn, setCheckedIn] = useState(() => scoped.getItem(`checkIn:${today()}`) !== null);
+  // aplikacja bywa otwarta przez noc: o zmianie doby check-in ma być dzisiejszy (albo pusty), nie wczorajszy
+  const checkDay = useRef(today());
+  useEffect(() => {
+    const sync = () => {
+      const n = today();
+      if (n === checkDay.current) return;
+      checkDay.current = n;
+      setCheckInState(loadCheckIn());
+      setCheckedIn(scoped.getItem(`checkIn:${n}`) !== null);
+    };
+    const onVis = () => { if (document.visibilityState === "visible") sync(); };
+    document.addEventListener("visibilitychange", onVis);
+    const id = setInterval(sync, 60_000);
+    return () => { document.removeEventListener("visibilitychange", onVis); clearInterval(id); };
+  }, []);
   const setCheckIn = (c: CheckIn) => {
     setCheckInState(c);
     setCheckedIn(true);
@@ -177,7 +192,7 @@ function Main({ scope, email, onLogin, invite, onInviteClose }: { scope: Scope; 
         <Start profile={profile} checkIn={checkIn} checkedIn={checkedIn} onCheckIn={setCheckIn} onSettings={() => setSettings(true)} />
       )}
       {tab === "plan" && (
-        <Home profile={profile} checkIn={checkIn} initialOpen={openDay} onOpened={() => setOpenDay(null)} onReset={() => {
+        <Home profile={profile} checkIn={checkIn} checkedIn={checkedIn} initialOpen={openDay} onOpened={() => setOpenDay(null)} onReset={() => {
           // to NIE usuwa konta ani danych: tylko ponownie przechodzi pytania profilu (usuwanie danych – w Ustawieniach)
           scoped.removeItem("profile");
           setGuard({ kind: "none" });
@@ -199,8 +214,8 @@ function Main({ scope, email, onLogin, invite, onInviteClose }: { scope: Scope; 
   );
 }
 
-function Home({ profile, checkIn, initialOpen, onOpened, onReset }: {
-  profile: Profile; checkIn: CheckIn; initialOpen: DayPlan | null; onOpened: () => void; onReset: () => void;
+function Home({ profile, checkIn, checkedIn, initialOpen, onOpened, onReset }: {
+  profile: Profile; checkIn: CheckIn; checkedIn: boolean; initialOpen: DayPlan | null; onOpened: () => void; onReset: () => void;
 }) {
   const [open, setOpen] = useState<DayPlan | null>(initialOpen);
   useEffect(() => { if (initialOpen) onOpened(); }, [initialOpen, onOpened]);
@@ -234,7 +249,7 @@ function Home({ profile, checkIn, initialOpen, onOpened, onReset }: {
         ))}
       </Group>
       {open && (
-        <SessionSheet day={open} checkIn={checkIn} weekInCycle={cycleWeekFor(profile, weekStart)} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")} inviterName={profile.name} age={profile.age}
+        <SessionSheet day={open} checkIn={checkIn} checkedIn={checkedIn} weekInCycle={cycleWeekFor(profile, weekStart)} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")} inviterName={profile.name} age={profile.age}
           onSkipDay={open.date >= today() ? () => { setSkipped(open.date, true, today()); setOpen(null); } : undefined} onClose={() => setOpen(null)} />
       )}
       <SkippedDays profile={profile} weekStart={weekStart} />
