@@ -10,6 +10,7 @@ import { TREND_HEX } from "./progress/trend";
 import { Heatmap } from "./progress/Heatmap";
 import { KindSheet, RangeTabs } from "./progress/KindSheet";
 import { RunsCard } from "./progress/RunsCard";
+import { GoalPath } from "./goal/GoalPath";
 import { Sparkline } from "./progress/TrendChart";
 import { nutritionDays, plannedDays } from "./progress/data";
 import { GROUP_KIND, GROUP_TITLE, allMetrics, groupOf, sesji, shortDate, type Group } from "./progress/metrics";
@@ -116,6 +117,8 @@ export function Progress({ profile, refreshKey }: { profile: Profile; refreshKey
       <div className="mt-3 flex gap-4 px-1 text-xs text-muted">
         {legend.map(([c, t]) => <span key={t} className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: c }} />{t}</span>)}
       </div>
+
+      <GoalPath profile={profile} events={events} metrics={metrics} planned={planned} today={today} />
 
       {label("Treningi")}
       <div className="grid grid-cols-2 gap-3">
