@@ -120,3 +120,15 @@ describe("usunięte moduły: dane lokalne radaru są kasowane", () => {
     expect(mem.has("radarPrefs")).toBe(false);
   });
 });
+
+describe("dostępność zapisu w przeglądarce", () => {
+  it("wykrywa blokadę zapisu (np. Safari w trybie prywatnym) i działa przy zwykłym zapisie", async () => {
+    const { storageAvailable } = await import("./store");
+    expect(storageAvailable()).toBe(true);
+    const real = (globalThis as unknown as { localStorage: Storage }).localStorage;
+    (globalThis as unknown as { localStorage: Storage }).localStorage = { ...real, setItem: () => { throw new Error("QuotaExceededError"); } } as unknown as Storage;
+    expect(storageAvailable()).toBe(false);
+    (globalThis as unknown as { localStorage: Storage }).localStorage = real;
+    expect(storageAvailable()).toBe(true);
+  });
+});

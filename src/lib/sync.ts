@@ -62,6 +62,8 @@ export async function pushCheckIn(day: string, c: CheckIn): Promise<void> {
 
 export interface Remote {
   profile: Profile | null;
+  /** Czy odpowiedź o profilu jest wiarygodna (brak błędu serwera/sieci). Gdy false, nie wiemy, czy konto ma profil. */
+  profileOk: boolean;
   masDistance: number | null;
   weightLog: WeightLog;
   checkIn: CheckIn | null;
@@ -79,12 +81,16 @@ export async function pullAll(today: string): Promise<Remote | null> {
       health ? supabase.from("weight_log").select("exercise_id,kg,reps,logged_on,next_kg").eq("user_id", user_id) : Promise.resolve({ data: [], error: null }),
       health ? supabase.from("check_ins").select("recovery,feeling,less").eq("user_id", user_id).eq("day", today).maybeSingle() : Promise.resolve({ data: null, error: null }),
     ]);
-    if (p.error || m.error || w.error || c.error) return null;
+    // profil i dane zdrowotne są niezależne: błąd w jednej tabeli (np. check_ins) nie może odebrać profilu,
+    // bo wtedy po zalogowaniu pojawiałby się onboarding od nowa
+    const profileOk = !p.error;
+    const healthOk = !m.error && !w.error && !c.error;
     return {
-      profile: parseProfile(p.data?.data),
-      masDistance: (m.data as Array<{ distance_m: number }> | null)?.[0]?.distance_m ?? null,
-      weightLog: rowsToWeightLog((w.data ?? []) as WeightRow[]),
-      checkIn: c.data ? rowToCheckIn(c.data as never) : null,
+      profile: profileOk ? parseProfile(p.data?.data) : null,
+      profileOk,
+      masDistance: healthOk ? ((m.data as Array<{ distance_m: number }> | null)?.[0]?.distance_m ?? null) : null,
+      weightLog: healthOk ? rowsToWeightLog((w.data ?? []) as WeightRow[]) : {},
+      checkIn: healthOk && c.data ? rowToCheckIn(c.data as never) : null,
     };
   } catch {
     return null;

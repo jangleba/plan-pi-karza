@@ -30,6 +30,19 @@ export const scoped = {
   removeItem(key: string): void { try { raw()?.removeItem(phys(key)); } catch { /* brak pamięci */ } },
 };
 
+/** Czy przeglądarka w ogóle zapisuje dane (Safari w trybie prywatnym lub z blokadą ciasteczek potrafi tego odmówić). */
+export function storageAvailable(): boolean {
+  try {
+    const st = raw();
+    if (!st) return false;
+    const k = `${PREFIX}meta:probe`;
+    st.setItem(k, "1");
+    const ok = st.getItem(k) === "1";
+    st.removeItem(k);
+    return ok;
+  } catch { return false; }
+}
+
 /** Klucze logiczne (bez przedrostka) zapisane w danej przestrzeni. */
 export function listKeys(s: Scope): string[] {
   const st = raw();
@@ -38,6 +51,11 @@ export function listKeys(s: Scope): string[] {
   const out: string[] = [];
   for (let i = 0; i < st.length; i++) { const k = st.key(i); if (k && k.startsWith(p)) out.push(k.slice(p.length)); }
   return out.sort();
+}
+
+/** Odczyt jednej wartości z DOWOLNEJ przestrzeni (np. profil gościa do podpowiedzi „przenieść dane?”); tylko do odczytu. */
+export function peekScoped(s: Scope, key: string): string | null {
+  try { return raw()?.getItem(phys(key, s)) ?? null; } catch { return null; }
 }
 
 export const hasData = (s: Scope): boolean => listKeys(s).length > 0;

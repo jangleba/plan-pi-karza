@@ -21,6 +21,8 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="pl">
       <head>
         <HeadContent />
+        {/* tło od pierwszej klatki: bez białego błysku, zanim załadują się style i skrypty */}
+        <style dangerouslySetInnerHTML={{ __html: "html,body{background:#f7f8fa;margin:0}" }} />
       </head>
       <body>
         {children}
