@@ -40,6 +40,11 @@ export function listKeys(s: Scope): string[] {
   return out.sort();
 }
 
+/** Odczyt jednej wartości z DOWOLNEJ przestrzeni (np. profil gościa do podpowiedzi „przenieść dane?”); tylko do odczytu. */
+export function peekScoped(s: Scope, key: string): string | null {
+  try { return raw()?.getItem(phys(key, s)) ?? null; } catch { return null; }
+}
+
 export const hasData = (s: Scope): boolean => listKeys(s).length > 0;
 
 export function exportScope(s: Scope): Record<string, unknown> {

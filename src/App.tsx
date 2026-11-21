@@ -6,7 +6,8 @@ import { AgreementGate } from "./legal/LegalUi";
 import { hasCurrentAgreement, resumePendingWithdraw } from "./legal/consent";
 import { useAuthState } from "./lib/session";
 import { changeBirth, finalizeNewProfile, loadGuardedProfile, saveProfile, type GuardResult } from "./lib/profileGuard";
-import { getScope, migrateLegacy, purgeRemovedFeatures, sameScope, scopeId, type Scope } from "./lib/store";
+import { copyScope, getScope, listKeys, migrateLegacy, peekScoped, purgeRemovedFeatures, sameScope, scopeId, type Scope } from "./lib/store";
+import { ImportOffer, LoadError } from "./GateScreens";
 import { DEFAULT_CHECK_IN, localISO, addDays, cycleWeekFor, levelOf, nextWeekUnlocked, normalizeCheckIn, planForProfile, weekdayGen } from "./engine";
 import type { CheckIn, DayPlan, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
@@ -103,33 +104,83 @@ function loadCheckIn(): CheckIn {
   return { ...DEFAULT_CHECK_IN };
 }
 
+const TAB_KEY = "lastTab";
+const TAB_NAMES: Tab[] = ["start", "plan", "lab", "iq", "fuel", "progres"];
+/** Ostatnia zakładka, jeśli zawodnik był w aplikacji przed chwilą (30 min); inaczej Start. */
+function loadTab(): Tab {
+  try {
+    const v = JSON.parse(scoped.getItem(TAB_KEY) ?? "null") as { tab?: unknown; at?: unknown } | null;
+    if (v && typeof v.at === "number" && Date.now() - v.at < 30 * 60_000 && TAB_NAMES.includes(v.tab as Tab)) return v.tab as Tab;
+  } catch { /* użyj domyślnej */ }
+  return "start";
+}
+
+const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T | null> => Promise.race([p, new Promise<null>((res) => setTimeout(() => res(null), ms))]);
+/** Dane z tego urządzenia (gość), które zawodnik może JAWNIE przenieść na konto. Zgody i potwierdzenia nigdy się nie kopiują (store.ts). */
+const IMPORT_KEYS = ["profile", "private", "history", "weightLog", "masDistance", "feelings", "runs", "look", "iqAttempts"];
+const GUEST: Scope = { kind: "guest" };
+function guestProfileName(): string | null | undefined {
+  if (!listKeys(GUEST).includes("profile")) return undefined;
+  try { const p = JSON.parse(peekScoped(GUEST, "profile") ?? "null") as { name?: unknown } | null; return p && typeof p.name === "string" ? p.name : null; } catch { return null; }
+}
+
 /** Wejście do aplikacji dla jednej przestrzeni danych (gość albo konkretne konto). Dane innych przestrzeni są tu niedostępne. */
 function Gate({ scope, email, onLogin, invite, onInviteClose }: { scope: Scope; email: string | null; onLogin: () => void; invite: Invite | null; onInviteClose: () => void }) {
-  const [ready, setReady] = useState(scope.kind === "guest" || !supabase);
+  const needsPull = scope.kind === "user" && !!supabase;
+  // loading → ready | retry (nie wiemy, czy konto ma profil) | offer (jest profil gościa do przeniesienia)
+  const [phase, setPhase] = useState<"loading" | "ready" | "retry" | "offer">(needsPull ? "loading" : "ready");
+  const [attempt, setAttempt] = useState(0);
+  const [offerName, setOfferName] = useState<string | undefined>();
   useEffect(() => {
-    if (scope.kind !== "user" || !supabase) return;
+    if (!needsPull) return;
     let alive = true;
     (async () => {
       void resumePendingWithdraw();
-      const r = await pullAll(today());
-      if (r && alive && getScope().kind === "user" && sameScope(getScope(), scope)) {
-        // dane z serwera trafiają do przestrzeni TEGO konta; lokalne dane gościa nigdy nie są wysyłane automatycznie
+      const hadLocal = loadGuardedProfile().kind !== "none";
+      // bez limitu czasu słabe połączenie zostawiało wieczny ekran ładowania; z profilem na urządzeniu czekamy krócej
+      const r = await withTimeout(pullAll(today()), hadLocal ? 4000 : 12000);
+      if (!alive || !(getScope().kind === "user" && sameScope(getScope(), scope))) return;
+      if (r) {
+        // dane z serwera trafiają do przestrzeni TEGO konta; dane gościa nigdy nie są wysyłane automatycznie
         if (r.profile) saveProfile(r.profile);
-        else { const local = loadGuardedProfile(); if (local.kind === "ok") void pushProfile(local.profile); }
+        else if (r.profileOk) { const local = loadGuardedProfile(); if (local.kind === "ok") void pushProfile(local.profile); }
         if (r.masDistance) store("masDistance", String(r.masDistance));
         if (Object.keys(r.weightLog).length) saveLog({ ...loadLog(), ...r.weightLog });
         if (r.checkIn) store(`checkIn:${today()}`, JSON.stringify(r.checkIn));
       }
-      if (alive) setReady(true);
+      if (loadGuardedProfile().kind === "none") {
+        // bez profilu lokalnie i bez pewności, że konto go nie ma, onboarding nadpisałby profil z chmury
+        if (!r || !r.profileOk) { setPhase("retry"); return; }
+        const guestName = guestProfileName();
+        if (guestName !== undefined) { setOfferName(guestName ?? undefined); setPhase("offer"); return; }
+      }
+      setPhase("ready");
     })();
     return () => { alive = false; };
-  }, [scope]);
-  if (!ready) return <Splash />;
+  }, [scope, needsPull, attempt]);
+  if (phase === "loading") return <Splash />;
+  if (phase === "retry") return <LoadError onRetry={() => { setPhase("loading"); setAttempt((n) => n + 1); }} onSkip={() => setPhase("ready")} />;
+  if (phase === "offer") {
+    return (
+      <ImportOffer
+        name={offerName}
+        onSkip={() => setPhase("ready")}
+        onImport={() => {
+          copyScope(GUEST, scope, { keys: IMPORT_KEYS });
+          const g = loadGuardedProfile();
+          if (g.kind === "ok") void pushProfile(g.profile);
+          setPhase("ready");
+        }}
+      />
+    );
+  }
   return <Main scope={scope} email={email} onLogin={onLogin} invite={invite} onInviteClose={onInviteClose} />;
 }
 
 function Main({ scope, email, onLogin, invite, onInviteClose }: { scope: Scope; email: string | null; onLogin: () => void; invite: Invite | null; onInviteClose: () => void }) {
-  const [tab, setTab] = useState<Tab>("start");
+  // aktywna zakładka przeżywa ponowne zamontowanie aplikacji (odświeżenie sesji, przeładowanie karty): bez cofania na Start
+  const [tab, setTabState] = useState<Tab>(loadTab);
+  const setTab = (t: Tab) => { setTabState(t); scoped.setItem(TAB_KEY, JSON.stringify({ tab: t, at: Date.now() })); };
   const [checkIn, setCheckInState] = useState<CheckIn>(loadCheckIn);
   const [checkedIn, setCheckedIn] = useState(() => scoped.getItem(`checkIn:${today()}`) !== null);
   // aplikacja bywa otwarta przez noc: o zmianie doby check-in ma być dzisiejszy (albo pusty), nie wczorajszy
