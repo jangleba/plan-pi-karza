@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { localISO, addEvents, jumpHeightFromFlightTime, labDue, LAB_TESTS, loadHistory, METHOD_LABEL, series, validateLab, validateSprintSplits, VALIDATION_NOTE } from "./engine";
 import type { HistoryEvent, LabMethod, LabTest } from "./engine";
 import { Sheet } from "./Sheet";
-import { LargeTitle, MiniRing, rise } from "./ui";
+import { LargeTitle, rise } from "./ui";
 import { LabChart } from "./lab/LabChart";
 import { LabIcon } from "./lab/LabIcon";
 import { useCountUp } from "./lab/useCountUp";
@@ -223,9 +223,6 @@ export function Lab() {
   const cycle = useMemo(() => labCycle(summaries), [summaries]);
   const titleOf = (k: LabTest["key"]) => shortTitle(LAB_TESTS.find((t) => t.key === k)!);
 
-  // pierścień cyklu wypełnia się po wejściu na ekran (od zera do aktualnej wartości)
-  const [ring, setRing] = useState(0);
-  useEffect(() => { const id = requestAnimationFrame(() => setRing(cycle.current / cycle.total)); return () => cancelAnimationFrame(id); }, [cycle.current, cycle.total]);
   useEffect(() => { if (!toast) return; const id = setTimeout(() => setToast(null), 2400); return () => clearTimeout(id); }, [toast]);
 
   const noneYet = summaries.every((s) => !s.last);
@@ -239,8 +236,7 @@ export function Lab() {
     <main className="mx-auto max-w-md px-5 pb-32 pt-14">
       <LargeTitle kind="lab" title="Lab" sub="Co 4–5 tygodni" />
 
-      <section className="bw-rise mb-4 flex items-center gap-4 rounded-3xl border border-hairline bg-card p-4" aria-label="Cykl testów">
-        <MiniRing small value={ring} label="aktualne" center={`${cycle.current}/${cycle.total}`} />
+      <section className="bw-rise mb-4 rounded-3xl border border-hairline bg-card p-4" aria-label="Cykl testów">
         <div className="min-w-0">
           <p className="text-[16px] font-semibold leading-snug">{headline}</p>
           {detail && <p className="text-sm text-muted">{detail}</p>}
