@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AnimatedPitch } from "./Pitch";
+import { HalfPitchView } from "./HalfPitch";
 import { Sheet } from "./Sheet";
 import { pushWeightLog } from "./lib/sync";
 import { MasCard, loadMas, saveMasDistance } from "./MasCard";
@@ -11,7 +12,7 @@ import { StimuliTool } from "./tools/Stimuli";
 import { Group, ListRow } from "./ui";
 import { CueTrainer } from "./CueTrainer";
 import { EXERCISES, RECOVERY, applyChoice, bodyweightTemplate, drillsFor, DRILL_GROUPS, adaptSession, addEvents, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
-import type { CheckIn, DrillGroup, Choice, Completion, DayPlan, HistoryEvent, Level, Mas, Position, Suggestion } from "./engine";
+import type { CheckIn, Drill, DrillGroup, Choice, Completion, DayPlan, HistoryEvent, Level, Mas, Position, Suggestion } from "./engine";
 
 interface ConfirmRow { exerciseId: string; kg: number; planned: string; plannedReps: number }
 
@@ -34,6 +35,7 @@ export function SessionSheet({
   const s = day.session;
   const [info, setInfo] = useState<{ id: string; note?: string } | null>(null);
   const [tool, setTool] = useState<"stim" | "draw" | null>(null);
+  const [halfDrill, setHalfDrill] = useState<Drill | null>(null);
   const [group, setGroup] = useState<DrillGroup | null>(null);
   const myDrills = drillsFor(position);
   const myGroup = group && myDrills.some((d) => d.group === group) ? group : (DRILL_GROUPS.find(([g]) => myDrills.some((d) => d.group === g))?.[0] ?? "dribble");
@@ -223,6 +225,7 @@ export function SessionSheet({
                 <div key={d.id}>
                   <div className="mb-2 text-sm font-medium">{d.title}</div>
                   <AnimatedPitch drill={d} />
+                  <button onClick={() => setHalfDrill(d)} className="mt-2 w-full rounded-xl bg-canvas py-2.5 text-sm font-medium text-accent active:scale-[0.98]">Pokaż na połowie boiska (z przybliżaniem)</button>
                   <p className="mt-2 text-xs text-muted">{d.dose}</p>
                   <ul className="mt-1 list-disc pl-4 text-sm">
                     {d.points.map((p) => <li key={p}>{p}</li>)}
@@ -262,6 +265,15 @@ export function SessionSheet({
     {info && <ExerciseSheet id={info.id} note={info.note} onClose={() => setInfo(null)} />}
     {tool === "stim" && <StimuliTool onClose={() => setTool(null)} />}
     {tool === "draw" && <DrawTool onClose={() => setTool(null)} />}
+    {halfDrill && (
+      <Sheet title={halfDrill.title} onClose={() => setHalfDrill(null)}>
+        <HalfPitchView drill={halfDrill} />
+        <p className="mt-4 text-sm font-medium">Cel</p>
+        <p className="text-sm text-ink/85">{halfDrill.goal}</p>
+        <p className="mt-3 text-xs text-muted">{halfDrill.dose}</p>
+        <ul className="mt-1 list-disc pl-4 text-sm">{halfDrill.points.map((p) => <li key={p}>{p}</li>)}</ul>
+      </Sheet>
+    )}
     </>
   );
 }

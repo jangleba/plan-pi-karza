@@ -4,7 +4,7 @@ import type { Arrow, Drill, Point } from "./engine";
 
 const PAD = 2;
 
-function path(points: Point[], dribble: boolean): string {
+export function path(points: Point[], dribble: boolean): string {
   if (!dribble || points.length < 2) {
     return points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
   }
@@ -24,7 +24,7 @@ function path(points: Point[], dribble: boolean): string {
   return d;
 }
 
-function dash(style: Arrow["style"]): string | undefined {
+export function dash(style: Arrow["style"]): string | undefined {
   if (style === "pass") return "2 1.6";
   if (style === "shot") return "0.8 1";
   return undefined;
@@ -93,8 +93,8 @@ export function Pitch({ drill, children }: { drill: Drill; children?: ReactNode 
   );
 }
 
-/** Szkic z odtwarzaczem: zawodnik (kropka) i piłka przechodzą kroki ćwiczenia po strzałkach; start/pauza, prędkość, przewijanie. */
-export function AnimatedPitch({ drill }: { drill: Drill }) {
+/** Stan odtwarzacza ćwiczenia: czas, start/pauza, prędkość; wspólny dla szkicu i widoku na połowie boiska. */
+export function useDrillPlayer(drill: Drill) {
   const tl = useMemo(() => buildTimeline(drill), [drill]);
   const [playing, setPlaying] = useState(false); // domyślnie wstrzymane: kilka szkiców na ekranie nie obciąża telefonu
   const [slow, setSlow] = useState(false);
@@ -118,26 +118,39 @@ export function AnimatedPitch({ drill }: { drill: Drill }) {
   const st = stateAt(drill, tl, t);
   const arrow = st.seg >= 0 ? drill.arrows[tl.segs[st.seg]!.arrow]! : null;
   const caption = arrow ? `Krok ${arrow.step ?? st.seg + 1}: ${arrow.note ?? ARROW_LEGEND[arrow.style]}` : "Naciśnij ▶, żeby zobaczyć przebieg";
-  const shown = playing || t > 0;
+  return { tl, playing, setPlaying, slow, setSlow, t, setT, st, caption, shown: playing || t > 0 };
+}
 
+/** Przyciski odtwarzacza: start/pauza, przewijanie, prędkość, podpis kroku. */
+export function DrillControls({ p }: { p: ReturnType<typeof useDrillPlayer> }) {
+  return (
+    <>
+      {p.tl.total > 0 && (
+        <div className="mt-2 flex items-center gap-2">
+          <button onClick={() => p.setPlaying((x) => !x)} aria-label={p.playing ? "Pauza" : "Odtwórz"} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent active:scale-90">{p.playing ? "❚❚" : "▶"}</button>
+          <input type="range" min={0} max={p.tl.total} step={0.05} value={p.t} onChange={(e) => { p.setPlaying(false); p.setT(Number(e.target.value)); }} aria-label="Przewiń ćwiczenie" className="min-w-0 flex-1 accent-[var(--color-accent)]" />
+          <button onClick={() => p.setSlow((x) => !x)} aria-pressed={p.slow} className={`shrink-0 rounded-full px-3 py-1.5 text-xs ${p.slow ? "bw-sel font-medium" : "bg-canvas text-muted"}`}>{p.slow ? "0,5×" : "1×"}</button>
+        </div>
+      )}
+      <p className="mt-1.5 min-h-[1.25rem] text-xs text-ink/80" role="status" aria-live="off">{p.caption}</p>
+    </>
+  );
+}
+
+/** Szkic z odtwarzaczem: zawodnik (kropka) i piłka przechodzą kroki ćwiczenia po strzałkach; start/pauza, prędkość, przewijanie. */
+export function AnimatedPitch({ drill }: { drill: Drill }) {
+  const p = useDrillPlayer(drill);
   return (
     <div>
       <Pitch drill={drill}>
-        {shown && (
+        {p.shown && (
           <>
-            {st.ball && <circle cx={st.ball.x} cy={st.ball.y} r="0.75" fill="#fff" stroke="#1d1d1f" strokeWidth="0.25" />}
-            <circle cx={st.player.x} cy={st.player.y} r="1.15" fill="var(--color-accent)" stroke="#fff" strokeWidth="0.35" />
+            {p.st.ball && <circle cx={p.st.ball.x} cy={p.st.ball.y} r="0.75" fill="#fff" stroke="#1d1d1f" strokeWidth="0.25" />}
+            <circle cx={p.st.player.x} cy={p.st.player.y} r="1.15" fill="var(--color-accent)" stroke="#fff" strokeWidth="0.35" />
           </>
         )}
       </Pitch>
-      {tl.total > 0 && (
-        <div className="mt-2 flex items-center gap-2">
-          <button onClick={() => setPlaying((p) => !p)} aria-label={playing ? "Pauza" : "Odtwórz"} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent active:scale-90">{playing ? "❚❚" : "▶"}</button>
-          <input type="range" min={0} max={tl.total} step={0.05} value={t} onChange={(e) => { setPlaying(false); setT(Number(e.target.value)); }} aria-label="Przewiń ćwiczenie" className="min-w-0 flex-1 accent-[var(--color-accent)]" />
-          <button onClick={() => setSlow((x) => !x)} aria-pressed={slow} className={`shrink-0 rounded-full px-3 py-1.5 text-xs ${slow ? "bw-sel font-medium" : "bg-canvas text-muted"}`}>{slow ? "0,5×" : "1×"}</button>
-        </div>
-      )}
-      <p className="mt-1.5 min-h-[1.25rem] text-xs text-ink/80" role="status" aria-live="off">{caption}</p>
+      <DrillControls p={p} />
     </div>
   );
 }
