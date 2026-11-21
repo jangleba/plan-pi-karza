@@ -19,6 +19,9 @@ import { Auth } from "./Auth";
 import { Progress } from "./Progress";
 import { Lab } from "./Lab";
 import { Fuel } from "./Fuel";
+import { InviteReceiver } from "./InviteSheets";
+import { clearInviteParam, readInviteParam } from "./lib/inviteLink";
+import type { Invite } from "./engine";
 
 // Three.js ładowane dopiero po wejściu w zakładkę IQ
 const IQ = lazy(() => import("./IQ"));
@@ -77,10 +80,13 @@ export function App() {
   useState(() => { migrateLegacy(); purgeRemovedFeatures(); return 0; }); // stare, wspólne klucze → przestrzeń GOŚCIA (nigdy do bieżącego konta)
   const auth = useAuthState();
   const [loginOpen, setLoginOpen] = useState(false);
+  // zaproszenie na trening z linku (?invite=…): czeka, aż zawodnik skończy onboarding, i otwiera się po wejściu do aplikacji
+  const [invite, setInvite] = useState<Invite | null>(readInviteParam);
+  const closeInvite = () => { clearInviteParam(); setInvite(null); };
   if (auth.status === "loading") return <Splash />;
   const guest = auth.scope.kind === "guest";
   if (guest && (REQUIRE_LOGIN || loginOpen)) return <Auth onBack={REQUIRE_LOGIN ? undefined : () => setLoginOpen(false)} />;
-  return <Gate key={scopeId(auth.scope)} scope={auth.scope} email={auth.email} onLogin={() => setLoginOpen(true)} />;
+  return <Gate key={scopeId(auth.scope)} scope={auth.scope} email={auth.email} onLogin={() => setLoginOpen(true)} invite={invite} onInviteClose={closeInvite} />;
 }
 
 const today = () => localISO();
@@ -98,7 +104,7 @@ function loadCheckIn(): CheckIn {
 }
 
 /** Wejście do aplikacji dla jednej przestrzeni danych (gość albo konkretne konto). Dane innych przestrzeni są tu niedostępne. */
-function Gate({ scope, email, onLogin }: { scope: Scope; email: string | null; onLogin: () => void }) {
+function Gate({ scope, email, onLogin, invite, onInviteClose }: { scope: Scope; email: string | null; onLogin: () => void; invite: Invite | null; onInviteClose: () => void }) {
   const [ready, setReady] = useState(scope.kind === "guest" || !supabase);
   useEffect(() => {
     if (scope.kind !== "user" || !supabase) return;
@@ -119,10 +125,10 @@ function Gate({ scope, email, onLogin }: { scope: Scope; email: string | null; o
     return () => { alive = false; };
   }, [scope]);
   if (!ready) return <Splash />;
-  return <Main scope={scope} email={email} onLogin={onLogin} />;
+  return <Main scope={scope} email={email} onLogin={onLogin} invite={invite} onInviteClose={onInviteClose} />;
 }
 
-function Main({ scope, email, onLogin }: { scope: Scope; email: string | null; onLogin: () => void }) {
+function Main({ scope, email, onLogin, invite, onInviteClose }: { scope: Scope; email: string | null; onLogin: () => void; invite: Invite | null; onInviteClose: () => void }) {
   const [tab, setTab] = useState<Tab>("start");
   const [checkIn, setCheckInState] = useState<CheckIn>(loadCheckIn);
   const [checkedIn, setCheckedIn] = useState(() => scoped.getItem(`checkIn:${today()}`) !== null);
@@ -187,6 +193,7 @@ function Main({ scope, email, onLogin }: { scope: Scope; email: string | null; o
       {tab === "progres" && <Progress profile={profile} />}
       </div>
       <TabBar tab={tab} onChange={(t) => { setTab(t); window.scrollTo(0, 0); }} />
+      {invite && <InviteReceiver invite={invite} age={profile.age} onClose={onInviteClose} />}
       {settings && <Settings scope={scope} email={email} profile={profile} onClose={() => setSettings(false)} onLogin={onLogin} />}
     </div>
   );
@@ -227,7 +234,7 @@ function Home({ profile, checkIn, initialOpen, onOpened, onReset }: {
         ))}
       </Group>
       {open && (
-        <SessionSheet day={open} checkIn={checkIn} weekInCycle={cycleWeekFor(profile, weekStart)} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")}
+        <SessionSheet day={open} checkIn={checkIn} weekInCycle={cycleWeekFor(profile, weekStart)} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")} inviterName={profile.name} age={profile.age}
           onSkipDay={open.date >= today() ? () => { setSkipped(open.date, true, today()); setOpen(null); } : undefined} onClose={() => setOpen(null)} />
       )}
       <SkippedDays profile={profile} weekStart={weekStart} />
