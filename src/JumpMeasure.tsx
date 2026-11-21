@@ -2,10 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { analyzeJump, calibrate, jumpDistanceCm, jumpErrorCm } from "./engine";
 import type { Calibration, JumpAnalysis } from "./engine";
 import { poseTrack } from "./lib/pose";
-import { scoped } from "./lib/store";
+import { HEIGHT_MAX, HEIGHT_MIN, loadPrivate, saveHeight } from "./lib/private";
 import type { VideoResult } from "./VideoMeasure";
 
-const HEIGHT_KEY = "lab:heightCm";
 /** Kroki zaznaczania: trzy punkty na klatce ze staniem, czwarty po lądowaniu. */
 const STEPS = [
   { id: "head", text: "Stań na klatce sprzed skoku. Dotknij czubka głowy." },
@@ -32,7 +31,7 @@ export function JumpMeasure({ src, srcFps, onResult, onClose }: { src?: string; 
   const [t, setT] = useState(0);
   const [pts, setPts] = useState<Pts>({});
   const [step, setStep] = useState(0);
-  const [height, setHeight] = useState(() => scoped.getItem(HEIGHT_KEY) ?? "");
+  const [height, setHeight] = useState(() => { const h = loadPrivate().heightCm; return h ? String(h) : ""; });
   const [err, setErr] = useState("");
   const drag = useRef(false);
 
@@ -75,7 +74,7 @@ export function JumpMeasure({ src, srcFps, onResult, onClose }: { src?: string; 
     if (step === 1) {
       if (!(heightCm > 0)) { setErr("Wpisz swój wzrost."); return; }
       if (calErr) { setErr(calErr); return; }
-      scoped.setItem(HEIGHT_KEY, String(heightCm));
+      saveHeight(Math.round(heightCm));
     }
     setErr("");
     setStep(step + 1);
@@ -90,8 +89,8 @@ export function JumpMeasure({ src, srcFps, onResult, onClose }: { src?: string; 
 
   const startAnalysis = async () => {
     const h = Number(height.replace(",", "."));
-    if (!(h >= 120 && h <= 220)) { setErr("Wzrost: 120–220 cm"); return; }
-    scoped.setItem(HEIGHT_KEY, String(h));
+    if (!(h >= HEIGHT_MIN && h <= HEIGHT_MAX)) { setErr(`Wzrost: ${HEIGHT_MIN}–${HEIGHT_MAX} cm`); return; }
+    saveHeight(Math.round(h));
     setErr(""); setPhase("analyzing"); setProgress(0);
     try {
       const fps = Math.min(30, srcFps && srcFps > 0 ? srcFps : 30);
@@ -121,7 +120,7 @@ export function JumpMeasure({ src, srcFps, onResult, onClose }: { src?: string; 
             <label className="block text-sm">
               <span className="text-xs text-muted">Twój wzrost, bez obuwia (cm)</span>
               <input className="mt-1 w-full rounded-2xl border border-hairline bg-canvas px-4 py-3.5 text-base outline-none focus:border-accent" inputMode="decimal" placeholder="np. 178" value={height} onChange={(e) => setHeight(e.target.value)} />
-              <span className="mt-1 block text-[11px] leading-snug text-muted">Z wzrostu aplikacja przelicza skalę nagrania, więc odległość telefonu od Ciebie nie wpływa na wynik.</span>
+              <span className="mt-1 block text-[11px] leading-snug text-muted">Z wzrostu aplikacja przelicza skalę nagrania, więc odległość telefonu od Ciebie nie wpływa na wynik. Zapisujemy go tylko na tym urządzeniu.</span>
             </label>
             {err && <p key={err} className="bw-shake mt-3 text-center text-sm text-red-ink" role="alert">{err}</p>}
             <button onClick={startAnalysis} className="mt-5 w-full rounded-2xl bw-grad py-4 text-base font-medium">Zmierz skok</button>

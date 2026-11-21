@@ -8,6 +8,7 @@ Przestrzenie: `bw:guest:*` oraz `bw:u:<id konta>:*`. Zmiana konta nie kopiuje an
 | Dane | Klucz | Uwagi |
 |---|---|---|
 | **Pełna data urodzenia / rocznik** | `private` | Nigdy nie trafia do chmury, wyszukiwarki, AI ani logów |
+| **Wzrost (cm)** (opcjonalny, z onboardingu lub pomiaru skoku w dal) | `private` | Tylko na urządzeniu, poza obiektem `Profile`, więc nie trafia do synchronizacji, chmury, wyszukiwarki, AI ani logów. Służy wyłącznie do skali pomiaru skoku z nagrania. Razem z masą ciała i wiekiem tworzy profil sprawnościowy, więc dla osób 16–17 lat zakres i podstawę prawną do zatwierdzenia prawnego (nie jest to dana szczególnej kategorii samodzielnie, ale łączona z wagą może być traktowana jako dana o zdrowiu). |
 | Profil (imię, pozycja, masa ciała, cel, dni treningowe…) | `profile` | Do chmury trafia tylko podzbiór z listy dozwolonych pól (sekcja 2) |
 | Rozpoczęty, niedokończony onboarding (krok i dotychczasowe odpowiedzi) | `onboardingDraft` | Tylko na urządzeniu, żeby przeładowanie karty nie cofało do początku; usuwany po ukończeniu onboardingu; nie jest synchronizowany |
 | Wygląd własnego zawodnika w IQ (odcień skóry, fryzura, budowa, wzrost, numer, kolor stroju, buty) | `look` | Tylko na urządzeniu; nie jest synchronizowany; kosmetyczne, bez danych zdrowotnych |

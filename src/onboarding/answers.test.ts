@@ -185,3 +185,17 @@ describe("odpowiedź „Inne” w pytaniu o to, co przeszkadza", () => {
     expect(restoreDraft({ step: 2, a: { feelNow: ["other", "xx"] } })?.a.feelNow).toEqual(["other"]);
   });
 });
+
+describe("wzrost w onboardingu (opcjonalny, tylko na urządzeniu)", () => {
+  it("nie trafia do profilu, który może być synchronizowany", () => {
+    const p = buildProfile(answers({ height: 182 }, { 5: "match" }))!;
+    expect(p).not.toHaveProperty("heightCm");
+    expect(JSON.stringify(p)).not.toContain("182");
+  });
+  it("szkic: wzrost wraca, null (nie podano) zostaje, śmieci wracają do domyślnego", () => {
+    expect(restoreDraft({ step: 1, a: { name: "Ola", height: 181 } })!.a.height).toBe(181);
+    expect(restoreDraft({ step: 1, a: { name: "Ola", height: null } })!.a.height).toBeNull();
+    expect(restoreDraft({ step: 1, a: { name: "Ola", height: "x" } })!.a.height).toBe(175);
+    expect(restoreDraft({ step: 1, a: { name: "Ola", height: 20 } })!.a.height).toBe(175);
+  });
+});

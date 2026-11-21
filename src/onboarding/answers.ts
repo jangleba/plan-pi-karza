@@ -28,6 +28,7 @@ export function restoreDraft(raw: unknown): Draft | null {
     name: typeof x.name === "string" ? x.name.slice(0, 40) : base.name,
     age: num(x.age, 16, 45, base.age),
     weight: num(x.weight, 45, 130, base.weight),
+    height: x.height === null ? null : num(x.height, 140, 210, base.height ?? 175),
     position: pick(x.position, ["bramkarz", "obronca", "pomocnik", "skrzydlowy", "napastnik"] as const),
     feelNow: list(x.feelNow, FEEL_NOW.map(([v]) => v)),
     goals: list(x.goals, ["speed", "strength", "endurance", "return"] as const).slice(0, 2),
@@ -49,6 +50,8 @@ export interface Answers {
   name: string;
   age: number;
   weight: number;
+  /** Wzrost (cm) do pomiaru skoku z nagrania; null = zawodnik nie chce podawać. Zapis tylko na urządzeniu. */
+  height: number | null;
   position?: Position;
   feelNow: FeelNow[];
   goals: SeasonGoal[];
@@ -61,7 +64,7 @@ export interface Answers {
 }
 
 export const initialAnswers = (): Answers => ({
-  name: "", age: 18, weight: 75, feelNow: [], goals: [], years: 1, equipment: [], limited: false, days: Array<DayState>(7).fill("free"),
+  name: "", age: 18, weight: 75, height: 175, feelNow: [], goals: [], years: 1, equipment: [], limited: false, days: Array<DayState>(7).fill("free"),
 });
 
 /** „Tylko kilka razy w tygodniu” ma sens wyłącznie, gdy zawodnik w ogóle ma siłownię (wtedy dzień po meczu może być dniem na siłę). */

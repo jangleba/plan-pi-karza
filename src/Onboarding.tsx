@@ -4,6 +4,7 @@ import type { FeelNow, Position, Profile } from "./engine";
 import { Wheel } from "./Wheel";
 import { Sheet } from "./Sheet";
 import { scoped } from "./lib/store";
+import { saveHeight } from "./lib/private";
 import { DRAFT_KEY, LAST_STEP, buildProfile, initialAnswers, restoreDraft, WEEKDAY_SHORT, nextDayState, understood, validateStep, type Answers, type DayState } from "./onboarding/answers";
 import { PRIMARY, SECONDARY, STEP_TONES, toneVars } from "./onboarding/tones";
 import { BUTTON, DAY_LABEL, EQUIPMENT, GOALS, INTRO, LABEL, POSITIONS, PREVIEW, SEASONS, STEP_HINT, STEP_TITLE, dayHelp, yearsText } from "./onboarding/copy";
@@ -204,7 +205,7 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
   const toggleGoal = (g: Answers["goals"][number]) =>
     set({ goals: a.goals.includes(g) ? a.goals.filter((x) => x !== g) : a.goals.length >= 2 ? [a.goals[0]!, g] : [...a.goals, g] });
 
-  if (building) return <Building name={building.name ?? ""} lines={understood(a)} onDone={() => { scoped.removeItem(DRAFT_KEY); onDone(building); }} />;
+  if (building) return <Building name={building.name ?? ""} lines={understood(a)} onDone={() => { saveHeight(a.height ?? undefined); scoped.removeItem(DRAFT_KEY); onDone(building); }} />;
 
   if (step === 0) {
     return (
@@ -282,11 +283,23 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
               <input className={input} value={a.name} placeholder={LABEL.namePlaceholder} onChange={(e) => set({ name: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") next(); }}
                 autoComplete="given-name" aria-label={LABEL.name} maxLength={40} />
             </Section>
-            <Section title={`${LABEL.age} i ${LABEL.weight.toLowerCase()}`} hint={LABEL.ageNote}>
-              <div className="grid grid-cols-2 gap-4">
+            <Section title={`${LABEL.age}, ${LABEL.weight.toLowerCase()} i ${LABEL.height.toLowerCase()}`} hint={LABEL.ageNote}>
+              <div className="grid grid-cols-3 gap-2">
                 <Wheel label={LABEL.age} values={range(MIN_AGE, 45)} value={a.age} onChange={(v) => set({ age: v })} />
                 <Wheel label={LABEL.weight} values={range(45, 130)} value={a.weight} onChange={(v) => set({ weight: v })} format={(v) => `${v} kg`} />
+                {a.height === null ? (
+                  <div className="flex flex-col items-center">
+                    <span className="text-sm text-muted">{LABEL.height}</span>
+                    <button type="button" onClick={() => { tap(); set({ height: 175 }); }} className="mt-3 w-full rounded-2xl bg-canvas px-1 py-6 text-[13px] text-muted">{LABEL.heightAdd}</button>
+                  </div>
+                ) : (
+                  <Wheel label={LABEL.height} values={range(140, 210)} value={a.height} onChange={(v) => set({ height: v })} format={(v) => `${v} cm`} />
+                )}
               </div>
+              <p className="mt-3 text-xs leading-snug text-muted">
+                {LABEL.heightNote}{" "}
+                {a.height !== null && <button type="button" onClick={() => { tap(); set({ height: null }); }} className="underline">{LABEL.heightSkip}</button>}
+              </p>
             </Section>
           </div>
         )}
