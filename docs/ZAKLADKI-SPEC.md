@@ -98,7 +98,7 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 - Wydajność (przeglądarka bez GPU): 59 wywołań rysowania i 57 tys. trójkątów na klatkę; zapas proceduralny: 217 wywołań. NIE sprawdzone na telefonie.
 - Model „Beta" to manekin bez twarzy; przy kamerze gry nie jest to widoczne.
 
-## IQ – kamera i sterowanie jak w samochodzie (2026-11-19, etap 1 z 3)
+## IQ – kamera i sterowanie jak w samochodzie (2026-11-19, etap 1 z 3; sterowanie i kamera zastąpione 2026-11-21 sterowaniem bezpośrednim, patrz niżej)
 - Decyzje użytkownika: kamera obraca się razem z zawodnikiem; sterowanie „jak w samochodzie"; akcja ma się toczyć do rozstrzygnięcia (gol / strata / przechwyt); nauka: powtórka z góry z tablicą, „Co robić” w 3 krokach, kolejna próba z wariantem, postęp w Progresie; sytuacje złożone od początku, objaśnienia konkretne i krótkie.
 - Etap 1 (ten): `src/iq/control.ts` – joystick do przodu: bieg przed siebie; w bok: skręt (prędkość kątowa, nie kierunek docelowy – dlatego kamera podążająca za kierunkiem nie powoduje biegania w kółko); do tyłu: zatrzymanie; kamera dogania kierunek zawodnika płynnie (po najkrótszym łuku); przed kopnięciem zawodnik staje do celu. Adresat podania wynika z kierunku, w który patrzy zawodnik.
 - Etap 2 (następny): żywi koledzy i rywale – pressing, przechwyt, odbiór, kontratak (silnik symulacji z testami).
