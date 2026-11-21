@@ -75,11 +75,9 @@ export const gymLimited = (a: Pick<Answers, "limited" | "equipment">): boolean =
 
 export const dayIndexes = (a: Pick<Answers, "days">, st: DayState): number[] => a.days.map((d, i) => (d === st ? i : -1)).filter((i) => i >= 0);
 
-/** Kolejny stan dnia po dotknięciu (w przerwie między sezonami nie ma meczów). */
-export function nextDayState(cur: DayState, season: Season | undefined): DayState {
-  const order = season === "offseason" ? DAY_CYCLE.filter((c) => c !== "match") : DAY_CYCLE;
-  const from = season === "offseason" && cur === "match" ? "free" : cur;
-  return order[(order.indexOf(from) + 1) % order.length]!;
+/** Kolejny stan dnia po dotknięciu: wolny, klub, mecz, zajęty (mecz można zaznaczyć w każdym okresie, także w przerwie). */
+export function nextDayState(cur: DayState, _season?: Season): DayState {
+  return DAY_CYCLE[(DAY_CYCLE.indexOf(cur) + 1) % DAY_CYCLE.length]!;
 }
 
 /** Kroki: 1 O Tobie, 2 Na boisku, 3 Cel, 4 Sezon, 5 Trening, 6 Tydzień (krok 0 to ekran powitalny). */
@@ -112,7 +110,7 @@ export function buildProfile(a: Answers): Profile | null {
   return {
     name: a.name.trim(), age: a.age, weightKg: a.weight, position: a.position, season: a.season, goal: goals[0], goal2: goals[1], league: a.league,
     strengthYears: a.years, equipment: withBodyweight(a.equipment), limitedGymAccess: gymLimited(a),
-    clubWeekdays: dayIndexes(a, "club"), matchWeekdays: a.season === "offseason" ? [] : dayIndexes(a, "match"), offWeekdays: dayIndexes(a, "off"),
+    clubWeekdays: dayIndexes(a, "club"), matchWeekdays: dayIndexes(a, "match"), offWeekdays: dayIndexes(a, "off"),
   };
 }
 
@@ -122,7 +120,7 @@ function draftProfile(a: Answers): Profile {
   return {
     name: a.name.trim() || undefined, age: a.age, weightKg: a.weight, position: a.position ?? "pomocnik", season: a.season ?? "inseason", goal: goals[0], goal2: goals[1], league: a.league,
     strengthYears: a.years, equipment: withBodyweight(a.equipment), limitedGymAccess: gymLimited(a),
-    clubWeekdays: dayIndexes(a, "club"), matchWeekdays: a.season === "offseason" ? [] : dayIndexes(a, "match"), offWeekdays: dayIndexes(a, "off"),
+    clubWeekdays: dayIndexes(a, "club"), matchWeekdays: dayIndexes(a, "match"), offWeekdays: dayIndexes(a, "off"),
   };
 }
 
@@ -168,9 +166,9 @@ const GOAL_LABEL: Record<SeasonGoal, string> = { speed: "szybkość", strength: 
 /** Krótkie zdania „co zrozumieliśmy” pokazywane na ekranie układania planu; każde pochodzi z konkretnej odpowiedzi. */
 export function understood(a: Answers): string[] {
   const out: string[] = [];
-  const matches = a.season === "offseason" ? [] : dayIndexes(a, "match");
+  const matches = dayIndexes(a, "match");
   if (matches.length) out.push(`Mecz ${matches.map((i) => MATCH_DAY[i]).join(" i ")}`);
-  else if (a.season === "offseason") out.push("Przerwa między sezonami: bez meczów, lżej");
+  else if (a.season === "offseason") out.push("Przerwa między sezonami: lżej");
   const club = dayIndexes(a, "club");
   if (club.length) out.push(`Trening w klubie: ${club.map((i) => WEEKDAY_FULL[i]).join(", ")}`);
   const goals = goalsFor(a);

@@ -252,7 +252,6 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
 
   const art = [1, 1, 1, 2, 2, 3, 4][step]!;
   const tone = STEP_TONES[step]!;
-  const seasonOff = a.season === "offseason";
 
   return (
     <main className="bw-grad-soft mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden px-5 pb-5 pt-5" style={{ "--tone": tone.c, "--tone-soft": tone.s, "--tone-ink": tone.i, "--tone-solid": tone.solid } as React.CSSProperties}>
@@ -366,10 +365,10 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
 
         {step === 6 && (
           <div className="flex flex-col gap-3">
-            <Section title="Twoje dni" hint={dayHelp(seasonOff)}>
+            <Section title="Twoje dni" hint={dayHelp()}>
               <div className="grid grid-cols-7 gap-1.5">
                 {a.days.map((d, i) => {
-                  const st: DayState = seasonOff && d === "match" ? "free" : d;
+                  const st: DayState = d;
                   return (
                     <button key={`${i}-${st}`} aria-label={`${WEEKDAY_SHORT[i]!}: ${DAY_LABEL[st]}`} onClick={() => { tap(); set({ days: a.days.map((x, k) => (k === i ? nextDayState(st, a.season) : x)) }); }}
                       className={`bw-pop flex h-16 flex-col items-center justify-center rounded-2xl ${DAY_STYLE[st]}`}>
@@ -381,7 +380,7 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
               </div>
               <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
                 <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#fdf3ea] shadow-[inset_0_0_0_1px_#f0c29d]" />trening w klubie</span>
-                {!seasonOff && <span className="flex items-center gap-1.5"><span className="bw-sel h-2.5 w-2.5 rounded-full" />mecz</span>}
+                <span className="flex items-center gap-1.5"><span className="bw-sel h-2.5 w-2.5 rounded-full" />mecz</span>
                 <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-hairline" />zajęty: bez naszych treningów</span>
               </div>
             </Section>

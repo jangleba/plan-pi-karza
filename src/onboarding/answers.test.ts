@@ -27,7 +27,7 @@ describe("onboarding: odpowiedzi → profil", () => {
     expect(buildProfile({ ...answers(), equipment: [] })).toMatchObject({ equipment: ["bodyweight"] });
   });
   it("w przerwie między sezonami mecze nie trafiają do profilu, nawet jeśli zostały zaznaczone wcześniej", () => {
-    expect(buildProfile(answers({ season: "offseason" }, { 5: "match" }))!.matchWeekdays).toEqual([]);
+    expect(buildProfile(answers({ season: "offseason" }, { 5: "match" }))!.matchWeekdays).toEqual([5]); // mecz (np. towarzyski) można zaznaczyć także w przerwie
   });
   it("cel podpowiadany z odpowiedzi „co Ci przeszkadza”, gdy nie wybrano celu; wybrany cel ma pierwszeństwo", () => {
     expect(goalsFor(answers({ goals: [], feelNow: ["duels", "slow"] }))).toEqual(["strength", "speed"]);
@@ -52,8 +52,9 @@ describe("onboarding: walidacja kroków (polskie komunikaty)", () => {
   });
   it("dotknięcie dnia przechodzi wolny → klub → mecz → zajęty; w przerwie pomija mecz", () => {
     expect((["free", "club", "match", "off", "free"] as DayState[]).slice(0, 4).map((s, i, all) => nextDayState(s, "inseason") === all[(i + 1) % 4]!)).toEqual([true, true, true, true]);
-    expect(nextDayState("club", "offseason")).toBe("off");
-    expect(nextDayState("match", "offseason")).toBe("club"); // stary „mecz” z innego sezonu traktujemy jak „wolny”
+    expect(nextDayState("free", "offseason")).toBe("club");
+    expect(nextDayState("club", "offseason")).toBe("match"); // mecz jest dostępny także w przerwie
+    expect(nextDayState("match", "offseason")).toBe("off");
   });
 });
 
@@ -100,9 +101,9 @@ describe("onboarding: PLAN NADAL WYNIKA Z ODPOWIEDZI", () => {
     expect([young.limitedGymAccess, vet.limitedGymAccess]).toEqual([false, true]);
     expect(levelOf(young.age, young.strengthYears)).not.toBe(levelOf(vet.age, vet.strengthYears));
   });
-  it("przerwa między sezonami: brak meczów w planie i lżejsze sesje biegowe", () => {
+  it("przerwa między sezonami: zaznaczony mecz jest w planie, a sesje biegowe lżejsze", () => {
     const days = plan(answers({ season: "offseason" }, { 5: "match" })).days;
-    expect(days.some((d) => d.title === "Mecz")).toBe(false);
+    expect(days.some((d) => d.title === "Mecz")).toBe(true);
     const prof = buildProfile(answers({ season: "offseason", goals: ["endurance"] }))!;
     const real = planForProfile(prof, weekStartOf(TODAY)).days.map((d) => d.session).filter((s) => s && (s.kind === "run" || s.kind === "sprint"));
     expect(real.length).toBeGreaterThan(0);
@@ -154,7 +155,7 @@ describe("onboarding: opis „co zrozumieliśmy”", () => {
     expect(u).toEqual([
       "Mecz w sobotę", "Trening w klubie: poniedziałek, środa", "Cel: szybkość i siła", "Dni, w które nie możesz: 1", "Ćwiczysz: na siłowni, na boisku",
     ]);
-    expect(understood(answers({ season: "offseason" }))[0]).toBe("Przerwa między sezonami: bez meczów, lżej");
+    expect(understood(answers({ season: "offseason" }))[0]).toBe("Przerwa między sezonami: lżej");
     expect(understood(answers({}, { 1: "match", 4: "match" }))[0]).toBe("Mecz we wtorek i w piątek");
   });
 });

@@ -33,9 +33,9 @@ describe("sezon i cel", () => {
     const p = planWeek({ ...base, season: "preseason" });
     expect(p.days.find((d) => d.date === "2026-11-21")!.isMatch).toBe(true);
   });
-  it("przerwa: bez meczów, lekki sprint i lekki bieg, siła zostaje", () => {
+  it("przerwa: zaznaczony mecz (np. towarzyski) jest w planie, sprint i bieg lekkie, siła zostaje", () => {
     const p = planWeek({ ...base, season: "offseason" });
-    expect(p.days.some((d) => d.isMatch)).toBe(false);
+    expect(p.days.some((d) => d.isMatch)).toBe(true);
     const sprint = p.days.find((d) => d.session?.kind === "sprint")!.session!;
     const run = p.days.find((d) => d.session?.kind === "run")!.session!;
     expect(sprint.variant).toBe("light");

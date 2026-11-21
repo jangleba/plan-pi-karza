@@ -100,8 +100,8 @@ function variantFor(kind: SessionKind, phase: Phase, input: WeekInput): SessionV
 export function planWeek(input: WeekInput): WeekPlan {
   const warnings: string[] = [];
   const season = input.season ?? "inseason";
-  // w przerwie między sezonami nie ma meczów
-  const matches = season === "offseason" ? [] : input.matches;
+  // mecz można zaznaczyć w każdym okresie (w przerwie np. towarzyski); przerwa różni się lżejszym sprintem i biegiem
+  const matches = input.matches;
   const days: DayPlan[] = Array.from({ length: 7 }, (_, i) => {
     const date = addDays(input.weekStart, i);
     return {
