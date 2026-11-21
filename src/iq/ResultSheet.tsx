@@ -1,9 +1,11 @@
 import { Sheet } from "../Sheet";
-import { CLASS_LABEL, outcomeText, type AttemptClass, type BetterPlan, type CoachStep, type OptionResult, type Recording, type SimEvent } from "../engine/sim";
+import { outcomeText, type AttemptClass, type BetterPlan, type CoachStep, type OptionResult, type Recording, type SimEvent } from "../engine/sim";
 import type { OutcomeKind } from "../engine/sim";
 import { ReplayBoard } from "./ReplayBoard";
 
 export interface ResultBundle {
+  /** Nagłówek wyniku zależny od sytuacji. */
+  title: string;
   kind: OutcomeKind;
   cls: AttemptClass;
   rec: Recording;
@@ -21,7 +23,7 @@ export interface ResultBundle {
 /** Po akcji: powtórka z góry z torami podań w chwili decyzji, „Co robić” w 3 krokach, kolejna próba z innym wariantem. */
 export function ResultSheet({ r, onNext, onSame }: { r: ResultBundle; onNext: () => void; onSame: () => void }) {
   return (
-    <Sheet title={CLASS_LABEL[r.cls]} onClose={onNext}>
+    <Sheet title={r.title} onClose={onNext}>
       <p className="-mt-1 mb-4 text-sm text-muted">{outcomeText(r.kind)}</p>
       <ReplayBoard rec={r.rec} events={r.events} lanes={r.rated} laneT={r.rateT} nameOf={r.nameOf} plan={r.plan} />
       {r.plan && (

@@ -67,6 +67,9 @@ export type OutcomeKind =
 export type AttackStyle = "wall" | "switch" | "dribble" | "direct" | "mixed";
 export const ATTACK_STYLES: AttackStyle[] = ["wall", "switch", "dribble", "direct", "mixed", "mixed"];
 
+/** Rodzaj sytuacji w IQ: wyjście spod pressingu, odbiór i kontra, rozegranie od bramkarza, 2 na 1 na skrzydle. */
+export type Situation = "press" | "counter" | "keeper" | "two_one";
+
 export interface Outcome { kind: OutcomeKind; t: number }
 
 export interface World {
@@ -87,6 +90,9 @@ export interface World {
   user: string | null;
   /** Limit czasu symulacji (s). */
   limit: number;
+  /** Rodzaj sytuacji i rola użytkownika (do tytułów i podpowiedzi). */
+  situation?: Situation;
+  userRole?: string;
   /** Styl ataku naszej drużyny (brak = mieszany). */
   style?: AttackStyle;
   /** Ostatnia próba dryblingu (s), żeby nie ponawiać jej co klatkę. */

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FIELD_H, FIELD_W } from "./types";
 import { freshSeed, randomScenario, VARIANTS, type Variant } from "./scenario";
+import type { Situation } from "./types";
 import { classify, record, setUser, startRecording, step } from "./index";
 
 const layout = (seed: number, avoid?: Variant) => JSON.stringify(randomScenario(seed, avoid).world.agents.map((a) => [a.id, +a.pos.x.toFixed(3), +a.pos.y.toFixed(3)]));
@@ -12,11 +13,12 @@ describe("losowe sytuacje IQ", () => {
     expect(new Set(seeds.map((s) => layout(s))).size).toBe(seeds.length);
   });
 
-  it("wariant nigdy nie powtarza się dwa razy z rzędu i wszystkie trzy występują", () => {
+  it("wariant pressingu nigdy nie powtarza się dwa razy z rzędu i wszystkie trzy występują", () => {
     const seen = new Set<Variant>();
     let prev: Variant | undefined;
-    for (let s = 1; s <= 300; s++) {
+    for (let s = 1; s <= 400; s++) {
       const r = randomScenario(s * 7919, prev);
+      if (r.situation !== "press") continue;
       if (prev !== undefined) expect(r.variant).not.toBe(prev);
       expect(VARIANTS[r.variant]).toBeDefined();
       seen.add(r.variant); prev = r.variant;
@@ -24,12 +26,25 @@ describe("losowe sytuacje IQ", () => {
     expect(seen.size).toBe(3);
   });
 
+  it("rodzaj sytuacji nigdy nie powtarza się dwa razy z rzędu, a wszystkie cztery występują, także różne role", () => {
+    const seen = new Set<string>(), roles = new Set<string>();
+    let prev: Situation | undefined;
+    for (let s = 1; s <= 400; s++) {
+      const r = randomScenario(s * 6007, undefined, prev);
+      if (prev !== undefined) expect(r.situation).not.toBe(prev);
+      expect(r.world.situation).toBe(r.situation);
+      seen.add(r.situation); roles.add(r.role); prev = r.situation;
+    }
+    expect([...seen].sort()).toEqual(["counter", "keeper", "press", "two_one"]);
+    for (const role of ["pomocnik", "stoper", "boczny", "skrzydłowy", "bramkarz"]) expect(roles.has(role), role).toBe(true);
+  });
+
   it("każda sytuacja jest uczciwa: zawodnik z piłką, wszyscy na boisku, rywale nie stoją na piłce, jest komu podać", () => {
     for (let s = 1; s <= 400; s++) {
       const { world } = randomScenario(s * 104729);
       const P = world.agents.find((a) => a.id === "P")!;
       expect(world.ball.owner).toBe("P");
-      expect(world.agents).toHaveLength(17);
+      expect(world.agents).toHaveLength(world.situation === "keeper" ? 16 : 17); // rozegranie od bramkarza: bramkarzem jesteś Ty
       for (const a of world.agents) {
         expect(a.pos.x, `${s} ${a.id} x`).toBeGreaterThanOrEqual(0);
         expect(a.pos.x).toBeLessThanOrEqual(FIELD_W);
@@ -37,11 +52,14 @@ describe("losowe sytuacje IQ", () => {
         expect(a.pos.y).toBeLessThanOrEqual(FIELD_H);
       }
       const foes = world.agents.filter((a) => a.team === "them" && a.role !== "GK");
+      // „2 na 1” zaczyna się z jednym rywalem blisko (ok. 7 m); w pozostałych sytuacjach rywal jest dalej niż 4 m
       expect(Math.min(...foes.map((a) => Math.hypot(a.pos.x - P.pos.x, a.pos.y - P.pos.y))), `${s} odległość rywala`).toBeGreaterThan(4);
       const mates = world.agents.filter((a) => a.team === "us" && a.id !== "P" && a.role !== "GK");
       expect(mates.length).toBeGreaterThanOrEqual(5);
-      expect(P.pos.x).toBeGreaterThan(36);
-      expect(P.pos.x).toBeLessThan(48);
+      expect(world.situation).toBeDefined();
+      expect(world.userRole).toBeTruthy();
+      expect(P.pos.x).toBeGreaterThan(3);
+      expect(P.pos.x).toBeLessThan(80);
     }
   });
 

@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GOAL, localISO } from "./engine";
 import type { Vec } from "./engine";
-import { VARIANTS, betterPlan, classify, coachSteps, firstAction, freshSeed, randomScenario, firstLoss, pass, rateOptions, record, setUser, shoot, snapshotAtOrBefore, startRecording, step } from "./engine/sim";
-import type { Recording, Variant, World } from "./engine/sim";
+import { SITUATIONS, VARIANTS, betterPlan, classLabel, classify, coachSteps, introText, firstAction, freshSeed, randomScenario, firstLoss, pass, rateOptions, record, setUser, shoot, snapshotAtOrBefore, startRecording, step } from "./engine/sim";
+import type { Recording, Situation, Variant, World } from "./engine/sim";
 import { addAttempt } from "./iq/attempts-store";
 import { ResultSheet, type ResultBundle } from "./iq/ResultSheet";
 import { LargeTitle } from "./ui";
@@ -39,6 +39,8 @@ export default function IQ() {
   const [aimName, setAimName] = useState<string | null>(null);
   const [fallback, setFallback] = useState(false);
   const [variant, setVariant] = useState<Variant>(0);
+  const [situation, setSituation] = useState<Situation>("press");
+  const [role, setRole] = useState("pomocnik");
   const [myLook, setMyLook] = useState<PlayerLook>(loadLook);
   const [editor, setEditor] = useState(false);
   const [poss, setPoss] = useState<Possession>("me");
@@ -95,7 +97,7 @@ export default function IQ() {
       // każda sytuacja jest nowa i losowa (ziarno z losowania); „Jeszcze raz” odtwarza tę samą po ziarnie
       let scen = randomScenario(freshSeed());
       let world: World = scen.world;
-      setVariant(scen.variant);
+      setVariant(scen.variant); setSituation(scen.situation); setRole(scen.role);
       let rec: Recording = startRecording(world);
       const P0 = world.agents.find((a) => a.id === "P")!;
 
@@ -171,7 +173,7 @@ export default function IQ() {
 
       reset.current = (next: boolean) => {
         if (next) attempt.current++;
-        scen = next ? randomScenario(freshSeed(), scen.variant) : randomScenario(scen.seed);
+        scen = next ? randomScenario(freshSeed(), scen.situation === "press" ? scen.variant : undefined, scen.situation) : randomScenario(scen.seed);
         const v = scen.variant;
         world = scen.world;
         rec = startRecording(world);
@@ -180,7 +182,7 @@ export default function IQ() {
         player = { x: dr.x, y: dr.y }; facing = { x: 1, y: 0 }; kickSt = null; act.current = null; carried = 0; outcomeT = 0;
         putActors();
         ball.position.set(player.x + 0.7, BALL_R, player.y);
-        setResult(null); setClock(0); setVariant(v); setPoss("me"); setP("intro");
+        setResult(null); setClock(0); setVariant(v); setSituation(scen.situation); setRole(scen.role); setPoss("me"); setP("intro");
       };
 
       const place = (a: Actor, p: Vec, dt: number, faceTo?: Vec) => {
@@ -358,12 +360,12 @@ export default function IQ() {
             const snap = snapshotAtOrBefore(rec, Math.max(0, decisionT));
             const rated = snap ? rateOptions(snap) : [];
             const nameOf = (id?: string) => (id === "P" ? "Ty" : world.agents.find((a) => a.id === id)?.name ?? "");
-            addAttempt({ date: localISO(), variant: variantNow, cls, first, lossAt: loss ? loss.t : null });
+            addAttempt({ date: localISO(), variant: variantNow, situation: scen.situation, cls, first, lossAt: loss ? loss.t : null });
             setResult({
-              kind: world.outcome.kind, cls, rec, events: [...world.events], rated, rateT: snap?.t ?? 0, nameOf,
-              steps: coachSteps({ variant: variantNow, rated, first, cls, nameOf: (id) => nameOf(id), loss }),
+              title: classLabel(cls, scen.situation), kind: world.outcome.kind, cls, rec, events: [...world.events], rated, rateT: snap?.t ?? 0, nameOf,
+              steps: coachSteps({ variant: variantNow, situation: scen.situation, rated, first, cls, nameOf: (id) => nameOf(id), loss }),
               plan: snap ? betterPlan(snap, rated, first, (id) => nameOf(id)) : null,
-              nextTitle: "nowa, losowa sytuacja", sameTitle: VARIANTS[variantNow]!.title,
+              nextTitle: "nowa, losowa sytuacja", sameTitle: scen.situation === "press" ? VARIANTS[variantNow]!.title : SITUATIONS.find((x) => x.id === scen.situation)!.title,
             });
             setP("done");
           }
@@ -421,7 +423,7 @@ export default function IQ() {
 
   return (
     <main className="mx-auto max-w-md px-5 pb-32 pt-14">
-      <LargeTitle kind="iq" title="IQ" sub="Wyjście spod pressingu + kontratak" />
+      <LargeTitle kind="iq" title="IQ" sub={SITUATIONS.find((x) => x.id === situation)!.title} />
       <div className="relative overflow-hidden rounded-3xl border border-hairline bg-hairline shadow-sm">
         <div ref={mount} className="h-[58vh] min-h-[340px] w-full" />
 
@@ -456,10 +458,10 @@ export default function IQ() {
             <div className="bw-sheet w-full rounded-3xl bg-white/95 p-5 backdrop-blur">
               <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted">
                 <span>Sytuacja</span>
-                <span className="rounded-full bg-hairline/70 px-2 py-0.5 normal-case tracking-normal">Próba {attempt.current + 1} · {VARIANTS[variant]!.title}</span>
+                <span className="rounded-full bg-hairline/70 px-2 py-0.5 normal-case tracking-normal">Próba {attempt.current + 1} · {situation === "press" ? VARIANTS[variant]!.title : SITUATIONS.find((x) => x.id === situation)!.title}</span>
               </div>
-              <p className="mt-1 text-[15px] leading-snug text-ink">Jesteś numerem {myLook.number} z piłką. Naciska Cię dwóch napastników. {VARIANTS[variant]!.defence}</p>
-              <p className="mt-2 text-[15px] leading-snug text-ink">Wyjdź z pressingu. Strata = kontra 3 na 2 – wtedy to Ty ją gasisz.</p>
+              <p className="mt-1 text-[15px] leading-snug text-ink">{introText(situation, role, myLook.number, VARIANTS[variant]!.defence)}</p>
+              <p className="mt-2 text-[15px] leading-snug text-ink">{situation === "press" ? "Wyjdź z pressingu. Strata = kontra 3 na 2 – wtedy to Ty ją gasisz." : situation === "counter" ? "Wykorzystaj przestrzeń, zanim rywal się cofnie. Strata = kontra rywala – wtedy to Ty ją gasisz." : situation === "keeper" ? "Rozegraj piłkę spod własnej bramki. Strata tuż przy bramce to najgroźniejsza sytuacja." : "Zdecyduj: podanie w bieg, drybling albo strzał. Strata przy linii bocznej to kontra rywala."}</p>
               <p className="mt-2 text-xs text-muted">Joystick: do przodu – bieg, w bok – skręt (kamera obraca się za Tobą). Patrz w stronę kolegi i podaj.</p>
               {fallback && <p className="mt-2 text-xs text-muted">Uproszczone postacie (nie udało się wczytać modeli).</p>}
               <button onClick={() => setP("play")} className="bw-grad mt-4 w-full rounded-2xl py-3.5 text-base font-medium">Graj</button>

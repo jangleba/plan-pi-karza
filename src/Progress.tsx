@@ -212,7 +212,7 @@ export function Progress({ profile, refreshKey }: { profile: Profile; refreshKey
 
       {iq && (
         <>
-          {label("IQ · wyjście spod pressingu")}
+          {label("IQ · decyzje z piłką")}
           <section className={`${card} px-5 py-4`}>
             <div className="mb-4 flex items-end justify-between">
               <div>

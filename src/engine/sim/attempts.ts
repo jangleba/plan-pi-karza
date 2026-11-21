@@ -4,6 +4,8 @@ import type { AttemptClass, FirstAction } from "./coach";
 export interface Attempt {
   date: string;
   variant: number;
+  /** Rodzaj sytuacji (brak = wyjście spod pressingu, starsze zapisy). */
+  situation?: string;
   cls: AttemptClass;
   first: FirstAction | null;
   /** Czas straty piłki (s), gdy była. */

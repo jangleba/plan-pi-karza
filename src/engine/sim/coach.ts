@@ -1,12 +1,19 @@
-import { VARIANTS, type Variant } from "./scenario";
+import { SITUATIONS, VARIANTS, type Variant } from "./scenario";
 import { cloneWorld } from "./replay";
-import type { SimEvent, World } from "./types";
+import type { Situation, SimEvent, World } from "./types";
 import { distToSegment } from "../iq";
 import { agent, pass, setUser, step } from "./world";
 
 /** Jak zakończyło się wyjście spod pressingu – bez punktów, trzy kategorie. */
 export type AttemptClass = "clean" | "recovered" | "conceded";
 export const CLASS_LABEL: Record<AttemptClass, string> = { clean: "Wyjście udane", recovered: "Strata odzyskana", conceded: "Strata i kontra" };
+
+/** Nagłówek wyniku zależny od sytuacji (np. „Kontra bez straty”, „Wyjście od bramki udane”). */
+export function classLabel(cls: AttemptClass, situation: Situation = "press"): string {
+  if (situation === "press") return CLASS_LABEL[cls];
+  const clean = { counter: "Kontra bez straty", keeper: "Wyjście od bramki udane", two_one: "Akcja 2 na 1 bez straty" }[situation];
+  return cls === "clean" ? clean : cls === "recovered" ? "Strata odzyskana" : "Strata i kontra rywala";
+}
 
 export type FirstAction =
   | { kind: "pass"; target: string; t: number }
@@ -98,14 +105,15 @@ const list = (xs: string[]) => (xs.length ? xs.join(", ") : "brak");
  * Trzy krótkie kroki: czytaj pressing → Twój wybór na tle tego, co by zadziałało → co robić po zagraniu/stracie.
  * Zasady ogólne (nie dane meczowe): preferuj wolnego kolegę, po podaniu nie stój, po stracie nie wślizg (docs/ZRODLA-IQ.md).
  */
-export function coachSteps(input: { variant: Variant; rated: OptionResult[]; first: FirstAction | null; cls: AttemptClass; nameOf: (id: string) => string; loss: { t: number; by: string } | null }): CoachStep[] {
+export function coachSteps(input: { variant: Variant; situation?: Situation; rated: OptionResult[]; first: FirstAction | null; cls: AttemptClass; nameOf: (id: string) => string; loss: { t: number; by: string } | null }): CoachStep[] {
   const { rated, first, cls, nameOf, loss } = input;
+  const situation = input.situation ?? "press";
   const free = rated.filter((r) => r.kept), closed = rated.filter((r) => !r.kept);
   const best: OptionResult | null = free[0] ?? null;
 
   const s1: CoachStep = {
-    title: "Czytaj pressing",
-    text: `${VARIANTS[input.variant]!.defence} Wolni: ${list(free.map((r) => r.name))}. Przecięte: ${list(closed.map((r) => r.name))}.`,
+    title: situation === "press" ? "Czytaj pressing" : "Czytaj sytuację",
+    text: `${situation === "press" ? VARIANTS[input.variant]!.defence : SITUATIONS.find((x) => x.id === situation)!.read} Wolni: ${list(free.map((r) => r.name))}. Przecięte: ${list(closed.map((r) => r.name))}.`,
   };
 
   let t2: string;
@@ -115,17 +123,29 @@ export function coachSteps(input: { variant: Variant; rated: OptionResult[]; fir
     if (r?.kept) t2 = best && best.id === r.id ? `${name}: najlepsza opcja w tym ustawieniu (piłka +${r.gain} m).` : `${name}: piłka została u nas. Najdalej do przodu: ${best?.name ?? name} (+${best?.gain ?? 0} m).`;
     else t2 = `${name}: ${r?.beforePass ? "za późno – piłkę straciłeś przed podaniem" : `przecięte po ${sec(r?.lostAt ?? 0)}${r?.lostBy ? ` (${nameOf(r.lostBy)})` : ""}`}. ${best ? `Lepiej: ${best.name}.` : "Każde podanie było ryzykowne – zagraj najbezpieczniej lub wyjdź z piłką z dala od presji."}`;
   } else if (first?.kind === "lost") {
-    t2 = `Piłkę straciłeś po ${sec(first.t)} – ${nameOf(first.by)} doskoczył. Zagraj szybciej${best ? `, np. do: ${best.name}` : ""}; pressing zamyka się w ok. 1,5 s.`;
+    t2 = `Piłkę straciłeś po ${sec(first.t)} – ${nameOf(first.by)} doskoczył. Zagraj szybciej${best ? `, np. do: ${best.name}` : ""}${situation === "press" ? "; pressing zamyka się w ok. 1,5 s" : ""}.`;
   } else if (first?.kind === "shot") {
     t2 = "Strzał z własnej połowy nie ma szansy. Najpierw wyjdź z pressingu.";
   } else {
-    t2 = "Nie zagrałeś. Pressing zamyka się w ok. 1,5 s – decyduj wcześniej.";
+    t2 = situation === "press" ? "Nie zagrałeś. Pressing zamyka się w ok. 1,5 s – decyduj wcześniej." : "Nie zagrałeś na czas. Decyduj szybciej, zanim rywale zamkną drogę.";
   }
   const s2: CoachStep = { title: "Twój wybór", text: t2 };
 
+  const afterGood: Record<Situation, string> = {
+    press: "Nie stój: ruszaj w wolną przestrzeń za pressingiem i bądź kolejną opcją (trzeci zawodnik).",
+    counter: "Nie zwalniaj: po podaniu biegnij w wolną przestrzeń za linią pomocy rywala i bądź drugą opcją w ataku.",
+    keeper: "Po podaniu wyjdź na pozycję do gry: bądź opcją do cofnięcia piłki, gdy pressing się zamknie.",
+    two_one: "Po podaniu wbiegaj w pole karne albo za plecy obrońcy, a nie stój przy linii.",
+  };
+  const afterLoss: Record<Situation, string> = {
+    press: "Bez wślizgu: zagradzaj drogę do bramki i opóźniaj, aż wróci pomoc – za Tobą zostaje kontra 3 na 2.",
+    counter: "Bez wślizgu: wracaj i zagradzaj drogę do bramki, aż wróci reszta – rywal chce skorzystać z przestrzeni za Tobą.",
+    keeper: "Strata przy własnej bramce jest groźna: przy wysokim pressingu podaj w bok do wolnego obrońcy albo długo za plecy napastników.",
+    two_one: "Przy 2 na 1 podaj, zanim obrońca do Ciebie doskoczy; strata przy linii bocznej oddaje rywalowi kontrę.",
+  };
   const s3: CoachStep = cls === "clean"
-    ? { title: "Po zagraniu", text: "Nie stój: ruszaj w wolną przestrzeń za pressingiem i bądź kolejną opcją (trzeci zawodnik)." }
-    : { title: "Po stracie", text: `${loss ? `${nameOf(loss.by)} wygrał piłkę po ${sec(loss.t)}. ` : ""}Bez wślizgu: zagradzaj drogę do bramki i opóźniaj, aż wróci pomoc – za Tobą zostaje kontra 3 na 2.` };
+    ? { title: "Po zagraniu", text: afterGood[situation] }
+    : { title: "Po stracie", text: `${loss ? `${nameOf(loss.by)} wygrał piłkę po ${sec(loss.t)}. ` : ""}${afterLoss[situation]}` };
 
   return [s1, s2, s3];
 }
