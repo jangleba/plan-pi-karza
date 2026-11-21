@@ -3,7 +3,6 @@ import { localISO, addEvents, jumpHeightFromFlightTime, labDue, LAB_TESTS, loadH
 import type { HistoryEvent, LabMethod, LabTest } from "./engine";
 import { Sheet } from "./Sheet";
 import { LargeTitle, rise } from "./ui";
-import { LabChart } from "./lab/LabChart";
 import { LabIcon } from "./lab/LabIcon";
 import { useCountUp } from "./lab/useCountUp";
 import { LAB_INFO, deltaText, fmtValue, labCycle, plDate, statusText, summarizeTest, type TestSummary } from "./lab/labView";
@@ -45,7 +44,7 @@ function TestCard({ test, s, index, onOpen }: { test: LabTest; s: TestSummary; i
         </span>
         <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${s.due ? "bg-accent-soft text-accent" : "text-muted"}`}>{statusText(s)}</span>
       </div>
-      <div className="mt-3.5 flex items-end justify-between gap-4">
+      <div className="mt-3.5">
         <div className="min-w-0">
           {s.last ? (
             <>
@@ -59,7 +58,6 @@ function TestCard({ test, s, index, onOpen }: { test: LabTest; s: TestSummary; i
             <span className="block text-sm leading-snug text-muted">Brak wyników.<br />Zrób pierwszy test.</span>
           )}
         </div>
-        <div className="w-[44%] shrink-0"><LabChart points={s.points} better={s.better} /></div>
       </div>
       <span className="pointer-events-none absolute right-4 top-4 hidden text-lg text-accent" aria-hidden="true">›</span>
     </button>
@@ -137,12 +135,9 @@ function TestSheet({ test, s, events, onClose, onSaved }: { test: LabTest; s: Te
             <Stat label="Zmiana" value={delta ? `${s.improved === true ? "▲ " : s.improved === false ? "▼ " : ""}${delta.replace(` ${unit}`, "")}` : "–"} sub={delta ? unit : "brak porównania"} />
           </div>
         ) : (
-          <p className="bw-rise mb-3 rounded-2xl bg-canvas px-4 py-3 text-sm text-muted">Nie ma jeszcze wyników tego testu. Po pierwszym zapisie pojawi się tu wykres i historia.</p>
+          <p className="bw-rise mb-3 rounded-2xl bg-canvas px-4 py-3 text-sm text-muted">Nie ma jeszcze wyników tego testu. Po pierwszym zapisie pojawi się tu historia wyników.</p>
         )}
-        <div className="bw-rise mb-4 rounded-2xl border border-hairline bg-card p-3" style={{ animationDelay: "80ms" }}>
-          <LabChart points={s.points} better={s.better} big />
-          {s.points.length < 2 && <p className="mt-1 text-center text-xs text-muted">Wykres pojawi się po drugim wyniku.</p>}
-        </div>
+        <p className="bw-rise mb-4 px-1 text-xs text-muted" style={{ animationDelay: "80ms" }}>Wykresy i trendy zobaczysz w zakładce Progres.</p>
         {history.length > 0 && (
           <div className="bw-rise mb-4 overflow-hidden rounded-2xl border border-hairline bg-card" style={{ animationDelay: "140ms" }}>
             <h3 className="px-4 pb-1 pt-3 text-xs uppercase tracking-wide text-muted">Ostatnie wyniki</h3>
