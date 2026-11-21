@@ -101,9 +101,9 @@ describe("onboarding: PLAN NADAL WYNIKA Z ODPOWIEDZI", () => {
     expect([young.limitedGymAccess, vet.limitedGymAccess]).toEqual([false, true]);
     expect(levelOf(young.age, young.strengthYears)).not.toBe(levelOf(vet.age, vet.strengthYears));
   });
-  it("przerwa między sezonami: zaznaczony mecz jest w planie, a sesje biegowe lżejsze", () => {
+  it("przerwa między sezonami: zaznaczony sparing jest w planie, a sesje biegowe lżejsze", () => {
     const days = plan(answers({ season: "offseason" }, { 5: "match" })).days;
-    expect(days.some((d) => d.title === "Mecz")).toBe(true);
+    expect(days.some((d) => d.title === "Sparing")).toBe(true);
     const prof = buildProfile(answers({ season: "offseason", goals: ["endurance"] }))!;
     const real = planForProfile(prof, weekStartOf(TODAY)).days.map((d) => d.session).filter((s) => s && (s.kind === "run" || s.kind === "sprint"));
     expect(real.length).toBeGreaterThan(0);

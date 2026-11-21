@@ -41,13 +41,13 @@ export const GOALS: Array<[SeasonGoal, string, string]> = [
 export const SEASONS: Array<[Season, string, string]> = [
   ["preseason", "Przygotowanie do sezonu", "Budujemy formę przed startem rozgrywek."],
   ["inseason", "Trwa sezon", "Plan układa się wokół meczów."],
-  ["offseason", "Przerwa między sezonami", "Utrzymujemy formę, lżej niż w sezonie. Mecz towarzyski też możesz zaznaczyć."],
+  ["offseason", "Przerwa między sezonami", "Utrzymujemy formę, lżej niż w sezonie. Sparing możesz zaznaczyć."],
 ];
 
 export const EQUIPMENT: Array<[Equipment, string]> = [["gym", "Siłownia"], ["field", "Boisko"], ["track", "Bieżnia"]];
 
 export const DAY_LABEL: Record<DayState, string> = { free: "wolny", club: "klub", match: "mecz", off: "zajęty" };
-export const dayHelp = (): string => "Zmień kolor kafelka, klikając w niego ponownie: wolny, klub, mecz, zajęty.";
+export const dayHelp = (season?: Season): string => `Zmień kolor kafelka, klikając w niego ponownie: wolny, klub, ${season === undefined || season === "inseason" ? "mecz" : "sparing"}, zajęty.`;
 
 export const LABEL = {
   name: "Jak masz na imię?",

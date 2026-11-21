@@ -365,22 +365,22 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
 
         {step === 6 && (
           <div className="flex flex-col gap-3">
-            <Section title="Twoje dni" hint={dayHelp()}>
+            <Section title="Twoje dni" hint={dayHelp(a.season)}>
               <div className="grid grid-cols-7 gap-1.5">
                 {a.days.map((d, i) => {
                   const st: DayState = d;
                   return (
-                    <button key={`${i}-${st}`} aria-label={`${WEEKDAY_SHORT[i]!}: ${DAY_LABEL[st]}`} onClick={() => { tap(); set({ days: a.days.map((x, k) => (k === i ? nextDayState(st, a.season) : x)) }); }}
+                    <button key={`${i}-${st}`} aria-label={`${WEEKDAY_SHORT[i]!}: ${st === "match" && a.season && a.season !== "inseason" ? "sparing" : DAY_LABEL[st]}`} onClick={() => { tap(); set({ days: a.days.map((x, k) => (k === i ? nextDayState(st, a.season) : x)) }); }}
                       className={`bw-pop flex h-16 flex-col items-center justify-center rounded-2xl ${DAY_STYLE[st]}`}>
                       <span className="text-sm font-semibold no-underline">{WEEKDAY_SHORT[i]!}</span>
-                      <span className={`mt-1 text-[9px] ${st === "free" ? "text-muted" : ""}`}>{DAY_LABEL[st]}</span>
+                      <span className={`mt-1 text-[9px] ${st === "free" ? "text-muted" : ""}`}>{st === "match" && a.season && a.season !== "inseason" ? "sparing" : DAY_LABEL[st]}</span>
                     </button>
                   );
                 })}
               </div>
               <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
                 <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#fdf3ea] shadow-[inset_0_0_0_1px_#f0c29d]" />trening w klubie</span>
-                <span className="flex items-center gap-1.5"><span className="bw-sel h-2.5 w-2.5 rounded-full" />mecz</span>
+                <span className="flex items-center gap-1.5"><span className="bw-sel h-2.5 w-2.5 rounded-full" />{a.season && a.season !== "inseason" ? "sparing" : "mecz"}</span>
                 <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-hairline" />zajęty: bez naszych treningów</span>
               </div>
             </Section>

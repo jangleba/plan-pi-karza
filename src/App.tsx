@@ -8,7 +8,10 @@ import { useAuthState } from "./lib/session";
 import { changeBirth, finalizeNewProfile, loadGuardedProfile, saveProfile, type GuardResult } from "./lib/profileGuard";
 import { copyScope, getScope, listKeys, migrateLegacy, peekScoped, purgeRemovedFeatures, sameScope, scopeId, storageAvailable, type Scope } from "./lib/store";
 import { ImportOffer, LoadError, StorageNotice } from "./GateScreens";
-import { DEFAULT_CHECK_IN, localISO, addDays, cycleWeekFor, levelOf, nextWeekUnlocked, normalizeCheckIn, planForProfile, weekdayGen } from "./engine";
+import { WeekGate } from "./week/WeekGate";
+import { WeekPrompt } from "./week/WeekPrompt";
+import { useMatchWeeks } from "./week/useMatchWeeks";
+import { DEFAULT_CHECK_IN, localISO, addDays, cycleWeekFor, levelOf, matchWord, nextWeekReady, normalizeCheckIn, planForProfile, weekToAsk, weekdayGen } from "./engine";
 import type { CheckIn, DayPlan, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
 import { Start } from "./Start";
@@ -51,9 +54,9 @@ function mondayOf(d: Date): string {
   return copy.toISOString().slice(0, 10);
 }
 
-function DayRow({ day, index, isToday, onOpen }: { day: DayPlan; index: number; isToday: boolean; onOpen: () => void }) {
+function DayRow({ day, index, isToday, onOpen, matchLabel = "Mecz" }: { day: DayPlan; index: number; isToday: boolean; onOpen: () => void; matchLabel?: string }) {
   const s = day.session;
-  const title = day.isOff ? "Niedostępny" : day.isMatch ? "Mecz" : s ? KIND_LABEL[s.kind] + (s.variant === "upper" ? " · góra" : s.variant === "light" ? " · lekko" : "") : day.isClub ? "Trening klubowy" : "Wolne";
+  const title = day.isOff ? "Niedostępny" : day.isMatch ? matchLabel : s ? KIND_LABEL[s.kind] + (s.variant === "upper" ? " · góra" : s.variant === "light" ? " · lekko" : "") : day.isClub ? "Trening klubowy" : "Wolne";
   return (
     <ListRow
       index={index}
@@ -264,6 +267,7 @@ function Main({ scope, email, onLogin, invite, onInviteClose }: { scope: Scope; 
       {tab === "progres" && <Progress profile={profile} />}
       </div>
       <TabBar tab={tab} onChange={(t) => { setTab(t); window.scrollTo(0, 0); }} />
+      <WeekGate profile={profile} />
       {invite && <InviteReceiver invite={invite} age={profile.age} onClose={onInviteClose} />}
       {settings && <Settings scope={scope} email={email} profile={profile} onClose={() => setSettings(false)} onLogin={onLogin} />}
     </div>
@@ -276,7 +280,12 @@ function Home({ profile, checkIn, checkedIn, initialOpen, onOpened, onReset }: {
   const [open, setOpen] = useState<DayPlan | null>(initialOpen);
   useEffect(() => { if (initialOpen) onOpened(); }, [initialOpen, onOpened]);
   const thisWeek = mondayOf(new Date());
-  const unlocked = nextWeekUnlocked(thisWeek, profile.matchWeekdays, today());
+  const weeks = useMatchWeeks();
+  // kolejny tydzień odblokowuje się po wpisaniu terminu meczu lub sparingu (albo „nie mam”); pytanie pojawia się w niedzielę
+  const unlocked = nextWeekReady(weeks, today());
+  const askNext = weekToAsk(today(), profile.startDate, weeks);
+  const [promptOpen, setPromptOpen] = useState(false);
+  const word = matchWord(profile.season);
   const [viewNext, setViewNext] = useState(false);
   const weekStart = viewNext && unlocked ? addDays(thisWeek, 7) : thisWeek;
   const skippedVersion = useSkippedVersion(); // zgłoszenie „nie mogę” przelicza plan od razu
@@ -292,18 +301,19 @@ function Home({ profile, checkIn, checkedIn, initialOpen, onOpened, onReset }: {
       <div className="bw-rise mb-5 grid grid-cols-2 gap-1 rounded-2xl bg-hairline/70 p-1">
         <button onClick={() => setViewNext(false)} className={`rounded-xl py-2 text-sm ${!viewNext ? "bg-card font-medium shadow-sm" : "text-muted"}`}>Ten tydzień</button>
         <button
-          disabled={!unlocked}
-          onClick={() => setViewNext(true)}
+          disabled={!unlocked && !askNext}
+          onClick={() => (unlocked ? setViewNext(true) : setPromptOpen(true))}
           className={`rounded-xl py-2 text-sm ${viewNext && unlocked ? "bg-card font-medium shadow-sm" : "text-muted"} disabled:opacity-40`}
         >
-          {unlocked ? "Kolejny" : "Kolejny po meczu"}
+          {unlocked ? "Kolejny" : askNext ? `Kolejny: wpisz ${word}` : "Kolejny od niedzieli"}
         </button>
       </div>
       <Group>
         {plan.days.map((d, i) => (
-          <DayRow key={`${weekStart}-${d.date}`} day={d} index={i} isToday={d.date === today()} onOpen={() => setOpen(d)} />
+          <DayRow key={`${weekStart}-${d.date}`} day={d} index={i} isToday={d.date === today()} onOpen={() => setOpen(d)} matchLabel={word === "mecz" ? "Mecz" : "Sparing"} />
         ))}
       </Group>
+      {promptOpen && askNext && <WeekPrompt profile={profile} ask={askNext} onClose={() => setPromptOpen(false)} />}
       {open && (
         <SessionSheet day={open} checkIn={checkIn} checkedIn={checkedIn} weekInCycle={cycleWeekFor(profile, weekStart)} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")} inviterName={profile.name} age={profile.age}
           onSkipDay={open.date >= today() ? () => { setSkipped(open.date, true, today()); setOpen(null); } : undefined} onClose={() => setOpen(null)} />

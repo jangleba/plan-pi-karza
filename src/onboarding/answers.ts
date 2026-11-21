@@ -147,7 +147,7 @@ export function previewWeek(a: Answers, todayISO: string): { days: PreviewDay[];
     const weekday = WEEKDAY_SHORT[i]!;
     const s = d.session?.kind ?? null;
     if (d.isOff) return { weekday, title: "Zajęty", tone: "off", session: null };
-    if (d.isMatch) return { weekday, title: "Mecz", tone: "match", session: s };
+    if (d.isMatch) return { weekday, title: a.season && a.season !== "inseason" ? "Sparing" : "Mecz", tone: "match", session: s };
     if (d.isClub) return { weekday, title: "Klub", ...(s ? { extra: SESSION_SHORT[s] } : {}), tone: "club", session: s };
     if (s) return { weekday, title: SESSION_SHORT[s], tone: s === "recovery" ? "rest" : "train", session: s };
     return { weekday, title: "Wolne", tone: "rest", session: null };
@@ -167,7 +167,7 @@ const GOAL_LABEL: Record<SeasonGoal, string> = { speed: "szybkość", strength: 
 export function understood(a: Answers): string[] {
   const out: string[] = [];
   const matches = dayIndexes(a, "match");
-  if (matches.length) out.push(`Mecz ${matches.map((i) => MATCH_DAY[i]).join(" i ")}`);
+  if (matches.length) out.push(`${a.season && a.season !== "inseason" ? "Sparing" : "Mecz"} ${matches.map((i) => MATCH_DAY[i]).join(" i ")}`);
   else if (a.season === "offseason") out.push("Przerwa między sezonami: lżej");
   const club = dayIndexes(a, "club");
   if (club.length) out.push(`Trening w klubie: ${club.map((i) => WEEKDAY_FULL[i]).join(", ")}`);

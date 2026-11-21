@@ -87,6 +87,8 @@ button:active:not(:disabled) { transform: scale(0.96); }
 .bw-grad-soft { background-color: var(--color-canvas); }
 
 /* wybór „podskakuje” */
+@keyframes bw-tile-in { 0% { opacity: 0; transform: translateY(16px) scale(0.7); } 60% { opacity: 1; transform: translateY(-3px) scale(1.06); } 100% { opacity: 1; transform: none; } }
+.bw-tile-in { animation: bw-tile-in 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 @keyframes bw-pop { 0% { transform: scale(0.94); } 55% { transform: scale(1.05); } 100% { transform: scale(1); } }
 .bw-pop { animation: bw-pop 0.32s cubic-bezier(0.2, 0.8, 0.2, 1); }
 
@@ -112,7 +114,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
 .bw-lift { animation: bw-lift 1.6s ease-in-out infinite; transform-box: fill-box; }
 .bw-fill { animation: bw-fill 1.2s ease-out both; transform-box: fill-box; transform-origin: bottom; }
 @media (prefers-reduced-motion: reduce) {
-  .bw-fade-in, .bw-pop, .bw-step-back, .bw-bounce, .bw-flash, .bw-logo-spin, .bw-hop, .bw-shadow, .bw-draw, .bw-lift, .bw-fill { animation: none; }
+  .bw-fade-in, .bw-tile-in, .bw-pop, .bw-step-back, .bw-bounce, .bw-flash, .bw-logo-spin, .bw-hop, .bw-shadow, .bw-draw, .bw-lift, .bw-fill { animation: none; }
 }
 
 /* koło wyboru: bez paska przewijania, wygaszone brzegi */

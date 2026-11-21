@@ -6,6 +6,7 @@ import { LegalSheet } from "./legal/LegalUi";
 import { EnglishCard } from "./english/EnglishCard";
 import { DaySkipToggle } from "./DaySkipToggle";
 import { GoalCard } from "./goal/GoalCard";
+import { WeekCard } from "./week/WeekGate";
 
 // Moduł nauki ładuje się dopiero po otwarciu (osobny fragment pakietu): nie spowalnia strony głównej.
 const EnglishModule = lazy(() => import("./english/EnglishModule"));
@@ -89,6 +90,7 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn, onSettings }: {
         </p>
       </section>
 
+      <WeekCard profile={profile} />
       <GoalCard profile={profile} />
 
       <EnglishCard onOpen={() => setEnglish(true)} refreshKey={englishTick} />

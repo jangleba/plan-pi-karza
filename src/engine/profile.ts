@@ -1,3 +1,4 @@
+import { loadMatchWeeks, matchDatesAround, type MatchWeeks } from "./matchweek";
 import type { DaySkip, Level, Season, SeasonGoal } from "./types";
 import { MIN_AGE, assessAge } from "../lib/age";
 import { addDays, planWeek } from "./week";
@@ -96,9 +97,9 @@ export function nextWeekUnlocked(weekStart: string, matchWeekdays: number[], tod
   return todayISO >= last;
 }
 
-/** Korekty planu zgłoszone przez zawodnika: dni, w których nie może trenować (sesje indywidualne są wtedy przekładane). */
-export interface PlanAdjust { skippedDays: DaySkip[] }
-const currentAdjust = (): PlanAdjust => ({ skippedDays: loadSkipped() });
+/** Korekty planu zgłoszone przez zawodnika: dni, w których nie może trenować (sesje indywidualne są wtedy przekładane), i terminy meczów wpisane na poszczególne tygodnie. */
+export interface PlanAdjust { skippedDays: DaySkip[]; matchWeeks?: MatchWeeks }
+const currentAdjust = (): PlanAdjust => ({ skippedDays: loadSkipped(), matchWeeks: loadMatchWeeks() });
 
 /**
  * Plan tygodnia dla profilu (wspólny dla Startu, Planu i Fuel). Silnik widzi: dni zajęte z onboardingu, staż siłowy (dzień po meczu dla siły
@@ -107,7 +108,7 @@ const currentAdjust = (): PlanAdjust => ({ skippedDays: loadSkipped() });
 export function planForProfile(profile: Profile, weekStart: string, adj: PlanAdjust = currentAdjust()) {
   return planWeek({
     weekStart,
-    matches: matchesAround(weekStart, profile.matchWeekdays),
+    matches: matchDatesAround(weekStart, profile.matchWeekdays, adj.matchWeeks ?? {}),
     clubDays: datesForWeek(weekStart, profile.clubWeekdays),
     offDays: datesForWeek(weekStart, profile.offWeekdays ?? []),
     level: levelOf(profile.age, profile.strengthYears),
