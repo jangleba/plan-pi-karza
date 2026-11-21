@@ -75,3 +75,17 @@ describe("check-in: normalizacja i propozycja regeneracji", () => {
     expect(n).toMatch(/słaba regeneracja/);
   });
 });
+
+import { RECOVERY, RECOVERY_LIGHT } from "./technique";
+describe("regeneracja na słaby dzień", () => {
+  it("krótka, bez odwołań do meczu, z ruchem, rozciąganiem i jedzeniem", () => {
+    const text = [...RECOVERY_LIGHT.foundation, ...RECOVERY_LIGHT.optional].join(" ");
+    expect(text).not.toMatch(/mecz/i);
+    expect(text).toMatch(/spacer/);
+    expect(text).toMatch(/rozciąganie/i);
+    expect(text).toMatch(/posiłek/);
+    expect(RECOVERY_LIGHT.minutes).toBeGreaterThan(0);
+    expect(RECOVERY_LIGHT.title).not.toBe(RECOVERY.title);
+  });
+});
+

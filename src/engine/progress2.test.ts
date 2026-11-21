@@ -109,3 +109,20 @@ describe("wnioski", () => {
   });
   it("etykiety rodzajów sesji po polsku", () => expect(KIND_PL["strength"]).toBe("Siła"));
 });
+
+describe("regeneracja zamiast sesji (check-in)", () => {
+  const planned = [{ date: "2026-11-16", kind: "strength" }, { date: "2026-11-17", kind: "sprint" }, { date: "2026-11-18", kind: "run" }];
+  it("liczy się jako zrobiona i jest oznaczona; brak zdarzenia = pominięta", () => {
+    const ev = [
+      { date: "2026-11-16", type: "session" as const, key: "strength", value: 1, viaRest: true },
+      { date: "2026-11-17", type: "session" as const, key: "sprint", value: 1 },
+    ];
+    const a = adherence(planned, ev, "2026-11-20");
+    expect(a.cells.get("2026-11-16")).toMatchObject({ state: "done", viaRest: true });
+    expect(a.cells.get("2026-11-17")).toMatchObject({ state: "done" });
+    expect(a.cells.get("2026-11-17")!.viaRest).toBeUndefined();
+    expect(a.cells.get("2026-11-18")!.state).toBe("missed");
+    expect(a.weeks[0]).toMatchObject({ planned: 3, done: 2 });
+  });
+});
+

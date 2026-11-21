@@ -273,3 +273,20 @@ export const RECOVERY: RecoverySession = {
   source:
     "Przeglądy systematyczne: pubmed.ncbi.nlm.nih.gov/35961644, pubmed.ncbi.nlm.nih.gov/23315753, pmc.ncbi.nlm.nih.gov/articles/PMC9465732.",
 };
+
+/**
+ * Krótka regeneracja na słaby dzień (zamiast sesji, gdy check-in jest bardzo słaby). Bez meczu w tle.
+ * Ogólne zasady (spokojny ruch, rozciąganie, nawodnienie i posiłek); treść do przeglądu trenera.
+ */
+export const RECOVERY_LIGHT: RecoverySession = {
+  title: "Regeneracja na słaby dzień",
+  minutes: 20,
+  foundation: [
+    "Lekki ruch 10–15 min: spacer albo spokojny rower. Bez zadyszki.",
+    "Rozciąganie i mobilność 5–10 min: łydki, uda, biodra. Bez bólu.",
+    "Pij regularnie i zjedz normalny posiłek z białkiem i węglowodanami.",
+  ],
+  optional: [],
+  source: "Ogólne zasady regeneracji; treść do przeglądu trenera.",
+};
+

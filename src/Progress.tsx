@@ -25,7 +25,7 @@ type CardKey = Group | "technique";
 function KindCard({ k, events, metrics, today, range, onOpen }: { k: CardKey; events: HistoryEvent[]; metrics: Metric[]; today: string; range: Range; onOpen?: () => void }) {
   const kind = k === "technique" ? "technique" : GROUP_KIND[k];
   const title = k === "technique" ? "Technika" : GROUP_TITLE[k];
-  const done28 = events.filter((e) => e.type === "session" && e.key === kind && e.date >= shiftDays(today, -28)).length;
+  const done28 = events.filter((e) => e.type === "session" && !e.viaRest && e.key === kind && e.date >= shiftDays(today, -28)).length;
   const mine = k === "technique" ? [] : metrics.filter((m) => groupOf(m) === k).map((m) => ({ m, s: series(events, m.type, m.key) })).filter((x) => x.s.length > 0);
   // główna metryka: ta, która ma najwięcej pomiarów (przy remisie – najświeższa)
   const main = [...mine].sort((a, b) => b.s.length - a.s.length)[0];

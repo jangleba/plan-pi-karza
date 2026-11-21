@@ -26,17 +26,18 @@ export function inRange<T extends { date: string }>(points: T[], range: Range, t
 
 export interface PlannedDay { date: string; kind: string }
 export type CellState = "done" | "missed" | "planned" | "rest";
-export interface Cell { date: string; state: CellState; kind?: string }
+export interface Cell { date: string; state: CellState; kind?: string; /** Zrobiono regenerację zamiast sesji (check-in). */ viaRest?: boolean }
 export interface WeekAdherence { week: string; planned: number; done: number }
 
 /** Sesje wykonane (zdarzenia „session”) w dniach zaplanowanych; przyszłe dni nie liczą się jako pominięte. */
 export function adherence(planned: PlannedDay[], events: HistoryEvent[], today: string, from?: string) {
   const doneSet = new Set(events.filter((e) => e.type === "session").map((e) => `${e.date}|${e.key}`));
+  const restSet = new Set(events.filter((e) => e.type === "session" && e.viaRest).map((e) => `${e.date}|${e.key}`));
   const days = planned.filter((p) => !from || p.date >= from);
   const cells = new Map<string, Cell>();
   for (const p of days) {
     const done = doneSet.has(`${p.date}|${p.kind}`);
-    cells.set(p.date, { date: p.date, kind: p.kind, state: done ? "done" : p.date < today ? "missed" : "planned" });
+    cells.set(p.date, { date: p.date, kind: p.kind, state: done ? "done" : p.date < today ? "missed" : "planned", ...(done && restSet.has(`${p.date}|${p.kind}`) ? { viaRest: true } : {}) });
   }
   const weeks = new Map<string, WeekAdherence>();
   for (const c of cells.values()) {

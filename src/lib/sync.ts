@@ -77,7 +77,7 @@ export async function pullAll(today: string): Promise<Remote | null> {
       supabase.from("profiles").select("data").eq("user_id", user_id).maybeSingle(),
       health ? supabase.from("mas_tests").select("distance_m").eq("user_id", user_id).order("tested_on", { ascending: false }).order("id", { ascending: false }).limit(1) : Promise.resolve({ data: [], error: null }),
       health ? supabase.from("weight_log").select("exercise_id,kg,reps,logged_on,next_kg").eq("user_id", user_id) : Promise.resolve({ data: [], error: null }),
-      health ? supabase.from("check_ins").select("sleep,feeling,less").eq("user_id", user_id).eq("day", today).maybeSingle() : Promise.resolve({ data: null, error: null }),
+      health ? supabase.from("check_ins").select("recovery,feeling,less").eq("user_id", user_id).eq("day", today).maybeSingle() : Promise.resolve({ data: null, error: null }),
     ]);
     if (p.error || m.error || w.error || c.error) return null;
     return {

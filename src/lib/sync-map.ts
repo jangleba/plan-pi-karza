@@ -34,12 +34,11 @@ export function rowsToWeightLog(rows: WeightRow[]): WeightLog {
 }
 
 export function checkInToRow(day: string, c: CheckIn) {
-  // kolumna `sleep` w chmurze przechowuje teraz „regenerację po wczoraj” (zmiana nazwy kolumny wymaga migracji)
-  return { day, sleep: c.recovery, feeling: c.feeling, less: c.less };
+  return { day, recovery: c.recovery, feeling: c.feeling, less: c.less };
 }
 
-export function rowToCheckIn(r: { sleep: number; feeling: number; less: boolean }): CheckIn {
-  return normalizeCheckIn({ recovery: r.sleep, feeling: r.feeling, less: r.less });
+export function rowToCheckIn(r: { recovery: number; feeling: number; less: boolean }): CheckIn {
+  return normalizeCheckIn({ recovery: r.recovery, feeling: r.feeling, less: r.less });
 }
 
 /**

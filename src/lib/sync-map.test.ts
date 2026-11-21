@@ -20,9 +20,9 @@ describe("mapowanie danych do bazy", () => {
     const c = { recovery: 2, feeling: 1, less: true } as const;
     expect(rowToCheckIn(checkInToRow("2026-11-18", c))).toEqual(c);
   });
-  it("check-in w chmurze: kolumna sleep przechowuje regenerację po wczoraj, dawne zapisy i śmieci są bezpieczne", () => {
-    expect(checkInToRow("2026-11-18", { recovery: 1, feeling: 2, less: false })).toEqual({ day: "2026-11-18", sleep: 1, feeling: 2, less: false });
-    expect(rowToCheckIn({ sleep: 9, feeling: 2, less: false })).toEqual({ recovery: 3, feeling: 2, less: false });
+  it("check-in w chmurze: kolumna recovery, śmieci z bazy są bezpieczne", () => {
+    expect(checkInToRow("2026-11-18", { recovery: 1, feeling: 2, less: false })).toEqual({ day: "2026-11-18", recovery: 1, feeling: 2, less: false });
+    expect(rowToCheckIn({ recovery: 9, feeling: 2, less: false })).toEqual({ recovery: 3, feeling: 2, less: false });
   });
   it("odrzuca uszkodzony profil z bazy", () => {
     expect(parseProfile(null)).toBeNull();

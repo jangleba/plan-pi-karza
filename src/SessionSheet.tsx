@@ -12,7 +12,7 @@ import { DrawTool } from "./tools/Draw";
 import { StimuliTool } from "./tools/Stimuli";
 import { Group, ListRow } from "./ui";
 import { CueTrainer } from "./CueTrainer";
-import { EXERCISES, RECOVERY, applyChoice, bodyweightTemplate, drillsFor, DRILL_GROUPS, adaptSession, addEvents, restSuggested, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
+import { EXERCISES, RECOVERY, RECOVERY_LIGHT, applyChoice, bodyweightTemplate, drillsFor, DRILL_GROUPS, adaptSession, addEvents, restSuggested, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
 import type { CheckIn, Drill, DrillGroup, Choice, Completion, DayPlan, HistoryEvent, Level, Mas, Position, Suggestion } from "./engine";
 
 interface ConfirmRow { exerciseId: string; kg: number; planned: string; plannedReps: number }
@@ -37,7 +37,11 @@ export function SessionSheet({
   const [restChoice, setRestChoice] = useState<"ask" | "rest" | "train">("ask");
   const planned = day.session;
   const suggestRest = !!planned && planned.kind !== "recovery" && restSuggested(checkIn);
-  const s = suggestRest && restChoice === "rest" ? { ...planned!, kind: "recovery" as const } : planned;
+  const swapped = suggestRest && restChoice === "rest";
+  const s = swapped ? { ...planned!, kind: "recovery" as const } : planned;
+  const rec = swapped ? RECOVERY_LIGHT : RECOVERY;
+  /** Zapis sesji: regeneracja z check-inu liczy się do zaplanowanego rodzaju (regularność), z oznaczeniem. */
+  const sessionEvent = (): HistoryEvent[] => (s ? [swapped ? { date: day.date, type: "session", key: planned!.kind, value: 1, viaRest: true } : { date: day.date, type: "session", key: s.kind, value: 1 }] : []);
   const [info, setInfo] = useState<{ id: string; note?: string } | null>(null);
   const [tool, setTool] = useState<"stim" | "draw" | null>(null);
   const [halfDrill, setHalfDrill] = useState<Drill | null>(null);
@@ -72,7 +76,7 @@ export function SessionSheet({
   };
 
   const finish = () => {
-    if (!adapted || !found) { addEvents(s ? [{ date: day.date, type: "session", key: s.kind, value: 1 }] : []); onClose(); return; }
+    if (!adapted || !found) { addEvents(sessionEvent()); onClose(); return; }
     const rows = reported();
     if (rows.length === 0) { save(rows); return; }
     setConfirm(rows);
@@ -80,7 +84,7 @@ export function SessionSheet({
 
   /** Zapis sesji. Wartość 1RM i propozycje zwiększenia powstają wyłącznie z POTWIERDZONEGO wykonania (`report`). */
   const save = (rows: ConfirmRow[]) => {
-    const events: HistoryEvent[] = s ? [{ date: day.date, type: "session", key: s.kind, value: 1 }] : [];
+    const events: HistoryEvent[] = sessionEvent();
     if (!adapted || !found) { addEvents(events); onClose(); return; }
     const strain = strainOf(checkIn);
     const next = { ...log };
@@ -262,11 +266,15 @@ export function SessionSheet({
           </>
         ) : s?.kind === "recovery" ? (
           <>
-            <p className="text-sm text-muted">{RECOVERY.title} · ok. {RECOVERY.minutes} min</p>
+            <p className="text-sm text-muted">{rec.title} · ok. {rec.minutes} min</p>
             <h3 className="mb-1 mt-4 text-sm font-semibold">Najważniejsze</h3>
-            <ul className="list-disc pl-4 text-sm">{RECOVERY.foundation.map((x) => <li key={x}>{x}</li>)}</ul>
-            <h3 className="mb-1 mt-4 text-sm font-semibold">Opcjonalnie</h3>
-            <ul className="list-disc pl-4 text-sm text-muted">{RECOVERY.optional.map((x) => <li key={x}>{x}</li>)}</ul>
+            <ul className="list-disc pl-4 text-sm">{rec.foundation.map((x) => <li key={x}>{x}</li>)}</ul>
+            {rec.optional.length > 0 && (
+              <>
+                <h3 className="mb-1 mt-4 text-sm font-semibold">Opcjonalnie</h3>
+                <ul className="list-disc pl-4 text-sm text-muted">{rec.optional.map((x) => <li key={x}>{x}</li>)}</ul>
+              </>
+            )}
           </>
         ) : (
           <p className="mt-3 text-sm text-muted">

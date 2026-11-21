@@ -11,6 +11,8 @@ export interface HistoryEvent {
   value: number;
   /** Tylko dla testów Lab: skąd wynik (oszacowanie z nagrania a wpisanie ręczne). Brak = nieznane (starsze zapisy). */
   method?: LabMethod;
+  /** Tylko session: zamiast zaplanowanej sesji zawodnik zrobił regenerację (propozycja z check-inu). Liczy się do regularności, nie do liczby sesji tego rodzaju. */
+  viaRest?: boolean;
 }
 
 /** Oszacowanie z nagrania telefonem NIE jest walidowanym pomiarem (jak płyta siłowa czy fotokomórki). */
