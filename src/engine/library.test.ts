@@ -21,11 +21,11 @@ describe("biblioteka", () => {
 });
 
 describe("check-in", () => {
-  const good = { sleep: 3, feeling: 3, less: false } as const;
+  const good = { recovery: 3, feeling: 3, less: false } as const;
   it("klasyfikuje obciążenie", () => {
     expect(strainOf(good)).toBe("none");
     expect(strainOf({ ...good, less: true })).toBe("light");
-    expect(strainOf({ sleep: 1, feeling: 1, less: false })).toBe("heavy");
+    expect(strainOf({ recovery: 1, feeling: 1, less: false })).toBe("heavy");
   });
   it("dobry check-in nie zmienia sesji", () => {
     const t = TEMPLATES.find((x) => x.id === "strength-intensity")!;
@@ -35,7 +35,7 @@ describe("check-in", () => {
   });
   it("mocne zmęczenie: mniej serii, lżejsze ćwiczenia, krótsza sesja", () => {
     const t = TEMPLATES.find((x) => x.id === "strength-intensity")!;
-    const a = adaptSession(t, { sleep: 1, feeling: 1, less: false });
+    const a = adaptSession(t, { recovery: 1, feeling: 1, less: false });
     expect(a.blocks.length).toBeLessThan(t.blocks.length);
     const ids = a.blocks.flatMap((b) => b.items.map((i) => i.exerciseId));
     expect(ids).not.toContain("hang-power-clean");
@@ -46,8 +46,32 @@ describe("check-in", () => {
 import { readinessScore } from "./adapt";
 describe("gotowość", () => {
   it("od 40 do 100, „dziś mniej” −10", () => {
-    expect(readinessScore({ sleep: 3, feeling: 3, less: false })).toBe(100);
-    expect(readinessScore({ sleep: 1, feeling: 1, less: false })).toBe(40);
-    expect(readinessScore({ sleep: 2, feeling: 3, less: true })).toBe(75);
+    expect(readinessScore({ recovery: 3, feeling: 3, less: false })).toBe(100);
+    expect(readinessScore({ recovery: 1, feeling: 1, less: false })).toBe(40);
+    expect(readinessScore({ recovery: 2, feeling: 3, less: true })).toBe(75);
+  });
+});
+
+import { DEFAULT_CHECK_IN, normalizeCheckIn, restSuggested } from "./adapt";
+describe("check-in: normalizacja i propozycja regeneracji", () => {
+  it("zapis uszkodzony lub dawny (sleep) nie daje NaN", () => {
+    expect(normalizeCheckIn(null)).toEqual(DEFAULT_CHECK_IN);
+    expect(normalizeCheckIn("x")).toEqual(DEFAULT_CHECK_IN);
+    expect(normalizeCheckIn({ sleep: 2, feeling: 1, less: true })).toEqual({ recovery: 2, feeling: 1, less: true });
+    expect(normalizeCheckIn({ recovery: 7, feeling: "a" })).toEqual(DEFAULT_CHECK_IN);
+    expect(Number.isNaN(readinessScore(normalizeCheckIn({ sleep: 4, feeling: 0 })))).toBe(false);
+  });
+  it("regeneracja zamiast sesji tylko przy „wyraźnie lżej” i słabej regeneracji po wczoraj", () => {
+    expect(restSuggested({ recovery: 1, feeling: 1, less: false })).toBe(true);
+    expect(restSuggested({ recovery: 1, feeling: 2, less: false })).toBe(true);
+    expect(restSuggested({ recovery: 2, feeling: 1, less: false })).toBe(false); // wyraźnie lżej, ale regeneracja nie jest słaba
+    expect(restSuggested({ recovery: 1, feeling: 3, less: false })).toBe(false); // tylko trochę lżej
+    expect(restSuggested({ recovery: 3, feeling: 3, less: true })).toBe(false); // „dziś mniej” (brak czasu) nigdy nie odwołuje sesji
+  });
+  it("notatka o zmianie nie zakłada płci zawodnika", () => {
+    const t = TEMPLATES.find((x) => x.id === "strength-intensity")!;
+    const n = adaptSession(t, { recovery: 1, feeling: 1, less: false }).notes.join(" ");
+    expect(n).not.toMatch(/spałeś|czujesz|zmęczony/);
+    expect(n).toMatch(/regeneracja po wczoraj/);
   });
 });

@@ -1,3 +1,4 @@
+import { normalizeCheckIn } from "../engine";
 import type { CheckIn, Profile, WeightLog } from "../engine";
 import { assessAge } from "./age";
 
@@ -33,11 +34,12 @@ export function rowsToWeightLog(rows: WeightRow[]): WeightLog {
 }
 
 export function checkInToRow(day: string, c: CheckIn) {
-  return { day, sleep: c.sleep, feeling: c.feeling, less: c.less };
+  // kolumna `sleep` w chmurze przechowuje teraz „regenerację po wczoraj” (zmiana nazwy kolumny wymaga migracji)
+  return { day, sleep: c.recovery, feeling: c.feeling, less: c.less };
 }
 
 export function rowToCheckIn(r: { sleep: number; feeling: number; less: boolean }): CheckIn {
-  return { sleep: r.sleep as CheckIn["sleep"], feeling: r.feeling as CheckIn["feeling"], less: r.less };
+  return normalizeCheckIn({ recovery: r.sleep, feeling: r.feeling, less: r.less });
 }
 
 /**

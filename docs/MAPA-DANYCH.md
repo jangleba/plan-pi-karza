@@ -14,7 +14,7 @@ Przestrzenie: `bw:guest:*` oraz `bw:u:<id konta>:*`. Zmiana konta nie kopiuje an
 | Wygląd własnego zawodnika w IQ (odcień skóry, fryzura, budowa, wzrost, numer, kolor stroju, buty) | `look` | Tylko na urządzeniu; nie jest synchronizowany; kosmetyczne, bez danych zdrowotnych |
 | Zaproszenie partnera na trening (ćwiczenie, termin, rodzaj i nazwa miejsca, opcjonalnie imię i notatka) | **nie jest zapisywane** | Cała treść jest w linku, który użytkownik wysyła sam wybranym kanałem (np. komunikator, SMS). Nic nie trafia do nas ani na serwer; odbiorca otwiera link w aplikacji. Imię jest dodawane tylko za zgodą (pole domyślnie wyłączone). |
 | Historia, ciężary (`weightLog`), MAS, odczucia, biegi (w tym **trasa GPS**: do 500 punktów [szerokość, długość, czas w s] na bieg) | `history`, `weightLog`, `masDistance`, `feelings`, `runs` | Do chmury tylko za zgodą na synchronizację zdrowia |
-| Check-iny | `checkIn:*` | j.w. |
+| Check-iny (samopoczucie, regeneracja po wczoraj, „dziś mniej”) | `checkIn:*` | j.w. W chmurze (tabela `check_ins`) kolumna `sleep` przechowuje regenerację po wczoraj |
 | Zgłoszenia „nie mogę zrobić dzisiejszych treningów” (dzień, którego dotyczą, i dzień zgłoszenia) | `skippedDays` | Tylko na urządzeniu; porządkowane po ok. 10 tygodniach; nie jest synchronizowane |
 | Fuel: posiłki, cele, ulubione, **alergeny i dieta** | `meals`, `fuelGoal`, `fuelFavs`, `fuelDiet`… | Nie są synchronizowane |
 | **Piłkarski angielski**: poziom trudności, ukończone lekcje, etap powtórek zwrotów i fiszek, miejsce przerwania lekcji | `english` | Po zalogowaniu synchronizowane z kontem (dane edukacyjne, nie zdrowotne) |

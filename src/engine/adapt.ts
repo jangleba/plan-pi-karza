@@ -1,17 +1,36 @@
 import { EXERCISES, type Block, type SessionTemplate } from "./library";
 
 export interface CheckIn {
-  /** 1 = słabo, 2 = średnio, 3 = dobrze */
-  sleep: 1 | 2 | 3;
+  /** Regeneracja po wczorajszym dniu (trening, mecz): 1 = słabo, 2 = średnio, 3 = dobrze. */
+  recovery: 1 | 2 | 3;
+  /** Samopoczucie dziś: 1 = słabo, 2 = średnio, 3 = dobrze. */
   feeling: 1 | 2 | 3;
   /** „Dziś mniej" / brak czasu */
   less: boolean;
 }
 
+export const DEFAULT_CHECK_IN: CheckIn = { recovery: 3, feeling: 3, less: false };
+
+const level = (v: unknown): 1 | 2 | 3 | null => (v === 1 || v === 2 || v === 3 ? v : null);
+
+/**
+ * Check-in z zapisu lub z chmury, bezpiecznie: zła struktura lub liczby spoza 1–3 wracają do domyślnych (bez „NaN”).
+ * Starsze zapisy mają pole `sleep` (kolumna w chmurze też nazywa się `sleep`): traktujemy je jak regenerację.
+ */
+export function normalizeCheckIn(raw: unknown): CheckIn {
+  if (!raw || typeof raw !== "object") return { ...DEFAULT_CHECK_IN };
+  const r = raw as Record<string, unknown>;
+  return {
+    recovery: level(r.recovery) ?? level(r.sleep) ?? DEFAULT_CHECK_IN.recovery,
+    feeling: level(r.feeling) ?? DEFAULT_CHECK_IN.feeling,
+    less: r.less === true,
+  };
+}
+
 export type Strain = "none" | "light" | "heavy";
 
 export function strainOf(c: CheckIn): Strain {
-  const bad = (3 - c.sleep) + (3 - c.feeling);
+  const bad = (3 - c.recovery) + (3 - c.feeling);
   if (bad >= 3) return "heavy";
   if (bad >= 1 || c.less) return "light";
   return "none";
@@ -33,8 +52,8 @@ function lighterAlternative(id: string): string {
 
 function reason(c: CheckIn): string {
   const parts: string[] = [];
-  if (c.sleep === 1) parts.push("słabo spałeś");
-  if (c.feeling === 1) parts.push("słabo się czujesz");
+  if (c.recovery === 1) parts.push("regeneracja po wczoraj jest słaba");
+  if (c.feeling === 1) parts.push("samopoczucie jest słabe");
   if (c.less) parts.push("chcesz dziś mniej");
   return parts.join(", ");
 }
@@ -73,11 +92,16 @@ export function adaptSession(t: SessionTemplate, c: CheckIn, deload = false): Ad
   return { name: t.name, blocks, notes };
 }
 
+/** Bardzo słaby dzień (wyraźnie lżej i słaba regeneracja po wczoraj): proponujemy regenerację zamiast sesji indywidualnej. Decyduje zawodnik. */
+export function restSuggested(c: CheckIn): boolean {
+  return strainOf(c) === "heavy" && c.recovery === 1;
+}
+
 /**
  * Gotowość 0–100 z check-inu (do pierścienia na Starcie).
- * Sen i samopoczucie po równo; „dziś mniej" obniża o 10. Skala orientacyjna, nie medyczna.
+ * Regeneracja po wczoraj i samopoczucie po równo; „dziś mniej" obniża o 10. Skala orientacyjna, nie medyczna.
  */
 export function readinessScore(c: CheckIn): number {
-  const base = 40 + ((c.sleep - 1) + (c.feeling - 1)) * 15; // 40–100
+  const base = 40 + ((c.recovery - 1) + (c.feeling - 1)) * 15; // 40–100
   return Math.max(0, base - (c.less ? 10 : 0));
 }
