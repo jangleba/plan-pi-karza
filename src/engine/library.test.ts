@@ -72,6 +72,6 @@ describe("check-in: normalizacja i propozycja regeneracji", () => {
     const t = TEMPLATES.find((x) => x.id === "strength-intensity")!;
     const n = adaptSession(t, { recovery: 1, feeling: 1, less: false }).notes.join(" ");
     expect(n).not.toMatch(/spałeś|czujesz|zmęczony/);
-    expect(n).toMatch(/regeneracja po wczoraj/);
+    expect(n).toMatch(/słaba regeneracja/);
   });
 });

@@ -81,9 +81,9 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn, onSettings }: {
 
       <section className="bw-rise mb-6 rounded-3xl border border-hairline bg-card px-5 py-5">
         <Ring value={readinessScore(checkIn)} done={checkedIn} onTap={() => setOpen(true)} />
-        <p className="mt-3 text-center text-sm text-muted">{!checkedIn ? "Jak się czujesz? Dotknij, by odpowiedzieć" : restSuggested(checkIn) ? "Wyraźnie lżej: dziś proponujemy regenerację" : STRAIN[strainOf(checkIn)]}</p>
+        <p className="mt-3 text-center text-sm text-muted">{!checkedIn ? "Jak się dziś czujesz? Dotknij." : restSuggested(checkIn) ? "Dziś lżej. Proponujemy regenerację." : STRAIN[strainOf(checkIn)]}</p>
         <p className="mt-2 text-center text-[11px] leading-snug text-muted">
-          Wynik jest orientacyjny, liczony z Twojej odpowiedzi (samopoczucie, regeneracja po wczoraj), bez gwarancji. Przy bólu lub złym samopoczuciu odpuść.{" "}
+          Wynik jest orientacyjny, z Twoich odpowiedzi. Przy bólu odpuść.{" "}
           <button onClick={() => setSafety(true)} className="underline">Zasady bezpieczeństwa</button>
         </p>
       </section>

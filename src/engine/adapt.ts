@@ -52,8 +52,8 @@ function lighterAlternative(id: string): string {
 
 function reason(c: CheckIn): string {
   const parts: string[] = [];
-  if (c.recovery === 1) parts.push("regeneracja po wczoraj jest słaba");
-  if (c.feeling === 1) parts.push("samopoczucie jest słabe");
+  if (c.recovery === 1) parts.push("słaba regeneracja");
+  if (c.feeling === 1) parts.push("słabe samopoczucie");
   if (c.less) parts.push("chcesz dziś mniej");
   return parts.join(", ");
 }
@@ -71,7 +71,7 @@ export function adaptSession(t: SessionTemplate, c: CheckIn, deload = false): Ad
       items: b.items.map((i) => ({ ...i, sets: i.sets >= 3 ? i.sets - 1 : i.sets })),
     }));
     notes.push(
-      deload ? "Tydzień rozładowania: mniej serii." : `Mniej serii, bo ${reason(c) || "tak wyszło z check-inu"}.`,
+      deload ? "Tydzień rozładowania: mniej serii." : `Mniej serii: ${reason(c) || "tak wyszło z check-inu"}.`,
     );
   }
   if (strain === "heavy") {
@@ -87,7 +87,7 @@ export function adaptSession(t: SessionTemplate, c: CheckIn, deload = false): Ad
       }),
     }));
     if (blocks.length > 3) blocks = blocks.slice(0, -1);
-    notes.push(`Lżejszy dobór ćwiczeń i krótsza sesja, bo ${reason(c)}.`);
+    notes.push(`Lżejsze ćwiczenia i krótsza sesja: ${reason(c)}.`);
   }
   return { name: t.name, blocks, notes };
 }

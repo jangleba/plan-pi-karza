@@ -70,7 +70,7 @@ export function runSession(mas: Mas, phase: MesoPhase, level: Level, c?: CheckIn
     const min = [20, 25, 30][l]!;
     title = "Bieg ciągły spokojny";
     blocks = [block(mas, "Bieg ciągły", 65, min * 60, 0, 1)];
-    if (strain === "heavy") notes.push("Spokojny bieg zamiast interwałów, bo dziś ciężej.");
+    if (strain === "heavy") notes.push("Dziś spokojny bieg zamiast interwałów.");
   } else if (phase === "volume") {
     title = "Interwały długie";
     const reps = Math.max(2, [3, 4, 5][l]! + positionRepDelta(position));
@@ -87,7 +87,7 @@ export function runSession(mas: Mas, phase: MesoPhase, level: Level, c?: CheckIn
       reps: b.reps > 1 ? Math.max(2, Math.ceil(b.reps * 0.75)) : b.reps,
       workS: b.reps === 1 ? Math.round(b.workS * 0.75) : b.workS,
     }));
-    notes.push("Krótsza praca, bo dziś lżej.");
+    notes.push("Dziś krótsza praca.");
   }
   return {
     title,

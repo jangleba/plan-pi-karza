@@ -166,19 +166,19 @@ export function SessionSheet({
         {both && <DayTabs own={KIND_TITLE[s!.kind]!} view={view} onView={setView} />}
         {!club && suggestRest && restChoice === "ask" && (
           <div className="bw-rise mt-3 rounded-2xl border border-hairline bg-canvas p-4" role="region" aria-label="Propozycja regeneracji">
-            <p className="text-[15px] font-semibold leading-snug">Dziś proponujemy regenerację zamiast sesji</p>
-            <p className="mt-1 text-sm text-muted">Z check-inu: regeneracja po wczoraj jest słaba, a samopoczucie obniżone. Decyzja należy do Ciebie.</p>
+            <p className="text-[15px] font-semibold leading-snug">Dziś proponujemy regenerację</p>
+            <p className="mt-1 text-sm text-muted">Słaba regeneracja i gorsze samopoczucie. Ty decydujesz.</p>
             <div className="mt-3 flex gap-2">
               <button onClick={() => setRestChoice("rest")} className="flex-1 rounded-xl bw-grad py-3 text-sm font-medium">Regeneracja</button>
-              <button onClick={() => setRestChoice("train")} className="flex-1 rounded-xl bg-card py-3 text-sm">Zrobię sesję, lżejszą</button>
+              <button onClick={() => setRestChoice("train")} className="flex-1 rounded-xl bg-card py-3 text-sm">Lżejsza sesja</button>
             </div>
           </div>
         )}
         {!club && suggestRest && restChoice === "rest" && (
-          <p className="mt-3 text-sm text-muted">Sesja zamieniona na regenerację. <button onClick={() => setRestChoice("train")} className="underline">Wróć do sesji</button></p>
+          <p className="mt-3 text-sm text-muted">Zamieniono na regenerację. <button onClick={() => setRestChoice("train")} className="underline">Wróć do sesji</button></p>
         )}
         {!club && !checkedIn && (s?.kind === "strength" || s?.kind === "sprint" || s?.kind === "run") && (
-          <p className="mt-3 rounded-xl border border-hairline bg-canvas px-3 py-2 text-sm text-muted">Nie zrobiłeś(-aś) dziś check-inu. Zrób go na Starcie, a dopasujemy trening do tego, jak się czujesz.</p>
+          <p className="mt-3 rounded-xl border border-hairline bg-canvas px-3 py-2 text-sm text-muted">Zrób check-in na Starcie, a dopasujemy trening.</p>
         )}
         {club ? (
           <div className="min-h-[34vh]">
