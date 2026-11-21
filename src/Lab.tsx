@@ -7,6 +7,7 @@ import { LabIcon } from "./lab/LabIcon";
 import { useCountUp } from "./lab/useCountUp";
 import { LAB_INFO, deltaText, fmtValue, labCycle, plDate, statusText, summarizeTest, type TestSummary } from "./lab/labView";
 import { VideoMeasure, type VideoResult } from "./VideoMeasure";
+import { JumpMeasure } from "./JumpMeasure";
 import { CameraCapture, type Recording } from "./CameraCapture";
 
 const today = () => localISO();
@@ -87,6 +88,8 @@ function TestSheet({ test, s, events, onClose, onSaved }: { test: LabTest; s: Te
     if (r.flightTime !== undefined) {
       setFlight(true);
       setVals({ ...vals, cmj: (Math.round(r.flightTime * 1000) / 1000).toString() });
+    } else if (r.distanceCm !== undefined) {
+      setVals({ ...vals, "broad-jump": String(r.distanceCm) });
     } else if (r.splits) {
       const next = { ...vals };
       ["sprint-10", "sprint-20", "sprint-30"].forEach((k, i) => {
@@ -166,14 +169,10 @@ function TestSheet({ test, s, events, onClose, onSaved }: { test: LabTest; s: Te
             <p className="mt-2 leading-snug">{VALIDATION_NOTE}</p>
           </details>
         )}
-        {(test.key === "cmj" || test.key === "sprint") && (
-          <>
-            <button onClick={() => setCamera(true)} className="mb-2 w-full rounded-2xl bw-grad py-4 text-base font-medium">
-              {test.key === "cmj" ? "Nagraj skok" : "Nagraj sprint"}
-            </button>
-            <button onClick={() => setVideo(true)} className="mb-4 w-full py-2 text-sm text-muted">Wgraj film z galerii</button>
-          </>
-        )}
+        <button onClick={() => setCamera(true)} className="mb-2 w-full rounded-2xl bw-grad py-4 text-base font-medium">
+          {test.key === "sprint" ? "Nagraj sprint" : "Nagraj skok"}
+        </button>
+        <button onClick={() => setVideo(true)} className="mb-4 w-full py-2 text-sm text-muted">Wgraj film z galerii</button>
         {test.key === "cmj" && (
           <button onClick={() => setFlight(!flight)} className="mb-3 text-xs text-muted underline">
             {flight ? "Wpisz wysokość zamiast czasu lotu" : "Mam czas lotu – przelicz na wysokość"}
@@ -190,21 +189,22 @@ function TestSheet({ test, s, events, onClose, onSaved }: { test: LabTest; s: Te
           Zapisz wynik
         </button>
       </Sheet>
-      {video && (test.key === "cmj" || test.key === "sprint") && (
-        <VideoMeasure mode={test.key} onResult={applyVideo} onClose={() => setVideo(false)} />
-      )}
-      {camera && (test.key === "cmj" || test.key === "sprint") && (
+      {video && (test.key === "broad-jump"
+        ? <JumpMeasure onResult={applyVideo} onClose={() => setVideo(false)} />
+        : <VideoMeasure mode={test.key} onResult={applyVideo} onClose={() => setVideo(false)} />)}
+      {camera && (
         <CameraCapture
           orientation={test.key === "cmj" ? "portrait" : "landscape"}
-          autoStopS={test.key === "cmj" ? 6 : undefined}
+          autoStopS={test.key === "cmj" ? 6 : test.key === "broad-jump" ? 14 : undefined}
+          guide={test.key === "broad-jump" ? "Telefon nieruchomo, 4–5 m od toru, prostopadle do skoku. Cała sylwetka i miejsce lądowania w kadrze. Stań na linii 2 s, skocz i zostań w miejscu 2 s." : undefined}
           onClose={() => setCamera(false)}
           onDone={(r) => { setCamera(false); setRecording(r); }}
         />
       )}
-      {recording && (test.key === "cmj" || test.key === "sprint") && (
-        <VideoMeasure mode={test.key} src={recording.url} srcFps={recording.fps} auto={test.key === "cmj"}
-          onResult={applyVideo} onClose={() => { URL.revokeObjectURL(recording.url); setRecording(null); }} />
-      )}
+      {recording && (test.key === "broad-jump"
+        ? <JumpMeasure src={recording.url} onResult={applyVideo} onClose={() => { URL.revokeObjectURL(recording.url); setRecording(null); }} />
+        : <VideoMeasure mode={test.key} src={recording.url} srcFps={recording.fps} auto={test.key === "cmj"}
+            onResult={applyVideo} onClose={() => { URL.revokeObjectURL(recording.url); setRecording(null); }} />)}
     </>
   );
 }

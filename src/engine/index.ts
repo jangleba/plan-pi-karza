@@ -15,6 +15,7 @@ export * from "./progress";
 export * from "./history";
 export * from "./lab";
 export * from "./video";
+export * from "./broadjump";
 export * from "./fuel";
 export * from "./bodyweight";
 export * from "./iq";

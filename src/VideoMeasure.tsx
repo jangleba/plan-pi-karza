@@ -5,7 +5,7 @@ import { footTrack } from "./lib/pose";
 type Mode = "cmj" | "sprint";
 const FPS_OPTIONS = [30, 60, 120, 240];
 
-export interface VideoResult { flightTime?: number; splits?: number[] }
+export interface VideoResult { flightTime?: number; splits?: number[]; /** Skok w dal (cm). */ distanceCm?: number }
 
 const STEPS: Record<Mode, string[]> = {
   cmj: ["Odbicie (ostatnia klatka z podłożem)", "Lądowanie (pierwsza klatka z podłożem)"],

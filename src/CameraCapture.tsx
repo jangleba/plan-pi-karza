@@ -6,10 +6,12 @@ import { useEffect, useRef, useState } from "react";
  */
 export interface Recording { url: string; fps: number }
 
-export function CameraCapture({ orientation, autoStopS, onDone, onClose }: {
+export function CameraCapture({ orientation, autoStopS, guide, onDone, onClose }: {
   orientation: "portrait" | "landscape";
   /** Automatyczne zakończenie po N s od startu nagrania (np. CMJ). */
   autoStopS?: number;
+  /** Wskazówka ustawienia kadru widoczna przed startem. */
+  guide?: string;
   onDone: (r: Recording) => void;
   onClose: () => void;
 }) {
@@ -92,6 +94,7 @@ export function CameraCapture({ orientation, autoStopS, onDone, onClose }: {
           : recording ? <span className="flex items-center gap-2 rounded-full bg-black/50 px-4 py-2 text-sm"><span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />Nagrywanie</span>
           : null}
       </div>
+      {guide && okOrientation && !error && !recording && count === null && <p className="relative z-10 mx-6 mb-2 rounded-2xl bg-black/55 p-3 text-center text-xs">{guide}</p>}
       <div className="relative z-10 p-6 pb-10">
         {!recording && count === null && (
           <button disabled={!okOrientation || !!error} onClick={start} className="w-full rounded-2xl bw-grad py-4 text-base font-medium disabled:opacity-40">

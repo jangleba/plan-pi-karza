@@ -16,7 +16,6 @@ export const STATIC_METRICS: Metric[] = [
   lab("cmj", "CMJ", " cm", "higher", "speed"),
   lab("broad-jump", "Skok w dal", " cm", "higher", "speed", 0),
   { type: "mas", key: "mas", title: "MAS", unit: " km/h", better: "higher", group: "run", dec: 1 },
-  lab("yoyo-ir1", "Yo-Yo IR1", " m", "higher", "run", 0),
 ];
 
 export function allMetrics(events: HistoryEvent[]): Metric[] {
