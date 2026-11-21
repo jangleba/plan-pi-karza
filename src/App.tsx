@@ -6,8 +6,8 @@ import { AgreementGate } from "./legal/LegalUi";
 import { hasCurrentAgreement, resumePendingWithdraw } from "./legal/consent";
 import { useAuthState } from "./lib/session";
 import { changeBirth, finalizeNewProfile, loadGuardedProfile, saveProfile, type GuardResult } from "./lib/profileGuard";
-import { copyScope, getScope, listKeys, migrateLegacy, peekScoped, purgeRemovedFeatures, sameScope, scopeId, type Scope } from "./lib/store";
-import { ImportOffer, LoadError } from "./GateScreens";
+import { copyScope, getScope, listKeys, migrateLegacy, peekScoped, purgeRemovedFeatures, sameScope, scopeId, storageAvailable, type Scope } from "./lib/store";
+import { ImportOffer, LoadError, StorageNotice } from "./GateScreens";
 import { DEFAULT_CHECK_IN, localISO, addDays, cycleWeekFor, levelOf, nextWeekUnlocked, normalizeCheckIn, planForProfile, weekdayGen } from "./engine";
 import type { CheckIn, DayPlan, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
@@ -78,6 +78,11 @@ function DayRow({ day, index, isToday, onOpen }: { day: DayPlan; index: number; 
 const REQUIRE_LOGIN = import.meta.env.VITE_REQUIRE_LOGIN === "true";
 
 export function App() {
+  const [noStorage] = useState(() => !storageAvailable());
+  return <>{noStorage && <StorageNotice />}<AppInner /></>;
+}
+
+function AppInner() {
   useState(() => { migrateLegacy(); purgeRemovedFeatures(); return 0; }); // stare, wspólne klucze → przestrzeń GOŚCIA (nigdy do bieżącego konta)
   const auth = useAuthState();
   const [loginOpen, setLoginOpen] = useState(false);

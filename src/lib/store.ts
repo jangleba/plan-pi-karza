@@ -30,6 +30,19 @@ export const scoped = {
   removeItem(key: string): void { try { raw()?.removeItem(phys(key)); } catch { /* brak pamięci */ } },
 };
 
+/** Czy przeglądarka w ogóle zapisuje dane (Safari w trybie prywatnym lub z blokadą ciasteczek potrafi tego odmówić). */
+export function storageAvailable(): boolean {
+  try {
+    const st = raw();
+    if (!st) return false;
+    const k = `${PREFIX}meta:probe`;
+    st.setItem(k, "1");
+    const ok = st.getItem(k) === "1";
+    st.removeItem(k);
+    return ok;
+  } catch { return false; }
+}
+
 /** Klucze logiczne (bez przedrostka) zapisane w danej przestrzeni. */
 export function listKeys(s: Scope): string[] {
   const st = raw();

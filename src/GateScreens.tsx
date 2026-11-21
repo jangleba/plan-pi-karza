@@ -20,3 +20,12 @@ export function ImportOffer({ name, onImport, onSkip }: { name?: string; onImpor
     </main>
   );
 }
+
+/** Pasek na górze, gdy przeglądarka nie zapisuje danych: bez tego postęp (onboarding, profil) znika po przeładowaniu i wygląda to jak „cofnięcie do początku”. */
+export function StorageNotice() {
+  return (
+    <div role="status" className="fixed inset-x-0 top-0 z-[90] bg-ink px-4 py-2 text-center text-xs leading-snug text-white">
+      Ta przeglądarka nie zapamiętuje danych (tryb prywatny lub blokada). Postęp zniknie po przeładowaniu. Otwórz aplikację w zwykłej karcie Safari.
+    </div>
+  );
+}
