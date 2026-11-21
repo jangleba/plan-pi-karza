@@ -1,6 +1,7 @@
 import { VARIANTS, type Variant } from "./scenario";
 import { cloneWorld } from "./replay";
 import type { SimEvent, World } from "./types";
+import { distToSegment } from "../iq";
 import { agent, pass, setUser, step } from "./world";
 
 /** Jak zakończyło się wyjście spod pressingu – bez punktów, trzy kategorie. */
@@ -127,4 +128,52 @@ export function coachSteps(input: { variant: Variant; rated: OptionResult[]; fir
     : { title: "Po stracie", text: `${loss ? `${nameOf(loss.by)} wygrał piłkę po ${sec(loss.t)}. ` : ""}Bez wślizgu: zagradzaj drogę do bramki i opóźniaj, aż wróci pomoc – za Tobą zostaje kontra 3 na 2.` };
 
   return [s1, s2, s3];
+}
+
+/* ------------------------------ rysunek lepszego rozwiązania ------------------------------ */
+
+export interface BetterPlan {
+  /** „best”: Twój wybór był najlepszy, pokazujemy gdzie ruszyć po podaniu; „better”: był lepszy wybór; „run”: żadne podanie nie było bezpieczne – wyjdź z piłką. */
+  kind: "best" | "better" | "run";
+  from: { x: number; y: number };
+  /** Docelowy punkt strzałki (kolega albo wolne miejsce). */
+  to: { x: number; y: number };
+  /** Id kolegi, do którego warto było zagrać (kind „better”). */
+  mate?: string;
+  label: string;
+}
+
+/** Wolne miejsce przed zawodnikiem z piłką: z kilku kandydatów (5–14 m do przodu, w bok do 14 m) najdalej od rywali i z wolnym torem. */
+export function freeSpace(snap: World, from: { x: number; y: number }): { x: number; y: number } {
+  const foes = snap.agents.filter((a) => a.team === "them" && a.role !== "GK");
+  let best = { x: from.x + 8, y: from.y }, bs = -1e9;
+  for (const dx of [5, 8, 11, 14]) for (const dy of [-14, -9, -4, 0, 4, 9, 14]) {
+    const c = { x: Math.min(100, from.x + dx), y: Math.max(4, Math.min(64, from.y + dy)) };
+    const free = Math.min(...foes.map((f) => Math.hypot(f.pos.x - c.x, f.pos.y - c.y)));
+    const lane = Math.min(...foes.map((f) => distToSegment(f.pos, from, c)));
+    const s = Math.min(free, 12) * 1.5 + Math.min(lane, 8) * 2 + dx * 0.4 - Math.abs(dy) * 0.15;
+    if (s > bs) { bs = s; best = c; }
+  }
+  return best;
+}
+
+/**
+ * Co narysować na powtórce w chwili decyzji: lepsze podanie (gdy zagrałeś gorzej), miejsce ruchu po dobrym podaniu
+ * albo wolne miejsce do wyjścia z piłką, gdy żadne podanie nie było bezpieczne.
+ */
+export function betterPlan(snap: World, rated: OptionResult[], first: FirstAction | null, nameOf: (id: string) => string): BetterPlan | null {
+  const P = agent(snap, "P");
+  const from = { x: P.pos.x, y: P.pos.y };
+  const best = rated.find((r) => r.kept) ?? null;
+  const pos = (id: string) => agent(snap, id).pos;
+  if (first?.kind === "pass") {
+    const chosen = rated.find((r) => r.id === first.target);
+    if (chosen?.kept && (!best || best.id === chosen.id || best.gain - chosen.gain < 3)) {
+      return { kind: "best", from, to: freeSpace(snap, pos(chosen.id)), label: "Po podaniu ruszaj tu: bądź kolejną opcją" };
+    }
+  }
+  if (best) {
+    return { kind: "better", from, to: { x: pos(best.id).x, y: pos(best.id).y }, mate: best.id, label: `Lepiej: do ${nameOf(best.id)} (wolny, piłka +${best.gain} m)` };
+  }
+  return { kind: "run", from, to: freeSpace(snap, from), label: "Żadne podanie nie było bezpieczne: wyjdź z piłką tutaj" };
 }

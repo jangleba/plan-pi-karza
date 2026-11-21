@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { duration, frameAt, type OptionResult, type Recording, type SimEvent } from "../engine/sim";
+import { duration, frameAt, type BetterPlan, type OptionResult, type Recording, type SimEvent } from "../engine/sim";
 
 const C = { us: "#2f6fb3", them: "#c8443f", gk: "#e0b23a", me: "#1d1d1f", ok: "#2e9e62", bad: "#c8443f" };
 const sec = (t: number) => t.toFixed(1).replace(".", ",");
@@ -22,7 +22,7 @@ export function eventText(e: SimEvent, nameOf: (id?: string) => string): string 
 const MARK: SimEvent["type"][] = ["pass", "intercept", "tackle", "shot", "goal", "save", "miss"];
 
 /** Powtórka z góry: cały przebieg akcji na boisku, suwak czasu, znaczniki zdarzeń i tory podań w chwili decyzji (zielony – piłka zostaje u nas, czerwony – przecięte). */
-export function ReplayBoard({ rec, events, lanes, laneT, nameOf }: { rec: Recording; events: SimEvent[]; lanes: OptionResult[]; laneT: number; nameOf: (id?: string) => string }) {
+export function ReplayBoard({ rec, events, lanes, laneT, nameOf, plan }: { rec: Recording; events: SimEvent[]; lanes: OptionResult[]; laneT: number; nameOf: (id?: string) => string; plan?: BetterPlan | null }) {
   const total = duration(rec);
   const [t, setT] = useState(laneT);
   const [playing, setPlaying] = useState(false);
@@ -54,6 +54,7 @@ export function ReplayBoard({ rec, events, lanes, laneT, nameOf }: { rec: Record
     <div>
       <svg viewBox="-1 -1 107 70" className="w-full rounded-2xl" role="img" aria-label="Powtórka z góry">
         <defs>
+          <marker id="rb-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="3.4" markerHeight="3.4" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="context-stroke" /></marker>
           <pattern id="rb-stripes" width="10.5" height="68" patternUnits="userSpaceOnUse"><rect width="5.25" height="68" fill="#e7f2e9" /><rect x="5.25" width="5.25" height="68" fill="#eef6ef" /></pattern>
         </defs>
         <rect x="-1" y="-1" width="107" height="70" fill="url(#rb-stripes)" />
@@ -69,6 +70,18 @@ export function ReplayBoard({ rec, events, lanes, laneT, nameOf }: { rec: Record
           if (!p || !from) return null;
           return <line key={l.id} x1={from.x} y1={from.y} x2={p.x} y2={p.y} stroke={l.kept ? C.ok : C.bad} strokeWidth="0.6" strokeDasharray={l.kept ? undefined : "1.4 1"} opacity="0.9" />;
         })}
+        {showLanes && plan && (() => {
+          const col = plan.kind === "better" ? C.ok : C.us;
+          // strzałka lepszego rozwiązania: do kolegi (zielona, ciągła) albo w wolne miejsce (niebieska, przerywana) z kółkiem w punkcie docelowym
+          const dx = plan.to.x - plan.from.x, dy = plan.to.y - plan.from.y, len = Math.hypot(dx, dy) || 1;
+          const end = plan.kind === "better" ? { x: plan.to.x - (dx / len) * 2.2, y: plan.to.y - (dy / len) * 2.2 } : plan.to;
+          return (
+            <g>
+              {plan.kind !== "better" && <circle cx={plan.to.x} cy={plan.to.y} r="3" fill={col} fillOpacity="0.18" stroke={col} strokeWidth="0.4" strokeDasharray="1 0.8" />}
+              <line x1={plan.from.x} y1={plan.from.y} x2={end.x} y2={end.y} stroke={col} strokeWidth="1" strokeDasharray={plan.kind === "better" ? undefined : "2 1.2"} markerEnd="url(#rb-arrow)" strokeLinecap="round" />
+            </g>
+          );
+        })()}
         {trail && <polyline points={trail} fill="none" stroke="white" strokeWidth="0.5" strokeOpacity="0.8" />}
         {shown.agents.map((a) => {
           const isMe = a.id === "P", gk = a.id.startsWith("GK");

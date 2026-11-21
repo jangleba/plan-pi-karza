@@ -136,3 +136,43 @@ describe("klasyfikacja i kroki", () => {
     expect(none[1]!.text).toMatch(/Nie zagrałeś/);
   });
 });
+
+import { betterPlan, freeSpace } from "./coach";
+import { randomScenario } from "./scenario";
+
+describe("rysunek lepszego rozwiązania", () => {
+  const nm = (id: string) => id;
+  it("wolne miejsce leży przed zawodnikiem, w granicach boiska i dalej od rywali niż najgorszy kandydat", () => {
+    for (let s = 1; s <= 25; s++) {
+      const { world } = randomScenario(s * 313);
+      const P = world.agents.find((a) => a.id === "P")!;
+      const c = freeSpace(world, P.pos);
+      expect(c.x).toBeGreaterThan(P.pos.x);
+      expect(c.y).toBeGreaterThanOrEqual(4);
+      expect(c.y).toBeLessThanOrEqual(64);
+    }
+  });
+  it("zagrałeś gorzej niż najlepsze wolne podanie: strzałka do lepszego kolegi; zagrałeś najlepiej: miejsce ruchu po podaniu", () => {
+    let better = 0, best = 0;
+    for (let s = 1; s <= 40; s++) {
+      const { world } = randomScenario(s * 7);
+      const rated = rateOptions(world);
+      const free = rated.filter((r) => r.kept);
+      if (free.length < 2) continue;
+      const worseKept = free[free.length - 1]!;
+      const planBetter = betterPlan(world, rated, { kind: "pass", target: rated.find((r) => !r.kept)?.id ?? worseKept.id, t: 0.5 }, nm);
+      if (planBetter?.kind === "better") { better++; expect(planBetter.mate).toBe(free[0]!.id); }
+      const planBest = betterPlan(world, rated, { kind: "pass", target: free[0]!.id, t: 0.5 }, nm);
+      expect(planBest?.kind).toBe("best");
+      best++;
+    }
+    expect(better).toBeGreaterThan(5);
+    expect(best).toBeGreaterThan(5);
+  });
+  it("bez bezpiecznego podania: wyjście z piłką w wolne miejsce", () => {
+    const { world } = randomScenario(11);
+    const plan = betterPlan(world, [], { kind: "lost", t: 1, by: "S1" }, nm);
+    expect(plan?.kind).toBe("run");
+    expect(plan!.to.x).toBeGreaterThan(plan!.from.x);
+  });
+});

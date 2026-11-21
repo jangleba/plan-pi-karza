@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GOAL, localISO } from "./engine";
 import type { Vec } from "./engine";
-import { VARIANTS, classify, coachSteps, firstAction, freshSeed, randomScenario, firstLoss, pass, rateOptions, record, setUser, shoot, snapshotAtOrBefore, startRecording, step } from "./engine/sim";
+import { VARIANTS, betterPlan, classify, coachSteps, firstAction, freshSeed, randomScenario, firstLoss, pass, rateOptions, record, setUser, shoot, snapshotAtOrBefore, startRecording, step } from "./engine/sim";
 import type { Recording, Variant, World } from "./engine/sim";
 import { addAttempt } from "./iq/attempts-store";
 import { ResultSheet, type ResultBundle } from "./iq/ResultSheet";
@@ -362,6 +362,7 @@ export default function IQ() {
             setResult({
               kind: world.outcome.kind, cls, rec, events: [...world.events], rated, rateT: snap?.t ?? 0, nameOf,
               steps: coachSteps({ variant: variantNow, rated, first, cls, nameOf: (id) => nameOf(id), loss }),
+              plan: snap ? betterPlan(snap, rated, first, (id) => nameOf(id)) : null,
               nextTitle: "nowa, losowa sytuacja", sameTitle: VARIANTS[variantNow]!.title,
             });
             setP("done");
