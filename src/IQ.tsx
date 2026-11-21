@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GOAL, localISO } from "./engine";
 import type { Vec } from "./engine";
-import { VARIANTS, classify, coachSteps, firstAction, freshSeed, randomScenario, firstLoss, pass, rateOptions, record, setUser, shoot, snapshotAtOrBefore, startRecording, step } from "./engine/sim";
-import type { Recording, Variant, World } from "./engine/sim";
+import { SITUATIONS, VARIANTS, betterPlan, createScenario, classLabel, classify, coachSteps, introText, firstAction, freshSeed, randomScenario, firstLoss, pass, rateOptions, record, setUser, shoot, snapshotAtOrBefore, startRecording, step } from "./engine/sim";
+import type { Recording, Situation, Variant, World } from "./engine/sim";
 import { addAttempt } from "./iq/attempts-store";
 import { ResultSheet, type ResultBundle } from "./iq/ResultSheet";
 import { LargeTitle } from "./ui";
@@ -12,7 +12,7 @@ import { ActorFactory, getActorAssets, type Actor, type ActorAssets } from "./iq
 import { LookEditor } from "./iq/LookEditor";
 import { TEAM_COLORS, loadLook, opponentKit, type PlayerLook } from "./iq/look";
 import { kitFromLook } from "./iq/lookKit";
-import { drive, followCamera, turnTo, type Drive } from "./iq/control";
+import { drive, followCamera, newDrive, turnTo, type Drive } from "./iq/control";
 
 const BALL_R = BALL_VISUAL_R;
 const CAM = { back: 6.8, up: 3.4, ahead: 11, lookY: 1.0 };
@@ -39,6 +39,8 @@ export default function IQ() {
   const [aimName, setAimName] = useState<string | null>(null);
   const [fallback, setFallback] = useState(false);
   const [variant, setVariant] = useState<Variant>(0);
+  const [situation, setSituation] = useState<Situation>("press");
+  const [role, setRole] = useState("pomocnik");
   const [myLook, setMyLook] = useState<PlayerLook>(loadLook);
   const [editor, setEditor] = useState(false);
   const [poss, setPoss] = useState<Possession>("me");
@@ -95,7 +97,7 @@ export default function IQ() {
       // każda sytuacja jest nowa i losowa (ziarno z losowania); „Jeszcze raz” odtwarza tę samą po ziarnie
       let scen = randomScenario(freshSeed());
       let world: World = scen.world;
-      setVariant(scen.variant);
+      setVariant(scen.variant); setSituation(scen.situation); setRole(scen.role);
       let rec: Recording = startRecording(world);
       const P0 = world.agents.find((a) => a.id === "P")!;
 
@@ -105,15 +107,20 @@ export default function IQ() {
       const gkUs = [0xe0b23a, 0x8a95a5].find((c) => c !== home.jersey)!, gkThem = [0x4a9a63, 0xd9a23a, 0x6a5acd].find((c) => c !== home.jersey && c !== gkUs && c !== away.jersey)!;
       const keeperKit = (jersey: number) => ({ jersey, shorts: 0x1d1d1f, socks: 0x1d1d1f, collar: 0x1d1d1f, keeper: true, gloves: 0xe9eef3 });
       const actors = new Map<string, Actor>();
-      world.agents.forEach((a, i) => {
+      // pełna lista możliwych zawodników (z bramkarzem naszej drużyny): w rozegraniu od bramkarza jego rolę ma użytkownik, więc „GKu” jest wtedy ukryty
+      const roster = createScenario(0).agents;
+      // użytkownik w stroju bramkarza w sytuacji „rozegranie od bramkarza”
+      const meKit = (keeper: boolean) => (keeper ? kitFromLook(myLook, { ...keeperKit(gkUs), number: myLook.number }) : kitFromLook(myLook));
+      let meKeeper = world.situation === "keeper";
+      roster.forEach((a, i) => {
         const gkp = a.role === "GK";
-        const kit = a.id === "P" ? kitFromLook(myLook)
+        const kit = a.id === "P" ? meKit(meKeeper)
           : gkp ? { ...keeperKit(a.team === "us" ? gkUs : gkThem), number: a.number }
           : { jersey: (a.team === "us" ? home : away).jersey, shorts: (a.team === "us" ? home : away).shorts, socks: (a.team === "us" ? home : away).socks, collar: (a.team === "us" ? home : away).collar, number: a.number };
         const actor = factory.make(kit, i, gkp ? "keeper" : a.team === "them" ? "defend" : "run");
         actors.set(a.id, actor); scene.add(actor.root);
       });
-      const me = actors.get("P")!;
+      let me = actors.get("P")!;
       const ball = makeBall(); scene.add(ball);
       const ballShadow = makeBallShadow(); scene.add(ballShadow);
 
@@ -132,7 +139,7 @@ export default function IQ() {
       meMarker.rotation.x = -Math.PI / 2; scene.add(meMarker);
 
       // sterowanie jak w samochodzie: kierunek zawodnika + kamera, która go płynnie dogania
-      const dr: Drive = { x: P0.pos.x, y: P0.pos.y, heading: 0, speed: 0, cam: 0 };
+      const dr: Drive = newDrive(P0.pos.x, P0.pos.y);
       let player: Vec = { x: dr.x, y: dr.y };
       let facing: Vec = { x: 1, y: 0 };
       const prev = new Map<Actor, Vec>();
@@ -161,6 +168,8 @@ export default function IQ() {
         ball.quaternion.premultiply(q);
       };
       const putActors = () => {
+        const present = new Set(world.agents.map((a) => a.id));
+        for (const [id, ac] of actors) ac.root.visible = present.has(id);
         for (const a of world.agents) {
           const ac = actors.get(a.id)!;
           ac.root.position.set(a.pos.x, 0, a.pos.y);
@@ -171,16 +180,24 @@ export default function IQ() {
 
       reset.current = (next: boolean) => {
         if (next) attempt.current++;
-        scen = next ? randomScenario(freshSeed(), scen.variant) : randomScenario(scen.seed);
+        scen = next ? randomScenario(freshSeed(), scen.situation === "press" ? scen.variant : undefined, scen.situation) : randomScenario(scen.seed);
         const v = scen.variant;
         world = scen.world;
         rec = startRecording(world);
+        const wantKeeper = world.situation === "keeper";
+        if (wantKeeper !== meKeeper) {
+          // zmiana stroju użytkownika: bramkarz albo zawodnik z pola
+          scene.remove(me.root);
+          me = factory.make(meKit(wantKeeper), roster.findIndex((a) => a.id === "P"), "run");
+          actors.set("P", me); scene.add(me.root);
+          meKeeper = wantKeeper;
+        }
         const p = world.agents.find((a) => a.id === "P")!;
-        dr.x = p.pos.x; dr.y = p.pos.y; dr.heading = 0; dr.speed = 0; dr.cam = 0;
+        dr.x = p.pos.x; dr.y = p.pos.y; dr.heading = 0; dr.speed = 0; dr.cam = 0; dr.vx = 0; dr.vy = 0;
         player = { x: dr.x, y: dr.y }; facing = { x: 1, y: 0 }; kickSt = null; act.current = null; carried = 0; outcomeT = 0;
         putActors();
         ball.position.set(player.x + 0.7, BALL_R, player.y);
-        setResult(null); setClock(0); setVariant(v); setPoss("me"); setP("intro");
+        setResult(null); setClock(0); setVariant(v); setSituation(scen.situation); setRole(scen.role); setPoss("me"); setP("intro");
       };
 
       const place = (a: Actor, p: Vec, dt: number, faceTo?: Vec) => {
@@ -237,7 +254,7 @@ export default function IQ() {
         // świat żyje także podczas zamachu i lotu piłki; stoi w intro i po rozstrzygnięciu
         if (live) {
           const n = Math.ceil(dt / (1 / 30));
-          for (let i = 0; i < n; i++) { setUser(world, player, dr.heading, dr.speed); step(world, dt / n); record(rec, world); }
+          for (let i = 0; i < n; i++) { setUser(world, player, dr.speed > 0.3 ? Math.atan2(dr.vy, dr.vx) : dr.heading, dr.speed); step(world, dt / n); record(rec, world); }
           clockAcc += dt; if (clockAcc > 0.1) { clockAcc = 0; setClock(world.t); }
         }
         const agentOf = (id: string) => world.agents.find((a) => a.id === id)!;
@@ -358,11 +375,12 @@ export default function IQ() {
             const snap = snapshotAtOrBefore(rec, Math.max(0, decisionT));
             const rated = snap ? rateOptions(snap) : [];
             const nameOf = (id?: string) => (id === "P" ? "Ty" : world.agents.find((a) => a.id === id)?.name ?? "");
-            addAttempt({ date: localISO(), variant: variantNow, cls, first, lossAt: loss ? loss.t : null });
+            addAttempt({ date: localISO(), variant: variantNow, situation: scen.situation, cls, first, lossAt: loss ? loss.t : null });
             setResult({
-              kind: world.outcome.kind, cls, rec, events: [...world.events], rated, rateT: snap?.t ?? 0, nameOf,
-              steps: coachSteps({ variant: variantNow, rated, first, cls, nameOf: (id) => nameOf(id), loss }),
-              nextTitle: "nowa, losowa sytuacja", sameTitle: VARIANTS[variantNow]!.title,
+              title: classLabel(cls, scen.situation), kind: world.outcome.kind, cls, rec, events: [...world.events], rated, rateT: snap?.t ?? 0, nameOf,
+              steps: coachSteps({ variant: variantNow, situation: scen.situation, rated, first, cls, nameOf: (id) => nameOf(id), loss }),
+              plan: snap ? betterPlan(snap, rated, first, (id) => nameOf(id)) : null,
+              nextTitle: "nowa, losowa sytuacja", sameTitle: scen.situation === "press" ? VARIANTS[variantNow]!.title : SITUATIONS.find((x) => x.id === scen.situation)!.title,
             });
             setP("done");
           }
@@ -376,7 +394,7 @@ export default function IQ() {
         target.set(player.x - back * cx - side * cy, up, player.y - back * cy + side * cx);
         look.set(player.x + ahead * cx, lookY, player.y + ahead * cy);
         if (ov) { camPos.copy(target); camLook.copy(look); }
-        else { camPos.lerp(target, 1 - Math.exp(-dt * 28)); camLook.lerp(look, 1 - Math.exp(-dt * 28)); }
+        else { camPos.lerp(target, 1 - Math.exp(-dt * 45)); camLook.lerp(look, 1 - Math.exp(-dt * 45)); }
         cam.position.copy(camPos); cam.lookAt(camLook);
         const fovT = ov ? 55 : FOV_BASE + (FOV_RUN - FOV_BASE) * Math.min(1, dr.speed / 6.5);
         if (Math.abs(cam.fov - fovT) > 0.02) { cam.fov += (fovT - cam.fov) * (ov ? 1 : 1 - Math.exp(-dt * 4)); cam.updateProjectionMatrix(); }
@@ -420,7 +438,7 @@ export default function IQ() {
 
   return (
     <main className="mx-auto max-w-md px-5 pb-32 pt-14">
-      <LargeTitle kind="iq" title="IQ" sub="Wyjście spod pressingu + kontratak" />
+      <LargeTitle kind="iq" title="IQ" sub={SITUATIONS.find((x) => x.id === situation)!.title} />
       <div className="relative overflow-hidden rounded-3xl border border-hairline bg-hairline shadow-sm">
         <div ref={mount} className="h-[58vh] min-h-[340px] w-full" />
 
@@ -455,11 +473,11 @@ export default function IQ() {
             <div className="bw-sheet w-full rounded-3xl bg-white/95 p-5 backdrop-blur">
               <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted">
                 <span>Sytuacja</span>
-                <span className="rounded-full bg-hairline/70 px-2 py-0.5 normal-case tracking-normal">Próba {attempt.current + 1} · {VARIANTS[variant]!.title}</span>
+                <span className="rounded-full bg-hairline/70 px-2 py-0.5 normal-case tracking-normal">Próba {attempt.current + 1} · {situation === "press" ? VARIANTS[variant]!.title : SITUATIONS.find((x) => x.id === situation)!.title}</span>
               </div>
-              <p className="mt-1 text-[15px] leading-snug text-ink">Jesteś numerem {myLook.number} z piłką. Naciska Cię dwóch napastników. {VARIANTS[variant]!.defence}</p>
-              <p className="mt-2 text-[15px] leading-snug text-ink">Wyjdź z pressingu. Strata = kontra 3 na 2 – wtedy to Ty ją gasisz.</p>
-              <p className="mt-2 text-xs text-muted">Joystick: do przodu – bieg, w bok – skręt (kamera obraca się za Tobą). Patrz w stronę kolegi i podaj.</p>
+              <p className="mt-1 text-[15px] leading-snug text-ink">{introText(situation, role, myLook.number, VARIANTS[variant]!.defence)}</p>
+              <p className="mt-2 text-[15px] leading-snug text-ink">{situation === "press" ? "Wyjdź z pressingu. Strata = kontra 3 na 2 – wtedy to Ty ją gasisz." : situation === "counter" ? "Wykorzystaj przestrzeń, zanim rywal się cofnie. Strata = kontra rywala – wtedy to Ty ją gasisz." : situation === "keeper" ? "Rozegraj piłkę spod własnej bramki. Strata tuż przy bramce to najgroźniejsza sytuacja." : "Zdecyduj: podanie w bieg, drybling albo strzał. Strata przy linii bocznej to kontra rywala."}</p>
+              <p className="mt-2 text-xs text-muted">Joystick: zawodnik biegnie tam, dokąd go prowadzisz na ekranie. Zwróć się w stronę kolegi (krótkie wychylenie wystarczy) i podaj.</p>
               {fallback && <p className="mt-2 text-xs text-muted">Uproszczone postacie (nie udało się wczytać modeli).</p>}
               <button onClick={() => setP("play")} className="bw-grad mt-4 w-full rounded-2xl py-3.5 text-base font-medium">Graj</button>
               <button onClick={() => setEditor(true)} className="mt-2 w-full rounded-2xl py-2.5 text-sm text-accent">Mój zawodnik: wygląd i numer</button>
@@ -485,24 +503,29 @@ function ActionButton({ label, onTap }: { label: string; onTap: () => void }) {
 
 function Joystick({ onChange }: { onChange: (x: number, y: number) => void }) {
   const base = useRef<HTMLDivElement>(null);
-  const [knob, setKnob] = useState({ x: 0, y: 0 });
+  const knob = useRef<HTMLDivElement>(null);
+  const active = useRef<number | null>(null);
   const R = 42;
+  // gałka przesuwana bezpośrednio w DOM (bez stanu Reacta i bez animacji), żeby była dokładnie tam, gdzie palec, w tej samej klatce
+  const place = (x: number, y: number) => { if (knob.current) knob.current.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`; };
   const move = (e: React.PointerEvent) => {
     const r = base.current!.getBoundingClientRect();
     let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
     const d = Math.hypot(dx, dy);
     if (d > R) { dx = (dx / d) * R; dy = (dy / d) * R; }
-    setKnob({ x: dx, y: dy }); onChange(dx / R, dy / R);
+    place(dx, dy); onChange(dx / R, dy / R);
   };
-  const end = () => { setKnob({ x: 0, y: 0 }); onChange(0, 0); };
+  const end = (e: React.PointerEvent) => {
+    if (active.current !== null && e.pointerId !== active.current) return;
+    active.current = null; place(0, 0); onChange(0, 0);
+  };
   return (
     <div ref={base}
-      className="absolute bottom-5 left-4 h-28 w-28 touch-none rounded-full border border-white/60 bg-white/30 backdrop-blur"
-      onPointerDown={(e) => { (e.target as Element).setPointerCapture(e.pointerId); move(e); }}
-      onPointerMove={(e) => { if (e.buttons) move(e); }}
-      onPointerUp={end} onPointerCancel={end}>
-      <div className="absolute left-1/2 top-1/2 h-12 w-12 rounded-full bg-white shadow-md transition-transform duration-75"
-        style={{ transform: `translate(calc(-50% + ${knob.x}px), calc(-50% + ${knob.y}px))` }} />
+      className="absolute bottom-5 left-4 h-28 w-28 touch-none select-none rounded-full border border-white/60 bg-white/30 backdrop-blur"
+      onPointerDown={(e) => { if (active.current !== null) return; active.current = e.pointerId; e.currentTarget.setPointerCapture(e.pointerId); move(e); }}
+      onPointerMove={(e) => { if (e.pointerId === active.current) move(e); }}
+      onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end}>
+      <div ref={knob} className="pointer-events-none absolute left-1/2 top-1/2 h-12 w-12 rounded-full bg-white shadow-md will-change-transform" style={{ transform: "translate(-50%, -50%)" }} />
     </div>
   );
 }

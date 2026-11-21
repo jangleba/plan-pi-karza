@@ -26,7 +26,7 @@ export function outcomeText(kind: OutcomeKind): string {
     case "goal_against": return "Rywal strzelił gola z kontry.";
     case "saved_against": return "Strzał rywala obroniony.";
     case "miss_against": return "Rywal strzelił niecelnie.";
-    case "timeout": return "Akcja nie została rozstrzygnięta w 16 s.";
+    case "timeout": return "Akcja trwała do końca czasu bez strzału i bez straty.";
   }
 }
 
@@ -44,6 +44,7 @@ export function keyMoments(w: World): string[] {
       case "intercept": add(e, `${nm(e.by)} przecina podanie`); break;
       case "tackle": add(e, team(e.by) === "them" ? `${nm(e.by)} odbiera piłkę (${nm(e.to)})` : `${nm(e.by)} odbiera piłkę rywalowi`); break;
       case "counter": add(e, "Kontratak rywala"); break;
+      case "dribble": add(e, e.info?.won ? `${nm(e.by)} mija: ${nm(e.to)}` : `${nm(e.by)} przegrywa drybling z: ${nm(e.to)}`); break;
       case "shot": add(e, team(e.by) === "us" ? `Strzał: ${nm(e.by)}` : `Strzał rywala: ${nm(e.by)}`); break;
       default: break;
     }

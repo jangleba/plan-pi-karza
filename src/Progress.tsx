@@ -10,6 +10,7 @@ import { TREND_HEX } from "./progress/trend";
 import { Heatmap } from "./progress/Heatmap";
 import { KindSheet, RangeTabs } from "./progress/KindSheet";
 import { RunsCard } from "./progress/RunsCard";
+import { GoalPath } from "./goal/GoalPath";
 import { Sparkline } from "./progress/TrendChart";
 import { nutritionDays, plannedDays } from "./progress/data";
 import { GROUP_KIND, GROUP_TITLE, allMetrics, groupOf, sesji, shortDate, type Group } from "./progress/metrics";
@@ -117,6 +118,8 @@ export function Progress({ profile, refreshKey }: { profile: Profile; refreshKey
         {legend.map(([c, t]) => <span key={t} className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: c }} />{t}</span>)}
       </div>
 
+      <GoalPath profile={profile} events={events} metrics={metrics} planned={planned} today={today} />
+
       {label("Treningi")}
       <div className="grid grid-cols-2 gap-3">
         {(["strength", "speed", "run", "technique"] as CardKey[]).map((k) => (
@@ -209,7 +212,7 @@ export function Progress({ profile, refreshKey }: { profile: Profile; refreshKey
 
       {iq && (
         <>
-          {label("IQ · wyjście spod pressingu")}
+          {label("IQ · decyzje z piłką")}
           <section className={`${card} px-5 py-4`}>
             <div className="mb-4 flex items-end justify-between">
               <div>
@@ -234,7 +237,7 @@ export function Progress({ profile, refreshKey }: { profile: Profile; refreshKey
               ))}
             </ul>
             {iq.mistake && <p className="mt-3 border-l-2 border-btn-line pl-3 text-[15px] leading-snug">Najczęstszy błąd: {iq.mistake.text} ({iq.mistake.count}×).</p>}
-            <p className="mt-3 text-[11px] text-muted">Bez punktów: liczy się, czy wyszedłeś z pressingu bez straty piłki.</p>
+            <p className="mt-3 text-[11px] text-muted">Bez punktów: liczy się, czy akcja skończyła się bez straty piłki.</p>
           </section>
         </>
       )}

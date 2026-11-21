@@ -18,6 +18,8 @@ export interface Agent {
   home: Vec;
   /** Chwila (s), do której zawodnik „kontroluje” piłkę i jeszcze nie gra dalej. */
   controlUntil: number;
+  /** Do tej chwili (s) zawodnik jest „wyminięty” po udanym dryblingu rywala i prawie stoi. */
+  stunUntil?: number;
 }
 
 export interface Flight {
@@ -42,7 +44,7 @@ export interface Ball {
 }
 
 export type EventType =
-  | "pass" | "intercept" | "tackle" | "turnover" | "regain" | "shot" | "goal" | "save" | "miss" | "control" | "counter" | "timeout" | "block";
+  | "pass" | "intercept" | "tackle" | "turnover" | "regain" | "shot" | "goal" | "save" | "miss" | "control" | "counter" | "timeout" | "block" | "dribble";
 
 export interface SimEvent {
   t: number;
@@ -60,6 +62,13 @@ export type OutcomeKind =
   | "goal_for" | "saved_for" | "miss_for"
   | "goal_against" | "saved_against" | "miss_against"
   | "regain" | "timeout";
+
+/** Styl ataku naszej drużyny w danej sytuacji (losowany z ziarna): różni przebieg akcji po Twoim podaniu. */
+export type AttackStyle = "wall" | "switch" | "dribble" | "direct" | "mixed";
+export const ATTACK_STYLES: AttackStyle[] = ["wall", "switch", "dribble", "direct", "mixed", "mixed"];
+
+/** Rodzaj sytuacji w IQ: wyjście spod pressingu, odbiór i kontra, rozegranie od bramkarza, 2 na 1 na skrzydle. */
+export type Situation = "press" | "counter" | "keeper" | "two_one";
 
 export interface Outcome { kind: OutcomeKind; t: number }
 
@@ -81,6 +90,13 @@ export interface World {
   user: string | null;
   /** Limit czasu symulacji (s). */
   limit: number;
+  /** Rodzaj sytuacji i rola użytkownika (do tytułów i podpowiedzi). */
+  situation?: Situation;
+  userRole?: string;
+  /** Styl ataku naszej drużyny (brak = mieszany). */
+  style?: AttackStyle;
+  /** Ostatnia próba dryblingu (s), żeby nie ponawiać jej co klatkę. */
+  lastDribble?: number;
 }
 
 export const FIELD_W = 105;
