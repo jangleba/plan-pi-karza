@@ -1,5 +1,5 @@
 import { FIELD_H, FIELD_W } from "./types";
-import type { Agent, World } from "./types";
+import { ATTACK_STYLES, type Agent, type World } from "./types";
 import { makeAgent } from "./world";
 
 export type Variant = 0 | 1 | 2;
@@ -55,7 +55,8 @@ export function createScenario(variant: Variant = 0, seed = 1): World {
     immuneUntil: 0,
     lastDecision: 0,
     user: "P",
-    limit: 16,
+    limit: 24,
+    style: "mixed",
   };
 }
 
@@ -124,7 +125,8 @@ export function randomScenario(seed: number, avoid?: Variant): { world: World; v
   const world: World = {
     t: 0, agents,
     ball: { pos: { x: P.pos.x + 0.6, y: P.pos.y }, vel: { x: 0, y: 0 }, owner: "P", flight: null, lastTouch: "P" },
-    seed: (seed * 2654435761) >>> 0, rn: 0, events: [], outcome: null, contact: {}, immuneUntil: 0, lastDecision: 0, user: "P", limit: 16,
+    seed: (seed * 2654435761) >>> 0, rn: 0, events: [], outcome: null, contact: {}, immuneUntil: 0, lastDecision: 0, user: "P", limit: 24,
+    style: ATTACK_STYLES[Math.floor(rn() * ATTACK_STYLES.length)],
   };
   return { world, variant, seed };
 }

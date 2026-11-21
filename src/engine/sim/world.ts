@@ -297,26 +297,69 @@ export function wouldBeIntercepted(w: World, start: Vec, target: Agent, byTeam: 
   return w.agents.some((a) => a.team !== byTeam && a.role !== "GK" && interceptOnPath(a, start, to, dur, 0) !== null);
 }
 
+/** Drybling 1 na 1: szansa zależy od różnicy szybkości i dystansu; udany – obrońca jest wyminięty, nieudany – strata. */
+function dribble(w: World, o: Agent, foe: Agent): void {
+  w.lastDribble = w.t;
+  const edge = (o.vmax - foe.vmax) * 0.18 + clamp((d2(foe.pos, o.pos) - 3) * 0.03, -0.05, 0.1);
+  const p = clamp(0.48 + edge, 0.25, 0.7);
+  const won = rand(w) < p;
+  log(w, "dribble", { by: o.id, to: foe.id, pos: { ...o.pos }, info: { won, p: +p.toFixed(2) } });
+  if (won) {
+    foe.stunUntil = w.t + 1.1;
+    w.immuneUntil = w.t + 0.7;
+    o.controlUntil = w.t + 0.15;
+  } else {
+    log(w, "tackle", { by: foe.id, to: o.id, pos: { ...o.pos } });
+    take(w, foe, null, 1.0);
+    log(w, "turnover", { by: foe.id, to: o.id });
+  }
+}
+
 /* --------------------------- decyzje posiadacza --------------------------- */
 
 function decideOwner(w: World, o: Agent): void {
   if (o.id === w.user || w.t < o.controlUntil || w.t - w.lastDecision < 0.22) return;
   w.lastDecision = w.t;
+  const style = w.style ?? "mixed";
   const foes = w.agents.filter((x) => x.team !== o.team && x.role !== "GK");
   const pressure = Math.min(...foes.map((f) => d2(f.pos, o.pos)));
   const myGoal = goalPoint(o.team);
   const distGoal = d2(o.pos, myGoal);
   const dir = o.team === "us" ? 1 : -1;
-  // strzał z bliska, gdy jest realna szansa
+  // z upływem czasu drużyna gra coraz bardziej bezpośrednio (akcja ma się rozstrzygnąć, a nie wygasnąć)
+  const urgency = clamp((w.t - 9) / 12, 0, 1);
+  // strzał z bliska, gdy jest realna szansa (z upływem czasu próg maleje, a zasięg rośnie)
   const sc = shotChance(snapshotFor(w, o));
-  if (distGoal < 25 && sc.p > (pressure < 2.5 ? 0.06 : 0.1)) { shoot(w, o.id); return; }
+  if (distGoal < 25 + urgency * 9 && sc.p > (pressure < 2.5 ? 0.06 : 0.1) * (1 - 0.6 * urgency)) { shoot(w, o.id); return; }
+  // pod koniec czasu: strzał z dystansu zamiast wygaśnięcia akcji
+  if (urgency > 0.75 && distGoal < 34) { shoot(w, o.id); return; }
   const open = options(w, o).some((x) => x.kind === "pass" && !x.offside && !x.blocked && x.score > 10 && dir * (agent(w, x.targetId!).pos.x - o.pos.x) > 0);
   if (distGoal < 19 && !open) { shoot(w, o.id); return; }
   // podania bezpieczne: nie na spalonym, bez zablokowanego toru, nie do przechwycenia
   const safe = options(w, o).filter((x) => x.kind === "pass" && !x.offside && !x.blocked && x.targetId && !wouldBeIntercepted(w, o.pos, agent(w, x.targetId), o.team));
   const progress = (x: { targetId?: string }) => dir * (agent(w, x.targetId!).pos.x - o.pos.x);
+  const us = o.team === "us";
+  // „ściana”: ten, kto mi właśnie podał (np. Ty), wyszedł na wolne miejsce (nie jest za mną) – oddaję mu piłkę w bieg
+  if (us && (style === "wall" || style === "mixed")) {
+    const lastIn = [...w.events].reverse().find((e) => e.type === "pass" && e.to === o.id);
+    const from = lastIn?.by ? agent(w, lastIn.by) : null;
+    if (lastIn && from && from.team === o.team && w.t - lastIn.t > 0.7 && w.t - lastIn.t < 7 && dir * (from.pos.x - o.pos.x) > -2) {
+      const opt = options(w, o).find((x) => x.kind === "pass" && x.targetId === from.id);
+      if (opt && !opt.offside && !opt.blocked && !wouldBeIntercepted(w, o.pos, from, o.team) && rand(w) < (style === "wall" ? 0.9 : 0.55)) { pass(w, o.id, from.id); return; }
+    }
+  }
+  // zmiana strony gry: wolny kolega po drugiej stronie boiska, bez cofania piłki
+  if (us && (style === "switch" || style === "mixed")) {
+    const far = safe.filter((x) => Math.abs(agent(w, x.targetId!).pos.y - o.pos.y) >= 22 && progress(x) > -4).sort((p, q) => q.score - p.score)[0];
+    if (far && far.score > 5 && rand(w) < (style === "switch" ? 0.8 : 0.3)) { pass(w, o.id, far.targetId!); return; }
+  }
+  // drybling 1 na 1 w połowie rywala: szybki zawodnik, rywal tuż przed nim
+  if (us && (style === "dribble" || style === "mixed") && o.pos.x > 45 && ["W", "ST", "M", "FB"].includes(o.role) && w.t - (w.lastDribble ?? -9) > 1.4) {
+    const foe = foes.filter((f) => dir * (f.pos.x - o.pos.x) > 0 && d2(f.pos, o.pos) < 6.5).sort((p, q) => d2(p.pos, o.pos) - d2(q.pos, o.pos))[0];
+    if (foe && rand(w) < (style === "dribble" ? 0.7 : 0.3)) { dribble(w, o, foe); return; }
+  }
   const forward = safe.filter((x) => progress(x) > 6).sort((p, q) => q.score - p.score)[0];
-  if (forward && forward.score > 8) { pass(w, o.id, forward.targetId!); return; }
+  if (forward && forward.score > 8 - 5 * urgency) { pass(w, o.id, forward.targetId!); return; }
   // zaraz stracimy piłkę: odgrywa najbezpieczniej (może do tyłu / w bok)
   if (pressure < 1.8) {
     const out = safe.sort((p, q) => progress(q) - progress(p))[0];
@@ -346,6 +389,8 @@ export function step(w: World, dt: number): void {
   // ruch zawodników według planu (użytkownik porusza się sam; posiadacz-AI niesie piłkę ku bramce)
   for (const a of w.agents) {
     if (a.id === w.user) continue;
+    // wyminięty dryblingiem: prawie stoi
+    if ((a.stunUntil ?? 0) > w.t) { moveTo(a, a.pos, 0, dt); continue; }
     if (w.ball.owner === a.id) {
       const g = goalPoint(a.team), dirX = a.team === "us" ? 1 : -1;
       // rywal na drodze: omija go bokiem (w stronę, w którą ma więcej miejsca)
@@ -441,7 +486,13 @@ export function step(w: World, dt: number): void {
     log(w, poss1 === "them" ? "counter" : "regain", { by: w.ball.owner ?? undefined });
     if (poss1 === "us" && w.events.some((e) => e.type === "turnover")) end(w, "regain");
   }
-  if (w.t >= w.limit && !w.outcome) { log(w, "timeout"); end(w, "timeout"); }
+  // koniec czasu: akcja ma się rozstrzygnąć. Posiadacz sterowany przez AI kończy ją strzałem, podanie w locie i piłka luźna dostają chwilę
+  // (do 6 s dogrywki), a „czas minął” zostaje tylko wtedy, gdy piłkę trzyma użytkownik i nie zagrał
+  if (w.t >= w.limit && !w.outcome) {
+    const ow = owner(w);
+    if (ow && ow.id !== w.user) shoot(w, ow.id);
+    else if (w.t >= w.limit + 6 || (ow && ow.id === w.user)) { log(w, "timeout"); end(w, "timeout"); }
+  }
 }
 
 /** Stała tworząca zawodnika. */
