@@ -279,7 +279,7 @@ export const POSITION_DRILLS: Drill[] = [
     title: "Celność strzałów w narożniki",
     titleA: "Z 14 m",
     field: { width: 34, height: 24, kind: "half" },
-    cones: [{ x: 14.2, y: 1.3, color: "red", label: "L" }, { x: 19.8, y: 1.3, color: "blue", label: "P" }, { x: 17, y: 14.9 }],
+    cones: [{ x: 14.2, y: 1.8, color: "red", label: "L" }, { x: 19.8, y: 1.8, color: "blue", label: "P" }, { x: 17, y: 14.9 }],
     arrows: [
       { style: "shot", points: [{ x: 17, y: 14 }, { x: 14.2, y: 0.5 }], step: 1, note: "Strzał w lewy narożnik" },
       { style: "shot", points: [{ x: 17, y: 14 }, { x: 19.8, y: 0.5 }], step: 2, note: "Strzał w prawy narożnik" },
@@ -290,7 +290,7 @@ export const POSITION_DRILLS: Drill[] = [
     setup: "Piłka 14 m od linii bramkowej, na osi bramki. Dwa stożki przy słupkach, 1 m od linii bramkowej i 5,6 m od siebie (po jednym w każdym narożniku).",
     variants: [{
       id: "B", title: "Z 20 m",
-      cones: [{ x: 14.2, y: 1.3, color: "red", label: "L" }, { x: 19.8, y: 1.3, color: "blue", label: "P" }, { x: 17, y: 21.4 }],
+      cones: [{ x: 14.2, y: 1.8, color: "red", label: "L" }, { x: 19.8, y: 1.8, color: "blue", label: "P" }, { x: 17, y: 21.4 }],
       arrows: [
         { style: "dribble", points: [{ x: 17, y: 20.6 }, { x: 17.5, y: 18.6 }, { x: 17, y: 16.8 }], step: 1, note: "Najazd na piłkę z 4 m" },
         { style: "shot", points: [{ x: 17, y: 16.8 }, { x: 14.2, y: 0.5 }], step: 2, note: "Strzał w lewy narożnik" },

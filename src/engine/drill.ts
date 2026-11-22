@@ -146,7 +146,7 @@ export function withVariant(d: Drill, id: "A" | "B"): Drill {
 export const arrowsInOrder = (d: Drill): Arrow[] => d.arrows.map((a, i) => ({ a, i })).sort((x, y) => (x.a.step ?? x.i + 1) - (y.a.step ?? y.i + 1) || x.i - y.i).map((x) => x.a);
 
 /** Miejsce startu znacznika: jawne albo początek pierwszej strzałki. */
-export const drillStart = (d: Drill): Point | null => d.start ?? arrowsInOrder(d)[0]?.points[0] ?? null;
+export const drillStart = (d: Drill): Point | null => d.start ?? (d.actors?.find((x) => x.id === "me") ? { x: d.actors.find((x) => x.id === "me")!.x, y: d.actors.find((x) => x.id === "me")!.y } : null) ?? arrowsInOrder(d)[0]?.points[0] ?? null;
 
 export const TONE_HEX: Record<Tone, string> = {
   green: "#7bc99a",

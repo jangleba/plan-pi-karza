@@ -1,3 +1,4 @@
+import { nudgeCones } from "../drillLayout";
 import type { Arrow, Drill, DrillActor, DrillStation, DrillTarget, Point } from "../drill";
 import type { PracticeMode, PracticeSide, TechnicalFamily } from "./types";
 import { MODE_LABEL } from "./types";
@@ -19,7 +20,7 @@ export function technicalScene(f: TechnicalFamily, mode: PracticeMode, side: Pra
     if (mode === "partner") actors.push({ ...q, id: providerId, kind: "partner", label: "P" });
     else stations.push({ ...q, id: providerId, kind: mode === "wall" ? "wall" : "rebounder", label: MODE_LABEL[mode] });
   };
-  const shoot = (q: Point, step: number) => add("shot", [q, p(w / 2 + (route ? 2.2 : -2.2), 1)], step, "Uderz do wybranej części bramki.");
+  const shoot = (q: Point, step: number) => add("shot", [q, p(w / 2 + (route ? 2.2 : -2.2), 1.7)], step, "Uderz do wybranej części bramki.");
   // Technika bez partnera: piłka rozpoczyna akcję przy zawodniku, nigdy nie pojawia się znikąd.
   if (f.id === "ball-mastery-exit") {
     me = p(9, 11); ball = me;
@@ -83,8 +84,8 @@ export function technicalScene(f: TechnicalFamily, mode: PracticeMode, side: Pra
     const combo = ["wing-wall-finish", "striker-layoff-spin", "fb-overlap-cutback"].includes(f.id);
     const back = f.id === "striker-back-goal";
     const finishing = f.goal;
-    me = combo ? p(w - 6, h - 3) : p(w / 2, h - 4);
-    const bounce = combo ? p(w - 13, h - 10) : back ? p(w / 2, h - 2) : p(w / 2, 2);
+    me = combo ? p(w - 6, h - 3) : back ? p(w / 2, h - 6) : p(w / 2, h - 4);
+    const bounce = combo ? p(w - 13, h - 10) : back ? p(w / 2, h - 2) : finishing ? p(w / 2 + 8, 9) : p(w / 2, 2);
     const recv = combo ? p(w - (route ? 4 : 6), h - 11) : me;
     ball = me; provider(bounce);
     add("pass", [me, bounce], 1, mode === "partner" ? "Zagraj do partnera." : `Zagraj w ${mode === "wall" ? "ścianę" : "rebounder"}.`);
@@ -154,7 +155,7 @@ export function technicalScene(f: TechnicalFamily, mode: PracticeMode, side: Pra
     if (q) cones[3] = { ...mirror(p(Math.max(1, Math.min(w - 1, q.x + 1)), Math.max(1, Math.min(h - 1, q.y + 1)))), color: "blue" };
   }
   const source = f.sourceIds.map((id) => TECHNICAL_SOURCES.find((s) => s.id === id)!.title).join("; ");
-  return {
+  return nudgeCones({
     id: `tech2.${f.id}.${mode}.${side}.${route}`, title: f.title,
     group: f.focus === "finishing" ? "finish" : ["control", "carrying"].includes(f.focus) ? "dribble" : "touch",
     field: { ...f.field, ...(f.field.kind === "half" && !f.goal ? { origin: { x: side === "right" ? 68 - w : 0, y: 0 } } : {}) }, cones,
@@ -162,7 +163,7 @@ export function technicalScene(f: TechnicalFamily, mode: PracticeMode, side: Pra
     actors: actors.map(mirror), stations: stations.map(mirror), targets: targets.map(mirror), ballStart: mirror(ball),
     ...(f.goal ? { goals: [{ x: w / 2, y: 1, width: 7.32 }] } : {}),
     goal: f.objective, dose: "Dawkę dobiera silnik sesji.", points: [...f.cues], source: `Autorska adaptacja zasad: ${source}`,
-  };
+  });
 }
 
 /** Stabilne referencje dla istniejącego mechanizmu zaproszeń; wyników ani danych gracza w linku nie ma. */
