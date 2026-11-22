@@ -11,12 +11,13 @@ import { ImportOffer, LoadError, StorageNotice } from "./GateScreens";
 import { WeekGate } from "./week/WeekGate";
 import { WeekPrompt } from "./week/WeekPrompt";
 import { useMatchWeeks } from "./week/useMatchWeeks";
-import { DEFAULT_CHECK_IN, localISO, addDays, cycleWeekFor, levelOf, matchWord, nextWeekReady, normalizeCheckIn, planForProfile, weekToAsk, weekdayGen } from "./engine";
+import { DEFAULT_CHECK_IN, loadHistory, loadNote, localISO, withExtraLoad, addDays, cycleWeekFor, levelOf, matchWord, nextWeekReady, normalizeCheckIn, planForProfile, weekToAsk, weekdayGen } from "./engine";
 import type { CheckIn, DayPlan, Profile, SessionKind } from "./engine";
 import { Onboarding } from "./Onboarding";
 import { Start } from "./Start";
 import { SkippedDays } from "./DaySkipToggle";
 import { setSkipped, useSkippedVersion } from "./lib/skipped";
+import { loadExtras, useExtrasVersion } from "./lib/extras";
 import { Backdrop } from "./Sketch";
 import { Group, LargeTitle, ListRow } from "./ui";
 import { Auth } from "./Auth";
@@ -125,7 +126,7 @@ function loadTab(): Tab {
 
 const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T | null> => Promise.race([p, new Promise<null>((res) => setTimeout(() => res(null), ms))]);
 /** Dane z tego urządzenia (gość), które zawodnik może JAWNIE przenieść na konto. Zgody i potwierdzenia nigdy się nie kopiują (store.ts). */
-const IMPORT_KEYS = ["profile", "private", "history", "weightLog", "masDistance", "feelings", "runs", "look", "iqAttempts"];
+const IMPORT_KEYS = ["profile", "private", "history", "weightLog", "masDistance", "feelings", "runs", "look", "iqAttempts", "extras"];
 const GUEST: Scope = { kind: "guest" };
 function guestProfileName(): string | null | undefined {
   if (!listKeys(GUEST).includes("profile")) return undefined;
@@ -212,6 +213,9 @@ function Main({ scope, email, onLogin, invite, onInviteClose }: { scope: Scope; 
     store(`checkIn:${today()}`, JSON.stringify(c));
     void pushCheckIn(today(), c);
   };
+  // własne jednostki (poza aplikacją) obniżają dzisiejszą regenerację: pierścień, sesja i plan liczą się z check-inu po tej korekcie
+  const extrasVersion = useExtrasVersion();
+  const loaded = useMemo(() => withExtraLoad(checkIn, loadExtras(), loadHistory(), today()), [checkIn, extrasVersion, checkedIn]); // eslint-disable-line react-hooks/exhaustive-deps
   const [openDay, setOpenDay] = useState<DayPlan | null>(null);
   const [guard, setGuard] = useState<GuardResult>(() => loadGuardedProfile());
   const [settings, setSettings] = useState(false);
@@ -248,10 +252,10 @@ function Main({ scope, email, onLogin, invite, onInviteClose }: { scope: Scope; 
       <Backdrop />
       <div key={tab} className="bw-tab relative">
       {tab === "start" && (
-        <Start profile={profile} checkIn={checkIn} checkedIn={checkedIn} onCheckIn={setCheckIn} onSettings={() => setSettings(true)} />
+        <Start profile={profile} checkIn={checkIn} effective={loaded.checkIn} loadNote={loadNote(loaded.summary)} checkedIn={checkedIn} onCheckIn={setCheckIn} onSettings={() => setSettings(true)} />
       )}
       {tab === "plan" && (
-        <Home profile={profile} checkIn={checkIn} checkedIn={checkedIn} initialOpen={openDay} onOpened={() => setOpenDay(null)} onReset={() => {
+        <Home profile={profile} checkIn={loaded.checkIn} checkedIn={checkedIn} initialOpen={openDay} onOpened={() => setOpenDay(null)} onReset={() => {
           // to NIE usuwa konta ani danych: tylko ponownie przechodzi pytania profilu (usuwanie danych – w Ustawieniach)
           scoped.removeItem("profile");
           setGuard({ kind: "none" });

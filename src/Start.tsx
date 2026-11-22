@@ -7,6 +7,7 @@ import { EnglishCard } from "./english/EnglishCard";
 import { DaySkipToggle } from "./DaySkipToggle";
 import { GoalCard } from "./goal/GoalCard";
 import { WeekCard } from "./week/WeekGate";
+import { ExtraCard } from "./extra/ExtraCard";
 
 // Moduł nauki ładuje się dopiero po otwarciu (osobny fragment pakietu): nie spowalnia strony głównej.
 const EnglishModule = lazy(() => import("./english/EnglishModule"));
@@ -65,8 +66,11 @@ function Choice({ label, value, onChange }: { label: string; value: 1 | 2 | 3; o
   );
 }
 
-export function Start({ profile, checkIn, checkedIn, onCheckIn, onSettings }: {
-  profile: Profile; checkIn: CheckIn; checkedIn: boolean; onCheckIn: (c: CheckIn) => void; onSettings: () => void;
+const Section = ({ children }: { children: string }) => <h2 className="mb-2 mt-2 px-1 text-xs uppercase tracking-wide text-muted">{children}</h2>;
+
+export function Start({ profile, checkIn, effective, loadNote, checkedIn, onCheckIn, onSettings }: {
+  profile: Profile; checkIn: CheckIn; /** Check-in po uwzględnieniu własnych jednostek (do pierścienia i opisu). */ effective: CheckIn; loadNote: string | null;
+  checkedIn: boolean; onCheckIn: (c: CheckIn) => void; onSettings: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [safety, setSafety] = useState(false);
@@ -82,17 +86,23 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn, onSettings }: {
       <h1 className="mb-6 text-[32px] font-semibold tracking-tight">{profile.name ? `Cześć, ${profile.name}` : "Dziś"}</h1>
 
       <section className="bw-rise mb-6 rounded-3xl border border-hairline bg-card px-5 py-5">
-        <Ring value={readinessScore(checkIn)} done={checkedIn} onTap={() => setOpen(true)} />
-        <p className="mt-3 text-center text-sm text-muted">{!checkedIn ? "Jak się dziś czujesz? Dotknij." : restSuggested(checkIn) ? "Dziś lżej. Proponujemy regenerację." : STRAIN[strainOf(checkIn)]}</p>
+        <Ring value={readinessScore(effective)} done={checkedIn} onTap={() => setOpen(true)} />
+        <p className="mt-3 text-center text-sm text-muted">{!checkedIn ? "Jak się dziś czujesz? Dotknij." : restSuggested(effective) ? "Dziś lżej. Proponujemy regenerację." : STRAIN[strainOf(effective)]}</p>
+        {loadNote && <p className="mt-2 rounded-2xl bg-canvas px-3 py-2 text-center text-xs leading-snug text-muted">{loadNote}</p>}
         <p className="mt-2 text-center text-[11px] leading-snug text-muted">
           Wynik jest orientacyjny, z Twoich odpowiedzi. Przy bólu odpuść.{" "}
           <button onClick={() => setSafety(true)} className="underline">Zasady bezpieczeństwa</button>
         </p>
       </section>
 
+      <Section>Dziś</Section>
+      <ExtraCard />
       <WeekCard profile={profile} />
+
+      <Section>Cel i cykl</Section>
       <GoalCard profile={profile} />
 
+      <Section>Nauka</Section>
       <EnglishCard onOpen={() => setEnglish(true)} refreshKey={englishTick} />
       {english && (
         <Suspense fallback={<div className="fixed inset-0 z-30 flex items-center justify-center bg-canvas text-sm text-muted" role="status">Ładowanie…</div>}>
