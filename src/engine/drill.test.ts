@@ -74,7 +74,7 @@ import { ALL_DRILLS } from "./technique";
 import { withVariant as withV } from "./drill";
 
 describe("ćwiczenia z grupy „Wykończenie i strzały” w nowym modelu", () => {
-  const finish = ALL_DRILLS.filter((d) => d.group === "finish");
+  const finish = ALL_DRILLS.filter((d) => d.group === "finish" && !d.id.startsWith("tech2."));
   it("są cztery, każde ma wariant B, opis ustawienia sprzętu, podpowiedź i nazwę wariantu A", () => {
     expect(finish).toHaveLength(4);
     for (const d of finish) {

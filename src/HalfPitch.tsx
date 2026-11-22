@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ARROW_LEGEND, HALF, TONE_HEX, placeDrill } from "./engine";
+import { HALF, placeDrill } from "./engine";
 import type { Drill, Point } from "./engine";
-import { DrillControls, dash, path, useDrillPlayer } from "./Pitch";
+import { DrillActors, DrillControls, DrillDrawing, DrillLegend, useDrillPlayer } from "./Pitch";
 
 const PAD = 2;
 const VW = HALF.w + PAD * 2, VH = HALF.h + PAD * 2;
@@ -38,28 +38,12 @@ function PitchBase() {
 }
 
 /** Ćwiczenie narysowane na boisku: pole ćwiczenia, bramki (te z boiska), stożki, strzałki, numery kroków. */
-function DrillLayer({ drill, map }: { drill: Drill; map: (p: Point) => Point }) {
+function DrillLayer({ drill, map, shown, onlyStep }: { drill: Drill; map: (p: Point) => Point; shown: boolean; onlyStep: number | null }) {
   const { corners } = useMemo(() => placeDrill(drill), [drill]);
   return (
     <g>
       <polygon points={corners.map((c) => `${c.x},${c.y}`).join(" ")} fill="rgba(255,255,255,0.18)" stroke="#ffffff" strokeWidth="0.25" strokeDasharray="1 0.8" />
-      {drill.arrows.map((ar, i) => (
-        <path key={i} d={path(ar.points.map(map), ar.style === "dribble")} fill="none" stroke="#1d1d1f" strokeWidth={ar.style === "shot" ? 0.6 : 0.28} strokeDasharray={dash(ar.style)} strokeLinecap="round" markerEnd="url(#hp-head)" />
-      ))}
-      {drill.cones.map((c, i) => {
-        const p = map(c);
-        return (
-          <g key={i}>
-            <polygon points={`${p.x},${p.y - 1} ${p.x + 0.9},${p.y + 0.8} ${p.x - 0.9},${p.y + 0.8}`} fill={TONE_HEX[c.color ?? "yellow"]} stroke="#1d1d1f" strokeWidth="0.15" />
-            {c.label && <text x={p.x} y={p.y - 1.5} fontSize="1.8" textAnchor="middle" fill="#1d1d1f">{c.label}</text>}
-          </g>
-        );
-      })}
-      {drill.arrows.map((ar, i) => {
-        if (!ar.step) return null;
-        const p = map(ar.points[0]!);
-        return <text key={`s${i}`} x={p.x + 0.8} y={p.y - 0.8} fontSize="2" fontWeight="600" fill="#1d1d1f">{ar.step}</text>;
-      })}
+      <DrillDrawing drill={drill} map={map} showActors={!shown} onlyStep={onlyStep} />
     </g>
   );
 }
@@ -157,12 +141,10 @@ export function HalfPitchView({ drill }: { drill: Drill }) {
       <div className="relative overflow-hidden rounded-2xl border border-hairline">
         <svg ref={svg} viewBox={`${view.x} ${view.y} ${view.w} ${view.w / ASPECT}`} className="block w-full touch-none select-none" role="img" aria-label={`${drill.title} na połowie boiska`}
           onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
-          <defs>
-            <marker id="hp-head" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="3" markerHeight="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#1d1d1f" /></marker>
-          </defs>
           <PitchBase />
-          <DrillLayer drill={drill} map={place.map} />
+          <DrillLayer drill={drill} map={place.map} shown={player.shown} onlyStep={player.onlyStep} />
           {player.shown && (() => {
+            if (drill.actors) return <DrillActors drill={drill} map={place.map} positions={player.st.players} ball={player.st.ball} />;
             const pl = place.map(player.st.player), ball = player.st.ball ? place.map(player.st.ball) : null;
             return (
               <>
@@ -184,9 +166,7 @@ export function HalfPitchView({ drill }: { drill: Drill }) {
       </div>
       <p className="mt-2 text-[11px] leading-snug text-muted">Szczypnij, żeby przybliżyć, przeciągnij, żeby przesunąć. Dwa razy dotknij, żeby przełączyć między całością a polem ćwiczenia.</p>
       <DrillControls p={player} />
-      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-        {(Object.keys(ARROW_LEGEND) as Array<keyof typeof ARROW_LEGEND>).map((k) => <span key={k}>{ARROW_LEGEND[k]}</span>)}
-      </div>
+      <DrillLegend drill={drill} />
     </div>
   );
 }

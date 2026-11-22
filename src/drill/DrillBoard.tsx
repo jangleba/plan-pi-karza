@@ -9,35 +9,40 @@ const CONE = "#f28c28";
 /** Numer kroku strzałki (jawny albo kolejność). */
 const stepOf = (a: Arrow, i: number) => a.step ?? i + 1;
 
-export interface BoardAnim { player: Point; ball: Point | null }
+export interface BoardAnim { player: Point; ball: Point | null; players?: Record<string, Point> }
 
 /**
  * Rysunek ćwiczenia na prawdziwym boisku: murawa z liniami (pole karne, łuk, bramka z siatką), stożki, rebounder, odległości,
  * sześć rodzajów strzałek z numerkami kroków i znacznik START. `step` wyróżnia jeden krok (reszta przygaszona), `anim` pokazuje zawodnika i piłkę.
  */
-export function DrillBoard({ drill, step = null, anim = null, compact = false, layout = "pitch", className = "w-full rounded-2xl" }: { drill: Drill; step?: number | null; anim?: BoardAnim | null; compact?: boolean; /** „pitch”: szeroka połowa boiska z ćwiczeniem ustawionym przed bramką (jak we wzorcu); „window”: samo pole ćwiczenia. */ layout?: "pitch" | "window"; className?: string }) {
+export function DrillBoard({ drill, step = null, anim = null, compact = false, layout: layoutProp, className = "w-full rounded-2xl" }: { drill: Drill; step?: number | null; anim?: BoardAnim | null; compact?: boolean; /** „pitch”: szeroka połowa boiska z ćwiczeniem ustawionym przed bramką (jak we wzorcu); „window”: samo pole ćwiczenia. */ layout?: "pitch" | "window"; className?: string }) {
   const { width: w, height: h, kind } = drill.field;
+  const layout = layoutProp ?? (drill.goals?.length || (drill.rebounders?.length && kind === "half") ? "pitch" : "window"); // bez bramki: samo pole ćwiczenia
   const pitch = layout === "pitch";
   const half = kind === "half";
   const place = pitch ? placeDrill(drill).box : null;
   const ox = place?.x0 ?? 0, oy = place?.y0 ?? 0;
   const padT = half ? 4.5 : 2.5, pad = 2;
+  // małe pole (np. 18×14 m) rysujemy w oknie nie mniejszym niż 34×22 m, żeby symbole nie były przerośnięte
+  const vw0 = w + pad * 2, vh0 = h + padT + pad;
+  const exX = Math.max(0, (34 - vw0) / 2), exY = Math.max(0, (22 - vh0) / 2);
+  const vx = -pad - exX, vy = -padT - exY, vw = vw0 + exX * 2, vh = vh0 + exY * 2;
   const cx = drill.goals?.[0]?.x ?? w / 2;
   const ordered = arrowsInOrder(drill);
   const start = drillStart(drill);
   const dim = (n: number) => (step === null || step === n ? 1 : 0.22);
 
   return (
-    <svg viewBox={pitch ? "2 -5.5 64 32" : `${-pad} ${-padT} ${w + pad * 2} ${h + padT + pad}`} className={className} preserveAspectRatio="xMidYMid meet" role="img" aria-label={drill.title}>
+    <svg viewBox={pitch ? "2 -5.5 64 32" : `${vx} ${vy} ${vw} ${vh}`} className={className} preserveAspectRatio="xMidYMid meet" role="img" aria-label={drill.title}>
       <defs>
         <pattern id="db-grass" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="8" height="4" fill={GREEN_A} /><rect y="4" width="8" height="4" fill={GREEN_B} /></pattern>
         <pattern id="db-net" width="0.9" height="0.9" patternUnits="userSpaceOnUse"><path d="M0 0H0.9M0 0V0.9" stroke="#fff" strokeWidth="0.08" strokeOpacity="0.75" fill="none" /></pattern>
-        <clipPath id="db-clip"><rect x={pitch ? 2 : -pad} y={pitch ? -5.5 : -padT} width={pitch ? 64 : w + pad * 2} height={pitch ? 32 : h + padT + pad} /></clipPath>
+        <clipPath id="db-clip"><rect x={pitch ? 2 : vx} y={pitch ? -5.5 : vy} width={pitch ? 64 : vw} height={pitch ? 32 : vh} /></clipPath>
         {(Object.keys(ARROW_COLOR) as Array<keyof typeof ARROW_COLOR>).map((k) => (
           <marker key={k} id={`db-ah-${k}`} viewBox="0 0 10 10" refX="8" refY="5" markerUnits="userSpaceOnUse" markerWidth={k === "shot" ? 1.7 : k === "touch" ? 1.3 : 1.15} markerHeight={k === "shot" ? 1.7 : k === "touch" ? 1.3 : 1.15} orient="auto"><path d="M0 0 L10 5 L0 10 z" fill={ARROW_COLOR[k]} /></marker>
         ))}
       </defs>
-      <rect x={pitch ? 2 : -pad} y={pitch ? -5.5 : -padT} width={pitch ? 64 : w + pad * 2} height={pitch ? 32 : h + padT + pad} fill="url(#db-grass)" />
+      <rect x={pitch ? 2 : vx} y={pitch ? -5.5 : vy} width={pitch ? 64 : vw} height={pitch ? 32 : vh} fill="url(#db-grass)" />
       <g clipPath="url(#db-clip)" fill="none" stroke="#fff" strokeOpacity="0.92" strokeWidth="0.2" strokeLinecap="round">
         {pitch ? (
           <>
@@ -90,6 +95,18 @@ export function DrillBoard({ drill, step = null, anim = null, compact = false, l
           </g>
         );
       })}
+      {drill.targets?.map((t, i) => (
+        <g key={`t${i}`}>
+          <rect x={t.x - t.width / 2} y={t.y - t.height / 2} width={t.width} height={t.height} rx="0.4" fill="#fff" fillOpacity="0.22" stroke="#fff" strokeWidth="0.16" strokeDasharray="0.6 0.5" />
+          <text x={t.x} y={t.y - t.height / 2 - 0.5} fontSize="1" fontWeight="600" textAnchor="middle" fill="#fff" stroke="#1f2a1f" strokeWidth="0.25" paintOrder="stroke">{t.label}</text>
+        </g>
+      ))}
+      {drill.stations?.map((r) => (
+        <g key={r.id} transform={`translate(${r.x} ${r.y}) rotate(${r.angle ?? 0})`}>
+          <rect x="-1.4" y={-0.55} width="2.8" height="1.1" rx="0.15" fill="#e7ebef" stroke="#2b2f33" strokeWidth="0.16" />
+          <rect x="-1.2" y={-0.35} width="2.4" height="0.7" fill="url(#db-net)" stroke="none" />
+        </g>
+      ))}
       {drill.cones.map((c, i) => {
         const fill = c.color && c.color !== "yellow" ? TONE_HEX[c.color] : CONE;
         return (
@@ -119,6 +136,13 @@ export function DrillBoard({ drill, step = null, anim = null, compact = false, l
           </g>
         );
       }); })()}
+      {drill.actors && drill.actors.filter((a) => a.id !== "me").map((a) => { const p = anim?.players?.[a.id] ?? a; return (
+        <g key={a.id}>
+          <circle cx={p.x} cy={p.y} r="1" fill={a.kind === "defender" ? "#c0392b" : "#5b7087"} stroke="#fff" strokeWidth="0.26" />
+          <text x={p.x} y={p.y + 0.4} fontSize="1.1" fontWeight="700" textAnchor="middle" fill="#fff">{a.label}</text>
+        </g>
+      ); })}
+      {drill.actors && !anim && drill.ballStart && <circle cx={drill.ballStart.x} cy={drill.ballStart.y} r="0.6" fill="#fff" stroke="#1d1d1f" strokeWidth="0.2" />}
       {start && !anim && (
         <g>
           <circle cx={start.x} cy={start.y} r="1.05" fill="#1d1d1f" stroke="#fff" strokeWidth="0.28" />

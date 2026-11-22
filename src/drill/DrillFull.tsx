@@ -84,7 +84,7 @@ export function DrillFull({ drill, drills = [], groupTitle, onSelect, onClose, o
         <div className={`flex min-h-0 flex-1 ${compact ? "gap-2 px-3" : "gap-3 px-4"}`}>
           <div className="flex min-w-0 flex-1 flex-col">
             <div className="min-h-0 flex-1">
-              <DrillBoard drill={eff} step={p.step} anim={p.shown ? { player: p.st.player, ball: p.st.ball } : null} className="h-full w-full rounded-xl" />
+              <DrillBoard drill={eff} step={p.step} anim={p.shown ? { player: p.st.player, ball: p.st.ball, players: p.st.players } : null} className="h-full w-full rounded-xl" />
             </div>
             <ul className={`mt-1 flex shrink-0 items-center overflow-x-auto text-muted ${compact ? "gap-x-2 text-[9px]" : "flex-wrap gap-x-3 gap-y-0.5 text-[11px]"}`} aria-label="Legenda strzałek">
               {ORDER.map((k) => <li key={k} className="flex shrink-0 items-center gap-1" title={ARROW_NAME[k]}><Sample style={k} small={compact} />{ARROW_LEGEND[k]}</li>)}

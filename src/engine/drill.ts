@@ -15,7 +15,13 @@ export interface Arrow {
   step?: number;
   /** Krótki opis kroku pokazywany podczas animacji (bez niego: nazwa strzałki). */
   note?: string;
+  /** Wykonawca (jawne sceny); brak zachowuje zgodność ze starszymi szkicami. */
+  actorId?: string;
 }
+
+export interface DrillActor extends Point { id: string; kind: "player" | "partner" | "defender"; label: string }
+export interface DrillStation extends Point { id: string; kind: "rebounder" | "wall"; label: string; angle?: number }
+export interface DrillTarget extends Point { width: number; height: number; label: string }
 
 /** Grupy ćwiczeń z piłką w sesji techniki. */
 export type DrillGroup = "dribble" | "touch" | "finish";
@@ -26,10 +32,14 @@ export interface Drill {
   title: string;
   group: DrillGroup;
   /** Zakres rysowanego fragmentu boiska w metrach. */
-  field: { width: number; height: number; kind: "full" | "half" | "patch" };
+  field: { width: number; height: number; kind: "full" | "half" | "patch"; origin?: Point };
   cones: Cone[];
   arrows: Arrow[];
   goals?: Array<Point & { width: number }>;
+  actors?: DrillActor[];
+  stations?: DrillStation[];
+  targets?: DrillTarget[];
+  ballStart?: Point;
   /** Rebounder (ścianka z siatką); kąt w stopniach: 0 = ustawiony poziomo, 90 = pionowo. */
   rebounders?: Rebounder[];
   /** Opisane odległości na rysunku (np. „8 m” między stożkami). */
@@ -110,6 +120,10 @@ export function mirrorDrill(d: Drill): Drill {
     rebounders: d.rebounders?.map((r) => ({ ...mp(r), ...(r.angle !== undefined ? { angle: -r.angle } : {}) } as Rebounder)),
     distances: d.distances?.map((x) => ({ ...x, from: mp(x.from), to: mp(x.to) })),
     start: d.start ? mp(d.start) : undefined,
+    actors: d.actors?.map((a) => mp(a) as DrillActor),
+    stations: d.stations?.map((r) => ({ ...mp(r), ...(r.angle !== undefined ? { angle: -r.angle } : {}) } as DrillStation)),
+    targets: d.targets?.map((t) => mp(t) as DrillTarget),
+    ballStart: d.ballStart ? mp(d.ballStart) : undefined,
     variants: d.variants?.map((v) => ({
       ...v, arrows: v.arrows.map(ma), cones: v.cones?.map((c) => mp(c) as Cone),
       rebounders: v.rebounders?.map((r) => ({ ...mp(r), ...(r.angle !== undefined ? { angle: -r.angle } : {}) } as Rebounder)),

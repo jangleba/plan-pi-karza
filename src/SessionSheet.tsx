@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { DrillPreview } from "./drill/DrillPreview";
+import { TechniqueSession } from "./TechniqueSession";
 import { DrillFull } from "./drill/DrillFull";
 import { HalfPitchView } from "./HalfPitch";
 import { InviteComposer } from "./InviteSheets";
@@ -238,6 +239,8 @@ export function SessionSheet({
           </>
         ) : s?.kind === "technique" ? (
           <>
+            {position && age ? <TechniqueSession day={day} checkIn={checkIn} position={position} age={age} onInvite={setInviteDrill} /> : <p className="text-sm text-muted">Uzupełnij pozycję i wiek w profilu, aby dobrać technikę.</p>}
+            <details className="mt-5"><summary className="cursor-pointer text-sm text-muted">Dodatkowe narzędzia i szkice ćwiczeń</summary>
             <Group label="Narzędzia">
               <ListRow index={0} title="Bodźce" sub="Strzałki, kolory, liczby – reakcja i decyzja, poziomo" onTap={() => setTool("stim")} />
               <ListRow index={1} title="Losowanie" sub="Kolor, numer, strona lub kierunek jednym dotknięciem" onTap={() => setTool("draw")} />
@@ -265,6 +268,7 @@ export function SessionSheet({
               ))}
               <CueTrainer />
             </div>
+            </details>
           </>
         ) : s?.kind === "recovery" ? (
           <>
