@@ -10,8 +10,12 @@ import type { SessionKind } from "./types";
  * Progi poniżej są orientacyjne, do przeglądu trenera (patrz docs/WLASNA-JEDNOSTKA.md).
  */
 export type ExtraKind = "strength" | "run" | "football" | "bike" | "swim" | "walk" | "sauna" | "other";
-/** Wysiłek bez wpisywania liczb: lekko (rozmowa bez trudu), średnio, mocno (ciężko, trudno rozmawiać). */
-export type ExtraEffort = "easy" | "medium" | "hard";
+/** Wysiłek na suwaku 1–10 (jak w sRPE): 1–3 lekko (rozmowa bez trudu), 4–6 średnio, 7–10 mocno (ciężko, trudno rozmawiać). */
+export const RPE_MIN = 1;
+export const RPE_MAX = 10;
+export const RPE_DEFAULT = 5;
+export const rpeLabel = (rpe: number): string => (rpe <= 3 ? "Lekko" : rpe <= 6 ? "Średnio" : "Mocno");
+export const rpeHint = (rpe: number): string => (rpe <= 3 ? "Mogę swobodnie rozmawiać" : rpe <= 6 ? "Czuję wysiłek, rozmowa urywa się" : rpe <= 8 ? "Ciężko, mało słów" : "Maksymalnie, bez rozmowy");
 
 export interface ExtraActivity {
   id: string;
@@ -19,26 +23,26 @@ export interface ExtraActivity {
   date: string;
   kind: ExtraKind;
   minutes: number;
-  effort: ExtraEffort;
+  /** Wysiłek 1–10. */
+  rpe: number;
 }
 
 export const EXTRA_KINDS: Array<[ExtraKind, string]> = [
   ["strength", "Siła"], ["run", "Bieg"], ["football", "Piłka"], ["bike", "Rower"], ["swim", "Basen"], ["walk", "Spacer"], ["sauna", "Sauna"], ["other", "Inne"],
 ];
 export const EXTRA_LABEL: Record<ExtraKind, string> = Object.fromEntries(EXTRA_KINDS) as Record<ExtraKind, string>;
-export const EXTRA_EFFORTS: Array<[ExtraEffort, string, string]> = [
-  ["easy", "Lekko", "mogę swobodnie rozmawiać"], ["medium", "Średnio", "czuję wysiłek"], ["hard", "Mocno", "ciężko, mało słów"],
-];
-/** Skala wysiłku jak w sRPE (1–10). */
-export const EFFORT_RPE: Record<ExtraEffort, number> = { easy: 3, medium: 5, hard: 8 };
+/** Gotowe czasy do szybkiego wyboru (min). */
+export const EXTRA_PRESET_MINUTES = [30, 45, 60, 90, 120];
+/** Starsze zapisy miały trzy poziomy słowne: przeliczamy je na skalę 1–10. */
+const LEGACY_RPE: Record<string, number> = { easy: 3, medium: 5, hard: 8 };
 /** Waga rodzaju: sauna i spacer obciążają układ ruchu znacznie mniej, niż wynikałoby z czasu. */
 export const KIND_WEIGHT: Record<ExtraKind, number> = { strength: 1, run: 1, football: 1, bike: 0.8, swim: 0.7, walk: 0.5, sauna: 0.25, other: 1 };
 
 export const MAX_MINUTES = 240;
 
 /** Obciążenie jednostki w umownych punktach: minuty × wysiłek (1–10) × waga rodzaju. */
-export function loadOf(a: Pick<ExtraActivity, "kind" | "minutes" | "effort">): number {
-  return Math.round(Math.max(0, Math.min(MAX_MINUTES, a.minutes)) * EFFORT_RPE[a.effort] * KIND_WEIGHT[a.kind]);
+export function loadOf(a: Pick<ExtraActivity, "kind" | "minutes" | "rpe">): number {
+  return Math.round(Math.max(0, Math.min(MAX_MINUTES, a.minutes)) * Math.max(RPE_MIN, Math.min(RPE_MAX, a.rpe)) * KIND_WEIGHT[a.kind]);
 }
 
 /** Szacunek obciążenia sesji z aplikacji (zapisanej w historii jako wykonana): umowne, żeby składać je z jednostkami własnymi. */
@@ -46,7 +50,6 @@ export const SESSION_LOAD: Record<SessionKind, number> = { strength: 330, run: 3
 
 const isDay = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 const KINDS = new Set<string>(EXTRA_KINDS.map(([k]) => k));
-const EFFORTS = new Set<string>(["easy", "medium", "hard"]);
 
 /** Bezpieczne wczytanie z zapisu lub chmury: błędne wpisy są pomijane, czas ograniczony do 1–240 min. */
 export function normalizeExtras(raw: unknown): ExtraActivity[] {
@@ -54,12 +57,13 @@ export function normalizeExtras(raw: unknown): ExtraActivity[] {
   const out: ExtraActivity[] = [];
   const seen = new Set<string>();
   for (const e of raw) {
-    const r = e as Partial<ExtraActivity> | null;
-    if (!r || !isDay(r.date) || !KINDS.has(String(r.kind)) || !EFFORTS.has(String(r.effort)) || typeof r.minutes !== "number" || !Number.isFinite(r.minutes)) continue;
+    const r = e as (Partial<ExtraActivity> & { effort?: unknown }) | null;
+    const rpeRaw = typeof r?.rpe === "number" ? r.rpe : LEGACY_RPE[String(r?.effort)];
+    if (!r || !isDay(r.date) || !KINDS.has(String(r.kind)) || typeof rpeRaw !== "number" || !Number.isFinite(rpeRaw) || typeof r.minutes !== "number" || !Number.isFinite(r.minutes)) continue;
     const id = typeof r.id === "string" && r.id ? r.id : `${r.date}-${out.length}`;
     if (seen.has(id)) continue;
     seen.add(id);
-    out.push({ id, date: r.date, kind: r.kind as ExtraKind, minutes: Math.max(1, Math.min(MAX_MINUTES, Math.round(r.minutes))), effort: r.effort as ExtraEffort });
+    out.push({ id, date: r.date, kind: r.kind as ExtraKind, minutes: Math.max(1, Math.min(MAX_MINUTES, Math.round(r.minutes))), rpe: Math.max(RPE_MIN, Math.min(RPE_MAX, Math.round(rpeRaw))) });
   }
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }
@@ -126,3 +130,20 @@ export function weekExtraLoad(extras: ExtraActivity[], weekStart: string): { cou
   const w = extras.filter((a) => a.date >= weekStart && a.date < end);
   return { count: w.length, minutes: w.reduce((s, a) => s + a.minutes, 0), load: w.reduce((s, a) => s + loadOf(a), 0) };
 }
+
+/** Progi obciążenia całego tygodnia (od poniedziałku do dziś): własne jednostki + sesje z aplikacji. Orientacyjne, do przeglądu trenera. */
+export const WEEK_HIGH = 2200;
+export const WEEK_VERY_HIGH = 3200;
+export type WeekLevel = "ok" | "high" | "veryHigh";
+
+export function weekLoadTotal(extras: ExtraActivity[], history: HistoryEvent[], weekStart: string, through: string): number {
+  let total = 0;
+  for (const a of extras) if (a.date >= weekStart && a.date <= through) total += loadOf(a);
+  for (const h of history) {
+    if (h.type !== "session" || h.viaRest || h.date < weekStart || h.date > through) continue;
+    total += SESSION_LOAD[h.key as SessionKind] ?? 0;
+  }
+  return total;
+}
+
+export const weekLevel = (total: number): WeekLevel => (total >= WEEK_VERY_HIGH ? "veryHigh" : total >= WEEK_HIGH ? "high" : "ok");

@@ -65,6 +65,11 @@ export interface WeekInput {
    * miejscu także w kolejnych dniach. Treningu klubowego nie przekładamy (prowadzi go trener).
    */
   skippedDays?: DaySkip[];
+  /**
+   * Obciążenie tygodnia z własnych jednostek zawodnika (poza aplikacją) i sesji już zrobionych: przy wysokim poziomie kolejne dni po `from`
+   * dostają lżejsze wersje sesji, a przy bardzo wysokim także pierwszy wolny dzień zamienia się w regenerację.
+   */
+  weekLoad?: { level: "ok" | "high" | "veryHigh"; from: string };
 }
 
 /** Zgłoszenie „w tym dniu nie mogę trenować”: `date` – dzień, którego dotyczy, `since` – dzień zgłoszenia (ISO). */

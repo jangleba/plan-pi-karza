@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { ACUTE_HIGH, ACUTE_MODERATE, loadNote, loadOf, loadSummary, normalizeExtras, weekExtraLoad, withExtraLoad, type ExtraActivity } from "./extra";
+import { ACUTE_HIGH, ACUTE_MODERATE, WEEK_HIGH, WEEK_VERY_HIGH, loadNote, rpeLabel, weekLevel, weekLoadTotal, loadOf, loadSummary, normalizeExtras, weekExtraLoad, withExtraLoad, type ExtraActivity } from "./extra";
 import { adaptSession, readinessScore, strainOf, type CheckIn } from "./adapt";
 import type { HistoryEvent } from "./history";
 
 const ok: CheckIn = { recovery: 3, feeling: 3, less: false };
-const ex = (date: string, kind: ExtraActivity["kind"], minutes: number, effort: ExtraActivity["effort"], id = `${date}${kind}`): ExtraActivity => ({ id, date, kind, minutes, effort });
+const E = { easy: 3, medium: 5, hard: 8 } as const;
+const ex = (date: string, kind: ExtraActivity["kind"], minutes: number, effort: keyof typeof E, id = `${date}${kind}`): ExtraActivity => ({ id, date, kind, minutes, rpe: E[effort] });
 const T = "2026-11-22";
 
 describe("własna jednostka: obciążenie", () => {
@@ -80,10 +81,10 @@ describe("własna jednostka: obciążenie", () => {
 describe("własna jednostka: zapis i tydzień", () => {
   it("normalizacja pomija błędne wpisy i ogranicza czas", () => {
     const r = normalizeExtras([
-      { id: "a", date: T, kind: "run", minutes: 500, effort: "hard" },
-      { id: "b", date: "złe", kind: "run", minutes: 30, effort: "easy" },
-      { id: "c", date: T, kind: "nieznany", minutes: 30, effort: "easy" },
-      { id: "a", date: T, kind: "bike", minutes: 30, effort: "easy" },
+      { id: "a", date: T, kind: "run", minutes: 500, rpe: 8 },
+      { id: "b", date: "złe", kind: "run", minutes: 30, rpe: 3 },
+      { id: "c", date: T, kind: "nieznany", minutes: 30, rpe: 3 },
+      { id: "a", date: T, kind: "bike", minutes: 30, rpe: 3 },
       null, 5,
     ]);
     expect(r).toHaveLength(1);
@@ -94,5 +95,70 @@ describe("własna jednostka: zapis i tydzień", () => {
   it("suma tygodnia liczy tylko wpisy od poniedziałku do niedzieli", () => {
     const e = [ex("2026-11-16", "run", 30, "medium"), ex("2026-11-22", "bike", 60, "easy"), ex("2026-11-23", "run", 30, "medium")];
     expect(weekExtraLoad(e, "2026-11-16")).toEqual({ count: 2, minutes: 90, load: 150 + 144 });
+  });
+});
+
+describe("własna jednostka: skala 1–10 i tydzień", () => {
+  it("wysiłek 1–10: etykiety i obcinanie do skali", () => {
+    expect([1, 3, 4, 6, 7, 10].map(rpeLabel)).toEqual(["Lekko", "Lekko", "Średnio", "Średnio", "Mocno", "Mocno"]);
+    expect(loadOf({ kind: "run", minutes: 60, rpe: 99 })).toBe(600);
+    expect(loadOf({ kind: "run", minutes: 60, rpe: 0 })).toBe(60);
+  });
+
+  it("starszy zapis z trzema poziomami słownymi jest przeliczany na skalę", () => {
+    const r = normalizeExtras([{ id: "x", date: T, kind: "run", minutes: 30, effort: "hard" }]);
+    expect(r[0]!.rpe).toBe(8);
+  });
+
+  it("obciążenie tygodnia: własne jednostki + sesje z aplikacji do dziś, poziomy", () => {
+    const e = [ex("2026-11-16", "football", 90, "hard"), ex("2026-11-18", "bike", 90, "medium"), ex("2026-11-23", "run", 90, "hard")];
+    const h: HistoryEvent[] = [{ date: "2026-11-17", type: "session", key: "strength", value: 1 }, { date: "2026-11-19", type: "session", key: "run", value: 1 }];
+    const total = weekLoadTotal(e, h, "2026-11-16", T);
+    expect(total).toBe(720 + 360 + 330 + 300); // jednostka z 23.11 jest po „dziś”
+    expect(weekLevel(total)).toBe("ok");
+    expect(weekLevel(WEEK_HIGH)).toBe("high");
+    expect(weekLevel(WEEK_VERY_HIGH)).toBe("veryHigh");
+  });
+});
+
+import { planWeek } from "./week";
+import type { WeekInput } from "./types";
+
+describe("własna jednostka: wpływ na plan tygodnia", () => {
+  // tydzień 16–22.11, mecz w sobotę 21.11 nie potrzebny: sprawdzamy dni po środzie
+  const base: WeekInput = { weekStart: "2026-11-16", matches: ["2026-11-28"], clubDays: ["2026-11-17", "2026-11-19"], level: "intermediate", limitedGymAccess: false, strengthYears: 3 };
+  const ids = (p: ReturnType<typeof planWeek>) => p.days.map((d) => (d.session ? `${d.session.kind}:${d.session.variant}` : "-"));
+
+  it("bez obciążenia plan jest taki sam jak dotąd", () => {
+    expect(planWeek({ ...base, weekLoad: { level: "ok", from: "2026-11-18" } })).toEqual(planWeek(base));
+  });
+
+  it("ciężki tydzień: sesje po dniu zgłoszenia są lżejsze, wcześniejsze bez zmian", () => {
+    const plain = planWeek(base);
+    const heavy = planWeek({ ...base, weekLoad: { level: "high", from: "2026-11-18" } });
+    heavy.days.forEach((d, i) => {
+      const p = plain.days[i]!;
+      if (d.date <= "2026-11-18") expect(d.session).toEqual(p.session);
+      else if (p.session && ["strength", "run", "sprint"].includes(p.session.kind)) expect(d.session?.variant).toBe("light");
+    });
+    expect(heavy.warnings.join(" ")).toMatch(/ciężki/);
+  });
+
+  it("bardzo ciężki tydzień: pierwszy wolny dzień po zgłoszeniu staje się regeneracją", () => {
+    const plain = planWeek(base);
+    const hv = planWeek({ ...base, weekLoad: { level: "veryHigh", from: "2026-11-18" } });
+    const firstFree = plain.days.find((d) => d.date > "2026-11-18" && !d.session && !d.isMatch && !d.isOff);
+    if (firstFree) {
+      const got = hv.days.find((d) => d.date === firstFree.date)!;
+      expect(got.session?.kind).toBe("recovery");
+    }
+    expect(ids(hv)).toHaveLength(7);
+  });
+
+  it("dzień meczu i dni niedostępne nigdy nie dostają regeneracji", () => {
+    const hv = planWeek({ ...base, matches: ["2026-11-21"], offDays: ["2026-11-20"], weekLoad: { level: "veryHigh", from: "2026-11-18" } });
+    const m = hv.days.find((d) => d.date === "2026-11-21")!;
+    expect(m.isMatch && m.session).toBeFalsy();
+    expect(hv.days.find((d) => d.date === "2026-11-20")!.session).toBeNull();
   });
 });

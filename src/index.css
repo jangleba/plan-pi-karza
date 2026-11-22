@@ -169,3 +169,17 @@ input { caret-color: var(--color-accent); }
   .bw-stagger > *, .bw-step-out, .bw-step-out-back, .bw-check, .bw-shake, .bw-ring, .bw-grow { animation: none; }
   .bw-check { stroke-dashoffset: 0; }
 }
+
+/* Potwierdzenie zapisu: ptaszek „rysuje się”, a kafelek na chwilę pulsuje */
+@keyframes bw-check-draw { from { stroke-dashoffset: 26; } to { stroke-dashoffset: 0; } }
+.bw-check path { stroke-dasharray: 26; animation: bw-check-draw 0.45s ease-out 0.1s both; }
+@keyframes bw-ring-pop { 0% { transform: scale(1); } 40% { transform: scale(0.94); } 100% { transform: scale(1); } }
+.bw-ring-pop { animation: bw-ring-pop 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
+@media (prefers-reduced-motion: reduce) { .bw-check path, .bw-ring-pop { animation: none; stroke-dashoffset: 0; } }
+
+/* Suwak wysiłku: cienka ścieżka, okrągła gałka w kolorze przycisku */
+.bw-range { -webkit-appearance: none; appearance: none; height: 28px; background: transparent; touch-action: pan-y; }
+.bw-range::-webkit-slider-runnable-track { height: 6px; border-radius: 999px; background: var(--color-hairline); }
+.bw-range::-moz-range-track { height: 6px; border-radius: 999px; background: var(--color-hairline); }
+.bw-range::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 28px; margin-top: -11px; border-radius: 999px; background: var(--color-btn); box-shadow: inset 0 0 0 1px var(--color-btn-line), 0 2px 8px rgba(29, 29, 31, 0.18); }
+.bw-range::-moz-range-thumb { width: 28px; height: 28px; border: 0; border-radius: 999px; background: var(--color-btn); box-shadow: inset 0 0 0 1px var(--color-btn-line), 0 2px 8px rgba(29, 29, 31, 0.18); }

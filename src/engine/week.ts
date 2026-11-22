@@ -192,6 +192,24 @@ export function planWeek(input: WeekInput): WeekPlan {
   // Regeneracja w dniu po meczu, jeśli dzień pusty (z wyjątkiem dni, w których zawodnik zgłosił, że nie może trenować).
   place("recovery", ["MD+1"], { skip: skipped });
 
+  // Ciężki tydzień z własnych jednostek: od jutra lżejsze wersje sesji, a przy bardzo ciężkim pierwszy wolny dzień na regenerację
+  const wl = input.weekLoad;
+  if (wl && wl.level !== "ok") {
+    let lighter = 0;
+    for (const d of days) {
+      const s = d.session;
+      if (d.date <= wl.from || !s || s.variant !== "full" || !["strength", "run", "sprint"].includes(s.kind)) continue;
+      d.session = { ...s, variant: "light", reason: "Ciężki tydzień z własnych jednostek: lżejsza wersja." };
+      lighter++;
+    }
+    let rest = false;
+    if (wl.level === "veryHigh") {
+      const free = days.find((d) => d.date > wl.from && !d.session && !d.isMatch && !d.isOff && !skipped.has(d.date));
+      if (free) { free.session = { kind: "recovery", variant: "full", reason: "Bardzo ciężki tydzień z własnych jednostek: dzień regeneracji." }; rest = true; }
+    }
+    if (lighter || rest) warnings.push(`Ten tydzień jest już ciężki dzięki Twoim własnym jednostkom: ${rest ? "dodaliśmy dzień regeneracji" : "kolejne sesje są lżejsze"}.`);
+  }
+
   return { days, warnings, moves };
 }
 

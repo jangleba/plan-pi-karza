@@ -19,6 +19,7 @@ import { SkippedDays } from "./DaySkipToggle";
 import { setSkipped, useSkippedVersion } from "./lib/skipped";
 import { loadExtras, useExtrasVersion } from "./lib/extras";
 import { Backdrop } from "./Sketch";
+import { KIND_LABEL } from "./kinds";
 import { Group, LargeTitle, ListRow } from "./ui";
 import { Auth } from "./Auth";
 import { Progress } from "./Progress";
@@ -37,14 +38,6 @@ import { loadLog, saveLog } from "./engine";
 import { SessionSheet } from "./SessionSheet";
 import { scoped } from "./lib/store";
 
-const KIND_LABEL: Record<SessionKind, string> = {
-  strength: "Siła",
-  run: "Bieganie",
-  sprint: "Sprint",
-  technique: "Technika z piłką",
-  activation: "Aktywacja",
-  recovery: "Regeneracja",
-};
 
 const WEEKDAY = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
 
@@ -252,7 +245,7 @@ function Main({ scope, email, onLogin, invite, onInviteClose }: { scope: Scope; 
       <Backdrop />
       <div key={tab} className="bw-tab relative">
       {tab === "start" && (
-        <Start profile={profile} checkIn={checkIn} effective={loaded.checkIn} loadNote={loadNote(loaded.summary)} checkedIn={checkedIn} onCheckIn={setCheckIn} onSettings={() => setSettings(true)} />
+        <Start onOpenDay={(d) => { setOpenDay(d); setTab("plan"); window.scrollTo(0, 0); }} profile={profile} checkIn={checkIn} effective={loaded.checkIn} loadNote={loadNote(loaded.summary)} checkedIn={checkedIn} onCheckIn={setCheckIn} onSettings={() => setSettings(true)} />
       )}
       {tab === "plan" && (
         <Home profile={profile} checkIn={loaded.checkIn} checkedIn={checkedIn} initialOpen={openDay} onOpened={() => setOpenDay(null)} onReset={() => {
