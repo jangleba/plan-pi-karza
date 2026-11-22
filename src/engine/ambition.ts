@@ -14,10 +14,24 @@ export type Focus = (typeof FOCUS)[number];
 export const FOCUS_LABEL: Record<Focus, string> = { regularity: "Regularność", jump: "Skok", sprint: "Sprint", strength: "Siła", endurance: "Wytrzymałość" };
 export const MAX_FOCUS = 2;
 
+/** Pytania „psychologiczne” kreatora celu: gdzie widzisz się za rok i gdzie chciałbyś być. Zapisujemy tylko identyfikator odpowiedzi. */
+export const VISION: Array<[string, string]> = [
+  ["higher", "W wyższej lidze"], ["starter", "Z pewnym miejscem w podstawowym składzie"], ["leader", "Jako lider drużyny"], ["fit", "Zdrowy i w życiowej formie"], ["same", "Tu, gdzie jestem – ale lepszy"],
+];
+export const DREAM: Array<[string, string]> = [
+  ["pro", "W zawodowym klubie"], ["top", "W najlepszym klubie w regionie"], ["fun", "Gram dla frajdy na dobrym poziomie"], ["coach", "Przy piłce także po karierze – jako trener"], ["abroad", "Za granicą"],
+];
+export const visionLabel = (id?: string) => VISION.find(([k]) => k === id)?.[1];
+export const dreamLabel = (id?: string) => DREAM.find(([k]) => k === id)?.[1];
+
 export interface Ambition {
   /** Liga, w której zawodnik chce grać (jego własna ambicja; bez „nie wiem” pole zostaje puste). */
   league?: League;
+  /** Dawne pole (kreator już o to nie pyta); stare zapisy nadal się odczytują. */
   focus: Focus[];
+  /** Gdzie zawodnik widzi się za rok i gdzie chciałby być (identyfikatory z VISION i DREAM). */
+  vision?: string;
+  dream?: string;
   setAt: string;
 }
 
@@ -27,8 +41,10 @@ export function parseAmbition(raw: unknown): Ambition | null {
   const r = raw as Record<string, unknown>;
   const focus = Array.isArray(r.focus) ? [...new Set(r.focus.filter((f): f is Focus => (FOCUS as readonly unknown[]).includes(f)))].slice(0, MAX_FOCUS) : [];
   const league = (LEAGUES as readonly unknown[]).includes(r.league) ? (r.league as League) : undefined;
-  if (!league && !focus.length) return null;
-  return { ...(league ? { league } : {}), focus, setAt: typeof r.setAt === "string" ? r.setAt : "" };
+  const vision = VISION.some(([k]) => k === r.vision) ? (r.vision as string) : undefined;
+  const dream = DREAM.some(([k]) => k === r.dream) ? (r.dream as string) : undefined;
+  if (!league && !focus.length && !vision && !dream) return null;
+  return { ...(league ? { league } : {}), focus, ...(vision ? { vision } : {}), ...(dream ? { dream } : {}), setAt: typeof r.setAt === "string" ? r.setAt : "" };
 }
 
 const KEY = "ambition";

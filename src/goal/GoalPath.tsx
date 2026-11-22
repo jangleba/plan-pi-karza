@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { FOCUS_LABEL, adherence, cycleAt, cycleRegularity, loadAmbition, milestones, previousCycle, summarizeCycle } from "../engine";
+import { dreamLabel, visionLabel, adherence, cycleAt, cycleRegularity, loadAmbition, milestones, previousCycle, summarizeCycle } from "../engine";
 import type { HistoryEvent, Metric, PlannedDay, Profile } from "../engine";
 import { fmtValue } from "../engine/progress2";
 import { shortDate } from "../progress/metrics";
@@ -34,7 +34,7 @@ export function GoalPath({ profile, events, metrics, planned, today }: { profile
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-[17px] font-semibold leading-snug">{ambition?.league ? `Twoja ambicja: ${ambition.league}` : ambition ? "Twój cel na ten cykl" : "Nie ustawiono celu"}</div>
-            {ambition && ambition.focus.length > 0 && <div className="mt-0.5 text-sm text-muted">Pracujesz nad: {ambition.focus.map((f) => FOCUS_LABEL[f]).join(", ")}</div>}
+            {ambition?.vision && <div className="mt-0.5 text-sm text-muted">Za rok: {visionLabel(ambition.vision)}</div>}
           </div>
           <button onClick={() => setOpen(true)} className="shrink-0 text-sm text-muted underline">{ambition ? "Zmień" : "Ustal"}</button>
         </div>

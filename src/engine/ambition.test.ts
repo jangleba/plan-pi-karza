@@ -22,6 +22,8 @@ describe("ambicja zawodnika", () => {
     expect(parseAmbition({ league: "Liga Mistrzów", focus: ["ufo"] })).toBeNull();
     expect(parseAmbition({ league: "IV liga", focus: ["jump", "sprint", "strength", "jump"], setAt: "2026-11-21" })).toEqual({ league: "IV liga", focus: ["jump", "sprint"], setAt: "2026-11-21" });
     expect(parseAmbition({ focus: ["regularity"] })).toEqual({ focus: ["regularity"], setAt: "" });
+    expect(parseAmbition({ vision: "leader", dream: "pro", setAt: "x" })).toEqual({ focus: [], vision: "leader", dream: "pro", setAt: "x" });
+    expect(parseAmbition({ vision: "ufo", dream: "xyz" })).toBeNull();
   });
   it("zapis i odczyt lokalny; „nie teraz” chowa kartę na 14 dni", () => {
     expect(loadAmbition()).toBeNull();

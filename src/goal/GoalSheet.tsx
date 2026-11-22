@@ -1,29 +1,21 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { FOCUS, FOCUS_LABEL, LEAGUES, MAX_FOCUS, clearAmbition, loadAmbition, localISO, saveAmbition, type Ambition, type Focus, type League } from "../engine";
-
-const FOCUS_LINE: Record<Focus, string> = {
-  regularity: "Trenuj co tydzień, bez przerw",
-  jump: "Wyżej w pojedynkach głową",
-  sprint: "Pierwszy do piłki",
-  strength: "Mocniejszy w starciach",
-  endurance: "Pełna moc do ostatniej minuty",
-};
+import { DREAM, LEAGUES, VISION, clearAmbition, dreamLabel, loadAmbition, localISO, saveAmbition, visionLabel, type Ambition, type League } from "../engine";
 
 const LINES = ["Każdy trening przybliża Cię do tego celu.", "Małe kroki, co tydzień. Tak się wchodzi wyżej.", "Najpierw plan, potem boisko – a boisko zaczyna się dziś."];
 
-const STEPS = 3;
+const STEPS = 4;
 
-/** Ustalanie celu: pełnoekranowy kreator w 3 krokach (liga → nad czym pracujesz → Twoja droga), bez przewijania strony pod spodem. */
+/** Ustalanie celu: pełnoekranowy kreator w 3 krokach (liga → gdzie widzisz się za rok → gdzie chciałbyś być → Twoja droga), bez przewijania strony pod spodem. */
 export function GoalSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const cur = loadAmbition();
   const [league, setLeague] = useState<League | null>(cur?.league ?? null);
-  const [focus, setFocus] = useState<Focus[]>(cur?.focus ?? []);
+  const [vision, setVision] = useState<string | null>(cur?.vision ?? null);
+  const [dream, setDream] = useState<string | null>(cur?.dream ?? null);
   const [step, setStep] = useState(0);
   const [back, setBack] = useState(false);
   const [closing, setClosing] = useState(false);
-  const toggle = (f: Focus) => setFocus((x) => (x.includes(f) ? x.filter((y) => y !== f) : x.length >= MAX_FOCUS ? [x[1]!, f] : [...x, f]));
-  const empty = !league && !focus.length;
+  const empty = !league && !vision && !dream;
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -35,7 +27,7 @@ export function GoalSheet({ onClose, onSaved }: { onClose: () => void; onSaved: 
   const close = () => { setClosing(true); setTimeout(onClose, 200); };
   const save = () => {
     if (empty) clearAmbition();
-    else { const a: Ambition = { ...(league ? { league } : {}), focus, setAt: localISO() }; saveAmbition(a); }
+    else { const a: Ambition = { ...(league ? { league } : {}), focus: cur?.focus ?? [], ...(vision ? { vision } : {}), ...(dream ? { dream } : {}), setAt: localISO() }; saveAmbition(a); }
     onSaved();
     close();
   };
@@ -68,26 +60,29 @@ export function GoalSheet({ onClose, onSaved }: { onClose: () => void; onSaved: 
             </div>
           </>
         )}
-        {step === 1 && (
-          <>
-            <h2 className="text-[28px] font-bold leading-tight tracking-tight">Nad czym pracujesz?</h2>
-            <p className="mb-4 mt-1 text-[16px] text-muted">Wybierz do dwóch rzeczy – na nich skupimy ten cykl. <span className="font-medium text-ink">{focus.length} z {MAX_FOCUS}</span></p>
-            <div className="flex flex-col gap-2.5">
-              {FOCUS.map((f, i) => {
-                const on = focus.includes(f);
-                return (
-                  <button key={f} style={stagger(i)} onClick={() => toggle(f)} aria-pressed={on} className={`bw-tile-in flex min-h-[64px] items-center gap-3 rounded-2xl px-4 text-left transition-colors duration-200 ${on ? "bw-sel bw-pop" : "border border-hairline bg-card"}`}>
-                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${on ? "border-accent bg-accent text-white" : "border-hairline"}`} aria-hidden="true">
-                      {on && <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path className="bw-check" d="M5 12.5l4.5 4.5L19 7.5" /></svg>}
-                    </span>
-                    <span><span className="block text-[17px] font-semibold leading-snug">{FOCUS_LABEL[f]}</span><span className={`block text-[14px] ${on ? "text-accent/80" : "text-muted"}`}>{FOCUS_LINE[f]}</span></span>
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )}
-        {step === 2 && (
+        {(step === 1 || step === 2) && (() => {
+          const isVision = step === 1, list = isVision ? VISION : DREAM, val = isVision ? vision : dream, set = isVision ? setVision : setDream;
+          return (
+            <>
+              <h2 className="text-[28px] font-bold leading-tight tracking-tight">{isVision ? "Gdzie widzisz się za rok?" : "Gdzie chciałbyś być?"}</h2>
+              <p className="mb-4 mt-1 text-[16px] text-muted">{isVision ? "Zamknij oczy i zobacz siebie za 12 miesięcy. Co widzisz?" : "A gdyby nic Cię nie ograniczało – dokąd chcesz dojść w piłce?"}</p>
+              <div className="flex flex-col gap-2.5">
+                {list.map(([id, text], i) => {
+                  const on = val === id;
+                  return (
+                    <button key={id} style={stagger(i)} onClick={() => set(on ? null : id)} aria-pressed={on} className={`bw-tile-in flex min-h-[64px] items-center gap-3 rounded-2xl px-4 text-left text-[17px] leading-snug transition-colors duration-200 ${on ? "bw-sel bw-pop font-semibold" : "border border-hairline bg-card"}`}>
+                      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${on ? "border-accent bg-accent text-white" : "border-hairline"}`} aria-hidden="true">
+                        {on && <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path className="bw-check" d="M5 12.5l4.5 4.5L19 7.5" /></svg>}
+                      </span>
+                      {text}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          );
+        })()}
+        {step === 3 && (
           <div className="text-center">
             <h2 className="text-[28px] font-bold leading-tight tracking-tight">{empty ? "Bez celu na razie" : "Twoja droga"}</h2>
             <p className="mb-2 mt-1 text-[16px] text-muted">{empty ? "Cel możesz ustawić później na Starcie." : LINES[(league ? league.length : 0) % LINES.length]}</p>
@@ -104,19 +99,20 @@ export function GoalSheet({ onClose, onSaved }: { onClose: () => void; onSaved: 
                 <text x="284" y="62" textAnchor="middle" fontSize="13" fontWeight="600" fill="#1d1d1f">{league ?? "Twój cel"}</text>
               </svg>
             )}
-            {focus.length > 0 && (
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
-                {focus.map((f, i) => <span key={f} style={{ animationDelay: `${600 + i * 120}ms` }} className="bw-tile-in rounded-full bg-accent-soft px-4 py-2 text-[15px] font-medium text-accent">{FOCUS_LABEL[f]}</span>)}
+            {(vision || dream) && (
+              <div className="mt-4 space-y-2.5 text-left">
+                {vision && <div style={{ animationDelay: "600ms" }} className="bw-tile-in rounded-2xl bg-accent-soft px-4 py-3"><div className="text-[13px] text-accent/80">Za rok</div><div className="text-[17px] font-semibold text-accent">{visionLabel(vision)}</div></div>}
+                {dream && <div style={{ animationDelay: "740ms" }} className="bw-tile-in rounded-2xl bg-accent-soft px-4 py-3"><div className="text-[13px] text-accent/80">Marzenie</div><div className="text-[17px] font-semibold text-accent">{dreamLabel(dream)}</div></div>}
               </div>
             )}
-            {!empty && <p className="mt-5 text-[15px] text-muted">Plan treningowy dopasuje się do tego kierunku. Cel zmienisz w każdej chwili.</p>}
+            {!empty && <p className="mt-5 text-[15px] text-muted">Zmienisz to w każdej chwili.</p>}
           </div>
         )}
       </main>
 
       <div className="shrink-0 px-5 pt-2" style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}>
         {step < STEPS - 1 ? (
-          <button onClick={() => go(step + 1)} className="bw-grad h-14 w-full rounded-[20px] text-[18px] font-semibold active:scale-[0.99]">{step === 1 && !focus.length ? "Pomiń" : "Dalej"}</button>
+          <button onClick={() => go(step + 1)} className="bw-grad h-14 w-full rounded-[20px] text-[18px] font-semibold active:scale-[0.99]">{(step === 1 && !vision) || (step === 2 && !dream) ? "Pomiń" : "Dalej"}</button>
         ) : (
           <button onClick={save} className="bw-grad h-14 w-full rounded-[20px] text-[18px] font-semibold active:scale-[0.99]">{empty ? (cur ? "Usuń cel" : "Zamknij") : "Zaczynamy"}</button>
         )}

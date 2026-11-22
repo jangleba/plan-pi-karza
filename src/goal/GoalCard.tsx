@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { adherence, ambitionCardHidden, cycleAt, cycleRegularity, dismissAmbitionCard, FOCUS_LABEL, loadAmbition, loadHistory, localISO, milestones, nextMilestone } from "../engine";
+import { adherence, ambitionCardHidden, cycleAt, cycleRegularity, dismissAmbitionCard, dreamLabel, visionLabel, loadAmbition, loadHistory, localISO, milestones, nextMilestone } from "../engine";
 import type { Profile } from "../engine";
 import { plannedDays } from "../progress/data";
 import { GoalSheet } from "./GoalSheet";
@@ -23,7 +23,7 @@ export function GoalCard({ profile }: { profile: Profile }) {
     return (
       <section className="bw-rise mb-6 rounded-3xl border border-hairline bg-card px-5 py-4" aria-label="Cel">
         <h2 className="text-[17px] font-semibold">Ustal swój cel</h2>
-        <p className="mt-1 text-sm text-muted">Dwa krótkie pytania.</p>
+        <p className="mt-1 text-sm text-muted">Trzy krótkie pytania – liga i Twoja wizja.</p>
         <div className="mt-3 flex gap-2">
           <button onClick={() => setOpen(true)} className="flex-1 rounded-2xl bw-grad py-3 text-sm font-medium">Ustal</button>
           <button onClick={() => { dismissAmbitionCard(today); setTick((t) => t + 1); }} className="rounded-2xl bg-canvas px-4 text-sm text-muted">Nie teraz</button>
@@ -38,7 +38,7 @@ export function GoalCard({ profile }: { profile: Profile }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-[17px] font-semibold leading-snug">{ambition.league ? `Twoja ambicja: ${ambition.league}` : "Twój cel na ten cykl"}</h2>
-          {ambition.focus.length > 0 && <p className="mt-0.5 text-sm text-muted">Pracujesz nad: {ambition.focus.map((f) => FOCUS_LABEL[f]).join(", ")}</p>}
+          {ambition.vision && <p className="mt-0.5 text-sm text-muted">Za rok: {visionLabel(ambition.vision)}</p>}
         </div>
         <button onClick={() => setOpen(true)} className="shrink-0 text-sm text-muted underline">Zmień</button>
       </div>
