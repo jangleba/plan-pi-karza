@@ -7,7 +7,6 @@ import type { Scope } from "./lib/store";
 import { evaluate } from "./lib/profileGuard";
 import { loadPrivate } from "./lib/private";
 import { GEAR, type Gear } from "./engine";
-import { loadMissingGear, saveMissingGear } from "./lib/gear";
 import { buildExport, deleteAccountRemote, deleteAllLocalData, deleteGuestData, deleteLocalData, guardianLink, guardianState, guestHasData, guestKeys, importGuestData, requestGuardian, type DeleteReport, type GuardianState } from "./legal/account";
 import { loadConsent, setHealthSync, type ConsentState } from "./legal/consent";
 import { CONTRACT_VERSION, CURRENT, OPERATOR_LABEL, legalReadiness, mayCreateAccounts, type DocKind } from "./legal/config";
@@ -56,7 +55,7 @@ function Guardian({ profile }: { profile: Profile }) {
   );
 }
 
-export function Settings({ scope, email, profile, onClose, onLogin }: { scope: Scope; email: string | null; profile: Profile; onClose: () => void; onLogin: () => void }) {
+export function Settings({ scope, email, profile, onProfile, onClose, onLogin }: { scope: Scope; email: string | null; profile: Profile; onProfile: (p: Profile) => void; onClose: () => void; onLogin: () => void }) {
   const user = scope.kind === "user";
   const [consent, setConsent] = useState<ConsentState>(() => loadConsent("health_sync"));
   const [msg, setMsg] = useState("");
@@ -66,8 +65,8 @@ export function Settings({ scope, email, profile, onClose, onLogin }: { scope: S
   const [typed, setTyped] = useState("");
   const [report, setReport] = useState<DeleteReport | null>(null);
   const [busy, setBusy] = useState(false);
-  const [missing, setMissing] = useState<Gear[]>(() => loadMissingGear());
-  const toggleGear = (g: Gear) => { const n = missing.includes(g) ? missing.filter((x) => x !== g) : [...missing, g]; setMissing(n); saveMissingGear(n); };
+  const missing: Gear[] = profile.missingGear ?? [];
+  const toggleGear = (g: Gear) => onProfile({ ...profile, missingGear: missing.includes(g) ? missing.filter((x) => x !== g) : [...missing, g] });
   const guestData = user && guestHasData();
   const commerce = purchaseAvailable();
   const ready = legalReadiness();

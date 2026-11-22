@@ -48,7 +48,7 @@ export function rowToCheckIn(r: { recovery: number; feeling: number; less: boole
  */
 export const REMOTE_PROFILE_FIELDS = [
   "name", "season", "goal", "goal2", "league", "age", "ageAsOf", "strengthYears", "weightKg", "position",
-  "equipment", "clubWeekdays", "matchWeekdays", "offWeekdays", "limitedGymAccess", "startDate",
+  "equipment", "clubWeekdays", "matchWeekdays", "offWeekdays", "limitedGymAccess", "missingGear", "startDate",
 ] as const satisfies ReadonlyArray<keyof Profile>;
 
 /** Pola, które NIGDY nie mogą trafić na serwer w profilu (twarda lista obronna, niezależna od kontraktu). */

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { DrillPreview } from "./drill/DrillPreview";
 import { TechniqueSession } from "./TechniqueSession";
 import { DrillFull } from "./drill/DrillFull";
@@ -6,7 +6,6 @@ import { HalfPitchView } from "./HalfPitch";
 import { InviteComposer } from "./InviteSheets";
 import { Sheet } from "./Sheet";
 import { pushWeightLog } from "./lib/sync";
-import { loadMissingGear } from "./lib/gear";
 import { MasCard, loadMas, saveMasDistance } from "./MasCard";
 import { RunTracker } from "./RunTracker";
 import { SessionBlocks } from "./SessionBlocks";
@@ -16,7 +15,7 @@ import { StimuliTool } from "./tools/Stimuli";
 import { Group, ListRow } from "./ui";
 import { CueTrainer } from "./CueTrainer";
 import { EXERCISES, RECOVERY, RECOVERY_LIGHT, applyChoice, applyGear, bodyweightTemplate, drillsFor, DRILL_GROUPS, adaptSession, addEvents, restSuggested, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
-import type { CheckIn, Drill, DrillGroup, Choice, Completion, DayPlan, HistoryEvent, Level, Mas, Position, Season, SeasonGoal, Suggestion } from "./engine";
+import type { CheckIn, Drill, DrillGroup, Choice, Completion, DayPlan, HistoryEvent, Level, Mas, Position, Gear, Season, SeasonGoal, Suggestion } from "./engine";
 
 interface ConfirmRow { exerciseId: string; kg: number; planned: string; plannedReps: number }
 
@@ -26,8 +25,8 @@ const KIND_TITLE: Record<string, string> = {
 };
 
 export function SessionSheet({
-  day, checkIn, checkedIn, weekInCycle, level, position, hasGym, inviterName, age, strengthYears, strengthSlot, strengthCount, season, goal, onSkipDay, onClose,
-}: { day: DayPlan; checkIn: CheckIn; checkedIn: boolean; weekInCycle: number; level: Level; position?: Position; hasGym: boolean; inviterName?: string; age?: number; strengthYears?: number; strengthSlot?: number; strengthCount?: number; season?: Season; goal?: SeasonGoal; onSkipDay?: () => void; onClose: () => void }) {
+  day, checkIn, checkedIn, weekInCycle, level, position, hasGym, inviterName, age, strengthYears, strengthSlot, strengthCount, season, goal, missingGear, onSkipDay, onClose,
+}: { day: DayPlan; checkIn: CheckIn; checkedIn: boolean; weekInCycle: number; level: Level; position?: Position; hasGym: boolean; inviterName?: string; age?: number; strengthYears?: number; strengthSlot?: number; strengthCount?: number; season?: Season; goal?: SeasonGoal; missingGear?: Gear[]; onSkipDay?: () => void; onClose: () => void }) {
   const [mas, setMas] = useState<Mas | null>(loadMas);
   const [running, setRunning] = useState(false);
   const [log, setLog] = useState(loadLog);
@@ -66,8 +65,7 @@ export function SessionSheet({
         })()
     : null;
   const run = s?.kind === "run" ? (mas ? runSession(mas, s?.variant === "light" ? "deload" : mesoPhase(weekInCycle), level, checkIn, position) : masTestSession()) : null;
-  const missingGear = useMemo(() => loadMissingGear(), []);
-  const gearApplied = found ? applyGear(found.template, missingGear) : null;
+  const gearApplied = found ? applyGear(found.template, missingGear ?? []) : null;
   const adaptedBase = found && gearApplied ? adaptSession(gearApplied.template, checkIn, found.deload) : null;
   const adapted = adaptedBase && gearApplied ? { ...adaptedBase, notes: [...adaptedBase.notes, ...gearApplied.notes] } : adaptedBase;
 

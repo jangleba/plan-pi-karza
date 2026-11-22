@@ -266,7 +266,7 @@ function Main({ scope, email, onLogin, invite, onInviteClose }: { scope: Scope; 
       <TabBar tab={tab} onChange={(t) => { setTab(t); window.scrollTo(0, 0); }} />
       <WeekGate profile={profile} />
       {invite && <InviteReceiver invite={invite} age={profile.age} onClose={onInviteClose} />}
-      {settings && <Settings scope={scope} email={email} profile={profile} onClose={() => setSettings(false)} onLogin={onLogin} />}
+      {settings && <Settings scope={scope} email={email} profile={profile} onProfile={(p) => { saveProfile(p); setGuard((g) => (g.kind === "ok" ? { ...g, profile: p } : g)); void pushProfile(p); }} onClose={() => setSettings(false)} onLogin={onLogin} />}
     </div>
   );
 }
@@ -315,7 +315,7 @@ function Home({ profile, checkIn, checkedIn, initialOpen, onOpened, onReset }: {
       </Group>
       {promptOpen && askNext && <WeekPrompt profile={profile} ask={askNext} onClose={() => setPromptOpen(false)} />}
       {open && (
-        <SessionSheet day={open} checkIn={checkIn} checkedIn={checkedIn} weekInCycle={cycleWeekFor(profile, weekStart)} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")} inviterName={profile.name} age={profile.age} strengthYears={profile.strengthYears} strengthSlot={Math.max(0, strengthDays.indexOf(open.date))} strengthCount={strengthDays.length} season={profile.season} goal={profile.goal}
+        <SessionSheet day={open} checkIn={checkIn} checkedIn={checkedIn} weekInCycle={cycleWeekFor(profile, weekStart)} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")} inviterName={profile.name} age={profile.age} strengthYears={profile.strengthYears} strengthSlot={Math.max(0, strengthDays.indexOf(open.date))} strengthCount={strengthDays.length} season={profile.season} goal={profile.goal} missingGear={profile.missingGear}
           onSkipDay={open.date >= today() ? () => { setSkipped(open.date, true, today()); setOpen(null); } : undefined} onClose={() => setOpen(null)} />
       )}
       <SkippedDays profile={profile} weekStart={weekStart} />

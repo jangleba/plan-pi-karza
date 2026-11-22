@@ -1,6 +1,7 @@
 import { loadMatchWeeks, matchDatesAround, type MatchWeeks } from "./matchweek";
 import type { DaySkip, Level, Season, SeasonGoal, WeekInput } from "./types";
 import { MIN_AGE, assessAge } from "../lib/age";
+import type { Gear } from "./gear";
 import { addDays, localISO, planWeek, weekStartOf } from "./week";
 import { loadSkipped } from "../lib/skipped";
 import { loadExtras } from "../lib/extras";
@@ -45,6 +46,8 @@ export interface Profile {
   offWeekdays?: number[];
   /** Mało dni na siłownię – siła pełna także dzień po meczu. */
   limitedGymAccess: boolean;
+  /** Sprzęt, którego zawodnik NIE ma na siłowni (np. trap bar). Ćwiczenia go wymagające są zastępowane zamiennikami. */
+  missingGear?: Gear[];
   /** Data rozpoczęcia planu (ISO) – od niej liczony cykl 5-tygodniowy. */
   startDate?: string;
 }

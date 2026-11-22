@@ -28,7 +28,7 @@ Przestrzenie: `bw:guest:*` oraz `bw:u:<id konta>:*`. Zmiana konta nie kopiuje an
 ## 2. Synchronizacja z chmurą (Supabase) – tylko po zalogowaniu
 | Tabela | Zawartość | Warunek |
 |---|---|---|
-| `profiles` | Wyłącznie pola z `REMOTE_PROFILE_FIELDS` (`src/lib/sync-map.ts`); wyzwalacz w bazie odrzuca datę urodzenia, rocznik, pola spoza kontraktu i wiek < 16 | konto |
+| `profiles` | Wyłącznie pola z `REMOTE_PROFILE_FIELDS` (`src/lib/sync-map.ts`); wyzwalacz w bazie odrzuca datę urodzenia, rocznik, pola spoza kontraktu i wiek < 16. Od migracji 0010 kontrakt obejmuje `missingGear` (sprzęt, którego zawodnik nie ma na siłowni; nie jest daną zdrowotną) | konto |
 | `check_ins`, `weight_log`, `mas_tests` | Dane o samopoczuciu i treningu | **zgoda na synchronizację danych zdrowotnych** (RLS); wycofanie usuwa te dane z chmury |
 | `age_declarations` | Grupa wieku (16–17 / 18+) z czasem; bez daty urodzenia | konto; deklaracja ≠ weryfikacja tożsamości |
 | `agreement_events`, `consent_events` | Dowody: kto, wersja dokumentu, czas, metoda; tylko do dopisywania | konto |
