@@ -37,7 +37,7 @@ export function restoreDraft(raw: unknown): Draft | null {
     league: pick(x.league, LEAGUES),
     years: num(x.years, 0, 15, base.years),
     equipment: list(x.equipment, ["gym", "field", "track", "bodyweight"] as const),
-    homeGear: list(x.homeGear, ["dumbbells", "band"] as const),
+    homeGear: list(x.homeGear, ["dumbbells", "band", "improvised"] as const),
     missingGear: list(x.missingGear, ["trapbar", "barbell", "dumbbells", "medball", "band", "box", "machines"] as const),
     limited: x.limited === true,
     days,

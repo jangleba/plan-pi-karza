@@ -1,3 +1,4 @@
+import type { Level } from "./types";
 import { EXERCISES } from "./library";
 import type { Strain } from "./adapt";
 import { scoped } from "../lib/store";
@@ -120,4 +121,23 @@ export function saveLog(log: WeightLog): void {
   } catch {
     /* brak pamięci */
   }
+}
+
+/**
+ * Podpowiedź ciężaru na pierwszy raz (gdy nie ma jeszcze wpisu w dzienniku): ułamek masy ciała dla ćwiczeń z hantlami, zaokrąglony do 2,5 kg.
+ * Ostrożne wartości robocze do ustalenia przez trenera. Poniżej 18 lat o 15% mniej; przy butelkach i plecaku najwyżej 8 kg.
+ */
+const START_FRACTION: Record<string, Record<Level, number>> = {
+  "goblet-squat": { beginner: 0.15, intermediate: 0.25, advanced: 0.35 },
+  "db-rdl": { beginner: 0.2, intermediate: 0.3, advanced: 0.4 }, // łącznie w dwóch rękach
+  "db-row": { beginner: 0.1, intermediate: 0.15, advanced: 0.22 }, // jedna ręka
+  "db-bench-press": { beginner: 0.1, intermediate: 0.17, advanced: 0.25 }, // jedna ręka
+  "kb-swing": { beginner: 0.12, intermediate: 0.2, advanced: 0.28 },
+};
+export function startingKg(exerciseId: string, who: { weightKg: number; level: Level; age?: number; improvised?: boolean }): number | null {
+  const f = START_FRACTION[exerciseId]?.[who.level];
+  if (!f || !(who.weightKg > 0)) return null;
+  let kg = who.weightKg * f * (who.age !== undefined && who.age < 18 ? 0.85 : 1);
+  if (who.improvised) kg = Math.min(kg, 8);
+  return Math.max(2.5, roundTo(kg, 2.5));
 }

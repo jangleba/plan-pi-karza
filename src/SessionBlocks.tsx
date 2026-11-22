@@ -17,10 +17,12 @@ interface Props {
   weights: Record<string, string>;
   onWeight: (key: string, value: string) => void;
   onOpen?: (exerciseId: string, note?: string) => void;
+  /** Podpowiedź ciężaru na pierwszy raz, gdy nie ma wpisu w dzienniku. */
+  startKg?: (exerciseId: string) => number | null;
 }
 
 /** Sesja jako ponumerowane bloki trenera: nagłówek, literki a / b / c, jedna linia „jak robić”. */
-export function SessionBlocks({ blocks, mode, log, weights, onWeight, onOpen }: Props) {
+export function SessionBlocks({ blocks, mode, log, weights, onWeight, onOpen, startKg }: Props) {
   return (
     <ol className="mt-4 flex flex-col gap-4">
       {blocks.map((b, bi) => {
@@ -38,7 +40,8 @@ export function SessionBlocks({ blocks, mode, log, weights, onWeight, onOpen }: 
                 const e = EXERCISES[i.exerciseId];
                 const key = `${bi}-${ii}`;
                 const prev = log[i.exerciseId];
-                const placeholder = prev ? String(prev.next ?? prev.kg) : "kg";
+                const start = !prev ? startKg?.(i.exerciseId) ?? null : null;
+                const placeholder = prev ? String(prev.next ?? prev.kg) : start ? `ok. ${String(start).replace(".", ",")}` : "kg";
                 const rm = estimatedRM(prev); // tylko z potwierdzonego wykonania wszystkich powtórzeń
                 const target = i.pctRM && rm ? Math.round(rm * ((i.pctRM[0] + i.pctRM[1]) / 200) * 2) / 2 : null;
                 const many = b.items.length > 1;

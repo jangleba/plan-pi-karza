@@ -74,3 +74,13 @@ describe("progresja: zaplanowane ≠ wykonane, brak danych ≠ zwiększ", () => 
     expect(r.next).toBeUndefined(); // nie podnosimy bez potwierdzenia
   });
 });
+
+describe("ciężar startowy", () => {
+  it("ułamek masy ciała, 2,5 kg, mniej poniżej 18 lat, limit przy butelkach", async () => {
+    const { startingKg } = await import("./progress");
+    expect(startingKg("goblet-squat", { weightKg: 80, level: "beginner" })).toBe(12.5);
+    expect(startingKg("goblet-squat", { weightKg: 80, level: "beginner", age: 16 })).toBe(10);
+    expect(startingKg("db-rdl", { weightKg: 100, level: "advanced", improvised: true })).toBe(7.5);
+    expect(startingKg("back-squat", { weightKg: 80, level: "beginner" })).toBeNull();
+  });
+});

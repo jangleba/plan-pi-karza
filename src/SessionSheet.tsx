@@ -14,7 +14,7 @@ import { DrawTool } from "./tools/Draw";
 import { StimuliTool } from "./tools/Stimuli";
 import { Group, ListRow } from "./ui";
 import { CueTrainer } from "./CueTrainer";
-import { EXERCISES, RECOVERY, RECOVERY_LIGHT, applyChoice, applyGear, bodyweightTemplate, drillsFor, DRILL_GROUPS, adaptSession, addEvents, restSuggested, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
+import { EXERCISES, RECOVERY, RECOVERY_LIGHT, applyChoice, applyGear, bodyweightTemplate, drillsFor, DRILL_GROUPS, adaptSession, addEvents, restSuggested, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, startingKg, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
 import type { CheckIn, Drill, DrillGroup, Choice, Completion, DayPlan, HistoryEvent, Level, Mas, Position, Gear, HomeGear, Season, SeasonGoal, Suggestion } from "./engine";
 
 interface ConfirmRow { exerciseId: string; kg: number; planned: string; plannedReps: number }
@@ -25,8 +25,8 @@ const KIND_TITLE: Record<string, string> = {
 };
 
 export function SessionSheet({
-  day, checkIn, checkedIn, weekInCycle, level, position, hasGym, inviterName, age, strengthYears, strengthSlot, strengthCount, season, goal, missingGear, homeGear, onSkipDay, onClose,
-}: { day: DayPlan; checkIn: CheckIn; checkedIn: boolean; weekInCycle: number; level: Level; position?: Position; hasGym: boolean; inviterName?: string; age?: number; strengthYears?: number; strengthSlot?: number; strengthCount?: number; season?: Season; goal?: SeasonGoal; missingGear?: Gear[]; homeGear?: HomeGear[]; onSkipDay?: () => void; onClose: () => void }) {
+  day, checkIn, checkedIn, weekInCycle, level, position, hasGym, inviterName, age, strengthYears, strengthSlot, strengthCount, season, goal, missingGear, homeGear, weightKg, onSkipDay, onClose,
+}: { day: DayPlan; checkIn: CheckIn; checkedIn: boolean; weekInCycle: number; level: Level; position?: Position; hasGym: boolean; inviterName?: string; age?: number; strengthYears?: number; strengthSlot?: number; strengthCount?: number; season?: Season; goal?: SeasonGoal; missingGear?: Gear[]; homeGear?: HomeGear[]; weightKg?: number; onSkipDay?: () => void; onClose: () => void }) {
   const [mas, setMas] = useState<Mas | null>(loadMas);
   const [running, setRunning] = useState(false);
   const [log, setLog] = useState(loadLog);
@@ -203,7 +203,7 @@ export function SessionSheet({
             {adapted.notes.map((n) => (
               <p key={n} className="mt-3 rounded-xl border border-hairline bg-canvas px-3 py-2 text-sm text-muted">{n}</p>
             ))}
-            <SessionBlocks blocks={adapted.blocks} mode={module === "sprint" ? "sequence" : "alternate"} log={log} weights={weights} onWeight={(k, v) => setWeights({ ...weights, [k]: v })} onOpen={(id, note) => setInfo({ id, note })} />
+            <SessionBlocks blocks={adapted.blocks} mode={module === "sprint" ? "sequence" : "alternate"} log={log} weights={weights} onWeight={(k, v) => setWeights({ ...weights, [k]: v })} onOpen={(id, note) => setInfo({ id, note })} startKg={(id) => (weightKg ? startingKg(id, { weightKg, level, ...(age !== undefined ? { age } : {}), improvised: !!homeGear?.includes("improvised") && !homeGear.includes("dumbbells") }) : null)} />
           </>
         ) : run ? (
           <>

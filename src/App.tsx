@@ -315,7 +315,7 @@ function Home({ profile, checkIn, checkedIn, initialOpen, onOpened, onReset }: {
       </Group>
       {promptOpen && askNext && <WeekPrompt profile={profile} ask={askNext} onClose={() => setPromptOpen(false)} />}
       {open && (
-        <SessionSheet day={open} checkIn={checkIn} checkedIn={checkedIn} weekInCycle={cycleWeekFor(profile, weekStart)} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")} inviterName={profile.name} age={profile.age} strengthYears={profile.strengthYears} strengthSlot={Math.max(0, strengthDays.indexOf(open.date))} strengthCount={strengthDays.length} season={profile.season} goal={profile.goal} missingGear={profile.missingGear} homeGear={profile.homeGear}
+        <SessionSheet day={open} checkIn={checkIn} checkedIn={checkedIn} weekInCycle={cycleWeekFor(profile, weekStart)} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")} inviterName={profile.name} age={profile.age} strengthYears={profile.strengthYears} strengthSlot={Math.max(0, strengthDays.indexOf(open.date))} strengthCount={strengthDays.length} season={profile.season} goal={profile.goal} missingGear={profile.missingGear} homeGear={profile.homeGear} weightKg={profile.weightKg}
           onSkipDay={open.date >= today() ? () => { setSkipped(open.date, true, today()); setOpen(null); } : undefined} onClose={() => setOpen(null)} />
       )}
       <SkippedDays profile={profile} weekStart={weekStart} />

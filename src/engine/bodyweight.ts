@@ -35,7 +35,8 @@ const UNI = new Set(["split-squat", "bulgarian-split-squat", "assisted-pistol", 
  * Serie i powtórzenia – wartości robocze do ustalenia przez trenera.
  */
 export function bodyweightTemplate(level: Level, phase: MesoPhase, home: readonly HomeGear[] = []): SessionTemplate {
-  const dumbbells = home.includes("dumbbells");
+  // butelki z wodą lub plecak z ciężarem działają jak lekkie hantle (ten sam układ, ale więcej powtórzeń)
+  const dumbbells = home.includes("dumbbells") || home.includes("improvised");
   const band = home.includes("band");
   const beginner = level === "beginner";
   const reps = (id: string, volume: number, intensity: number) => {
@@ -54,7 +55,8 @@ export function bodyweightTemplate(level: Level, phase: MesoPhase, home: readonl
   const jump = rung("jump", level, phase);
   // z hantlami: ruchy z ciężarem zamiast najłatwiejszych szczebli drabinki (poziom zaawansowany zostaje przy trudnych wariantach jednonóż)
   const loadedLegs = dumbbells && level !== "advanced";
-  const heavy = beginner ? "10–12" : "8–10";
+  const light = !home.includes("dumbbells") && home.includes("improvised");
+  const heavy = light ? "12–15" : beginner ? "10–12" : "8–10";
   const legs: Block = loadedLegs
     ? { title: "Siła nóg", items: [{ exerciseId: "goblet-squat", sets: beginner ? 3 : 4, reps: phase === "intensity" && !beginner ? "6–8" : heavy, ...(beginner ? { note: "technika przed ciężarem, zostaw 3 powtórzenia zapasu" } : {}) }, item(rung("squat", level === "beginner" ? "intermediate" : level, phase) === "bw-squat" ? "split-squat" : rung("squat", level, phase), 3, 8, 6)] }
     : { title: "Siła nóg", items: [item(squat, 4, 8, 5)] };
