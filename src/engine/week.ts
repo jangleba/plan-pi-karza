@@ -121,7 +121,7 @@ export function planWeek(input: WeekInput): WeekPlan {
   /** Czy w danym dniu można zaplanować siłę: dzień po meczu tylko przy odpowiednim stażu siłowym. */
   const strengthOk = (d: DayPlan): boolean => d.phase !== "MD+1" || mdPlus1Strength;
 
-  interface PlaceOpt { minDate?: string; skip?: ReadonlySet<string>; movedFrom?: string; replaceTechnique?: boolean }
+  interface PlaceOpt { upper?: boolean; minDate?: string; skip?: ReadonlySet<string>; movedFrom?: string; replaceTechnique?: boolean }
   const place = (kind: SessionKind, phases: Phase[], opt: PlaceOpt = {}): boolean => {
     for (const wantPhase of phases) {
       // dni bez klubu najpierw: klub + 1 indywidualna to limit dnia
@@ -134,11 +134,11 @@ export function planWeek(input: WeekInput): WeekPlan {
           if (opt.minDate && d.date < opt.minDate) continue;
           if (opt.skip?.has(d.date)) continue;
           if (!allowedKinds(d.phase).includes(kind)) continue;
-          if (kind === "strength" && !strengthOk(d)) continue;
+          if (kind === "strength" && !opt.upper && !strengthOk(d)) continue;
           if (HARD.includes(kind) && neighbourHas(i, kind)) continue;
           const session: IndividualSession = {
             kind,
-            variant: variantFor(kind, d.phase, input),
+            variant: opt.upper ? "upper" : variantFor(kind, d.phase, input),
             reason: opt.movedFrom ? `Przełożona z ${weekdayGen(opt.movedFrom)}: wtedy nie możesz trenować.` : REASONS[`${kind}:${d.phase}`] ?? "",
             ...(opt.movedFrom ? { movedFrom: opt.movedFrom } : {}),
           };
@@ -166,6 +166,9 @@ export function planWeek(input: WeekInput): WeekPlan {
   if (extra && !mustExtra) place(extra, PREFERRED[extra]);
   const extra2 = input.goal2 !== input.goal ? goalExtra(input.goal2) : null;
   if (extra2) place(extra2, PREFERRED[extra2]);
+
+  // Trzecia sesja siłowa: hipertroficzna góra ciała, gdy są już dwie pełne i zostaje wolny dzień. Najchętniej dzień po meczu.
+  if (days.filter((d) => d.session?.kind === "strength").length >= 2) place("strength", ["MD+1", "free", "MD+2"], { upper: true });
 
   // Dni, w których zawodnik zgłosił „nie mogę zrobić dzisiejszych treningów” (check-in, plan): sesję indywidualną przekładamy na pierwszy
   // dozwolony dzień, nie wcześniejszy niż dzień zgłoszenia. Kolejność jak przy planowaniu (np. dla siły: MD-3, wolne, MD+2), a siła dzień po meczu

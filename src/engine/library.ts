@@ -32,38 +32,38 @@ const ex = (
 export const EXERCISES: Record<string, Exercise> = Object.fromEntries(
   [
     ex("knee-iso-push", "Knee iso push", "iso", false, 1, "knee", ["sl-hip-thrust-iso"]),
-    ex("sl-hip-thrust-iso", "Izometria hip thrust jednonóż", "iso", false, 1, "hip"),
+    ex("sl-hip-thrust-iso", "Izometria hip thrust jednonóż", "iso", false, 1, "hip", ["knee-iso-push"]),
     ex("sl-box-jump", "Skok na skrzynię jednonóż", "jump", false, 2, "knee", ["box-jump", "pogo-jumps"]),
     ex("box-jump", "Skok na skrzynię", "jump", false, 2, "knee", ["pogo-jumps"]),
     ex("pogo-jumps", "Pogo jumps", "jump", false, 1, "ankle"),
-    ex("hang-power-clean", "Hang power clean", "power", true, 3, "back", ["kb-swing", "box-jump"]),
-    ex("kb-swing", "Swing z kettlebell", "power", true, 2, "hip", ["pogo-jumps"]),
-    ex("back-squat", "Back squat", "squat", true, 3, "knee", ["goblet-squat", "step-up"]),
-    ex("goblet-squat", "Goblet squat", "squat", true, 2, "knee", ["step-up"]),
-    ex("step-up", "Step up", "squat", true, 2, "knee", ["goblet-squat"]),
+    ex("hang-power-clean", "Hang power clean", "power", true, 3, "back", ["kb-swing", "mb-overhead-throw", "box-jump"]),
+    ex("kb-swing", "Swing z kettlebell", "power", true, 2, "hip", ["mb-overhead-throw", "pogo-jumps"]),
+    ex("back-squat", "Back squat", "squat", true, 3, "knee", ["goblet-squat", "bulgarian-split-squat", "step-up", "split-squat"]),
+    ex("goblet-squat", "Goblet squat", "squat", true, 2, "knee", ["step-up", "split-squat", "bw-squat"]),
+    ex("step-up", "Step up", "squat", true, 2, "knee", ["goblet-squat", "split-squat"]),
     ex("depth-jump-hurdle", "Depth jump nad płotek", "jump", false, 3, "knee", ["depth-box-jump", "box-jump"]),
     ex("depth-box-jump", "Depth box jump", "jump", false, 3, "knee", ["box-jump", "pogo-jumps"]),
-    ex("bench-press", "Wyciskanie na ławce", "push", true, 3, "shoulder", ["db-bench-press", "push-up"]),
-    ex("db-bench-press", "Wyciskanie hantli", "push", true, 2, "shoulder", ["push-up"]),
-    ex("push-up", "Pompki", "push", false, 1, "shoulder"),
-    ex("facepull", "Facepull", "pull", true, 1, "shoulder"),
-    ex("bb-row", "Wiosłowanie sztangą", "pull", true, 2, "back", ["db-row", "inverted-row"]),
-    ex("db-row", "Wiosłowanie hantlem", "pull", true, 2, "back", ["inverted-row"]),
-    ex("inverted-row", "Podciąganie poziome", "pull", false, 1, "back"),
+    ex("bench-press", "Wyciskanie na ławce", "push", true, 3, "shoulder", ["db-bench-press", "push-up", "incline-push-up"]),
+    ex("db-bench-press", "Wyciskanie hantli", "push", true, 2, "shoulder", ["push-up", "incline-push-up"]),
+    ex("push-up", "Pompki", "push", false, 1, "shoulder", ["incline-push-up"]),
+    ex("facepull", "Facepull", "pull", true, 1, "shoulder", ["inverted-row"]),
+    ex("bb-row", "Wiosłowanie sztangą", "pull", true, 2, "back", ["db-row", "inverted-row", "feet-elevated-row"]),
+    ex("db-row", "Wiosłowanie hantlem", "pull", true, 2, "back", ["inverted-row", "feet-elevated-row"]),
+    ex("inverted-row", "Podciąganie poziome", "pull", false, 1, "back", ["db-row"]),
     ex("sl-straight-leg-ht", "Hip thrust jednonóż (prosta noga)", "hinge", true, 2, "hip", ["glute-bridge"]),
-    ex("glute-bridge", "Glute bridge", "hinge", false, 1, "hip"),
-    ex("slider-leg-curl", "Slider leg curl", "hinge", false, 2, "knee", ["glute-bridge"]),
-    ex("seated-sl-calf", "Łydki siedząc jednonóż", "calf", true, 1, "ankle"),
+    ex("glute-bridge", "Glute bridge", "hinge", false, 1, "hip", ["sl-glute-bridge"]),
+    ex("slider-leg-curl", "Slider leg curl", "hinge", false, 2, "knee", ["glute-bridge", "sl-glute-bridge"]),
+    ex("seated-sl-calf", "Łydki siedząc jednonóż", "calf", true, 1, "ankle", ["sl-calf-raise"]),
     ex("banded-hip-flexion", "Zginanie biodra z gumą", "hipflexor", false, 1, "hip"),
     // dół ciała i moc (dodane z sesji trenera; opisy bez animacji)
-    ex("trap-bar-deadlift", "Trap bar deadlift", "hinge", true, 3, "back", ["db-rdl", "glute-bridge"]),
-    ex("db-rdl", "Martwy ciąg rumuński z hantlami", "hinge", true, 2, "hip", ["glute-bridge"]),
-    ex("mb-shotput", "Pchnięcie piłki lekarskiej", "power", false, 2, "shoulder"),
-    ex("mb-overhead-throw", "Rzut piłki lekarskiej znad głowy", "power", false, 2, "back"),
-    ex("broad-jump-ex", "Skok w dal z miejsca", "jump", false, 2, "knee", ["box-jump", "pogo-jumps"]),
-    ex("skater-jump", "Skok boczny (skater)", "jump", false, 2, "knee", ["pogo-jumps"]),
-    ex("sl-assisted-cmj", "Skok jednonóż z asystą gumy", "jump", false, 2, "knee", ["sl-box-jump", "pogo-jumps"]),
-    ex("weighted-step-up-jump", "Step up z wyskokiem i ciężarem", "jump", true, 2, "knee", ["sl-box-jump", "pogo-jumps"]),
+    ex("trap-bar-deadlift", "Trap bar deadlift", "hinge", true, 3, "back", ["db-rdl", "sl-rdl-bw", "glute-bridge"]),
+    ex("db-rdl", "Martwy ciąg rumuński z hantlami", "hinge", true, 2, "hip", ["sl-rdl-bw", "glute-bridge"]),
+    ex("mb-shotput", "Pchnięcie piłki lekarskiej", "power", false, 2, "shoulder", ["mb-overhead-throw", "kb-swing"]),
+    ex("mb-overhead-throw", "Rzut piłki lekarskiej znad głowy", "power", false, 2, "back", ["mb-shotput", "kb-swing"]),
+    ex("broad-jump-ex", "Skok w dal z miejsca", "jump", false, 2, "knee", ["squat-jump", "box-jump", "pogo-jumps"]),
+    ex("skater-jump", "Skok boczny (skater)", "jump", false, 2, "knee", ["bounding", "pogo-jumps"]),
+    ex("sl-assisted-cmj", "Skok jednonóż z asystą gumy", "jump", false, 2, "knee", ["sl-box-jump", "squat-jump", "pogo-jumps"]),
+    ex("weighted-step-up-jump", "Step up z wyskokiem i ciężarem", "jump", true, 2, "knee", ["sl-box-jump", "sl-assisted-cmj", "pogo-jumps"]),
     // sprint
     ex("skip-przejscia", "Skipy – przejścia", "drill", false, 1, "none"),
     ex("skip-a-b-d", "Drille skip A / B / D", "drill", false, 1, "none"),
@@ -226,7 +226,10 @@ const SQUAT_INT: Record<Level, Item> = {
 const PLYO_POOL: Array<[string, number, string]> = [
   ["sl-box-jump", 3, "3 / nogę"], ["mb-shotput", 3, "5 / stronę"], ["broad-jump-ex", 3, "3"], ["skater-jump", 3, "4 / stronę"],
   ["sl-assisted-cmj", 3, "3 / nogę"], ["pogo-jumps", 3, "6"], ["mb-overhead-throw", 3, "5"], ["box-jump", 3, "3"],
+  ["kb-swing", 3, "8"], ["hang-power-clean", 3, "3"],
 ];
+/** Hang power clean wymaga techniki: tylko poziom zaawansowany. */
+const ADVANCED_ONLY = new Set(["hang-power-clean"]);
 
 /** Liczba ćwiczeń w bloku mocy/plyo: moment w roku + cel (szybkość dodaje, siła odejmuje). Wartości umowne – do ustalenia przez trenera. */
 export function plyoCount(season: Season | undefined, goal: SeasonGoal | undefined): number {
@@ -235,10 +238,11 @@ export function plyoCount(season: Season | undefined, goal: SeasonGoal | undefin
   return Math.min(5, Math.max(2, base + adj));
 }
 
-function plyoBlock(phase: "volume" | "intensity", season: Season | undefined, goal: SeasonGoal | undefined, weekInCycle: number): Block {
+function plyoBlock(phase: "volume" | "intensity", season: Season | undefined, goal: SeasonGoal | undefined, weekInCycle: number, level: Level = "intermediate"): Block {
   const n = plyoCount(season, goal);
-  const start = (weekInCycle * 2) % PLYO_POOL.length;
-  const picks = Array.from({ length: n }, (_, k) => PLYO_POOL[(start + k) % PLYO_POOL.length]!);
+  const pool = PLYO_POOL.filter(([id]) => level === "advanced" || !ADVANCED_ONLY.has(id));
+  const start = (weekInCycle * 2) % pool.length;
+  const picks = Array.from({ length: n }, (_, k) => pool[(start + k) % pool.length]!);
   const items = picks.map(([id, sets, reps]) => it(id, sets, reps));
   if (phase === "intensity") items.unshift(it("depth-jump-hurdle", 3, "3"));
   return { title: "Moc i plyo", items: items.slice(0, n) };
@@ -257,7 +261,7 @@ function dayB(level: Level, phase: "volume" | "intensity", season: Season | unde
     phase,
     blocks: [
       { title: "Aktywacja", items: [it("knee-iso-push", 3, "5 × 1 s / nogę")] },
-      plyoBlock(phase, season, goal, week),
+      plyoBlock(phase, season, goal, week, level),
       lower,
       { title: "Góra", items: [it("bench-press", vol ? 4 : 3, vol ? "5" : "3", { pctRM: vol ? [75, 80] : [85, 88] }), it("bb-row", 3, vol ? "6" : "4")] },
       { title: "Dodatki", items: [it("slider-leg-curl", 3, vol ? "6" : "4"), it("seated-sl-calf", 3, "12 / nogę")] },
@@ -265,18 +269,28 @@ function dayB(level: Level, phase: "volume" | "intensity", season: Season | unde
   };
 }
 
-const BEGINNER: SessionTemplate = {
-  id: "strength-beginner",
-  name: "Siła – początek",
-  module: "strength",
-  phase: "volume",
-  blocks: [
-    { title: "Aktywacja", items: [it("glute-bridge", 2, "10"), it("pogo-jumps", 2, "6")] },
-    { title: "Nogi", items: [it("goblet-squat", 3, "8"), it("step-up", 3, "6 / nogę")] },
-    { title: "Góra", items: [it("db-bench-press", 3, "8"), it("db-row", 3, "8 / rękę")] },
-    { title: "Core", items: [it("side-plank", 3, "30 s / stronę")] },
-  ],
-};
+/**
+ * Początkujący (też młody): nauka ruchu i hipertrofia dołu zamiast ciężkich serii. Bez %1RM, 3 serie po 10–12, zapas 3 powtórzeń, wolne tempo.
+ * Dwie wersje na przemian (A: przysiad i wykrok, B: hinge i jednonóż). Wartości robocze – do ustalenia przez trenera.
+ */
+const NOTE_B = "technika przed ciężarem, zostaw 3 powtórzenia zapasu";
+function beginnerDay(b: boolean): SessionTemplate {
+  const legs: Block = b
+    ? { title: "Dół: hipertrofia", items: [it("db-rdl", 3, "12", { note: NOTE_B }), it("step-up", 3, "10 / nogę"), it("sl-glute-bridge", 3, "12 / nogę"), it("seated-sl-calf", 3, "15 / nogę")] }
+    : { title: "Dół: hipertrofia", items: [it("goblet-squat", 3, "12", { note: "tempo 3-1-x, " + NOTE_B }), it("split-squat", 3, "10 / nogę"), it("glute-bridge", 3, "12"), it("seated-sl-calf", 3, "15 / nogę")] };
+  return {
+    id: b ? "strength-beginner-b" : "strength-beginner-a",
+    name: "Siła – nauka i budowa masy",
+    module: "strength",
+    phase: "volume",
+    blocks: [
+      { title: "Rozgrzewka i skoki", items: [it("pogo-jumps", 2, "6")] },
+      legs,
+      { title: "Góra", items: [it("db-bench-press", 3, "10"), it("db-row", 3, "10 / rękę")] },
+      { title: "Core", items: [it("side-plank", 3, "30 s / stronę")] },
+    ],
+  };
+}
 
 export type MesoPhase = "volume" | "intensity" | "deload";
 
@@ -349,7 +363,7 @@ export function templateFor(
     const phase2 = want as "volume" | "intensity";
     let t: SessionTemplate | undefined;
     if (upper) t = TEMPLATES.find((x) => x.module === "strength" && x.phase === want && x.upper);
-    else if (level === "beginner") t = BEGINNER;
+    else if (level === "beginner") t = beginnerDay(opts.count !== undefined && opts.count > 1 ? opts.slot === 1 : weekInCycle % 2 === 0);
     else {
       // dzień A (przysiad) vs B: dwie sesje w tygodniu = A i B; jedna = rotacja co tydzień
       const useB = opts.count !== undefined && opts.count > 1 ? opts.slot === 1 : weekInCycle % 2 === 0;
@@ -358,7 +372,14 @@ export function templateFor(
         const a = TEMPLATES.find((x) => x.module === "strength" && x.phase === want && !x.upper);
         if (a) {
           const squat = (phase2 === "volume" ? SQUAT_VOL : SQUAT_INT)[level];
-          t = { ...a, blocks: a.blocks.map((b) => ({ ...b, items: b.items.map((i) => (i.exerciseId === "back-squat" ? squat : i)) })) };
+          // dzień A: przysiad jako ruch główny, a blok mocy i plyo zmienny wg okresu i celu (zamiast stałych „Moc” i „Siła nóg + skok”)
+          const blocks: Block[] = [];
+          for (const b of a.blocks) {
+            if (b.title === "Moc") blocks.push(plyoBlock(phase2, opts.season, opts.goal, weekInCycle, level));
+            else if (b.title === "Siła nóg + skok") blocks.push({ title: "Siła nóg", items: [squat] });
+            else blocks.push(b.title === "Aktywacja" ? { ...b, items: b.items.filter((i) => i.exerciseId === "knee-iso-push") } : b);
+          }
+          t = { ...a, blocks };
         }
       }
     }

@@ -18,11 +18,13 @@ describe("sezon i cel", () => {
     expect(count(p, "sprint")).toBe(2);
     expect(p.warnings).toEqual([]);
   });
-  it("cel siła w okresie przygotowawczym: dwie siły, nie dzień po dniu", () => {
+  it("cel siła w okresie przygotowawczym: dwie pełne siły nie dzień po dniu, a przy wolnym dniu trzecia: góra", () => {
     const p = planWeek({ ...base, matches: [], season: "preseason", goal: "strength" });
-    expect(count(p, "strength")).toBe(2);
-    const idx = p.days.map((d, i) => (d.session?.kind === "strength" ? i : -1)).filter((i) => i >= 0);
-    expect(idx[1]! - idx[0]!).toBeGreaterThan(1);
+    const full = p.days.map((d, i) => (d.session?.kind === "strength" && d.session.variant !== "upper" ? i : -1)).filter((i) => i >= 0);
+    expect(full).toHaveLength(2);
+    expect(full[1]! - full[0]!).toBeGreaterThan(1);
+    expect(count(p, "strength") - full.length).toBeLessThanOrEqual(1);
+    expect(p.days.filter((d) => d.session?.kind === "strength" && d.session.variant === "upper").length).toBeLessThanOrEqual(1);
   });
   it("cel wydolność w sezonie: drugi bieg tylko gdy jest wolny dzień (bez ostrzeżenia)", () => {
     const p = planWeek({ ...base, goal: "endurance" });

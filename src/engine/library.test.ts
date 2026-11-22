@@ -136,3 +136,25 @@ describe("dół ciała: dzień A/B, dawki, plyo", () => {
     expect(plyoCount("offseason", "strength")).toBe(2);
   });
 });
+
+describe("początkujący, zamienniki", () => {
+  it("początkujący: bez %1RM, bez ciężkich ćwiczeń (CNS 3), do 3 serii, dół obecny", async () => {
+    const { templateFor, EXERCISES } = await import("./library");
+    for (const slot of [0, 1]) {
+      const t = templateFor("strength", 3, undefined, { level: "beginner", slot, count: 2 })!.template;
+      const items = t.blocks.flatMap((b) => b.items);
+      for (const i of items) { expect(i.pctRM).toBeUndefined(); expect(i.sets).toBeLessThanOrEqual(3); expect(EXERCISES[i.exerciseId]!.cns).toBeLessThan(3); }
+      expect(items.some((i) => ["squat", "hinge"].includes(EXERCISES[i.exerciseId]!.pattern))).toBe(true);
+    }
+  });
+  it("każde ćwiczenie siłowe z ciężarem ma co najmniej 2 zamienniki", async () => {
+    const { EXERCISES } = await import("./library");
+    for (const e of Object.values(EXERCISES)) if (e.loaded && ["squat", "hinge", "push", "pull", "power"].includes(e.pattern)) expect(e.substitutes.length, e.id).toBeGreaterThanOrEqual(1);
+  });
+  it("dzień A ma zmienny blok plyo, bez stałego depth jumpa w objętości", async () => {
+    const { templateFor } = await import("./library");
+    const t = templateFor("strength", 1, undefined, { level: "intermediate", slot: 0, count: 2, season: "inseason" })!.template;
+    expect(t.blocks.some((b) => b.title === "Moc i plyo")).toBe(true);
+    expect(t.blocks.flatMap((b) => b.items).some((i) => i.exerciseId === "depth-jump-hurdle")).toBe(false);
+  });
+});
