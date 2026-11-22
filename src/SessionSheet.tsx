@@ -8,6 +8,7 @@ import { Sheet } from "./Sheet";
 import { pushWeightLog } from "./lib/sync";
 import { MasCard, loadMas, saveMasDistance } from "./MasCard";
 import { RunTracker } from "./RunTracker";
+import { ActiveRunBanner, useActiveRun } from "./run/ActiveRunBanner";
 import { SessionBlocks } from "./SessionBlocks";
 import { ExerciseSheet } from "./exercises/ExerciseSheet";
 import { DrawTool } from "./tools/Draw";
@@ -49,6 +50,7 @@ export function SessionSheet({
   const [halfDrill, setHalfDrill] = useState<Drill | null>(null);
   const [fullDrill, setFullDrill] = useState<Drill | null>(null);
   const [inviteDrill, setInviteDrill] = useState<Drill | null>(null);
+  const activeRun = useActiveRun();
   const [group, setGroup] = useState<DrillGroup | null>(null);
   const myDrills = drillsFor(position);
   const myGroup = group && myDrills.some((d) => d.group === group) ? group : (DRILL_GROUPS.find(([g]) => myDrills.some((d) => d.group === g))?.[0] ?? "dribble");
@@ -207,9 +209,11 @@ export function SessionSheet({
           <>
             <p className="text-sm text-muted">{run.title}</p>
             <MasCard mas={mas} onChange={setMas} />
-            <button onClick={() => setRunning(true)} className="mt-3 w-full rounded-2xl bw-grad py-3 text-sm font-medium">
-              {run.isTest ? "Rozpocznij test z GPS" : "Rozpocznij bieg z GPS"}
-            </button>
+            {activeRun.active ? <ActiveRunBanner onOpen={() => setRunning(true)} /> : (
+              <button onClick={() => setRunning(true)} className="mt-3 w-full rounded-2xl bw-grad py-3 text-sm font-medium">
+                {run.isTest ? "Rozpocznij test z GPS" : "Rozpocznij bieg z GPS"}
+              </button>
+            )}
             {running && (
               <RunTracker
                 session={run}

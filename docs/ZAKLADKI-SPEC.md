@@ -230,3 +230,6 @@ Nawigacja dolna: Plan · Lab · IQ · Fuel · Progres.
 ### Rysunek ćwiczeń – uzupełnienie
 - Pełny ekran poziomo (`DrillFull`); na telefonie w pionie obracany o 90° (CSS), niski ekran (<520 px) = tryb zwarty.
 - Cienkie, gładkie linie; okno boiska 34×24 m; numery kroków rozsuwane (`spreadBadges`).
+
+### Ekran biegu (makieta bieg ciągły / interwały)
+- `RunTracker.tsx` odtwarza makietę: nagłówek (wróć/minimalizuj, tytuł, dźwięk), karta mapy ~32% wysokości, licznik „Do końca” / „Odcinek n z N” z paskiem postępu, tempo docelowe bieżącego bloku (zakres ±3%), dystans i tempo w jednym wierszu, „Następnie…”, przycisk Pauza (po pauzie Wznów + Zakończ). Rejestrator (`run/recorder.ts`) działa niezależnie od ekranu. Szczegóły i stan zapisu w tle: `docs/BIEG-W-TLE.md`.

@@ -1,19 +1,20 @@
 import { haversine, type GeoPoint } from "./track";
 
 /** Punkt trasy: współrzędne i (opcjonalnie) czas w sekundach od startu biegu. */
-export interface RoutePoint { lat: number; lon: number; t?: number }
+export interface RoutePoint { lat: number; lon: number; t?: number; /** numer ciągłego odcinka zapisu (po pauzie lub utracie GPS zaczyna się nowy) */ s?: number }
 
-/** Zapisany bieg (lokalnie, klucz `runs`). Trasa: [lat, lon, t(s)] – starsze zapisy mają tylko [lat, lon]. */
+/** Zapisany bieg (lokalnie, klucz `runs`). Trasa: [lat, lon, t(s), odcinek] – starsze zapisy mają tylko [lat, lon] lub [lat, lon, t]. */
 export interface SavedRun { date: string; distanceM: number; elapsedMs: number; splits: number[]; route: RoutePoint[] }
 
 const MAX_SAVED_POINTS = 500;
 
 /** Trasa do zapisu: równomiernie przerzedzona do ~500 punktów z zachowaniem pierwszego i ostatniego; zawiera czas (s). */
-export function compactRoute(points: GeoPoint[], max = MAX_SAVED_POINTS): Array<[number, number, number]> {
+export function compactRoute(points: GeoPoint[], max = MAX_SAVED_POINTS): number[][] {
   const n = points.length;
-  const pick = (p: GeoPoint): [number, number, number] => [Number(p.lat.toFixed(5)), Number(p.lon.toFixed(5)), Math.round(p.t / 1000)];
+  const withSeg = points.some((q) => (q.seg ?? 0) > 0); // numer odcinka zapisujemy tylko wtedy, gdy była pauza lub luka
+  const pick = (p: GeoPoint): number[] => (withSeg ? [Number(p.lat.toFixed(5)), Number(p.lon.toFixed(5)), Math.round(p.t / 1000), p.seg ?? 0] : [Number(p.lat.toFixed(5)), Number(p.lon.toFixed(5)), Math.round(p.t / 1000)]);
   if (n <= max) return points.map(pick);
-  const out: Array<[number, number, number]> = [];
+  const out: number[][] = [];
   for (let i = 0; i < max; i++) out.push(pick(points[Math.round((i * (n - 1)) / (max - 1))]!));
   return out;
 }
@@ -32,7 +33,7 @@ export function sanitizeRuns(raw: unknown): SavedRun[] {
     if (Array.isArray(x.route)) {
       for (const p of x.route) {
         if (!Array.isArray(p) || !finite(p[0]) || !finite(p[1]) || Math.abs(p[0]) > 90 || Math.abs(p[1]) > 180) continue;
-        route.push(finite(p[2]) ? { lat: p[0], lon: p[1], t: p[2] } : { lat: p[0], lon: p[1] });
+        route.push(finite(p[2]) ? { lat: p[0], lon: p[1], t: p[2], ...(finite(p[3]) ? { s: p[3] } : {}) } : { lat: p[0], lon: p[1] });
       }
     }
     out.push({ date: x.date.slice(0, 10), distanceM: x.distanceM, elapsedMs: x.elapsedMs, splits: Array.isArray(x.splits) ? x.splits.filter(finite) : [], route });
@@ -40,10 +41,12 @@ export function sanitizeRuns(raw: unknown): SavedRun[] {
   return out;
 }
 
+const sameSeg = (a: RoutePoint, b: RoutePoint) => (a.s ?? 0) === (b.s ?? 0);
+
 /** Długość trasy (m) narastająco dla każdego punktu. */
 function cumulative(points: RoutePoint[]): number[] {
   const d = [0];
-  for (let i = 1; i < points.length; i++) d.push(d[i - 1]! + haversine(points[i - 1]!, points[i]!));
+  for (let i = 1; i < points.length; i++) d.push(d[i - 1]! + (sameSeg(points[i - 1]!, points[i]!) ? haversine(points[i - 1]!, points[i]!) : 0));
   return d;
 }
 
@@ -58,10 +61,10 @@ export function segmentPaces(points: RoutePoint[], windowS = 20): Array<number |
   const D = cumulative(points);
   for (let i = 0; i < n - 1; i++) {
     const ti = points[i]!.t, tn = points[i + 1]!.t;
-    if (!finite(ti) || !finite(tn)) { out.push(null); continue; }
+    if (!finite(ti) || !finite(tn) || !sameSeg(points[i]!, points[i + 1]!)) { out.push(null); continue; }
     let j = i, k = i + 1;
-    while (j > 0 && finite(points[j - 1]!.t) && ti - points[j - 1]!.t! <= windowS / 2) j--;
-    while (k < n - 1 && finite(points[k + 1]!.t) && points[k + 1]!.t! - tn <= windowS / 2) k++;
+    while (j > 0 && sameSeg(points[j - 1]!, points[i]!) && finite(points[j - 1]!.t) && ti - points[j - 1]!.t! <= windowS / 2) j--;
+    while (k < n - 1 && sameSeg(points[k + 1]!, points[i + 1]!) && finite(points[k + 1]!.t) && points[k + 1]!.t! - tn <= windowS / 2) k++;
     const dt = points[k]!.t! - points[j]!.t!, dm = D[k]! - D[j]!;
     out.push(dm >= 8 && dt > 0 ? (dt / dm) * 1000 : null);
   }
@@ -133,11 +136,27 @@ export function coloredRuns(points: RoutePoint[], buckets = 8): Array<{ color: s
     return paceColor(range.lo + (Math.round(t * (buckets - 1)) / (buckets - 1)) * (range.hi - range.lo), range);
   };
   const out: Array<{ color: string; line: Array<[number, number]> }> = [];
+  let prevBreak = true;
   for (let i = 0; i < points.length - 1; i++) {
     const c = colorOf(paces[i] ?? null), a = points[i]!, b = points[i + 1]!;
+    if (!sameSeg(a, b)) { prevBreak = true; continue; } // luka (pauza, brak GPS): bez linii
     const last = out[out.length - 1];
-    if (last && last.color === c) last.line.push([b.lat, b.lon]);
+    if (last && last.color === c && !prevBreak) last.line.push([b.lat, b.lon]);
     else out.push({ color: c, line: [[a.lat, a.lon], [b.lat, b.lon]] });
+    prevBreak = false;
   }
+  return out;
+}
+
+/** Linie ciągłych odcinków trasy (jedna łamana na odcinek) – do jednokolorowej trasy na żywo. */
+export function segmentLines(points: RoutePoint[]): Array<Array<[number, number]>> {
+  const out: Array<Array<[number, number]>> = [];
+  let cur: Array<[number, number]> = [], seg: number | null = null;
+  for (const p of points) {
+    const s = p.s ?? 0;
+    if (seg !== null && s !== seg) { if (cur.length > 1) out.push(cur); cur = []; }
+    seg = s; cur.push([p.lat, p.lon]);
+  }
+  if (cur.length > 1) out.push(cur);
   return out;
 }

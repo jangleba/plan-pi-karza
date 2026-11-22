@@ -9,7 +9,7 @@ export function loadRuns(): SavedRun[] {
 }
 
 export function saveRuns(runs: SavedRun[]): void {
-  const plain = runs.map((r) => ({ ...r, route: r.route.map((p) => (p.t !== undefined ? [p.lat, p.lon, p.t] : [p.lat, p.lon])) }));
+  const plain = runs.map((r) => ({ ...r, route: r.route.map((p) => (p.t !== undefined ? (p.s !== undefined ? [p.lat, p.lon, p.t, p.s] : [p.lat, p.lon, p.t]) : [p.lat, p.lon])) }));
   scoped.setItem(KEY, JSON.stringify(plain));
 }
 

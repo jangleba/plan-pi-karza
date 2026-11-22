@@ -2,7 +2,8 @@
  * Bieg z GPS: dystans, tempo, odcinki km i prowadzenie interwałów.
  * Filtrowanie: odrzucamy punkty o słabej dokładności i skoki niemożliwe biegowo.
  */
-export interface GeoPoint { lat: number; lon: number; t: number; acc: number }
+/** `seg` – numer ciągłego odcinka zapisu: rośnie po pauzie i po długiej utracie GPS (między odcinkami nie liczymy dystansu ani nie rysujemy linii). */
+export interface GeoPoint { lat: number; lon: number; t: number; acc: number; seg?: number }
 
 const R = 6_371_000;
 const rad = (d: number) => (d * Math.PI) / 180;
@@ -27,15 +28,21 @@ export interface TrackState {
 export const emptyTrack = (): TrackState => ({ points: [], distanceM: 0, marks: [{ t: 0, d: 0 }] });
 
 /** Dodaje punkt; t = ms od startu biegu (bez pauz). Zwraca nowy stan (niezmienny). */
-export function addPoint(s: TrackState, p: GeoPoint): TrackState {
-  if (p.acc > MAX_ACCURACY_M) return s;
+export function addPoint(s: TrackState, raw: GeoPoint): TrackState {
+  if (raw.acc > MAX_ACCURACY_M) return s;
   const last = s.points[s.points.length - 1];
-  if (!last) return { ...s, points: [p] };
-  const d = haversine(last, p);
-  const dt = (p.t - last.t) / 1000;
+  if (!last) return { ...s, points: [{ ...raw, seg: raw.seg ?? 0 }] };
+  const lastSeg = last.seg ?? 0;
+  const dt = (raw.t - last.t) / 1000;
   if (dt <= 0) return s;
-  // długa przerwa bez sygnału (ekran zgaszony, tunel): nie wiemy, którędy biegłeś, więc nie dolicza się prostej linii między punktami
-  if (dt > MAX_GAP_S) return { ...s, points: [...s.points, p], marks: [...s.marks, { t: p.t, d: s.distanceM }] };
+  // nowy odcinek: po pauzie (seg z rejestratora) albo po długiej utracie sygnału – nie wiemy, którędy biegłeś, więc bez dystansu i bez prostej linii
+  const bySource = (raw.seg ?? 0) > lastSeg;
+  if (bySource || dt > MAX_GAP_S) {
+    const p = { ...raw, seg: bySource ? raw.seg! : lastSeg + 1 };
+    return { ...s, points: [...s.points, p], marks: [...s.marks, { t: p.t, d: s.distanceM }] };
+  }
+  const p = { ...raw, seg: lastSeg };
+  const d = haversine(last, p);
   if (d / dt > MAX_SPEED_MS) return s;
   // drobny szum w miejscu: nie dodawaj, dopóki ruch mniejszy niż dokładność
   if (d < Math.min(3, p.acc / 2)) return s;

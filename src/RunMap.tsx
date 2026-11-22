@@ -1,108 +1,170 @@
-import { useEffect, useMemo, useRef } from "react";
-import { coloredRuns, decimate, headingOf, routeBounds, type RoutePoint } from "./engine/routeMap";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { coloredRuns, decimate, headingOf, routeBounds, segmentLines, type RoutePoint } from "./engine/routeMap";
 
-/** Token Mapbox (publiczny, `pk.`): bez niego zamiast mapy rysujemy samą trasę. */
-export const MAP_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
+/** Token Mapbox (publiczny, `pk.`): bez niego (albo z błędnym) zamiast mapy rysujemy samą trasę. Konfiguracja: docs/BIEG-W-TLE.md. */
+const RAW_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
+export const MAP_TOKEN = RAW_TOKEN && /^pk\.[\w-]+\.[\w-]+$/.test(RAW_TOKEN.trim()) ? RAW_TOKEN.trim() : undefined;
 export const HAS_MAP = !!MAP_TOKEN;
 
 const MAX_DRAW = 800;
-const START = "#2e9e62", END = "#1b2a41";
+const START = "#2e9e62", END = "#1b2a41", BLUE = "#2f6fb3";
 
-/** Znacznik pozycji: kropka z obwódką i strzałką kierunku (obrót w stopniach od północy). */
-const positionIcon = (heading: number | null) =>
-  `<div style="position:relative;width:26px;height:26px">${heading !== null ? `<svg viewBox="0 0 26 26" width="26" height="26" style="position:absolute;inset:0;transform:rotate(${heading}deg)"><path d="M13 1 L19 11 L13 8.5 L7 11 Z" fill="#2f6fb3"/></svg>` : ""}<div style="position:absolute;left:6px;top:6px;width:14px;height:14px;border-radius:50%;background:#2f6fb3;border:3px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25),0 2px 6px rgba(0,0,0,.3)"></div></div>`;
+/** Bieżąca pozycja biegacza do narysowania na mapie. */
+export interface MapPosition { lat: number; lon: number; acc: number; /** stopnie od północy; null = nie znamy wiarygodnego kierunku */ heading: number | null; stale: boolean }
+export type TileState = "loading" | "ok" | "error";
 
-/** Szkic trasy bez mapy: rzut współrzędnych na płaszczyznę, kolory tempa i znacznik pozycji. */
-function RouteSketch({ points, live }: { points: RoutePoint[]; live: boolean }) {
+/** Znacznik pozycji: niebieska kropka z białą obwódką i (tylko przy wiarygodnym kierunku) strzałką. */
+const positionIcon = (heading: number | null, stale: boolean) =>
+  `<div style="position:relative;width:26px;height:26px;opacity:${stale ? 0.5 : 1}">${heading !== null ? `<svg viewBox="0 0 26 26" width="26" height="26" style="position:absolute;inset:0;transform:rotate(${heading}deg)"><path d="M13 1 L19 11 L13 8.5 L7 11 Z" fill="${BLUE}"/></svg>` : ""}<div style="position:absolute;left:6px;top:6px;width:14px;height:14px;border-radius:50%;background:${BLUE};border:3px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25),0 2px 6px rgba(0,0,0,.3)"></div></div>`;
+
+/** Szkic RZECZYWISTEJ trasy bez mapy: rzut współrzędnych na płaszczyznę. */
+function RouteSketch({ points, mode, position }: { points: RoutePoint[]; mode: "live" | "summary"; position: MapPosition | null }) {
   const view = useMemo(() => {
     const pts = decimate(points, MAX_DRAW);
     if (pts.length < 2) return null;
     const k = Math.cos((pts[0]!.lat * Math.PI) / 180);
-    const xy = (p: RoutePoint) => ({ x: p.lon * k, y: -p.lat });
+    const xy = (p: { lat: number; lon: number }) => ({ x: p.lon * k, y: -p.lat });
     const all = pts.map(xy), xs = all.map((p) => p.x), ys = all.map((p) => p.y);
     const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys), span = Math.max(maxX - minX, maxY - minY) || 1e-6;
-    // trasa wyśrodkowana w kadrze, z marginesem 8%
-    const map = (p: RoutePoint) => { const q = xy(p); return `${(50 + ((q.x - (minX + maxX) / 2) / span) * 84).toFixed(2)},${(50 + ((q.y - (minY + maxY) / 2) / span) * 84).toFixed(2)}`; };
-    const runs = coloredRuns(pts).map((r) => ({ color: r.color, d: r.line.map(([lat, lon], i) => `${i ? "L" : "M"}${map({ lat, lon })}`).join(" ") }));
-    const [sx, sy] = map(pts[0]!).split(",").map(Number) as [number, number], [ex, ey] = map(pts[pts.length - 1]!).split(",").map(Number) as [number, number];
-    return { runs, sx, sy, ex, ey, heading: headingOf(pts) };
-  }, [points]);
-  if (!view) return <div className="flex h-full items-center justify-center text-sm text-muted">Trasa pojawi się po starcie</div>;
+    const map = (p: { lat: number; lon: number }) => { const q = xy(p); return { x: 50 + ((q.x - (minX + maxX) / 2) / span) * 84, y: 50 + ((q.y - (minY + maxY) / 2) / span) * 84 }; };
+    const lines = mode === "live" ? segmentLines(pts).map((l) => ({ color: BLUE, line: l })) : coloredRuns(pts);
+    const runs = lines.map((r) => ({ color: r.color, d: r.line.map(([lat, lon], i) => { const m = map({ lat, lon }); return `${i ? "L" : "M"}${m.x.toFixed(2)},${m.y.toFixed(2)}`; }).join(" ") }));
+    const s = map(pts[0]!), e = map(pts[pts.length - 1]!);
+    return { runs, s, e, heading: headingOf(pts) };
+  }, [points, mode]);
+  if (!view) return null;
   return (
     <svg viewBox="0 0 100 100" className="h-full w-full" role="img" aria-label="Trasa biegu">
-      {view.runs.map((r, i) => <path key={i} d={r.d} fill="none" stroke={r.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />)}
-      <circle cx={view.sx} cy={view.sy} r="2" fill={START} stroke="#fff" strokeWidth="0.8" />
-      {live ? (
-        <g transform={`translate(${view.ex} ${view.ey})`}>
-          {view.heading !== null && <path d="M0 -5.5 L2.6 -1 L0 -2.2 L-2.6 -1 Z" fill="#2f6fb3" transform={`rotate(${view.heading})`} />}
-          <circle r="2.6" fill="#2f6fb3" stroke="#fff" strokeWidth="1" />
+      {view.runs.map((r, i) => <path key={`o${i}`} d={r.d} fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />)}
+      {view.runs.map((r, i) => <path key={i} d={r.d} fill="none" stroke={r.color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />)}
+      <circle cx={view.s.x} cy={view.s.y} r="2" fill={START} stroke="#fff" strokeWidth="0.8" />
+      {mode === "live" ? (
+        <g transform={`translate(${view.e.x} ${view.e.y})`} opacity={position?.stale ? 0.5 : 1}>
+          {view.heading !== null && <path d="M0 -5.5 L2.6 -1 L0 -2.2 L-2.6 -1 Z" fill={BLUE} transform={`rotate(${view.heading})`} />}
+          <circle r="2.6" fill={BLUE} stroke="#fff" strokeWidth="1" />
         </g>
-      ) : <circle cx={view.ex} cy={view.ey} r="2" fill={END} stroke="#fff" strokeWidth="0.8" />}
+      ) : <circle cx={view.e.x} cy={view.e.y} r="2" fill={END} stroke="#fff" strokeWidth="0.8" />}
     </svg>
   );
 }
 
-type Api = { update: (pts: RoutePoint[]) => void; destroy: () => void };
+interface Api {
+  update: (pts: RoutePoint[]) => void; setPosition: (p: MapPosition | null) => void; follow: (on: boolean) => void; recenter: () => void;
+  resize: () => void; destroy: () => void;
+}
 
 /**
- * Mapa biegu. Z tokenem Mapbox: prawdziwa mapa (Leaflet), trasa pokolorowana tempem (zielony szybko → czerwony wolno), start,
- * a na żywo kropka pozycji ze strzałką kierunku i podążanie za biegaczem. Bez tokenu: szkic trasy z tymi samymi kolorami.
- * `live` – bieg trwa (mapa podąża); w przeciwnym razie mapa pokazuje całą trasę.
+ * Mapa biegu.
+ * `mode="live"`: aktywny bieg – jedna niebieska linia przebytej trasy (osobne odcinki po pauzie/utracie GPS), zielony start, kropka pozycji z okręgiem dokładności,
+ *   podążanie za biegaczem (wyłączane ręcznym przesunięciem/zoomem, `recenterKey` włącza ponownie).
+ * `mode="summary"`: cała trasa w kadrze, pokolorowana tempem (podsumowanie i lista biegów).
+ * Bez tokenu, bez sieci albo przy błędzie kafelków: szkic rzeczywistej trasy (jeśli jest) i komunikat.
  */
-export function RunMap({ points, live }: { points: RoutePoint[]; live: boolean }) {
+export function RunMap({ points, live, mode = live ? "live" : "summary", position = null, following = true, recenterKey = 0, recording = false, noLocation = false, bottomInset = 0, onUserMove, onTiles }: {
+  points: RoutePoint[]; live: boolean; mode?: "live" | "summary"; position?: MapPosition | null; following?: boolean; recenterKey?: number; recording?: boolean; /** brak zgody na GPS albo GPS niedostępny */ noLocation?: boolean; /** px wolnego miejsca od dołu (np. pod przyciskiem pauzy w powiększonej mapie) */ bottomInset?: number;
+  onUserMove?: () => void; onTiles?: (s: TileState) => void;
+}) {
   const el = useRef<HTMLDivElement>(null);
   const api = useRef<Api | null>(null);
-  const latest = useRef({ points, live });
-  latest.current = { points, live };
-  const lastDrawn = useRef({ n: -1, t: 0, live });
+  const latest = useRef({ points, position, following, mode, onUserMove, onTiles });
+  latest.current = { points, position, following, mode, onUserMove, onTiles };
+  const lastDrawn = useRef({ n: -1, t: 0, mode });
+  const [tiles, setTiles] = useState<TileState>(HAS_MAP ? "loading" : "error");
+  const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
+
+  useEffect(() => {
+    const on = () => setOnline(true), off = () => setOnline(false);
+    window.addEventListener("online", on); window.addEventListener("offline", off);
+    return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
+  }, []);
+  useEffect(() => { latest.current.onTiles?.(!HAS_MAP || !online ? "error" : tiles); }, [tiles, online]);
 
   useEffect(() => {
     if (!HAS_MAP) return;
-    let cancelled = false;
+    let cancelled = false, ro: ResizeObserver | null = null;
     void (async () => {
       const L = (await import("leaflet")).default;
       await import("leaflet/dist/leaflet.css");
       if (cancelled || !el.current) return;
-      const m = L.map(el.current, { zoomControl: false, attributionControl: true }).setView([52.23, 21.01], 16);
-      L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/256/{z}/{x}/{y}@2x?access_token=${MAP_TOKEN}`, { attribution: "© Mapbox © OpenStreetMap", maxZoom: 19 }).addTo(m);
+      const m = L.map(el.current, { zoomControl: false, attributionControl: true }).setView([52.0, 19.4], 6);
+      m.attributionControl.setPrefix(false); // zostaje atrybucja dostawców map (Mapbox, OpenStreetMap)
+      let ok = 0, bad = 0;
+      const layer = L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/256/{z}/{x}/{y}@2x?access_token=${MAP_TOKEN}`, { attribution: "© Mapbox © OpenStreetMap", maxZoom: 19 }).addTo(m);
+      layer.on("tileload", () => { ok++; bad = 0; setTiles("ok"); });
+      layer.on("tileerror", () => { bad++; if (bad >= 3 && ok === 0) setTiles("error"); else if (bad >= 6) setTiles("error"); });
       const lines = L.layerGroup().addTo(m);
-      let start: ReturnType<typeof L.circleMarker> | null = null, me: ReturnType<typeof L.marker> | null = null, first = true;
+      let start: ReturnType<typeof L.circleMarker> | null = null, me: ReturnType<typeof L.marker> | null = null, acc: ReturnType<typeof L.circle> | null = null;
+      let programmatic = 0, followOn = latest.current.following, firstFix = true;
+      const move = (fn: () => void) => { programmatic++; fn(); setTimeout(() => { programmatic = Math.max(0, programmatic - 1); }, 700); };
+      const user = () => { if (programmatic === 0 && followOn) { followOn = false; latest.current.onUserMove?.(); } };
+      m.on("dragstart", user); m.on("zoomstart", user);
+      const center = (p: MapPosition) => move(() => m.setView([p.lat, p.lon], firstFix ? 17 : Math.max(m.getZoom(), 15), { animate: !firstFix }));
       api.current = {
         update: (all) => {
-          const pts = decimate(all, MAX_DRAW), isLive = latest.current.live;
+          const pts = decimate(all, MAX_DRAW), md = latest.current.mode;
           lines.clearLayers();
-          for (const r of coloredRuns(pts)) L.polyline(r.line, { color: r.color, weight: 5, opacity: 0.95, lineCap: "round", lineJoin: "round" }).addTo(lines);
+          if (md === "live") {
+            for (const l of segmentLines(pts)) {
+              L.polyline(l, { color: "#fff", weight: 8, opacity: 0.9, lineCap: "round", lineJoin: "round", interactive: false }).addTo(lines);
+              L.polyline(l, { color: BLUE, weight: 5, opacity: 1, lineCap: "round", lineJoin: "round", interactive: false }).addTo(lines);
+            }
+          } else for (const r of coloredRuns(pts)) L.polyline(r.line, { color: r.color, weight: 5, opacity: 0.95, lineCap: "round", lineJoin: "round" }).addTo(lines);
           if (!pts.length) return;
-          const f = pts[0]!, e = pts[pts.length - 1]!;
-          if (!start) start = L.circleMarker([f.lat, f.lon], { radius: 6, color: "#fff", weight: 2, fillColor: START, fillOpacity: 1 }).addTo(m); else start.setLatLng([f.lat, f.lon]);
-          if (isLive) {
-            const icon = L.divIcon({ html: positionIcon(headingOf(pts)), className: "", iconSize: [26, 26], iconAnchor: [13, 13] });
-            if (!me) me = L.marker([e.lat, e.lon], { icon, interactive: false, keyboard: false }).addTo(m); else { me.setLatLng([e.lat, e.lon]); me.setIcon(icon); }
-            m.setView([e.lat, e.lon], first ? 17 : m.getZoom(), { animate: !first });
-            first = false;
-          } else {
-            if (me) { me.remove(); me = null; }
+          const f = pts[0]!;
+          if (!start) start = L.circleMarker([f.lat, f.lon], { radius: 7, color: "#fff", weight: 2.5, fillColor: START, fillOpacity: 1, interactive: false }).addTo(m); else start.setLatLng([f.lat, f.lon]);
+          if (md === "summary") {
+            if (me) { me.remove(); me = null; } if (acc) { acc.remove(); acc = null; }
             const b = routeBounds(pts);
-            if (b && pts.length > 1) m.fitBounds([[b.south, b.west], [b.north, b.east]], { padding: [28, 28], maxZoom: 17, animate: false });
+            if (b && pts.length > 1) move(() => m.fitBounds([[b.south, b.west], [b.north, b.east]], { padding: [28, 28], maxZoom: 17, animate: false }));
           }
         },
-        destroy: () => m.remove(),
+        setPosition: (p) => {
+          if (!p || latest.current.mode !== "live") { me?.remove(); me = null; acc?.remove(); acc = null; return; }
+          const icon = L.divIcon({ html: positionIcon(p.heading, p.stale), className: "", iconSize: [26, 26], iconAnchor: [13, 13] });
+          if (!me) me = L.marker([p.lat, p.lon], { icon, interactive: false, keyboard: false, zIndexOffset: 1000 }).addTo(m); else { me.setLatLng([p.lat, p.lon]); me.setIcon(icon); }
+          const r = Math.min(Math.max(p.acc, 3), 80);
+          if (!acc) acc = L.circle([p.lat, p.lon], { radius: r, color: BLUE, weight: 1, opacity: p.stale ? 0.2 : 0.45, fillColor: BLUE, fillOpacity: p.stale ? 0.05 : 0.12, interactive: false }).addTo(m); else { acc.setLatLng([p.lat, p.lon]); acc.setRadius(r); }
+          if (followOn) { center(p); firstFix = false; }
+        },
+        follow: (on) => { followOn = on; },
+        recenter: () => { const p = latest.current.position; if (p) { followOn = true; firstFix = false; center(p); } },
+        resize: () => m.invalidateSize(),
+        destroy: () => { ro?.disconnect(); m.remove(); },
       };
+      ro = new ResizeObserver(() => api.current?.resize());
+      ro.observe(el.current);
       api.current.update(latest.current.points);
+      api.current.setPosition(latest.current.position);
     })();
     return () => { cancelled = true; api.current?.destroy(); api.current = null; };
   }, []);
 
-  // odświeżanie mapy: na żywo co kilka punktów lub 2 s (tysiące łamanych przy każdym odczycie GPS to za dużo), po zakończeniu od razu
+  // linie: na żywo co kilka punktów lub 2 s (tysiące łamanych przy każdym odczycie to za dużo), po zakończeniu od razu
   useEffect(() => {
     if (!HAS_MAP || !api.current) return;
     const d = lastDrawn.current, now = Date.now();
-    const changedMode = d.live !== live;
-    if (!changedMode && live && points.length - d.n < 3 && now - d.t < 2000 && d.n >= 0) return;
-    lastDrawn.current = { n: points.length, t: now, live };
+    const changed = d.mode !== mode;
+    if (!changed && mode === "live" && points.length - d.n < 3 && now - d.t < 2000 && d.n >= 0) return;
+    lastDrawn.current = { n: points.length, t: now, mode };
     api.current.update(points);
-  }, [points, live]);
+  }, [points, mode]);
+  useEffect(() => { api.current?.setPosition(position); }, [position?.lat, position?.lon, position?.acc, position?.heading, position?.stale, mode]);
+  useEffect(() => { api.current?.follow(following); }, [following]);
+  useEffect(() => { if (recenterKey) api.current?.recenter(); }, [recenterKey]);
 
-  if (!HAS_MAP) return <RouteSketch points={points} live={live} />;
-  return <div ref={el} className="h-full w-full" />;
+  const noBase = !HAS_MAP || tiles === "error" || !online;
+  const waiting = mode === "live" && !position && points.length === 0;
+  const sketchPts = points.length >= 2 ? points : [];
+  return (
+    <div className="relative h-full w-full bg-hairline/40">
+      {HAS_MAP && <div ref={el} className="h-full w-full" />}
+      {noBase && (
+        <div className="absolute inset-0 z-[400] bg-[#eaf0e7]">
+          <div className="absolute inset-x-6 bottom-14 top-14"><RouteSketch points={sketchPts} mode={mode} position={position} /></div>
+          <p style={{ bottom: 12 + bottomInset + (HAS_MAP ? 22 : 0) }} className="absolute left-3 whitespace-nowrap rounded-full bg-white/90 px-3 py-1.5 text-[12px] text-muted shadow-[0_1px_4px_rgba(0,0,0,.1)]">{recording ? "Mapa niedostępna — zapis trasy trwa" : "Mapa niedostępna"}</p>
+        </div>
+      )}
+      {waiting && <div className="absolute inset-0 z-[450] flex items-center justify-center bg-white/55 text-[15px] text-muted backdrop-blur-[1px]">{noLocation ? "Lokalizacja niedostępna" : "Czekam na lokalizację…"}</div>}
+    </div>
+  );
 }
