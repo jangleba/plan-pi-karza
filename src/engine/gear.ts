@@ -1,9 +1,10 @@
 import { EXERCISES, type SessionTemplate } from "./library";
 
 /** Sprzęt, którego zawodnik może nie mieć. Zawodnik zaznacza to, czego BRAKUJE; domyślnie zakładamy, że ma wszystko. */
-export type Gear = "trapbar" | "medball" | "barbell" | "dumbbells" | "band" | "box" | "machines";
+export type Gear = "partner" | "trapbar" | "medball" | "barbell" | "dumbbells" | "band" | "box" | "machines";
 
 export const GEAR: Array<[Gear, string]> = [
+  ["partner", "Ktoś do trzymania gumy"],
   ["trapbar", "Trap bar"], ["barbell", "Sztanga"], ["dumbbells", "Hantle"], ["medball", "Piłka lekarska"],
   ["band", "Guma"], ["box", "Skrzynia"], ["machines", "Maszyny (prostowanie, leg press)"],
 ];
@@ -15,6 +16,7 @@ export const NEEDS: Record<string, Gear> = {
   "db-bench-press": "dumbbells", "db-row": "dumbbells", "db-rdl": "dumbbells", "goblet-squat": "dumbbells", "kb-swing": "dumbbells",
   "mb-shotput": "medball", "mb-overhead-throw": "medball",
   facepull: "band", "sl-assisted-cmj": "band",
+  "resisted-first-step": "partner", "resisted-sprint": "partner",
   "box-jump": "box", "sl-box-jump": "box", "depth-jump-hurdle": "box", "depth-box-jump": "box", "step-up": "box", "weighted-step-up-jump": "box",
   "leg-press": "machines", "leg-extension": "machines", "leg-curl-machine": "machines",
 };

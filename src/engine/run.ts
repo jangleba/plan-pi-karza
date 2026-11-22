@@ -69,7 +69,7 @@ export function runSession(mas: Mas, phase: MesoPhase, level: Level, c?: CheckIn
   if (phase === "deload" || strain === "heavy") {
     const min = [20, 25, 30][l]!;
     title = "Bieg ciągły spokojny";
-    blocks = [block(mas, "Bieg ciągły", 65, min * 60, 0, 1)];
+    blocks = [block(mas, "Bieg ciągły", 68, min * 60, 0, 1)];
     if (strain === "heavy") notes.push("Dziś spokojny bieg zamiast interwałów.");
   } else if (phase === "volume") {
     title = "Interwały długie";

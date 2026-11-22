@@ -121,6 +121,7 @@ export function Settings({ scope, email, profile, onProfile, onClose, onLogin }:
           <h3 className={h}>Co masz w domu</h3>
           <p className="mb-3 text-sm text-muted">Z hantlami lub gumą dobierzemy Ci ćwiczenia z obciążeniem i inne serie.</p>
           <div className="flex flex-wrap gap-2">
+            <button onClick={() => toggleGear("partner")} aria-pressed={missing.includes("partner")} className={`rounded-full border px-3 py-1.5 text-sm ${missing.includes("partner") ? "border-accent bg-accent-soft text-accent" : "border-line text-ink"}`}>{missing.includes("partner") ? "Brak: " : ""}Ktoś do trzymania gumy</button>
             {HOME_GEAR.map(([g, label]) => (
               <button key={g} onClick={() => toggleHome(g)} aria-pressed={home.includes(g)} className={`rounded-full border px-3 py-1.5 text-sm ${home.includes(g) ? "border-accent bg-accent-soft text-accent" : "border-line text-ink"}`}>{label}</button>
             ))}

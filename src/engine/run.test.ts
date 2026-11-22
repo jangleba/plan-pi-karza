@@ -16,9 +16,9 @@ describe("sesje biegowe", () => {
     expect(s.blocks[0]!.distanceM).toBe(79);
     expect(s.blocks[0]!.reps).toBe(12);
   });
-  it("rozładowanie: bieg ciągły 65% MAS", () => {
+  it("rozładowanie: bieg ciągły 68% MAS", () => {
     const s = runSession(mas, "deload", "beginner");
-    expect(s.blocks[0]!.percentMas).toBe(65);
+    expect(s.blocks[0]!.percentMas).toBe(68);
     expect(s.blocks[0]!.reps).toBe(1);
   });
   it("check-in mocny: spokojny bieg zamiast interwałów", () => {

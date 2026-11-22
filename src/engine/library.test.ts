@@ -204,3 +204,12 @@ describe("sprint wg okresu i celu, bieg w tygodniu z meczem", () => {
     expect(ids({ level: "intermediate" }, 1).join()).not.toBe(ids({ level: "intermediate" }, 2).join());
   });
 });
+
+describe("sprint z oporem bez partnera", () => {
+  it("brak partnera: sprinty z oporem zastąpione sprintem ze startu", async () => {
+    const { templateFor, applyGear } = await import("./index");
+    const t = templateFor("sprint", 1, "obronca", { level: "intermediate" })!.template;
+    const ids = applyGear(t, ["partner"]).template.blocks.flatMap((b) => b.items.map((i) => i.exerciseId));
+    expect(ids.some((i) => i.startsWith("resisted-"))).toBe(false);
+  });
+});

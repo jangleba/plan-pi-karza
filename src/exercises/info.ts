@@ -14,6 +14,8 @@ export interface ExInfo {
 const i = (anim: AnimKey | undefined, cues: [string, string, string], pace?: string): ExInfo => ({ anim, cues, pace });
 
 export const INFO: Record<string, ExInfo> = {
+  "start-sprint-10": i(undefined, ["Start z pochylonego ciała, mocne odepchnięcie", "Krótkie, szybkie kroki przez 10 m", "Pełny odpoczynek między powtórzeniami"], "Maksymalne przyspieszenie"),
+  "start-sprint-20": i(undefined, ["Start z pochylonego ciała, mocne odepchnięcie", "Stopniowo się prostujesz przez 20 m", "Pełny odpoczynek między powtórzeniami"], "Maksymalne przyspieszenie"),
   "flying-sprint": i(undefined, ["Rozbieg 20 m narastająco, bez maksimum", "W strefie lotu 20–30 m pełna prędkość", "Rozluźniona twarz i ramiona, wybieg po strefie"], "Maksymalna prędkość, pełny odpoczynek"),
   "double-a-switch": i(undefined, ["Dwa szybkie A na jednej nodze, potem zmiana", "Kolano wysoko, stopa pod biodrem", "Rytm szybki, ale z kontrolą"], "Rytmicznie, dynamicznie"),
   "b-skip": i(undefined, ["Kolano w górę, potem wyprost podudzia", "Stopa ściąga pod siebie, kontakt na przodostopiu", "Tułów prosto, ramiona pracują"], "Rytmicznie"),
