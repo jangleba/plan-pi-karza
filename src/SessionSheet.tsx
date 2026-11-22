@@ -15,7 +15,7 @@ import { DrawTool } from "./tools/Draw";
 import { StimuliTool } from "./tools/Stimuli";
 import { Group, ListRow } from "./ui";
 import { CueTrainer } from "./CueTrainer";
-import { EXERCISES, RECOVERY, RECOVERY_LIGHT, applyChoice, bodyweightTemplate, drillsFor, DRILL_GROUPS, adaptSession, addEvents, restSuggested, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
+import { EXERCISES, checkInFor, localISO, RECOVERY, RECOVERY_LIGHT, applyChoice, bodyweightTemplate, drillsFor, DRILL_GROUPS, adaptSession, addEvents, restSuggested, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
 import type { CheckIn, Drill, DrillGroup, Choice, Completion, DayPlan, HistoryEvent, Level, Mas, Position, Suggestion } from "./engine";
 
 interface ConfirmRow { exerciseId: string; kg: number; planned: string; plannedReps: number }
@@ -26,8 +26,10 @@ const KIND_TITLE: Record<string, string> = {
 };
 
 export function SessionSheet({
-  day, checkIn, checkedIn, weekInCycle, level, position, hasGym, inviterName, age, onSkipDay, onClose,
+  day, checkIn: todayCheckIn, checkedIn: todayCheckedIn, weekInCycle, level, position, hasGym, inviterName, age, onSkipDay, onClose,
 }: { day: DayPlan; checkIn: CheckIn; checkedIn: boolean; weekInCycle: number; level: Level; position?: Position; hasGym: boolean; inviterName?: string; age?: number; onSkipDay?: () => void; onClose: () => void }) {
+  // check-in dotyczy tylko dzisiejszego dnia (inne dni w planie pokazują zwykłą wersję)
+  const { checkIn, checkedIn } = checkInFor(day.date, localISO(), todayCheckIn, todayCheckedIn);
   const [mas, setMas] = useState<Mas | null>(loadMas);
   const [running, setRunning] = useState(false);
   const [log, setLog] = useState(loadLog);

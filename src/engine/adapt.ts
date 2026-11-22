@@ -27,6 +27,14 @@ export function normalizeCheckIn(raw: unknown): CheckIn {
   };
 }
 
+/**
+ * Check-in dotyczy DZISIAJ: inne dni (jutro, piątek, przeszłość) pokazują zwykłą wersję treningu.
+ * Dla nich „nie ma check-inu”, więc nie przypominamy o nim (checkedIn = true).
+ */
+export function checkInFor(dayDate: string, todayDate: string, c: CheckIn, checkedIn: boolean): { checkIn: CheckIn; checkedIn: boolean } {
+  return dayDate === todayDate ? { checkIn: c, checkedIn } : { checkIn: { ...DEFAULT_CHECK_IN }, checkedIn: true };
+}
+
 export type Strain = "none" | "light" | "heavy";
 
 export function strainOf(c: CheckIn): Strain {
