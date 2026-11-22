@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GOAL, localISO } from "./engine";
 import type { Vec } from "./engine";
-import { SITUATIONS, VARIANTS, betterPlan, createScenario, classLabel, classify, coachSteps, introText, firstAction, freshSeed, randomScenario, firstLoss, pass, rateOptions, record, setUser, shoot, snapshotAtOrBefore, startRecording, step } from "./engine/sim";
+import { SITUATIONS, VARIANTS, betterPlan, createScenario, classLabel, classify, coachSteps, cross, crossPlan, feint, introText, firstAction, freshSeed, randomScenario, firstLoss, pass, rateOptions, record, setUser, shoot, snapshotAtOrBefore, startRecording, step } from "./engine/sim";
+import type { FeintKind } from "./engine/sim";
 import type { Recording, Situation, Variant, World } from "./engine/sim";
 import { addAttempt } from "./iq/attempts-store";
 import { ResultSheet, type ResultBundle } from "./iq/ResultSheet";
@@ -12,7 +13,8 @@ import { ActorFactory, getActorAssets, type Actor, type ActorAssets } from "./iq
 import { LookEditor } from "./iq/LookEditor";
 import { TEAM_COLORS, loadLook, opponentKit, type PlayerLook } from "./iq/look";
 import { kitFromLook } from "./iq/lookKit";
-import { drive, followCamera, newDrive, turnTo, type Drive } from "./iq/control";
+import { burst, drive, followCamera, newDrive, turnTo, type Drive } from "./iq/control";
+import { needsRotation, overlayStyle, toLocal, toLocalDelta } from "./iq/landscape";
 
 const BALL_R = BALL_VISUAL_R;
 const CAM = { back: 6.8, up: 3.4, ahead: 11, lookY: 1.0 };
@@ -22,6 +24,8 @@ const DPR_TIERS = [2, 1.5, 1.25, 1];
 type Result = ResultBundle;
 type Phase = "loading" | "intro" | "play" | "kick" | "done";
 type Possession = "me" | "mate" | "foe" | "loose";
+/** Akcja z przycisku lub dotknięcia: podanie (do wskazanego albo celowanego kolegi), strzał, dośrodkowanie, zwód w bok, obrót. */
+type Act = { a: "pass" | "shot" | "cross" | "zwod" | "obrot"; id?: string };
 
 const Y = new THREE.Vector3(0, 1, 0);
 
@@ -29,7 +33,10 @@ export default function IQ() {
   const mount = useRef<HTMLDivElement>(null);
   const joy = useRef({ x: 0, y: 0 });
   const arrow = useRef<HTMLDivElement>(null);
-  const act = useRef<"pass" | "shot" | null>(null);
+  const act = useRef<Act | null>(null);
+  const card = useRef<HTMLDivElement>(null);
+  const rotRef = useRef(false);
+  const stickRef = useRef({ r: 0, f: 0 });
   const phaseRef = useRef<Phase>("loading");
   const reset = useRef<(next: boolean) => void>(() => {});
   const attempt = useRef(0);
@@ -44,6 +51,32 @@ export default function IQ() {
   const [myLook, setMyLook] = useState<PlayerLook>(loadLook);
   const [editor, setEditor] = useState(false);
   const [poss, setPoss] = useState<Possession>("me");
+  const [land, setLand] = useState(false);
+  const [vp, setVp] = useState({ w: 0, h: 0 });
+  const [toast, setToast] = useState<string | null>(null);
+  const rot = land && needsRotation(vp.w, vp.h);
+  rotRef.current = rot;
+
+  // Pełny ekran w poziomie: Android blokuje orientację, a gdy się nie da (iPhone), widok obraca się w CSS o 90°
+  const enterLand = () => {
+    setVp({ w: window.innerWidth, h: window.innerHeight }); setLand(true);
+    try { void card.current?.requestFullscreen?.({ navigationUI: "hide" }).catch(() => {}); } catch { /* brak pełnego ekranu */ }
+    try { void (screen.orientation as unknown as { lock?: (o: string) => Promise<void> }).lock?.("landscape").catch(() => {}); } catch { /* brak blokady orientacji */ }
+  };
+  const leaveLand = () => {
+    setLand(false);
+    try { if (document.fullscreenElement) void document.exitFullscreen().catch(() => {}); } catch { /* ignoruj */ }
+    try { screen.orientation?.unlock?.(); } catch { /* ignoruj */ }
+  };
+  useEffect(() => {
+    if (!land) return;
+    const upd = () => setVp({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener("resize", upd); window.addEventListener("orientationchange", upd);
+    return () => { window.removeEventListener("resize", upd); window.removeEventListener("orientationchange", upd); };
+  }, [land]);
+  useEffect(() => { if (phase === "done" && land) leaveLand(); }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { try { if (document.fullscreenElement) void document.exitFullscreen().catch(() => {}); screen.orientation?.unlock?.(); } catch { /* ignoruj */ } }, []);
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 1400); return () => clearTimeout(t); }, [toast]);
 
   const setP = (p: Phase) => { phaseRef.current = p; setPhase(p); };
 
@@ -144,12 +177,29 @@ export default function IQ() {
       let facing: Vec = { x: 1, y: 0 };
       const prev = new Map<Actor, Vec>();
       // kopnięcie: zamach → kontakt (piłka opuszcza stopę, świat dostaje podanie/strzał)
-      let kickSt: { elapsed: number; contactIn: number; spotW: THREE.Vector3; startW: THREE.Vector3; to: Vec; a: "pass" | "shot"; yaw: number; targetId: string | null } | null = null;
+      let kickSt: { elapsed: number; contactIn: number; spotW: THREE.Vector3; startW: THREE.Vector3; to: Vec; a: "pass" | "shot" | "cross"; yaw: number; targetId: string | null } | null = null;
       let outcomeT = 0;
       const keys = new Set<string>();
       const kd = (e: KeyboardEvent) => keys.add(e.key.toLowerCase());
       const ku = (e: KeyboardEvent) => keys.delete(e.key.toLowerCase());
       window.addEventListener("keydown", kd); window.addEventListener("keyup", ku);
+      // dotknięcie kolegi na ekranie = podanie właśnie do niego (każdy kolega, także bramkarz i ten za plecami)
+      const tapV = new THREE.Vector3();
+      const onTap = (e: PointerEvent) => {
+        if (phaseRef.current !== "play" || world.outcome || world.ball.owner !== "P") return;
+        const l = toLocal(rotRef.current, el.getBoundingClientRect(), e.clientX, e.clientY);
+        const w = el.clientWidth, h = el.clientHeight;
+        let best: string | null = null, bd = 56;
+        for (const m of world.agents) {
+          if (m.team !== "us" || m.id === "P") continue;
+          tapV.set(m.pos.x, 1.0, m.pos.y).project(cam);
+          if (tapV.z > 1) continue;
+          const d = Math.hypot((tapV.x * 0.5 + 0.5) * w - l.x, (-tapV.y * 0.5 + 0.5) * h - l.y);
+          if (d < bd) { bd = d; best = m.id; }
+        }
+        if (best) act.current = { a: "pass", id: best };
+      };
+      renderer.domElement.addEventListener("pointerdown", onTap);
 
       const camPos = new THREE.Vector3(player.x - CAM.back, CAM.up, player.y);
       const camLook = new THREE.Vector3(player.x + CAM.ahead, CAM.lookY, player.y);
@@ -193,7 +243,7 @@ export default function IQ() {
           meKeeper = wantKeeper;
         }
         const p = world.agents.find((a) => a.id === "P")!;
-        dr.x = p.pos.x; dr.y = p.pos.y; dr.heading = 0; dr.speed = 0; dr.cam = 0; dr.vx = 0; dr.vy = 0;
+        dr.x = p.pos.x; dr.y = p.pos.y; dr.heading = 0; dr.speed = 0; dr.cam = 0; dr.vx = 0; dr.vy = 0; dr.bx = 0; dr.by = 0;
         player = { x: dr.x, y: dr.y }; facing = { x: 1, y: 0 }; kickSt = null; act.current = null; carried = 0; outcomeT = 0;
         putActors();
         ball.position.set(player.x + 0.7, BALL_R, player.y);
@@ -243,6 +293,7 @@ export default function IQ() {
         if (keys.has("d") || keys.has("arrowright")) jx += 1;
         jx = Math.max(-1, Math.min(1, jx)); jy = Math.max(-1, Math.min(1, jy));
         const stick = { r: jx, f: -jy };
+        stickRef.current = stick;
 
         let moved = 0;
         if (live && ph === "play") moved = drive(dr, stick, dt, { minX: 1, maxX: 104, minY: 1, maxY: 67 });
@@ -260,26 +311,49 @@ export default function IQ() {
         const agentOf = (id: string) => world.agents.find((a) => a.id === id)!;
         const mine = world.ball.owner === "P";
 
-        // adresat podania: kolega najbliżej kierunku zawodnika
-        let aim: string | null = null, bestCos = 0.2;
+        // adresat podania: dowolny kolega (także bramkarz i za plecami) najbliżej kierunku zawodnika; bliżsi mają lekką przewagę
+        let aim: string | null = null, bestScore = -9;
         for (const m of world.agents) {
-          if (m.team !== "us" || m.id === "P" || m.role === "GK") continue;
+          if (m.team !== "us" || m.id === "P") continue;
           const dx = m.pos.x - player.x, dy = m.pos.y - player.y, d = Math.hypot(dx, dy) || 1;
-          const cos = (dx * facing.x + dy * facing.y) / d;
-          if (cos > bestCos) { bestCos = cos; aim = m.id; }
+          const score = (dx * facing.x + dy * facing.y) / d - d * 0.004;
+          if (score > bestScore) { bestScore = score; aim = m.id; }
         }
         const aimMate = aim ? agentOf(aim) : null;
 
-        // „Podaj”/„Strzał”: zawodnik staje do celu i wykonuje zamach; piłka rusza dopiero w chwili kontaktu ze stopą
+        // zwód: zryw w bok albo obrót, wynik losowany w silniku; bez rywala to tylko ruch
+        const doFeint = (kind: FeintKind) => {
+          const res = feint(world, "P", kind);
+          if (!res) return;
+          const hx = Math.cos(dr.heading), hy = Math.sin(dr.heading);
+          const foe = res.foeId ? agentOf(res.foeId) : null;
+          const away = foe ? { x: player.x - foe.pos.x, y: player.y - foe.pos.y } : { x: hx, y: hy };
+          if (kind === "step") {
+            // w stronę wychylenia joysticka, a bez wychylenia – na stronę przeciwną do rywala
+            const st = stickRef.current;
+            const side = Math.abs(st.r) > 0.25 ? Math.sign(st.r) : foe && (foe.pos.x - player.x) * -hy + (foe.pos.y - player.y) * hx > 0 ? -1 : 1;
+            burst(dr, 0, side, 9);
+          } else burst(dr, away.x, away.y, 11);
+          setToast(res.won === null ? (kind === "step" ? "Zwód" : "Obrót") : res.won ? "Rywal wyminięty" : "Strata piłki");
+        };
+        // „Podaj”/„Strzał”/„Dośrodkuj”: zawodnik staje do celu i wykonuje zamach; piłka rusza dopiero w chwili kontaktu ze stopą
         if (ph === "play" && live && act.current) {
-          const a = act.current; act.current = null;
-          if (mine && (a === "shot" || aimMate)) {
-            const to = a === "shot" ? { x: GOAL.x + 0.5, y: GOAL.y + (player.y > GOAL.y ? -2.4 : 2.4) } : aimMate!.pos;
-            const yaw = headingOf(to.x - player.x, to.y - player.y);
-            const k = me.kick();
-            const spotW = k.spot.clone().applyAxisAngle(Y, yaw).add(new THREE.Vector3(player.x, 0, player.y));
-            kickSt = { elapsed: 0, contactIn: k.contactIn, spotW, startW: ball.position.clone(), to, a, yaw, targetId: a === "pass" ? aimMate!.id : null };
-            setP("kick");
+          const req = act.current; act.current = null;
+          if (mine) {
+            if (req.a === "zwod" || req.a === "obrot") doFeint(req.a === "zwod" ? "step" : "spin");
+            else {
+              let to: Vec | null = null, tid: string | null = null;
+              if (req.a === "shot") to = { x: GOAL.x + 0.5, y: GOAL.y + (player.y > GOAL.y ? -2.4 : 2.4) };
+              else if (req.a === "pass") { const m = req.id ? world.agents.find((x) => x.id === req.id) ?? null : aimMate; if (m) { to = m.pos; tid = m.id; } }
+              else { const cp = crossPlan(world, "P", player); to = cp.to; tid = cp.target?.id ?? null; }
+              if (to) {
+                const yaw = headingOf(to.x - player.x, to.y - player.y);
+                const k = me.kick();
+                const spotW = k.spot.clone().applyAxisAngle(Y, yaw).add(new THREE.Vector3(player.x, 0, player.y));
+                kickSt = { elapsed: 0, contactIn: k.contactIn, spotW, startW: ball.position.clone(), to, a: req.a, yaw, targetId: tid };
+                setP("kick");
+              }
+            }
           }
         }
         // stracona piłka w zamachu: akcja anulowana
@@ -308,14 +382,15 @@ export default function IQ() {
           ball.position.y = BALL_R;
           if (kickSt.elapsed >= kickSt.contactIn) {
             const spot = { x: kickSt.spotW.x, y: kickSt.spotW.z };
-            if (kickSt.a === "shot") shoot(world, "P", spot); else pass(world, "P", kickSt.targetId!, spot);
+            if (kickSt.a === "shot") shoot(world, "P", spot); else if (kickSt.a === "cross") cross(world, "P", spot); else pass(world, "P", kickSt.targetId!, spot);
             kickSt = null;
             setP("play");
           }
           spinBall(ball.position.x - px, ball.position.z - pz, Math.hypot(ball.position.x - px, ball.position.z - pz));
         } else if (fl) {
           const k = Math.min(1, fl.t / fl.dur);
-          ball.position.set(world.ball.pos.x, BALL_R + Math.sin(Math.PI * k) * (fl.kind === "shot" ? 1.4 : 0.5), world.ball.pos.y);
+          const arc = fl.kind === "shot" ? 1.4 : fl.high ? Math.min(6, 1.5 + Math.hypot(fl.to.x - fl.from.x, fl.to.y - fl.from.y) * 0.08) : 0.5;
+          ball.position.set(world.ball.pos.x, BALL_R + Math.sin(Math.PI * k) * arc, world.ball.pos.y);
           spinBall(ball.position.x - px, ball.position.z - pz, Math.hypot(ball.position.x - px, ball.position.z - pz) * 1.2);
         } else if (mine && ph !== "done") {
           // prowadzenie: dotknięcie co ok. 1,8 m, piłka za dotknięciem „odbiega” i wraca przy stopie
@@ -417,7 +492,7 @@ export default function IQ() {
         (window as unknown as { __iqDebug?: unknown }).__iqDebug = {
           manual: (b: boolean) => { manual = b; },
           advance: (n: number, dt: number) => { for (let i = 0; i < n; i++) tick(performance.now(), dt); },
-          press: (a: "pass" | "shot") => { act.current = a; },
+          press: (a: Act["a"], id?: string) => { act.current = { a, id }; },
           stick: (r: number, f: number) => { joy.current = { x: r, y: -f }; },
           state: () => ({ heading: dr.heading, cam: dr.cam, speed: dr.speed, x: dr.x, y: dr.y, t: world.t, owner: world.ball.owner, outcome: world.outcome?.kind ?? null }),
           world: () => world,
@@ -427,6 +502,7 @@ export default function IQ() {
       return () => {
         cancelAnimationFrame(raf); ro.disconnect();
         window.removeEventListener("keydown", kd); window.removeEventListener("keyup", ku);
+        renderer.domElement.removeEventListener("pointerdown", onTap);
         renderer.dispose(); el.removeChild(renderer.domElement);
       };
     }
@@ -439,8 +515,9 @@ export default function IQ() {
   return (
     <main className="mx-auto max-w-md px-5 pb-32 pt-14">
       <LargeTitle kind="iq" title="IQ" sub={SITUATIONS.find((x) => x.id === situation)!.title} />
-      <div className="relative overflow-hidden rounded-3xl border border-hairline bg-hairline shadow-sm">
-        <div ref={mount} className="h-[58vh] min-h-[340px] w-full" />
+      <div ref={card} className={land ? "z-[60] overflow-hidden bg-black" : "relative overflow-hidden rounded-3xl border border-hairline bg-hairline shadow-sm"}
+        style={land ? overlayStyle(rot, vp.w, vp.h) : undefined}>
+        <div ref={mount} className={land ? "h-full w-full" : "h-[58vh] min-h-[340px] w-full"} />
 
         {phase === "loading" && (
           <div className="bw-shimmer absolute inset-0 flex items-center justify-center">
@@ -453,16 +530,21 @@ export default function IQ() {
             <div className="absolute left-3 top-3 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-2">
               <span className="rounded-full bg-white/85 px-3 py-1 text-xs font-medium tabular-nums text-ink backdrop-blur">{clock.toFixed(1)} s</span>
               {aimName && <span className="bw-pop rounded-full bg-white/85 px-3 py-1 text-xs text-accent backdrop-blur">Podanie do: {aimName}</span>}
+              {toast && <span key={toast + clock} className="bw-pop rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-ink backdrop-blur">{toast}</span>}
               {hint && <span key={poss} className="bw-pop rounded-full bg-white/85 px-3 py-1 text-xs text-ink backdrop-blur">{hint}</span>}
             </div>
             <div ref={arrow} className="pointer-events-none absolute left-1/2 top-14 -ml-5 h-10 w-10 opacity-0 transition-opacity duration-200">
               <div className="flex h-full w-full items-center justify-center rounded-full bg-white/85 text-lg leading-none text-[#e0554f] shadow backdrop-blur">▲</div>
             </div>
-            <Joystick onChange={(x, y) => { joy.current = { x, y }; }} />
+            {land && <button onClick={leaveLand} aria-label="Zamknij pełny ekran" className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/85 text-base text-ink backdrop-blur">✕</button>}
+            <Joystick rotated={rot} onChange={(x, y) => { joy.current = { x, y }; }} />
             {poss === "me" && (
-              <div className="absolute bottom-5 right-4 flex flex-col items-center gap-3">
-                <ActionButton label="Podaj" onTap={() => { act.current = "pass"; }} />
-                <ActionButton label="Strzał" onTap={() => { act.current = "shot"; }} />
+              <div className="absolute bottom-4 right-3 grid grid-cols-3 gap-2">
+                <ActionButton label="Podaj" onTap={() => { act.current = { a: "pass" }; }} />
+                <ActionButton label="Strzał" onTap={() => { act.current = { a: "shot" }; }} />
+                <ActionButton label="Dośrod." onTap={() => { act.current = { a: "cross" }; }} />
+                <ActionButton label="Zwód" onTap={() => { act.current = { a: "zwod" }; }} />
+                <ActionButton label="Obrót" onTap={() => { act.current = { a: "obrot" }; }} />
               </div>
             )}
           </>
@@ -477,9 +559,9 @@ export default function IQ() {
               </div>
               <p className="mt-1 text-[15px] leading-snug text-ink">{introText(situation, role, myLook.number, VARIANTS[variant]!.defence)}</p>
               <p className="mt-2 text-[15px] leading-snug text-ink">{situation === "press" ? "Wyjdź z pressingu. Strata = kontra 3 na 2 – wtedy to Ty ją gasisz." : situation === "counter" ? "Wykorzystaj przestrzeń, zanim rywal się cofnie. Strata = kontra rywala – wtedy to Ty ją gasisz." : situation === "keeper" ? "Rozegraj piłkę spod własnej bramki. Strata tuż przy bramce to najgroźniejsza sytuacja." : "Zdecyduj: podanie w bieg, drybling albo strzał. Strata przy linii bocznej to kontra rywala."}</p>
-              <p className="mt-2 text-xs text-muted">Joystick: zawodnik biegnie tam, dokąd go prowadzisz na ekranie. Zwróć się w stronę kolegi (krótkie wychylenie wystarczy) i podaj.</p>
+              <p className="mt-2 text-xs text-muted">Joystick: zawodnik biegnie tam, dokąd go prowadzisz. Podanie: dotknij dowolnego kolegi (też bramkarza lub tego za plecami) albo zwróć się do niego i dotknij „Podaj”. Strzał i dośrodkowanie możesz zrobić z każdego miejsca. „Zwód” mija rywala przed Tobą (kierunek: joystick), „Obrót” – rywala z bliska z każdej strony. Gra otworzy się w poziomie na pełnym ekranie.</p>
               {fallback && <p className="mt-2 text-xs text-muted">Uproszczone postacie (nie udało się wczytać modeli).</p>}
-              <button onClick={() => setP("play")} className="bw-grad mt-4 w-full rounded-2xl py-3.5 text-base font-medium">Graj</button>
+              <button onClick={() => { setP("play"); enterLand(); }} className="bw-grad mt-4 w-full rounded-2xl py-3.5 text-base font-medium">Graj</button>
               <button onClick={() => setEditor(true)} className="mt-2 w-full rounded-2xl py-2.5 text-sm text-accent">Mój zawodnik: wygląd i numer</button>
             </div>
           </div>
@@ -495,13 +577,13 @@ export default function IQ() {
 function ActionButton({ label, onTap }: { label: string; onTap: () => void }) {
   return (
     <button onPointerDown={onTap}
-      className="flex h-16 w-16 items-center justify-center rounded-full bg-white/85 text-sm font-semibold text-ink shadow-lg shadow-black/10 backdrop-blur active:scale-90">
+      className="flex h-14 w-14 items-center justify-center rounded-full bg-white/85 text-xs font-semibold text-ink shadow-lg shadow-black/10 backdrop-blur active:scale-90">
       {label}
     </button>
   );
 }
 
-function Joystick({ onChange }: { onChange: (x: number, y: number) => void }) {
+function Joystick({ onChange, rotated }: { onChange: (x: number, y: number) => void; rotated: boolean }) {
   const base = useRef<HTMLDivElement>(null);
   const knob = useRef<HTMLDivElement>(null);
   const active = useRef<number | null>(null);
@@ -510,7 +592,9 @@ function Joystick({ onChange }: { onChange: (x: number, y: number) => void }) {
   const place = (x: number, y: number) => { if (knob.current) knob.current.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`; };
   const move = (e: React.PointerEvent) => {
     const r = base.current!.getBoundingClientRect();
-    let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+    // w widoku obróconym o 90° przesunięcie palca na ekranie trzeba przeliczyć na układ elementu
+    const l = toLocalDelta(rotated, e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2));
+    let dx = l.x, dy = l.y;
     const d = Math.hypot(dx, dy);
     if (d > R) { dx = (dx / d) * R; dy = (dy / d) * R; }
     place(dx, dy); onChange(dx / R, dy / R);

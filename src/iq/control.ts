@@ -23,9 +23,18 @@ export interface Drive {
   cam: number;
   /** Wektor prędkości (m/s) w układzie boiska. */
   vx: number; vy: number;
+  /** Zryw zwodu (m/s): dodatkowa prędkość, która szybko wygasa (krok w bok, obrót). */
+  bx: number; by: number;
 }
 
-export const newDrive = (x: number, y: number): Drive => ({ x, y, heading: 0, speed: 0, cam: 0, vx: 0, vy: 0 });
+export const newDrive = (x: number, y: number): Drive => ({ x, y, heading: 0, speed: 0, cam: 0, vx: 0, vy: 0, bx: 0, by: 0 });
+export const BURST_DECAY = 5; // 1/s: zryw 9 m/s daje ok. 1,8 m
+
+/** Zryw zwodu w kierunku (dx, dy) – wektor jednostkowy; power w m/s. */
+export function burst(s: Drive, dx: number, dy: number, power: number): void {
+  const l = Math.hypot(dx, dy) || 1;
+  s.bx = (dx / l) * power; s.by = (dy / l) * power;
+}
 
 export const angDiff = (to: number, from: number) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
 
@@ -46,12 +55,15 @@ export function drive(s: Drive, stick: { r: number; f: number }, dt: number, b: 
   if (dl > cap) { dvx *= cap / dl; dvy *= cap / dl; }
   s.vx += dvx; s.vy += dvy;
   if (mag === 0 && Math.hypot(s.vx, s.vy) < 0.05) { s.vx = 0; s.vy = 0; }
-  const nx = Math.max(b.minX, Math.min(b.maxX, s.x + s.vx * dt)), ny = Math.max(b.minY, Math.min(b.maxY, s.y + s.vy * dt));
-  if (nx !== s.x + s.vx * dt) s.vx = 0;
-  if (ny !== s.y + s.vy * dt) s.vy = 0;
+  const wantX = s.x + (s.vx + s.bx) * dt, wantY = s.y + (s.vy + s.by) * dt;
+  const nx = Math.max(b.minX, Math.min(b.maxX, wantX)), ny = Math.max(b.minY, Math.min(b.maxY, wantY));
+  if (nx !== wantX) { s.vx = 0; s.bx = 0; }
+  if (ny !== wantY) { s.vy = 0; s.by = 0; }
   const moved = Math.hypot(nx - s.x, ny - s.y);
   s.x = nx; s.y = ny;
-  s.speed = Math.hypot(s.vx, s.vy);
+  const k = Math.exp(-dt * BURST_DECAY); s.bx *= k; s.by *= k;
+  if (Math.hypot(s.bx, s.by) < 0.05) { s.bx = 0; s.by = 0; }
+  s.speed = Math.hypot(s.vx + s.bx, s.vy + s.by);
   // patrzy w kierunku, w którym jest prowadzony joystick (od razu), a nie w stronę dopiero co osiągniętej prędkości
   if (mag > 0) s.heading += angDiff(Math.atan2(diry, dirx), s.heading) * (1 - Math.exp(-dt * TURN_RATE));
   followCamera(s, dt);

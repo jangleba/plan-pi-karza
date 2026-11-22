@@ -11,6 +11,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 
 export const PASS_SPEED = 17; // m/s
 export const SHOT_SPEED = 26;
+export const CROSS_SPEED = 15;
 const REACTION = 0.22; // s – czas reakcji obrońcy na lot piłki
 const TACKLE_HOLD = 0.35; // s – tyle trzeba przeszkadzać posiadaczowi z bliska, by stracił piłkę
 const TACKLE_RANGE = 1.15; // m
@@ -251,6 +252,53 @@ export function shoot(w: World, fromId: string, spot?: Vec): boolean {
   return true;
 }
 
+/** Dośrodkowanie: gdzie poleci piłka. Najlepiej ustawiony kolega w polu karnym (wolny, blisko 11. metra), a gdy nikogo nie ma, punkt przed bramką. */
+export function crossPlan(w: World, fromId: string, from?: Vec): { to: Vec; target: Agent | null } {
+  const a = agent(w, fromId);
+  const start = from ?? a.pos;
+  const dir = a.team === "us" ? 1 : -1;
+  const spot = { x: goalPoint(a.team).x - dir * 11, y: GOAL.y };
+  const foes = w.agents.filter((x) => x.team !== a.team && x.role !== "GK");
+  const inBox = w.agents.filter((x) => x.team === a.team && x.id !== fromId && x.role !== "GK" && d2(x.pos, spot) < 14);
+  const score = (x: Agent) => Math.min(6, Math.min(...foes.map((f) => d2(f.pos, x.pos)))) - d2(x.pos, spot) * 0.3;
+  const best = inBox.sort((p, q) => score(q) - score(p))[0];
+  if (best) return { to: leadPoint(w, start, best), target: best };
+  return { to: spot, target: null };
+}
+
+/** Dośrodkowanie z dowolnego miejsca: wysokie podanie w pole karne. */
+export function cross(w: World, fromId: string, spot?: Vec): boolean {
+  if (w.ball.owner !== fromId || w.outcome) return false;
+  const start = spot ?? { ...w.ball.pos };
+  const { to, target } = crossPlan(w, fromId, start);
+  w.ball.owner = null; w.ball.lastTouch = fromId;
+  w.ball.flight = { from: start, to, t: 0, dur: Math.max(0.5, d2(start, to) / CROSS_SPEED), kind: "pass", high: true, by: fromId, target: target?.id ?? null };
+  w.ball.pos = { ...start };
+  log(w, "pass", { by: fromId, to: target?.id, pos: start, info: { dist: +d2(start, to).toFixed(1), cross: true } });
+  return true;
+}
+
+/** Zwody użytkownika: „step” – zwód w bok na rywala przed sobą, „spin” – obrót przed rywalem z bliska (także z boku i zza pleców). */
+export type FeintKind = "step" | "spin";
+export interface FeintResult { won: boolean | null; foeId?: string }
+
+export function feint(w: World, fromId: string, kind: FeintKind): FeintResult | null {
+  const o = agent(w, fromId);
+  if (w.ball.owner !== fromId || w.outcome || w.t - (w.lastFeint ?? -9) < 0.9) return null;
+  w.lastFeint = w.t;
+  const hx = Math.cos(o.heading), hy = Math.sin(o.heading);
+  const foe = w.agents
+    .filter((f) => f.team !== o.team && f.role !== "GK")
+    .filter((f) => (kind === "step" ? d2(f.pos, o.pos) < 4 && (f.pos.x - o.pos.x) * hx + (f.pos.y - o.pos.y) * hy > 0 : d2(f.pos, o.pos) < 2.6))
+    .sort((p, q) => d2(p.pos, o.pos) - d2(q.pos, o.pos))[0];
+  if (!foe) return { won: null };
+  const before = w.events.length;
+  dribble(w, o, foe, kind === "step" ? 0.08 : 0.05, kind);
+  const won = !!w.events.slice(before).find((e) => e.type === "dribble")?.info?.won;
+  if (won && kind === "spin") { foe.stunUntil = w.t + 1.3; w.immuneUntil = w.t + 1.0; }
+  return { won, foeId: foe.id };
+}
+
 function stepBall(w: World, dt: number): void {
   const b = w.ball, f = b.flight;
   if (b.owner) {
@@ -286,7 +334,7 @@ function interceptOnPath(a: Agent, from: Vec, to: Vec, dur: number, k0: number):
 /** Punkt przecięcia lotu piłki, który właśnie trwa. */
 function interceptPoint(w: World, a: Agent): Vec | null {
   const f = w.ball.flight;
-  if (!f || f.kind !== "pass") return null;
+  if (!f || f.kind !== "pass" || f.high) return null; // wysoką piłkę mijają obrońcy, przecina się ją dopiero przy lądowaniu
   return interceptOnPath(a, f.from, f.to, f.dur, Math.min(1, f.t / f.dur));
 }
 
@@ -298,12 +346,12 @@ export function wouldBeIntercepted(w: World, start: Vec, target: Agent, byTeam: 
 }
 
 /** Drybling 1 na 1: szansa zależy od różnicy szybkości i dystansu; udany – obrońca jest wyminięty, nieudany – strata. */
-function dribble(w: World, o: Agent, foe: Agent): void {
+function dribble(w: World, o: Agent, foe: Agent, bonus = 0, move?: FeintKind): void {
   w.lastDribble = w.t;
   const edge = (o.vmax - foe.vmax) * 0.18 + clamp((d2(foe.pos, o.pos) - 3) * 0.03, -0.05, 0.1);
-  const p = clamp(0.48 + edge, 0.25, 0.7);
+  const p = clamp(0.48 + edge + bonus, 0.25, 0.78);
   const won = rand(w) < p;
-  log(w, "dribble", { by: o.id, to: foe.id, pos: { ...o.pos }, info: { won, p: +p.toFixed(2) } });
+  log(w, "dribble", { by: o.id, to: foe.id, pos: { ...o.pos }, info: move ? { won, p: +p.toFixed(2), move } : { won, p: +p.toFixed(2) } });
   if (won) {
     foe.stunUntil = w.t + 1.1;
     w.immuneUntil = w.t + 0.7;
@@ -420,7 +468,8 @@ export function step(w: World, dt: number): void {
   if (b.flight && b.flight.kind === "pass") {
     const by = agent(w, b.flight.by);
     const foe = w.agents.filter((a) => a.team !== by.team && a.role !== "GK").sort((p, q) => d2(p.pos, b.pos) - d2(q.pos, b.pos))[0];
-    if (foe && d2(foe.pos, b.pos) < 0.85) {
+    const low = !b.flight.high || b.flight.t / b.flight.dur >= 0.8;
+    if (low && foe && d2(foe.pos, b.pos) < 0.85) {
       log(w, "intercept", { by: foe.id, to: by.id, pos: { ...b.pos } });
       take(w, foe, null, 1.0);
       log(w, "turnover", { by: foe.id, to: by.id });
@@ -430,7 +479,8 @@ export function step(w: World, dt: number): void {
       if (tgt && d2(tgt.pos, b.pos) < 2.2) take(w, tgt, "control");
       else {
         const dir = unit(b.flight.from, b.flight.to);
-        b.flight = null; b.owner = null; b.vel = { x: dir.x * 4, y: dir.y * 4 };
+        const v = b.flight.high ? 1.5 : 4;
+        b.flight = null; b.owner = null; b.vel = { x: dir.x * v, y: dir.y * v };
       }
     }
   } else if (b.flight && b.flight.kind === "shot") {

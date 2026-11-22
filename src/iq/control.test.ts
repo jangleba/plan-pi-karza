@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACCEL, SPEED_MAX, angDiff, drive, newDrive, turnTo, type Drive } from "./control";
+import { ACCEL, SPEED_MAX, angDiff, burst, drive, newDrive, turnTo, type Drive } from "./control";
 
 const B = { minX: -1e3, maxX: 1e3, minY: -1e3, maxY: 1e3 };
 const run = (s: Drive, stick: { r: number; f: number }, sec: number, dt = 1 / 60) => { for (let i = 0; i < Math.round(sec / dt); i++) drive(s, stick, dt, B); return s; };
@@ -77,5 +77,24 @@ describe("sterowanie: kierunek joysticka = kierunek biegu na ekranie", () => {
     for (let i = 0; i < 60; i++) turnTo(s, Math.PI / 2, 1 / 60);
     expect(Math.abs(angDiff(Math.PI / 2, s.heading))).toBeLessThan(0.01);
     expect(s.speed).toBeLessThan(0.05);
+  });
+});
+
+describe("zwód: zryw wygasa i przesuwa zawodnika", () => {
+  it("zryw 9 m/s w bok daje ok. 1,8 m przesunięcia i wygasa", () => {
+    const s = newDrive(0, 0);
+    burst(s, 0, 1, 9);
+    run(s, { r: 0, f: 0 }, 1.5);
+    expect(s.y).toBeGreaterThan(1.5);
+    expect(s.y).toBeLessThan(2.1);
+    expect(s.bx).toBe(0); expect(s.by).toBe(0);
+  });
+
+  it("zryw w ścianę (granica boiska) jest zerowany", () => {
+    const s = newDrive(0, 0);
+    burst(s, 0, 1, 9);
+    for (let i = 0; i < 30; i++) drive(s, { r: 0, f: 0 }, 1 / 60, { minX: -9, maxX: 9, minY: -9, maxY: 0.2 });
+    expect(s.y).toBeLessThanOrEqual(0.2);
+    expect(s.by).toBe(0);
   });
 });
