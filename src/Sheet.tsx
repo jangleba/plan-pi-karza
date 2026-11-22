@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 /**
  * Karta wysuwana od dołu (wspólna dla całej aplikacji), jak w iOS:
@@ -39,10 +40,10 @@ export function Sheet({ title, onClose, children, dismissable = true }: {
     if (dy > 110 || v > 0.6) close(); else setDrag(0);
   };
 
-  return (
+  const view = (
     <div className={`${closing ? "bw-backdrop-out" : "bw-backdrop"} fixed inset-0 z-30 flex items-end bg-black/25`} onClick={close}>
       <div
-        className={`${closing ? "bw-sheet-out" : "bw-sheet"} max-h-[88vh] w-full overflow-y-auto overscroll-contain rounded-t-[28px] bg-card px-5 pb-[max(2.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.08)]`}
+        className={`${closing ? "bw-sheet-out" : "bw-sheet"} max-h-[88dvh] w-full overflow-y-auto overscroll-contain rounded-t-[28px] bg-card px-5 pb-[max(2.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.08)]`}
         style={drag ? { transform: `translateY(${drag}px)`, transition: "none" } : { transition: "transform 0.25s cubic-bezier(0.2,0.8,0.2,1)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -54,4 +55,6 @@ export function Sheet({ title, onClose, children, dismissable = true }: {
       </div>
     </div>
   );
+  // portal do <body>: karta zawsze liczy się względem ekranu, nawet gdy otwarto ją z wnętrza elementu z transform/animacją
+  return typeof document === "undefined" ? view : createPortal(view, document.body);
 }
