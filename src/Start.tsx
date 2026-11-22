@@ -11,6 +11,7 @@ import { ExtraTile } from "./extra/ExtraCard";
 import { KIND_LABEL } from "./kinds";
 import { useSkippedVersion } from "./lib/skipped";
 import { useExtrasVersion } from "./lib/extras";
+import { TileHead } from "./TileIcon";
 import { rise } from "./ui";
 
 // Moduł nauki ładuje się dopiero po otwarciu (osobny fragment pakietu): nie spowalnia strony głównej.
@@ -70,8 +71,8 @@ function TodayTile({ profile, index, onOpen }: { profile: Profile; index: number
   return (
     <button disabled={!open} onClick={() => day && onOpen(day)} style={rise(index)} className="bw-rise flex min-h-[148px] flex-col justify-between rounded-3xl border border-hairline bg-card p-4 text-left active:scale-[0.98] disabled:active:scale-100" aria-label="Dzisiejsza sesja">
       <div>
-        <h2 className="text-[13px] text-muted">Dziś w planie</h2>
-        <p className="mt-1.5 text-[22px] font-semibold leading-tight tracking-tight">{title}</p>
+        <TileHead kind="today">Dziś w planie</TileHead>
+        <p className="mt-2.5 text-[22px] font-semibold leading-tight tracking-tight">{title}</p>
         {sub && <p className="mt-1 text-[13px] text-muted">{sub}</p>}
       </div>
       <p className="mt-2 text-[12px] text-muted">{open ? "Otwórz →" : "\u00a0"}</p>

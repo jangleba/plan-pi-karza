@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 /**
  * Karta wysuwana od dołu (wspólna dla całej aplikacji), jak w iOS:
@@ -39,7 +40,7 @@ export function Sheet({ title, onClose, children, dismissable = true }: {
     if (dy > 110 || v > 0.6) close(); else setDrag(0);
   };
 
-  return (
+  const node = (
     <div className={`${closing ? "bw-backdrop-out" : "bw-backdrop"} fixed inset-0 z-30 flex items-end bg-black/25`} onClick={close}>
       <div
         className={`${closing ? "bw-sheet-out" : "bw-sheet"} max-h-[88vh] w-full overflow-y-auto overscroll-contain rounded-t-[28px] bg-card px-5 pb-[max(2.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.08)]`}
@@ -54,4 +55,6 @@ export function Sheet({ title, onClose, children, dismissable = true }: {
       </div>
     </div>
   );
+  // Karta zawsze na poziomie <body>: kafelek z animacją (transform) w rodzicu przestawiłby „fixed” na własne wymiary
+  return typeof document === "undefined" ? node : createPortal(node, document.body);
 }

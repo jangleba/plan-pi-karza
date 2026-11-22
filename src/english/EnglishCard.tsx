@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { localISO } from "../engine";
 import { PASTEL } from "../lib/pastel";
+import { TileHead } from "../TileIcon";
 import { rise } from "../ui";
 import { summarize } from "./progress";
 import { loadDoc, syncCloud } from "./storage";
@@ -29,8 +30,8 @@ export function EnglishCard({ onOpen, refreshKey, tile = false, index = 0 }: { o
     return (
       <button onClick={onOpen} style={rise(index)} className="bw-rise flex min-h-[148px] flex-col justify-between rounded-3xl border border-hairline bg-card p-4 text-left active:scale-[0.98]" aria-label="Piłkarski angielski">
         <div>
-          <h2 className="text-[13px] text-muted">Piłkarski angielski</h2>
-          <p className="mt-1.5 line-clamp-2 text-[15px] font-semibold leading-snug">{title}</p>
+          <TileHead kind="english">Angielski</TileHead>
+          <p className="mt-2.5 line-clamp-2 text-[15px] font-semibold leading-snug">{title}</p>
         </div>
         <p className="mt-2 text-[12px] text-muted">{next ? `ok. ${next.minutes} min · ` : ""}powtórki: {dueToday}</p>
       </button>

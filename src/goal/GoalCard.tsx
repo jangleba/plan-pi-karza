@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { adherence, ambitionCardHidden, cycleAt, cycleRegularity, dismissAmbitionCard, FOCUS_LABEL, loadAmbition, loadHistory, localISO, milestones, nextMilestone } from "../engine";
 import type { Profile } from "../engine";
 import { plannedDays } from "../progress/data";
+import { PASTEL } from "../lib/pastel";
+import { TileHead } from "../TileIcon";
 import { rise } from "../ui";
 import { GoalSheet } from "./GoalSheet";
 
@@ -23,11 +25,13 @@ export function GoalCard({ profile, tile = false, index = 0 }: { profile: Profil
     if (ambitionCardHidden(today)) return null;
     if (tile) {
       return (
-        <section style={rise(index)} className="bw-rise flex min-h-[148px] flex-col justify-between rounded-3xl border border-hairline bg-card p-4" aria-label="Cel">
-          <div><h2 className="text-[13px] text-muted">Cel</h2><p className="mt-1.5 text-[17px] font-semibold leading-snug">Ustal swój cel</p><p className="mt-1 text-[13px] text-muted">Dwa krótkie pytania</p></div>
-          <button onClick={() => setOpen(true)} className="bw-grad mt-3 rounded-2xl py-2.5 text-sm font-medium">Ustal</button>
+        <>
+          <section style={rise(index)} className="bw-rise flex min-h-[148px] flex-col justify-between rounded-3xl border border-hairline bg-card p-4" aria-label="Cel">
+            <div><TileHead kind="goal">Cel</TileHead><p className="mt-2.5 text-[17px] font-semibold leading-snug">Ustal swój cel</p><p className="mt-1 text-[13px] text-muted">Dwa krótkie pytania</p></div>
+            <button onClick={() => setOpen(true)} className="bw-grad mt-3 rounded-2xl py-2.5 text-sm font-medium">Ustal</button>
+          </section>
           {sheet}
-        </section>
+        </>
       );
     }
     return (
@@ -46,18 +50,20 @@ export function GoalCard({ profile, tile = false, index = 0 }: { profile: Profil
   if (tile) {
     const pct = Math.min(100, Math.round((cycle.weekNo / 5) * 100));
     return (
+      <>
       <button onClick={() => setOpen(true)} style={rise(index)} className="bw-rise flex min-h-[148px] flex-col justify-between rounded-3xl border border-hairline bg-card p-4 text-left active:scale-[0.98]" aria-label="Cel">
         <div>
-          <h2 className="text-[13px] text-muted">{ambition.league ? `Cel: ${ambition.league}` : "Cel na cykl"}</h2>
-          <p className="mt-1.5 text-[26px] font-semibold leading-none tracking-tight tabular-nums">Tydz. {cycle.weekNo}<span className="text-base font-normal text-muted"> z 5</span></p>
+          <TileHead kind="goal">{ambition.league ? `Cel: ${ambition.league}` : "Cel na cykl"}</TileHead>
+          <p className="mt-2.5 text-[26px] font-semibold leading-none tracking-tight tabular-nums">Tydz. {cycle.weekNo}<span className="text-base font-normal text-muted"> z 5</span></p>
           <p className="mt-1 text-[13px] tabular-nums text-muted">{reg.planned ? `${reg.done} z ${reg.planned} treningów` : "Dopiero zaczynasz"}</p>
         </div>
         <div>
-          <div className="h-1.5 rounded-full bg-hairline"><div className="h-1.5 rounded-full bg-btn transition-[width] duration-700" style={{ width: `${pct}%` }} /></div>
+          <div className="h-1.5 rounded-full bg-hairline"><div className="h-1.5 rounded-full bg-btn transition-[width] duration-700" style={{ width: `${pct}%`, background: PASTEL.lavender.solid }} /></div>
           <p className="mt-2 truncate text-[12px] text-muted">{next ? next.title : "Kamienie milowe zdobyte"}</p>
         </div>
-        {sheet}
       </button>
+      {sheet}
+      </>
     );
   }
   return (

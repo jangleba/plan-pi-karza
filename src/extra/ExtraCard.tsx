@@ -5,10 +5,15 @@ import {
 } from "../engine";
 import type { ExtraActivity, ExtraKind } from "../engine";
 import { addExtra, loadExtras, removeExtra, useExtrasVersion } from "../lib/extras";
+import { PASTEL, type Pastel } from "../lib/pastel";
 import { Sheet } from "../Sheet";
+import { TileHead } from "../TileIcon";
 import { rise } from "../ui";
 import { Wheel } from "../Wheel";
 
+/** Pastelowy odcień rodzaju jednostki (w spoczynku delikatne tło i obrys, po zaznaczeniu mocniejsze). */
+const KIND_TONE: Record<ExtraKind, Pastel> = { strength: PASTEL.rose, run: PASTEL.peach, football: PASTEL.mint, bike: PASTEL.aqua, swim: PASTEL.blue, walk: PASTEL.lavender, sauna: PASTEL.peach, other: PASTEL.blue };
+const toneStyle = (t: Pastel, on: boolean) => ({ background: on ? t.c : t.s, color: t.i, boxShadow: `inset 0 0 0 ${on ? 1.5 : 1}px ${on ? t.solid : t.c}` });
 const MINUTES = Array.from({ length: MAX_MINUTES / 5 }, (_, i) => (i + 1) * 5);
 const DAYS: Array<[number, string]> = [[0, "Dziś"], [1, "Wczoraj"], [2, "2 dni temu"]];
 const WD = ["niedz.", "pon.", "wt.", "śr.", "czw.", "pt.", "sob."];
@@ -28,8 +33,8 @@ export function ExtraTile({ index = 0 }: { index?: number }) {
     <>
       <div style={rise(index)} className="bw-rise relative flex min-h-[148px] flex-col justify-between rounded-3xl border border-hairline bg-card p-4">
         <div>
-          <h2 className="text-[13px] text-muted">Własna jednostka</h2>
-          <p key={v} className="bw-pop mt-1.5 text-[26px] font-semibold leading-none tracking-tight tabular-nums">{week.count ? `${week.count}×` : "—"}</p>
+          <TileHead kind="extra">Własna</TileHead>
+          <p key={v} className="bw-pop mt-2.5 text-[26px] font-semibold leading-none tracking-tight tabular-nums">{week.count ? `${week.count}×` : "—"}</p>
           <p className="mt-1 text-[13px] text-muted">{week.count ? hm(week.minutes) : "w tym tygodniu"}</p>
         </div>
         <p className="mt-2 max-w-[calc(100%-3rem)] truncate text-[12px] text-muted">
@@ -95,7 +100,7 @@ function ExtraSheet({ extras, today, onClose }: { extras: ExtraActivity[]; today
                 <h3 className="mb-3 text-[19px] font-semibold tracking-tight">Co to było?</h3>
                 <div className="grid grid-cols-4 gap-2">
                   {EXTRA_KINDS.map(([k, t], i) => (
-                    <button key={k} style={rise(i)} onClick={() => { setKind(k); vibrate(6); go(1); }} className={`bw-rise rounded-2xl py-4 text-[13px] font-medium active:scale-95 ${kind === k ? "bw-sel" : "bg-canvas text-ink"}`}>{t}</button>
+                    <button key={k} style={{ ...rise(i), ...toneStyle(KIND_TONE[k], kind === k) }} onClick={() => { setKind(k); vibrate(6); go(1); }} className="bw-rise rounded-2xl py-4 text-[13px] font-medium transition-[background-color,box-shadow] duration-200 active:scale-95" >{t}</button>
                   ))}
                 </div>
                 {recent.length > 0 && (
@@ -119,7 +124,7 @@ function ExtraSheet({ extras, today, onClose }: { extras: ExtraActivity[]; today
               <>
                 <h3 className="mb-3 text-[19px] font-semibold tracking-tight">Jak długo? <span className="font-normal text-muted">· {EXTRA_LABEL[kind].toLowerCase()}</span></h3>
                 <div className="mb-3 flex flex-wrap gap-2">
-                  {EXTRA_PRESET_MINUTES.map((m) => <button key={m} onClick={() => { setMinutes(m); vibrate(5); }} className={`rounded-full px-4 py-2 text-sm font-medium ${minutes === m ? "bw-sel" : "bg-canvas text-ink"}`}>{hm(m)}</button>)}
+                  {EXTRA_PRESET_MINUTES.map((m) => <button key={m} onClick={() => { setMinutes(m); vibrate(5); }} style={toneStyle(KIND_TONE[kind], minutes === m)} className="rounded-full px-4 py-2 text-sm font-medium transition-[background-color,box-shadow] duration-200">{hm(m)}</button>)}
                 </div>
                 <div className="mx-auto mb-5 w-44"><Wheel key={minutes} values={MINUTES} value={minutes} onChange={setMinutes} format={hm} label="Dokładny czas" /></div>
                 <button onClick={() => go(2)} className="bw-grad w-full rounded-2xl py-3.5 text-base font-medium">Dalej</button>
