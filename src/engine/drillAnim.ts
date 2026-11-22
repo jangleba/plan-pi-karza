@@ -12,7 +12,7 @@ export interface AnimTimeline { segs: AnimSeg[]; total: number }
 export interface AnimState { player: Point; ball: Point | null; /** Indeks w segs aktualnego (lub ostatnio zakończonego) kroku; -1 przed startem. */ seg: number; active: boolean }
 
 /** Prędkości w m/s dobrane tak, by animacja była czytelna (wolniej niż w rzeczywistości). */
-export const ANIM_SPEED: Record<ArrowStyle, number> = { run: 4.5, dribble: 2.6, pass: 8, shot: 12 };
+export const ANIM_SPEED: Record<ArrowStyle, number> = { run: 4.5, dribble: 2.6, pass: 8, lob: 7, touch: 3, shot: 12 };
 const MIN_S = 0.9, GAP_S = 0.45, HOLD_S = 1.3;
 
 export function pathLength(points: Point[]): number {

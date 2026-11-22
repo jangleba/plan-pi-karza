@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { AnimatedPitch } from "./Pitch";
+import { DrillPreview } from "./drill/DrillPreview";
+import { DrillFull } from "./drill/DrillFull";
 import { HalfPitchView } from "./HalfPitch";
 import { InviteComposer } from "./InviteSheets";
 import { Sheet } from "./Sheet";
@@ -45,6 +46,7 @@ export function SessionSheet({
   const [info, setInfo] = useState<{ id: string; note?: string } | null>(null);
   const [tool, setTool] = useState<"stim" | "draw" | null>(null);
   const [halfDrill, setHalfDrill] = useState<Drill | null>(null);
+  const [fullDrill, setFullDrill] = useState<Drill | null>(null);
   const [inviteDrill, setInviteDrill] = useState<Drill | null>(null);
   const [group, setGroup] = useState<DrillGroup | null>(null);
   const myDrills = drillsFor(position);
@@ -250,7 +252,7 @@ export function SessionSheet({
               {myDrills.filter((d) => d.group === myGroup).map((d) => (
                 <div key={d.id}>
                   <div className="mb-2 text-sm font-medium">{d.title}</div>
-                  <AnimatedPitch drill={d} />
+                  <DrillPreview drill={d} onOpen={() => setFullDrill(d)} />
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     <button onClick={() => setHalfDrill(d)} className="rounded-xl bg-canvas py-2.5 text-sm font-medium text-accent active:scale-[0.98]">Na połowie boiska</button>
                     <button onClick={() => setInviteDrill(d)} className="rounded-xl bg-canvas py-2.5 text-sm font-medium text-accent active:scale-[0.98]">Zaproś partnera</button>
@@ -308,6 +310,7 @@ export function SessionSheet({
         <button onClick={() => { const d = halfDrill; setHalfDrill(null); setInviteDrill(d); }} className="bw-grad mt-5 w-full rounded-2xl py-3.5 text-base font-medium">Zaproś partnera do tego ćwiczenia</button>
       </Sheet>
     )}
+    {fullDrill && <DrillFull drill={fullDrill} onClose={() => setFullDrill(null)} onHalf={() => { setHalfDrill(fullDrill); setFullDrill(null); }} onInvite={() => { setInviteDrill(fullDrill); setFullDrill(null); }} />}
     {inviteDrill && <InviteComposer drill={inviteDrill} name={inviterName} age={age} onClose={() => setInviteDrill(null)} />}
     </>
   );
