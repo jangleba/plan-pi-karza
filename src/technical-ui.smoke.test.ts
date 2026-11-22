@@ -22,23 +22,23 @@ beforeEach(async () => {
   saveTechnicalSettings({ role: "winger", level: "advanced", foot: "left", side: "right", focus: "finishing", minutes: 40, space: { width: 68, height: 52.5 }, resources: { balls: 3, cones: 8, goal: true, wall: false, rebounder: true, partners: 0 } });
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); });
-const click = async (text: string) => { const b = [...host.querySelectorAll("button")].find((b) => b.textContent?.includes(text)); expect(b, text).toBeTruthy(); await act(async () => b!.click()); };
+const click = async (text: string) => { const b = [...document.body.querySelectorAll("button")].find((b) => b.textContent?.includes(text)); expect(b, text).toBeTruthy(); await act(async () => b!.click()); };
 const field = async (node: HTMLInputElement | HTMLSelectElement, value: string) => { await act(async () => { const proto = node.tagName === "INPUT" ? window.HTMLInputElement.prototype : window.HTMLSelectElement.prototype; Object.getOwnPropertyDescriptor(proto, "value")!.set!.call(node, value); node.dispatchEvent(new window.Event(node.tagName === "INPUT" ? "input" : "change", { bubbles: true })); }); };
 it("renders the real drill, changes steps and records only an explicitly entered result", async () => {
   await act(async () => root.render(createElement(UI, { day, checkIn: { recovery: 3, feeling: 3, less: false }, position: "skrzydlowy", age: 22, onInvite: () => {} })));
   await click("Wall Combination & Inside Finish");
-  expect(host.querySelector("svg")).not.toBeNull();
+  expect(document.body.querySelector("svg")).not.toBeNull();
   expect(loadResults()).toHaveLength(0);
-  const open = host.querySelector('[aria-label^="Otwórz ćwiczenie"]') as HTMLButtonElement;
+  const open = document.body.querySelector('[aria-label^="Otwórz ćwiczenie"]') as HTMLButtonElement;
   await act(async () => open.click());
-  const step = host.querySelector('[aria-label="Krok 2"]') as HTMLButtonElement;
+  const step = document.body.querySelector('[aria-label="Krok 2"]') as HTMLButtonElement;
   expect(step).toBeTruthy();
   await act(async () => step.click());
   expect(step.getAttribute("aria-pressed")).toBe("true");
   expect(loadResults()).toHaveLength(0);
   await click("Zamknij");
   await click("Wpisz wynik po wykonaniu");
-  const inputs = host.querySelectorAll('input[type="number"]');
+  const inputs = document.body.querySelectorAll('input[type="number"]');
   await field(inputs[0] as HTMLInputElement, "12"); await field(inputs[1] as HTMLInputElement, "11");
   await click("Zapisz wynik");
   expect(loadResults()).toHaveLength(1); expect(loadResults()[0]!.successes).toBe(11);
@@ -47,9 +47,9 @@ it("renders the real drill, changes steps and records only an explicitly entered
 it("takes the position from onboarding and persists an allowed precise role", async () => {
   await act(async () => root.render(createElement(UI, { day, checkIn: { recovery: 3, feeling: 3, less: false }, position: "pomocnik", age: 17, onInvite: () => {} })));
   await click("Dopasuj");
-  const role = host.querySelector("select")!;
+  const role = document.body.querySelector("select")!;
   expect([...role.options].map((o) => o.value)).toEqual(["", "six", "eight", "ten"]);
   await field(role, "six"); await click("Dobierz sesję");
-  expect(host.querySelector("h3")!.textContent).toBe("Pomocnik 6");
+  expect(document.body.querySelector("h3")!.textContent).toBe("Pomocnik 6");
   expect(loadResults()).toHaveLength(0);
 });
