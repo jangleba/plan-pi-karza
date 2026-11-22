@@ -310,7 +310,7 @@ export function SessionSheet({
         <button onClick={() => { const d = halfDrill; setHalfDrill(null); setInviteDrill(d); }} className="bw-grad mt-5 w-full rounded-2xl py-3.5 text-base font-medium">Zaproś partnera do tego ćwiczenia</button>
       </Sheet>
     )}
-    {fullDrill && <DrillFull drill={fullDrill} onClose={() => setFullDrill(null)} onHalf={() => { setHalfDrill(fullDrill); setFullDrill(null); }} onInvite={() => { setInviteDrill(fullDrill); setFullDrill(null); }} />}
+    {fullDrill && <DrillFull drill={fullDrill} drills={myDrills.filter((d) => d.group === fullDrill.group)} groupTitle={DRILL_GROUPS.find(([g]) => g === fullDrill.group)?.[1]} onSelect={setFullDrill} onClose={() => setFullDrill(null)} onHalf={() => { setHalfDrill(fullDrill); setFullDrill(null); }} onInvite={() => { setInviteDrill(fullDrill); setFullDrill(null); }} />}
     {inviteDrill && <InviteComposer drill={inviteDrill} name={inviterName} age={age} onClose={() => setInviteDrill(null)} />}
     </>
   );

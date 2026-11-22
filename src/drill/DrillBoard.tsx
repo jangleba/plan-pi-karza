@@ -1,6 +1,7 @@
 import { ARROW_COLOR, TONE_HEX, arrowsInOrder, drillStart } from "../engine/drill";
 import type { Arrow, Drill, Point } from "../engine/drill";
-import { STROKE, arrowPath, badgePos, lobPath, penaltyArc } from "./draw";
+import { placeDrill, HALF } from "../engine/halfPitch";
+import { STROKE, arrowPath, badgePos, lobPath, penaltyArc, spreadBadges } from "./draw";
 
 const GREEN_A = "#3f9a4f", GREEN_B = "#46a456";
 const CONE = "#f28c28";
@@ -14,9 +15,12 @@ export interface BoardAnim { player: Point; ball: Point | null }
  * Rysunek ćwiczenia na prawdziwym boisku: murawa z liniami (pole karne, łuk, bramka z siatką), stożki, rebounder, odległości,
  * sześć rodzajów strzałek z numerkami kroków i znacznik START. `step` wyróżnia jeden krok (reszta przygaszona), `anim` pokazuje zawodnika i piłkę.
  */
-export function DrillBoard({ drill, step = null, anim = null, compact = false }: { drill: Drill; step?: number | null; anim?: BoardAnim | null; compact?: boolean }) {
+export function DrillBoard({ drill, step = null, anim = null, compact = false, layout = "pitch", className = "w-full rounded-2xl" }: { drill: Drill; step?: number | null; anim?: BoardAnim | null; compact?: boolean; /** „pitch”: szeroka połowa boiska z ćwiczeniem ustawionym przed bramką (jak we wzorcu); „window”: samo pole ćwiczenia. */ layout?: "pitch" | "window"; className?: string }) {
   const { width: w, height: h, kind } = drill.field;
+  const pitch = layout === "pitch";
   const half = kind === "half";
+  const place = pitch ? placeDrill(drill).box : null;
+  const ox = place?.x0 ?? 0, oy = place?.y0 ?? 0;
   const padT = half ? 4.5 : 2.5, pad = 2;
   const cx = drill.goals?.[0]?.x ?? w / 2;
   const ordered = arrowsInOrder(drill);
@@ -24,18 +28,31 @@ export function DrillBoard({ drill, step = null, anim = null, compact = false }:
   const dim = (n: number) => (step === null || step === n ? 1 : 0.22);
 
   return (
-    <svg viewBox={`${-pad} ${-padT} ${w + pad * 2} ${h + padT + pad}`} className="w-full rounded-2xl" role="img" aria-label={drill.title}>
+    <svg viewBox={pitch ? "2 -5.5 64 32" : `${-pad} ${-padT} ${w + pad * 2} ${h + padT + pad}`} className={className} preserveAspectRatio="xMidYMid meet" role="img" aria-label={drill.title}>
       <defs>
         <pattern id="db-grass" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="8" height="4" fill={GREEN_A} /><rect y="4" width="8" height="4" fill={GREEN_B} /></pattern>
         <pattern id="db-net" width="0.9" height="0.9" patternUnits="userSpaceOnUse"><path d="M0 0H0.9M0 0V0.9" stroke="#fff" strokeWidth="0.08" strokeOpacity="0.75" fill="none" /></pattern>
-        <clipPath id="db-clip"><rect x={-pad} y={-padT} width={w + pad * 2} height={h + padT + pad} /></clipPath>
+        <clipPath id="db-clip"><rect x={pitch ? 2 : -pad} y={pitch ? -5.5 : -padT} width={pitch ? 64 : w + pad * 2} height={pitch ? 32 : h + padT + pad} /></clipPath>
         {(Object.keys(ARROW_COLOR) as Array<keyof typeof ARROW_COLOR>).map((k) => (
-          <marker key={k} id={`db-ah-${k}`} viewBox="0 0 10 10" refX="8" refY="5" markerUnits="userSpaceOnUse" markerWidth={k === "shot" ? 2.1 : 1.6} markerHeight={k === "shot" ? 2.1 : 1.6} orient="auto"><path d="M0 0 L10 5 L0 10 z" fill={ARROW_COLOR[k]} /></marker>
+          <marker key={k} id={`db-ah-${k}`} viewBox="0 0 10 10" refX="8" refY="5" markerUnits="userSpaceOnUse" markerWidth={k === "shot" ? 1.7 : k === "touch" ? 1.3 : 1.15} markerHeight={k === "shot" ? 1.7 : k === "touch" ? 1.3 : 1.15} orient="auto"><path d="M0 0 L10 5 L0 10 z" fill={ARROW_COLOR[k]} /></marker>
         ))}
       </defs>
-      <rect x={-pad} y={-padT} width={w + pad * 2} height={h + padT + pad} fill="url(#db-grass)" />
-      <g clipPath="url(#db-clip)" fill="none" stroke="#fff" strokeWidth="0.28" strokeLinecap="round">
-        {half ? (
+      <rect x={pitch ? 2 : -pad} y={pitch ? -5.5 : -padT} width={pitch ? 64 : w + pad * 2} height={pitch ? 32 : h + padT + pad} fill="url(#db-grass)" />
+      <g clipPath="url(#db-clip)" fill="none" stroke="#fff" strokeOpacity="0.92" strokeWidth="0.2" strokeLinecap="round">
+        {pitch ? (
+          <>
+            <path d={`M0,${40} V0 H${HALF.w} V${40}`} strokeWidth="0.22" />
+            <path d="M0,1 A1,1 0 0 0 1,0 M67,0 A1,1 0 0 0 68,1" />
+            <path d={`M${HALF.goalX - HALF.boxW / 2},0 V${HALF.boxD} H${HALF.goalX + HALF.boxW / 2} V0`} />
+            <path d={`M${HALF.goalX - HALF.sixW / 2},0 V${HALF.sixD} H${HALF.goalX + HALF.sixW / 2} V0`} />
+            <circle cx={HALF.goalX} cy={HALF.spotD} r="0.22" fill="#fff" />
+            <path d={penaltyArc(HALF.goalX, HALF.spotD, HALF.circleR, HALF.boxD)} />
+            {kind === "patch" && <rect x={ox} y={oy} width={w} height={h} strokeWidth="0.3" strokeDasharray="1.2 0.8" fill="#fff" fillOpacity="0.06" />}
+            {!drill.goals?.length && (
+              <g><rect x={HALF.goalX - 3.66} y="-2.3" width="7.32" height="2.3" fill="url(#db-net)" strokeWidth="0.25" /><line x1={HALF.goalX - 3.66} x2={HALF.goalX + 3.66} y1="0" y2="0" strokeWidth="0.7" /></g>
+            )}
+          </>
+        ) : half ? (
           <>
             <line x1={-pad} x2={w + pad} y1="0" y2="0" strokeWidth="0.35" />
             <path d={`M${cx - 20.16},-1 V16.5 H${cx + 20.16} V-1`} />
@@ -47,6 +64,7 @@ export function DrillBoard({ drill, step = null, anim = null, compact = false }:
           <rect x="0" y="0" width={w} height={h} strokeWidth="0.35" />
         )}
       </g>
+      <g transform={`translate(${ox} ${oy})`}>
       {drill.goals?.map((g, i) => (
         <g key={i}>
           <rect x={g.x - g.width / 2} y={-2.3} width={g.width} height="2.3" fill="url(#db-net)" stroke="#fff" strokeWidth="0.25" />
@@ -92,15 +110,15 @@ export function DrillBoard({ drill, step = null, anim = null, compact = false }:
           </g>
         );
       })}
-      {ordered.map((a, i) => {
-        const n = stepOf(a, i), p = badgePos(a.style, a.points);
+      {(() => { const spread = spreadBadges(ordered.map((a) => badgePos(a.style, a.points))); return ordered.map((a, i) => {
+        const n = stepOf(a, i), p = spread[i]!;
         return (
           <g key={`b${i}`} opacity={dim(n)}>
-            <circle cx={p.x} cy={p.y} r="0.95" fill="#fff" stroke={ARROW_COLOR[a.style]} strokeWidth="0.32" />
-            <text x={p.x} y={p.y + 0.42} fontSize="1.2" fontWeight="700" textAnchor="middle" fill="#1d1d1f">{n}</text>
+            <circle cx={p.x} cy={p.y} r="0.85" fill="#fff" stroke={ARROW_COLOR[a.style]} strokeWidth="0.26" />
+            <text x={p.x} y={p.y + 0.38} fontSize="1.05" fontWeight="700" textAnchor="middle" fill="#1d1d1f">{n}</text>
           </g>
         );
-      })}
+      }); })()}
       {start && !anim && (
         <g>
           <circle cx={start.x} cy={start.y} r="1.05" fill="#1d1d1f" stroke="#fff" strokeWidth="0.28" />
@@ -115,6 +133,7 @@ export function DrillBoard({ drill, step = null, anim = null, compact = false }:
           <text x={anim.player.x} y={anim.player.y + 0.45} fontSize="1.25" fontWeight="700" textAnchor="middle" fill="#fff">{drill.playerNumber ?? 7}</text>
         </g>
       )}
+      </g>
     </svg>
   );
 }
