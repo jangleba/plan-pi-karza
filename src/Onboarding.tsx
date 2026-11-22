@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { FEEL_NOW, GEAR, LEAGUES, MIN_AGE, saveFeeling } from "./engine";
+import { FEEL_NOW, GEAR, HOME_GEAR, LEAGUES, MIN_AGE, saveFeeling } from "./engine";
 import type { FeelNow, Position, Profile } from "./engine";
 import { Wheel } from "./Wheel";
 import { Sheet } from "./Sheet";
@@ -300,6 +300,15 @@ export function Onboarding({ onDone }: { onDone: (p: Profile) => void }) {
                 {a.height !== null && <button type="button" onClick={() => { tap(); set({ height: null }); }} className="underline">{LABEL.heightSkip}</button>}
               </p>
             </Section>
+            {!a.equipment.includes("gym") && (
+              <Section title="Masz w domu hantle lub gumę? (opcjonalnie)">
+                <div className="grid grid-cols-2 gap-2">
+                  {HOME_GEAR.map(([v, t]) => (
+                    <Pick key={v} on={a.homeGear.includes(v)} onTap={() => set({ homeGear: toggle(a.homeGear, v) })} className="rounded-2xl px-2 py-3 text-[14px] font-medium">{t}</Pick>
+                  ))}
+                </div>
+              </Section>
+            )}
             {a.equipment.includes("gym") && (
               <Section title="Czego brakuje na Twojej siłowni? (nie wiesz? pomiń)">
                 <div className="flex flex-wrap gap-2">

@@ -15,7 +15,7 @@ import { StimuliTool } from "./tools/Stimuli";
 import { Group, ListRow } from "./ui";
 import { CueTrainer } from "./CueTrainer";
 import { EXERCISES, RECOVERY, RECOVERY_LIGHT, applyChoice, applyGear, bodyweightTemplate, drillsFor, DRILL_GROUPS, adaptSession, addEvents, restSuggested, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
-import type { CheckIn, Drill, DrillGroup, Choice, Completion, DayPlan, HistoryEvent, Level, Mas, Position, Gear, Season, SeasonGoal, Suggestion } from "./engine";
+import type { CheckIn, Drill, DrillGroup, Choice, Completion, DayPlan, HistoryEvent, Level, Mas, Position, Gear, HomeGear, Season, SeasonGoal, Suggestion } from "./engine";
 
 interface ConfirmRow { exerciseId: string; kg: number; planned: string; plannedReps: number }
 
@@ -25,8 +25,8 @@ const KIND_TITLE: Record<string, string> = {
 };
 
 export function SessionSheet({
-  day, checkIn, checkedIn, weekInCycle, level, position, hasGym, inviterName, age, strengthYears, strengthSlot, strengthCount, season, goal, missingGear, onSkipDay, onClose,
-}: { day: DayPlan; checkIn: CheckIn; checkedIn: boolean; weekInCycle: number; level: Level; position?: Position; hasGym: boolean; inviterName?: string; age?: number; strengthYears?: number; strengthSlot?: number; strengthCount?: number; season?: Season; goal?: SeasonGoal; missingGear?: Gear[]; onSkipDay?: () => void; onClose: () => void }) {
+  day, checkIn, checkedIn, weekInCycle, level, position, hasGym, inviterName, age, strengthYears, strengthSlot, strengthCount, season, goal, missingGear, homeGear, onSkipDay, onClose,
+}: { day: DayPlan; checkIn: CheckIn; checkedIn: boolean; weekInCycle: number; level: Level; position?: Position; hasGym: boolean; inviterName?: string; age?: number; strengthYears?: number; strengthSlot?: number; strengthCount?: number; season?: Season; goal?: SeasonGoal; missingGear?: Gear[]; homeGear?: HomeGear[]; onSkipDay?: () => void; onClose: () => void }) {
   const [mas, setMas] = useState<Mas | null>(loadMas);
   const [running, setRunning] = useState(false);
   const [log, setLog] = useState(loadLog);
@@ -57,7 +57,7 @@ export function SessionSheet({
   const module = s?.kind === "strength" || s?.kind === "sprint" ? s.kind : null;
   const found = module
     ? module === "strength" && !hasGym
-      ? { template: bodyweightTemplate(level, mesoPhase(weekInCycle)), deload: mesoPhase(weekInCycle) === "deload" }
+      ? { template: bodyweightTemplate(level, mesoPhase(weekInCycle), homeGear ?? []), deload: mesoPhase(weekInCycle) === "deload" }
       : (() => {
           const t = templateFor(module, weekInCycle, position, { variant: s?.variant, level, ...(age !== undefined ? { age } : {}), ...(strengthSlot !== undefined ? { slot: strengthSlot } : {}), ...(strengthCount !== undefined ? { count: strengthCount } : {}), ...(season ? { season } : {}), ...(goal ? { goal } : {}) });
           // lekki sprint (dzień przed meczem, przerwa w sezonie) = mniej serii

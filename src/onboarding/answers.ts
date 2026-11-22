@@ -4,7 +4,7 @@
  * wynika z jego odpowiedzi, a nie z osobnych reguł. Czysty kod, bez Reacta (testowany osobno).
  */
 import { FEEL_NOW, LEAGUES, planForProfile, suggestGoals, weekStartOf } from "../engine";
-import type { Gear } from "../engine";
+import type { Gear, HomeGear } from "../engine";
 import type { Equipment, FeelNow, League, Position, Profile, Season, SeasonGoal, SessionKind } from "../engine";
 
 /** Klucz (w przestrzeni danych) z rozpoczętym, niedokończonym onboardingiem; usuwany po ukończeniu. */
@@ -37,6 +37,7 @@ export function restoreDraft(raw: unknown): Draft | null {
     league: pick(x.league, LEAGUES),
     years: num(x.years, 0, 15, base.years),
     equipment: list(x.equipment, ["gym", "field", "track", "bodyweight"] as const),
+    homeGear: list(x.homeGear, ["dumbbells", "band"] as const),
     missingGear: list(x.missingGear, ["trapbar", "barbell", "dumbbells", "medball", "band", "box", "machines"] as const),
     limited: x.limited === true,
     days,
@@ -63,12 +64,14 @@ export interface Answers {
   equipment: Equipment[];
   /** Sprzęt, którego zawodnik nie ma na siłowni (opcjonalnie). */
   missingGear: Gear[];
+  /** Sprzęt domowy bez siłowni (opcjonalnie). */
+  homeGear: HomeGear[];
   limited: boolean;
   days: DayState[];
 }
 
 export const initialAnswers = (): Answers => ({
-  name: "", age: 18, weight: 75, height: 175, feelNow: [], goals: [], years: 1, equipment: [], missingGear: [], limited: false, days: Array<DayState>(7).fill("free"),
+  name: "", age: 18, weight: 75, height: 175, feelNow: [], goals: [], years: 1, equipment: [], missingGear: [], homeGear: [], limited: false, days: Array<DayState>(7).fill("free"),
 });
 
 /** „Tylko kilka razy w tygodniu” ma sens wyłącznie, gdy zawodnik w ogóle ma siłownię (wtedy dzień po meczu może być dniem na siłę). */
@@ -115,6 +118,7 @@ export function buildProfile(a: Answers): Profile | null {
     name: a.name.trim(), age: a.age, weightKg: a.weight, position: a.position, season: a.season, goal: goals[0], goal2: goals[1], league: a.league,
     strengthYears: a.years, equipment: withBodyweight(a.equipment), limitedGymAccess: gymLimited(a),
     ...(a.equipment.includes("gym") && a.missingGear.length ? { missingGear: a.missingGear } : {}),
+    ...(!a.equipment.includes("gym") && a.homeGear.length ? { homeGear: a.homeGear } : {}),
     clubWeekdays: dayIndexes(a, "club"), matchWeekdays: dayIndexes(a, "match"), offWeekdays: dayIndexes(a, "off"),
   };
 }

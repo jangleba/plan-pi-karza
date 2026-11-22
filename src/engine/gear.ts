@@ -62,3 +62,7 @@ export function applyGear(t: SessionTemplate, missingList: readonly Gear[]): Gea
   }));
   return { template: { ...t, blocks }, notes };
 }
+
+/** Sprzęt domowy zawodnika BEZ siłowni (co MA). Na tej podstawie sesja „bez siłowni” dostaje ćwiczenia z ciężarem lub gumą. */
+export type HomeGear = "dumbbells" | "band";
+export const HOME_GEAR: Array<[HomeGear, string]> = [["dumbbells", "Hantle"], ["band", "Guma oporowa"]];

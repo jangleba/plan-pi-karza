@@ -6,7 +6,7 @@ import { supabase } from "./lib/supabase";
 import type { Scope } from "./lib/store";
 import { evaluate } from "./lib/profileGuard";
 import { loadPrivate } from "./lib/private";
-import { GEAR, type Gear } from "./engine";
+import { GEAR, HOME_GEAR, type Gear, type HomeGear } from "./engine";
 import { buildExport, deleteAccountRemote, deleteAllLocalData, deleteGuestData, deleteLocalData, guardianLink, guardianState, guestHasData, guestKeys, importGuestData, requestGuardian, type DeleteReport, type GuardianState } from "./legal/account";
 import { loadConsent, setHealthSync, type ConsentState } from "./legal/consent";
 import { CONTRACT_VERSION, CURRENT, OPERATOR_LABEL, legalReadiness, mayCreateAccounts, type DocKind } from "./legal/config";
@@ -66,6 +66,9 @@ export function Settings({ scope, email, profile, onProfile, onClose, onLogin }:
   const [report, setReport] = useState<DeleteReport | null>(null);
   const [busy, setBusy] = useState(false);
   const missing: Gear[] = profile.missingGear ?? [];
+  const home: HomeGear[] = profile.homeGear ?? [];
+  const toggleHome = (g: HomeGear) => onProfile({ ...profile, homeGear: home.includes(g) ? home.filter((x) => x !== g) : [...home, g] });
+  const hasGym = profile.equipment.includes("gym");
   const toggleGear = (g: Gear) => onProfile({ ...profile, missingGear: missing.includes(g) ? missing.filter((x) => x !== g) : [...missing, g] });
   const guestData = user && guestHasData();
   const commerce = purchaseAvailable();
@@ -103,15 +106,27 @@ export function Settings({ scope, email, profile, onProfile, onClose, onLogin }:
   return (
     <Sheet title="Ustawienia" onClose={onClose}>
       <DraftBanner />
-      <section className={card}>
-        <h3 className={h}>Czego nie masz na siłowni</h3>
-        <p className="mb-3 text-sm text-muted">Zaznacz sprzęt, którego brakuje. Zastąpimy ćwiczenia, które go wymagają, najbliższymi zamiennikami.</p>
-        <div className="flex flex-wrap gap-2">
-          {GEAR.map(([g, label]) => (
-            <button key={g} onClick={() => toggleGear(g)} aria-pressed={missing.includes(g)} className={`rounded-full border px-3 py-1.5 text-sm ${missing.includes(g) ? "border-accent bg-accent-soft text-accent" : "border-line text-ink"}`}>{missing.includes(g) ? "Brak: " : ""}{label}</button>
-          ))}
-        </div>
-      </section>
+      {hasGym ? (
+        <section className={card}>
+          <h3 className={h}>Czego nie masz na siłowni</h3>
+          <p className="mb-3 text-sm text-muted">Zaznacz sprzęt, którego brakuje. Zastąpimy ćwiczenia, które go wymagają, najbliższymi zamiennikami.</p>
+          <div className="flex flex-wrap gap-2">
+            {GEAR.map(([g, label]) => (
+              <button key={g} onClick={() => toggleGear(g)} aria-pressed={missing.includes(g)} className={`rounded-full border px-3 py-1.5 text-sm ${missing.includes(g) ? "border-accent bg-accent-soft text-accent" : "border-line text-ink"}`}>{missing.includes(g) ? "Brak: " : ""}{label}</button>
+            ))}
+          </div>
+        </section>
+      ) : (
+        <section className={card}>
+          <h3 className={h}>Co masz w domu</h3>
+          <p className="mb-3 text-sm text-muted">Z hantlami lub gumą dobierzemy Ci ćwiczenia z obciążeniem i inne serie.</p>
+          <div className="flex flex-wrap gap-2">
+            {HOME_GEAR.map(([g, label]) => (
+              <button key={g} onClick={() => toggleHome(g)} aria-pressed={home.includes(g)} className={`rounded-full border px-3 py-1.5 text-sm ${home.includes(g) ? "border-accent bg-accent-soft text-accent" : "border-line text-ink"}`}>{label}</button>
+            ))}
+          </div>
+        </section>
+      )}
       <section className={card}>
         <h3 className={h}>Konto</h3>
         <p className="mb-3 text-[15px]">{user ? <>Zalogowano: <b>{email ?? "konto"}</b></> : "Tryb gościa – dane tylko na tym urządzeniu."}</p>

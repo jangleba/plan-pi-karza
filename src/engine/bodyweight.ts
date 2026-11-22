@@ -1,5 +1,6 @@
 import { type Block, type MesoPhase, type SessionTemplate } from "./library";
 import type { Level } from "./types";
+import type { HomeGear } from "./gear";
 
 /**
  * Siła bez siłowni: drabinki trudności zamiast ciężaru.
@@ -28,7 +29,15 @@ export function rung(key: LadderKey, level: Level, phase: MesoPhase): string {
 
 const UNI = new Set(["split-squat", "bulgarian-split-squat", "assisted-pistol", "pistol-squat", "sl-glute-bridge", "sl-rdl-bw", "sl-hop", "sl-calf-raise", "copenhagen"]);
 
-export function bodyweightTemplate(level: Level, phase: MesoPhase): SessionTemplate {
+/**
+ * Z hantlami: nogi i tył uda z ciężarem (goblet squat, martwy ciąg rumuński, wiosłowanie), żeby zawodnik mógł dokładać kilogramy.
+ * Z gumą: facepull i skoki jednonóż z asystą gumy. Początkujący: 3 serie po 10–12 (hipertrofia, nauka ruchu), bez pracy blisko maksimum.
+ * Serie i powtórzenia – wartości robocze do ustalenia przez trenera.
+ */
+export function bodyweightTemplate(level: Level, phase: MesoPhase, home: readonly HomeGear[] = []): SessionTemplate {
+  const dumbbells = home.includes("dumbbells");
+  const band = home.includes("band");
+  const beginner = level === "beginner";
   const reps = (id: string, volume: number, intensity: number) => {
     const n = phase === "intensity" ? intensity : volume;
     return UNI.has(id) ? `${n} / nogę` : String(n);
@@ -43,11 +52,26 @@ export function bodyweightTemplate(level: Level, phase: MesoPhase): SessionTempl
   const push = rung("push", level, phase);
   const pull = rung("pull", level, phase);
   const jump = rung("jump", level, phase);
+  // z hantlami: ruchy z ciężarem zamiast najłatwiejszych szczebli drabinki (poziom zaawansowany zostaje przy trudnych wariantach jednonóż)
+  const loadedLegs = dumbbells && level !== "advanced";
+  const heavy = beginner ? "10–12" : "8–10";
+  const legs: Block = loadedLegs
+    ? { title: "Siła nóg", items: [{ exerciseId: "goblet-squat", sets: beginner ? 3 : 4, reps: phase === "intensity" && !beginner ? "6–8" : heavy, ...(beginner ? { note: "technika przed ciężarem, zostaw 3 powtórzenia zapasu" } : {}) }, item(rung("squat", level === "beginner" ? "intermediate" : level, phase) === "bw-squat" ? "split-squat" : rung("squat", level, phase), 3, 8, 6)] }
+    : { title: "Siła nóg", items: [item(squat, 4, 8, 5)] };
+  const upper: Block = dumbbells
+    ? { title: "Góra", items: [item(push, 3, 10, 6), { exerciseId: "db-row", sets: 3, reps: `${beginner ? "10–12" : "8–10"} / rękę` }, ...(band ? [{ exerciseId: "facepull", sets: 3, reps: "12–15" }] : [])] }
+    : { title: "Góra", items: [item(push, 3, 10, 6), item(pull, 3, 10, 6), ...(band ? [{ exerciseId: "facepull", sets: 3, reps: "12–15" }] : [])] };
+  const back: Block = loadedLegs
+    ? { title: "Tył uda i łydki", items: [{ exerciseId: "db-rdl", sets: 3, reps: beginner ? "10–12" : phase === "intensity" ? "6–8" : "8–10" }, item("sl-calf-raise", 3, 12, 12)] }
+    : { title: "Tył uda i łydki", items: [item(hinge, 3, 8, 5), item("sl-calf-raise", 3, 12, 12)] };
+  const warm = band && level !== "beginner"
+    ? { title: "Aktywacja", items: [{ exerciseId: "knee-iso-push", sets: 3, reps: "5 × 1 s / nogę" }, { exerciseId: "sl-assisted-cmj", sets: 3, reps: "3 / nogę" }] }
+    : { title: "Aktywacja", items: [{ exerciseId: "knee-iso-push", sets: 3, reps: "5 × 1 s / nogę" }, item(jump, 3, 6, 4)] };
   const blocks: Block[] = [
-    { title: "Aktywacja", items: [{ exerciseId: "knee-iso-push", sets: 3, reps: "5 × 1 s / nogę" }, item(jump, 3, 6, 4)] },
-    { title: "Siła nóg", items: [item(squat, 4, 8, 5)] },
-    { title: "Góra", items: [item(push, 3, 10, 6), item(pull, 3, 10, 6)] },
-    { title: "Tył uda i łydki", items: [item(hinge, 3, 8, 5), item("sl-calf-raise", 3, 12, 12)] },
+    warm,
+    legs,
+    upper,
+    back,
     { title: "Core", items: [item("side-plank", 3, 30, 40), item("copenhagen", 3, 6, 8)] },
   ];
   return {
@@ -55,6 +79,7 @@ export function bodyweightTemplate(level: Level, phase: MesoPhase): SessionTempl
     name: "Siła bez siłowni",
     module: "strength",
     phase: phase === "intensity" ? "intensity" : "volume",
+    ...(beginner ? { beginner: true } : {}),
     blocks,
   };
 }

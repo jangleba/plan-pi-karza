@@ -33,3 +33,21 @@ describe("siła bez siłowni", () => {
     expect(items.find((i) => i.exerciseId === "bulgarian-split-squat")!.reps).toContain("/ nogę");
   });
 });
+
+describe("sprzęt domowy", () => {
+  it("hantle: nogi z ciężarem, wiosłowanie hantlem; początkujący 3 serie i rozładowanie bez cięcia serii", async () => {
+    const { bodyweightTemplate } = await import("./bodyweight");
+    const t = bodyweightTemplate("beginner", "volume", ["dumbbells"]);
+    const ids = t.blocks.flatMap((b) => b.items.map((i) => i.exerciseId));
+    expect(ids).toEqual(expect.arrayContaining(["goblet-squat", "db-rdl", "db-row"]));
+    expect(t.beginner).toBe(true);
+    expect(t.blocks.flatMap((b) => b.items).every((i) => i.sets <= 3 || i.exerciseId === "side-plank")).toBe(true);
+  });
+  it("guma: facepull w górze, bez gumy go nie ma; bez sprzętu wszystko jak dawniej", async () => {
+    const { bodyweightTemplate } = await import("./bodyweight");
+    const ids = (g: Array<"band" | "dumbbells">) => bodyweightTemplate("intermediate", "volume", g).blocks.flatMap((b) => b.items.map((i) => i.exerciseId));
+    expect(ids(["band"])).toContain("facepull");
+    expect(ids([])).not.toContain("facepull");
+    expect(ids([])).not.toContain("goblet-squat");
+  });
+});

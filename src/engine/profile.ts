@@ -1,7 +1,7 @@
 import { loadMatchWeeks, matchDatesAround, type MatchWeeks } from "./matchweek";
 import type { DaySkip, Level, Season, SeasonGoal, WeekInput } from "./types";
 import { MIN_AGE, assessAge } from "../lib/age";
-import type { Gear } from "./gear";
+import type { Gear, HomeGear } from "./gear";
 import { addDays, localISO, planWeek, weekStartOf } from "./week";
 import { loadSkipped } from "../lib/skipped";
 import { loadExtras } from "../lib/extras";
@@ -48,6 +48,8 @@ export interface Profile {
   limitedGymAccess: boolean;
   /** Sprzęt, którego zawodnik NIE ma na siłowni (np. trap bar). Ćwiczenia go wymagające są zastępowane zamiennikami. */
   missingGear?: Gear[];
+  /** Sprzęt domowy zawodnika bez siłowni (hantle, guma): z nim sesja „bez siłowni” ma ćwiczenia z ciężarem lub gumą. */
+  homeGear?: HomeGear[];
   /** Data rozpoczęcia planu (ISO) – od niej liczony cykl 5-tygodniowy. */
   startDate?: string;
 }
