@@ -25,8 +25,8 @@ const KIND_TITLE: Record<string, string> = {
 };
 
 export function SessionSheet({
-  day, checkIn, checkedIn, weekInCycle, level, position, hasGym, inviterName, age, onSkipDay, onClose,
-}: { day: DayPlan; checkIn: CheckIn; checkedIn: boolean; weekInCycle: number; level: Level; position?: Position; hasGym: boolean; inviterName?: string; age?: number; onSkipDay?: () => void; onClose: () => void }) {
+  day, checkIn, checkedIn, weekInCycle, level, position, hasGym, inviterName, age, strengthYears, onSkipDay, onClose,
+}: { day: DayPlan; checkIn: CheckIn; checkedIn: boolean; weekInCycle: number; level: Level; position?: Position; hasGym: boolean; inviterName?: string; age?: number; strengthYears?: number; onSkipDay?: () => void; onClose: () => void }) {
   const [mas, setMas] = useState<Mas | null>(loadMas);
   const [running, setRunning] = useState(false);
   const [log, setLog] = useState(loadLog);
@@ -59,7 +59,7 @@ export function SessionSheet({
     ? module === "strength" && !hasGym
       ? { template: bodyweightTemplate(level, mesoPhase(weekInCycle)), deload: mesoPhase(weekInCycle) === "deload" }
       : (() => {
-          const t = templateFor(module, weekInCycle, position);
+          const t = templateFor(module, weekInCycle, position, { variant: s?.variant, age });
           // lekki sprint (dzień przed meczem, przerwa w sezonie) = mniej serii
           return t && s?.variant === "light" ? { ...t, deload: true } : t;
         })()
@@ -96,7 +96,7 @@ export function SessionSheet({
       const completion = report[r.exerciseId];
       next[r.exerciseId] = { kg: r.kg, reps: r.plannedReps, date: day.date, ...(completion ? { completion } : {}) };
       if (completion === "all") events.push({ date: day.date, type: "strength", key: r.exerciseId, value: Math.round(estimate1RM(r.kg, r.plannedReps) * 10) / 10 });
-      const sug = suggestNext(r.exerciseId, r.kg, strain, found.deload, completion);
+      const sug = suggestNext(r.exerciseId, r.kg, strain, found.deload, completion, { ...(strengthYears !== undefined ? { years: strengthYears } : {}), ...(age !== undefined ? { age } : {}) });
       if (sug) out.push(sug);
     }
     addEvents(events);

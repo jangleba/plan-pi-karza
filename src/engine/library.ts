@@ -109,6 +109,8 @@ export interface SessionTemplate {
   module: "strength" | "sprint";
   /** Faza mezocyklu, do której pasuje szablon. */
   phase: "volume" | "intensity" | "sprint";
+  /** Sesja tylko na górę ciała (dzień po meczu, bez obciążania nóg). */
+  upper?: boolean;
   blocks: Block[];
 }
 
@@ -142,6 +144,32 @@ export const TEMPLATES: SessionTemplate[] = [
       { title: "Góra", items: [it("bench-press", 5, "4", { pctRM: [80, 85] }), it("facepull", 3, "10")] },
       { title: "Plecy i biodra", items: [it("bb-row", 3, "5"), it("sl-straight-leg-ht", 3, "5 / nogę")] },
       { title: "Dodatki", items: [it("slider-leg-curl", 3, "6", { note: "tempo 3-1-x" }), it("seated-sl-calf", 3, "12 / nogę"), it("banded-hip-flexion", 3, "8 / nogę")] },
+    ],
+  },
+  {
+    id: "strength-upper-volume",
+    name: "Góra ciała – objętościowa",
+    module: "strength",
+    phase: "volume",
+    upper: true,
+    blocks: [
+      { title: "Aktywacja barków", items: [it("facepull", 2, "12"), it("push-up", 2, "8")] },
+      { title: "Pchanie i ciągnięcie", items: [it("db-bench-press", 4, "8"), it("db-row", 4, "8 / rękę")] },
+      { title: "Plecy", items: [it("inverted-row", 3, "10"), it("facepull", 3, "12")] },
+      { title: "Core", items: [it("side-plank", 3, "30 s / stronę"), it("copenhagen", 3, "6 / stronę")] },
+    ],
+  },
+  {
+    id: "strength-upper-intensity",
+    name: "Góra ciała – intensywna",
+    module: "strength",
+    phase: "intensity",
+    upper: true,
+    blocks: [
+      { title: "Aktywacja barków", items: [it("facepull", 2, "12"), it("push-up", 2, "8")] },
+      { title: "Pchanie i ciągnięcie", items: [it("bench-press", 4, "4", { pctRM: [80, 85] }), it("bb-row", 4, "4")] },
+      { title: "Plecy", items: [it("inverted-row", 3, "6"), it("facepull", 3, "10")] },
+      { title: "Core", items: [it("side-plank", 3, "40 s / stronę"), it("copenhagen", 3, "8 / stronę")] },
     ],
   },
   {
@@ -195,16 +223,49 @@ export function sprintTemplateFor(position: Position | undefined, weekInCycle: n
   return weekInCycle % 2 === 0 ? other : primary;
 }
 
+export interface TemplateOpts {
+  /** Wariant sesji z planu tygodnia: „upper” = tylko góra ciała (dzień po meczu). */
+  variant?: "full" | "upper" | "light";
+  age?: number;
+}
+
+/** Zawodnik poniżej 18 lat: umiarkowanie lżej – max 85% 1RM, max 4 serie, ćwiczenia o największym obciążeniu układu nerwowego zastępowane lżejszymi. */
+export function forYoungAthlete(t: SessionTemplate): SessionTemplate {
+  const alt = (id: string): string => {
+    const e = EXERCISES[id];
+    if (!e || e.cns < 3) return id;
+    return e.substitutes.find((x) => (EXERCISES[x]?.cns ?? 3) < 3) ?? id;
+  };
+  return {
+    ...t,
+    blocks: t.blocks.map((b) => ({
+      ...b,
+      items: b.items.map((i) => {
+        const id = alt(i.exerciseId);
+        const swapped = id !== i.exerciseId;
+        const pct = i.pctRM && !swapped ? ([Math.min(i.pctRM[0], 85), Math.min(i.pctRM[1], 85)] as [number, number]) : undefined;
+        const { pctRM: _drop, ...rest } = i;
+        return { ...rest, exerciseId: id, sets: Math.min(i.sets, 4), ...(pct ? { pctRM: pct } : {}) };
+      }),
+    })),
+  };
+}
+
 export function templateFor(
   module: "strength" | "sprint",
   weekInCycle: number,
   position?: Position,
+  opts: TemplateOpts = {},
 ): { template: SessionTemplate; deload: boolean } | null {
   const phase = mesoPhase(weekInCycle);
+  const young = opts.age !== undefined && opts.age < 18;
   if (module === "strength") {
     const want = phase === "intensity" ? "intensity" : "volume";
-    const t = TEMPLATES.find((x) => x.module === "strength" && x.phase === want);
-    return t ? { template: t, deload: phase === "deload" } : null;
+    const upper = opts.variant === "upper";
+    let t = TEMPLATES.find((x) => x.module === "strength" && x.phase === want && !!x.upper === upper);
+    if (!t) return null;
+    if (young) t = forYoungAthlete(t);
+    return { template: t, deload: phase === "deload" };
   }
   const t = sprintTemplateFor(position, weekInCycle);
   return t ? { template: t, deload: phase === "deload" } : null;

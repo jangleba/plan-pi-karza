@@ -89,3 +89,22 @@ describe("regeneracja na słaby dzień", () => {
   });
 });
 
+
+describe("góra ciała i zawodnik poniżej 18 lat", () => {
+  it("wariant upper daje szablon bez ćwiczeń nóg", async () => {
+    const { templateFor, EXERCISES } = await import("./library");
+    const t = templateFor("strength", 1, undefined, { variant: "upper" })!.template;
+    expect(t.upper).toBe(true);
+    const pats = t.blocks.flatMap((b) => b.items.map((i) => EXERCISES[i.exerciseId]!.pattern));
+    expect(pats.some((p) => ["squat", "hinge", "jump", "power"].includes(p))).toBe(false);
+  });
+  it("poniżej 18 lat: bez 3 w CNS, max 85% i 4 serie", async () => {
+    const { templateFor, EXERCISES } = await import("./library");
+    const t = templateFor("strength", 3, undefined, { age: 16 })!.template;
+    for (const i of t.blocks.flatMap((b) => b.items)) {
+      expect(EXERCISES[i.exerciseId]!.cns).toBeLessThan(3);
+      expect(i.sets).toBeLessThanOrEqual(4);
+      if (i.pctRM) expect(i.pctRM[1]).toBeLessThanOrEqual(85);
+    }
+  });
+});

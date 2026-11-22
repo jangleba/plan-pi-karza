@@ -150,15 +150,16 @@ export function planWeek(input: WeekInput): WeekPlan {
     return false;
   };
 
-  // Minimum: siła, sprint, bieg. Cel dodaje jedną sesję: w okresie przygotowawczym
+  // Miękkie minimum (siła, sprint, bieg): układane w wolne dni, ale mecz ma pierwszeństwo. Cel dodaje jedną sesję: w okresie przygotowawczym
   // jest obowiązkowa (przed techniką), w sezonie tylko gdy zostanie wolny dzień.
   const extra = goalExtra(input.goal);
   const mustExtra = season === "preseason" && extra;
   const required: Array<keyof typeof PREFERRED> = ["strength", "sprint", "run"];
   if (mustExtra) required.push(extra);
   for (const kind of required) {
-    if (!place(kind, PREFERRED[kind])) {
-      warnings.push(`Brak miejsca na sesję: ${KIND_PL[kind]} (minimum tygodnia niespełnione).`);
+    // Miękkie minimum: mecz i dni MD-1/MD+1 mają pierwszeństwo. W tygodniu z meczem brak miejsca nie jest błędem planu.
+    if (!place(kind, PREFERRED[kind]) && matches.length === 0) {
+      warnings.push(`Brak miejsca na sesję: ${KIND_PL[kind]}. Zwolnij dzień w kalendarzu, jeśli chcesz ją zrobić.`);
     }
   }
   place("technique", PREFERRED.technique);

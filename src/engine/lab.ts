@@ -32,9 +32,9 @@ export const LAB_TESTS: LabTest[] = [
     title: "CMJ – skok z wymachem",
     unit: "cm",
     instructions: [
-      "Telefon pionowo, 2–3 m z boku, na wysokości bioder. Cała sylwetka w kadrze.",
-      "Ręce na biodrach, szybki przysiad i wyskok. Ląduj na prostych nogach.",
-      "3 próby, zapisz najlepszą.",
+      "Oprzyj telefon nieruchomo PIONOWO, 2–3 m z boku, na wysokości bioder. Cała sylwetka w kadrze. Kamera tylna włącza się po „Nagraj skok”; jeśli telefon jest poziomo, aplikacja poprosi o obrót.",
+      "Naciśnij Start: jest odliczanie 5 s. W tym czasie stań na miejscu. Potem ręce na biodrach, szybki przysiad i wyskok; ląduj na prostych nogach.",
+      "Nagranie kończy się samo po 6 s (albo „Zakończ”). Zrób 3 próby, zapisz najlepszą.",
     ],
     caveat: "Wynik z czasu lotu nie zależy od odległości telefonu.",
     limits: [
@@ -48,7 +48,7 @@ export const LAB_TESTS: LabTest[] = [
     title: "Skok w dal z miejsca",
     unit: "cm",
     instructions: [
-      "Telefon poziomo, nieruchomo (oparty lub na statywie), 4–5 m od toru, prostopadle do kierunku skoku, na wysokości bioder. Cała sylwetka i miejsce lądowania w kadrze.",
+      "Telefon POZIOMO (aplikacja poprosi o obrót), nieruchomo (oparty lub na statywie), 4–5 m od toru, prostopadle do kierunku skoku, na wysokości bioder. Cała sylwetka i miejsce lądowania w kadrze.",
       "Stań na linii i nie ruszaj się 2 s, potem skocz obunóż z wymachem rąk. Po lądowaniu zostań w miejscu 2 s.",
       "W nagraniu zaznaczysz czubek głowy, podłoże, linię palców przed skokiem i tył pięty po lądowaniu. Skala liczy się z Twojego wzrostu, więc odległość od telefonu nie ma znaczenia.",
       "2–3 próby, zapisz najlepszą.",
@@ -65,9 +65,9 @@ export const LAB_TESTS: LabTest[] = [
     title: "Sprint 10 / 20 / 30 m",
     unit: "s",
     instructions: [
-      "Telefon poziomo, z boku toru, prostopadle do biegu.",
-      "Start z miejsca po odliczaniu.",
-      "2–3 próby, przerwa 3–5 min.",
+      "Oprzyj telefon nieruchomo POZIOMO, z boku toru, prostopadle do biegu, tak by w kadrze był start i cała trasa. Po „Nagraj sprint” aplikacja poprosi o obrót, jeśli telefon jest pionowo.",
+      "Naciśnij Start: jest odliczanie 5 s. Ustaw się na linii startu i ruszaj z miejsca, gdy odliczanie się skończy. Po mecie naciśnij „Zakończ” (sprint nie kończy się sam).",
+      "Na nagraniu zaznaczysz klatki startu i mety na 10, 20 i 30 m. 2–3 próby, przerwa 3–5 min.",
     ],
     caveat: "Jedna klatka przy 60 kl./s to ok. 17 ms.",
     limits: [

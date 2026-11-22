@@ -50,10 +50,14 @@ export interface Suggestion {
 }
 
 /** Krok zmiany ciężaru (konwencja aplikacji, nie wynik badań): góra 1,25 kg, reszta 2,5% (min. 1,25 kg). */
-export function stepFor(exerciseId: string, kg: number): number {
+export function stepFor(exerciseId: string, kg: number, who: { years?: number; age?: number } = {}): number {
   const e = EXERCISES[exerciseId];
   const upper = e?.pattern === "push" || e?.pattern === "pull";
-  return upper ? 1.25 : Math.max(1.25, roundTo(kg * 0.025));
+  if (upper) return 1.25;
+  // Staż siłowy steruje tempem: początkujący (<1 rok) szybciej, długi staż (>3 lat) wolniej. Poniżej 18 lat nie więcej niż 2,5%. Progi umowne – do przeglądu trenera.
+  let pct = who.years === undefined ? 0.025 : who.years < 1 ? 0.03 : who.years <= 3 ? 0.025 : 0.015;
+  if (who.age !== undefined && who.age < 18) pct = Math.min(pct, 0.025);
+  return Math.max(1.25, roundTo(kg * pct));
 }
 
 /**
@@ -63,11 +67,11 @@ export function stepFor(exerciseId: string, kg: number): number {
  * To ostrożna propozycja z przyjętym krokiem, a nie zalecenie ani pewna ocena gotowości; decyzja należy do zawodnika.
  */
 export function suggestNext(
-  exerciseId: string, kg: number, strain: Strain, deload: boolean, completion?: Completion,
+  exerciseId: string, kg: number, strain: Strain, deload: boolean, completion?: Completion, who: { years?: number; age?: number } = {},
 ): Suggestion | null {
   const e = EXERCISES[exerciseId];
   if (!e || !e.loaded || kg <= 0) return null;
-  const step = stepFor(exerciseId, kg);
+  const step = stepFor(exerciseId, kg, who);
   const lowerTo = kg - step > 0 ? roundTo(kg - step) : undefined;
   const stay = (text: string): Suggestion => ({ exerciseId, from: kg, to: kg, text, options: ["stay", "lower", "swap", "skip"], ...(lowerTo ? { lowerTo } : {}) });
   if (completion === undefined) return stay("Nie potwierdzono wykonania wszystkich powtórzeń – ciężar zostaje bez zmian.");

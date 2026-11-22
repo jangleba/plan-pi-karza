@@ -21,10 +21,10 @@ const skip = (dates: string[], since = WED): DaySkip[] => dates.map((date) => ({
 
 describe("dzień po meczu dla siły: ostatnia opcja i dopiero od 2 lat stażu", () => {
   const onlyMd1 = { ...base, matches: [WED], offDays: [MON, TUE, FRI, SAT, SUN] }; // wolny jest tylko czwartek = MD+1 (środa to mecz)
-  it("staż 1 rok: siły dzień po meczu NIE planujemy, jest ostrzeżenie o braku miejsca", () => {
+  it("staż 1 rok: siły dzień po meczu NIE planujemy (mecz ma pierwszeństwo, bez ostrzeżenia)", () => {
     const p = planWeek({ ...onlyMd1, strengthYears: 1 });
     expect(strengthDays(p)).toEqual([]);
-    expect(p.warnings.join(" ")).toMatch(/siła/);
+    expect(p.warnings.join(" ")).not.toMatch(/siła/);
   });
   it(`od ${MD1_STRENGTH_MIN_YEARS} lat stażu siła ląduje dzień po meczu (jako ostatnia opcja)`, () => {
     expect(strengthDays(planWeek({ ...onlyMd1, strengthYears: MD1_STRENGTH_MIN_YEARS }))).toEqual([THU]);

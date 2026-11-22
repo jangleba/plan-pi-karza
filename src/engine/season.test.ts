@@ -81,7 +81,9 @@ describe("dni niedostępne", () => {
     const off = ["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20"];
     const p = planWeek({ ...base, offDays: off });
     expect(p.days.filter((d) => off.includes(d.date)).every((d) => d.session === null)).toBe(true);
-    expect(p.warnings.length).toBeGreaterThan(0);
+    // miękkie minimum: w tygodniu z meczem brak ostrzeżenia, bez meczu ostrzeżenie zostaje
+    expect(p.warnings).toEqual([]);
+    expect(planWeek({ ...base, matches: [], offDays: off }).warnings.length).toBeGreaterThan(0);
   });
 });
 
