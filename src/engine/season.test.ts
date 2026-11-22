@@ -84,7 +84,8 @@ describe("dni niedostępne", () => {
     const p = planWeek({ ...base, offDays: off });
     expect(p.days.filter((d) => off.includes(d.date)).every((d) => d.session === null)).toBe(true);
     // miękkie minimum: w tygodniu z meczem brak ostrzeżenia, bez meczu ostrzeżenie zostaje
-    expect(p.warnings).toEqual([]);
+    // miękkie minimum: w tygodniu z meczem brak ostrzeżeń o sile i sprincie (jedyne wymagane to jeden bieg), bez meczu ostrzeżenie zostaje
+    expect(p.warnings.join(" ")).not.toMatch(/siła|sprint/);
     expect(planWeek({ ...base, matches: [], offDays: off }).warnings.length).toBeGreaterThan(0);
   });
 });
@@ -113,5 +114,21 @@ describe("drugi cel i samopoczucie na boisku", () => {
     expect(feelDue({ date: "2026-11-01", now: [] }, "2026-11-19")).toBe(false);
     expect(feelDue({ date: "2026-10-01", now: [] }, "2026-11-19")).toBe(true);
     expect(feelChange({ date: "a", now: ["slow", "duels"] }, { date: "b", now: ["duels", "stamina"] })).toEqual({ better: ["slow"], worse: ["stamina"] });
+  });
+});
+
+describe("bieg w tygodniu z meczem", () => {
+  it("jeden bieg zawsze jest, lekki, a przy celu wydolność pełny", () => {
+    const light = planWeek({ ...base, goal: "speed" });
+    const runs = light.days.filter((d) => d.session?.kind === "run");
+    expect(runs).toHaveLength(1);
+    expect(runs[0]!.session!.variant).toBe("light");
+    const endu = planWeek({ ...base, goal: "endurance" }).days.find((d) => d.session?.kind === "run");
+    expect(endu!.session!.variant).toBe("full");
+  });
+  it("brak miejsca na bieg nawet w tygodniu z meczem = ostrzeżenie", () => {
+    const p = planWeek({ ...base, offDays: ["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20", "2026-11-22"] });
+    expect(p.days.some((d) => d.session?.kind === "run")).toBe(false);
+    expect(p.warnings.join(" ")).toMatch(/bieg/i);
   });
 });

@@ -88,9 +88,11 @@ export function goalExtra(goal: WeekInput["goal"]): "sprint" | "strength" | "run
   return goal === "speed" ? "sprint" : goal === "strength" ? "strength" : goal === "endurance" ? "run" : null;
 }
 
-function variantFor(kind: SessionKind, phase: Phase, input: WeekInput): SessionVariant {
+function variantFor(kind: SessionKind, phase: Phase, input: WeekInput, matchInWeek: boolean): SessionVariant {
   if (input.season === "offseason" && (kind === "sprint" || kind === "run")) return "light";
   if (kind === "sprint" && phase === "MD-1") return "light";
+  // tydzień z meczem: bieg zależy od celu; tylko cel wydolność zostaje przy pełnych interwałach, reszta dostaje lekki bieg ciągły
+  if (kind === "run" && matchInWeek && input.goal !== "endurance" && input.goal2 !== "endurance") return "light";
   if (kind === "strength" && phase === "MD+1") {
     return input.level === "advanced" || input.limitedGymAccess ? "full" : "upper";
   }
@@ -138,7 +140,7 @@ export function planWeek(input: WeekInput): WeekPlan {
           if (HARD.includes(kind) && neighbourHas(i, kind)) continue;
           const session: IndividualSession = {
             kind,
-            variant: opt.upper ? "upper" : variantFor(kind, d.phase, input),
+            variant: opt.upper ? "upper" : variantFor(kind, d.phase, input, days.some((x) => x.isMatch)),
             reason: opt.movedFrom ? `Przełożona z ${weekdayGen(opt.movedFrom)}: wtedy nie możesz trenować.` : REASONS[`${kind}:${d.phase}`] ?? "",
             ...(opt.movedFrom ? { movedFrom: opt.movedFrom } : {}),
           };
@@ -157,8 +159,9 @@ export function planWeek(input: WeekInput): WeekPlan {
   const required: Array<keyof typeof PREFERRED> = ["strength", "sprint", "run"];
   if (mustExtra) required.push(extra);
   for (const kind of required) {
-    // Miękkie minimum: mecz i dni MD-1/MD+1 mają pierwszeństwo. W tygodniu z meczem brak miejsca nie jest błędem planu.
-    if (!place(kind, PREFERRED[kind]) && matches.length === 0) {
+    // Miękkie minimum: mecz i dni MD-1/MD+1 mają pierwszeństwo. W tygodniu z meczem brak miejsca na siłę i sprint nie jest błędem planu,
+    // ale jeden bieg w tygodniu musi być zawsze (decyzja trenera).
+    if (!place(kind, PREFERRED[kind]) && (!days.some((x) => x.isMatch) || kind === "run")) {
       warnings.push(`Brak miejsca na sesję: ${KIND_PL[kind]}. Zwolnij dzień w kalendarzu, jeśli chcesz ją zrobić.`);
     }
   }

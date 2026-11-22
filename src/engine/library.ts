@@ -68,7 +68,12 @@ export const EXERCISES: Record<string, Exercise> = Object.fromEntries(
     ex("leg-press", "Leg press", "squat", true, 1, "knee", ["goblet-squat", "split-squat"]),
     ex("leg-extension", "Prostowanie nóg na maszynie", "squat", true, 1, "knee", ["split-squat", "bw-squat"]),
     ex("leg-curl-machine", "Uginanie nóg na maszynie", "hinge", true, 1, "knee", ["slider-leg-curl", "glute-bridge"]),
-    // sprint
+    // sprint: pula drilli i loty z notatek trenera
+    ex("flying-sprint", "Sprint lotny (rozbieg + 20–30 m)", "sprint", false, 3, "hip", ["sprint-30"]),
+    ex("double-a-switch", "Double A switch", "drill", false, 1, "none", ["skip-a-b-d"]),
+    ex("b-skip", "Skip B", "drill", false, 1, "none", ["skip-a-b-d"]),
+    ex("d-a-d-a", "D → A → D → A", "drill", false, 1, "none", ["skip-a-b-d"]),
+    ex("hurdle-jumps", "Skoki przez płotki", "jump", false, 2, "ankle", ["pogo-jumps", "sl-jumps-llrr"]),
     ex("skip-przejscia", "Skipy – przejścia", "drill", false, 1, "none"),
     ex("skip-a-b-d", "Drille skip A / B / D", "drill", false, 1, "none"),
     ex("ankling", "Ankling", "drill", false, 1, "ankle"),
@@ -315,6 +320,37 @@ export function mesoPhase(weekInCycle: number): MesoPhase {
  * (sprint-b), pozostali – przyspieszenie i zmiana kierunku (sprint-a); co drugi tydzień drugi wariant (tygodnie 2 i 4 cyklu).
  * Siły (siłownia) pozycja NIE zmienia.
  */
+export interface SprintOpts { season?: Season; goal?: SeasonGoal; level?: Level; age?: number; variant?: "full" | "upper" | "light" }
+
+const DRILL_POOL = ["skip-a-b-d", "double-a-switch", "b-skip", "d-a-d-a", "ankling", "hurdle-jumps"];
+
+/** Liczba sprintów 30 m: okres (przygotowawczy więcej), cel szybkość +1, nowicjusz i poniżej 18 lat −1. Wartości umowne – do ustalenia przez trenera. */
+export function sprintCount(o: SprintOpts): number {
+  const base = o.season === "preseason" ? 5 : o.season === "offseason" ? 3 : 4;
+  const adj = (o.goal === "speed" ? 1 : 0) - (o.level === "beginner" || (o.age !== undefined && o.age < 18) ? 1 : 0);
+  return Math.min(6, Math.max(2, base + adj));
+}
+
+/** Dostrojenie sprintu: liczba sprintów, rotacja drilli z puli trenera co tydzień, loty (prędkość maksymalna) poza lekkim wariantem i nowicjuszem. */
+export function tuneSprint(t: SessionTemplate, o: SprintOpts, weekInCycle: number): SessionTemplate {
+  const light = o.variant === "light";
+  const n = light ? 2 : sprintCount(o);
+  const young = o.level === "beginner" || (o.age !== undefined && o.age < 18);
+  const drills = Array.from({ length: 3 }, (_, k) => DRILL_POOL[(weekInCycle + k) % DRILL_POOL.length]!);
+  const blocks: Block[] = t.blocks.map((b) => {
+    if (b.title === "Drille") return { ...b, items: drills.map((id) => it(id, 1, id === "hurdle-jumps" ? "6" : "30 m")) };
+    if (b.title === "Sprint 30 m") return { ...b, items: [it("sprint-30", n, "30 m")] };
+    if (b.title === "Przyspieszenie") return { ...b, items: b.items.map((i) => (i.exerciseId === "sprint-30" ? { ...i, sets: Math.min(i.sets, n) } : i)) };
+    return b;
+  });
+  const flying = !light && !young && (o.goal === "speed" || o.season === "preseason");
+  if (flying) {
+    const at = blocks.findIndex((b) => b.title === "Sprint 30 m" || b.title === "Przyspieszenie");
+    blocks.splice(at + 1, 0, { title: "Prędkość maksymalna", items: [it("flying-sprint", o.goal === "speed" ? 3 : 2, "rozbieg 20 m + 20–30 m", { note: "pełny odpoczynek 3–4 min" })] });
+  }
+  return { ...t, blocks };
+}
+
 export function sprintTemplateFor(position: Position | undefined, weekInCycle: number): SessionTemplate | undefined {
   const a = TEMPLATES.find((x) => x.id === "sprint-a");
   const b = TEMPLATES.find((x) => x.id === "sprint-b");
@@ -398,5 +434,6 @@ export function templateFor(
     return { template: t, deload: phase === "deload" };
   }
   const t = sprintTemplateFor(position, weekInCycle);
-  return t ? { template: t, deload: phase === "deload" } : null;
+  const tuned = t ? tuneSprint(t, { ...(opts.season ? { season: opts.season } : {}), ...(opts.goal ? { goal: opts.goal } : {}), ...(opts.level ? { level: opts.level } : {}), ...(opts.age !== undefined ? { age: opts.age } : {}), ...(opts.variant ? { variant: opts.variant } : {}) }, weekInCycle) : undefined;
+  return tuned ? { template: tuned, deload: phase === "deload" } : null;
 }

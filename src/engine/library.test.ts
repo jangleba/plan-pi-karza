@@ -187,3 +187,20 @@ describe("sprzęt i początkujący", () => {
     expect(a.notes.join(" ")).toMatch(/te same serie/);
   });
 });
+
+describe("sprint wg okresu i celu, bieg w tygodniu z meczem", () => {
+  it("liczba sprintów: przygotowawczy > sezon, cel szybkość +1, młodzi −1", async () => {
+    const { sprintCount } = await import("./library");
+    expect(sprintCount({ season: "preseason" })).toBeGreaterThan(sprintCount({ season: "inseason" }));
+    expect(sprintCount({ season: "inseason", goal: "speed" })).toBe(sprintCount({ season: "inseason" }) + 1);
+    expect(sprintCount({ season: "inseason", age: 16 })).toBe(sprintCount({ season: "inseason" }) - 1);
+  });
+  it("loty: tak dla celu szybkość, nie dla lekkiego wariantu ani nowicjusza; drille rotują", async () => {
+    const { templateFor } = await import("./library");
+    const ids = (o: Parameters<typeof templateFor>[3], w = 1) => templateFor("sprint", w, "pomocnik", o)!.template.blocks.flatMap((b) => b.items.map((i) => i.exerciseId));
+    expect(ids({ goal: "speed", level: "intermediate" })).toContain("flying-sprint");
+    expect(ids({ goal: "speed", level: "intermediate", variant: "light" })).not.toContain("flying-sprint");
+    expect(ids({ goal: "speed", level: "beginner" })).not.toContain("flying-sprint");
+    expect(ids({ level: "intermediate" }, 1).join()).not.toBe(ids({ level: "intermediate" }, 2).join());
+  });
+});

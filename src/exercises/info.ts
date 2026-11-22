@@ -14,6 +14,11 @@ export interface ExInfo {
 const i = (anim: AnimKey | undefined, cues: [string, string, string], pace?: string): ExInfo => ({ anim, cues, pace });
 
 export const INFO: Record<string, ExInfo> = {
+  "flying-sprint": i(undefined, ["Rozbieg 20 m narastająco, bez maksimum", "W strefie lotu 20–30 m pełna prędkość", "Rozluźniona twarz i ramiona, wybieg po strefie"], "Maksymalna prędkość, pełny odpoczynek"),
+  "double-a-switch": i(undefined, ["Dwa szybkie A na jednej nodze, potem zmiana", "Kolano wysoko, stopa pod biodrem", "Rytm szybki, ale z kontrolą"], "Rytmicznie, dynamicznie"),
+  "b-skip": i(undefined, ["Kolano w górę, potem wyprost podudzia", "Stopa ściąga pod siebie, kontakt na przodostopiu", "Tułów prosto, ramiona pracują"], "Rytmicznie"),
+  "d-a-d-a": i(undefined, ["D: ściągasz stopę pod miednicę", "A: kolano wysoko, szybka zmiana", "Zmieniasz D i A bez przerwy, rytm równy"], "Rytmicznie"),
+  "hurdle-jumps": i(undefined, ["Skok obunóż przez płotek, kolana w górę", "Krótki kontakt z podłożem między płotkami", "Lądowanie na przodostopiu, tułów prosto"], "Jak najkrótszy kontakt z podłożem"),
   "leg-press": i(undefined, ["Plecy i miednica dociśnięte do oparcia", "Kolana w linii stóp, bez blokowania w górze", "Opuszczasz wolno 3 s, wypychasz płynnie"], "Tempo 3-1-x, zapas 3 powtórzeń"),
   "leg-extension": i(undefined, ["Oparcie ustawione tak, by kolano było przy osi", "Prostujesz nogi płynnie, na górze 1 s", "Opuszczasz wolno 3 s, bez opadania ciężaru"], "Tempo 3-1-x, zapas 3 powtórzeń"),
   "leg-curl-machine": i(undefined, ["Biodra dociśnięte do ławki", "Uginasz płynnie, bez szarpnięcia", "Wracasz wolno 3 s"], "Tempo 3-1-x, zapas 3 powtórzeń"),
