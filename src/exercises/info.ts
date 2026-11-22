@@ -14,6 +14,9 @@ export interface ExInfo {
 const i = (anim: AnimKey | undefined, cues: [string, string, string], pace?: string): ExInfo => ({ anim, cues, pace });
 
 export const INFO: Record<string, ExInfo> = {
+  "leg-press": i(undefined, ["Plecy i miednica dociśnięte do oparcia", "Kolana w linii stóp, bez blokowania w górze", "Opuszczasz wolno 3 s, wypychasz płynnie"], "Tempo 3-1-x, zapas 3 powtórzeń"),
+  "leg-extension": i(undefined, ["Oparcie ustawione tak, by kolano było przy osi", "Prostujesz nogi płynnie, na górze 1 s", "Opuszczasz wolno 3 s, bez opadania ciężaru"], "Tempo 3-1-x, zapas 3 powtórzeń"),
+  "leg-curl-machine": i(undefined, ["Biodra dociśnięte do ławki", "Uginasz płynnie, bez szarpnięcia", "Wracasz wolno 3 s"], "Tempo 3-1-x, zapas 3 powtórzeń"),
   // nowe ćwiczenia z sesji trenera: na razie bez animacji, teksty robocze do przeglądu trenera
   "trap-bar-deadlift": i(undefined, ["Stań w środku gryfu, plecy proste", "Odepchnij podłoże nogami, biodra i barki razem", "Na górze pełny wyprost bioder, bez przeprostu"], "Kontrolowanie w dół, mocno w górę"),
   "db-rdl": i(undefined, ["Biodra do tyłu, kolana lekko ugięte", "Plecy płaskie, hantle blisko nóg", "Wracasz mocnym wyprostem bioder"]),

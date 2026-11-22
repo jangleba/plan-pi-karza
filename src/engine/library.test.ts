@@ -158,3 +158,32 @@ describe("początkujący, zamienniki", () => {
     expect(t.blocks.flatMap((b) => b.items).some((i) => i.exerciseId === "depth-jump-hurdle")).toBe(false);
   });
 });
+
+describe("sprzęt i początkujący", () => {
+  it("brak trap bara: zamiennik bez trap bara, bez duplikatów w sesji", async () => {
+    const { templateFor, applyGear, NEEDS } = await import("./index");
+    const t = templateFor("strength", 2, undefined, { level: "advanced", slot: 1, count: 2 })!.template;
+    const r = applyGear(t, ["trapbar"]);
+    const ids = r.template.blocks.flatMap((b) => b.items.map((i) => i.exerciseId));
+    expect(ids).not.toContain("trap-bar-deadlift");
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.every((id) => NEEDS[id] !== "trapbar")).toBe(true);
+    expect(r.notes.join(" ")).toMatch(/Trap bar/);
+  });
+  it("brak piłki lekarskiej: bez rzutów piłką w planie", async () => {
+    const { templateFor, applyGear } = await import("./index");
+    for (let w = 1; w <= 5; w++) {
+      const t = templateFor("strength", w, undefined, { level: "advanced", slot: 1, count: 2, season: "preseason", goal: "speed" })!.template;
+      const ids = applyGear(t, ["medball"]).template.blocks.flatMap((b) => b.items.map((i) => i.exerciseId));
+      expect(ids.some((i) => i.startsWith("mb-"))).toBe(false);
+    }
+  });
+  it("początkujący w rozładowaniu: te same serie, lżejszy ciężar", async () => {
+    const { templateFor, adaptSession, DEFAULT_CHECK_IN } = await import("./index");
+    const f = templateFor("strength", 5, undefined, { level: "beginner", slot: 0, count: 1 })!;
+    expect(f.deload).toBe(true);
+    const a = adaptSession(f.template, DEFAULT_CHECK_IN, f.deload);
+    expect(a.blocks.flatMap((b) => b.items).every((i, k) => i.sets === f.template.blocks.flatMap((b) => b.items)[k]!.sets)).toBe(true);
+    expect(a.notes.join(" ")).toMatch(/te same serie/);
+  });
+});

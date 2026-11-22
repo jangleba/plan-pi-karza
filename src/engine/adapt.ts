@@ -64,7 +64,9 @@ export function adaptSession(t: SessionTemplate, c: CheckIn, deload = false): Ad
   const notes: string[] = [];
   let blocks: Block[] = t.blocks.map((b) => ({ ...b, items: b.items.map((i) => ({ ...i })) }));
 
-  const cut = deload || strain !== "none";
+  // początkujący w rozładowaniu: te same serie, lżejszy ciężar (objętość dla hipertrofii zostaje); przy złym samopoczuciu nadal tniemy serie
+  const keepSets = t.beginner === true && deload && strain === "none";
+  const cut = (deload && !keepSets) || strain !== "none";
   if (cut) {
     blocks = blocks.map((b) => ({
       ...b,
@@ -73,6 +75,8 @@ export function adaptSession(t: SessionTemplate, c: CheckIn, deload = false): Ad
     notes.push(
       deload ? "Tydzień rozładowania: mniej serii." : `Mniej serii: ${reason(c) || "tak wyszło z check-inu"}.`,
     );
+  } else if (keepSets) {
+    notes.push("Tydzień rozładowania: te same serie, ale lżejszy ciężar (zapas 4 powtórzeń).");
   }
   if (strain === "heavy") {
     blocks = blocks.map((b) => ({

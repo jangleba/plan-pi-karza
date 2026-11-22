@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { DrillPreview } from "./drill/DrillPreview";
 import { TechniqueSession } from "./TechniqueSession";
 import { DrillFull } from "./drill/DrillFull";
@@ -6,6 +6,7 @@ import { HalfPitchView } from "./HalfPitch";
 import { InviteComposer } from "./InviteSheets";
 import { Sheet } from "./Sheet";
 import { pushWeightLog } from "./lib/sync";
+import { loadMissingGear } from "./lib/gear";
 import { MasCard, loadMas, saveMasDistance } from "./MasCard";
 import { RunTracker } from "./RunTracker";
 import { SessionBlocks } from "./SessionBlocks";
@@ -14,7 +15,7 @@ import { DrawTool } from "./tools/Draw";
 import { StimuliTool } from "./tools/Stimuli";
 import { Group, ListRow } from "./ui";
 import { CueTrainer } from "./CueTrainer";
-import { EXERCISES, RECOVERY, RECOVERY_LIGHT, applyChoice, bodyweightTemplate, drillsFor, DRILL_GROUPS, adaptSession, addEvents, restSuggested, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
+import { EXERCISES, RECOVERY, RECOVERY_LIGHT, applyChoice, applyGear, bodyweightTemplate, drillsFor, DRILL_GROUPS, adaptSession, addEvents, restSuggested, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
 import type { CheckIn, Drill, DrillGroup, Choice, Completion, DayPlan, HistoryEvent, Level, Mas, Position, Season, SeasonGoal, Suggestion } from "./engine";
 
 interface ConfirmRow { exerciseId: string; kg: number; planned: string; plannedReps: number }
@@ -65,7 +66,10 @@ export function SessionSheet({
         })()
     : null;
   const run = s?.kind === "run" ? (mas ? runSession(mas, s?.variant === "light" ? "deload" : mesoPhase(weekInCycle), level, checkIn, position) : masTestSession()) : null;
-  const adapted = found ? adaptSession(found.template, checkIn, found.deload) : null;
+  const missingGear = useMemo(() => loadMissingGear(), []);
+  const gearApplied = found ? applyGear(found.template, missingGear) : null;
+  const adaptedBase = found && gearApplied ? adaptSession(gearApplied.template, checkIn, found.deload) : null;
+  const adapted = adaptedBase && gearApplied ? { ...adaptedBase, notes: [...adaptedBase.notes, ...gearApplied.notes] } : adaptedBase;
 
   /** Ćwiczenia z wpisanym ciężarem: to, co zawodnik ZGŁOSIŁ (plan sesji jest osobno). */
   const reported = (): ConfirmRow[] => {

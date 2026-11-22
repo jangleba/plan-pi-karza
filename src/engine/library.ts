@@ -37,7 +37,7 @@ export const EXERCISES: Record<string, Exercise> = Object.fromEntries(
     ex("box-jump", "Skok na skrzynię", "jump", false, 2, "knee", ["pogo-jumps"]),
     ex("pogo-jumps", "Pogo jumps", "jump", false, 1, "ankle"),
     ex("hang-power-clean", "Hang power clean", "power", true, 3, "back", ["kb-swing", "mb-overhead-throw", "box-jump"]),
-    ex("kb-swing", "Swing z kettlebell", "power", true, 2, "hip", ["mb-overhead-throw", "pogo-jumps"]),
+    ex("kb-swing", "Swing z kettlebell", "power", true, 2, "hip", ["mb-overhead-throw", "squat-jump", "pogo-jumps"]),
     ex("back-squat", "Back squat", "squat", true, 3, "knee", ["goblet-squat", "bulgarian-split-squat", "step-up", "split-squat"]),
     ex("goblet-squat", "Goblet squat", "squat", true, 2, "knee", ["step-up", "split-squat", "bw-squat"]),
     ex("step-up", "Step up", "squat", true, 2, "knee", ["goblet-squat", "split-squat"]),
@@ -58,12 +58,16 @@ export const EXERCISES: Record<string, Exercise> = Object.fromEntries(
     // dół ciała i moc (dodane z sesji trenera; opisy bez animacji)
     ex("trap-bar-deadlift", "Trap bar deadlift", "hinge", true, 3, "back", ["db-rdl", "sl-rdl-bw", "glute-bridge"]),
     ex("db-rdl", "Martwy ciąg rumuński z hantlami", "hinge", true, 2, "hip", ["sl-rdl-bw", "glute-bridge"]),
-    ex("mb-shotput", "Pchnięcie piłki lekarskiej", "power", false, 2, "shoulder", ["mb-overhead-throw", "kb-swing"]),
-    ex("mb-overhead-throw", "Rzut piłki lekarskiej znad głowy", "power", false, 2, "back", ["mb-shotput", "kb-swing"]),
+    ex("mb-shotput", "Pchnięcie piłki lekarskiej", "power", false, 2, "shoulder", ["mb-overhead-throw", "kb-swing", "squat-jump", "skater-jump", "pogo-jumps"]),
+    ex("mb-overhead-throw", "Rzut piłki lekarskiej znad głowy", "power", false, 2, "back", ["mb-shotput", "kb-swing", "squat-jump", "skater-jump", "pogo-jumps"]),
     ex("broad-jump-ex", "Skok w dal z miejsca", "jump", false, 2, "knee", ["squat-jump", "box-jump", "pogo-jumps"]),
     ex("skater-jump", "Skok boczny (skater)", "jump", false, 2, "knee", ["bounding", "pogo-jumps"]),
     ex("sl-assisted-cmj", "Skok jednonóż z asystą gumy", "jump", false, 2, "knee", ["sl-box-jump", "squat-jump", "pogo-jumps"]),
     ex("weighted-step-up-jump", "Step up z wyskokiem i ciężarem", "jump", true, 2, "knee", ["sl-box-jump", "sl-assisted-cmj", "pogo-jumps"]),
+    // maszyny (początkujący: hipertrofia dołu)
+    ex("leg-press", "Leg press", "squat", true, 1, "knee", ["goblet-squat", "split-squat"]),
+    ex("leg-extension", "Prostowanie nóg na maszynie", "squat", true, 1, "knee", ["split-squat", "bw-squat"]),
+    ex("leg-curl-machine", "Uginanie nóg na maszynie", "hinge", true, 1, "knee", ["slider-leg-curl", "glute-bridge"]),
     // sprint
     ex("skip-przejscia", "Skipy – przejścia", "drill", false, 1, "none"),
     ex("skip-a-b-d", "Drille skip A / B / D", "drill", false, 1, "none"),
@@ -121,6 +125,8 @@ export interface SessionTemplate {
   phase: "volume" | "intensity" | "sprint";
   /** Sesja tylko na górę ciała (dzień po meczu, bez obciążania nóg). */
   upper?: boolean;
+  /** Sesja początkującego: w tygodniu rozładowania zostają te same serie (lżejszy ciężar), bo budujemy objętość. */
+  beginner?: boolean;
   blocks: Block[];
 }
 
@@ -274,19 +280,23 @@ function dayB(level: Level, phase: "volume" | "intensity", season: Season | unde
  * Dwie wersje na przemian (A: przysiad i wykrok, B: hinge i jednonóż). Wartości robocze – do ustalenia przez trenera.
  */
 const NOTE_B = "technika przed ciężarem, zostaw 3 powtórzenia zapasu";
-function beginnerDay(b: boolean): SessionTemplate {
+function beginnerDay(b: boolean, phase: MesoPhase): SessionTemplate {
+  // faza objętości: 12 powtórzeń; faza „intensywności”: 10 powtórzeń i nieco więcej ciężaru (hipertrofia, bez pracy w zakresie maksymalnym)
+  const r = phase === "intensity" ? "10" : "12";
+  const heavier = phase === "intensity" ? " Dołóż ciężar, jeśli zapas > 3 powtórzeń." : "";
   const legs: Block = b
-    ? { title: "Dół: hipertrofia", items: [it("db-rdl", 3, "12", { note: NOTE_B }), it("step-up", 3, "10 / nogę"), it("sl-glute-bridge", 3, "12 / nogę"), it("seated-sl-calf", 3, "15 / nogę")] }
-    : { title: "Dół: hipertrofia", items: [it("goblet-squat", 3, "12", { note: "tempo 3-1-x, " + NOTE_B }), it("split-squat", 3, "10 / nogę"), it("glute-bridge", 3, "12"), it("seated-sl-calf", 3, "15 / nogę")] };
+    ? { title: "Dół: hipertrofia", items: [it("db-rdl", 3, r, { note: NOTE_B + heavier }), it("leg-curl-machine", 3, r, { note: "tempo 3-1-x" }), it("step-up", 3, `${r} / nogę`), it("seated-sl-calf", 3, "15 / nogę")] }
+    : { title: "Dół: hipertrofia", items: [it("leg-press", 3, r, { note: "tempo 3-1-x, " + NOTE_B + heavier }), it("leg-extension", 3, "12–15", { note: "tempo 3-1-x" }), it("split-squat", 3, `${r} / nogę`), it("glute-bridge", 3, "12"), it("seated-sl-calf", 3, "15 / nogę")] };
   return {
     id: b ? "strength-beginner-b" : "strength-beginner-a",
     name: "Siła – nauka i budowa masy",
     module: "strength",
     phase: "volume",
+    beginner: true,
     blocks: [
       { title: "Rozgrzewka i skoki", items: [it("pogo-jumps", 2, "6")] },
       legs,
-      { title: "Góra", items: [it("db-bench-press", 3, "10"), it("db-row", 3, "10 / rękę")] },
+      { title: "Góra", items: [it("db-bench-press", 3, r), it("db-row", 3, `${r} / rękę`)] },
       { title: "Core", items: [it("side-plank", 3, "30 s / stronę")] },
     ],
   };
@@ -363,7 +373,7 @@ export function templateFor(
     const phase2 = want as "volume" | "intensity";
     let t: SessionTemplate | undefined;
     if (upper) t = TEMPLATES.find((x) => x.module === "strength" && x.phase === want && x.upper);
-    else if (level === "beginner") t = beginnerDay(opts.count !== undefined && opts.count > 1 ? opts.slot === 1 : weekInCycle % 2 === 0);
+    else if (level === "beginner") t = beginnerDay(opts.count !== undefined && opts.count > 1 ? opts.slot === 1 : weekInCycle % 2 === 0, phase);
     else {
       // dzień A (przysiad) vs B: dwie sesje w tygodniu = A i B; jedna = rotacja co tydzień
       const useB = opts.count !== undefined && opts.count > 1 ? opts.slot === 1 : weekInCycle % 2 === 0;
