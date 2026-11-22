@@ -1,12 +1,17 @@
-import { Suspense, lazy, useEffect, useState } from "react";
-import { readinessScore, restSuggested, strainOf } from "./engine";
-import type { CheckIn, Profile } from "./engine";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { localISO, planForProfile, readinessScore, restSuggested, strainOf, weekStartOf } from "./engine";
+import type { CheckIn, DayPlan, Profile } from "./engine";
 import { Sheet } from "./Sheet";
 import { LegalSheet } from "./legal/LegalUi";
 import { EnglishCard } from "./english/EnglishCard";
 import { DaySkipToggle } from "./DaySkipToggle";
 import { GoalCard } from "./goal/GoalCard";
 import { WeekCard } from "./week/WeekGate";
+import { ExtraTile } from "./extra/ExtraCard";
+import { KIND_LABEL } from "./kinds";
+import { useSkippedVersion } from "./lib/skipped";
+import { useExtrasVersion } from "./lib/extras";
+import { rise } from "./ui";
 
 // Moduł nauki ładuje się dopiero po otwarciu (osobny fragment pakietu): nie spowalnia strony głównej.
 const EnglishModule = lazy(() => import("./english/EnglishModule"));
@@ -18,10 +23,12 @@ const STRAIN = { none: "Pełna sesja", light: "Trochę lżej", heavy: "Wyraźnie
 /** Liczba „doliczająca się” do celu (easeOutCubic). */
 function useCountUp(to: number, run: boolean, ms = 800): number {
   const [v, setV] = useState(run ? 0 : to);
+  const shown = useRef(v);
+  shown.current = v;
   useEffect(() => {
     if (!run) { setV(to); return; }
     let raf = 0;
-    const from = 0, t0 = performance.now();
+    const from = shown.current, t0 = performance.now(); // od aktualnej liczby (pierścień „spada” po dodaniu jednostki, a nie startuje od zera)
     const step = (now: number) => {
       const k = Math.min(1, (now - t0) / ms);
       setV(Math.round(from + (to - from) * (1 - (1 - k) ** 3)));
@@ -37,16 +44,37 @@ function Ring({ value, done, onTap }: { value: number; done: boolean; onTap: () 
   const r = 70, c = 2 * Math.PI * r;
   const shown = useCountUp(value, done);
   return (
-    <button onClick={onTap} className="relative mx-auto block h-40 w-40" aria-label="Check-in">
+    <button onClick={onTap} className="relative block h-[116px] w-[116px] shrink-0" aria-label="Check-in">
       <svg viewBox="0 0 160 160" className="h-full w-full -rotate-90">
-        <circle cx="80" cy="80" r={r} fill="none" stroke="var(--color-hairline)" strokeWidth="10" />
-        <circle cx="80" cy="80" r={r} fill="none" stroke="var(--color-accent)" strokeWidth="10" strokeLinecap="round"
-          strokeDasharray={c} strokeDashoffset={done ? c * (1 - value / 100) : c} style={{ transition: "stroke-dashoffset 0.8s ease" }} />
+        <circle cx="80" cy="80" r={r} fill="none" stroke="var(--color-hairline)" strokeWidth="11" />
+        <circle cx="80" cy="80" r={r} fill="none" stroke="var(--color-accent)" strokeWidth="11" strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={done ? c * (1 - value / 100) : c} style={{ transition: "stroke-dashoffset 0.9s cubic-bezier(0.2, 0.8, 0.2, 1)" }} />
       </svg>
       <span className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-[44px] font-semibold tabular-nums tracking-tight">{done ? shown : "?"}</span>
-        <span className="mt-1 text-xs text-muted">{done ? "gotowość (orientacyjnie)" : "dotknij"}</span>
+        <span className="text-[34px] font-semibold leading-none tabular-nums tracking-tight">{done ? shown : "?"}</span>
+        <span className="mt-1 text-[10px] text-muted">{done ? "gotowość" : "dotknij"}</span>
       </span>
+    </button>
+  );
+}
+
+/** Kafelek „Dziś”: co jest w planie na dzisiaj; dotknięcie otwiera sesję w Planie. */
+function TodayTile({ profile, index, onOpen }: { profile: Profile; index: number; onOpen: (d: DayPlan) => void }) {
+  const skipV = useSkippedVersion(), extraV = useExtrasVersion(); // zgłoszenie „nie mogę” i własne jednostki przeliczają plan
+  const today = localISO();
+  const day = useMemo(() => planForProfile(profile, weekStartOf(today)).days.find((d) => d.date === today) ?? null, [profile, today, skipV, extraV]); // eslint-disable-line react-hooks/exhaustive-deps
+  const s = day?.session;
+  const title = !day ? "—" : day.isOff ? "Niedostępny" : day.isMatch ? "Mecz" : s ? KIND_LABEL[s.kind] : day.isClub ? "Trening klubowy" : "Wolne";
+  const sub = !day ? "" : s ? (s.kind === "recovery" ? "lekki dzień" : s.variant === "light" ? "lżejsza wersja" : s.variant === "upper" ? "góra ciała" : day.isClub ? "+ trening klubowy" : "pełna sesja") : day.isMatch || day.isClub || day.isOff ? "" : "odpocznij";
+  const open = !!day && (!!s || day.isClub);
+  return (
+    <button disabled={!open} onClick={() => day && onOpen(day)} style={rise(index)} className="bw-rise flex min-h-[148px] flex-col justify-between rounded-3xl border border-hairline bg-card p-4 text-left active:scale-[0.98] disabled:active:scale-100" aria-label="Dzisiejsza sesja">
+      <div>
+        <h2 className="text-[13px] text-muted">Dziś w planie</h2>
+        <p className="mt-1.5 text-[22px] font-semibold leading-tight tracking-tight">{title}</p>
+        {sub && <p className="mt-1 text-[13px] text-muted">{sub}</p>}
+      </div>
+      <p className="mt-2 text-[12px] text-muted">{open ? "Otwórz →" : "\u00a0"}</p>
     </button>
   );
 }
@@ -65,8 +93,9 @@ function Choice({ label, value, onChange }: { label: string; value: 1 | 2 | 3; o
   );
 }
 
-export function Start({ profile, checkIn, checkedIn, onCheckIn, onSettings }: {
-  profile: Profile; checkIn: CheckIn; checkedIn: boolean; onCheckIn: (c: CheckIn) => void; onSettings: () => void;
+export function Start({ profile, checkIn, effective, loadNote, checkedIn, onCheckIn, onSettings, onOpenDay }: {
+  profile: Profile; checkIn: CheckIn; /** Check-in po uwzględnieniu własnych jednostek (do pierścienia i opisu). */ effective: CheckIn; loadNote: string | null;
+  checkedIn: boolean; onCheckIn: (c: CheckIn) => void; onSettings: () => void; onOpenDay: (d: DayPlan) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [safety, setSafety] = useState(false);
@@ -81,25 +110,29 @@ export function Start({ profile, checkIn, checkedIn, onCheckIn, onSettings }: {
       </div>
       <h1 className="mb-6 text-[32px] font-semibold tracking-tight">{profile.name ? `Cześć, ${profile.name}` : "Dziś"}</h1>
 
-      <section className="bw-rise mb-6 rounded-3xl border border-hairline bg-card px-5 py-5">
-        <Ring value={readinessScore(checkIn)} done={checkedIn} onTap={() => setOpen(true)} />
-        <p className="mt-3 text-center text-sm text-muted">{!checkedIn ? "Jak się dziś czujesz? Dotknij." : restSuggested(checkIn) ? "Dziś lżej. Proponujemy regenerację." : STRAIN[strainOf(checkIn)]}</p>
-        <p className="mt-2 text-center text-[11px] leading-snug text-muted">
-          Wynik jest orientacyjny, z Twoich odpowiedzi. Przy bólu odpuść.{" "}
-          <button onClick={() => setSafety(true)} className="underline">Zasady bezpieczeństwa</button>
-        </p>
+      <section className="bw-rise mb-3 flex items-center gap-4 rounded-3xl border border-hairline bg-card p-4">
+        <Ring value={readinessScore(effective)} done={checkedIn} onTap={() => setOpen(true)} />
+        <div className="min-w-0 flex-1">
+          <p key={`${checkedIn}${strainOf(effective)}`} className="bw-pop text-[19px] font-semibold leading-tight tracking-tight">{!checkedIn ? "Jak się dziś czujesz?" : restSuggested(effective) ? "Dziś lżej" : STRAIN[strainOf(effective)]}</p>
+          <p className="mt-1 text-[13px] leading-snug text-muted">{!checkedIn ? "Dotknij pierścienia." : restSuggested(effective) ? "Proponujemy regenerację." : "Gotowość orientacyjna, z Twoich odpowiedzi."}</p>
+          {loadNote && <p key={loadNote} className="bw-step mt-2 text-[12px] leading-snug text-muted">{loadNote}</p>}
+          <button onClick={() => setSafety(true)} className="mt-2 text-[11px] text-muted underline">Zasady bezpieczeństwa</button>
+        </div>
       </section>
 
       <WeekCard profile={profile} />
-      <GoalCard profile={profile} />
 
-      <EnglishCard onOpen={() => setEnglish(true)} refreshKey={englishTick} />
+      <div className="mb-6 grid grid-cols-2 gap-3">
+        <ExtraTile index={1} />
+        <TodayTile profile={profile} index={2} onOpen={onOpenDay} />
+        <GoalCard profile={profile} tile index={3} />
+        <EnglishCard tile index={4} onOpen={() => setEnglish(true)} refreshKey={englishTick} />
+      </div>
       {english && (
         <Suspense fallback={<div className="fixed inset-0 z-30 flex items-center justify-center bg-canvas text-sm text-muted" role="status">Ładowanie…</div>}>
           <EnglishModule onClose={() => { setEnglish(false); setEnglishTick((t) => t + 1); }} />
         </Suspense>
       )}
-
 
       {safety && <LegalSheet kind="safety" onClose={() => setSafety(false)} />}
       {open && (

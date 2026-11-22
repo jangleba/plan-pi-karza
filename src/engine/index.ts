@@ -28,3 +28,4 @@ export * from "./progress2";
 export * from "./ambition";
 export * from "./matchweek";
 export * from "./favorites";
+export * from "./extra";

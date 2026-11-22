@@ -2,10 +2,11 @@ import { useMemo, useState } from "react";
 import { adherence, ambitionCardHidden, cycleAt, cycleRegularity, dismissAmbitionCard, FOCUS_LABEL, loadAmbition, loadHistory, localISO, milestones, nextMilestone } from "../engine";
 import type { Profile } from "../engine";
 import { plannedDays } from "../progress/data";
+import { rise } from "../ui";
 import { GoalSheet } from "./GoalSheet";
 
 /** Karta celu na Starcie: do ustawienia albo ambicja, regularność w cyklu i najbliższy kamień milowy. */
-export function GoalCard({ profile }: { profile: Profile }) {
+export function GoalCard({ profile, tile = false, index = 0 }: { profile: Profile; /** Mały kafelek do siatki na Starcie. */ tile?: boolean; index?: number }) {
   const [tick, setTick] = useState(0);
   const [open, setOpen] = useState(false);
   const today = localISO();
@@ -20,6 +21,15 @@ export function GoalCard({ profile }: { profile: Profile }) {
 
   if (!ambition) {
     if (ambitionCardHidden(today)) return null;
+    if (tile) {
+      return (
+        <section style={rise(index)} className="bw-rise flex min-h-[148px] flex-col justify-between rounded-3xl border border-hairline bg-card p-4" aria-label="Cel">
+          <div><h2 className="text-[13px] text-muted">Cel</h2><p className="mt-1.5 text-[17px] font-semibold leading-snug">Ustal swój cel</p><p className="mt-1 text-[13px] text-muted">Dwa krótkie pytania</p></div>
+          <button onClick={() => setOpen(true)} className="bw-grad mt-3 rounded-2xl py-2.5 text-sm font-medium">Ustal</button>
+          {sheet}
+        </section>
+      );
+    }
     return (
       <section className="bw-rise mb-6 rounded-3xl border border-hairline bg-card px-5 py-4" aria-label="Cel">
         <h2 className="text-[17px] font-semibold">Ustal swój cel</h2>
@@ -33,6 +43,23 @@ export function GoalCard({ profile }: { profile: Profile }) {
     );
   }
   const { cycle, reg, next } = data;
+  if (tile) {
+    const pct = Math.min(100, Math.round((cycle.weekNo / 5) * 100));
+    return (
+      <button onClick={() => setOpen(true)} style={rise(index)} className="bw-rise flex min-h-[148px] flex-col justify-between rounded-3xl border border-hairline bg-card p-4 text-left active:scale-[0.98]" aria-label="Cel">
+        <div>
+          <h2 className="text-[13px] text-muted">{ambition.league ? `Cel: ${ambition.league}` : "Cel na cykl"}</h2>
+          <p className="mt-1.5 text-[26px] font-semibold leading-none tracking-tight tabular-nums">Tydz. {cycle.weekNo}<span className="text-base font-normal text-muted"> z 5</span></p>
+          <p className="mt-1 text-[13px] tabular-nums text-muted">{reg.planned ? `${reg.done} z ${reg.planned} treningów` : "Dopiero zaczynasz"}</p>
+        </div>
+        <div>
+          <div className="h-1.5 rounded-full bg-hairline"><div className="h-1.5 rounded-full bg-btn transition-[width] duration-700" style={{ width: `${pct}%` }} /></div>
+          <p className="mt-2 truncate text-[12px] text-muted">{next ? next.title : "Kamienie milowe zdobyte"}</p>
+        </div>
+        {sheet}
+      </button>
+    );
+  }
   return (
     <section className="bw-rise mb-6 rounded-3xl border border-hairline bg-card px-5 py-4" aria-label="Cel">
       <div className="flex items-start justify-between gap-3">

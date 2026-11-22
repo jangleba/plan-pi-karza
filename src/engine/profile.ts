@@ -1,8 +1,11 @@
 import { loadMatchWeeks, matchDatesAround, type MatchWeeks } from "./matchweek";
-import type { DaySkip, Level, Season, SeasonGoal } from "./types";
+import type { DaySkip, Level, Season, SeasonGoal, WeekInput } from "./types";
 import { MIN_AGE, assessAge } from "../lib/age";
-import { addDays, planWeek } from "./week";
+import { addDays, localISO, planWeek, weekStartOf } from "./week";
 import { loadSkipped } from "../lib/skipped";
+import { loadExtras } from "../lib/extras";
+import { loadHistory } from "./history";
+import { weekLevel, weekLoadTotal } from "./extra";
 
 export type Position = "bramkarz" | "obronca" | "pomocnik" | "skrzydlowy" | "napastnik";
 export const POSITION_LABEL: Record<Position, string> = {
@@ -98,8 +101,15 @@ export function nextWeekUnlocked(weekStart: string, matchWeekdays: number[], tod
 }
 
 /** Korekty planu zgłoszone przez zawodnika: dni, w których nie może trenować (sesje indywidualne są wtedy przekładane), i terminy meczów wpisane na poszczególne tygodnie. */
-export interface PlanAdjust { skippedDays: DaySkip[]; matchWeeks?: MatchWeeks }
-const currentAdjust = (): PlanAdjust => ({ skippedDays: loadSkipped(), matchWeeks: loadMatchWeeks() });
+export interface PlanAdjust { skippedDays: DaySkip[]; matchWeeks?: MatchWeeks; weekLoad?: WeekInput["weekLoad"] }
+const currentAdjust = (): PlanAdjust => ({ skippedDays: loadSkipped(), matchWeeks: loadMatchWeeks(), weekLoad: currentWeekLoad() });
+
+/** Obciążenie bieżącego tygodnia (własne jednostki i wykonane sesje) do dziś; dotyczy tylko planu tego tygodnia. */
+function currentWeekLoad(): WeekInput["weekLoad"] {
+  const today = localISO();
+  const level = weekLevel(weekLoadTotal(loadExtras(), loadHistory(), weekStartOf(today), today));
+  return { level, from: today };
+}
 
 /**
  * Plan tygodnia dla profilu (wspólny dla Startu, Planu i Fuel). Silnik widzi: dni zajęte z onboardingu, staż siłowy (dzień po meczu dla siły
@@ -118,6 +128,8 @@ export function planForProfile(profile: Profile, weekStart: string, adj: PlanAdj
     season: profile.season,
     goal: profile.goal,
     goal2: profile.goal2,
+    // plan innego tygodnia niż bieżący nie zależy od obciążenia „do dziś”
+    ...(adj.weekLoad && weekStartOf(adj.weekLoad.from) === weekStart ? { weekLoad: adj.weekLoad } : {}),
   });
 }
 
