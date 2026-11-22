@@ -3,7 +3,7 @@ import type { Arrow, Drill, Point } from "../engine/drill";
 import { placeDrill, HALF } from "../engine/halfPitch";
 import { STROKE, arrowPath, badgePos, lobPath, penaltyArc, spreadBadges } from "./draw";
 
-const GREEN_A = "#3f9a4f", GREEN_B = "#46a456";
+const GREEN_A = "#478f3f", GREEN_B = "#4c9643";
 const CONE = "#f28c28";
 
 /** Numer kroku strzałki (jawny albo kolejność). */
@@ -15,12 +15,12 @@ export interface BoardAnim { player: Point; ball: Point | null; players?: Record
  * Rysunek ćwiczenia na prawdziwym boisku: murawa z liniami (pole karne, łuk, bramka z siatką), stożki, rebounder, odległości,
  * sześć rodzajów strzałek z numerkami kroków i znacznik START. `step` wyróżnia jeden krok (reszta przygaszona), `anim` pokazuje zawodnika i piłkę.
  */
-export function DrillBoard({ drill, step = null, anim = null, compact = false, layout: layoutProp, className = "w-full rounded-2xl" }: { drill: Drill; step?: number | null; anim?: BoardAnim | null; compact?: boolean; /** „pitch”: szeroka połowa boiska z ćwiczeniem ustawionym przed bramką (jak we wzorcu); „window”: samo pole ćwiczenia. */ layout?: "pitch" | "window"; className?: string }) {
+export function DrillBoard({ drill, step = null, anim = null, compact = false, layout = "pitch", className = "w-full rounded-2xl" }: { drill: Drill; step?: number | null; anim?: BoardAnim | null; compact?: boolean; /** „pitch”: szeroka połowa boiska z ćwiczeniem ustawionym przed bramką (jak we wzorcu); „window”: samo pole ćwiczenia. */ layout?: "pitch" | "window"; className?: string }) {
   const { width: w, height: h, kind } = drill.field;
-  const layout = layoutProp ?? (drill.goals?.length || (drill.rebounders?.length && kind === "half") ? "pitch" : "window"); // bez bramki: samo pole ćwiczenia
   const pitch = layout === "pitch";
   const half = kind === "half";
-  const place = pitch ? placeDrill(drill).box : null;
+  // zawsze na połowie boiska: z bramką – przed nią, bez bramki – po prawej stronie, nad linią środkową
+  const place = pitch ? (drill.goals?.length ? placeDrill(drill).box : { x0: drill.field.origin?.x ?? Math.max(2, 61 - w), y0: drill.field.origin?.y ?? Math.max(-3, 24 - h) }) : null;
   const ox = place?.x0 ?? 0, oy = place?.y0 ?? 0;
   const padT = half ? 4.5 : 2.5, pad = 2;
   // małe pole (np. 18×14 m) rysujemy w oknie nie mniejszym niż 34×22 m, żeby symbole nie były przerośnięte
@@ -35,7 +35,7 @@ export function DrillBoard({ drill, step = null, anim = null, compact = false, l
   return (
     <svg viewBox={pitch ? "2 -5.5 64 32" : `${vx} ${vy} ${vw} ${vh}`} className={className} preserveAspectRatio="xMidYMid meet" role="img" aria-label={drill.title}>
       <defs>
-        <pattern id="db-grass" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="8" height="4" fill={GREEN_A} /><rect y="4" width="8" height="4" fill={GREEN_B} /></pattern>
+        <pattern id="db-grass" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="4" height="8" fill={GREEN_A} /><rect x="4" width="4" height="8" fill={GREEN_B} /></pattern>
         <pattern id="db-net" width="0.9" height="0.9" patternUnits="userSpaceOnUse"><path d="M0 0H0.9M0 0V0.9" stroke="#fff" strokeWidth="0.08" strokeOpacity="0.75" fill="none" /></pattern>
         <clipPath id="db-clip"><rect x={pitch ? 2 : vx} y={pitch ? -5.5 : vy} width={pitch ? 64 : vw} height={pitch ? 32 : vh} /></clipPath>
         {(Object.keys(ARROW_COLOR) as Array<keyof typeof ARROW_COLOR>).map((k) => (
@@ -52,7 +52,8 @@ export function DrillBoard({ drill, step = null, anim = null, compact = false, l
             <path d={`M${HALF.goalX - HALF.sixW / 2},0 V${HALF.sixD} H${HALF.goalX + HALF.sixW / 2} V0`} />
             <circle cx={HALF.goalX} cy={HALF.spotD} r="0.22" fill="#fff" />
             <path d={penaltyArc(HALF.goalX, HALF.spotD, HALF.circleR, HALF.boxD)} />
-            {kind === "patch" && <rect x={ox} y={oy} width={w} height={h} strokeWidth="0.3" strokeDasharray="1.2 0.8" fill="#fff" fillOpacity="0.06" />}
+            <path d={`M2,25.3 H66 M${HALF.goalX - 5.5},25.3 A5.5 5.5 0 0 1 ${HALF.goalX + 5.5},25.3`} />
+            {kind === "patch" && !drill.cones.length && <rect x={ox} y={oy} width={w} height={h} strokeWidth="0.3" strokeDasharray="1.2 0.8" fill="#fff" fillOpacity="0.06" />}
             {!drill.goals?.length && (
               <g><rect x={HALF.goalX - 3.66} y="-2.3" width="7.32" height="2.3" fill="url(#db-net)" strokeWidth="0.25" /><line x1={HALF.goalX - 3.66} x2={HALF.goalX + 3.66} y1="0" y2="0" strokeWidth="0.7" /></g>
             )}
@@ -98,7 +99,7 @@ export function DrillBoard({ drill, step = null, anim = null, compact = false, l
       {drill.targets?.map((t, i) => (
         <g key={`t${i}`}>
           <rect x={t.x - t.width / 2} y={t.y - t.height / 2} width={t.width} height={t.height} rx="0.4" fill="#fff" fillOpacity="0.22" stroke="#fff" strokeWidth="0.16" strokeDasharray="0.6 0.5" />
-          <text x={t.x} y={t.y - t.height / 2 - 0.5} fontSize="1" fontWeight="600" textAnchor="middle" fill="#fff" stroke="#1f2a1f" strokeWidth="0.25" paintOrder="stroke">{t.label}</text>
+          <text x={t.x} y={t.y - t.height / 2 - 0.5} fontSize="0.9" fontWeight="500" textAnchor="middle" fill="#fff" fillOpacity="0.9">{t.label}</text>
         </g>
       ))}
       {drill.stations?.map((r) => (
