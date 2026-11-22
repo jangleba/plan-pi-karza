@@ -17,6 +17,8 @@ Przestrzenie: `bw:guest:*` oraz `bw:u:<id konta>:*`. Zmiana konta nie kopiuje an
 | Check-iny (samopoczucie, regeneracja po wczoraj, „dziś mniej”) | `checkIn:*` | j.w. W chmurze (tabela `check_ins`, kolumny `recovery`, `feeling`, `less`) |
 | Cel zawodnika (liga jako własna ambicja, do dwóch celów treningowych, data) i ukrycie karty „Ustal swój cel” | `ambition`, `ambitionDismissed` | Tylko na urządzeniu, bez synchronizacji, chmury i AI. Samopoczucia ani żadnych odpowiedzi o stanie psychicznym nie zbieramy ani nie zapisujemy |
 | Terminy meczów i sparingów na poszczególne tygodnie (dni 0–6 lub „brak”) | `matchWeeks` | Tylko na urządzeniu, bez synchronizacji; stare wpisy (ponad pół roku) są usuwane |
+| Ustawienia techniki: rola, samoocena poziomu, noga, strona, miejsce, czas i dostępny sprzęt | `technicalSettings:v2` | Tylko na urządzeniu w przestrzeni konta / gościa, bez chmury i AI; nie rozszerzają kontraktu profilu |
+| Wpisane wyniki ćwiczeń technicznych: wykonane i udane próby, subiektywna trudność, wariant i etap | `technicalResults:v2` | Do 500 wpisów, tylko na urządzeniu; korekta zastępuje wynik tej samej sesji i wariantu. Bez automatycznego pomiaru, synchronizacji i przesyłania w zaproszeniu |
 | Zgłoszenia „nie mogę zrobić dzisiejszych treningów” (dzień, którego dotyczą, i dzień zgłoszenia) | `skippedDays` | Tylko na urządzeniu; porządkowane po ok. 10 tygodniach; nie jest synchronizowane |
 | Fuel: posiłki, cele, ulubione, **alergeny i dieta** | `meals`, `fuelGoal`, `fuelFavs`, `fuelDiet`… | Nie są synchronizowane |
 | **Piłkarski angielski**: poziom trudności, ukończone lekcje, etap powtórek zwrotów i fiszek, miejsce przerwania lekcji | `english` | Po zalogowaniu synchronizowane z kontem (dane edukacyjne, nie zdrowotne) |

@@ -23,8 +23,8 @@ export interface Placement {
 export function placeDrill(d: Drill): Placement {
   const { width: w, height: h } = d.field;
   const goal = d.goals?.[0];
-  const ox = goal ? HALF.goalX - goal.x : HALF.w / 2 - w / 2;
-  const oy = goal ? 0 : 34 - h / 2;
+  const ox = d.field.origin?.x ?? (goal ? HALF.goalX - goal.x : HALF.w / 2 - w / 2);
+  const oy = d.field.origin?.y ?? (goal ? 0 : 34 - h / 2);
   const map = (p: Point): Point => ({ x: p.x + ox, y: p.y + oy });
   const corners = [{ x: 0, y: 0 }, { x: w, y: 0 }, { x: w, y: h }, { x: 0, y: h }].map(map);
   return { map, corners, box: { x0: ox, y0: oy, x1: ox + w, y1: oy + h } };
