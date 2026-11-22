@@ -3,7 +3,7 @@ import { VARIANTS, createScenario } from "./scenario";
 import { FIELD_H, FIELD_W } from "./types";
 import type { World } from "./types";
 import { headline, keyMoments } from "./summary";
-import { agent, offsideX, owner, pass, possession, rand, setUser, shoot, step, wouldBeIntercepted } from "./world";
+import { agent, cross, feint, offsideX, owner, pass, possession, rand, setUser, shoot, step, wouldBeIntercepted } from "./world";
 
 const DT = 1 / 60;
 
@@ -212,5 +212,73 @@ describe("podsumowanie akcji", () => {
   it("podanie użytkownika opisane jako „Podanie do: …”", () => {
     const w = run(createScenario(0), { passTo: "CB", until: 2 });
     expect(keyMoments(w)[0]).toBe("0,3 s – Podanie do: Stoper");
+  });
+});
+
+describe("dośrodkowanie i zwody", () => {
+  const mk = () => {
+    const w = createScenario(1);
+    return w;
+  };
+
+  it("dośrodkowanie z dowolnego miejsca leci górą w pole karne i jest oznaczone jako wysokie", () => {
+    const w = mk();
+    const p = agent(w, "P");
+    p.pos = { x: 80, y: 6 }; w.ball.owner = "P"; w.ball.pos = { ...p.pos };
+    expect(cross(w, "P")).toBe(true);
+    const f = w.ball.flight!;
+    expect(f.high).toBe(true);
+    expect(f.to.x).toBeGreaterThan(80);
+    expect(Math.abs(f.to.y - 34)).toBeLessThan(15);
+    expect(w.events.at(-1)?.info?.cross).toBe(true);
+  });
+
+  it("wysokiej piłki nie przecina rywal w połowie lotu", () => {
+    const w = mk();
+    const p = agent(w, "P");
+    p.pos = { x: 70, y: 6 }; w.ball.owner = "P"; w.ball.pos = { ...p.pos };
+    cross(w, "P");
+    const foe = w.agents.find((a) => a.team === "them" && a.role !== "GK")!;
+    const f = w.ball.flight!;
+    foe.pos = { x: (f.from.x + f.to.x) / 2, y: (f.from.y + f.to.y) / 2 };
+    w.user = "P";
+    step(w, 0.1);
+    expect(w.events.some((e) => e.type === "intercept")).toBe(false);
+  });
+
+  it("podanie do bramkarza i do kolegi za plecami działa (dowolny adresat)", () => {
+    const w = mk();
+    const gk = w.agents.find((a) => a.team === "us" && a.role === "GK");
+    if (gk) { expect(pass(w, "P", gk.id)).toBe(true); expect(w.ball.flight?.target).toBe(gk.id); }
+  });
+
+  it("zwód: bez rywala nic się nie dzieje, z rywalem wynik jest wylosowany z ziarna, a odstęp między zwodami wymuszony", () => {
+    const w = mk();
+    const p = agent(w, "P");
+    p.pos = { x: 50, y: 34 }; p.heading = 0; w.ball.owner = "P";
+    w.agents.filter((a) => a.team === "them").forEach((a, i) => { a.pos = { x: 100, y: 2 + i }; });
+    expect(feint(w, "P", "step")).toEqual({ won: null });
+    expect(feint(w, "P", "step")).toBeNull(); // za szybko
+    w.t += 1;
+    const foe = w.agents.find((a) => a.team === "them" && a.role !== "GK")!;
+    foe.pos = { x: 52.5, y: 34 };
+    const r = feint(w, "P", "step");
+    expect(r?.foeId).toBe(foe.id);
+    expect(typeof r?.won).toBe("boolean");
+    expect(w.events.some((e) => e.type === "dribble" && e.info?.move === "step")).toBe(true);
+    if (r?.won) expect(foe.stunUntil).toBeGreaterThan(w.t);
+    else expect(w.ball.owner).toBe(foe.id);
+  });
+
+  it("obrót działa na rywala z boku, zwód w bok tylko na rywala przed sobą", () => {
+    const w = mk();
+    const p = agent(w, "P");
+    p.pos = { x: 50, y: 34 }; p.heading = 0; w.ball.owner = "P"; w.t = 5;
+    w.agents.filter((a) => a.team === "them").forEach((a, i) => { a.pos = { x: 100, y: 2 + i }; });
+    const foe = w.agents.find((a) => a.team === "them" && a.role !== "GK")!;
+    foe.pos = { x: 50, y: 35.5 }; // z boku
+    expect(feint(w, "P", "step")).toEqual({ won: null });
+    w.t += 1;
+    expect(feint(w, "P", "spin")?.foeId).toBe(foe.id);
   });
 });

@@ -29,6 +29,8 @@ export interface Flight {
   t: number;
   dur: number;
   kind: "pass" | "shot";
+  /** Dośrodkowanie: piłka leci górą, więc przechwycić ją można dopiero na końcu lotu. */
+  high?: boolean;
   by: string;
   target: string | null;
   /** Dla strzału: z góry wylosowany (z ziarna) wynik. */
@@ -97,6 +99,8 @@ export interface World {
   style?: AttackStyle;
   /** Ostatnia próba dryblingu (s), żeby nie ponawiać jej co klatkę. */
   lastDribble?: number;
+  /** Ostatni zwód użytkownika (s): krótki odstęp między zwodami. */
+  lastFeint?: number;
 }
 
 export const FIELD_W = 105;
