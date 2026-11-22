@@ -5,15 +5,24 @@ import type { AnimKey } from "./anims";
  * To teksty robocze (wiedza ogólna z kanonu treningu siłowego i szybkościowego) – do przeglądu trenera.
  */
 export interface ExInfo {
-  anim: AnimKey;
+  anim?: AnimKey;
   cues: [string, string, string];
   /** Intensywność / tempo wykonania poza zapisem „tempo a-b-c”. */
   pace?: string;
 }
 
-const i = (anim: AnimKey, cues: [string, string, string], pace?: string): ExInfo => ({ anim, cues, pace });
+const i = (anim: AnimKey | undefined, cues: [string, string, string], pace?: string): ExInfo => ({ anim, cues, pace });
 
 export const INFO: Record<string, ExInfo> = {
+  // nowe ćwiczenia z sesji trenera: na razie bez animacji, teksty robocze do przeglądu trenera
+  "trap-bar-deadlift": i(undefined, ["Stań w środku gryfu, plecy proste", "Odepchnij podłoże nogami, biodra i barki razem", "Na górze pełny wyprost bioder, bez przeprostu"], "Kontrolowanie w dół, mocno w górę"),
+  "db-rdl": i(undefined, ["Biodra do tyłu, kolana lekko ugięte", "Plecy płaskie, hantle blisko nóg", "Wracasz mocnym wyprostem bioder"]),
+  "mb-shotput": i(undefined, ["Pchnięcie z nogi przez biodra do ręki", "Tułów obraca się razem z rzutem", "Maksymalnie dynamicznie, pełna kontrola lądowania"], "Maksymalna prędkość rzutu"),
+  "mb-overhead-throw": i(undefined, ["Piłka za głowę, łuk w całym ciele", "Rzut z bioder, ramiona na końcu", "Po rzucie stabilna postawa"], "Maksymalna prędkość rzutu"),
+  "broad-jump-ex": i(undefined, ["Zamach rąk i szybki przysiad", "Wyskok jak najdalej do przodu", "Lądowanie miękko, trzymasz pozycję 2 s"], "Maksymalnie daleko, z kontrolą lądowania"),
+  "skater-jump": i(undefined, ["Wyskok w bok z nogi na nogę", "Lądowanie na jednej nodze, kolano w linii stopy", "Trzymasz równowagę 1 s przed kolejnym"], "Dynamicznie, ale z kontrolą"),
+  "sl-assisted-cmj": i(undefined, ["Guma lekko unosi Cię w górę", "Zejście w dół i wyskok z jednej nogi", "Lądowanie miękko na tej samej nodze"], "Maksymalna wysokość"),
+  "weighted-step-up-jump": i(undefined, ["Cała stopa na skrzyni, ciężar blisko ciała", "Wyskok z nogi na skrzyni", "Lądowanie miękko na tej samej nodze"], "Wybuchowo, po każdym powtórzeniu kontrola"),
   "knee-iso-push": i("kneeiso", ["Dociskasz kolano w kierunku ruchu i trzymasz 1 s", "Tułów i miednica stabilnie, bez przechyłów", "Bez ruchu – to napięcie, nie powtórzenie"], "Docisk jak najmocniej, bez ruchu"),
   "sl-hip-thrust-iso": i("bridge-iso", ["Biodro wypchnięte wysoko, trzymasz pozycję", "Żebra w dół, bez wyginania lędźwi", "Miednica równo, pięta dociska podłoże"], "Utrzymaj pozycję bez zapadania"),
   "sl-box-jump": i("boxjump", ["Wybicie z jednej nogi, ręce pomagają", "Lądowanie miękko na całej stopie", "Ze skrzyni schodzisz krokiem, nie skaczesz"], "Maksymalnie wysoko, po każdym skoku pełna kontrola"),

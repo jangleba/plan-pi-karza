@@ -108,3 +108,31 @@ describe("góra ciała i zawodnik poniżej 18 lat", () => {
     }
   });
 });
+
+describe("dół ciała: dzień A/B, dawki, plyo", () => {
+  it("dwie sesje: druga jest dniem B, zaawansowany z trap bar, średni bez", async () => {
+    const { templateFor } = await import("./library");
+    const ids = (t: ReturnType<typeof templateFor>) => t!.template.blocks.flatMap((b) => b.items.map((i) => i.exerciseId));
+    expect(ids(templateFor("strength", 1, undefined, { level: "advanced", slot: 1, count: 2 }))).toContain("trap-bar-deadlift");
+    expect(ids(templateFor("strength", 1, undefined, { level: "intermediate", slot: 1, count: 2 }))).not.toContain("trap-bar-deadlift");
+    expect(ids(templateFor("strength", 1, undefined, { level: "advanced", slot: 0, count: 2 }))).toContain("back-squat");
+  });
+  it("jedna sesja: rotacja A/B co tydzień", async () => {
+    const { templateFor } = await import("./library");
+    const a = templateFor("strength", 1, undefined, { level: "advanced", slot: 0, count: 1 })!.template.id;
+    const b = templateFor("strength", 2, undefined, { level: "advanced", slot: 0, count: 1 })!.template.id;
+    expect(a).not.toBe(b);
+  });
+  it("dawki przysiadu objętość: średni 4×5 @70–75, zaawansowany 5×5 @75–80", async () => {
+    const { templateFor } = await import("./library");
+    const sq = (lv: "intermediate" | "advanced") => templateFor("strength", 1, undefined, { level: lv, slot: 0, count: 2 })!.template.blocks.flatMap((b) => b.items).find((i) => i.exerciseId === "back-squat")!;
+    expect(sq("intermediate")).toMatchObject({ sets: 4, reps: "5", pctRM: [70, 75] });
+    expect(sq("advanced")).toMatchObject({ sets: 5, reps: "5", pctRM: [75, 80] });
+  });
+  it("liczba ćwiczeń plyo zależy od okresu i celu", async () => {
+    const { plyoCount } = await import("./library");
+    expect(plyoCount("preseason", undefined)).toBeGreaterThan(plyoCount("inseason", undefined));
+    expect(plyoCount("inseason", "speed")).toBeGreaterThan(plyoCount("inseason", "strength"));
+    expect(plyoCount("offseason", "strength")).toBe(2);
+  });
+});

@@ -292,6 +292,9 @@ function Home({ profile, checkIn, checkedIn, initialOpen, onOpened, onReset }: {
     [weekStart, profile, skippedVersion],
   );
 
+  /** Pełne sesje siłowe tygodnia (bez wariantu „góra”) w kolejności dni: dzień A, dzień B. */
+  const strengthDays = plan.days.filter((d) => d.session?.kind === "strength" && d.session.variant !== "upper").map((d) => d.date);
+
   return (
     <main className="mx-auto max-w-md px-5 pb-32 pt-14">
       <LargeTitle kind="plan" title="Plan" sub={<button onClick={onReset} className="text-muted">Zmień dane profilu (nie usuwa konta)</button>} />
@@ -312,7 +315,7 @@ function Home({ profile, checkIn, checkedIn, initialOpen, onOpened, onReset }: {
       </Group>
       {promptOpen && askNext && <WeekPrompt profile={profile} ask={askNext} onClose={() => setPromptOpen(false)} />}
       {open && (
-        <SessionSheet day={open} checkIn={checkIn} checkedIn={checkedIn} weekInCycle={cycleWeekFor(profile, weekStart)} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")} inviterName={profile.name} age={profile.age} strengthYears={profile.strengthYears}
+        <SessionSheet day={open} checkIn={checkIn} checkedIn={checkedIn} weekInCycle={cycleWeekFor(profile, weekStart)} level={levelOf(profile.age, profile.strengthYears)} position={profile.position} hasGym={profile.equipment.includes("gym")} inviterName={profile.name} age={profile.age} strengthYears={profile.strengthYears} strengthSlot={Math.max(0, strengthDays.indexOf(open.date))} strengthCount={strengthDays.length} season={profile.season} goal={profile.goal}
           onSkipDay={open.date >= today() ? () => { setSkipped(open.date, true, today()); setOpen(null); } : undefined} onClose={() => setOpen(null)} />
       )}
       <SkippedDays profile={profile} weekStart={weekStart} />

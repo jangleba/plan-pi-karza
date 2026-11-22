@@ -1,4 +1,5 @@
 import type { Position } from "./profile";
+import type { Level, Season, SeasonGoal } from "./types";
 /**
  * Biblioteka ćwiczeń i szablony sesji z notatek trenera
  * (docs/SESJE-SILOWE-TRENERA.md, docs/SESJE-SPRINT-TRENERA.md).
@@ -54,6 +55,15 @@ export const EXERCISES: Record<string, Exercise> = Object.fromEntries(
     ex("slider-leg-curl", "Slider leg curl", "hinge", false, 2, "knee", ["glute-bridge"]),
     ex("seated-sl-calf", "Łydki siedząc jednonóż", "calf", true, 1, "ankle"),
     ex("banded-hip-flexion", "Zginanie biodra z gumą", "hipflexor", false, 1, "hip"),
+    // dół ciała i moc (dodane z sesji trenera; opisy bez animacji)
+    ex("trap-bar-deadlift", "Trap bar deadlift", "hinge", true, 3, "back", ["db-rdl", "glute-bridge"]),
+    ex("db-rdl", "Martwy ciąg rumuński z hantlami", "hinge", true, 2, "hip", ["glute-bridge"]),
+    ex("mb-shotput", "Pchnięcie piłki lekarskiej", "power", false, 2, "shoulder"),
+    ex("mb-overhead-throw", "Rzut piłki lekarskiej znad głowy", "power", false, 2, "back"),
+    ex("broad-jump-ex", "Skok w dal z miejsca", "jump", false, 2, "knee", ["box-jump", "pogo-jumps"]),
+    ex("skater-jump", "Skok boczny (skater)", "jump", false, 2, "knee", ["pogo-jumps"]),
+    ex("sl-assisted-cmj", "Skok jednonóż z asystą gumy", "jump", false, 2, "knee", ["sl-box-jump", "pogo-jumps"]),
+    ex("weighted-step-up-jump", "Step up z wyskokiem i ciężarem", "jump", true, 2, "knee", ["sl-box-jump", "pogo-jumps"]),
     // sprint
     ex("skip-przejscia", "Skipy – przejścia", "drill", false, 1, "none"),
     ex("skip-a-b-d", "Drille skip A / B / D", "drill", false, 1, "none"),
@@ -201,6 +211,73 @@ export const TEMPLATES: SessionTemplate[] = [
   },
 ];
 
+
+const SQUAT_VOL: Record<Level, Item> = {
+  beginner: it("goblet-squat", 3, "8"),
+  intermediate: it("back-squat", 4, "5", { note: "tempo 4-1-x", pctRM: [70, 75] }),
+  advanced: it("back-squat", 5, "5", { note: "tempo 4-1-x", pctRM: [75, 80] }),
+};
+const SQUAT_INT: Record<Level, Item> = {
+  beginner: it("goblet-squat", 3, "6"),
+  intermediate: it("back-squat", 2, "3", { note: "tempo 4-1-x", pctRM: [88, 90] }),
+  advanced: it("back-squat", 3, "3", { note: "tempo 4-1-x", pctRM: [88, 90] }),
+};
+
+const PLYO_POOL: Array<[string, number, string]> = [
+  ["sl-box-jump", 3, "3 / nogę"], ["mb-shotput", 3, "5 / stronę"], ["broad-jump-ex", 3, "3"], ["skater-jump", 3, "4 / stronę"],
+  ["sl-assisted-cmj", 3, "3 / nogę"], ["pogo-jumps", 3, "6"], ["mb-overhead-throw", 3, "5"], ["box-jump", 3, "3"],
+];
+
+/** Liczba ćwiczeń w bloku mocy/plyo: moment w roku + cel (szybkość dodaje, siła odejmuje). Wartości umowne – do ustalenia przez trenera. */
+export function plyoCount(season: Season | undefined, goal: SeasonGoal | undefined): number {
+  const base = season === "preseason" ? 4 : season === "offseason" ? 2 : 3;
+  const adj = goal === "speed" ? 1 : goal === "strength" ? -1 : 0;
+  return Math.min(5, Math.max(2, base + adj));
+}
+
+function plyoBlock(phase: "volume" | "intensity", season: Season | undefined, goal: SeasonGoal | undefined, weekInCycle: number): Block {
+  const n = plyoCount(season, goal);
+  const start = (weekInCycle * 2) % PLYO_POOL.length;
+  const picks = Array.from({ length: n }, (_, k) => PLYO_POOL[(start + k) % PLYO_POOL.length]!);
+  const items = picks.map(([id, sets, reps]) => it(id, sets, reps));
+  if (phase === "intensity") items.unshift(it("depth-jump-hurdle", 3, "3"));
+  return { title: "Moc i plyo", items: items.slice(0, n) };
+}
+
+/** Dzień B: pełna sesja całego ciała z innym głównym ruchem niż dzień A (zaawansowany: trap bar; średni: jednonóż + martwy ciąg rumuński). */
+function dayB(level: Level, phase: "volume" | "intensity", season: Season | undefined, goal: SeasonGoal | undefined, week: number): SessionTemplate {
+  const vol = phase === "volume";
+  const lower: Block = level === "advanced"
+    ? { title: "Siła nóg", items: [it("trap-bar-deadlift", 3, vol ? "5" : "2–3", { pctRM: vol ? [75, 80] : [88, 92] }), it("step-up", 3, vol ? "5 / nogę" : "3 / nogę")] }
+    : { title: "Siła nóg", items: [it("step-up", 3, vol ? "5 / nogę" : "4 / nogę"), it("db-rdl", 3, vol ? "8" : "5")] };
+  return {
+    id: `strength-b-${level}-${phase}`,
+    name: level === "advanced" ? "Siła – trap bar" : "Siła – jednonóż",
+    module: "strength",
+    phase,
+    blocks: [
+      { title: "Aktywacja", items: [it("knee-iso-push", 3, "5 × 1 s / nogę")] },
+      plyoBlock(phase, season, goal, week),
+      lower,
+      { title: "Góra", items: [it("bench-press", vol ? 4 : 3, vol ? "5" : "3", { pctRM: vol ? [75, 80] : [85, 88] }), it("bb-row", 3, vol ? "6" : "4")] },
+      { title: "Dodatki", items: [it("slider-leg-curl", 3, vol ? "6" : "4"), it("seated-sl-calf", 3, "12 / nogę")] },
+    ],
+  };
+}
+
+const BEGINNER: SessionTemplate = {
+  id: "strength-beginner",
+  name: "Siła – początek",
+  module: "strength",
+  phase: "volume",
+  blocks: [
+    { title: "Aktywacja", items: [it("glute-bridge", 2, "10"), it("pogo-jumps", 2, "6")] },
+    { title: "Nogi", items: [it("goblet-squat", 3, "8"), it("step-up", 3, "6 / nogę")] },
+    { title: "Góra", items: [it("db-bench-press", 3, "8"), it("db-row", 3, "8 / rękę")] },
+    { title: "Core", items: [it("side-plank", 3, "30 s / stronę")] },
+  ],
+};
+
 export type MesoPhase = "volume" | "intensity" | "deload";
 
 /** Cykl 5 tygodni: 2× objętość, 2× intensywność, rozładowanie. */
@@ -227,6 +304,12 @@ export interface TemplateOpts {
   /** Wariant sesji z planu tygodnia: „upper” = tylko góra ciała (dzień po meczu). */
   variant?: "full" | "upper" | "light";
   age?: number;
+  level?: Level;
+  /** Numer sesji siłowej w tygodniu (0 = pierwsza) i ich liczba. Przy dwóch pełnych sesjach druga ma inny główny ruch (dzień B). */
+  slot?: number;
+  count?: number;
+  season?: Season;
+  goal?: SeasonGoal;
 }
 
 /** Zawodnik poniżej 18 lat: umiarkowanie lżej – max 85% 1RM, max 4 serie, ćwiczenia o największym obciążeniu układu nerwowego zastępowane lżejszymi. */
@@ -262,7 +345,23 @@ export function templateFor(
   if (module === "strength") {
     const want = phase === "intensity" ? "intensity" : "volume";
     const upper = opts.variant === "upper";
-    let t = TEMPLATES.find((x) => x.module === "strength" && x.phase === want && !!x.upper === upper);
+    const level = opts.level ?? "intermediate";
+    const phase2 = want as "volume" | "intensity";
+    let t: SessionTemplate | undefined;
+    if (upper) t = TEMPLATES.find((x) => x.module === "strength" && x.phase === want && x.upper);
+    else if (level === "beginner") t = BEGINNER;
+    else {
+      // dzień A (przysiad) vs B: dwie sesje w tygodniu = A i B; jedna = rotacja co tydzień
+      const useB = opts.count !== undefined && opts.count > 1 ? opts.slot === 1 : weekInCycle % 2 === 0;
+      if (useB) t = dayB(level, phase2, opts.season, opts.goal, weekInCycle);
+      else {
+        const a = TEMPLATES.find((x) => x.module === "strength" && x.phase === want && !x.upper);
+        if (a) {
+          const squat = (phase2 === "volume" ? SQUAT_VOL : SQUAT_INT)[level];
+          t = { ...a, blocks: a.blocks.map((b) => ({ ...b, items: b.items.map((i) => (i.exerciseId === "back-squat" ? squat : i)) })) };
+        }
+      }
+    }
     if (!t) return null;
     if (young) t = forYoungAthlete(t);
     return { template: t, deload: phase === "deload" };

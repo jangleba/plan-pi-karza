@@ -12,9 +12,11 @@ export function ExerciseSheet({ id, note, onClose }: { id: string; note?: string
     <Sheet title={ex?.name ?? id} onClose={onClose}>
       {info ? (
         <>
-          <div className="h-52 overflow-hidden rounded-2xl bg-canvas">
-            <ExerciseAnim anim={info.anim} />
-          </div>
+          {info.anim && (
+            <div className="h-52 overflow-hidden rounded-2xl bg-canvas">
+              <ExerciseAnim anim={info.anim} />
+            </div>
+          )}
           {tempo && (
             <div className="mt-4">
               <div className="text-xs text-muted">Tempo <span className="tabular-nums">{tempo.raw}</span></div>

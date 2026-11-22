@@ -13,7 +13,7 @@ describe("opisy ćwiczeń", () => {
     for (const id of Object.keys(EXERCISES)) {
       const info = INFO[id];
       expect(info, `brak opisu: ${id}`).toBeDefined();
-      expect(ANIMS[info!.anim], `brak animacji ${info!.anim} (${id})`).toBeDefined();
+      if (info!.anim) expect(ANIMS[info!.anim], `brak animacji ${info!.anim} (${id})`).toBeDefined();
       expect(info!.cues).toHaveLength(3);
       for (const c of info!.cues) { expect(c.length).toBeGreaterThan(5); expect(c.length).toBeLessThanOrEqual(60); }
     }
