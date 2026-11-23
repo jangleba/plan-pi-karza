@@ -339,7 +339,12 @@ export function tuneSprint(t: SessionTemplate, o: SprintOpts, weekInCycle: numbe
   const n = light ? 2 : sprintCount(o);
   const young = o.level === "beginner" || (o.age !== undefined && o.age < 18);
   const drills = Array.from({ length: 3 }, (_, k) => DRILL_POOL[(weekInCycle + k) % DRILL_POOL.length]!);
-  const blocks: Block[] = t.blocks.map((b) => {
+  const blocks: Block[] = t.blocks.map((b0) => {
+    let b = b0;
+    if (b.items.some((i) => i.exerciseId.startsWith("resisted-")) && o.age !== undefined && o.age < 18) {
+      // młodsi: normalny sprint z gumą, ale cieńszą (np. czerwona lub czarna)
+      b = { ...b, items: b.items.map((i) => (i.exerciseId.startsWith("resisted-") ? { ...i, note: [i.note, "cieńsza guma (np. czerwona lub czarna)"].filter(Boolean).join(", ") } : i)) };
+    }
     if (b.title === "Drille") return { ...b, items: drills.map((id) => it(id, 1, id === "hurdle-jumps" ? "6" : "30 m")) };
     if (b.title === "Sprint 30 m") return { ...b, items: [it("sprint-30", n, "30 m")] };
     if (b.title === "Przyspieszenie") return { ...b, items: b.items.map((i) => (i.exerciseId === "sprint-30" ? { ...i, sets: Math.min(i.sets, n) } : i)) };

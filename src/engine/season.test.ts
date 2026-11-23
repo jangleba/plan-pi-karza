@@ -132,3 +132,10 @@ describe("bieg w tygodniu z meczem", () => {
     expect(p.warnings.join(" ")).toMatch(/bieg/i);
   });
 });
+
+describe("sprint w tygodniu z meczem", () => {
+  it("cel szybkość: sprint poza dniem przed meczem jest pełny", () => {
+    const p = planWeek({ ...base, goal: "speed" });
+    for (const d of p.days) if (d.session?.kind === "sprint" && d.phase !== "MD-1") expect(d.session.variant).toBe("full");
+  });
+});

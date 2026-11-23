@@ -213,3 +213,14 @@ describe("sprint z oporem bez partnera", () => {
     expect(ids.some((i) => i.startsWith("resisted-"))).toBe(false);
   });
 });
+
+describe("młodzi i sprint z gumą", () => {
+  it("poniżej 18 lat: sprint z oporem zostaje, z notatką o cieńszej gumie", async () => {
+    const { templateFor } = await import("./library");
+    const items = templateFor("sprint", 1, "obronca", { level: "intermediate", age: 16 })!.template.blocks.flatMap((b) => b.items).filter((i) => i.exerciseId.startsWith("resisted-"));
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.every((i) => /cieńsza guma/.test(i.note ?? ""))).toBe(true);
+    const adult = templateFor("sprint", 1, "obronca", { level: "intermediate", age: 22 })!.template.blocks.flatMap((b) => b.items).filter((i) => i.exerciseId.startsWith("resisted-"));
+    expect(adult.every((i) => !/cieńsza/.test(i.note ?? ""))).toBe(true);
+  });
+});
