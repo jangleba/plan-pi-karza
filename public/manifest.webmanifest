@@ -1,0 +1,23 @@
+{
+  "id": "/",
+  "name": "BallWise",
+  "short_name": "BallWise",
+  "description": "Plan treningowy piłkarza: dzisiejszy trening, zapis wykonania i wiadomości od trenera.",
+  "lang": "pl",
+  "dir": "ltr",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f8fa",
+  "theme_color": "#f7f8fa",
+  "categories": ["sports", "health", "fitness"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Dziś", "short_name": "Dziś", "url": "/?open=today", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Trening w toku", "short_name": "Trening", "url": "/?open=workout", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

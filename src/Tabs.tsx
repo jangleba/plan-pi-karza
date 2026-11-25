@@ -15,7 +15,7 @@ const ICONS: Record<Tab, ReactNode> = {
 };
 
 const TABS: Array<[Tab, string]> = [
-  ["start", "Start"], ["plan", "Plan"], ["lab", "Lab"], ["iq", "IQ"], ["fuel", "Fuel"], ["progres", "Progres"],
+  ["start", "Dziś"], ["plan", "Plan"], ["lab", "Lab"], ["iq", "IQ"], ["fuel", "Fuel"], ["progres", "Progres"],
 ];
 
 /** Pływająca „wyspa” z ikonami: aktywna zakładka rozszerza się w pastelową pigułkę z podpisem, reszta to same ikony. */

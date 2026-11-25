@@ -24,6 +24,10 @@ Przestrzenie: `bw:guest:*` oraz `bw:u:<id konta>:*`. Zmiana konta nie kopiuje an
 | **Piłkarski angielski**: poziom trudności, ukończone lekcje, etap powtórek zwrotów i fiszek, miejsce przerwania lekcji | `english` | Po zalogowaniu synchronizowane z kontem (dane edukacyjne, nie zdrowotne) |
 | Wybrany głos syntezy mowy | `englishVoice` | Tylko na urządzeniu |
 | Potwierdzenia lokalne (umowa, zasady bezpieczeństwa) | `agreement*`, `consent*` | Kopia lokalna; dowód w chmurze tylko dla konta |
+| **PWA: trening w toku** (odhaczone serie, stoper przerwy jako znaczniki czasu, pauzy) | `workoutRun`, `runIds`, `runsCompleted` | Tylko na urządzeniu; wznowienie przez 18 h; identyfikatory zapisów z ostatnich 60 dni |
+| **PWA: kolejka zapisów do wysłania** (wykonanie treningu: dzień, rodzaj sesji, serie, czas) i komunikaty o konfliktach | `outbox` | Do chmury (`session_logs`) tylko za zgodą na synchronizację zdrowia; bez zgody zostaje na urządzeniu |
+| **PWA: wiadomości od trenera** (ostatnie 20, do pokazania offline) | `coachInbox` | Kopia z chmury dla zalogowanego zawodnika |
+| PWA: ostatnie pobranie danych konta, ukrycie kart instalacji i powiadomień | `lastPullAt`, `installCardHiddenUntil`, `pushCardHidden` | Tylko na urządzeniu |
 
 ## 2. Synchronizacja z chmurą (Supabase) – tylko po zalogowaniu
 | Tabela | Zawartość | Warunek |
@@ -34,6 +38,10 @@ Przestrzenie: `bw:guest:*` oraz `bw:u:<id konta>:*`. Zmiana konta nie kopiuje an
 | `agreement_events`, `consent_events` | Dowody: kto, wersja dokumentu, czas, metoda; tylko do dopisywania | konto |
 | `guardian_confirmations` | Stan potwierdzenia opiekuna, skrót tokenu (SHA-256), terminy; bez danych opiekuna | tylko 16–17 lat |
 | `paid_access` | Dostęp płatny aktywowany wyłącznie funkcją serwerową | po integracji płatności (obecnie brak) |
+| `session_logs` | Wykonanie treningu (dzień, rodzaj, status, serie, czas); jeden wpis na trening dnia; poprzedni zapis z innego urządzenia w `replaced` | **zgoda na synchronizację zdrowia**; wycofanie usuwa; widoczne dla przypisanego trenera przy aktywnej usłudze (migracja 0010) |
+| `entitlements`, `coach_assignments`, `clubs`, `club_staff` | Uprawnienia (BallWise, LoadWise, klub), przypisanie trenera, sztab klubu | nadaje wyłącznie administrator / service_role |
+| `coach_messages` | Wiadomości i informacje o zmianie planu od trenera | zawodnik czyta swoje; trener pisze tylko do przypisanych |
+| `push_subscriptions` | Adres usługi push urządzenia i klucze szyfrowania, tematy, godzina przypomnienia | za zgodą na powiadomienia; usuwane przy wyłączeniu, wygaśnięciu (410) i usunięciu konta |
 | `english_progress` | Postęp nauki angielskiego: poziom, lekcje, zwroty, fiszki, miejsce przerwania (jeden wiersz = jeden element, z kontrolą kształtu i limitem 400 elementów) | konto; RLS: tylko własne wiersze |
 | `account_deletion_log` | Pseudonimowy skrót identyfikatora, status usunięcia | administrator |
 

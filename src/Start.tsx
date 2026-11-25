@@ -13,6 +13,7 @@ import { useSkippedVersion } from "./lib/skipped";
 import { useExtrasVersion } from "./lib/extras";
 import { TileHead } from "./TileIcon";
 import { rise } from "./ui";
+import { SyncLine, TodayPanel } from "./today/TodayPanel";
 
 // Moduł nauki ładuje się dopiero po otwarciu (osobny fragment pakietu): nie spowalnia strony głównej.
 const EnglishModule = lazy(() => import("./english/EnglishModule"));
@@ -94,9 +95,10 @@ function Choice({ label, value, onChange }: { label: string; value: 1 | 2 | 3; o
   );
 }
 
-export function Start({ profile, checkIn, effective, loadNote, checkedIn, onCheckIn, onSettings, onOpenDay }: {
+export function Start({ profile, checkIn, effective, loadNote, checkedIn, onCheckIn, onSettings, onOpenDay, focus = null }: {
   profile: Profile; checkIn: CheckIn; /** Check-in po uwzględnieniu własnych jednostek (do pierścienia i opisu). */ effective: CheckIn; loadNote: string | null;
   checkedIn: boolean; onCheckIn: (c: CheckIn) => void; onSettings: () => void; onOpenDay: (d: DayPlan) => void;
+  /** Wejście z powiadomienia: wiadomość trenera albo trening w toku. */ focus?: "message" | "workout" | null;
 }) {
   const [open, setOpen] = useState(false);
   const [safety, setSafety] = useState(false);
@@ -110,6 +112,8 @@ export function Start({ profile, checkIn, effective, loadNote, checkedIn, onChec
         <button onClick={onSettings} aria-label="Ustawienia" className="-mr-2 -mt-2 rounded-full p-2 text-muted"><svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg></button>
       </div>
       <h1 className="mb-6 text-[32px] font-semibold tracking-tight">{profile.name ? `Cześć, ${profile.name}` : "Dziś"}</h1>
+      <SyncLine />
+      <TodayPanel profile={profile} onOpenDay={onOpenDay} focus={focus} />
 
       <section className="bw-rise mb-3 flex items-center gap-4 rounded-3xl border border-hairline bg-card p-4">
         <Ring value={readinessScore(effective)} done={checkedIn} onTap={() => setOpen(true)} />

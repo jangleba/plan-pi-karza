@@ -1,0 +1,7 @@
+# Cloudflare (pliki statyczne): service worker i manifest zawsze świeże, żeby aktualizacje trafiały od razu.
+/sw.js
+  Cache-Control: no-cache
+  Service-Worker-Allowed: /
+/manifest.webmanifest
+  Cache-Control: no-cache
+  Content-Type: application/manifest+json

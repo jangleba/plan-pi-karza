@@ -37,6 +37,12 @@ import { pullAll, pushCheckIn, pushProfile } from "./lib/sync";
 import { loadLog, saveLog } from "./engine";
 import { SessionSheet } from "./SessionSheet";
 import { scoped } from "./lib/store";
+import { requestPersistence, startPwa, isStandalone } from "./pwa/register";
+import { initialLaunch, openFromUrl, takeLaunch, useLaunchVersion } from "./pwa/launch";
+import { UpdateBanner } from "./pwa/PwaUi";
+import { useSyncTriggers } from "./sync/client";
+import { activeRun } from "./workout/store";
+import { CoachPanel } from "./coach/CoachPanel";
 
 
 const WEEKDAY = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
@@ -76,6 +82,8 @@ const REQUIRE_LOGIN = import.meta.env.VITE_REQUIRE_LOGIN === "true";
 
 export function App() {
   const [noStorage] = useState(() => !storageAvailable());
+  // PWA: service worker, okno instalacji, przejścia z powiadomień; trwała pamięć dla zainstalowanej aplikacji
+  useEffect(() => { startPwa(openFromUrl); if (isStandalone()) void requestPersistence(); }, []);
   return <>{noStorage && <StorageNotice />}<AppInner /></>;
 }
 
@@ -88,6 +96,10 @@ function AppInner() {
   const closeInvite = () => { clearInviteParam(); setInvite(null); };
   if (auth.status === "loading") return <Splash />;
   const guest = auth.scope.kind === "guest";
+  // panel trenera pod osobnym adresem: bez onboardingu zawodnika; dostęp do danych pilnuje baza (RLS)
+  if (typeof location !== "undefined" && location.pathname.startsWith("/trener")) {
+    return guest || !supabase ? <Auth /> : <CoachPanel email={auth.email} />;
+  }
   if (guest && (REQUIRE_LOGIN || loginOpen)) return <Auth onBack={REQUIRE_LOGIN ? undefined : () => setLoginOpen(false)} />;
   return <Gate key={scopeId(auth.scope)} scope={auth.scope} email={auth.email} onLogin={() => setLoginOpen(true)} invite={invite} onInviteClose={closeInvite} />;
 }
@@ -108,8 +120,11 @@ function loadCheckIn(): CheckIn {
 
 const TAB_KEY = "lastTab";
 const TAB_NAMES: Tab[] = ["start", "plan", "lab", "iq", "fuel", "progres"];
-/** Ostatnia zakładka, jeśli zawodnik był w aplikacji przed chwilą (30 min); inaczej Start. */
+/** Wejście z ikony/powiadomienia decyduje o zakładce; inaczej ostatnia zakładka, jeśli zawodnik był w aplikacji przed chwilą (30 min); inaczej „Dziś”. */
 function loadTab(): Tab {
+  const launch = initialLaunch();
+  if (launch === "plan") return "plan";
+  if (launch) return "start";
   try {
     const v = JSON.parse(scoped.getItem(TAB_KEY) ?? "null") as { tab?: unknown; at?: unknown } | null;
     if (v && typeof v.at === "number" && Date.now() - v.at < 30 * 60_000 && TAB_NAMES.includes(v.tab as Tab)) return v.tab as Tab;
@@ -149,6 +164,7 @@ function Gate({ scope, email, onLogin, invite, onInviteClose }: { scope: Scope; 
         if (r.masDistance) store("masDistance", String(r.masDistance));
         if (Object.keys(r.weightLog).length) saveLog({ ...loadLog(), ...r.weightLog });
         if (r.checkIn) store(`checkIn:${today()}`, JSON.stringify(r.checkIn));
+        if (r.profileOk) store("lastPullAt", String(Date.now())); // „Plan z danych konta pobranych …” na ekranie „Dziś”
       }
       if (loadGuardedProfile().kind === "none") {
         // bez profilu lokalnie i bez pewności, że konto go nie ma, onboarding nadpisałby profil z chmury
@@ -183,6 +199,18 @@ function Main({ scope, email, onLogin, invite, onInviteClose }: { scope: Scope; 
   // aktywna zakładka przeżywa ponowne zamontowanie aplikacji (odświeżenie sesji, przeładowanie karty): bez cofania na Start
   const [tab, setTabState] = useState<Tab>(loadTab);
   const setTab = (t: Tab) => { setTabState(t); scoped.setItem(TAB_KEY, JSON.stringify({ tab: t, at: Date.now() })); };
+  // cel z ikony / skrótu / powiadomienia (także gdy aplikacja jest już otwarta)
+  const [focus, setFocus] = useState<"message" | "workout" | null>(null);
+  const launchVersion = useLaunchVersion();
+  useEffect(() => {
+    const l = takeLaunch();
+    if (!l?.target) return;
+    if (l.target === "plan") { setTab("plan"); return; }
+    setTab("start");
+    setFocus(l.target === "message" || l.target === "workout" ? l.target : null);
+    window.scrollTo(0, 0);
+  }, [launchVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  useSyncTriggers();
   const [checkIn, setCheckInState] = useState<CheckIn>(loadCheckIn);
   const [checkedIn, setCheckedIn] = useState(() => scoped.getItem(`checkIn:${today()}`) !== null);
   // aplikacja bywa otwarta przez noc: o zmianie doby check-in ma być dzisiejszy (albo pusty), nie wczorajszy
@@ -245,7 +273,7 @@ function Main({ scope, email, onLogin, invite, onInviteClose }: { scope: Scope; 
       <Backdrop />
       <div key={tab} className="bw-tab relative">
       {tab === "start" && (
-        <Start onOpenDay={(d) => { setOpenDay(d); setTab("plan"); window.scrollTo(0, 0); }} profile={profile} checkIn={checkIn} effective={loaded.checkIn} loadNote={loadNote(loaded.summary)} checkedIn={checkedIn} onCheckIn={setCheckIn} onSettings={() => setSettings(true)} />
+        <Start onOpenDay={(d) => { setOpenDay(d); setTab("plan"); window.scrollTo(0, 0); }} profile={profile} checkIn={checkIn} effective={loaded.checkIn} loadNote={loadNote(loaded.summary)} checkedIn={checkedIn} onCheckIn={setCheckIn} onSettings={() => setSettings(true)} focus={focus} />
       )}
       {tab === "plan" && (
         <Home profile={profile} checkIn={loaded.checkIn} checkedIn={checkedIn} initialOpen={openDay} onOpened={() => setOpenDay(null)} onReset={() => {
@@ -264,6 +292,7 @@ function Main({ scope, email, onLogin, invite, onInviteClose }: { scope: Scope; 
       {tab === "progres" && <Progress profile={profile} />}
       </div>
       <TabBar tab={tab} onChange={(t) => { setTab(t); window.scrollTo(0, 0); }} />
+      <UpdateBanner busy={activeRun() !== null} />
       <WeekGate profile={profile} />
       {invite && <InviteReceiver invite={invite} age={profile.age} onClose={onInviteClose} />}
       {settings && <Settings scope={scope} email={email} profile={profile} onClose={() => setSettings(false)} onLogin={onLogin} />}

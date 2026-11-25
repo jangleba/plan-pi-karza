@@ -4,3 +4,7 @@ project_id = "ballwise"
 # Usuwanie konta: wymaga ważnego tokenu sesji użytkownika (sprawdzanego też w kodzie funkcji).
 [functions.delete-account]
 verify_jwt = true
+
+# Powiadomienia: wywoływane przez Database Webhook (INSERT na coach_messages), uwierzytelnione sekretem w nagłówku x-webhook-secret.
+[functions.send-push]
+verify_jwt = false

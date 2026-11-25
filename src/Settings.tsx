@@ -12,6 +12,38 @@ import { CONTRACT_VERSION, CURRENT, OPERATOR_LABEL, legalReadiness, mayCreateAcc
 import { COMMERCE, purchaseAvailable } from "./legal/commerce";
 import { LICENSES } from "./legal/licenses";
 import { DraftBanner, LegalLinks, LegalSheet } from "./legal/LegalUi";
+import { InstallSheet } from "./pwa/PwaUi";
+import { disablePush, enablePush, pushState, type PushState } from "./pwa/push";
+
+/** Aplikacja na telefonie: ikona na ekranie głównym i powiadomienia (za zgodą, wyłączalne). */
+function AppOnPhone({ user, card, h, btn }: { user: boolean; card: string; h: string; btn: string }) {
+  const [install, setInstall] = useState(false);
+  const [push, setPush] = useState<PushState | null>(null);
+  useEffect(() => { void pushState().then(setPush).catch(() => setPush("unsupported")); }, []);
+  const PUSH_TEXT: Record<PushState, string> = {
+    on: "Włączone: wiadomość trenera, zmiana planu, przypomnienie.",
+    off: "Wyłączone.",
+    denied: "Zablokowane w ustawieniach telefonu (Ustawienia → Powiadomienia → BallWise).",
+    "needs-install": "Na iPhonie powiadomienia działają po dodaniu ikony do ekranu początkowego (iOS 16.4 lub nowszy).",
+    unconfigured: "Powiadomienia nie są jeszcze skonfigurowane na serwerze.",
+    unsupported: "Ta przeglądarka nie obsługuje powiadomień.",
+  };
+  return (
+    <section className={card}>
+      <h3 className={h}>Aplikacja na telefonie</h3>
+      <button className={btn} onClick={() => setInstall(true)}>Ikona na ekranie głównym – instrukcja</button>
+      {user && push && (
+        <div className="mt-4">
+          <p className="text-[15px] font-medium">Powiadomienia</p>
+          <p className="mt-1 text-sm text-muted">{PUSH_TEXT[push]}</p>
+          {push === "off" && <button className={`${btn} mt-2`} onClick={() => void enablePush().then(setPush)}>Włącz powiadomienia</button>}
+          {push === "on" && <button className={`${btn} mt-2`} onClick={() => void disablePush().then(() => setPush("off"))}>Wyłącz powiadomienia</button>}
+        </div>
+      )}
+      {install && <InstallSheet onClose={() => setInstall(false)} />}
+    </section>
+  );
+}
 
 const card = "mb-4 rounded-3xl border border-hairline bg-card p-5";
 const h = "mb-2 text-xs font-semibold uppercase tracking-wide text-muted";
@@ -120,10 +152,12 @@ export function Settings({ scope, email, profile, onClose, onLogin }: { scope: S
         )}
       </section>
 
+      <AppOnPhone user={user} card={card} h={h} btn={btn} />
+
       {user && (
         <section className={card}>
           <h3 className={h}>Synchronizacja danych o samopoczuciu i wynikach</h3>
-          <p className="mb-3 text-sm text-ink/80">Opcjonalna zgoda na wysyłanie do chmury: check-in (sen, samopoczucie), ciężary i masę ciała w logu oraz wynik MAS. Bez zgody te dane zostają na urządzeniu. Wycofanie zgody zatrzymuje synchronizację i usuwa te dane z serwera.</p>
+          <p className="mb-3 text-sm text-ink/80">Opcjonalna zgoda na wysyłanie do chmury: check-in (sen, samopoczucie), ciężary i masę ciała w logu, wynik MAS oraz zapis wykonanych treningów (widoczny dla Twojego trenera, jeśli korzystasz z LoadWise lub klubu). Bez zgody te dane zostają na urządzeniu. Wycofanie zgody zatrzymuje synchronizację i usuwa te dane z serwera.</p>
           <label className="flex items-center gap-3 text-[15px]">
             <input type="checkbox" checked={consent.granted} disabled={busy} onChange={(e) => void toggleSync(e.target.checked)} />
             {consent.granted ? "Zgoda udzielona" : "Zgoda niewyrażona"}

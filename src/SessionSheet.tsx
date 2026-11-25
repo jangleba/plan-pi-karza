@@ -14,6 +14,9 @@ import { DrawTool } from "./tools/Draw";
 import { StimuliTool } from "./tools/Stimuli";
 import { Group, ListRow } from "./ui";
 import { CueTrainer } from "./CueTrainer";
+import { WorkoutMode } from "./workout/WorkoutMode";
+import { completeWithoutRun, loadRun, openRun } from "./workout/store";
+import { totals, type WorkoutRun } from "./workout/run";
 import { EXERCISES, RECOVERY, RECOVERY_LIGHT, applyChoice, bodyweightTemplate, drillsFor, DRILL_GROUPS, adaptSession, addEvents, restSuggested, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
 import type { CheckIn, Drill, DrillGroup, Choice, Completion, DayPlan, HistoryEvent, Level, Mas, Position, Suggestion } from "./engine";
 
@@ -78,7 +81,19 @@ export function SessionSheet({
     return rows;
   };
 
+  /** Lista do trybu treningowego: ćwiczenia z serii (siła/sprint), odcinki biegu albo cała sesja jako jedna pozycja. */
+  const workoutItems = (): Array<{ key: string; label: string; setsTotal: number }> => {
+    if (adapted) return adapted.blocks.flatMap((b, bi) => b.items.map((i, ii) => ({ key: `${bi}-${ii}`, label: `${EXERCISES[i.exerciseId]?.name ?? i.exerciseId} · ${i.reps}`, setsTotal: Math.max(1, i.sets) })));
+    if (run) return run.blocks.map((b, bi) => ({ key: `r${bi}`, label: `${b.label} · ${b.paceText}`, setsTotal: Math.max(1, b.reps * Math.max(1, b.sets)) }));
+    return [{ key: "main", label: s ? KIND_TITLE[s.kind] ?? "Sesja" : "Sesja", setsTotal: 1 }];
+  };
+  const [workout, setWorkout] = useState<WorkoutRun | null>(null);
+  const saved = loadRun();
+  const resumeRun = s && saved && saved.status === "active" && saved.date === day.date && saved.sessionKey === s.kind ? saved : null;
+  const startWorkout = () => { if (s) setWorkout(openRun({ day: day.date, sessionKey: s.kind, title: KIND_TITLE[s.kind] ?? "Trening", items: workoutItems() })); };
+
   const finish = () => {
+    if (s) completeWithoutRun(day.date, s.kind, KIND_TITLE[s.kind] ?? "Trening"); // wpis wykonania do synchronizacji (ten sam identyfikator dnia)
     if (!adapted || !found) { addEvents(sessionEvent()); onClose(); return; }
     const rows = reported();
     if (rows.length === 0) { save(rows); return; }
@@ -287,10 +302,15 @@ export function SessionSheet({
             Szablon tej sesji jest w przygotowaniu.
           </p>
         )}
+        {!club && s && (
+          <button onClick={startWorkout} className="mt-6 h-14 w-full rounded-2xl bg-ink text-base font-semibold text-card">
+            {resumeRun ? `Wznów trening (${totals(resumeRun).done}/${totals(resumeRun).total})` : "Rozpocznij trening"}
+          </button>
+        )}
         {!club && (
           <button
             onClick={finish}
-            className="mt-6 w-full rounded-2xl bw-grad py-4 text-base font-medium"
+            className="mt-2 w-full rounded-2xl bw-grad py-4 text-base font-medium"
           >
             Koniec sesji
           </button>
@@ -301,6 +321,7 @@ export function SessionSheet({
           </button>
         )}
     </Sheet>
+    {workout && <WorkoutMode initial={workout} onMinimize={() => setWorkout(null)} onFinished={() => { setWorkout(null); finish(); }} />}
     {info && <ExerciseSheet id={info.id} note={info.note} onClose={() => setInfo(null)} />}
     {tool === "stim" && <StimuliTool onClose={() => setTool(null)} />}
     {tool === "draw" && <DrawTool onClose={() => setTool(null)} />}
