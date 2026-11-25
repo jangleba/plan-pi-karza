@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { DrillPreview } from "./drill/DrillPreview";
 import { TechniqueSession } from "./TechniqueSession";
 import { DrillFull } from "./drill/DrillFull";
@@ -14,7 +14,9 @@ import { DrawTool } from "./tools/Draw";
 import { StimuliTool } from "./tools/Stimuli";
 import { Group, ListRow } from "./ui";
 import { CueTrainer } from "./CueTrainer";
-import { EXERCISES, RECOVERY, RECOVERY_LIGHT, applyChoice, bodyweightTemplate, drillsFor, DRILL_GROUPS, adaptSession, addEvents, restSuggested, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
+import { ExerciseChangeSheet, type ChangeMode } from "./ExerciseChangeSheet";
+import { EXERCISES, VARIANTS, RECOVERY, RECOVERY_LIGHT, applyChoice, bodyweightTemplate, drillsFor, DRILL_GROUPS, adaptPlanned, addEvents, applyExerciseChange, buildContext, consumeSkips, declare, ensureMigrated, formatRx, generateSession, loadExerciseState, loadPlanOps, previewExerciseChange, recordExerciseOutcome, replayOps, saveExerciseState, savePlanOps, setCompetences, splitTokens, toBlocks, restSuggested, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
+import type { Equipment, Operation, StoredOp, Unlock, ExerciseState } from "./engine";
 import type { CheckIn, Drill, DrillGroup, Choice, Completion, DayPlan, HistoryEvent, Level, Mas, Position, Suggestion } from "./engine";
 
 interface ConfirmRow { exerciseId: string; kg: number; planned: string; plannedReps: number }
@@ -25,8 +27,8 @@ const KIND_TITLE: Record<string, string> = {
 };
 
 export function SessionSheet({
-  day, checkIn, checkedIn, weekInCycle, level, position, hasGym, inviterName, age, onSkipDay, onClose,
-}: { day: DayPlan; checkIn: CheckIn; checkedIn: boolean; weekInCycle: number; level: Level; position?: Position; hasGym: boolean; inviterName?: string; age?: number; onSkipDay?: () => void; onClose: () => void }) {
+  day, checkIn, checkedIn, weekInCycle, level, position, hasGym, equipment, inviterName, age, onSkipDay, onClose,
+}: { equipment?: Equipment[]; day: DayPlan; checkIn: CheckIn; checkedIn: boolean; weekInCycle: number; level: Level; position?: Position; hasGym: boolean; inviterName?: string; age?: number; onSkipDay?: () => void; onClose: () => void }) {
   const [mas, setMas] = useState<Mas | null>(loadMas);
   const [running, setRunning] = useState(false);
   const [log, setLog] = useState(loadLog);
@@ -65,13 +67,55 @@ export function SessionSheet({
         })()
     : null;
   const run = s?.kind === "run" ? (mas ? runSession(mas, s?.variant === "light" ? "deload" : mesoPhase(weekInCycle), level, checkIn, position) : masTestSession()) : null;
-  const adapted = found ? adaptSession(found.template, checkIn, found.deload) : null;
+  // silnik ćwiczeń: wspólna kwalifikacja (wiek, sprzęt, opanowanie, nadzór) dla generowania, adaptacji i ręcznych zmian
+  const [exState, setExState] = useState<ExerciseState>(() => ensureMigrated(loadExerciseState(), loadLog()));
+  const updateEx = (n: ExerciseState) => { setExState(n); saveExerciseState(n); };
+  const ctx = useMemo(
+    () => buildContext(exState, { age: age ?? 16, level, position, equipment: equipment ?? (hasGym ? ["gym", "bodyweight"] : ["bodyweight"]), weekInCycle }),
+    [exState, age, level, position, equipment, hasGym, weekInCycle],
+  );
+  const planKey = found ? `${found.template.id}|${weekInCycle}|${found.deload}|${hasGym}` : "";
+  const [ops, setOps] = useState<StoredOp[]>(() => (module ? loadPlanOps(day.date, module, planKey) : []));
+  const [changeMode, setChangeMode] = useState<ChangeMode | null>(null);
+  const checkKey = JSON.stringify(checkIn);
+  const plan = useMemo(() => {
+    if (!found) return null;
+    const base = generateSession(ctx, found.template, { date: day.date, deload: found.deload });
+    const adaptedPlan = adaptPlanned(base, checkIn, found.deload, ctx, found.template.phase === "intensity" ? "intensity" : "volume");
+    return replayOps(adaptedPlan, ops, ctx).session;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx, planKey, day.date, checkKey, ops]);
+  const adapted = found && plan ? { name: found.template.name, blocks: toBlocks(plan), notes: plan.notes } : null;
+
+  /** Zastosowanie zmiany: ten sam walidator co w podglądzie; operacje zapisujemy, więc plan odtwarza się po zmianie danych. */
+  const applyOp = (op: Operation, ack: boolean, remember: boolean): string | null => {
+    if (!plan || !module) return "Brak sesji.";
+    const r = applyExerciseChange(previewExerciseChange(plan, op, ctx), plan, ctx, { ack, remember });
+    if (!r.ok) return r.messagePl;
+    const next = [...ops, { op, ack }];
+    setOps(next);
+    savePlanOps(day.date, module, planKey, next);
+    if (r.prefsDelta.length) {
+      const prefs = { ...exState.prefs };
+      for (const d of r.prefsDelta) prefs[d.variantId] = { mode: d.mode, since: day.date };
+      updateEx({ ...exState, prefs });
+    }
+    return null;
+  };
+  const unlock = (u: Unlock) => {
+    if (u.kind === "supervision") return updateEx({ ...exState, qualifiedSupervision: true });
+    if (u.kind === "competence") return updateEx(setCompetences(exState, u.tokens, u.tokens.some((t) => t.startsWith("qualified_instruction")) ? "previously_trained" : "self_assessed", day.date));
+    const v = VARIANTS[u.variantId];
+    if (!v) return;
+    const t = splitTokens(v, u.tokens);
+    updateEx(declare(declare(exState, "equipment", t.equipment), "environment", t.environment));
+  };
 
   /** Ćwiczenia z wpisanym ciężarem: to, co zawodnik ZGŁOSIŁ (plan sesji jest osobno). */
   const reported = (): ConfirmRow[] => {
     const rows: ConfirmRow[] = [];
-    adapted?.blocks.forEach((b, bi) => b.items.forEach((i, ii) => {
-      const kg = Number((weights[`${bi}-${ii}`] ?? "").replace(",", "."));
+    adapted?.blocks.forEach((b) => b.items.forEach((i) => {
+      const kg = Number((weights[i.id ?? ""] ?? "").replace(",", ".")); // klucz = stabilny identyfikator pozycji
       if (!(kg > 0) || !EXERCISES[i.exerciseId]?.loaded) return;
       rows.push({ exerciseId: i.exerciseId, kg, planned: `${i.sets} × ${i.reps}`, plannedReps: firstNumber(i.reps) });
     }));
@@ -92,13 +136,21 @@ export function SessionSheet({
     const strain = strainOf(checkIn);
     const next = { ...log };
     const out: Suggestion[] = [];
+    let ex = exState;
     for (const r of rows) {
       const completion = report[r.exerciseId];
       next[r.exerciseId] = { kg: r.kg, reps: r.plannedReps, date: day.date, ...(completion ? { completion } : {}) };
       if (completion === "all") events.push({ date: day.date, type: "strength", key: r.exerciseId, value: Math.round(estimate1RM(r.kg, r.plannedReps) * 10) / 10 });
       const sug = suggestNext(r.exerciseId, r.kg, strain, found.deload, completion);
       if (sug) out.push(sug);
+      // historia wykonania osobno od planu: wariant, wersja, konwencja kg i zgłoszone wykonanie (bez zmyślania powtórzeń)
+      const pv = VARIANTS[r.exerciseId];
+      const planned = plan?.blocks.flatMap((b) => b.items).find((i) => i.variantId === r.exerciseId)?.rx ?? null;
+      ex = recordExerciseOutcome(ex, { sessionId: plan?.id ?? day.date, exerciseId: r.exerciseId, variantVersion: pv?.version ?? 1, date: day.date, planned, performed: { kg: r.kg }, loadConvention: pv?.loadConvention ?? "unknown", ...(completion ? { completion } : {}), source: "plan" });
     }
+    // pominięcie „na następny raz” wykonało się w tej sesji – zużywamy je
+    ex = consumeSkips(ex, (plan?.omitted ?? []).filter((o) => o.code === "skip_next").map((o) => o.plannedVariantId));
+    updateEx(ex);
     addEvents(events);
     setLog(next);
     saveLog(next);
@@ -110,7 +162,12 @@ export function SessionSheet({
   const decide = (sug: Suggestion, choice: Choice) => {
     const next = { ...log };
     const cur = next[sug.exerciseId];
-    if (cur) next[sug.exerciseId] = applyChoice(cur, sug, choice);
+    if (cur) {
+      next[sug.exerciseId] = applyChoice(cur, sug, choice);
+      // wybór zmienia kolejny dobór: swap → unikaj tego ćwiczenia, skip → pomiń przy następnym generowaniu
+      const pv = VARIANTS[sug.exerciseId];
+      updateEx(recordExerciseOutcome(exState, { sessionId: plan?.id ?? day.date, exerciseId: sug.exerciseId, variantVersion: pv?.version ?? 1, date: day.date, planned: null, performed: { kg: cur.kg }, loadConvention: pv?.loadConvention ?? "unknown", ...(cur.completion ? { completion: cur.completion } : {}), choice, source: "plan" }));
+    }
     setLog(next);
     saveLog(next);
     void pushWeightLog(next);
@@ -201,7 +258,11 @@ export function SessionSheet({
             {adapted.notes.map((n) => (
               <p key={n} className="mt-3 rounded-xl border border-hairline bg-canvas px-3 py-2 text-sm text-muted">{n}</p>
             ))}
-            <SessionBlocks blocks={adapted.blocks} mode={module === "sprint" ? "sequence" : "alternate"} log={log} weights={weights} onWeight={(k, v) => setWeights({ ...weights, [k]: v })} onOpen={(id, note) => setInfo({ id, note })} />
+            <SessionBlocks blocks={adapted.blocks} mode={module === "sprint" ? "sequence" : "alternate"} log={log} weights={weights} onWeight={(k, v) => setWeights({ ...weights, [k]: v })} onOpen={(id, note) => setInfo({ id, note })} onChange={(id) => setChangeMode({ kind: "item", itemId: id })} />
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setChangeMode({ kind: "add" })} className="rounded-xl bg-canvas py-2.5 text-sm">Dodaj ćwiczenie</button>
+              {plan && plan.omitted.length > 0 && <button type="button" onClick={() => setChangeMode({ kind: "omitted" })} className="rounded-xl bg-canvas py-2.5 text-sm">Pominięte: {plan.omitted.length}</button>}
+            </div>
           </>
         ) : run ? (
           <>
@@ -301,6 +362,7 @@ export function SessionSheet({
           </button>
         )}
     </Sheet>
+    {changeMode && plan && <ExerciseChangeSheet mode={changeMode} session={plan} ctx={ctx} onApply={applyOp} onUnlock={unlock} onClose={() => setChangeMode(null)} />}
     {info && <ExerciseSheet id={info.id} note={info.note} onClose={() => setInfo(null)} />}
     {tool === "stim" && <StimuliTool onClose={() => setTool(null)} />}
     {tool === "draw" && <DrawTool onClose={() => setTool(null)} />}

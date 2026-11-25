@@ -1,4 +1,7 @@
 import { EXERCISES, type Block, type SessionTemplate } from "./library";
+import { swapsFrom } from "./exercise/swaps";
+import { formatRx, prescribe } from "./exercise/rx";
+import { VARIANTS } from "./exercise/variants";
 
 export interface CheckIn {
   /** Regeneracja po wczorajszym dniu (trening, mecz): 1 = słabo, 2 = średnio, 3 = dobrze. */
@@ -43,11 +46,12 @@ export interface AdaptedSession {
   notes: string[];
 }
 
-function lighterAlternative(id: string): string {
-  const e = EXERCISES[id];
-  if (!e) return id;
-  const better = e.substitutes.find((s) => (EXERCISES[s]?.cns ?? 3) < e.cns);
-  return better ?? id;
+/** Lżejsza alternatywa: tylko zatwierdzona zamiana równoważna dla tej samej funkcji slotu (nie samo niższe cns). */
+function lighterAlternative(id: string): string | null {
+  const v = VARIANTS[id];
+  if (!v) return null;
+  const rel = swapsFrom(id).find((r) => r.scope === "equivalent_for_slot" && r.slotFn === v.functions[0] && (VARIANTS[r.to]?.cns ?? 3) < v.cns);
+  return rel ? rel.to : null;
 }
 
 function reason(c: CheckIn): string {
@@ -77,15 +81,19 @@ export function adaptSession(t: SessionTemplate, c: CheckIn, deload = false): Ad
   if (strain === "heavy") {
     blocks = blocks.map((b) => ({
       ...b,
-      items: b.items.map((i) => {
+      items: b.items.flatMap((i) => {
         const e = EXERCISES[i.exerciseId];
         if (e && e.cns === 3) {
           const alt = lighterAlternative(i.exerciseId);
-          if (alt !== i.exerciseId) return { ...i, exerciseId: alt, pctRM: undefined };
+          const v = alt ? VARIANTS[alt] : undefined;
+          if (!alt || !v) return []; // brak równoważnej, lżejszej alternatywy: pomijamy zamiast zostawiać stare serie i powtórzenia
+          // nowa recepta dla nowego ćwiczenia (serie z check-inu zostają, powtórzenia i obciążenie liczone od nowa)
+          const rx = prescribe(v, "main_stimulus", "volume");
+          return [{ exerciseId: alt, sets: i.sets, reps: formatRx(rx) }];
         }
-        return i;
+        return [i];
       }),
-    }));
+    })).filter((b) => b.items.length);
     if (blocks.length > 3) blocks = blocks.slice(0, -1);
     notes.push(`Lżejsze ćwiczenia i krótsza sesja: ${reason(c)}.`);
   }

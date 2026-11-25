@@ -17,10 +17,12 @@ interface Props {
   weights: Record<string, string>;
   onWeight: (key: string, value: string) => void;
   onOpen?: (exerciseId: string, note?: string) => void;
+  /** Zmiana ćwiczenia (zamiana, usunięcie) – dostępne tylko dla pozycji z identyfikatorem. */
+  onChange?: (itemId: string) => void;
 }
 
 /** Sesja jako ponumerowane bloki trenera: nagłówek, literki a / b / c, jedna linia „jak robić”. */
-export function SessionBlocks({ blocks, mode, log, weights, onWeight, onOpen }: Props) {
+export function SessionBlocks({ blocks, mode, log, weights, onWeight, onOpen, onChange }: Props) {
   return (
     <ol className="mt-4 flex flex-col gap-4">
       {blocks.map((b, bi) => {
@@ -36,7 +38,7 @@ export function SessionBlocks({ blocks, mode, log, weights, onWeight, onOpen }: 
             <div className="rounded-2xl bg-canvas p-3">
               {b.items.map((i, ii) => {
                 const e = EXERCISES[i.exerciseId];
-                const key = `${bi}-${ii}`;
+                const key = i.id ?? `${bi}-${ii}`;
                 const prev = log[i.exerciseId];
                 const placeholder = prev ? String(prev.next ?? prev.kg) : "kg";
                 const rm = estimatedRM(prev); // tylko z potwierdzonego wykonania wszystkich powtórzeń
@@ -50,12 +52,15 @@ export function SessionBlocks({ blocks, mode, log, weights, onWeight, onOpen }: 
                         <span className="block text-sm font-medium">{e?.name ?? i.exerciseId}</span>
                         <span className="block text-xs text-muted">
                           {i.sets} × {i.reps}
-                          {i.pctRM ? ` · ${i.pctRM[0]}–${i.pctRM[1]}% maks.${target ? ` (≈ ${target} kg)` : ""}` : ""}
+                          {i.pctRM ? ` · ${i.pctRM[0]}–${i.pctRM[1]}% maks.${target ? ` (≈ ${target} kg, orientacyjnie)` : ""}` : ""}
                           {i.note ? ` · ${i.note}` : ""}
                         </span>
                         {choiceNote(prev) && <span className="block text-xs text-ink/80">{choiceNote(prev)}</span>}
                       </span>
                     </button>
+                    {i.id && onChange && (
+                      <button type="button" onClick={() => onChange(i.id!)} className="shrink-0 rounded-lg bg-card px-2 py-1.5 text-xs text-muted" aria-label={`Zmień: ${e?.name ?? i.exerciseId}`}>Zmień</button>
+                    )}
                     {e?.loaded && (
                       <input
                         inputMode="decimal"

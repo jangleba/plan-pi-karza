@@ -91,6 +91,8 @@ export const EXERCISES: Record<string, Exercise> = Object.fromEntries(
 );
 
 export interface Item {
+  /** Stabilny identyfikator pozycji w sesji (silnik ćwiczeń); brak = klucz z pozycji. */
+  id?: string;
   exerciseId: string;
   sets: number;
   /** Tekst powtórzeń, np. "3", "30 m", "5 / stronę". */
