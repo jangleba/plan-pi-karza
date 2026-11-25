@@ -2,8 +2,9 @@ import { scoped } from "../../lib/store";
 import type { Choice, Completion, WeightLog } from "../progress";
 import type { Level } from "../types";
 import type { Equipment, Position } from "../profile";
+import { splitTokens } from "./qualify";
 import { VARIANTS } from "./variants";
-import type { AthleteContext, Competence, CompetenceSource, LoadConvention, Pref, Rx } from "./types";
+import type { AthleteContext, Competence, CompetenceSource, LoadConvention, Pref, Rx, Unlock } from "./types";
 
 /** Warstwa 4: wykonanie. Plan (`planned`), zgłoszone wykonanie (`performed`) i konwencja kg są rozdzielone. */
 export interface ExerciseEvent {
@@ -137,3 +138,22 @@ export function buildContext(s: ExerciseState, p: { age: number; level: Level; p
     weekInCycle: p.weekInCycle, minutesAvailable: p.minutesAvailable,
   };
 }
+
+/** Zastosowanie odblokowań zadeklarowanych przez zawodnika (kompetencje, sprzęt/miejsce, nadzór). Przeszkolenie specjalisty wchodzi jako `previously_trained`, nigdy jako ocena trenera. */
+export function applyUnlocks(s: ExerciseState, unlocks: Unlock[], date: string): ExerciseState {
+  let st = s;
+  for (const u of unlocks) {
+    if (u.kind === "supervision") st = { ...st, qualifiedSupervision: true };
+    else if (u.kind === "competence") st = setCompetences(st, u.tokens, u.tokens.some((t) => t.startsWith("qualified_instruction")) ? "previously_trained" : "self_assessed", date);
+    else {
+      const v = VARIANTS[u.variantId];
+      if (!v) continue;
+      const t = splitTokens(v, u.tokens);
+      st = declare(declare(st, "equipment", t.equipment), "environment", t.environment);
+    }
+  }
+  return st;
+}
+/** Odblokowania, które zawodnik może potwierdzić sam jednym dotknięciem (bez nadzoru i przeszkolenia specjalisty). */
+export const selfConfirmable = (us: Array<Unlock | undefined>): Unlock[] =>
+  us.filter((u): u is Unlock => !!u && (u.kind === "gear" || (u.kind === "competence" && !u.tokens.some((t) => t.startsWith("qualified_instruction")))));

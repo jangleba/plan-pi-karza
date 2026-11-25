@@ -108,10 +108,26 @@ export function generateSession(ctx: AthleteContext, template: SessionTemplate, 
       selections[selId] = { id: selId, itemId, slotId: slot.id, variantId: pick.v.id, code: pick.code, reasonPl: pick.reasonPl, rejected: elig.rejected.map((r) => ({ variantId: r.variantId, code: r.code })), policyVersion: POLICY_VERSION, seed: ctx.seed };
       items.push({ itemId, slot, variantId: pick.v.id, variantVersion: pick.v.version, rx, ...(same && item.note ? { note: item.note } : {}), selectionId: selId });
     });
+    // uzupełnienie z puli: za każde pominięte ćwiczenie tego bloku jeden dopuszczony ruch tego samego wzorca (nowa recepta, bez skipów zawodnika)
+    const lost = omitted.filter((o) => o.itemId.includes(`/b${bi}i`) && o.code !== "skip_next");
+    for (const o of lost) {
+      const planned = pool[o.plannedVariantId];
+      if (!planned) continue;
+      const cand = Object.values(pool)
+        .filter((v) => !used.has(v.id) && v.movementPatterns[0] === planned.movementPatterns[0] && v.roles.some((r) => r === "accessory" || r === "preparation" || r === o.slot.role) && ctx.prefs[v.id]?.mode !== "skip_next" && qualify(v, ctx).ok)
+        .sort((a, c) => a.cns - c.cns || fnv(`${ctx.seed}|${o.itemId}|${a.id}`) - fnv(`${ctx.seed}|${o.itemId}|${c.id}`) || a.id.localeCompare(c.id))[0];
+      if (!cand) continue;
+      used.add(cand.id);
+      const itemId = `${o.itemId}+fill`;
+      const selId = `sel:${itemId}`;
+      const slot: Slot = { ...o.slot, id: `${o.slot.id}+fill`, fn: cand.functions[0] ?? o.slot.fn, role: cand.roles.includes("accessory") ? "accessory" : cand.roles[0]!, preferred: [cand.id] };
+      selections[selId] = { id: selId, itemId, slotId: slot.id, variantId: cand.id, code: "backfill", reasonPl: "Uzupełnienie: pierwotne ćwiczenie odpadło, więc wzięto dopuszczony ruch tego samego wzorca.", rejected: [], policyVersion: POLICY_VERSION, seed: ctx.seed };
+      items.push({ itemId, slot, variantId: cand.id, variantVersion: cand.version, rx: prescribe(cand, slot.role, phase), selectionId: selId });
+    }
     if (items.length) blocks.push({ title: b.title, items });
   });
   const notes: string[] = [];
-  if (omitted.length) notes.push(`Pominięto ${omitted.length} ${omitted.length === 1 ? "ćwiczenie" : "ćwiczeń"}, bo nie spełniają wymagań. Możesz skrócić sesję, zmienić blok albo uzupełnić dane o sprzęcie i opanowanych ruchach.`);
+  if (omitted.length) notes.push(`Sesja ma ${blocks.reduce((a, b) => a + b.items.length, 0)} z ${template.blocks.reduce((a, b) => a + b.items.length, 0)} ćwiczeń z planu trenera – reszty nie możemy dziś bezpiecznie dobrać. W „Pominiętych” potwierdzisz, co umiesz i jaki masz sprzęt.`);
   return { id: `${opts.date}:${template.id}`, date: opts.date, templateId: template.id, module: template.module, version: 1, blocks, omitted, selections, notes, requiredFns: [...requiredFns] };
 }
 

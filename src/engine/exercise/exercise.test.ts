@@ -7,7 +7,7 @@ import { bodyweightTemplate } from "../bodyweight";
 import { adaptPlanned } from "./adaptPlan";
 import { applyExerciseChange, previewExerciseChange, swapCandidates } from "./change";
 import { allItems, generateSession, getEligibleExercises, slotFor, toBlocks } from "./generate";
-import { consumeSkips, emptyState, buildContext, lastLoad, migrateWeightLog, recordExerciseOutcome, setCompetences, declare } from "./history";
+import { applyUnlocks, selfConfirmable, consumeSkips, emptyState, buildContext, lastLoad, migrateWeightLog, recordExerciseOutcome, setCompetences, declare } from "./history";
 import { pctOfMss, reached95OfMss } from "./measure";
 import { suggestProgression } from "./progression";
 import { qualify } from "./qualify";
@@ -167,6 +167,30 @@ describe("generowanie", () => {
     const hinge = allItems(s).find((i) => i.slot.fn === "posterior_chain");
     expect(hinge && ["sl-rdl-bw", "sl-glute-bridge", "glute-bridge"]).toContain(hinge!.variantId);
     expect(slotFor(t, 3, 0, t.blocks[3]!.items[0]!)!.preferred[0]).toBe("nordic-curl");
+  });
+});
+
+describe("pełna sesja po jednym potwierdzeniu", () => {
+  const run = (t: (typeof TEMPLATES)[number], equipment: AthleteContext["equipment"]) => {
+    let st = emptyState();
+    const mk = () => generateSession(buildContext(st, { age: 16, level: "beginner", equipment, weekInCycle: 3 }), t, { date: "d", deload: false });
+    const before = allItems(mk()).length;
+    for (let i = 0; i < 4; i++) { const s = mk(); const us = selfConfirmable(s.omitted.map((o) => o.unlock)); if (!us.length) break; st = applyUnlocks(st, us, "d"); }
+    const after = mk();
+    return { before, after, total: t.blocks.reduce((a, b) => a + b.items.length, 0), st };
+  };
+  it("siła: po potwierdzeniu zostają tylko pozycje wymagające nadzoru", () => {
+    const r = run(intensity, ["gym", "bodyweight"]);
+    expect(r.after.omitted.map((o) => o.code).every((c) => c === "supervision_required")).toBe(true);
+    expect(allItems(r.after).length).toBeGreaterThanOrEqual(r.total - 2);
+    expect(r.before).toBeLessThan(allItems(r.after).length);
+    expect(Object.values(r.st.competences).every((c) => c.source === "self_assessed")).toBe(true); // nic nie jest oceną trenera
+  });
+  it("sprint działa na boisku domyślnym (miejsce i stożki w bazie) po potwierdzeniu opanowania", () => {
+    const sp = TEMPLATES.find((t) => t.id === "sprint-a")!;
+    const r = run(sp, ["bodyweight"]);
+    expect(allItems(r.after).length).toBeGreaterThanOrEqual(r.total - 2);
+    expect(r.after.omitted.every((o) => o.code === "no_setup")).toBe(true); // opór z gumą wymaga zadeklarowanego sprzętu
   });
 });
 

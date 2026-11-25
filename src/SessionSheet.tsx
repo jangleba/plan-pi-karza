@@ -15,7 +15,7 @@ import { StimuliTool } from "./tools/Stimuli";
 import { Group, ListRow } from "./ui";
 import { CueTrainer } from "./CueTrainer";
 import { ExerciseChangeSheet, type ChangeMode } from "./ExerciseChangeSheet";
-import { EXERCISES, VARIANTS, RECOVERY, RECOVERY_LIGHT, applyChoice, bodyweightTemplate, drillsFor, DRILL_GROUPS, adaptPlanned, addEvents, applyExerciseChange, buildContext, consumeSkips, declare, ensureMigrated, formatRx, generateSession, loadExerciseState, loadPlanOps, previewExerciseChange, recordExerciseOutcome, replayOps, saveExerciseState, savePlanOps, setCompetences, splitTokens, toBlocks, restSuggested, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
+import { EXERCISES, VARIANTS, RECOVERY, RECOVERY_LIGHT, applyChoice, bodyweightTemplate, drillsFor, DRILL_GROUPS, adaptPlanned, addEvents, applyUnlocks, selfConfirmable, applyExerciseChange, buildContext, consumeSkips, declare, ensureMigrated, formatRx, generateSession, loadExerciseState, loadPlanOps, previewExerciseChange, recordExerciseOutcome, replayOps, saveExerciseState, savePlanOps, setCompetences, splitTokens, toBlocks, restSuggested, estimate1RM, firstNumber, loadLog, saveLog, strainOf, suggestNext, masTestSession, mesoPhase, runSession, templateFor } from "./engine";
 import type { Equipment, Operation, StoredOp, Unlock, ExerciseState } from "./engine";
 import type { CheckIn, Drill, DrillGroup, Choice, Completion, DayPlan, HistoryEvent, Level, Mas, Position, Suggestion } from "./engine";
 
@@ -102,14 +102,7 @@ export function SessionSheet({
     }
     return null;
   };
-  const unlock = (u: Unlock) => {
-    if (u.kind === "supervision") return updateEx({ ...exState, qualifiedSupervision: true });
-    if (u.kind === "competence") return updateEx(setCompetences(exState, u.tokens, u.tokens.some((t) => t.startsWith("qualified_instruction")) ? "previously_trained" : "self_assessed", day.date));
-    const v = VARIANTS[u.variantId];
-    if (!v) return;
-    const t = splitTokens(v, u.tokens);
-    updateEx(declare(declare(exState, "equipment", t.equipment), "environment", t.environment));
-  };
+  const unlock = (input: Unlock | Unlock[]) => updateEx(applyUnlocks(exState, Array.isArray(input) ? input : [input], day.date));
 
   /** Ćwiczenia z wpisanym ciężarem: to, co zawodnik ZGŁOSIŁ (plan sesji jest osobno). */
   const reported = (): ConfirmRow[] => {
@@ -255,6 +248,12 @@ export function SessionSheet({
             <p className="text-sm text-muted">
               {adapted.name}{found?.deload ? " · rozładowanie" : ""}
             </p>
+            {plan && selfConfirmable(plan.omitted.map((o) => o.unlock)).length > 0 && (
+              <div className="mt-3 rounded-2xl border border-hairline bg-canvas p-3" role="region" aria-label="Brakujące ćwiczenia">
+                <p className="text-sm">Część ćwiczeń z planu trenera jest ukryta, bo nie wiemy, czy je umiesz i masz do nich sprzęt. Jeśli tak, potwierdź – nic nie zakładamy za Ciebie.</p>
+                <button type="button" onClick={() => unlock(selfConfirmable(plan.omitted.map((o) => o.unlock)))} className="mt-2 w-full rounded-xl bw-grad py-2.5 text-sm font-medium">Umiem to i mam sprzęt – pokaż pełną sesję</button>
+              </div>
+            )}
             {adapted.notes.map((n) => (
               <p key={n} className="mt-3 rounded-xl border border-hairline bg-canvas px-3 py-2 text-sm text-muted">{n}</p>
             ))}

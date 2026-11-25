@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Sheet } from "./Sheet";
-import { VARIANTS, allItems, previewExerciseChange, qualify, swapCandidates } from "./engine";
+import { VARIANTS, allItems, previewExerciseChange, qualify, selfConfirmable, swapCandidates } from "./engine";
 import type { AthleteContext, GeneratedSession, Operation, Unlock } from "./engine";
 
 export type ChangeMode = { kind: "item"; itemId: string } | { kind: "add" } | { kind: "omitted" };
@@ -11,13 +11,13 @@ interface Props {
   ctx: AthleteContext;
   /** Zwraca komunikat błędu albo null po powodzeniu. */
   onApply: (op: Operation, ack: boolean, remember: boolean) => string | null;
-  onUnlock: (u: Unlock) => void;
+  onUnlock: (u: Unlock | Unlock[]) => void;
   onClose: () => void;
 }
 
 const SCOPE: Record<string, string> = { equivalent_for_slot: "Ten sam cel", changes_stimulus: "Zmienia bodziec", changes_session_goal: "Zmienia cel sesji" };
 
-function UnlockButton({ u, onUnlock }: { u?: Unlock; onUnlock: (u: Unlock) => void }) {
+function UnlockButton({ u, onUnlock }: { u?: Unlock; onUnlock: (u: Unlock | Unlock[]) => void }) {
   if (!u) return null;
   const qualified = u.tokens.some((t) => t.startsWith("qualified_instruction"));
   const label = u.kind === "supervision" ? "Ćwiczę pod nadzorem trenera" : u.kind === "gear" ? "Mam ten sprzęt lub miejsce" : qualified ? "Mam przeszkolenie" : "Potwierdzam, że to umiem";
@@ -32,9 +32,14 @@ export function ExerciseChangeSheet({ mode, session, ctx, onApply, onUnlock, onC
   const run = (op: Operation, ack: boolean) => { const e = onApply(op, ack, remember); if (e) setMsg(e); else onClose(); };
 
   if (mode.kind === "omitted") {
+    // jedno dotknięcie na to, co zawodnik może sam potwierdzić; nadzór i przeszkolenie specjalisty zostają osobno
+    const bulk = selfConfirmable(session.omitted.map((o) => o.unlock));
     return (
       <Sheet title="Pominięte ćwiczenia" onClose={onClose}>
         <p className="mb-3 text-sm text-muted">Tych ćwiczeń nie ma w planie, bo nie spełniają wymagań. Jeśli to prawda, że możesz je wykonać, potwierdź to poniżej.</p>
+        {bulk.length > 1 && (
+          <button type="button" onClick={() => onUnlock(bulk)} className="mb-3 w-full rounded-2xl bw-grad py-3 text-sm font-medium">Potwierdzam wszystko z listy ({bulk.length}) – umiem to i mam sprzęt</button>
+        )}
         {session.omitted.length === 0 && <p className="text-sm text-muted">Nic nie pominięto.</p>}
         {session.omitted.map((o) => (
           <div key={o.itemId + o.code} className="mb-2 rounded-2xl bg-canvas p-3">

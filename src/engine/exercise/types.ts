@@ -98,7 +98,7 @@ export interface Selection {
   itemId: string;
   slotId: string;
   variantId: string;
-  code: "preferred" | "fallback" | "rotation" | "user_choice" | "user_added";
+  code: "preferred" | "fallback" | "rotation" | "backfill" | "user_choice" | "user_added";
   reasonPl: string;
   rejected: Array<{ variantId: string; code: string }>;
   policyVersion: number;

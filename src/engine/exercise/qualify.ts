@@ -4,11 +4,11 @@ import type { AthleteContext, ExerciseVariant, SetupOption, Unlock } from "./typ
 /**
  * Jedna kwalifikacja dla generowania, adaptacji z check-inu, dodania, zamiany i zmiany wariantu.
  * Założenia produktu (jawne, do przeglądu): profil „gym” daje standardową siłownię, „field/track” – boisko i znaczniki,
- * „bodyweight” – ścianę, matę, podparcie i stabilne podwyższenie. Podłoga i strefa lądowania są traktowane jako baza.
+ * „bodyweight” – ścianę, matę, podparcie i stabilne podwyższenie. Podłoga, strefa lądowania, kawałek płaskiego miejsca do biegu i stożki są bazą (decyzja produktu: sprint i COD działają zawsze).
  * Wszystko inne (guma z kotwą, ślizgacze, trap bar, partner, nadzór) trzeba zadeklarować – nie dopisujemy tego zawodnikowi.
  */
-export const BASE_ENV = ["suitable_floor", "non_slip_floor", "clear_landing_zone", "clear_floor_space", "compatible_floor"];
-const BASE_EQ = ["wall", "mat", "hand_support", "stable_support", "stable_platform"];
+export const BASE_ENV = ["suitable_floor", "non_slip_floor", "clear_landing_zone", "clear_floor_space", "compatible_floor", "suitable_runway", "suitable_open_area", "suitable_open_runway", "marked_runway", "measured_runway"];
+const BASE_EQ = ["wall", "mat", "hand_support", "stable_support", "stable_platform", "markers", "timer"];
 const GYM_EQ = ["barbell", "rack", "safeties", "bench", "dumbbell", "dumbbells", "kettlebell", "cable_station", "rope_attachment", "box", "hurdle", "band", "rated_anchor", "sliders", "knee_pad", "landing_pad", "rated_low_bar", "rated_pull_up_bar", "stable_bench"];
 const GYM_ENV = ["clear_lifting_zone", "clear_swing_zone"];
 const FIELD_EQ = ["markers", "timer"];
